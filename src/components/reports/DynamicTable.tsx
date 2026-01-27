@@ -8,7 +8,15 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
-import { ChevronUp, ChevronDown, Search, Filter, Settings, Eye, Maximize2, Minimize2, Trash2, Edit3, FileText, User, Calendar, CheckCircle, ExternalLink, Move, History, PlayCircle } from 'lucide-react';
+import { ChevronUp, ChevronDown, Search, Filter, Settings, Eye, Maximize2, Minimize2, Trash2, Edit3, FileText, User, Calendar, CheckCircle, ExternalLink, Move, History, PlayCircle, ChevronDown as ChevronDownIcon, Database, Zap, Download, Upload, RefreshCw, Columns } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+} from '@/components/ui/dropdown-menu';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
@@ -858,94 +866,196 @@ export function DynamicTable({
       >
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
-      <div className="space-y-1">
-        <CardTitle className="text-lg font-semibold">{config.title}</CardTitle>
-        <p className="text-xs text-muted-foreground">
-          {filteredAndSortedData.length} record{filteredAndSortedData.length !== 1 ? 's' : ''}
-        </p>
-      </div>
+            <div className="space-y-1">
+              <CardTitle className="text-lg font-semibold">{config.title}</CardTitle>
+              <p className="text-xs text-muted-foreground">
+                {filteredAndSortedData.length} record{filteredAndSortedData.length !== 1 ? 's' : ''}
+              </p>
+            </div>
 
-      <div className="flex items-center space-x-2">
-        {/* Run All Workflows Button - always visible when workflows exist */}
-        {hasWorkflows && filteredAndSortedData.length > 0 && (
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={handleRunAllWorkflows}
-          >
-            <PlayCircle className="h-4 w-4 mr-1" />
-            Run All Workflows ({filteredAndSortedData.length})
-          </Button>
-        )}
-        <Button variant="default" size="sm" onClick={() => navigate(`/form/${config.formId}`)}>
-          <FileText className="h-4 w-4 mr-1" />
-          Create Record
-        </Button>
-        <Button variant="outline" size="sm" onClick={() => setIsExpanded(!isExpanded)}>
-          {isExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-          {isExpanded ? 'Normal View' : 'Expand'}
-        </Button>
-        {onEdit && (
-          <Button variant="outline" size="sm" onClick={onEdit}>
-            <Settings className="h-4 w-4" />
-            Configure
-          </Button>
-        )}
-      </div>
-    </div>
+            <div className="flex items-center gap-2">
+              {/* Primary Action - Create Record */}
+              <Button variant="default" size="sm" onClick={() => navigate(`/form/${config.formId}`)}>
+                <FileText className="h-4 w-4 mr-1" />
+                Create Record
+              </Button>
+
+              {/* Workflows Dropdown */}
+              {hasWorkflows && filteredAndSortedData.length > 0 && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      <Zap className="h-4 w-4 mr-1" />
+                      Workflows
+                      <ChevronDown className="h-3 w-3 ml-1" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56 bg-popover">
+                    <DropdownMenuLabel>Workflow Actions</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleRunAllWorkflows}>
+                      <PlayCircle className="h-4 w-4 mr-2" />
+                      Run All Workflows ({filteredAndSortedData.length})
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+
+              {/* Data Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <Database className="h-4 w-4 mr-1" />
+                    Data
+                    <ChevronDown className="h-3 w-3 ml-1" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48 bg-popover">
+                  <DropdownMenuLabel>Data Operations</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <ExportDropdown data={exportData} formId={config.formId} formName={currentForm?.name} asSubMenu />
+                  <DropdownMenuItem onClick={() => document.getElementById('import-trigger')?.click()}>
+                    <Upload className="h-4 w-4 mr-2" />
+                    Import Data
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => document.getElementById('update-trigger')?.click()}>
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Update Records
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {/* Hidden triggers for Import and Update buttons */}
+              <div className="hidden">
+                <span id="import-trigger">
+                  <ImportButton formId={config.formId} formFields={formFields} onImportComplete={loadData} />
+                </span>
+                <span id="update-trigger">
+                  <SubmissionUpdateButton formId={config.formId} onUpdateComplete={loadData} />
+                </span>
+              </div>
+
+              {/* View Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <Eye className="h-4 w-4 mr-1" />
+                    View
+                    <ChevronDown className="h-3 w-3 ml-1" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48 bg-popover">
+                  <DropdownMenuLabel>View Options</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => document.getElementById('column-selector-trigger')?.click()}>
+                    <Columns className="h-4 w-4 mr-2" />
+                    Manage Columns
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    onClick={() => setShowColumnOrderManager(true)}
+                    disabled={selectedColumns.length === 0}
+                  >
+                    <Move className="h-4 w-4 mr-2" />
+                    Reorder Columns
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => setIsExpanded(!isExpanded)}>
+                    {isExpanded ? (
+                      <>
+                        <Minimize2 className="h-4 w-4 mr-2" />
+                        Normal View
+                      </>
+                    ) : (
+                      <>
+                        <Maximize2 className="h-4 w-4 mr-2" />
+                        Expand View
+                      </>
+                    )}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {/* Configure Button */}
+              {onEdit && (
+                <Button variant="outline" size="sm" onClick={onEdit}>
+                  <Settings className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+          </div>
 
           {/* Applied Filters */}
-          {(Object.keys(columnFilters).length > 0 || appliedFilters.length > 0) && <div className="flex flex-wrap gap-1 mb-2">
+          {(Object.keys(columnFilters).length > 0 || appliedFilters.length > 0) && (
+            <div className="flex flex-wrap gap-1 mb-2 mt-2">
               {Object.entries(columnFilters).map(([fieldId, value]) => {
-            if (!value) return null;
-            const field = displayFields.find(f => f.id === fieldId);
-            return <Badge key={fieldId} variant="secondary" className="text-xs h-5">
+                if (!value) return null;
+                const field = displayFields.find(f => f.id === fieldId);
+                return (
+                  <Badge key={fieldId} variant="secondary" className="text-xs h-5">
                     {field?.label}: {value}
                     <button className="ml-1" onClick={() => handleColumnFilter(fieldId, '')}>
                       ×
                     </button>
-                  </Badge>;
-          })}
-              {appliedFilters.map((group, index) => <Badge key={`complex-${index}`} variant="secondary" className="text-xs h-5">
+                  </Badge>
+                );
+              })}
+              {appliedFilters.map((group, index) => (
+                <Badge key={`complex-${index}`} variant="secondary" className="text-xs h-5">
                   Applied Filter {index + 1}
                   <button className="ml-1" onClick={() => setAppliedFilters(prev => prev.filter((_, i) => i !== index))}>
                     ×
                   </button>
-                </Badge>)}
-            </div>}
+                </Badge>
+              ))}
+            </div>
+          )}
 
-          {/* Compact Controls Row */}
-          <div className="flex items-center justify-between gap-2">
+          {/* Controls Row - Filters, Sort, Search */}
+          <div className="flex items-center justify-between gap-2 mt-2">
             {/* Left Side Controls */}
-            <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap">
               <SavedFiltersManager formId={config.formId} onApplyFilter={setAppliedFilters} currentFilters={appliedFilters} />
               
-              <DynamicTableColumnSelector formFields={formFields} selectedColumns={selectedColumns} onColumnToggle={handleColumnToggle} />
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowColumnOrderManager(true)}
-                disabled={selectedColumns.length === 0}
-                className="gap-2"
-              >
-                <Move className="h-4 w-4" />
-                Reorder
-              </Button>
+              {/* Hidden column selector trigger */}
+              <span id="column-selector-trigger" className="hidden">
+                <DynamicTableColumnSelector formFields={formFields} selectedColumns={selectedColumns} onColumnToggle={handleColumnToggle} />
+              </span>
 
               {config.enableFiltering && (
-                <ComplexFilter filters={complexFilters} onFiltersChange={setComplexFilters} availableFields={availableFields} formId={config.formId} onApplyFilters={handleApplyFilters} onClearFilters={handleClearFilters} />
+                <ComplexFilter 
+                  filters={complexFilters} 
+                  onFiltersChange={setComplexFilters} 
+                  availableFields={availableFields} 
+                  formId={config.formId} 
+                  onApplyFilters={handleApplyFilters} 
+                  onClearFilters={handleClearFilters} 
+                />
               )}
-           
-            </div>
 
+              {config.enableSorting && (
+                <SortingControls 
+                  availableFields={displayFields.map(f => ({ id: f.id, label: f.label }))} 
+                  sortConfigs={sortConfigs} 
+                  onAddSort={handleAddSort} 
+                  onRemoveSort={handleRemoveSort} 
+                  onToggleDirection={handleToggleDirection} 
+                />
+              )}
+            </div>
 
             {/* Right Side Controls */}
             <div className="flex items-center gap-2">
               {/* Search */}
-              {config.enableSearch && <div className="relative w-80">
+              {config.enableSearch && (
+                <div className="relative w-64">
                   <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3 w-3 text-muted-foreground" />
-                  <Input placeholder="Search..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-7 pr-8 h-8 text-xs" />
+                  <Input 
+                    placeholder="Search..." 
+                    value={searchTerm} 
+                    onChange={e => setSearchTerm(e.target.value)} 
+                    className="pl-7 pr-8 h-8 text-xs" 
+                  />
                   {searchTerm && (
                     <button
                       onClick={() => setSearchTerm('')}
@@ -954,7 +1064,8 @@ export function DynamicTable({
                       ×
                     </button>
                   )}
-                </div>}
+                </div>
+              )}
 
               {/* Auto Refresh Toggle */}
               <div className="flex items-center space-x-1 bg-muted/30 rounded-md px-2 py-1">
@@ -968,22 +1079,6 @@ export function DynamicTable({
               </div>
             </div>
           </div>
-                    <div className="flex items-center justify-between gap-2">
-
-            <div className="flex items-center gap-3 flex-wrap">
-
-              {config.enableSorting && <SortingControls availableFields={displayFields.map(f => ({
-              id: f.id,
-              label: f.label
-            }))} sortConfigs={sortConfigs} onAddSort={handleAddSort} onRemoveSort={handleRemoveSort} onToggleDirection={handleToggleDirection} />}
-
-               <ExportDropdown data={exportData} formId={config.formId} formName={currentForm?.name} />
-              
-              <SubmissionUpdateButton formId={config.formId} onUpdateComplete={loadData} />
-              
-              <ImportButton formId={config.formId} formFields={formFields} onImportComplete={loadData} />
-            </div>
-            </div>
         </CardHeader>
       
         <CardContent className="p-0 flex flex-col h-full">
