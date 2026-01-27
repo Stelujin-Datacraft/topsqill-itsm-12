@@ -7,11 +7,14 @@ import { useUnifiedAccessControl } from '@/hooks/useUnifiedAccessControl';
 import { useProject } from '@/contexts/ProjectContext';
 import { DashboardWithReports } from '@/types/dashboard';
 import NoProjectSelected from '@/components/NoProjectSelected';
+import { CreateDashboardDialog } from '@/components/dashboards/CreateDashboardDialog';
+import { Button } from '@/components/ui/button';
+import { Plus } from 'lucide-react';
 
 const Reports = () => {
   const navigate = useNavigate();
   const { dashboards, loading, migrateOrphanReports, refetchDashboards } = useDashboards();
-  const { hasPermission, checkPermissionWithAlert, loading: permissionLoading } = useUnifiedAccessControl();
+  const { hasPermission, checkPermissionWithAlert, getButtonState, loading: permissionLoading } = useUnifiedAccessControl();
   const { currentProject } = useProject();
 
   // Auto-migrate orphan reports on mount
@@ -20,6 +23,8 @@ const Reports = () => {
       migrateOrphanReports();
     }
   }, [currentProject]);
+
+  const createButtonState = getButtonState('reports', 'create');
 
   if (!currentProject) {
     return (
@@ -48,7 +53,6 @@ const Reports = () => {
     navigate(`/dashboard-view/${dashboard.id}`);
   };
 
-
   const handleDeleteDashboard = async () => {
     await refetchDashboards();
   };
@@ -58,18 +62,31 @@ const Reports = () => {
   };
 
   return (
-    <DashboardLayout title="Dashboards">
-      <div className="space-y-6">
-        <p className="text-muted-foreground">
-          Create and manage analytics dashboards with reports and visualizations
-        </p>
-        <DashboardsList
-          dashboards={dashboards}
-          onView={handleViewDashboard}
-          onDelete={handleDeleteDashboard}
-          onCreate={handleCreateDashboard}
-        />
-      </div>
+    <DashboardLayout 
+      title="Dashboards"
+      actions={
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => navigate('/data-table-builder')}>
+            Data Table Reports
+          </Button>
+          <Button variant="outline" onClick={() => navigate('/analytics-dashboard')}>
+            Form Analysis
+          </Button>
+          <CreateDashboardDialog>
+            <Button disabled={createButtonState.disabled}>
+              <Plus className="h-4 w-4 mr-2" />
+              Create Dashboard
+            </Button>
+          </CreateDashboardDialog>
+        </div>
+      }
+    >
+      <DashboardsList
+        dashboards={dashboards}
+        onView={handleViewDashboard}
+        onDelete={handleDeleteDashboard}
+        onCreate={handleCreateDashboard}
+      />
     </DashboardLayout>
   );
 };

@@ -260,15 +260,6 @@ export function MySubmissions() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold">My Submissions</h2>
-          <p className="text-muted-foreground">
-            View and manage your form submissions
-          </p>
-        </div>
-      </div>
 
       {/* Filters */}
       <Card>
