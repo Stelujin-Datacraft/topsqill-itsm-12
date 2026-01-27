@@ -32,194 +32,213 @@ const endpoints: Record<string, Endpoint[]> = {
       method: 'GET',
       path: '/forms',
       title: 'List Forms',
-      description: 'Retrieve a list of all forms accessible to this API key.',
+      description: 'Retrieve a list of all forms accessible to this API key within your organization.',
       permissions: ['forms:read'],
       queryParams: [
-        { name: 'page', type: 'number', description: 'Page number (default: 1)' },
-        { name: 'limit', type: 'number', description: 'Items per page, max 100 (default: 50)' },
         { name: 'status', type: 'string', description: 'Filter by status: active, draft, archived' },
       ],
       responseExample: `{
-  "success": true,
   "data": [
     {
       "id": "uuid",
       "name": "Customer Feedback",
+      "description": "Collect customer feedback",
       "reference_id": "CF00001234",
       "status": "active",
-      "created_at": "2025-01-15T10:00:00Z"
+      "created_at": "2025-01-15T10:00:00Z",
+      "updated_at": "2025-01-15T10:00:00Z"
     }
   ],
-  "meta": {
-    "page": 1,
-    "limit": 50,
-    "total": 25
+  "count": 1
+}`,
+    },
+    {
+      method: 'GET',
+      path: '/forms/:id',
+      title: 'Get Form Details',
+      description: 'Retrieve detailed information about a specific form including layout and pages.',
+      permissions: ['forms:read'],
+      pathParams: [
+        { name: 'id', type: 'string', description: 'Form UUID or reference_id' },
+      ],
+      responseExample: `{
+  "data": {
+    "id": "uuid",
+    "name": "Customer Feedback",
+    "description": "Collect customer feedback",
+    "reference_id": "CF00001234",
+    "status": "active",
+    "created_at": "2025-01-15T10:00:00Z",
+    "updated_at": "2025-01-15T10:00:00Z",
+    "layout": { ... },
+    "pages": [ ... ]
   }
 }`,
     },
     {
       method: 'GET',
-      path: '/forms/:formId',
-      title: 'Get Form Details',
-      description: 'Retrieve detailed information about a specific form including field definitions.',
+      path: '/forms/:id/fields',
+      title: 'Get Form Fields',
+      description: 'Retrieve all field definitions for a specific form.',
       permissions: ['forms:read'],
       pathParams: [
-        { name: 'formId', type: 'string', description: 'Form UUID or reference_id' },
+        { name: 'id', type: 'string', description: 'Form UUID or reference_id' },
       ],
       responseExample: `{
-  "success": true,
-  "data": {
-    "id": "uuid",
-    "name": "Customer Feedback",
-    "reference_id": "CF00001234",
-    "description": "Collect customer feedback",
-    "status": "active",
-    "fields": [
-      {
-        "id": "field-uuid",
-        "label": "Full Name",
-        "field_type": "text",
-        "required": true
-      }
-    ]
-  }
+  "data": [
+    {
+      "id": "field-uuid",
+      "label": "Full Name",
+      "field_type": "text",
+      "required": true,
+      "placeholder": "Enter your name",
+      "options": null,
+      "field_order": 1
+    },
+    {
+      "id": "field-uuid-2",
+      "label": "Rating",
+      "field_type": "select",
+      "required": true,
+      "options": ["Excellent", "Good", "Average", "Poor"],
+      "field_order": 2
+    }
+  ],
+  "count": 2
 }`,
+      notes: ['Use these field IDs when submitting data, or set use_labels: true to use labels instead'],
     },
   ],
   submissions: [
     {
       method: 'GET',
-      path: '/forms/:formId/submissions',
+      path: '/submissions',
       title: 'List Submissions',
-      description: 'Retrieve all submissions for a form with pagination and filtering.',
+      description: 'Retrieve submissions with optional filtering by form.',
       permissions: ['submissions:read'],
-      pathParams: [
-        { name: 'formId', type: 'string', description: 'Form UUID or reference_id' },
-      ],
       queryParams: [
-        { name: 'page', type: 'number', description: 'Page number (default: 1)' },
-        { name: 'limit', type: 'number', description: 'Items per page, max 100 (default: 50)' },
-        { name: 'sort', type: 'string', description: 'Sort field (default: submitted_at)' },
-        { name: 'order', type: 'string', description: 'Sort order: asc or desc (default: desc)' },
-        { name: 'approval_status', type: 'string', description: 'Filter by approval status' },
+        { name: 'form_id', type: 'string', description: 'Filter by form UUID' },
+        { name: 'form_ref_id', type: 'string', description: 'Filter by form reference_id' },
+        { name: 'limit', type: 'number', description: 'Items per page (default: 100)' },
+        { name: 'offset', type: 'number', description: 'Pagination offset (default: 0)' },
       ],
       responseExample: `{
-  "success": true,
   "data": [
     {
       "id": "uuid",
+      "form_id": "form-uuid",
       "submission_ref_id": "CF01150001",
       "submission_data": {
-        "Full Name": "John Doe",
-        "Email": "john@example.com"
+        "field-id-1": "John Doe",
+        "field-id-2": "Excellent"
       },
       "submitted_at": "2025-01-15T10:30:00Z",
+      "submitted_by": null,
       "approval_status": "pending"
     }
   ],
-  "meta": {
-    "page": 1,
-    "limit": 50,
-    "total": 150
+  "count": 1,
+  "limit": 100,
+  "offset": 0
+}`,
+    },
+    {
+      method: 'GET',
+      path: '/submissions/:id',
+      title: 'Get Submission',
+      description: 'Retrieve a specific submission by UUID or submission_ref_id.',
+      permissions: ['submissions:read'],
+      pathParams: [
+        { name: 'id', type: 'string', description: 'Submission UUID or submission_ref_id' },
+      ],
+      responseExample: `{
+  "data": {
+    "id": "uuid",
+    "form_id": "form-uuid",
+    "form_name": "Customer Feedback",
+    "form_reference_id": "CF00001234",
+    "submission_ref_id": "CF01150001",
+    "submission_data": {
+      "field-id-1": "John Doe",
+      "field-id-2": "Excellent"
+    },
+    "submitted_at": "2025-01-15T10:30:00Z",
+    "submitted_by": null,
+    "approval_status": "approved",
+    "approval_notes": "Approved by manager"
   }
 }`,
     },
     {
       method: 'POST',
-      path: '/forms/:formId/submissions',
+      path: '/submissions',
       title: 'Create Submission',
       description: 'Create a new submission record for a form.',
       permissions: ['submissions:create'],
-      pathParams: [
-        { name: 'formId', type: 'string', description: 'Form UUID or reference_id' },
-      ],
       bodyParams: [
-        { name: 'data', type: 'object', description: 'Field values as key-value pairs', required: true },
-        { name: 'useLabels', type: 'boolean', description: 'Use field labels instead of IDs (default: true)' },
+        { name: 'form_id', type: 'string', description: 'Form UUID (required if form_ref_id not provided)' },
+        { name: 'form_ref_id', type: 'string', description: 'Form reference_id (required if form_id not provided)' },
+        { name: 'submission_data', type: 'object', description: 'Field values as key-value pairs', required: true },
+        { name: 'use_labels', type: 'boolean', description: 'Use field labels instead of field IDs (default: false)' },
       ],
       requestExample: `{
-  "useLabels": true,
-  "data": {
+  "form_ref_id": "CF00001234",
+  "use_labels": true,
+  "submission_data": {
     "Full Name": "John Doe",
     "Email": "john@example.com",
     "Rating": "Excellent"
   }
 }`,
       responseExample: `{
-  "success": true,
   "data": {
-    "id": "uuid",
+    "id": "new-uuid",
     "submission_ref_id": "CF01150002",
     "submitted_at": "2025-01-15T10:35:00Z"
-  }
-}`,
-    },
-    {
-      method: 'GET',
-      path: '/forms/:formId/submissions/:submissionId',
-      title: 'Get Submission',
-      description: 'Retrieve a specific submission by ID.',
-      permissions: ['submissions:read'],
-      pathParams: [
-        { name: 'formId', type: 'string', description: 'Form UUID or reference_id' },
-        { name: 'submissionId', type: 'string', description: 'Submission UUID or submission_ref_id' },
-      ],
-      responseExample: `{
-  "success": true,
-  "data": {
-    "id": "uuid",
-    "submission_ref_id": "CF01150001",
-    "submission_data": {
-      "Full Name": "John Doe",
-      "Email": "john@example.com"
-    },
-    "submitted_at": "2025-01-15T10:30:00Z",
-    "approval_status": "approved"
-  }
+  },
+  "message": "Submission created successfully"
 }`,
     },
     {
       method: 'PUT',
-      path: '/forms/:formId/submissions/:submissionId',
+      path: '/submissions/:id',
       title: 'Update Submission',
-      description: 'Update an existing submission record.',
+      description: 'Update an existing submission. By default merges with existing data.',
       permissions: ['submissions:update'],
       pathParams: [
-        { name: 'formId', type: 'string', description: 'Form UUID or reference_id' },
-        { name: 'submissionId', type: 'string', description: 'Submission UUID or submission_ref_id' },
+        { name: 'id', type: 'string', description: 'Submission UUID or submission_ref_id' },
       ],
       bodyParams: [
-        { name: 'data', type: 'object', description: 'Updated field values', required: true },
-        { name: 'useLabels', type: 'boolean', description: 'Use field labels instead of IDs' },
-        { name: 'approval_status', type: 'string', description: 'Update approval status' },
+        { name: 'submission_data', type: 'object', description: 'Updated field values' },
+        { name: 'use_labels', type: 'boolean', description: 'Use field labels instead of field IDs' },
+        { name: 'merge', type: 'boolean', description: 'Merge with existing data (default: true). Set false to replace.' },
       ],
       requestExample: `{
-  "useLabels": true,
-  "data": {
+  "use_labels": true,
+  "submission_data": {
     "Rating": "Good"
   },
-  "approval_status": "approved"
+  "merge": true
 }`,
       responseExample: `{
-  "success": true,
   "data": {
     "id": "uuid",
-    "updated_at": "2025-01-15T11:00:00Z"
-  }
+    "submission_ref_id": "CF01150001",
+    "submitted_at": "2025-01-15T10:30:00Z"
+  },
+  "message": "Submission updated successfully"
 }`,
     },
     {
       method: 'DELETE',
-      path: '/forms/:formId/submissions/:submissionId',
+      path: '/submissions/:id',
       title: 'Delete Submission',
       description: 'Permanently delete a submission record.',
       permissions: ['submissions:delete'],
       pathParams: [
-        { name: 'formId', type: 'string', description: 'Form UUID or reference_id' },
-        { name: 'submissionId', type: 'string', description: 'Submission UUID or submission_ref_id' },
+        { name: 'id', type: 'string', description: 'Submission UUID or submission_ref_id' },
       ],
       responseExample: `{
-  "success": true,
   "message": "Submission deleted successfully"
 }`,
     },
@@ -231,50 +250,46 @@ const endpoints: Record<string, Endpoint[]> = {
       title: 'List Workflows',
       description: 'Retrieve a list of all workflows accessible to this API key.',
       permissions: ['workflows:read'],
-      queryParams: [
-        { name: 'status', type: 'string', description: 'Filter by status: active, draft' },
-      ],
       responseExample: `{
-  "success": true,
   "data": [
     {
       "id": "uuid",
       "name": "Approval Workflow",
+      "description": "Automated approval process",
       "reference_id": "AW00001234",
       "status": "active",
+      "trigger_type": "form_submission",
       "created_at": "2025-01-10T08:00:00Z"
     }
-  ]
+  ],
+  "count": 1
 }`,
     },
     {
       method: 'POST',
-      path: '/workflows/:workflowId/trigger',
+      path: '/workflows/:id/trigger',
       title: 'Trigger Workflow',
-      description: 'Manually trigger a workflow execution with optional input data.',
+      description: 'Manually trigger a workflow execution for a specific submission.',
       permissions: ['workflows:trigger'],
       pathParams: [
-        { name: 'workflowId', type: 'string', description: 'Workflow UUID or reference_id' },
+        { name: 'id', type: 'string', description: 'Workflow UUID or reference_id' },
       ],
       bodyParams: [
-        { name: 'submissionId', type: 'string', description: 'Submission to process' },
-        { name: 'inputData', type: 'object', description: 'Additional input parameters' },
+        { name: 'submission_id', type: 'string', description: 'Submission UUID (required if submission_ref_id not provided)' },
+        { name: 'submission_ref_id', type: 'string', description: 'Submission reference_id (required if submission_id not provided)' },
       ],
       requestExample: `{
-  "submissionId": "submission-uuid",
-  "inputData": {
-    "priority": "high",
-    "assignTo": "user@example.com"
-  }
+  "submission_ref_id": "CF01150001"
 }`,
       responseExample: `{
-  "success": true,
   "data": {
-    "execution_id": "uuid",
-    "status": "started",
-    "started_at": "2025-01-15T12:00:00Z"
-  }
+    "id": "execution-uuid",
+    "status": "pending",
+    "created_at": "2025-01-15T12:00:00Z"
+  },
+  "message": "Workflow \\"Approval Workflow\\" triggered successfully"
 }`,
+      notes: ['Workflow must be in "active" status to be triggered', 'Returns HTTP 202 Accepted'],
     },
   ],
   reports: [
@@ -285,40 +300,18 @@ const endpoints: Record<string, Endpoint[]> = {
       description: 'Retrieve a list of all reports accessible to this API key.',
       permissions: ['reports:read'],
       responseExample: `{
-  "success": true,
   "data": [
     {
       "id": "uuid",
       "name": "Monthly Summary",
+      "description": "Monthly submission summary report",
       "reference_id": "MS00001234",
       "created_at": "2025-01-01T00:00:00Z"
     }
-  ]
+  ],
+  "count": 1
 }`,
-    },
-    {
-      method: 'GET',
-      path: '/reports/:reportId',
-      title: 'Get Report Data',
-      description: 'Retrieve report configuration and latest data.',
-      permissions: ['reports:read'],
-      pathParams: [
-        { name: 'reportId', type: 'string', description: 'Report UUID or reference_id' },
-      ],
-      responseExample: `{
-  "success": true,
-  "data": {
-    "id": "uuid",
-    "name": "Monthly Summary",
-    "description": "Monthly submission summary",
-    "components": [
-      {
-        "type": "chart",
-        "config": { ... }
-      }
-    ]
-  }
-}`,
+      notes: ['Report data/charts are not available via API - only metadata'],
     },
   ],
 };
