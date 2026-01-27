@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { LayoutDashboard, Calendar, Eye, Edit, Trash2, Plus, FileText } from 'lucide-react';
+import { LayoutDashboard, Calendar, Eye, Edit, Trash2, FileText, Plus } from 'lucide-react';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
@@ -93,38 +93,6 @@ export function DashboardsList({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold">Dashboards</h2>
-          <p className="text-muted-foreground">
-            Create and manage your analytics dashboards with reports
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => navigate('/data-table-builder')}>
-            Data Table Reports
-          </Button>
-          <Button variant="outline" onClick={() => navigate('/analytics-dashboard')}>
-            Form Analysis
-          </Button>
-          {createButtonState.disabled ? (
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div>
-                    <CreateDashboardButton />
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>{createButtonState.tooltip}</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          ) : (
-            <CreateDashboardButton />
-          )}
-        </div>
-      </div>
 
       {dashboards.length === 0 ? (
         <Card>
