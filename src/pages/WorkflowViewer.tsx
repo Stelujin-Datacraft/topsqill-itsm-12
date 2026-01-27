@@ -150,9 +150,26 @@ const WorkflowViewerPage = () => {
     }
   };
 
+  const headerActions = (
+    <div className="flex items-center gap-2">
+      <Button variant="outline" size="sm" onClick={handleCopyLink}>
+        <Copy className="h-4 w-4 mr-2" />
+        Copy Link
+      </Button>
+      <Button variant="outline" size="sm" onClick={() => navigate(`/workflow-designer/${id}`)}>
+        <Edit className="h-4 w-4 mr-2" />
+        Edit Workflow
+      </Button>
+      <Button variant="outline" onClick={() => navigate('/workflows')}>
+        <ArrowLeft className="h-4 w-4 mr-2" />
+        Back to Workflows
+      </Button>
+    </div>
+  );
+
   if (loading) {
     return (
-      <DashboardLayout title="Workflow Viewer">
+      <DashboardLayout title="Workflow Viewer" actions={headerActions}>
         <div className="flex items-center justify-center h-64">
           <div className="text-muted-foreground">Loading workflow...</div>
         </div>
@@ -162,13 +179,9 @@ const WorkflowViewerPage = () => {
 
   if (!workflow) {
     return (
-      <DashboardLayout title="Workflow Viewer">
+      <DashboardLayout title="Workflow Not Found" actions={headerActions}>
         <div className="text-center py-12">
-          <p className="text-muted-foreground">Workflow not found</p>
-          <Button onClick={() => navigate('/workflows')} className="mt-4">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Workflows
-          </Button>
+          <p className="text-muted-foreground">The workflow you're looking for doesn't exist or you don't have access to it.</p>
         </div>
       </DashboardLayout>
     );
@@ -176,30 +189,14 @@ const WorkflowViewerPage = () => {
 
   return (
     <DashboardLayout 
-      title=""
-      actions={
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={handleCopyLink}>
-            <Copy className="h-4 w-4 mr-2" />
-            Copy Link
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => navigate(`/workflow-designer/${id}`)}>
-            <Edit className="h-4 w-4 mr-2" />
-            Edit Workflow
-          </Button>
-          <Button variant="outline" onClick={() => navigate('/workflows')}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Workflows
-          </Button>
-        </div>
-      }
+      title={workflow.name}
+      actions={headerActions}
     >
       <div className="space-y-6">
-        {/* Header */}
+        {/* Header Info */}
         <div className="flex items-start justify-between">
           <div className="space-y-1">
             <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold">{workflow.name}</h1>
               {getStatusBadge(workflow.status)}
             </div>
             {workflow.description && (
