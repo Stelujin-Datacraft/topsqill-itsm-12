@@ -70,6 +70,7 @@ export default function DataFeeds() {
         onExecute={executeFeed}
         onToggleActive={toggleFeedActive}
         onDelete={deleteFeed}
+        onCreateClick={handleCreateClick}
       />
 
       <DataFeedDialog
