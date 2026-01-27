@@ -5,27 +5,22 @@ import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 
 const ApiIntegration: React.FC = () => {
-  const [openCreateDialog, setOpenCreateDialog] = useState<(() => void) | null>(null);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
 
   return (
     <DashboardLayout 
       title="API Integration" 
       description="Manage API keys and external integrations"
       actions={
-        <Button onClick={() => openCreateDialog?.()}>
+        <Button onClick={() => setShowCreateDialog(true)}>
           <Plus className="h-4 w-4 mr-2" />
           Create API Key
         </Button>
       }
     >
       <ApiKeyManagement 
-        renderHeaderButton={(openDialog) => {
-          // Capture the openDialog function for the header button
-          if (!openCreateDialog) {
-            setTimeout(() => setOpenCreateDialog(() => openDialog), 0);
-          }
-          return null;
-        }}
+        showCreateDialog={showCreateDialog}
+        onCreateDialogChange={setShowCreateDialog}
       />
     </DashboardLayout>
   );
