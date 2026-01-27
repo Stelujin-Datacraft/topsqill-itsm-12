@@ -26,10 +26,19 @@ const PERMISSION_OPTIONS = {
   reports: ['read', 'create', 'update', 'delete']
 };
 
-export function ApiKeyManagement() {
+interface ApiKeyManagementProps {
+  showCreateDialog?: boolean;
+  onCreateDialogChange?: (open: boolean) => void;
+}
+
+export function ApiKeyManagement({ showCreateDialog: externalShowCreate, onCreateDialogChange }: ApiKeyManagementProps = {}) {
   const navigate = useNavigate();
   const { apiKeys, requestLogs, loading, createApiKey, updateApiKey, deleteApiKey, revokeApiKey, fetchRequestLogs } = useApiKeys();
-  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [internalShowCreate, setInternalShowCreate] = useState(false);
+  
+  // Use external state if provided, otherwise internal
+  const showCreateDialog = externalShowCreate !== undefined ? externalShowCreate : internalShowCreate;
+  const setShowCreateDialog = onCreateDialogChange || setInternalShowCreate;
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [editingKey, setEditingKey] = useState<ApiKey | null>(null);
   const [selectedKey, setSelectedKey] = useState<ApiKey | null>(null);
@@ -221,21 +230,7 @@ export function ApiKeyManagement() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold">API Integration</h2>
-          <p className="text-muted-foreground">
-            Manage API keys for external system integrations
-          </p>
-        </div>
-        <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Create API Key
-            </Button>
-          </DialogTrigger>
+      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Create New API Key</DialogTitle>
@@ -346,7 +341,6 @@ export function ApiKeyManagement() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      </div>
 
       {/* New Key Display */}
       {newKeyValue && (
