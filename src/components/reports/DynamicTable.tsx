@@ -874,12 +874,6 @@ export function DynamicTable({
             </div>
 
             <div className="flex items-center gap-2">
-              {/* Primary Action - Create Record */}
-              <Button variant="default" size="sm" onClick={() => navigate(`/form/${config.formId}`)}>
-                <FileText className="h-4 w-4 mr-1" />
-                Create Record
-              </Button>
-
               {/* Workflows Dropdown */}
               {hasWorkflows && filteredAndSortedData.length > 0 && (
                 <DropdownMenu>
@@ -959,29 +953,31 @@ export function DynamicTable({
                     <Move className="h-4 w-4 mr-2" />
                     Reorder Columns
                   </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => setIsExpanded(!isExpanded)}>
-                    {isExpanded ? (
-                      <>
-                        <Minimize2 className="h-4 w-4 mr-2" />
-                        Normal View
-                      </>
-                    ) : (
-                      <>
-                        <Maximize2 className="h-4 w-4 mr-2" />
-                        Expand View
-                      </>
-                    )}
-                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
 
+              {/* Expand/Collapse Button */}
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setIsExpanded(!isExpanded)}
+                title={isExpanded ? 'Normal View' : 'Expand View'}
+              >
+                {isExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+              </Button>
+
               {/* Configure Button */}
               {onEdit && (
-                <Button variant="outline" size="sm" onClick={onEdit}>
+                <Button variant="outline" size="sm" onClick={onEdit} title="Configure">
                   <Settings className="h-4 w-4" />
                 </Button>
               )}
+
+              {/* Primary Action - Create Record (right side) */}
+              <Button variant="default" size="sm" onClick={() => navigate(`/form/${config.formId}`)}>
+                <FileText className="h-4 w-4 mr-1" />
+                Create Record
+              </Button>
             </div>
           </div>
 
