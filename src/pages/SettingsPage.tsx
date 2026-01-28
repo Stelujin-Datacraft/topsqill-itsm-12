@@ -14,14 +14,19 @@ import {
   Clock,
   ArrowRight,
   Zap,
-  ArrowLeft,
-  Shield
+  BarChart2,
+  ChevronDown
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProject } from '@/contexts/ProjectContext';
 import DashboardLayout from '@/components/DashboardLayout';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface Stats {
   totalConfigs: number;
@@ -101,66 +106,82 @@ export default function SettingsPage() {
     }
   };
 
-  const StatCard = ({ 
-    icon: Icon, 
-    label, 
-    value, 
-    subValue
-  }: { 
-    icon: React.ElementType; 
-    label: string; 
-    value: number; 
-    subValue?: string;
-  }) => (
-    <Card className="hover:shadow-md transition-shadow">
-      <CardContent className="p-6">
-        <div className="flex items-center justify-between">
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-muted-foreground">{label}</p>
-            <div className="flex items-baseline gap-2">
-              <p className="text-3xl font-bold">{value}</p>
-              {subValue && (
-                <span className="text-sm text-muted-foreground">{subValue}</span>
-              )}
-            </div>
-          </div>
-          <div className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center">
-            <Icon className="h-6 w-6 text-muted-foreground" />
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-
   return (
-    <DashboardLayout title="Email Configuration" description="Manage SMTP settings and email templates for your organization">
-      <div className="space-y-8 max-w-7xl">
-
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard 
-          icon={Server} 
-          label="SMTP Configurations" 
-          value={stats.totalConfigs}
-          subValue={`${stats.activeConfigs} active`}
-        />
-        <StatCard 
-          icon={FileText} 
-          label="Email Templates" 
-          value={stats.totalTemplates}
-          subValue={`${stats.activeTemplates} active`}
-        />
-        <StatCard 
-          icon={Send} 
-          label="Emails Today" 
-          value={stats.emailsSentToday}
-        />
-        <StatCard 
-          icon={Activity} 
-          label="Emails This Month" 
-          value={stats.emailsSentThisMonth}
-        />
-      </div>
+    <DashboardLayout 
+      title="Email Configuration" 
+      description="Manage SMTP settings and email templates for your organization"
+      actions={
+        <div className="flex items-center gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                <BarChart2 className="h-4 w-4 mr-2" />
+                Data Analytics
+                <ChevronDown className="h-4 w-4 ml-2" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-64 bg-background border border-border shadow-lg z-50">
+              <div className="px-3 py-2 border-b border-border">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Email Statistics</p>
+              </div>
+              <div className="p-2 space-y-1">
+                <div className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-muted/50">
+                  <div className="flex items-center gap-2">
+                    <Server className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm">SMTP Configs</span>
+                  </div>
+                  <Badge variant="secondary" className="font-semibold">{stats.totalConfigs}</Badge>
+                </div>
+                <div className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-muted/50">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                    <span className="text-sm">Active Configs</span>
+                  </div>
+                  <Badge variant="secondary" className="font-semibold bg-emerald-500/10 text-emerald-600">{stats.activeConfigs}</Badge>
+                </div>
+                <div className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-muted/50">
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm">Templates</span>
+                  </div>
+                  <Badge variant="secondary" className="font-semibold">{stats.totalTemplates}</Badge>
+                </div>
+                <div className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-muted/50">
+                  <div className="flex items-center gap-2">
+                    <Zap className="h-4 w-4 text-emerald-500" />
+                    <span className="text-sm">Active Templates</span>
+                  </div>
+                  <Badge variant="secondary" className="font-semibold bg-emerald-500/10 text-emerald-600">{stats.activeTemplates}</Badge>
+                </div>
+                <div className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-muted/50">
+                  <div className="flex items-center gap-2">
+                    <Send className="h-4 w-4 text-primary" />
+                    <span className="text-sm">Emails Today</span>
+                  </div>
+                  <Badge variant="secondary" className="font-semibold bg-primary/10 text-primary">{stats.emailsSentToday}</Badge>
+                </div>
+                <div className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-muted/50">
+                  <div className="flex items-center gap-2">
+                    <Activity className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm">Emails This Month</span>
+                  </div>
+                  <Badge variant="secondary" className="font-semibold">{stats.emailsSentThisMonth}</Badge>
+                </div>
+              </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button size="sm" variant="outline" onClick={() => navigate('/email-templates')}>
+            <FileText className="h-4 w-4 mr-2" />
+            Templates
+          </Button>
+          <Button size="sm" onClick={() => navigate('/email-config')}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add SMTP Config
+          </Button>
+        </div>
+      }
+    >
+      <div className="space-y-6 max-w-7xl">
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
