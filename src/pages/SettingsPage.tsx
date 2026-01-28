@@ -170,9 +170,9 @@ export default function SettingsPage() {
               </div>
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button size="sm" variant="outline" onClick={() => navigate('/email-templates')}>
-            <FileText className="h-4 w-4 mr-2" />
-            Templates
+          <Button size="sm" onClick={() => navigate('/email-templates')}>
+            <Plus className="h-4 w-4 mr-2" />
+            Create Template
           </Button>
           <Button size="sm" onClick={() => navigate('/email-config')}>
             <Plus className="h-4 w-4 mr-2" />
