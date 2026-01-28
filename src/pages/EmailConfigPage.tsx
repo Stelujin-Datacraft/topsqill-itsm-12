@@ -6,12 +6,17 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Trash2, Plus, Mail, Server, TestTube } from 'lucide-react';
+import { Trash2, Plus, Mail, Server, TestTube, ChevronDown, BarChart2, CheckCircle, XCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
 import DashboardLayout from '@/components/DashboardLayout';
 import { TestEmailDialog } from '@/components/email/TestEmailDialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface SMTPConfig {
   id: string;
@@ -200,17 +205,69 @@ export default function EmailConfigPage() {
     );
   }
 
+  // Stats for dropdown
+  const totalConfigs = configs.length;
+  const activeConfigs = configs.filter(c => c.is_active).length;
+  const inactiveConfigs = configs.filter(c => !c.is_active).length;
+  const defaultConfigs = configs.filter(c => c.is_default).length;
+
   return (
     <DashboardLayout 
       title="Email Configuration"
-    >
-      <div className="space-y-6">
-        <div className="flex justify-end">
-          <Button onClick={() => setIsCreating(true)}>
+      actions={
+        <div className="flex items-center gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                <BarChart2 className="h-4 w-4 mr-2" />
+                Data Analytics
+                <ChevronDown className="h-4 w-4 ml-2" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56 bg-background border border-border shadow-lg z-50">
+              <div className="px-3 py-2 border-b border-border">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">SMTP Statistics</p>
+              </div>
+              <div className="p-2 space-y-1">
+                <div className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-muted/50">
+                  <div className="flex items-center gap-2">
+                    <Server className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm">Total Configs</span>
+                  </div>
+                  <Badge variant="secondary" className="font-semibold">{totalConfigs}</Badge>
+                </div>
+                <div className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-muted/50">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-emerald-500" />
+                    <span className="text-sm">Active</span>
+                  </div>
+                  <Badge variant="secondary" className="font-semibold bg-emerald-500/10 text-emerald-600">{activeConfigs}</Badge>
+                </div>
+                <div className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-muted/50">
+                  <div className="flex items-center gap-2">
+                    <XCircle className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm">Inactive</span>
+                  </div>
+                  <Badge variant="secondary" className="font-semibold">{inactiveConfigs}</Badge>
+                </div>
+                <div className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-muted/50">
+                  <div className="flex items-center gap-2">
+                    <Mail className="h-4 w-4 text-primary" />
+                    <span className="text-sm">Default</span>
+                  </div>
+                  <Badge variant="secondary" className="font-semibold bg-primary/10 text-primary">{defaultConfigs}</Badge>
+                </div>
+              </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button size="sm" onClick={() => setIsCreating(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Add SMTP Config
           </Button>
         </div>
+      }
+    >
+      <div className="space-y-6">
 
         {/* Existing Configurations */}
         <div className="grid gap-4">

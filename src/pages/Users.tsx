@@ -17,7 +17,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Search, Trash2, UserPlus, Users as UsersIcon, UserCheck, UserX, UserMinus, Clock, Shield, User, ChevronDown, Upload, RefreshCw, Mail } from 'lucide-react';
+import { Search, Trash2, UserPlus, Users as UsersIcon, UserCheck, UserX, UserMinus, Clock, Shield, User, ChevronDown, Upload, RefreshCw, Mail, BarChart2 } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -200,142 +200,123 @@ const Users = () => {
   }
 
   return (
-    <DashboardLayout title="Team Members" description="Manage your organization's team members">
-      <div className="space-y-6">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-          <Card className="hover:shadow-md transition-shadow">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="space-y-2">
-                  <p className="text-sm font-medium text-muted-foreground">Total Members</p>
-                  <p className="text-3xl font-bold">{totalUsers}</p>
+    <DashboardLayout 
+      title="Team Members" 
+      description="Manage your organization's team members"
+      actions={
+        <div className="flex flex-wrap items-center gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                <BarChart2 className="h-4 w-4 mr-2" />
+                Data Analytics
+                <ChevronDown className="h-4 w-4 ml-2" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56 bg-background border border-border shadow-lg z-50">
+              <div className="px-3 py-2 border-b border-border">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Team Statistics</p>
+              </div>
+              <div className="p-2 space-y-1">
+                <div className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-muted/50">
+                  <div className="flex items-center gap-2">
+                    <UsersIcon className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm">Total Members</span>
+                  </div>
+                  <Badge variant="secondary" className="font-semibold">{totalUsers}</Badge>
                 </div>
-                <div className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center">
-                  <UsersIcon className="h-6 w-6 text-muted-foreground" />
+                <div className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-muted/50">
+                  <div className="flex items-center gap-2">
+                    <UserCheck className="h-4 w-4 text-emerald-500" />
+                    <span className="text-sm">Active</span>
+                  </div>
+                  <Badge variant="secondary" className="font-semibold bg-emerald-500/10 text-emerald-600">{activeUsers}</Badge>
+                </div>
+                <div className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-muted/50">
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-amber-500" />
+                    <span className="text-sm">Pending</span>
+                  </div>
+                  <Badge variant="secondary" className="font-semibold bg-amber-500/10 text-amber-600">{pendingUsers}</Badge>
+                </div>
+                <div className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-muted/50">
+                  <div className="flex items-center gap-2">
+                    <UserMinus className="h-4 w-4 text-destructive" />
+                    <span className="text-sm">Inactive</span>
+                  </div>
+                  <Badge variant="secondary" className="font-semibold bg-destructive/10 text-destructive">{inactiveUsers}</Badge>
+                </div>
+                <DropdownMenuSeparator />
+                <div className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-muted/50">
+                  <div className="flex items-center gap-2">
+                    <User className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm">Users</span>
+                  </div>
+                  <Badge variant="secondary" className="font-semibold">{regularUsers}</Badge>
+                </div>
+                <div className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-muted/50">
+                  <div className="flex items-center gap-2">
+                    <Shield className="h-4 w-4 text-primary" />
+                    <span className="text-sm">Admins</span>
+                  </div>
+                  <Badge variant="secondary" className="font-semibold bg-primary/10 text-primary">{adminUsers}</Badge>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-          <Card className="hover:shadow-md transition-shadow">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="space-y-2">
-                  <p className="text-sm font-medium text-muted-foreground">Active</p>
-                  <p className="text-3xl font-bold">{activeUsers}</p>
-                </div>
-                <div className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center">
-                  <UserCheck className="h-6 w-6 text-muted-foreground" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="hover:shadow-md transition-shadow">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="space-y-2">
-                  <p className="text-sm font-medium text-muted-foreground">Pending</p>
-                  <p className="text-3xl font-bold">{pendingUsers}</p>
-                </div>
-                <div className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center">
-                  <Clock className="h-6 w-6 text-muted-foreground" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="hover:shadow-md transition-shadow">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="space-y-2">
-                  <p className="text-sm font-medium text-muted-foreground">Inactive</p>
-                  <p className="text-3xl font-bold">{inactiveUsers}</p>
-                </div>
-                <div className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center">
-                  <UserMinus className="h-6 w-6 text-muted-foreground" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="hover:shadow-md transition-shadow">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="space-y-2">
-                  <p className="text-sm font-medium text-muted-foreground">Users</p>
-                  <p className="text-3xl font-bold">{regularUsers}</p>
-                </div>
-                <div className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center">
-                  <User className="h-6 w-6 text-muted-foreground" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="hover:shadow-md transition-shadow">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="space-y-2">
-                  <p className="text-sm font-medium text-muted-foreground">Admins</p>
-                  <p className="text-3xl font-bold">{adminUsers}</p>
-                </div>
-                <div className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center">
-                  <Shield className="h-6 w-6 text-muted-foreground" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button size="sm" variant="outline" onClick={() => setTemplatesManagerOpen(true)}>
+            <Shield className="h-4 w-4 mr-2" />
+            Security Templates
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm">
+                <UserPlus className="h-4 w-4 mr-2" />
+                Create
+                <ChevronDown className="h-4 w-4 ml-2" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48 bg-background border border-border shadow-lg z-50">
+              <DropdownMenuItem onClick={() => setIsCreateOpen(true)} className="cursor-pointer">
+                <UserPlus className="h-4 w-4 mr-2" />
+                Create User
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setIsInviteOpen(true)} className="cursor-pointer">
+                <Mail className="h-4 w-4 mr-2" />
+                Invite User
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setIsImportOpen(true)} className="cursor-pointer">
+                <Upload className="h-4 w-4 mr-2" />
+                Import Users
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setIsUpdateOpen(true)} className="cursor-pointer">
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Update Users
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setIsRequestsOpen(true)} className="cursor-pointer">
+                <Clock className="h-4 w-4 mr-2" />
+                Pending Requests
+                {requests.length > 0 && (
+                  <Badge variant="secondary" className="ml-2 h-5 min-w-5 px-1.5 flex items-center justify-center text-xs bg-primary/10 text-primary border-0">
+                    {requests.length}
+                  </Badge>
+                )}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
+      }
+    >
+      <div className="space-y-6">
 
         {/* Main Content */}
         <Card className="border-border/40 shadow-sm">
           <CardHeader className="border-b border-border/40 pb-5">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div>
-                <CardTitle className="text-xl font-semibold">Members</CardTitle>
-                <CardDescription className="mt-1">Manage your organization's team members</CardDescription>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <Button size="sm" onClick={() => setTemplatesManagerOpen(true)} className="shadow-sm bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20">
-                  <Shield className="h-4 w-4 mr-2" />
-                  Security Templates
-                </Button>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button size="sm" className="shadow-sm">
-                      <UserPlus className="h-4 w-4 mr-2" />
-                      Create
-                      <ChevronDown className="h-4 w-4 ml-2" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48 bg-background border border-border shadow-lg z-50">
-                    <DropdownMenuItem onClick={() => setIsCreateOpen(true)} className="cursor-pointer">
-                      <UserPlus className="h-4 w-4 mr-2" />
-                      Create User
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setIsInviteOpen(true)} className="cursor-pointer">
-                      <Mail className="h-4 w-4 mr-2" />
-                      Invite User
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => setIsImportOpen(true)} className="cursor-pointer">
-                      <Upload className="h-4 w-4 mr-2" />
-                      Import Users
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setIsUpdateOpen(true)} className="cursor-pointer">
-                      <RefreshCw className="h-4 w-4 mr-2" />
-                      Update Users
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => setIsRequestsOpen(true)} className="cursor-pointer">
-                      <Clock className="h-4 w-4 mr-2" />
-                      Pending Requests
-                      {requests.length > 0 && (
-                        <Badge variant="secondary" className="ml-2 h-5 min-w-5 px-1.5 flex items-center justify-center text-xs bg-primary/10 text-primary border-0">
-                          {requests.length}
-                        </Badge>
-                      )}
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
+            <div>
+              <CardTitle className="text-xl font-semibold">Members</CardTitle>
+              <CardDescription className="mt-1">{filteredUsers.length} member{filteredUsers.length !== 1 ? 's' : ''} in your organization</CardDescription>
             </div>
           </CardHeader>
           <CardContent className="p-0">
