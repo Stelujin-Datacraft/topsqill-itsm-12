@@ -270,24 +270,23 @@ console.log(data);`,
 }`,
       notes: ['This action is irreversible', 'All submissions associated with this form will also be deleted'],
     },
-  ],
-  submissions: [
     {
       method: 'GET',
-      path: '/submissions',
-      title: 'List Submissions',
-      description: 'Retrieve submissions with optional filtering by form.',
+      path: '/forms/:id/records',
+      title: 'Get Form Records',
+      description: 'Retrieve all records (submissions) for a specific form. This is the recommended way to fetch form data.',
       permissions: ['submissions:read'],
+      pathParams: [
+        { name: 'id', type: 'string', description: 'Form UUID or reference_id' },
+      ],
       queryParams: [
-        { name: 'form_id', type: 'string', description: 'Filter by form UUID' },
-        { name: 'form_ref_id', type: 'string', description: 'Filter by form reference_id' },
-        { name: 'limit', type: 'number', description: 'Items per page (default: 100)' },
+        { name: 'limit', type: 'number', description: 'Items per page (default: 100, max: 1000)' },
         { name: 'offset', type: 'number', description: 'Pagination offset (default: 0)' },
       ],
-      curlExample: `curl -X GET '${BASE_URL}/submissions?form_ref_id=CF00001234&limit=50' \\
+      curlExample: `curl -X GET '${BASE_URL}/forms/CF00001234/records?limit=50' \\
   -H 'x-api-key: tsk_your_api_key_here'`,
       jsExample: `const response = await fetch(
-  '${BASE_URL}/submissions?form_ref_id=CF00001234&limit=50',
+  '${BASE_URL}/forms/CF00001234/records?limit=50',
   {
     headers: { 'x-api-key': 'tsk_your_api_key_here' }
   }
@@ -295,10 +294,117 @@ console.log(data);`,
 const data = await response.json();
 console.log(data);`,
       responseExample: `{
+  "form": {
+    "id": "form-uuid",
+    "name": "Customer Feedback",
+    "reference_id": "CF00001234"
+  },
+  "data": [
+    {
+      "id": "record-uuid",
+      "submission_ref_id": "CF01150001",
+      "submission_data": {
+        "field-id-1": "John Doe",
+        "field-id-2": "Excellent"
+      },
+      "submitted_at": "2025-01-15T10:30:00Z",
+      "submitted_by": null,
+      "approval_status": "pending"
+    }
+  ],
+  "count": 1,
+  "total": 150,
+  "limit": 50,
+  "offset": 0
+}`,
+      notes: ['Use form UUID or reference_id in the path', 'Returns form metadata along with records', 'Use limit and offset for pagination'],
+    },
+    {
+      method: 'GET',
+      path: '/forms/:id/records/:recordId',
+      title: 'Get Specific Record',
+      description: 'Retrieve a specific record from a form by record ID or submission_ref_id.',
+      permissions: ['submissions:read'],
+      pathParams: [
+        { name: 'id', type: 'string', description: 'Form UUID or reference_id' },
+        { name: 'recordId', type: 'string', description: 'Record UUID or submission_ref_id' },
+      ],
+      curlExample: `curl -X GET '${BASE_URL}/forms/CF00001234/records/CF01150001' \\
+  -H 'x-api-key: tsk_your_api_key_here'`,
+      jsExample: `const response = await fetch(
+  '${BASE_URL}/forms/CF00001234/records/CF01150001',
+  {
+    headers: { 'x-api-key': 'tsk_your_api_key_here' }
+  }
+);
+const data = await response.json();
+console.log(data);`,
+      responseExample: `{
+  "form": {
+    "id": "form-uuid",
+    "name": "Customer Feedback",
+    "reference_id": "CF00001234"
+  },
+  "data": {
+    "id": "record-uuid",
+    "submission_ref_id": "CF01150001",
+    "submission_data": {
+      "field-id-1": "John Doe",
+      "field-id-2": "Excellent"
+    },
+    "submitted_at": "2025-01-15T10:30:00Z",
+    "submitted_by": null,
+    "approval_status": "approved",
+    "approval_notes": "Approved by manager"
+  }
+}`,
+      notes: ['Use form UUID or reference_id in the path', 'Use record UUID or submission_ref_id to identify the record'],
+    },
+  ],
+  submissions: [
+    {
+      method: 'GET',
+      path: '/submissions',
+      title: 'List Submissions',
+      description: 'Retrieve submissions across all forms or filtered by a specific form. Use form_id (UUID) or form_ref_id (reference ID) to filter. For a cleaner API, consider using GET /forms/:id/records instead.',
+      permissions: ['submissions:read'],
+      queryParams: [
+        { name: 'form_id', type: 'string', description: 'Filter by form UUID or reference_id', required: false },
+        { name: 'form_ref_id', type: 'string', description: 'Filter by form reference_id (alternative to form_id)', required: false },
+        { name: 'limit', type: 'number', description: 'Items per page (default: 100, max: 1000)' },
+        { name: 'offset', type: 'number', description: 'Pagination offset (default: 0)' },
+      ],
+      curlExample: `# Using form UUID
+curl -X GET '${BASE_URL}/submissions?form_id=550e8400-e29b-41d4-a716-446655440000&limit=50' \\
+  -H 'x-api-key: tsk_your_api_key_here'
+
+# Using form reference_id
+curl -X GET '${BASE_URL}/submissions?form_ref_id=CF00001234&limit=50' \\
+  -H 'x-api-key: tsk_your_api_key_here'`,
+      jsExample: `// Using form UUID
+const response = await fetch(
+  '${BASE_URL}/submissions?form_id=550e8400-e29b-41d4-a716-446655440000&limit=50',
+  {
+    headers: { 'x-api-key': 'tsk_your_api_key_here' }
+  }
+);
+const data = await response.json();
+console.log(data);
+
+// Or using form reference_id
+const response2 = await fetch(
+  '${BASE_URL}/submissions?form_ref_id=CF00001234&limit=50',
+  {
+    headers: { 'x-api-key': 'tsk_your_api_key_here' }
+  }
+);`,
+      responseExample: `{
   "data": [
     {
       "id": "uuid",
       "form_id": "form-uuid",
+      "form_name": "Customer Feedback",
+      "form_reference_id": "CF00001234",
       "submission_ref_id": "CF01150001",
       "submission_data": {
         "field-id-1": "John Doe",
@@ -311,8 +417,14 @@ console.log(data);`,
   ],
   "count": 1,
   "limit": 100,
-  "offset": 0
+  "offset": 0,
+  "form_id": "form-uuid"
 }`,
+      notes: [
+        'Either form_id or form_ref_id is required to filter by form',
+        'Without a filter, returns submissions from all accessible forms',
+        'Recommended: Use GET /forms/:id/records for fetching records of a specific form'
+      ],
     },
     {
       method: 'GET',
