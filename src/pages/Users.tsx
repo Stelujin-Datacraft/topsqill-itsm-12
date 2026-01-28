@@ -313,12 +313,6 @@ const Users = () => {
 
         {/* Main Content */}
         <Card className="border-border/40 shadow-sm">
-          <CardHeader className="border-b border-border/40 pb-5">
-            <div>
-              <CardTitle className="text-xl font-semibold">Members</CardTitle>
-              <CardDescription className="mt-1">{filteredUsers.length} member{filteredUsers.length !== 1 ? 's' : ''} in your organization</CardDescription>
-            </div>
-          </CardHeader>
           <CardContent className="p-0">
             {/* Search */}
             <div className="p-4 border-b border-border/40 bg-muted/30">
