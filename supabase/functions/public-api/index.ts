@@ -157,16 +157,18 @@ app.get('/docs', (c) => {
     endpoints: {
       forms: {
         'GET /forms': 'List all accessible forms',
-        'GET /forms/:id': 'Get form by ID or reference_id',
+        'GET /forms/:id': 'Get form by ID (UUID) or reference_id',
         'GET /forms/:id/fields': 'Get form fields',
+        'GET /forms/:id/records': 'Get all records/submissions for a form (query: limit, offset)',
+        'GET /forms/:id/records/:recordId': 'Get a specific record from a form',
         'POST /forms': 'Create new form',
         'PUT /forms/:id': 'Update form',
         'DELETE /forms/:id': 'Delete form'
       },
       submissions: {
-        'GET /submissions': 'List submissions (query: form_id, limit, offset)',
-        'GET /submissions/:id': 'Get submission by ID or submission_ref_id',
-        'POST /submissions': 'Create new submission',
+        'GET /submissions': 'List all submissions (query: form_id or form_ref_id to filter, limit, offset)',
+        'GET /submissions/:id': 'Get submission by ID (UUID) or submission_ref_id',
+        'POST /submissions': 'Create new submission (body: form_id or form_ref_id, submission_data)',
         'PUT /submissions/:id': 'Update submission',
         'DELETE /submissions/:id': 'Delete submission'
       },
@@ -187,13 +189,25 @@ app.get('/docs', (c) => {
         'DELETE /reports/:id': 'Delete report'
       }
     },
+    queryParameters: {
+      'form_id': 'UUID of the form (for /submissions endpoint)',
+      'form_ref_id': 'Reference ID of the form (alternative to form_id)',
+      'limit': 'Number of records to return (default: 100, max: 1000)',
+      'offset': 'Number of records to skip for pagination (default: 0)'
+    },
     permissions: {
       forms: ['read', 'create', 'update', 'delete'],
       submissions: ['read', 'create', 'update', 'delete'],
       workflows: ['read', 'create', 'update', 'delete', 'trigger'],
       reports: ['read', 'create', 'update', 'delete']
     },
-    rateLimit: 'Configurable per API key (default: 60 requests/minute)'
+    rateLimit: 'Configurable per API key (default: 60 requests/minute)',
+    examples: {
+      'Get form records': 'GET /forms/{form_id}/records',
+      'Get specific record': 'GET /forms/{form_id}/records/{record_id}',
+      'Filter submissions by form': 'GET /submissions?form_id={uuid}',
+      'Filter submissions by form reference': 'GET /submissions?form_ref_id={reference_id}'
+    }
   };
   return c.json(docs, 200, corsHeaders);
 });
@@ -476,6 +490,168 @@ app.delete('/forms/:id', validateApiKey, async (c) => {
   return c.json({ message: 'Form deleted successfully' }, 200, corsHeaders);
 });
 
+// Get all records for a specific form
+app.get('/forms/:id/records', validateApiKey, async (c) => {
+  const keyInfo = c.get('apiKeyInfo');
+  const formId = c.req.param('id');
+  const limit = Math.min(parseInt(c.req.query('limit') || '100'), 1000);
+  const offset = parseInt(c.req.query('offset') || '0');
+
+  if (!hasPermission(keyInfo, 'submissions', 'read')) {
+    await logRequest(c, 403, 'Permission denied: submissions.read');
+    return c.json({ error: 'Permission denied' }, 403, corsHeaders);
+  }
+
+  const supabase = getServiceClient();
+
+  // Resolve form ID (UUID or reference_id)
+  let actualFormId = formId;
+  let formData: any = null;
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(formId);
+  
+  if (isUuid) {
+    const { data: form } = await supabase
+      .from('forms')
+      .select('id, name, reference_id')
+      .eq('id', formId)
+      .eq('organization_id', keyInfo.organization_id)
+      .maybeSingle();
+    
+    if (!form) {
+      await logRequest(c, 404, 'Form not found');
+      return c.json({ error: 'Form not found or not accessible' }, 404, corsHeaders);
+    }
+    actualFormId = form.id;
+    formData = form;
+  } else {
+    const { data: form } = await supabase
+      .from('forms')
+      .select('id, name, reference_id')
+      .eq('reference_id', formId)
+      .eq('organization_id', keyInfo.organization_id)
+      .maybeSingle();
+    
+    if (!form) {
+      await logRequest(c, 404, 'Form not found');
+      return c.json({ error: 'Form not found or not accessible' }, 404, corsHeaders);
+    }
+    actualFormId = form.id;
+    formData = form;
+  }
+
+  // Fetch records for this form
+  const { data, error, count } = await supabase
+    .from('form_submissions')
+    .select('id, submission_ref_id, submission_data, submitted_at, submitted_by, approval_status, approval_notes', { count: 'exact' })
+    .eq('form_id', actualFormId)
+    .order('submitted_at', { ascending: false })
+    .range(offset, offset + limit - 1);
+
+  if (error) {
+    await logRequest(c, 500, error.message);
+    return c.json({ error: 'Failed to fetch records', details: error.message }, 500, corsHeaders);
+  }
+
+  await logRequest(c, 200);
+  return c.json({ 
+    form: {
+      id: formData.id,
+      name: formData.name,
+      reference_id: formData.reference_id
+    },
+    data,
+    count: data?.length || 0,
+    total: count || 0,
+    limit, 
+    offset
+  }, 200, corsHeaders);
+});
+
+// Get a specific record from a form
+app.get('/forms/:id/records/:recordId', validateApiKey, async (c) => {
+  const keyInfo = c.get('apiKeyInfo');
+  const formId = c.req.param('id');
+  const recordId = c.req.param('recordId');
+
+  if (!hasPermission(keyInfo, 'submissions', 'read')) {
+    await logRequest(c, 403, 'Permission denied: submissions.read');
+    return c.json({ error: 'Permission denied' }, 403, corsHeaders);
+  }
+
+  const supabase = getServiceClient();
+
+  // Resolve form ID
+  let actualFormId = formId;
+  let formData: any = null;
+  const isFormUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(formId);
+  
+  if (isFormUuid) {
+    const { data: form } = await supabase
+      .from('forms')
+      .select('id, name, reference_id')
+      .eq('id', formId)
+      .eq('organization_id', keyInfo.organization_id)
+      .maybeSingle();
+    
+    if (!form) {
+      await logRequest(c, 404, 'Form not found');
+      return c.json({ error: 'Form not found or not accessible' }, 404, corsHeaders);
+    }
+    actualFormId = form.id;
+    formData = form;
+  } else {
+    const { data: form } = await supabase
+      .from('forms')
+      .select('id, name, reference_id')
+      .eq('reference_id', formId)
+      .eq('organization_id', keyInfo.organization_id)
+      .maybeSingle();
+    
+    if (!form) {
+      await logRequest(c, 404, 'Form not found');
+      return c.json({ error: 'Form not found or not accessible' }, 404, corsHeaders);
+    }
+    actualFormId = form.id;
+    formData = form;
+  }
+
+  // Resolve record ID (UUID or submission_ref_id)
+  const isRecordUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(recordId);
+  
+  let query = supabase
+    .from('form_submissions')
+    .select('id, submission_ref_id, submission_data, submitted_at, submitted_by, approval_status, approval_notes')
+    .eq('form_id', actualFormId);
+
+  if (isRecordUuid) {
+    query = query.eq('id', recordId);
+  } else {
+    query = query.eq('submission_ref_id', recordId);
+  }
+
+  const { data, error } = await query.maybeSingle();
+
+  if (error) {
+    await logRequest(c, 500, error.message);
+    return c.json({ error: 'Failed to fetch record', details: error.message }, 500, corsHeaders);
+  }
+
+  if (!data) {
+    await logRequest(c, 404, 'Record not found');
+    return c.json({ error: 'Record not found in this form' }, 404, corsHeaders);
+  }
+
+  await logRequest(c, 200);
+  return c.json({ 
+    form: {
+      id: formData.id,
+      name: formData.name,
+      reference_id: formData.reference_id
+    },
+    data
+  }, 200, corsHeaders);
+});
+
 // =============================================
 // SUBMISSIONS ENDPOINTS
 // =============================================
@@ -490,24 +666,65 @@ app.get('/submissions', validateApiKey, async (c) => {
 
   const formId = c.req.query('form_id');
   const formRefId = c.req.query('form_ref_id');
-  const limit = parseInt(c.req.query('limit') || '100');
+  const limit = Math.min(parseInt(c.req.query('limit') || '100'), 1000);
   const offset = parseInt(c.req.query('offset') || '0');
 
   const supabase = getServiceClient();
 
-  // Resolve form ID if reference provided
-  let actualFormId = formId;
-  if (formRefId && !formId) {
+  // Resolve form ID - support both UUID and reference_id
+  let actualFormId: string | null = null;
+  
+  if (formId) {
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(formId);
+    
+    if (isUuid) {
+      // Verify the form belongs to this organization
+      const { data: form } = await supabase
+        .from('forms')
+        .select('id')
+        .eq('id', formId)
+        .eq('organization_id', keyInfo.organization_id)
+        .maybeSingle();
+      
+      if (form) {
+        actualFormId = form.id;
+      } else {
+        await logRequest(c, 404, 'Form not found');
+        return c.json({ error: 'Form not found or not accessible' }, 404, corsHeaders);
+      }
+    } else {
+      // Treat as reference_id
+      const { data: form } = await supabase
+        .from('forms')
+        .select('id')
+        .eq('reference_id', formId)
+        .eq('organization_id', keyInfo.organization_id)
+        .maybeSingle();
+      
+      if (form) {
+        actualFormId = form.id;
+      } else {
+        await logRequest(c, 404, 'Form not found');
+        return c.json({ error: 'Form not found or not accessible' }, 404, corsHeaders);
+      }
+    }
+  } else if (formRefId) {
     const { data: form } = await supabase
       .from('forms')
       .select('id')
       .eq('reference_id', formRefId)
       .eq('organization_id', keyInfo.organization_id)
-      .single();
+      .maybeSingle();
     
-    if (form) actualFormId = form.id;
+    if (form) {
+      actualFormId = form.id;
+    } else {
+      await logRequest(c, 404, 'Form not found');
+      return c.json({ error: 'Form not found or not accessible' }, 404, corsHeaders);
+    }
   }
 
+  // Build the query
   let query = supabase
     .from('form_submissions')
     .select(`
@@ -518,7 +735,7 @@ app.get('/submissions', validateApiKey, async (c) => {
       submitted_at,
       submitted_by,
       approval_status,
-      forms!inner(organization_id, project_id)
+      forms!inner(organization_id, project_id, name, reference_id)
     `)
     .eq('forms.organization_id', keyInfo.organization_id);
 
@@ -526,11 +743,12 @@ app.get('/submissions', validateApiKey, async (c) => {
     query = query.eq('forms.project_id', keyInfo.project_id);
   }
 
+  // Filter by form if specified
   if (actualFormId) {
     query = query.eq('form_id', actualFormId);
   }
 
-  const { data, error, count } = await query
+  const { data, error } = await query
     .order('submitted_at', { ascending: false })
     .range(offset, offset + limit - 1);
 
@@ -539,10 +757,12 @@ app.get('/submissions', validateApiKey, async (c) => {
     return c.json({ error: 'Failed to fetch submissions', details: error.message }, 500, corsHeaders);
   }
 
-  // Clean up response
+  // Clean up response with form info
   const cleanData = data?.map(s => ({
     id: s.id,
     form_id: s.form_id,
+    form_name: (s as any).forms?.name,
+    form_reference_id: (s as any).forms?.reference_id,
     submission_ref_id: s.submission_ref_id,
     submission_data: s.submission_data,
     submitted_at: s.submitted_at,
@@ -551,7 +771,13 @@ app.get('/submissions', validateApiKey, async (c) => {
   }));
 
   await logRequest(c, 200);
-  return c.json({ data: cleanData, count: cleanData?.length || 0, limit, offset }, 200, corsHeaders);
+  return c.json({ 
+    data: cleanData, 
+    count: cleanData?.length || 0, 
+    limit, 
+    offset,
+    form_id: actualFormId || undefined
+  }, 200, corsHeaders);
 });
 
 app.get('/submissions/:id', validateApiKey, async (c) => {
