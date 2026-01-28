@@ -260,6 +260,10 @@ export default function EmailConfigPage() {
               </div>
             </DropdownMenuContent>
           </DropdownMenu>
+          <Button size="sm" variant="outline" onClick={() => window.location.href = '/email-templates'}>
+            <Mail className="h-4 w-4 mr-2" />
+            Templates
+          </Button>
           <Button size="sm" onClick={() => setIsCreating(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Add SMTP Config
