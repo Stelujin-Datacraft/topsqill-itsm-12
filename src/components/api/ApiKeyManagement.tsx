@@ -46,7 +46,7 @@ export function ApiKeyManagement({ showCreateDialog: externalShowCreate, onCreat
   const [editingKey, setEditingKey] = useState<ApiKey | null>(null);
   const [selectedKey, setSelectedKey] = useState<ApiKey | null>(null);
   const [newKeyValue, setNewKeyValue] = useState<string | null>(null);
-  const [showNewKey, setShowNewKey] = useState(true);
+  const [showNewKey, setShowNewKey] = useState(false);
 
   // Create form state
   const [createForm, setCreateForm] = useState({
