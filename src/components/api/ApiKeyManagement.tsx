@@ -374,45 +374,77 @@ export function ApiKeyManagement({ showCreateDialog: externalShowCreate, onCreat
 
       {/* New Key Display */}
       {newKeyValue && (
-        <Card className="border-green-500 bg-green-50 dark:bg-green-950/20">
-          <CardHeader>
+        <Card className="border-2 border-amber-500 bg-amber-50 dark:bg-amber-950/20 shadow-lg">
+          <CardHeader className="pb-2">
+            <div className="flex items-center gap-2 p-3 bg-amber-100 dark:bg-amber-900/40 rounded-lg mb-3">
+              <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+              <div className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                <strong>Important:</strong> This is the only time you'll see this key. Copy it now and store it securely. 
+                If you lose it, you'll need to generate a new one.
+              </div>
+            </div>
             <CardTitle className="flex items-center gap-2 text-green-700 dark:text-green-400">
               <Key className="h-5 w-5" />
               Your New API Key
             </CardTitle>
             <CardDescription>
-              <AlertCircle className="inline h-4 w-4 mr-1" />
-              Copy this key now - you won't be able to see it again!
+              Save this key in a secure location before dismissing
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             <div className="flex items-center gap-2">
-              <code className="flex-1 p-3 bg-white dark:bg-black rounded border font-mono text-sm break-all">
+              <code className="flex-1 p-3 bg-white dark:bg-black rounded border-2 border-dashed border-green-400 font-mono text-sm break-all select-all">
                 {showNewKey ? newKeyValue : '•'.repeat(newKeyValue.length)}
               </code>
               <Button
                 variant="outline"
                 size="icon"
                 onClick={() => setShowNewKey(!showNewKey)}
+                title={showNewKey ? 'Hide key' : 'Show key'}
               >
                 {showNewKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </Button>
               <Button
-                variant="outline"
+                variant="default"
                 size="icon"
                 onClick={() => handleCopyKey(newKeyValue)}
+                className="bg-green-600 hover:bg-green-700"
+                title="Copy to clipboard"
               >
                 <Copy className="h-4 w-4" />
               </Button>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="mt-4"
-              onClick={() => setNewKeyValue(null)}
-            >
-              Dismiss
-            </Button>
+            
+            <div className="flex items-center justify-between pt-2 border-t">
+              <p className="text-xs text-muted-foreground">
+                Click the copy button above, then dismiss this message
+              </p>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="ghost" size="sm">
+                    Dismiss
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle className="flex items-center gap-2">
+                      <AlertCircle className="h-5 w-5 text-amber-500" />
+                      Have you copied the API key?
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Once you dismiss this message, you will <strong>not</strong> be able to view or copy this API key again. 
+                      Make sure you've saved it in a secure location.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Go Back</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => setNewKeyValue(null)}>
+                      Yes, I've Copied It
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
           </CardContent>
         </Card>
       )}
