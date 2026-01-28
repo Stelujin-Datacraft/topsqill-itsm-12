@@ -775,6 +775,16 @@ console.log(data);`,
       title: 'List Workflows',
       description: 'Retrieve a list of all workflows accessible to this API key.',
       permissions: ['workflows:read'],
+      curlExample: `curl -X GET '${BASE_URL}/workflows' \\
+  -H 'x-api-key: tsk_your_api_key_here'`,
+      jsExample: `const response = await fetch(
+  '${BASE_URL}/workflows',
+  {
+    headers: { 'x-api-key': 'tsk_your_api_key_here' }
+  }
+);
+const data = await response.json();
+console.log(data);`,
       responseExample: `{
   "data": [
     {
@@ -799,6 +809,16 @@ console.log(data);`,
       pathParams: [
         { name: 'id', type: 'string', description: 'Workflow UUID or reference_id' },
       ],
+      curlExample: `curl -X GET '${BASE_URL}/workflows/AW00001234' \\
+  -H 'x-api-key: tsk_your_api_key_here'`,
+      jsExample: `const response = await fetch(
+  '${BASE_URL}/workflows/AW00001234',
+  {
+    headers: { 'x-api-key': 'tsk_your_api_key_here' }
+  }
+);
+const data = await response.json();
+console.log(data);`,
       responseExample: `{
   "data": {
     "id": "uuid",
@@ -833,6 +853,32 @@ console.log(data);`,
   "trigger_type": "form_submission",
   "status": "draft"
 }`,
+      curlExample: `curl -X POST '${BASE_URL}/workflows' \\
+  -H 'x-api-key: tsk_your_api_key_here' \\
+  -H 'Content-Type: application/json' \\
+  -d '{
+    "name": "New Approval Workflow",
+    "description": "Automated approval for new requests",
+    "project_id": "project-uuid",
+    "trigger_type": "form_submission",
+    "status": "draft"
+  }'`,
+      jsExample: `const response = await fetch('${BASE_URL}/workflows', {
+  method: 'POST',
+  headers: {
+    'x-api-key': 'tsk_your_api_key_here',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    name: 'New Approval Workflow',
+    description: 'Automated approval for new requests',
+    project_id: 'project-uuid',
+    trigger_type: 'form_submission',
+    status: 'draft'
+  })
+});
+const data = await response.json();
+console.log(data);`,
       responseExample: `{
   "data": {
     "id": "new-uuid",
@@ -860,6 +906,27 @@ console.log(data);`,
       requestExample: `{
   "submission_ref_id": "CF01150001"
 }`,
+      curlExample: `curl -X POST '${BASE_URL}/workflows/AW00001234/trigger' \\
+  -H 'x-api-key: tsk_your_api_key_here' \\
+  -H 'Content-Type: application/json' \\
+  -d '{
+    "submission_ref_id": "CF01150001"
+  }'`,
+      jsExample: `const response = await fetch(
+  '${BASE_URL}/workflows/AW00001234/trigger',
+  {
+    method: 'POST',
+    headers: {
+      'x-api-key': 'tsk_your_api_key_here',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      submission_ref_id: 'CF01150001'
+    })
+  }
+);
+const data = await response.json();
+console.log(data);`,
       responseExample: `{
   "data": {
     "id": "execution-uuid",
@@ -889,6 +956,29 @@ console.log(data);`,
   "name": "Updated Workflow Name",
   "status": "active"
 }`,
+      curlExample: `curl -X PUT '${BASE_URL}/workflows/AW00001234' \\
+  -H 'x-api-key: tsk_your_api_key_here' \\
+  -H 'Content-Type: application/json' \\
+  -d '{
+    "name": "Updated Workflow Name",
+    "status": "active"
+  }'`,
+      jsExample: `const response = await fetch(
+  '${BASE_URL}/workflows/AW00001234',
+  {
+    method: 'PUT',
+    headers: {
+      'x-api-key': 'tsk_your_api_key_here',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      name: 'Updated Workflow Name',
+      status: 'active'
+    })
+  }
+);
+const data = await response.json();
+console.log(data);`,
       responseExample: `{
   "data": {
     "id": "uuid",
@@ -909,6 +999,17 @@ console.log(data);`,
       pathParams: [
         { name: 'id', type: 'string', description: 'Workflow UUID or reference_id' },
       ],
+      curlExample: `curl -X DELETE '${BASE_URL}/workflows/AW00001234' \\
+  -H 'x-api-key: tsk_your_api_key_here'`,
+      jsExample: `const response = await fetch(
+  '${BASE_URL}/workflows/AW00001234',
+  {
+    method: 'DELETE',
+    headers: { 'x-api-key': 'tsk_your_api_key_here' }
+  }
+);
+const data = await response.json();
+console.log(data);`,
       responseExample: `{
   "message": "Workflow deleted successfully"
 }`,
@@ -922,6 +1023,16 @@ console.log(data);`,
       title: 'List Reports',
       description: 'Retrieve a list of all reports accessible to this API key.',
       permissions: ['reports:read'],
+      curlExample: `curl -X GET '${BASE_URL}/reports' \\
+  -H 'x-api-key: tsk_your_api_key_here'`,
+      jsExample: `const response = await fetch(
+  '${BASE_URL}/reports',
+  {
+    headers: { 'x-api-key': 'tsk_your_api_key_here' }
+  }
+);
+const data = await response.json();
+console.log(data);`,
       responseExample: `{
   "data": [
     {
@@ -944,6 +1055,16 @@ console.log(data);`,
       pathParams: [
         { name: 'id', type: 'string', description: 'Report UUID or reference_id' },
       ],
+      curlExample: `curl -X GET '${BASE_URL}/reports/MS00001234' \\
+  -H 'x-api-key: tsk_your_api_key_here'`,
+      jsExample: `const response = await fetch(
+  '${BASE_URL}/reports/MS00001234',
+  {
+    headers: { 'x-api-key': 'tsk_your_api_key_here' }
+  }
+);
+const data = await response.json();
+console.log(data);`,
       responseExample: `{
   "data": {
     "id": "uuid",
@@ -976,6 +1097,30 @@ console.log(data);`,
   "project_id": "project-uuid",
   "is_public": false
 }`,
+      curlExample: `curl -X POST '${BASE_URL}/reports' \\
+  -H 'x-api-key: tsk_your_api_key_here' \\
+  -H 'Content-Type: application/json' \\
+  -d '{
+    "name": "New Monthly Report",
+    "description": "Monthly metrics summary",
+    "project_id": "project-uuid",
+    "is_public": false
+  }'`,
+      jsExample: `const response = await fetch('${BASE_URL}/reports', {
+  method: 'POST',
+  headers: {
+    'x-api-key': 'tsk_your_api_key_here',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    name: 'New Monthly Report',
+    description: 'Monthly metrics summary',
+    project_id: 'project-uuid',
+    is_public: false
+  })
+});
+const data = await response.json();
+console.log(data);`,
       responseExample: `{
   "data": {
     "id": "new-uuid",
@@ -1004,6 +1149,29 @@ console.log(data);`,
   "name": "Updated Report Name",
   "is_public": true
 }`,
+      curlExample: `curl -X PUT '${BASE_URL}/reports/MS00001234' \\
+  -H 'x-api-key: tsk_your_api_key_here' \\
+  -H 'Content-Type: application/json' \\
+  -d '{
+    "name": "Updated Report Name",
+    "is_public": true
+  }'`,
+      jsExample: `const response = await fetch(
+  '${BASE_URL}/reports/MS00001234',
+  {
+    method: 'PUT',
+    headers: {
+      'x-api-key': 'tsk_your_api_key_here',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      name: 'Updated Report Name',
+      is_public: true
+    })
+  }
+);
+const data = await response.json();
+console.log(data);`,
       responseExample: `{
   "data": {
     "id": "uuid",
@@ -1023,6 +1191,17 @@ console.log(data);`,
       pathParams: [
         { name: 'id', type: 'string', description: 'Report UUID or reference_id' },
       ],
+      curlExample: `curl -X DELETE '${BASE_URL}/reports/MS00001234' \\
+  -H 'x-api-key: tsk_your_api_key_here'`,
+      jsExample: `const response = await fetch(
+  '${BASE_URL}/reports/MS00001234',
+  {
+    method: 'DELETE',
+    headers: { 'x-api-key': 'tsk_your_api_key_here' }
+  }
+);
+const data = await response.json();
+console.log(data);`,
       responseExample: `{
   "message": "Report deleted successfully"
 }`,
