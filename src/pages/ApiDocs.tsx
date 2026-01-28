@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { ArrowLeft, Copy, Key, Shield, FileText, GitBranch, BarChart3, ChevronRight, Layers } from 'lucide-react';
+import { ArrowLeft, Copy, Key, Shield, FileText, GitBranch, BarChart3, ChevronRight, Layers, AlertTriangle, Clock, BookOpen, Zap } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 const BASE_URL = 'https://fnmkczsvwpzpxyklztkt.supabase.co/functions/v1/public-api';
@@ -1190,6 +1190,39 @@ const ApiDocs: React.FC = () => {
                 <Layers className="h-4 w-4 mr-2" />
                 Bulk Operations
               </Button>
+              <Separator className="my-2" />
+              <Button
+                variant={activeSection === 'rate-limiting' ? 'secondary' : 'ghost'}
+                className="w-full justify-start"
+                onClick={() => setActiveSection('rate-limiting')}
+              >
+                <Clock className="h-4 w-4 mr-2" />
+                Rate Limiting
+              </Button>
+              <Button
+                variant={activeSection === 'pagination' ? 'secondary' : 'ghost'}
+                className="w-full justify-start"
+                onClick={() => setActiveSection('pagination')}
+              >
+                <BookOpen className="h-4 w-4 mr-2" />
+                Pagination
+              </Button>
+              <Button
+                variant={activeSection === 'error-reference' ? 'secondary' : 'ghost'}
+                className="w-full justify-start"
+                onClick={() => setActiveSection('error-reference')}
+              >
+                <AlertTriangle className="h-4 w-4 mr-2" />
+                Error Reference
+              </Button>
+              <Button
+                variant={activeSection === 'versioning' ? 'secondary' : 'ghost'}
+                className="w-full justify-start"
+                onClick={() => setActiveSection('versioning')}
+              >
+                <Zap className="h-4 w-4 mr-2" />
+                Versioning
+              </Button>
             </CardContent>
           </Card>
         </div>
@@ -1548,6 +1581,471 @@ console.log(data);`}
                   up to 100 records in a single API request, improving efficiency for large-scale data operations.
                 </p>
                 {endpoints.bulkOperations.map((endpoint, index) => renderEndpoint(endpoint, index))}
+              </div>
+            )}
+
+            {activeSection === 'rate-limiting' && (
+              <div className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Clock className="h-5 w-5" />
+                      Rate Limiting
+                    </CardTitle>
+                    <CardDescription>
+                      Understand API rate limits and how to handle them
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <h3 className="font-semibold mb-2">Default Rate Limits</h3>
+                      <div className="bg-muted rounded-md p-4 space-y-2">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm">Standard API Keys</span>
+                          <Badge>100 requests/minute</Badge>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm">Custom Configured Keys</span>
+                          <Badge variant="outline">As configured</Badge>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm">Bulk Operations</span>
+                          <Badge variant="secondary">10 requests/minute</Badge>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <h3 className="font-semibold mb-2">Rate Limit Headers</h3>
+                      <p className="text-sm text-muted-foreground mb-2">
+                        Each API response includes headers to help you track your rate limit status:
+                      </p>
+                      <div className="bg-muted rounded-md p-3 space-y-2 text-sm">
+                        <div>
+                          <code className="text-primary">X-RateLimit-Limit</code>
+                          <span className="text-muted-foreground ml-2">- Maximum requests allowed per window</span>
+                        </div>
+                        <div>
+                          <code className="text-primary">X-RateLimit-Remaining</code>
+                          <span className="text-muted-foreground ml-2">- Requests remaining in current window</span>
+                        </div>
+                        <div>
+                          <code className="text-primary">X-RateLimit-Reset</code>
+                          <span className="text-muted-foreground ml-2">- Unix timestamp when the window resets</span>
+                        </div>
+                        <div>
+                          <code className="text-primary">Retry-After</code>
+                          <span className="text-muted-foreground ml-2">- Seconds to wait (only on 429 responses)</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <h3 className="font-semibold mb-2">Handling Rate Limits</h3>
+                      <p className="text-sm text-muted-foreground mb-2">
+                        When you exceed the rate limit, you'll receive a <code className="bg-muted px-1 rounded">429 Too Many Requests</code> response:
+                      </p>
+                      <pre className="bg-muted rounded-md p-3 text-xs overflow-x-auto">
+{`{
+  "error": "RATE_LIMIT_EXCEEDED",
+  "message": "Rate limit exceeded. Please retry after 45 seconds.",
+  "retryAfter": 45
+}`}
+                      </pre>
+                    </div>
+
+                    <div>
+                      <h3 className="font-semibold mb-2">Best Practices</h3>
+                      <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
+                        <li>Implement exponential backoff when retrying failed requests</li>
+                        <li>Use bulk endpoints instead of multiple single requests</li>
+                        <li>Cache responses where appropriate to reduce API calls</li>
+                        <li>Monitor <code className="bg-muted px-1 rounded">X-RateLimit-Remaining</code> to avoid hitting limits</li>
+                        <li>Contact support if you need higher rate limits for production use</li>
+                      </ul>
+                    </div>
+
+                    <div>
+                      <h3 className="font-semibold mb-2">Retry Example (JavaScript)</h3>
+                      <pre className="bg-muted rounded-md p-3 text-xs overflow-x-auto">
+{`async function fetchWithRetry(url, options, maxRetries = 3) {
+  for (let i = 0; i < maxRetries; i++) {
+    const response = await fetch(url, options);
+    
+    if (response.status === 429) {
+      const retryAfter = parseInt(response.headers.get('Retry-After') || '60');
+      console.log(\`Rate limited. Retrying in \${retryAfter}s...\`);
+      await new Promise(r => setTimeout(r, retryAfter * 1000));
+      continue;
+    }
+    
+    return response;
+  }
+  throw new Error('Max retries exceeded');
+}`}
+                      </pre>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            {activeSection === 'pagination' && (
+              <div className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <BookOpen className="h-5 w-5" />
+                      Pagination
+                    </CardTitle>
+                    <CardDescription>
+                      Navigate through large datasets efficiently
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <h3 className="font-semibold mb-2">Offset-Based Pagination</h3>
+                      <p className="text-sm text-muted-foreground mb-2">
+                        All list endpoints support offset-based pagination using <code className="bg-muted px-1 rounded">limit</code> and <code className="bg-muted px-1 rounded">offset</code> parameters:
+                      </p>
+                      <div className="bg-muted rounded-md p-3 space-y-2 text-sm">
+                        <div>
+                          <code className="text-primary">limit</code>
+                          <span className="text-muted-foreground ml-2">- Number of records per page (default: 100, max: 1000)</span>
+                        </div>
+                        <div>
+                          <code className="text-primary">offset</code>
+                          <span className="text-muted-foreground ml-2">- Number of records to skip (default: 0)</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <h3 className="font-semibold mb-2">Pagination Example</h3>
+                      <pre className="bg-muted rounded-md p-3 text-xs overflow-x-auto">
+{`// First page (records 1-100)
+GET /submissions?limit=100&offset=0
+
+// Second page (records 101-200)
+GET /submissions?limit=100&offset=100
+
+// Third page (records 201-300)
+GET /submissions?limit=100&offset=200`}
+                      </pre>
+                    </div>
+
+                    <div>
+                      <h3 className="font-semibold mb-2">Response Metadata</h3>
+                      <p className="text-sm text-muted-foreground mb-2">
+                        Paginated responses include metadata to help navigate:
+                      </p>
+                      <pre className="bg-muted rounded-md p-3 text-xs overflow-x-auto">
+{`{
+  "data": [...],
+  "count": 50,      // Records returned in this response
+  "total": 1250,    // Total records matching the query
+  "limit": 100,     // Requested limit
+  "offset": 0       // Current offset
+}`}
+                      </pre>
+                    </div>
+
+                    <div>
+                      <h3 className="font-semibold mb-2">Iterating All Records (JavaScript)</h3>
+                      <pre className="bg-muted rounded-md p-3 text-xs overflow-x-auto">
+{`async function fetchAllSubmissions(formId) {
+  const allRecords = [];
+  let offset = 0;
+  const limit = 100;
+  
+  while (true) {
+    const response = await fetch(
+      \`\${BASE_URL}/submissions?form_id=\${formId}&limit=\${limit}&offset=\${offset}\`,
+      { headers: { 'x-api-key': API_KEY } }
+    );
+    const { data, total } = await response.json();
+    
+    allRecords.push(...data);
+    offset += limit;
+    
+    if (offset >= total) break;
+  }
+  
+  return allRecords;
+}`}
+                      </pre>
+                    </div>
+
+                    <div>
+                      <h3 className="font-semibold mb-2">Performance Tips</h3>
+                      <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
+                        <li>Use filters to reduce the dataset before paginating</li>
+                        <li>Request only the page sizes you need (smaller limits = faster responses)</li>
+                        <li>For very large datasets, consider using date-based filtering</li>
+                        <li>Cache pages when building UI pagination</li>
+                      </ul>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            {activeSection === 'error-reference' && (
+              <div className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <AlertTriangle className="h-5 w-5" />
+                      Error Reference
+                    </CardTitle>
+                    <CardDescription>
+                      Complete list of error codes and their meanings
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <h3 className="font-semibold mb-3">HTTP Status Codes</h3>
+                      <div className="space-y-2">
+                        <div className="flex items-start gap-3 p-3 bg-muted/50 rounded-md">
+                          <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">200</Badge>
+                          <div>
+                            <span className="font-medium">OK</span>
+                            <p className="text-sm text-muted-foreground">Request succeeded. Response contains data.</p>
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-3 p-3 bg-muted/50 rounded-md">
+                          <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">201</Badge>
+                          <div>
+                            <span className="font-medium">Created</span>
+                            <p className="text-sm text-muted-foreground">Resource created successfully.</p>
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-3 p-3 bg-muted/50 rounded-md">
+                          <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">202</Badge>
+                          <div>
+                            <span className="font-medium">Accepted</span>
+                            <p className="text-sm text-muted-foreground">Request accepted for async processing (e.g., workflow trigger).</p>
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-3 p-3 bg-muted/50 rounded-md">
+                          <Badge variant="destructive">400</Badge>
+                          <div>
+                            <span className="font-medium">Bad Request</span>
+                            <p className="text-sm text-muted-foreground">Invalid JSON, missing required fields, or validation failed.</p>
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-3 p-3 bg-muted/50 rounded-md">
+                          <Badge variant="destructive">401</Badge>
+                          <div>
+                            <span className="font-medium">Unauthorized</span>
+                            <p className="text-sm text-muted-foreground">Missing or invalid API key.</p>
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-3 p-3 bg-muted/50 rounded-md">
+                          <Badge variant="destructive">403</Badge>
+                          <div>
+                            <span className="font-medium">Forbidden</span>
+                            <p className="text-sm text-muted-foreground">API key lacks required permissions or IP is blocked.</p>
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-3 p-3 bg-muted/50 rounded-md">
+                          <Badge variant="destructive">404</Badge>
+                          <div>
+                            <span className="font-medium">Not Found</span>
+                            <p className="text-sm text-muted-foreground">Resource doesn't exist or you don't have access.</p>
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-3 p-3 bg-muted/50 rounded-md">
+                          <Badge variant="destructive">415</Badge>
+                          <div>
+                            <span className="font-medium">Unsupported Media Type</span>
+                            <p className="text-sm text-muted-foreground">Missing Content-Type: application/json header.</p>
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-3 p-3 bg-muted/50 rounded-md">
+                          <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">429</Badge>
+                          <div>
+                            <span className="font-medium">Too Many Requests</span>
+                            <p className="text-sm text-muted-foreground">Rate limit exceeded. Check Retry-After header.</p>
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-3 p-3 bg-muted/50 rounded-md">
+                          <Badge variant="destructive">500</Badge>
+                          <div>
+                            <span className="font-medium">Internal Server Error</span>
+                            <p className="text-sm text-muted-foreground">Server error. Please retry or contact support.</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <h3 className="font-semibold mb-3">Error Codes</h3>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b">
+                              <th className="text-left p-2">Code</th>
+                              <th className="text-left p-2">HTTP Status</th>
+                              <th className="text-left p-2">Description</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y">
+                            <tr>
+                              <td className="p-2"><code>INVALID_API_KEY</code></td>
+                              <td className="p-2">401</td>
+                              <td className="p-2 text-muted-foreground">API key is malformed or doesn't exist</td>
+                            </tr>
+                            <tr>
+                              <td className="p-2"><code>API_KEY_EXPIRED</code></td>
+                              <td className="p-2">401</td>
+                              <td className="p-2 text-muted-foreground">API key has expired</td>
+                            </tr>
+                            <tr>
+                              <td className="p-2"><code>API_KEY_INACTIVE</code></td>
+                              <td className="p-2">401</td>
+                              <td className="p-2 text-muted-foreground">API key has been deactivated</td>
+                            </tr>
+                            <tr>
+                              <td className="p-2"><code>INSUFFICIENT_PERMISSIONS</code></td>
+                              <td className="p-2">403</td>
+                              <td className="p-2 text-muted-foreground">API key lacks required permission scope</td>
+                            </tr>
+                            <tr>
+                              <td className="p-2"><code>IP_NOT_ALLOWED</code></td>
+                              <td className="p-2">403</td>
+                              <td className="p-2 text-muted-foreground">Request IP not in whitelist</td>
+                            </tr>
+                            <tr>
+                              <td className="p-2"><code>RESOURCE_NOT_FOUND</code></td>
+                              <td className="p-2">404</td>
+                              <td className="p-2 text-muted-foreground">Requested resource doesn't exist</td>
+                            </tr>
+                            <tr>
+                              <td className="p-2"><code>VALIDATION_ERROR</code></td>
+                              <td className="p-2">400</td>
+                              <td className="p-2 text-muted-foreground">Request body failed validation</td>
+                            </tr>
+                            <tr>
+                              <td className="p-2"><code>INVALID_JSON</code></td>
+                              <td className="p-2">400</td>
+                              <td className="p-2 text-muted-foreground">Request body is not valid JSON</td>
+                            </tr>
+                            <tr>
+                              <td className="p-2"><code>RATE_LIMIT_EXCEEDED</code></td>
+                              <td className="p-2">429</td>
+                              <td className="p-2 text-muted-foreground">Too many requests in time window</td>
+                            </tr>
+                            <tr>
+                              <td className="p-2"><code>BULK_LIMIT_EXCEEDED</code></td>
+                              <td className="p-2">400</td>
+                              <td className="p-2 text-muted-foreground">Bulk operation exceeds 100 record limit</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    <div>
+                      <h3 className="font-semibold mb-2">Error Response Structure</h3>
+                      <pre className="bg-muted rounded-md p-3 text-xs overflow-x-auto">
+{`{
+  "error": "VALIDATION_ERROR",
+  "message": "Request validation failed",
+  "details": {
+    "fields": {
+      "name": "Name is required",
+      "email": "Invalid email format"
+    }
+  }
+}`}
+                      </pre>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            {activeSection === 'versioning' && (
+              <div className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Zap className="h-5 w-5" />
+                      API Versioning
+                    </CardTitle>
+                    <CardDescription>
+                      Version information and compatibility guidelines
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <h3 className="font-semibold mb-2">Current Version</h3>
+                      <div className="flex items-center gap-3">
+                        <Badge className="text-lg px-3 py-1">v1</Badge>
+                        <span className="text-sm text-muted-foreground">Released January 2025</span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <h3 className="font-semibold mb-2">Versioning Strategy</h3>
+                      <p className="text-sm text-muted-foreground mb-2">
+                        The API version is currently implicit in the base URL. Future major versions will use URL path versioning:
+                      </p>
+                      <div className="bg-muted rounded-md p-3 space-y-1 text-sm font-mono">
+                        <div><span className="text-green-600">Current:</span> {BASE_URL}</div>
+                        <div><span className="text-muted-foreground">Future:</span> {BASE_URL.replace('/public-api', '/v2/public-api')}</div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <h3 className="font-semibold mb-2">Backward Compatibility</h3>
+                      <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
+                        <li>New fields may be added to responses without version change</li>
+                        <li>Existing fields will not be removed without major version bump</li>
+                        <li>New optional parameters may be added to endpoints</li>
+                        <li>Required parameters will not be added without version change</li>
+                      </ul>
+                    </div>
+
+                    <div>
+                      <h3 className="font-semibold mb-2">Deprecation Policy</h3>
+                      <div className="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-md p-3">
+                        <p className="text-sm text-amber-800 dark:text-amber-200">
+                          When features are deprecated, we provide at least <strong>6 months notice</strong> before removal. 
+                          Deprecated features will be marked in the documentation and return a 
+                          <code className="bg-amber-100 dark:bg-amber-900 px-1 mx-1 rounded">X-Deprecated</code> header.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div>
+                      <h3 className="font-semibold mb-2">Changelog</h3>
+                      <div className="space-y-3">
+                        <div className="border-l-2 border-primary pl-4">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline">v1.0</Badge>
+                            <span className="text-sm text-muted-foreground">January 2025</span>
+                          </div>
+                          <ul className="text-sm text-muted-foreground mt-1 space-y-1">
+                            <li>• Initial public API release</li>
+                            <li>• Forms, Submissions, Workflows, Reports CRUD</li>
+                            <li>• Bulk operations support</li>
+                            <li>• API key authentication with granular permissions</li>
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <h3 className="font-semibold mb-2">Stay Updated</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Subscribe to API updates and changelog notifications through your organization's settings. 
+                        Major changes will be announced via email to all API key owners.
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
             )}
           </ScrollArea>
