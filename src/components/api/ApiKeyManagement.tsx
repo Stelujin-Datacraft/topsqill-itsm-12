@@ -14,10 +14,12 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { Plus, Key, Copy, Eye, EyeOff, Trash2, RefreshCw, Shield, Clock, Activity, Book, AlertCircle, Pencil } from 'lucide-react';
+import { Plus, Key, Copy, Eye, EyeOff, Trash2, RefreshCw, Shield, Clock, Activity, Book, AlertCircle, Pencil, BarChart3, FileText } from 'lucide-react';
 import { useApiKeys, ApiKey } from '@/hooks/useApiKeys';
 import { toast } from '@/hooks/use-toast';
 import { format, formatDistanceToNow } from 'date-fns';
+import { ApiAnalyticsDashboard } from './ApiAnalyticsDashboard';
+import { ApiRequestLogs } from './ApiRequestLogs';
 
 const PERMISSION_OPTIONS = {
   forms: ['read', 'create', 'update', 'delete'],
@@ -34,6 +36,7 @@ interface ApiKeyManagementProps {
 export function ApiKeyManagement({ showCreateDialog: externalShowCreate, onCreateDialogChange }: ApiKeyManagementProps = {}) {
   const navigate = useNavigate();
   const { apiKeys, requestLogs, loading, createApiKey, updateApiKey, deleteApiKey, revokeApiKey, fetchRequestLogs } = useApiKeys();
+  const [activeTab, setActiveTab] = useState('keys');
   const [internalShowCreate, setInternalShowCreate] = useState(false);
   
   // Use external state if provided, otherwise use internal state
@@ -230,6 +233,32 @@ export function ApiKeyManagement({ showCreateDialog: externalShowCreate, onCreat
 
   return (
     <div className="space-y-6">
+      {/* Tab Navigation */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-3 max-w-md">
+          <TabsTrigger value="keys" className="flex items-center gap-2">
+            <Key className="h-4 w-4" />
+            API Keys
+          </TabsTrigger>
+          <TabsTrigger value="analytics" className="flex items-center gap-2">
+            <BarChart3 className="h-4 w-4" />
+            Analytics
+          </TabsTrigger>
+          <TabsTrigger value="logs" className="flex items-center gap-2">
+            <FileText className="h-4 w-4" />
+            Logs
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="analytics" className="mt-6">
+          <ApiAnalyticsDashboard />
+        </TabsContent>
+
+        <TabsContent value="logs" className="mt-6">
+          <ApiRequestLogs />
+        </TabsContent>
+
+        <TabsContent value="keys" className="mt-6 space-y-6">
       {/* Create Dialog - opened by external button or internal triggers */}
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -732,6 +761,8 @@ export function ApiKeyManagement({ showCreateDialog: externalShowCreate, onCreat
           </DialogFooter>
         </DialogContent>
       </Dialog>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
