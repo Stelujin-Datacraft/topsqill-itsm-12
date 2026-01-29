@@ -78,7 +78,7 @@ export function SubmissionRefDisplay({
         {formPrefix && (
           <span className="text-muted-foreground">{formPrefix}:</span>
         )}
-        <span>#{displayId}</span>
+        <span>{displayId}</span>
       </span>
     );
   }
@@ -107,7 +107,7 @@ export function SubmissionRefDisplay({
           {formPrefix}
         </Badge>
       )}
-      <span className="font-mono text-sm">#{displayId}</span>
+      <span className="font-mono text-sm">{displayId}</span>
     </div>
   );
 }

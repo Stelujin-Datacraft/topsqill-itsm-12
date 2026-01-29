@@ -1341,7 +1341,7 @@ export function DynamicTable({
           </DialogHeader>
           <div className="py-4">
             <p className="text-sm text-muted-foreground mb-4">
-              You selected submission <span className="font-mono font-medium text-foreground">#{selectedSubmissionForView?.refId}</span>
+              You selected submission <span className="font-mono font-medium text-foreground">{selectedSubmissionForView?.refId}</span>
             </p>
             <p className="text-sm text-muted-foreground">
               Would you like to view the full details of this submission?
