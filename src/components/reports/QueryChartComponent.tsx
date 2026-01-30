@@ -296,9 +296,16 @@ export function QueryChartComponent({ config }: QueryChartComponentProps) {
             <ScrollArea className="flex-1 h-full">
               <div style={{ minWidth: Math.max(400, chartData.length * 60), height: 280 }}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData}>
+                  <BarChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey={firstColumn} />
+                    <XAxis 
+                      dataKey={firstColumn} 
+                      interval={0}
+                      tick={{ fontSize: 12 }}
+                      angle={chartData.length > 6 ? -45 : 0}
+                      textAnchor={chartData.length > 6 ? "end" : "middle"}
+                      height={chartData.length > 6 ? 80 : 30}
+                    />
                     <YAxis 
                       domain={yDomain}
                       tickFormatter={yAxisTextMapping ? yAxisTickFormatter : undefined}
@@ -326,9 +333,16 @@ export function QueryChartComponent({ config }: QueryChartComponentProps) {
             <ScrollArea className="flex-1 h-full">
               <div style={{ minWidth: Math.max(400, chartData.length * 60), height: 280 }}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={chartData}>
+                  <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey={firstColumn} />
+                    <XAxis 
+                      dataKey={firstColumn} 
+                      interval={0}
+                      tick={{ fontSize: 12 }}
+                      angle={chartData.length > 6 ? -45 : 0}
+                      textAnchor={chartData.length > 6 ? "end" : "middle"}
+                      height={chartData.length > 6 ? 80 : 30}
+                    />
                     <YAxis 
                       domain={yDomain}
                       tickFormatter={yAxisTextMapping ? yAxisTickFormatter : undefined}
@@ -352,9 +366,16 @@ export function QueryChartComponent({ config }: QueryChartComponentProps) {
             <ScrollArea className="flex-1 h-full">
               <div style={{ minWidth: Math.max(400, chartData.length * 60), height: 280 }}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={chartData}>
+                  <AreaChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey={firstColumn} />
+                    <XAxis 
+                      dataKey={firstColumn} 
+                      interval={0}
+                      tick={{ fontSize: 12 }}
+                      angle={chartData.length > 6 ? -45 : 0}
+                      textAnchor={chartData.length > 6 ? "end" : "middle"}
+                      height={chartData.length > 6 ? 80 : 30}
+                    />
                     <YAxis 
                       domain={yDomain}
                       tickFormatter={yAxisTextMapping ? yAxisTickFormatter : undefined}
