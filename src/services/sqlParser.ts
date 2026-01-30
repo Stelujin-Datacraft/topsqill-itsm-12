@@ -1622,8 +1622,8 @@ function evaluateSelectExpression(expr: string, row: any, fieldMetadata?: Record
     return evaluateCaseExpression(expr, row);
   }
   
-  // Handle FIELD() references
-  expr = expr.replace(/FIELD\s*\(\s*['""]([^'"\"]+)['"\"]\s*\)/gi, (_, fieldId) => {
+  // Handle FIELD() references - support straight and curly quotes
+  expr = expr.replace(/FIELD\s*\(\s*(['""''])([^'""'']+)(['""''])\s*\)/gi, (_, openQuote, fieldId) => {
     return `${fieldId}`;
   });
   
@@ -1684,8 +1684,9 @@ function evaluateCaseExpression(caseExpr: string, row: any): any {
  * Evaluate WHERE/HAVING condition with enhanced operator support
  */
 function evaluateWhereCondition(condition: string, row: any): boolean {
-  // Replace FIELD() with actual values
-  let processedCondition = condition.replace(/FIELD\s*\(\s*['""]([^'"\"]+)['"\"]\s*\)/gi, (_, fieldId) => {
+  // Replace FIELD() with actual values - support straight and curly quotes
+  // Pattern supports: FIELD("uuid"), FIELD('uuid'), FIELD("uuid"), FIELD('uuid')
+  let processedCondition = condition.replace(/FIELD\s*\(\s*(['""''])([^'""'']+)(['""''])\s*\)/gi, (match, openQuote, fieldId) => {
     const value = row[fieldId];
     if (value === null || value === undefined) return 'NULL';
     if (typeof value === 'string') return `'${value.replace(/'/g, "\\'")}'`;
@@ -1772,7 +1773,8 @@ function evaluateWhereCondition(condition: string, row: any): boolean {
     processedCondition = processedCondition.replace(/\s*=\s*/g, ' === ');
     
     // Safely evaluate
-    return new Function('return ' + processedCondition)();
+    const result = new Function('return ' + processedCondition)();
+    return result;
   } catch (e) {
     console.error('Condition evaluation error:', e, 'Condition:', processedCondition);
     return false;
