@@ -3,22 +3,12 @@ import { useState } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { Plus, Building2, Edit, Trash2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
+import { OrganizationDialog } from '@/components/OrganizationDialog';
+import { supabase } from '@/integrations/supabase/client';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,52 +22,75 @@ import {
 } from '@/components/ui/alert-dialog';
 
 const Organizations = () => {
-  const { organizations, currentOrganization, addOrganization, updateOrganization, deleteOrganization, setCurrentOrganization } = useOrganization();
+  const { organizations, currentOrganization, deleteOrganization, setCurrentOrganization, loadOrganizations } = useOrganization();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingOrg, setEditingOrg] = useState<any>(null);
-  const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    domain: '',
-    admin_email: '',
-  });
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (editingOrg) {
-      updateOrganization(editingOrg.id, formData);
+  const handleSubmit = async (data: {
+    name: string;
+    description: string;
+    domain: string;
+    admin_email: string;
+    logo_url?: string;
+  }) => {
+    try {
+      if (editingOrg) {
+        const { error } = await supabase
+          .from('organizations')
+          .update({
+            name: data.name,
+            description: data.description,
+            domain: data.domain,
+            admin_email: data.admin_email,
+            logo_url: data.logo_url,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', editingOrg.id);
+
+        if (error) throw error;
+
+        toast({
+          title: "Organization updated",
+          description: "The organization has been successfully updated.",
+        });
+        setEditingOrg(null);
+      } else {
+        const { error } = await supabase
+          .from('organizations')
+          .insert({
+            name: data.name,
+            description: data.description,
+            domain: data.domain,
+            admin_email: data.admin_email,
+            logo_url: data.logo_url,
+            status: 'active'
+          });
+
+        if (error) throw error;
+
+        toast({
+          title: "Organization created",
+          description: "The organization has been successfully created.",
+        });
+        setIsCreateOpen(false);
+      }
+      
+      loadOrganizations();
+    } catch (error: any) {
+      console.error('Error saving organization:', error);
       toast({
-        title: "Organization updated",
-        description: "The organization has been successfully updated.",
+        title: "Error",
+        description: error.message || "Failed to save organization.",
+        variant: "destructive",
       });
-      setEditingOrg(null);
-    } else {
-      addOrganization({
-        ...formData,
-        status: 'active'
-      });
-      toast({
-        title: "Organization created",
-        description: "The organization has been successfully created.",
-      });
-      setIsCreateOpen(false);
     }
-    
-    setFormData({ name: '', description: '', domain: '', admin_email: '' });
   };
 
   const handleEdit = (org: any) => {
     setEditingOrg(org);
-    setFormData({
-      name: org.name,
-      description: org.description || '',
-      domain: org.domain || '',
-      admin_email: org.admin_email || '',
-    });
   };
 
-  const handleDelete = (orgId: string) => {
+  const handleDelete = async (orgId: string) => {
     if (currentOrganization?.id === orgId) {
       toast({
         title: "Cannot delete",
@@ -87,81 +100,35 @@ const Organizations = () => {
       return;
     }
     
-    deleteOrganization(orgId);
-    toast({
-      title: "Organization deleted",
-      description: "The organization has been successfully deleted.",
-    });
+    try {
+      const { error } = await supabase
+        .from('organizations')
+        .delete()
+        .eq('id', orgId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Organization deleted",
+        description: "The organization has been successfully deleted.",
+      });
+      
+      loadOrganizations();
+    } catch (error: any) {
+      console.error('Error deleting organization:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete organization.",
+        variant: "destructive",
+      });
+    }
   };
 
   const actions = (
-    <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-      <DialogTrigger asChild>
-        <Button>
-          <Plus className="h-4 w-4 mr-2" />
-          Create Organization
-        </Button>
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Create New Organization</DialogTitle>
-          <DialogDescription>
-            Create a new organization to manage forms and users.
-          </DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit}>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="name">Organization Name</Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="Enter organization name"
-                required
-              />
-            </div>
-            <div>
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="Enter organization description"
-                rows={3}
-              />
-            </div>
-            <div>
-              <Label htmlFor="domain">Domain</Label>
-              <Input
-                id="domain"
-                value={formData.domain}
-                onChange={(e) => setFormData({ ...formData, domain: e.target.value })}
-                placeholder="Enter organization domain"
-                required
-              />
-            </div>
-            <div>
-              <Label htmlFor="admin_email">Admin Email</Label>
-              <Input
-                id="admin_email"
-                type="email"
-                value={formData.admin_email}
-                onChange={(e) => setFormData({ ...formData, admin_email: e.target.value })}
-                placeholder="Enter admin email"
-                required
-              />
-            </div>
-          </div>
-          <DialogFooter className="mt-6">
-            <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>
-              Cancel
-            </Button>
-            <Button type="submit">Create Organization</Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+    <Button onClick={() => setIsCreateOpen(true)}>
+      <Plus className="h-4 w-4 mr-2" />
+      Create Organization
+    </Button>
   );
 
   return (
@@ -174,17 +141,30 @@ const Organizations = () => {
           }`}>
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between">
-                <div className="space-y-1">
-                  <CardTitle className="flex items-center gap-2">
-                    <Building2 className="h-5 w-5" />
-                    {org.name}
-                    {currentOrganization?.id === org.id && (
-                      <Badge variant="default">Current</Badge>
+                <div className="flex items-start gap-3">
+                  {/* Organization Logo */}
+                  <div className="w-12 h-12 rounded-lg border bg-muted/50 flex items-center justify-center overflow-hidden flex-shrink-0">
+                    {org.logo_url ? (
+                      <img 
+                        src={org.logo_url} 
+                        alt={org.name} 
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <Building2 className="h-6 w-6 text-muted-foreground" />
                     )}
-                  </CardTitle>
-                  <p className="text-sm text-muted-foreground">
-                    {org.description}
-                  </p>
+                  </div>
+                  <div className="space-y-1">
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      {org.name}
+                      {currentOrganization?.id === org.id && (
+                        <Badge variant="default" className="text-xs">Current</Badge>
+                      )}
+                    </CardTitle>
+                    <p className="text-sm text-muted-foreground line-clamp-2">
+                      {org.description || 'No description'}
+                    </p>
+                  </div>
                 </div>
               </div>
             </CardHeader>
@@ -207,76 +187,13 @@ const Organizations = () => {
                   </Button>
                 )}
                 
-                <Dialog open={editingOrg?.id === org.id} onOpenChange={(open) => !open && setEditingOrg(null)}>
-                  <DialogTrigger asChild>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => handleEdit(org)}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Edit Organization</DialogTitle>
-                      <DialogDescription>
-                        Update the organization details.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <form onSubmit={handleSubmit}>
-                      <div className="space-y-4">
-                        <div>
-                          <Label htmlFor="edit-name">Organization Name</Label>
-                          <Input
-                            id="edit-name"
-                            value={formData.name}
-                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                            placeholder="Enter organization name"
-                            required
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="edit-description">Description</Label>
-                          <Textarea
-                            id="edit-description"
-                            value={formData.description}
-                            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                            placeholder="Enter organization description"
-                            rows={3}
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="edit-domain">Domain</Label>
-                          <Input
-                            id="edit-domain"
-                            value={formData.domain}
-                            onChange={(e) => setFormData({ ...formData, domain: e.target.value })}
-                            placeholder="Enter organization domain"
-                            required
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="edit-admin-email">Admin Email</Label>
-                          <Input
-                            id="edit-admin-email"
-                            type="email"
-                            value={formData.admin_email}
-                            onChange={(e) => setFormData({ ...formData, admin_email: e.target.value })}
-                            placeholder="Enter admin email"
-                            required
-                          />
-                        </div>
-                      </div>
-                      <DialogFooter className="mt-6">
-                        <Button type="button" variant="outline" onClick={() => setEditingOrg(null)}>
-                          Cancel
-                        </Button>
-                        <Button type="submit">Update Organization</Button>
-                      </DialogFooter>
-                    </form>
-                  </DialogContent>
-                </Dialog>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => handleEdit(org)}
+                >
+                  <Edit className="h-4 w-4" />
+                </Button>
                 
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
@@ -305,6 +222,21 @@ const Organizations = () => {
           ))}
         </div>
       </div>
+
+      {/* Create Organization Dialog */}
+      <OrganizationDialog
+        open={isCreateOpen}
+        onOpenChange={setIsCreateOpen}
+        onSubmit={handleSubmit}
+      />
+
+      {/* Edit Organization Dialog */}
+      <OrganizationDialog
+        open={!!editingOrg}
+        onOpenChange={(open) => !open && setEditingOrg(null)}
+        editingOrg={editingOrg}
+        onSubmit={handleSubmit}
+      />
     </DashboardLayout>
   );
 };
