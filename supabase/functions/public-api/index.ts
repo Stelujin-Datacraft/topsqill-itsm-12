@@ -1228,7 +1228,7 @@ app.post('/workflows', validateApiKey, async (c) => {
     return c.json({ error: 'Invalid JSON body' }, 400, corsHeaders);
   }
 
-  const { name, description, project_id, trigger_type = 'manual', status = 'draft' } = body;
+  const { name, description, project_id, status = 'draft' } = body;
 
   if (!name) {
     await logRequest(c, 400, 'name is required');
@@ -1249,7 +1249,6 @@ app.post('/workflows', validateApiKey, async (c) => {
       description,
       project_id: project_id || keyInfo.project_id,
       organization_id: keyInfo.organization_id,
-      trigger_type,
       status,
       created_by: keyInfo.api_key_id
     })
@@ -1283,7 +1282,7 @@ app.put('/workflows/:id', validateApiKey, async (c) => {
     return c.json({ error: 'Invalid JSON body' }, 400, corsHeaders);
   }
 
-  const { name, description, status, trigger_type } = body;
+  const { name, description, status } = body;
 
   const supabase = getServiceClient();
 
@@ -1311,7 +1310,6 @@ app.put('/workflows/:id', validateApiKey, async (c) => {
   if (name !== undefined) updateData.name = name;
   if (description !== undefined) updateData.description = description;
   if (status !== undefined) updateData.status = status;
-  if (trigger_type !== undefined) updateData.trigger_type = trigger_type;
 
   const { data, error } = await supabase
     .from('workflows')
