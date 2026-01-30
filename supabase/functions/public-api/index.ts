@@ -1068,7 +1068,7 @@ app.get('/workflows', validateApiKey, async (c) => {
 
   let query = supabase
     .from('workflows')
-    .select('id, name, description, reference_id, status, trigger_type, created_at')
+    .select('id, name, description, reference_id, status, created_at')
     .eq('organization_id', keyInfo.organization_id);
 
   if (keyInfo.project_id) {
@@ -1191,7 +1191,7 @@ app.get('/workflows/:id', validateApiKey, async (c) => {
 
   let query = supabase
     .from('workflows')
-    .select('id, name, description, reference_id, status, trigger_type, trigger_config, created_at, updated_at')
+    .select('id, name, description, reference_id, status, created_at, updated_at')
     .eq('organization_id', keyInfo.organization_id);
 
   if (isUuid) {
