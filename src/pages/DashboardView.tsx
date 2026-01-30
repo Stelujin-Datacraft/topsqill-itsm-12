@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { ArrowLeft, Plus, FileText, Eye, Edit, Trash2, Calendar } from 'lucide-react';
+import { ArrowLeft, Plus, FileText, Eye, Edit, Trash2, Calendar, Copy } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { LoadingScreen } from '@/components/LoadingScreen';
@@ -36,6 +36,14 @@ const DashboardView = () => {
     },
     enabled: !!id,
   });
+
+  const handleCopyReportId = (reportId: string) => {
+    navigator.clipboard.writeText(reportId);
+    toast({
+      title: "Copied",
+      description: "Report ID copied to clipboard",
+    });
+  };
 
   const handleViewReport = (reportId: string) => {
     navigate(`/report-view/${reportId}`);
@@ -209,6 +217,14 @@ const DashboardView = () => {
                         {report.description && <CardDescription>{report.description}</CardDescription>}
                       </div>
                       <div className="flex space-x-1">
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => handleCopyReportId(report.id)} 
+                          title="Copy Report ID"
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
                         <ShareLinkButton 
                           assetType="report" 
                           assetId={report.id} 
