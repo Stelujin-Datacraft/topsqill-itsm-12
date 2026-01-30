@@ -17,61 +17,61 @@ interface QueryExample {
 
 const QUERY_EXAMPLES: QueryExample[] = [
   {
-    title: 'Simple SELECT',
-    description: 'Get all records from a form',
-    query: `SELECT * FROM "form-uuid"`
+    title: 'Select All Fields (*)',
+    description: 'Get all field values from a form',
+    query: `SELECT *
+FROM "550e8400-e29b-41d4-a716-446655440000"`
   },
   {
     title: 'Select Specific Fields',
-    description: 'Choose specific fields to display',
-    query: `SELECT FIELD("name-field"), FIELD("email-field")
-FROM "form-uuid"`
+    description: 'Choose fields using their UUIDs',
+    query: `SELECT FIELD("a1b2c3d4-..."), FIELD("e5f6g7h8-...")
+FROM "550e8400-e29b-41d4-a716-446655440000"`
   },
   {
     title: 'COUNT with GROUP BY',
-    description: 'Count records grouped by a field',
-    query: `SELECT FIELD("status"), COUNT(*) as total
-FROM "form-uuid"
-GROUP BY FIELD("status")`
+    description: 'Count submissions grouped by field value',
+    query: `SELECT FIELD("status-field-uuid"), COUNT(*) as total
+FROM "550e8400-e29b-41d4-a716-446655440000"
+GROUP BY FIELD("status-field-uuid")`
   },
   {
-    title: 'Aggregation Functions',
-    description: 'SUM, AVG, MIN, MAX operations',
-    query: `SELECT FIELD("category"),
-       SUM(FIELD("amount")) as total,
-       AVG(FIELD("amount")) as average
-FROM "form-uuid"
-GROUP BY FIELD("category")`
+    title: 'Aggregations (SUM, AVG, MIN, MAX)',
+    description: 'Calculate totals, averages, min/max',
+    query: `SELECT FIELD("category-uuid"),
+       SUM(FIELD("amount-uuid")) as total,
+       AVG(FIELD("amount-uuid")) as avg
+FROM "550e8400-e29b-41d4-a716-446655440000"
+GROUP BY FIELD("category-uuid")`
   },
   {
-    title: 'ORDER BY',
-    description: 'Sort results ascending or descending',
-    query: `SELECT FIELD("name"), FIELD("score")
-FROM "form-uuid"
-ORDER BY FIELD("score") DESC`
+    title: 'ORDER BY (Sort)',
+    description: 'Sort results ASC or DESC',
+    query: `SELECT FIELD("name-uuid"), FIELD("score-uuid")
+FROM "550e8400-e29b-41d4-a716-446655440000"
+ORDER BY FIELD("score-uuid") DESC`
   },
   {
-    title: 'WHERE Clause',
-    description: 'Filter records with conditions',
-    query: `SELECT FIELD("name"), FIELD("status")
-FROM "form-uuid"
-WHERE FIELD("status") = 'active'`
+    title: 'WHERE (Filter)',
+    description: 'Filter with =, !=, >, <, LIKE',
+    query: `SELECT FIELD("name-uuid"), FIELD("status-uuid")
+FROM "550e8400-e29b-41d4-a716-446655440000"
+WHERE FIELD("status-uuid") = 'Active'`
   },
   {
-    title: 'LIMIT Results',
-    description: 'Limit the number of results',
-    query: `SELECT FIELD("name"), FIELD("created_at")
-FROM "form-uuid"
-ORDER BY FIELD("created_at") DESC
-LIMIT 10`
+    title: 'LIMIT & OFFSET',
+    description: 'Paginate or limit results',
+    query: `SELECT * FROM "550e8400-e29b-41d4-a716-446655440000"
+ORDER BY submitted_at DESC
+LIMIT 10 OFFSET 0`
   },
   {
-    title: 'JOIN Forms',
-    description: 'Combine data from two forms',
-    query: `SELECT a.FIELD("name"), b.FIELD("order_total")
+    title: 'JOIN Two Forms',
+    description: 'Combine data from multiple forms',
+    query: `SELECT a.FIELD("name-uuid"), b.FIELD("total-uuid")
 FROM "form-uuid-1" AS a
 INNER JOIN "form-uuid-2" AS b
-ON a.FIELD("customer_id") = b.FIELD("customer_id")`
+ON a.FIELD("ref-uuid") = b.FIELD("ref-uuid")`
   }
 ];
 
