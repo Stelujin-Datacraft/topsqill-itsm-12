@@ -13,11 +13,6 @@ import { useProject } from '@/contexts/ProjectContext';
 import { CreateProjectDialog } from '@/components/projects/CreateProjectDialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSidebar } from '@/components/ui/sidebar';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
 
 export function ProjectSwitcher() {
   const { projects, currentProject, setCurrentProject } = useProject();
@@ -35,45 +30,30 @@ export function ProjectSwitcher() {
 
   const canCreateProject = userProfile?.role === 'admin';
 
-  const triggerButton = (
-    <Button 
-      variant="outline" 
-      className={`justify-between h-auto font-normal transition-all ${
-        isCollapsed ? 'w-10 p-2' : 'w-full p-3'
-      }`}
-    >
-      <div className="flex items-center space-x-2">
-        <Briefcase className="h-4 w-4 flex-shrink-0" />
-        {!isCollapsed && (
-          <div className="text-left">
-            <div className="font-medium truncate max-w-[140px]">
-              {currentProject?.name || 'No Project'}
-            </div>
-          </div>
-        )}
-      </div>
-      {!isCollapsed && <ChevronDown className="h-4 w-4 opacity-50 flex-shrink-0" />}
-    </Button>
-  );
-
   return (
-    <div className="flex items-center justify-between w-full">
+    <div className={`flex items-center w-full ${isCollapsed ? 'justify-center' : ''}`}>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          {isCollapsed ? (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                {triggerButton}
-              </TooltipTrigger>
-              <TooltipContent side="right" align="center">
-                {currentProject?.name || 'No Project Selected'}
-              </TooltipContent>
-            </Tooltip>
-          ) : (
-            triggerButton
-          )}
+          <Button 
+            variant="outline" 
+            className={`justify-between h-auto font-normal transition-all ${
+              isCollapsed ? 'w-8 h-8 p-0' : 'w-full p-3'
+            }`}
+          >
+            <div className={`flex items-center ${isCollapsed ? '' : 'space-x-2'}`}>
+              <Briefcase className="h-4 w-4 flex-shrink-0" />
+              {!isCollapsed && (
+                <div className="text-left">
+                  <div className="font-medium truncate max-w-[140px]">
+                    {currentProject?.name || 'No Project'}
+                  </div>
+                </div>
+              )}
+            </div>
+            {!isCollapsed && <ChevronDown className="h-4 w-4 opacity-50 flex-shrink-0" />}
+          </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-80" align="start" side="right">
+        <DropdownMenuContent className="w-80" align="start" side="right" sideOffset={8}>
           <DropdownMenuLabel>Switch Project</DropdownMenuLabel>
           <DropdownMenuSeparator />
           

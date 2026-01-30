@@ -148,17 +148,17 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   return (
     <Sidebar collapsible="icon" {...props}>
-      <SidebarHeader>
-        <div className="flex items-center justify-between">
+      <SidebarHeader className="group-data-[collapsible=icon]:p-2">
+        <div className="flex items-center justify-between group-data-[collapsible=icon]:justify-center">
           <TeamSwitcher teams={data.teams} />
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 group-data-[collapsible=icon]:hidden">
             <NotificationPanel />
           </div>
         </div>
       </SidebarHeader>
       <SidebarContent>
         {/* Project Switcher Section */}
-        <div className="px-2 py-4 group-data-[collapsible=icon]:px-1">
+        <div className="px-2 py-4 group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:py-2">
           <div className="text-xs font-medium text-muted-foreground mb-2 px-2 group-data-[collapsible=icon]:hidden">
             Current Project
           </div>
