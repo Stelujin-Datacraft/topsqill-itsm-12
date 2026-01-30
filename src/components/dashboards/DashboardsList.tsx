@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { LayoutDashboard, Calendar, Eye, Edit, Trash2, FileText, Plus } from 'lucide-react';
+import { LayoutDashboard, Calendar, Eye, Edit, Trash2, FileText, Plus, Copy } from 'lucide-react';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
@@ -32,6 +32,14 @@ export function DashboardsList({
   const { toast } = useToast();
   const { getButtonState, checkPermissionWithAlert } = useUnifiedAccessControl();
   const { deleteDashboard, refetchDashboards } = useDashboards();
+
+  const handleCopyId = (dashboardId: string) => {
+    navigator.clipboard.writeText(dashboardId);
+    toast({
+      title: "Copied",
+      description: "Dashboard ID copied to clipboard",
+    });
+  };
 
   const handleEditClick = (dashboard: DashboardWithReports) => {
     if (!checkPermissionWithAlert('reports', 'update')) {
@@ -145,6 +153,9 @@ export function DashboardsList({
                       )}
                     </div>
                     <div className="flex space-x-1" onClick={(e) => e.stopPropagation()}>
+                      <Button variant="ghost" size="sm" onClick={() => handleCopyId(dashboard.id)} title="Copy Dashboard ID">
+                        <Copy className="h-4 w-4" />
+                      </Button>
                       <Button variant="ghost" size="sm" onClick={() => onView(dashboard)} title="View Dashboard">
                         <Eye className="h-4 w-4" />
                       </Button>

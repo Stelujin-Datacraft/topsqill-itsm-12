@@ -7,7 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { FileText, Eye, Edit, Trash2, Share, Settings, Calendar, User, Grid, List, Columns, Lock, Globe, Database, Table, Plus } from 'lucide-react';
+import { FileText, Eye, Edit, Trash2, Share, Settings, Calendar, User, Grid, List, Columns, Lock, Globe, Database, Table, Plus, Copy } from 'lucide-react';
+import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import NoProjectSelected from '@/components/NoProjectSelected';
@@ -81,6 +82,11 @@ export function FormsList() {
   const handleViewRecords = (formId: string) => {
     console.log('📊 Viewing form records:', formId);
     navigate(`/form-submissions?formId=${formId}`);
+  };
+  
+  const handleCopyId = (formId: string) => {
+    navigator.clipboard.writeText(formId);
+    toast.success('Form ID copied to clipboard');
   };
   const getStatusBadgeProps = (status: string) => {
     switch (status) {
@@ -167,6 +173,9 @@ export function FormsList() {
                   </div>
                 </div>
                 <div className="flex space-x-1">
+                  <Button variant="ghost" size="sm" onClick={() => handleCopyId(form.id)} title="Copy Form ID" className="text-gray-600 hover:text-gray-700 hover:bg-gray-50">
+                    <Copy className="h-4 w-4" />
+                  </Button>
                   <Button variant="ghost" size="sm" onClick={() => handleViewForm(form.id)} title="Add Record" className="text-blue-600 hover:text-blue-700 hover:bg-blue-50">
                     <Plus className="h-4 w-4" />
                   </Button>
@@ -240,6 +249,9 @@ export function FormsList() {
                   </div>
                 </div>
                 <div className="flex items-center space-x-1">
+                  <Button variant="ghost" size="sm" onClick={() => handleCopyId(form.id)} title="Copy Form ID" className="text-gray-600 hover:text-gray-700 hover:bg-gray-50">
+                    <Copy className="h-4 w-4" />
+                  </Button>
                   <Button variant="ghost" size="sm" onClick={() => handleViewForm(form.id)} title="Add Record" className="text-blue-600 hover:text-blue-700 hover:bg-blue-50">
                     <Plus className="h-4 w-4" />
                   </Button>
@@ -355,6 +367,9 @@ export function FormsList() {
                         </div>
                         <div className="flex justify-between gap-1">
                           <div className="flex gap-1">
+                            <Button variant="ghost" size="sm" onClick={() => handleCopyId(form.id)} title="Copy Form ID" className="h-8 w-8 p-0 text-gray-600 hover:text-gray-700 hover:bg-gray-50">
+                              <Copy className="h-3 w-3" />
+                            </Button>
                             <Button variant="ghost" size="sm" onClick={() => handleViewForm(form.id)} title="Add Record" className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50">
                               <Plus className="h-3 w-3" />
                             </Button>
