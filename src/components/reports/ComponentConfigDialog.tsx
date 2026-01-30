@@ -96,6 +96,60 @@ const JOIN_TYPES = [
   { value: 'full', label: 'Full Join', description: 'All records from both forms' }
 ];
 
+// SQL Query Formatter
+function formatSqlQuery(query: string): string {
+  if (!query.trim()) return query;
+  
+  // Normalize whitespace
+  let formatted = query.replace(/\s+/g, ' ').trim();
+  
+  // Keywords to put on new lines
+  const newLineKeywords = [
+    'SELECT', 'FROM', 'WHERE', 'GROUP BY', 'HAVING', 
+    'ORDER BY', 'LIMIT', 'OFFSET', 'INNER JOIN', 'LEFT JOIN', 
+    'RIGHT JOIN', 'FULL JOIN', 'JOIN', 'ON', 'AND', 'OR'
+  ];
+  
+  // Add newlines before keywords
+  newLineKeywords.forEach(keyword => {
+    const regex = new RegExp(`\\s+(${keyword})\\s+`, 'gi');
+    formatted = formatted.replace(regex, `\n${keyword} `);
+  });
+  
+  // Handle SELECT at the start
+  if (formatted.toUpperCase().startsWith('SELECT')) {
+    formatted = 'SELECT' + formatted.substring(6);
+  }
+  
+  // Indent continuation lines (not main keywords)
+  const lines = formatted.split('\n');
+  const mainKeywords = ['SELECT', 'FROM', 'WHERE', 'GROUP BY', 'HAVING', 'ORDER BY', 'LIMIT', 'OFFSET'];
+  
+  const formattedLines = lines.map((line, index) => {
+    const trimmedLine = line.trim();
+    if (index === 0) return trimmedLine;
+    
+    const startsWithMain = mainKeywords.some(kw => 
+      trimmedLine.toUpperCase().startsWith(kw)
+    );
+    
+    const startsWithJoin = /^(INNER|LEFT|RIGHT|FULL)?\s*JOIN/i.test(trimmedLine);
+    
+    if (startsWithMain || startsWithJoin) {
+      return trimmedLine;
+    }
+    
+    // Indent AND/OR and ON clauses
+    if (/^(AND|OR|ON)\s/i.test(trimmedLine)) {
+      return '  ' + trimmedLine;
+    }
+    
+    return trimmedLine;
+  });
+  
+  return formattedLines.join('\n');
+}
+
 export function ComponentConfigDialog({
   open,
   onOpenChange,
@@ -1718,9 +1772,22 @@ export function ComponentConfigDialog({
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <Label>SQL Query</Label>
-          <QueryExamplesPopover 
-            onInsertQuery={(query) => setConfig({ ...config, query })} 
-          />
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 h-7 text-xs"
+              onClick={() => {
+                const formatted = formatSqlQuery(config.query || '');
+                setConfig({ ...config, query: formatted });
+              }}
+            >
+              Format
+            </Button>
+            <QueryExamplesPopover 
+              onInsertQuery={(query) => setConfig({ ...config, query })} 
+            />
+          </div>
         </div>
         <div className="grid grid-cols-5 gap-4">
           {/* Forms & Fields Sidebar */}
@@ -1815,9 +1882,6 @@ export function ComponentConfigDialog({
               rows={10}
               className="font-mono text-sm h-full min-h-[250px]"
             />
-            <p className="text-xs text-muted-foreground mt-1">
-              Use "form-uuid" for forms and FIELD("field-id") for fields. First column becomes X-axis labels, second column becomes Y-axis values.
-            </p>
           </div>
         </div>
       </div>
