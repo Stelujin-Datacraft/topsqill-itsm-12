@@ -13,7 +13,6 @@ import {
   SidebarHeader,
   SidebarRail,
   SidebarSeparator,
-  SidebarTrigger,
 } from "@/components/ui/sidebar"
 import { useAuth } from "@/contexts/AuthContext"
 import { useImpersonation } from "@/contexts/ImpersonationContext"
@@ -173,10 +172,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={data.user} />
-        {/* Toggle button visible only when collapsed */}
-        <div className="hidden group-data-[collapsible=icon]:flex justify-center py-2">
-          <SidebarTrigger className="h-8 w-8" />
-        </div>
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

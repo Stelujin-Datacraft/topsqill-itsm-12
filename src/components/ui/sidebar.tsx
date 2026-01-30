@@ -287,17 +287,7 @@ const SidebarRail = React.forwardRef<
   HTMLButtonElement,
   React.ComponentProps<"button">
 >(({ className, ...props }, ref) => {
-  const { toggleSidebar, state } = useSidebar()
-
-  const handleClick = (e: React.MouseEvent) => {
-    // Only toggle when expanded - prevents accidental clicks on collapsed sidebar
-    if (state === "collapsed") {
-      e.preventDefault()
-      e.stopPropagation()
-      return
-    }
-    toggleSidebar()
-  }
+  const { toggleSidebar } = useSidebar()
 
   return (
     <button
@@ -305,7 +295,7 @@ const SidebarRail = React.forwardRef<
       data-sidebar="rail"
       aria-label="Toggle Sidebar"
       tabIndex={-1}
-      onClick={handleClick}
+      onClick={toggleSidebar}
       title="Toggle Sidebar"
       className={cn(
         "absolute inset-y-0 z-20 hidden w-4 -translate-x-1/2 transition-all ease-linear after:absolute after:inset-y-0 after:left-1/2 after:w-[2px] hover:after:bg-sidebar-border group-data-[side=left]:-right-4 group-data-[side=right]:left-0 sm:flex",
@@ -314,8 +304,6 @@ const SidebarRail = React.forwardRef<
         "group-data-[collapsible=offcanvas]:translate-x-0 group-data-[collapsible=offcanvas]:after:left-full group-data-[collapsible=offcanvas]:hover:bg-sidebar",
         "[[data-side=left][data-collapsible=offcanvas]_&]:-right-2",
         "[[data-side=right][data-collapsible=offcanvas]_&]:-left-2",
-        // Hide rail interaction area when collapsed to prevent accidental clicks
-        "group-data-[state=collapsed]:pointer-events-none",
         className
       )}
       {...props}
