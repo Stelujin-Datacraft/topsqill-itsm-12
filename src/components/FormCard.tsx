@@ -19,8 +19,10 @@ import {
   AlertCircle,
   Archive,
   Trash2,
-  Database
+  Database,
+  Copy
 } from 'lucide-react';
+import { toast } from 'sonner';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -55,6 +57,12 @@ export function FormCard({
   canDelete = false
 }: FormCardProps) {
   const { canViewSubmissions } = useFormSubmissionAccess(form.id);
+
+  const handleCopyId = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(form.id);
+    toast.success('Form ID copied to clipboard');
+  };
 
   const getStatusConfig = (status: string) => {
     switch (status) {
@@ -160,6 +168,14 @@ export function FormCard({
 
             {/* Actions */}
             <div className="flex items-center gap-2 shrink-0">
+              <Button 
+                size="sm" 
+                variant="outline" 
+                onClick={handleCopyId}
+                title="Copy Form ID"
+              >
+                <Copy className="h-4 w-4" />
+              </Button>
               <Button 
                 size="sm" 
                 variant="outline" 
@@ -275,6 +291,9 @@ export function FormCard({
 
             {/* Actions */}
             <div className="flex gap-1 flex-wrap pt-2">
+              <Button size="sm" variant="outline" onClick={handleCopyId} className="text-xs px-2 py-1 h-7" title="Copy Form ID">
+                <Copy className="h-3 w-3" />
+              </Button>
               <Button size="sm" variant="outline" onClick={() => onView(form)} className="text-xs px-2 py-1 h-7">
                 <Eye className="h-3 w-3 mr-1" />
                 View
@@ -344,6 +363,15 @@ export function FormCard({
 
           {/* Actions */}
           <div className="flex justify-center gap-2 flex-wrap pt-2">
+            <Button 
+              size="sm" 
+              variant="outline" 
+              onClick={handleCopyId}
+              title="Copy Form ID"
+              className="flex-1 max-w-[60px]"
+            >
+              <Copy className="h-4 w-4" />
+            </Button>
             <Button 
               size="sm" 
               variant="outline" 

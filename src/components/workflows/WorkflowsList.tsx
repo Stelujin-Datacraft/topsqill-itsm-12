@@ -12,7 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Plus, FileText, Calendar, User, Eye, Edit, Trash2, Play, Share2 } from 'lucide-react';
+import { Plus, FileText, Calendar, User, Eye, Edit, Trash2, Play, Share2, Copy } from 'lucide-react';
 import { ShareLinkButton } from '@/components/shared/ShareLinkButton';
 import { format } from 'date-fns';
 import { CreateWorkflowDialog } from './CreateWorkflowDialog';
@@ -91,6 +91,14 @@ export function WorkflowsList({ workflows, onEdit, onDelete, onView, getPermissi
     onDelete(workflow.id);
   };
 
+  const handleCopyId = (id: string) => {
+    navigator.clipboard.writeText(id);
+    toast({
+      title: "Copied",
+      description: "Workflow ID copied to clipboard",
+    });
+  };
+
   const createButtonState = getButtonState('workflows', 'create');
 
   if (!workflows) {
@@ -158,6 +166,14 @@ export function WorkflowsList({ workflows, onEdit, onDelete, onView, getPermissi
                       )}
                     </div>
                     <div className="flex space-x-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleCopyId(workflow.id)}
+                        title="Copy Workflow ID"
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
                       <ShareLinkButton 
                         assetType="workflow" 
                         assetId={workflow.id} 
