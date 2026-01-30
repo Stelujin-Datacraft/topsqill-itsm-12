@@ -28,12 +28,16 @@ export function TeamSwitcher({
           onClick={handleClick}
           className="cursor-pointer hover:bg-sidebar-accent"
         >
-          <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground overflow-hidden">
+          <div className={`flex aspect-square size-8 items-center justify-center rounded-lg overflow-hidden ${
+            currentOrganization?.logo_url 
+              ? 'bg-background border border-border' 
+              : 'bg-sidebar-primary text-sidebar-primary-foreground'
+          }`}>
             {currentOrganization?.logo_url ? (
               <img 
                 src={currentOrganization.logo_url} 
                 alt={currentOrganization.name} 
-                className="w-full h-full object-cover"
+                className="w-full h-full object-contain"
               />
             ) : (
               <activeTeam.logo className="size-4" />
