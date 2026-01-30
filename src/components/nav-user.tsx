@@ -1,11 +1,14 @@
-
 import { ChevronsUpDown, LogOut, User, KeyRound } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from "@/components/ui/sidebar"
 import { useAuth } from "@/contexts/AuthContext"
-import { supabase } from "@/integrations/supabase/client"
 import { useNavigate } from "react-router-dom"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 export function NavUser({
   user,
@@ -16,9 +19,10 @@ export function NavUser({
     avatar: string
   }
 }) {
-  const { isMobile } = useSidebar()
+  const { isMobile, state } = useSidebar()
   const { signOut } = useAuth()
   const navigate = useNavigate()
+  const isCollapsed = state === 'collapsed'
 
   const handleSignOut = async () => {
     try {
@@ -29,27 +33,42 @@ export function NavUser({
     }
   }
 
+  const menuButton = (
+    <SidebarMenuButton
+      size="lg"
+      className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+    >
+      <Avatar className="h-8 w-8 rounded-lg">
+        <AvatarImage src={user.avatar} alt={user.name} />
+        <AvatarFallback className="rounded-lg">
+          {user.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+        </AvatarFallback>
+      </Avatar>
+      <div className="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
+        <span className="truncate font-semibold">{user.name}</span>
+        <span className="truncate text-xs">{user.email}</span>
+      </div>
+      <ChevronsUpDown className="ml-auto size-4 group-data-[collapsible=icon]:hidden" />
+    </SidebarMenuButton>
+  )
+
   return (
     <SidebarMenu>
       <SidebarMenuItem>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <SidebarMenuButton
-              size="lg"
-              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
-            >
-              <Avatar className="h-8 w-8 rounded-lg">
-                <AvatarImage src={user.avatar} alt={user.name} />
-                <AvatarFallback className="rounded-lg">
-                  {user.name.split(' ').map(n => n[0]).join('').toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-              <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-semibold">{user.name}</span>
-                <span className="truncate text-xs">{user.email}</span>
-              </div>
-              <ChevronsUpDown className="ml-auto size-4" />
-            </SidebarMenuButton>
+            {isCollapsed && !isMobile ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  {menuButton}
+                </TooltipTrigger>
+                <TooltipContent side="right" align="center">
+                  {user.name}
+                </TooltipContent>
+              </Tooltip>
+            ) : (
+              menuButton
+            )}
           </DropdownMenuTrigger>
           <DropdownMenuContent
             className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
