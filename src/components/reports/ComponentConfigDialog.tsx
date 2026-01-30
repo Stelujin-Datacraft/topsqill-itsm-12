@@ -27,6 +27,7 @@ import { FormJoinConfig } from './FormJoinConfig';
 import { getFieldDisplayName, UNSUPPORTED_TABLE_FIELDS, UNSUPPORTED_FILTER_FIELDS } from '@/utils/chartConfig';
 import { FilterConfig } from './FilterConfig';
 import { DrilldownConfig } from './DrilldownConfig';
+import { QueryExamplesPopover } from './QueryExamplesPopover';
 import { 
   BarChart, 
   LineChart, 
@@ -1715,7 +1716,12 @@ export function ComponentConfigDialog({
 
       {/* Query Settings with Form/Field Helper */}
       <div className="space-y-4">
-        <Label>SQL Query</Label>
+        <div className="flex items-center justify-between">
+          <Label>SQL Query</Label>
+          <QueryExamplesPopover 
+            onInsertQuery={(query) => setConfig({ ...config, query })} 
+          />
+        </div>
         <div className="grid grid-cols-5 gap-4">
           {/* Forms & Fields Sidebar */}
           <div className="col-span-2 border rounded-lg p-3 max-h-[350px] overflow-y-auto bg-muted/30">
