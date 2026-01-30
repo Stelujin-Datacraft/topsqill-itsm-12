@@ -1,4 +1,3 @@
-
 import { LucideIcon } from "lucide-react"
 import { SidebarGroup, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar"
 import { Link, useLocation } from "react-router-dom"
@@ -26,6 +25,7 @@ export function NavMain({
               asChild 
               isActive={location.pathname === item.url}
               disabled={item.isDisabled}
+              tooltip={item.title}
             >
               <Link to={item.url}>
                 {item.icon && <item.icon />}

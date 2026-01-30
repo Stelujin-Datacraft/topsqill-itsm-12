@@ -1,4 +1,3 @@
-
 import { LucideIcon } from "lucide-react"
 import { SidebarGroup, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar"
 import { Link, useLocation } from "react-router-dom"
@@ -34,6 +33,7 @@ export function NavProjects({
             <SidebarMenuButton 
               asChild 
               isActive={location.pathname.includes(project.url.split('/')[2])}
+              tooltip={project.name}
             >
               <Link 
                 to={project.url}
