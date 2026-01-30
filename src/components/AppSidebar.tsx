@@ -56,11 +56,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         icon: FolderKanban,
       },
       {
-        title: "Organizations",
-        url: "/organizations",
-        icon: Building2,
-      },
-      {
         title: "Data Explorer",
         url: "/query",
         icon: Database,
