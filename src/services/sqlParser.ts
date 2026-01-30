@@ -145,19 +145,20 @@ export function parseUserQuery(input: string): ParseResult {
     }
   }
 
-  // 2. Extract main parts: SELECT … FROM "formUuid" [WHERE …] [GROUP BY …] [HAVING …] [ORDER BY …] [LIMIT …] [OFFSET …]
+  // 2. Extract main parts: SELECT … FROM "formUuid" [JOIN ...] [WHERE …] [GROUP BY …] [HAVING …] [ORDER BY …] [LIMIT …] [OFFSET …]
   // Normalize whitespace and newlines for multi-line queries - preserve structure but collapse whitespace
   const normalized = cleaned.replace(/\s+/g, ' ').trim();
   
   // Check for DISTINCT - use 's' flag to match across newlines
   // Support both quoted and unquoted form UUIDs as table names
-  const distinctMatch = normalized.match(/^SELECT\s+(DISTINCT\s+)?(.+?)\s+FROM\s+['""]?([0-9a-fA-F\-]{36})['""]?(.*)$/is)
+  // Also support optional alias with AS keyword
+  const distinctMatch = normalized.match(/^SELECT\s+(DISTINCT\s+)?(.+?)\s+FROM\s+['""]?([0-9a-fA-F\-]{36})['""]?(?:\s+(?:AS\s+)?(\w+))?(.*)$/is)
   if (!distinctMatch) {
-    errors.push('Invalid syntax. Expected: SELECT [DISTINCT] … FROM "form_uuid" [WHERE …] [GROUP BY …] [ORDER BY …] [LIMIT …]')
+    errors.push('Invalid syntax. Expected: SELECT [DISTINCT] … FROM "form_uuid" [JOIN ...] [WHERE …] [GROUP BY …] [ORDER BY …] [LIMIT …]')
     return { errors }
   }
   
-  let [, distinctKeyword, selectExpr, formUuid, restOfQuery] = distinctMatch
+  let [, distinctKeyword, selectExpr, formUuid, tableAlias, restOfQuery] = distinctMatch
   const isDistinct = Boolean(distinctKeyword)
   
   // Parse optional clauses
@@ -167,39 +168,63 @@ export function parseUserQuery(input: string): ParseResult {
   let orderByExpr = ''
   let limitExpr = ''
   let offsetExpr = ''
+  let joins: Array<{ joinType: string; formUuid: string; alias?: string; onCondition: string }> = []
   
-  // Extract WHERE clause - use 's' flag to match across newlines
-  const whereMatch = restOfQuery.match(/\s+WHERE\s+(.+?)(?=\s+(?:GROUP BY|ORDER BY|LIMIT|OFFSET)|$)/is)
+  // Extract JOIN clauses first (they come before WHERE, GROUP BY, etc.)
+  // Pattern: [INNER|LEFT|RIGHT|FULL] JOIN "form-uuid" [AS alias] ON condition
+  const joinPattern = /\s+(INNER\s+JOIN|LEFT\s+(?:OUTER\s+)?JOIN|RIGHT\s+(?:OUTER\s+)?JOIN|FULL\s+(?:OUTER\s+)?JOIN|JOIN)\s+['""]?([0-9a-fA-F\-]{36})['""]?(?:\s+(?:AS\s+)?(\w+))?\s+ON\s+(.+?)(?=\s+INNER\s+JOIN|\s+LEFT\s+|\s+RIGHT\s+|\s+FULL\s+|\s+JOIN\s+|\s+WHERE\s+|\s+GROUP\s+BY\s+|\s+HAVING\s+|\s+ORDER\s+BY\s+|\s+LIMIT\s+|\s+OFFSET\s+|$)/gi;
+  
+  let joinMatch;
+  while ((joinMatch = joinPattern.exec(restOfQuery)) !== null) {
+    const joinTypeRaw = joinMatch[1].toUpperCase().replace(/\s+/g, ' ');
+    let joinType = 'inner';
+    if (joinTypeRaw.includes('LEFT')) joinType = 'left';
+    else if (joinTypeRaw.includes('RIGHT')) joinType = 'right';
+    else if (joinTypeRaw.includes('FULL')) joinType = 'full';
+    
+    joins.push({
+      joinType,
+      formUuid: joinMatch[2],
+      alias: joinMatch[3],
+      onCondition: joinMatch[4].trim()
+    });
+  }
+  
+  // Remove JOIN clauses from restOfQuery for further parsing
+  let cleanedRestOfQuery = restOfQuery.replace(joinPattern, ' ');
+  
+  // Extract WHERE clause - use lookahead or end of string
+  const whereMatch = cleanedRestOfQuery.match(/\s+WHERE\s+(.+?)(?=\s+GROUP\s+BY\s+|\s+HAVING\s+|\s+ORDER\s+BY\s+|\s+LIMIT\s+|\s+OFFSET\s+|$)/is)
   if (whereMatch) {
     whereExpr = whereMatch[1].trim()
   }
   
-  // Extract GROUP BY clause - use 's' flag to match across newlines
-  const groupByMatch = restOfQuery.match(/\s+GROUP BY\s+(.+?)(?=\s+(?:HAVING|ORDER BY|LIMIT|OFFSET|$))/is)
+  // Extract GROUP BY clause - handle end of string properly
+  const groupByMatch = cleanedRestOfQuery.match(/\s+GROUP\s+BY\s+(.+?)(?=\s+HAVING\s+|\s+ORDER\s+BY\s+|\s+LIMIT\s+|\s+OFFSET\s+|$)/is)
   if (groupByMatch) {
     groupByExpr = groupByMatch[1].trim()
   }
   
-  // Extract HAVING clause - use 's' flag to match across newlines
-  const havingMatch = restOfQuery.match(/\s+HAVING\s+(.+?)(?=\s+(?:ORDER BY|LIMIT|OFFSET|$))/is)
+  // Extract HAVING clause
+  const havingMatch = cleanedRestOfQuery.match(/\s+HAVING\s+(.+?)(?=\s+ORDER\s+BY\s+|\s+LIMIT\s+|\s+OFFSET\s+|$)/is)
   if (havingMatch) {
     havingExpr = havingMatch[1].trim()
   }
   
-  // Extract ORDER BY clause - use 's' flag to match across newlines
-  const orderByMatch = restOfQuery.match(/\s+ORDER BY\s+(.+?)(?=\s+(?:LIMIT|OFFSET|$))/is)
+  // Extract ORDER BY clause - handle end of string properly
+  const orderByMatch = cleanedRestOfQuery.match(/\s+ORDER\s+BY\s+(.+?)(?=\s+LIMIT\s+|\s+OFFSET\s+|$)/is)
   if (orderByMatch) {
     orderByExpr = orderByMatch[1].trim()
   }
   
   // Extract LIMIT clause
-  const limitMatch = restOfQuery.match(/\s+LIMIT\s+(\d+)/i)
+  const limitMatch = cleanedRestOfQuery.match(/\s+LIMIT\s+(\d+)/i)
   if (limitMatch) {
     limitExpr = limitMatch[1]
   }
   
   // Extract OFFSET clause
-  const offsetMatch = restOfQuery.match(/\s+OFFSET\s+(\d+)/i)
+  const offsetMatch = cleanedRestOfQuery.match(/\s+OFFSET\s+(\d+)/i)
   if (offsetMatch) {
     offsetExpr = offsetMatch[1]
   }
@@ -207,6 +232,7 @@ export function parseUserQuery(input: string): ParseResult {
   // Store all parsed clauses for client-side execution
   const queryMetadata = {
     formUuid,
+    tableAlias: tableAlias || null,
     selectExpr,
     whereExpr,
     groupByExpr,
@@ -214,7 +240,8 @@ export function parseUserQuery(input: string): ParseResult {
     orderByExpr,
     limitExpr,
     offsetExpr,
-    isDistinct
+    isDistinct,
+    joins: joins.length > 0 ? joins : undefined
   };
 
   // Encode metadata in SQL comment for client-side execution
@@ -1055,9 +1082,9 @@ export async function executeUserQuery(
     }
     
     const metadata = JSON.parse(metadataMatch[1]);
-    const { formUuid, selectExpr, whereExpr, groupByExpr, havingExpr, orderByExpr, limitExpr, offsetExpr, isDistinct } = metadata;
+    const { formUuid, tableAlias, selectExpr, whereExpr, groupByExpr, havingExpr, orderByExpr, limitExpr, offsetExpr, isDistinct, joins } = metadata;
     
-    // Fetch all submissions for this form
+    // Fetch all submissions for the primary form
     const { data: submissions, error: submissionsError } = await supabase
       .from('form_submissions')
       .select('*')
@@ -1127,15 +1154,77 @@ export async function executeUserQuery(
     // Debug logging removed for production
     
     // Transform submissions into rows with flattened field access
-    let rows = submissions.map(sub => ({
-      // Stable aliases for identifiers
-      submission_id: sub.submission_ref_id || sub.id,
-      submission_ref_id: sub.submission_ref_id,
-      id: sub.id,
-      submitted_by: sub.submitted_by,
-      submitted_at: sub.submitted_at,
-      ...(sub.submission_data as Record<string, any>)
-    }));
+    // Apply optional table alias prefix
+    const primaryAlias = tableAlias || null;
+    let rows = submissions.map(sub => {
+      const baseRow: Record<string, any> = {
+        // Stable aliases for identifiers
+        submission_id: sub.submission_ref_id || sub.id,
+        submission_ref_id: sub.submission_ref_id,
+        id: sub.id,
+        submitted_by: sub.submitted_by,
+        submitted_at: sub.submitted_at,
+        ...(sub.submission_data as Record<string, any>)
+      };
+      
+      // If there's a table alias, also add prefixed versions
+      if (primaryAlias) {
+        Object.keys(sub.submission_data as Record<string, any>).forEach(key => {
+          baseRow[`${primaryAlias}.${key}`] = (sub.submission_data as Record<string, any>)[key];
+        });
+        baseRow[`${primaryAlias}.submission_id`] = sub.submission_ref_id || sub.id;
+        baseRow[`${primaryAlias}.submission_ref_id`] = sub.submission_ref_id;
+      }
+      
+      return baseRow;
+    });
+    
+    // Apply JOINs if present
+    if (joins && Array.isArray(joins) && joins.length > 0) {
+      for (const join of joins) {
+        try {
+          // Fetch submissions from the joined form
+          const { data: joinedSubmissions, error: joinError } = await supabase
+            .from('form_submissions')
+            .select('*')
+            .eq('form_id', join.formUuid);
+          
+          if (joinError) {
+            console.error('JOIN fetch error:', joinError);
+            continue;
+          }
+          
+          if (!joinedSubmissions || joinedSubmissions.length === 0) {
+            // For INNER JOIN, no results means empty result set
+            if (join.joinType === 'inner') {
+              rows = [];
+            }
+            continue;
+          }
+          
+          // Transform joined submissions
+          const joinAlias = join.alias || join.formUuid.substring(0, 8);
+          const joinedRows = joinedSubmissions.map(sub => ({
+            submission_id: sub.submission_ref_id || sub.id,
+            submission_ref_id: sub.submission_ref_id,
+            id: sub.id,
+            submitted_by: sub.submitted_by,
+            submitted_at: sub.submitted_at,
+            ...(sub.submission_data as Record<string, any>)
+          }));
+          
+          // Parse ON condition to extract field references
+          // Expected format: FIELD("field1") = alias.FIELD("field2") or similar
+          const onCondition = join.onCondition;
+          
+          // Execute the join based on type
+          rows = executeJoin(rows, joinedRows, join.joinType, onCondition, joinAlias, fieldMetadata);
+          
+        } catch (err) {
+          console.error('Error executing JOIN:', err);
+        }
+      }
+    }
     
     // Apply WHERE filter
     if (whereExpr) {
@@ -1294,6 +1383,17 @@ export async function executeUserQuery(
     
     // Apply ORDER BY
     if (orderByExpr) {
+      // Create a mapping from aliases/field refs to column indices
+      const aliasToColIndex: Map<string, number> = new Map();
+      selectParts.forEach((part, idx) => {
+        // Map by alias (e.g., 'total', 'count', 'avg_score')
+        aliasToColIndex.set(part.alias.toLowerCase(), idx);
+        // Map by original expression if different
+        aliasToColIndex.set(part.expr.toLowerCase(), idx);
+        // Map by column name (which might be a label)
+        aliasToColIndex.set(columns[idx].toLowerCase(), idx);
+      });
+      
       const orderParts = orderByExpr.split(',').map(part => {
         const trimmed = part.trim();
         const descMatch = trimmed.match(/^(.+?)\s+(ASC|DESC)$/i);
@@ -1305,15 +1405,46 @@ export async function executeUserQuery(
       
       filteredResults.sort((a, b) => {
         for (const { field, direction } of orderParts) {
-          const colIndex = columns.indexOf(field);
-          if (colIndex === -1) continue;
+          // Try to find column by alias mapping first (case-insensitive)
+          let colIndex = aliasToColIndex.get(field.toLowerCase());
+          
+          // If not found, try exact match with columns array
+          if (colIndex === undefined) {
+            colIndex = columns.indexOf(field);
+            if (colIndex === -1) colIndex = undefined;
+          }
+          
+          // If still not found, try to match FIELD() reference
+          if (colIndex === undefined) {
+            const fieldMatch = field.match(/FIELD\s*\(\s*['""]?([^'"\"]+)['""]?\s*\)/i);
+            if (fieldMatch) {
+              const fieldId = fieldMatch[1];
+              colIndex = aliasToColIndex.get(fieldId.toLowerCase());
+            }
+          }
+          
+          if (colIndex === undefined) continue;
           
           const aVal = a[colIndex];
           const bVal = b[colIndex];
           
+          // Improved comparison logic for different types
           let comparison = 0;
-          if (aVal < bVal) comparison = -1;
-          else if (aVal > bVal) comparison = 1;
+          
+          // Handle null/undefined values - push them to the end
+          if (aVal === null || aVal === undefined) {
+            if (bVal !== null && bVal !== undefined) comparison = 1;
+          } else if (bVal === null || bVal === undefined) {
+            comparison = -1;
+          } else if (typeof aVal === 'number' && typeof bVal === 'number') {
+            // Numeric comparison
+            comparison = aVal - bVal;
+          } else {
+            // String comparison
+            const aStr = String(aVal);
+            const bStr = String(bVal);
+            comparison = aStr.localeCompare(bStr, undefined, { numeric: true });
+          }
           
           if (comparison !== 0) {
             return direction === 'DESC' ? -comparison : comparison;
@@ -1646,6 +1777,89 @@ function evaluateWhereCondition(condition: string, row: any): boolean {
     console.error('Condition evaluation error:', e, 'Condition:', processedCondition);
     return false;
   }
+}
+
+/**
+ * Execute a JOIN operation between two row sets
+ */
+function executeJoin(
+  leftRows: any[],
+  rightRows: any[],
+  joinType: string,
+  onCondition: string,
+  rightAlias: string,
+  fieldMetadata: Record<string, any>
+): any[] {
+  const result: any[] = [];
+  
+  // Parse ON condition to extract field references
+  // Expected formats: 
+  // - FIELD("left-field") = FIELD("right-field")
+  // - alias.FIELD("field") = alias2.FIELD("field2")
+  // - left-field = right-field
+  const parseConditionFields = (condition: string): { leftField: string; rightField: string } | null => {
+    // Try FIELD() = FIELD() pattern
+    const fieldMatch = condition.match(/FIELD\s*\(\s*['""]([^'"\"]+)['"\"]\s*\)\s*=\s*(?:\w+\.)?FIELD\s*\(\s*['""]([^'"\"]+)['"\"]\s*\)/i);
+    if (fieldMatch) {
+      return { leftField: fieldMatch[1], rightField: fieldMatch[2] };
+    }
+    
+    // Try simple field = field pattern
+    const simpleMatch = condition.match(/(\w+)\s*=\s*(?:\w+\.)?(\w+)/i);
+    if (simpleMatch) {
+      return { leftField: simpleMatch[1], rightField: simpleMatch[2] };
+    }
+    
+    return null;
+  };
+  
+  const fields = parseConditionFields(onCondition);
+  if (!fields) {
+    console.error('Could not parse JOIN ON condition:', onCondition);
+    return leftRows; // Return original rows if can't parse condition
+  }
+  
+  const { leftField, rightField } = fields;
+  const matchedRightIds = new Set<string>();
+  
+  // For each left row, find matching right rows
+  leftRows.forEach(leftRow => {
+    const leftValue = String(leftRow[leftField] ?? '').toLowerCase();
+    const matchingRight = rightRows.filter(rightRow => {
+      const rightValue = String(rightRow[rightField] ?? '').toLowerCase();
+      return leftValue === rightValue && leftValue !== '';
+    });
+    
+    if (matchingRight.length > 0) {
+      matchingRight.forEach(rightRow => {
+        matchedRightIds.add(rightRow.id);
+        // Merge rows with alias prefix for right table
+        const merged = { ...leftRow };
+        Object.keys(rightRow).forEach(key => {
+          merged[`${rightAlias}.${key}`] = rightRow[key];
+        });
+        result.push(merged);
+      });
+    } else if (joinType === 'left' || joinType === 'full') {
+      // LEFT/FULL JOIN: include left row even without match
+      result.push(leftRow);
+    }
+  });
+  
+  // For RIGHT/FULL JOIN, add unmatched right rows
+  if (joinType === 'right' || joinType === 'full') {
+    rightRows.forEach(rightRow => {
+      if (!matchedRightIds.has(rightRow.id)) {
+        const merged: any = {};
+        Object.keys(rightRow).forEach(key => {
+          merged[`${rightAlias}.${key}`] = rightRow[key];
+        });
+        result.push(merged);
+      }
+    });
+  }
+  
+  return result;
 }
 
 /**
