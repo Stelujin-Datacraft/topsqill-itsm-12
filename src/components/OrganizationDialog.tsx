@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -42,15 +42,29 @@ export function OrganizationDialog({
   onSubmit,
 }: OrganizationDialogProps) {
   const [formData, setFormData] = useState({
-    name: editingOrg?.name || '',
-    description: editingOrg?.description || '',
-    domain: editingOrg?.domain || '',
-    admin_email: editingOrg?.admin_email || '',
+    name: '',
+    description: '',
+    domain: '',
+    admin_email: '',
   });
   const [logoFile, setLogoFile] = useState<File | null>(null);
-  const [logoPreview, setLogoPreview] = useState<string | null>(editingOrg?.logo_url || null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Sync form data when editingOrg changes or dialog opens
+  useEffect(() => {
+    if (open) {
+      setFormData({
+        name: editingOrg?.name || '',
+        description: editingOrg?.description || '',
+        domain: editingOrg?.domain || '',
+        admin_email: editingOrg?.admin_email || '',
+      });
+      setLogoPreview(editingOrg?.logo_url || null);
+      setLogoFile(null);
+    }
+  }, [open, editingOrg]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -147,7 +161,6 @@ export function OrganizationDialog({
     }
   };
 
-  // Reset form when dialog opens/closes or editingOrg changes
   const handleOpenChange = (newOpen: boolean) => {
     if (newOpen) {
       setFormData({
