@@ -98,6 +98,39 @@ export function QueryChartComponent({ config }: QueryChartComponentProps) {
     };
   }, [refreshInterval, executeQuery]);
 
+  // Detect if Y-axis has text values that need encoding
+  const yAxisTextMapping = React.useMemo(() => {
+    if (!queryResult || queryResult.columns.length < 2) return null;
+    
+    const secondColumn = queryResult.columns[1];
+    const uniqueTextValues: string[] = [];
+    let hasTextValues = false;
+    
+    queryResult.rows.forEach(row => {
+      const value = row[1];
+      if (value !== null && value !== undefined) {
+        const numericValue = typeof value === 'string' ? parseFloat(value) : value;
+        if (isNaN(numericValue) || (typeof value === 'string' && value.trim() !== '' && isNaN(Number(value)))) {
+          hasTextValues = true;
+          const strValue = String(value);
+          if (!uniqueTextValues.includes(strValue)) {
+            uniqueTextValues.push(strValue);
+          }
+        }
+      }
+    });
+    
+    if (!hasTextValues) return null;
+    
+    // Create mapping: text -> index (1-based for visibility)
+    const mapping: Record<string, number> = {};
+    uniqueTextValues.forEach((text, idx) => {
+      mapping[text] = idx + 1;
+    });
+    
+    return { column: secondColumn, mapping, values: uniqueTextValues };
+  }, [queryResult]);
+
   // Transform data for charts
   const chartData = React.useMemo(() => {
     if (!queryResult || queryResult.rows.length === 0) return [];
@@ -106,18 +139,26 @@ export function QueryChartComponent({ config }: QueryChartComponentProps) {
       const obj: Record<string, any> = {};
       queryResult.columns.forEach((col, idx) => {
         const value = row[idx];
-        const numericValue = typeof value === 'string' ? parseFloat(value) : value;
-        if (typeof numericValue === 'number' && !isNaN(numericValue)) {
-          obj[col] = numericValue;
-        } else if (typeof value === 'string') {
-          obj[col] = value;
+        
+        // Check if this is the Y-axis column with text encoding
+        if (idx === 1 && yAxisTextMapping) {
+          const strValue = String(value);
+          obj[col] = yAxisTextMapping.mapping[strValue] ?? 0;
+          obj[`${col}_original`] = strValue;
         } else {
-          obj[col] = 0;
+          const numericValue = typeof value === 'string' ? parseFloat(value) : value;
+          if (typeof numericValue === 'number' && !isNaN(numericValue)) {
+            obj[col] = numericValue;
+          } else if (typeof value === 'string') {
+            obj[col] = value;
+          } else {
+            obj[col] = 0;
+          }
         }
       });
       return obj;
     });
-  }, [queryResult]);
+  }, [queryResult, yAxisTextMapping]);
 
   // Pie/Donut chart data
   const pieChartData = React.useMemo(() => {
@@ -147,7 +188,13 @@ export function QueryChartComponent({ config }: QueryChartComponentProps) {
     
     return chartData.map((item, idx) => {
       const xRaw = item[firstColumn];
-      const yRaw = item[secondColumn];
+      // For Y, use the encoded value if text mapping exists
+      const yRaw = yAxisTextMapping 
+        ? item[secondColumn] 
+        : item[secondColumn];
+      const yOriginalValue = yAxisTextMapping 
+        ? item[`${secondColumn}_original`] 
+        : item[secondColumn];
       const sizeRaw = thirdColumn ? item[thirdColumn] : 1;
       
       let x = typeof xRaw === 'number' ? xRaw : parseFloat(xRaw);
@@ -163,12 +210,66 @@ export function QueryChartComponent({ config }: QueryChartComponentProps) {
         y,
         z: size,
         xOriginal: xRaw,
-        yOriginal: yRaw,
+        yOriginal: yOriginalValue,
         sizeOriginal: sizeRaw,
         name: String(xRaw)
       };
     });
-  }, [chartData, queryResult]);
+  }, [chartData, queryResult, yAxisTextMapping]);
+
+  // Y-axis tick formatter for text encoding
+  const yAxisTickFormatter = (value: number) => {
+    if (!yAxisTextMapping) return String(value);
+    const entry = Object.entries(yAxisTextMapping.mapping).find(([_, v]) => v === value);
+    return entry ? entry[0] : String(value);
+  };
+
+  // Custom tooltip for showing original text values
+  const renderEnhancedTooltip = (firstColumn: string, secondColumn: string) => {
+    return ({ active, payload, label }: any) => {
+      if (!active || !payload || payload.length === 0) return null;
+      const data = payload[0]?.payload;
+      if (!data) return null;
+      
+      const yOriginal = yAxisTextMapping ? data[`${secondColumn}_original`] : data[secondColumn];
+      
+      return (
+        <div className="bg-popover text-foreground border border-border rounded-md shadow-md p-3">
+          <div className="space-y-1 text-sm">
+            <div className="flex justify-between gap-4">
+              <span className="text-muted-foreground">{firstColumn}:</span>
+              <span className="font-semibold">{label || data[firstColumn]}</span>
+            </div>
+            <div className="flex justify-between gap-4">
+              <span className="text-muted-foreground">{secondColumn}:</span>
+              <span className="font-semibold">{yOriginal}</span>
+            </div>
+          </div>
+        </div>
+      );
+    };
+  };
+
+  // Legend sidebar component for text Y-axis encoding
+  const renderLegendSidebar = () => {
+    if (!yAxisTextMapping) return null;
+    
+    return (
+      <div className="w-32 flex-shrink-0 border-l border-border pl-3 ml-2">
+        <div className="text-xs font-medium text-muted-foreground mb-2">Y-Axis Legend</div>
+        <ScrollArea className="h-[240px]">
+          <div className="space-y-1.5">
+            {yAxisTextMapping.values.map((text, idx) => (
+              <div key={idx} className="flex items-center gap-2 text-xs">
+                <span className="font-mono text-muted-foreground w-4 text-right">{idx + 1}</span>
+                <span className="truncate" title={text}>{text}</span>
+              </div>
+            ))}
+          </div>
+        </ScrollArea>
+      </div>
+    );
+  };
 
   const renderChart = () => {
     if (!queryResult || queryResult.rows.length === 0) {
@@ -183,66 +284,92 @@ export function QueryChartComponent({ config }: QueryChartComponentProps) {
     const secondColumn = queryResult.columns[1];
     const thirdColumn = queryResult.columns[2];
 
+    // Calculate Y-axis domain for text encoding
+    const yDomain = yAxisTextMapping 
+      ? [0, yAxisTextMapping.values.length + 1] 
+      : undefined;
+
     switch (chartType) {
       case 'bar':
         return (
-          <ScrollArea className="w-full h-full">
-            <div style={{ minWidth: Math.max(400, chartData.length * 60), height: 280 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey={firstColumn} />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey={secondColumn} fill={barFill}>
-                    {colorful && chartData.map((_, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-            <ScrollBar orientation="horizontal" />
-          </ScrollArea>
+          <div className="flex h-full">
+            <ScrollArea className="flex-1 h-full">
+              <div style={{ minWidth: Math.max(400, chartData.length * 60), height: 280 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey={firstColumn} />
+                    <YAxis 
+                      domain={yDomain}
+                      tickFormatter={yAxisTextMapping ? yAxisTickFormatter : undefined}
+                      width={yAxisTextMapping ? 60 : undefined}
+                    />
+                    <Tooltip content={renderEnhancedTooltip(firstColumn, secondColumn)} />
+                    <Legend />
+                    <Bar dataKey={secondColumn} fill={barFill}>
+                      {colorful && chartData.map((_, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              <ScrollBar orientation="horizontal" />
+            </ScrollArea>
+            {renderLegendSidebar()}
+          </div>
         );
 
       case 'line':
         return (
-          <ScrollArea className="w-full h-full">
-            <div style={{ minWidth: Math.max(400, chartData.length * 60), height: 280 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey={firstColumn} />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Line type="monotone" dataKey={secondColumn} stroke={lineStroke} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-            <ScrollBar orientation="horizontal" />
-          </ScrollArea>
+          <div className="flex h-full">
+            <ScrollArea className="flex-1 h-full">
+              <div style={{ minWidth: Math.max(400, chartData.length * 60), height: 280 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey={firstColumn} />
+                    <YAxis 
+                      domain={yDomain}
+                      tickFormatter={yAxisTextMapping ? yAxisTickFormatter : undefined}
+                      width={yAxisTextMapping ? 60 : undefined}
+                    />
+                    <Tooltip content={renderEnhancedTooltip(firstColumn, secondColumn)} />
+                    <Legend />
+                    <Line type="monotone" dataKey={secondColumn} stroke={lineStroke} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+              <ScrollBar orientation="horizontal" />
+            </ScrollArea>
+            {renderLegendSidebar()}
+          </div>
         );
 
       case 'area':
         return (
-          <ScrollArea className="w-full h-full">
-            <div style={{ minWidth: Math.max(400, chartData.length * 60), height: 280 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey={firstColumn} />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Area type="monotone" dataKey={secondColumn} stroke={lineStroke} fill={areaFill} fillOpacity={0.3} />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-            <ScrollBar orientation="horizontal" />
-          </ScrollArea>
+          <div className="flex h-full">
+            <ScrollArea className="flex-1 h-full">
+              <div style={{ minWidth: Math.max(400, chartData.length * 60), height: 280 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey={firstColumn} />
+                    <YAxis 
+                      domain={yDomain}
+                      tickFormatter={yAxisTextMapping ? yAxisTickFormatter : undefined}
+                      width={yAxisTextMapping ? 60 : undefined}
+                    />
+                    <Tooltip content={renderEnhancedTooltip(firstColumn, secondColumn)} />
+                    <Legend />
+                    <Area type="monotone" dataKey={secondColumn} stroke={lineStroke} fill={areaFill} fillOpacity={0.3} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+              <ScrollBar orientation="horizontal" />
+            </ScrollArea>
+            {renderLegendSidebar()}
+          </div>
         );
 
       case 'pie':
@@ -272,85 +399,109 @@ export function QueryChartComponent({ config }: QueryChartComponentProps) {
 
       case 'scatter':
         return (
-          <ResponsiveContainer width="100%" height={280}>
-            <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis type="number" dataKey="x" name={firstColumn} />
-              <YAxis type="number" dataKey="y" name={secondColumn} />
-              <Tooltip
-                content={({ payload }) => {
-                  if (!payload || payload.length === 0) return null;
-                  const data = payload[0]?.payload;
-                  if (!data) return null;
-                  return (
-                    <div className="bg-popover text-foreground border border-border rounded-md shadow-md p-3">
-                      <div className="space-y-1 text-sm">
-                        <div className="flex justify-between gap-4">
-                          <span className="text-muted-foreground">{firstColumn}:</span>
-                          <span className="font-semibold">{data.xOriginal}</span>
-                        </div>
-                        <div className="flex justify-between gap-4">
-                          <span className="text-muted-foreground">{secondColumn}:</span>
-                          <span className="font-semibold">{data.yOriginal}</span>
+          <div className="flex h-full">
+            <ResponsiveContainer width={yAxisTextMapping ? "calc(100% - 140px)" : "100%"} height={280}>
+              <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis type="number" dataKey="x" name={firstColumn} />
+                <YAxis 
+                  type="number" 
+                  dataKey="y" 
+                  name={secondColumn}
+                  domain={yDomain}
+                  tickFormatter={yAxisTextMapping ? yAxisTickFormatter : undefined}
+                />
+                <Tooltip
+                  content={({ payload }) => {
+                    if (!payload || payload.length === 0) return null;
+                    const data = payload[0]?.payload;
+                    if (!data) return null;
+                    const yDisplay = yAxisTextMapping 
+                      ? yAxisTextMapping.values[data.y - 1] || data.yOriginal
+                      : data.yOriginal;
+                    return (
+                      <div className="bg-popover text-foreground border border-border rounded-md shadow-md p-3">
+                        <div className="space-y-1 text-sm">
+                          <div className="flex justify-between gap-4">
+                            <span className="text-muted-foreground">{firstColumn}:</span>
+                            <span className="font-semibold">{data.xOriginal}</span>
+                          </div>
+                          <div className="flex justify-between gap-4">
+                            <span className="text-muted-foreground">{secondColumn}:</span>
+                            <span className="font-semibold">{yDisplay}</span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                }}
-              />
-              <Legend />
-              <Scatter name="Data" data={scatterData} fill={COLORS[0]}>
-                {colorful && scatterData.map((_, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Scatter>
-            </ScatterChart>
-          </ResponsiveContainer>
+                    );
+                  }}
+                />
+                <Legend />
+                <Scatter name="Data" data={scatterData} fill={COLORS[0]}>
+                  {colorful && scatterData.map((_, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Scatter>
+              </ScatterChart>
+            </ResponsiveContainer>
+            {renderLegendSidebar()}
+          </div>
         );
 
       case 'bubble':
         return (
-          <ResponsiveContainer width="100%" height={280}>
-            <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis type="number" dataKey="x" name={firstColumn} />
-              <YAxis type="number" dataKey="y" name={secondColumn} />
-              <ZAxis type="number" dataKey="z" range={[50, 400]} name={thirdColumn || 'Size'} />
-              <Tooltip
-                content={({ payload }) => {
-                  if (!payload || payload.length === 0) return null;
-                  const data = payload[0]?.payload;
-                  if (!data) return null;
-                  return (
-                    <div className="bg-popover text-foreground border border-border rounded-md shadow-md p-3">
-                      <div className="space-y-1 text-sm">
-                        <div className="flex justify-between gap-4">
-                          <span className="text-muted-foreground">{firstColumn}:</span>
-                          <span className="font-semibold">{data.xOriginal}</span>
-                        </div>
-                        <div className="flex justify-between gap-4">
-                          <span className="text-muted-foreground">{secondColumn}:</span>
-                          <span className="font-semibold">{data.yOriginal}</span>
-                        </div>
-                        {thirdColumn && (
+          <div className="flex h-full">
+            <ResponsiveContainer width={yAxisTextMapping ? "calc(100% - 140px)" : "100%"} height={280}>
+              <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis type="number" dataKey="x" name={firstColumn} />
+                <YAxis 
+                  type="number" 
+                  dataKey="y" 
+                  name={secondColumn}
+                  domain={yDomain}
+                  tickFormatter={yAxisTextMapping ? yAxisTickFormatter : undefined}
+                />
+                <ZAxis type="number" dataKey="z" range={[50, 400]} name={thirdColumn || 'Size'} />
+                <Tooltip
+                  content={({ payload }) => {
+                    if (!payload || payload.length === 0) return null;
+                    const data = payload[0]?.payload;
+                    if (!data) return null;
+                    const yDisplay = yAxisTextMapping 
+                      ? yAxisTextMapping.values[data.y - 1] || data.yOriginal
+                      : data.yOriginal;
+                    return (
+                      <div className="bg-popover text-foreground border border-border rounded-md shadow-md p-3">
+                        <div className="space-y-1 text-sm">
                           <div className="flex justify-between gap-4">
-                            <span className="text-muted-foreground">{thirdColumn}:</span>
-                            <span className="font-semibold">{data.sizeOriginal}</span>
+                            <span className="text-muted-foreground">{firstColumn}:</span>
+                            <span className="font-semibold">{data.xOriginal}</span>
                           </div>
-                        )}
+                          <div className="flex justify-between gap-4">
+                            <span className="text-muted-foreground">{secondColumn}:</span>
+                            <span className="font-semibold">{yDisplay}</span>
+                          </div>
+                          {thirdColumn && (
+                            <div className="flex justify-between gap-4">
+                              <span className="text-muted-foreground">{thirdColumn}:</span>
+                              <span className="font-semibold">{data.sizeOriginal}</span>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  );
-                }}
-              />
-              <Legend />
-              <Scatter name="Data" data={scatterData} fill={COLORS[0]}>
-                {colorful && scatterData.map((_, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Scatter>
-            </ScatterChart>
-          </ResponsiveContainer>
+                    );
+                  }}
+                />
+                <Legend />
+                <Scatter name="Data" data={scatterData} fill={COLORS[0]}>
+                  {colorful && scatterData.map((_, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Scatter>
+              </ScatterChart>
+            </ResponsiveContainer>
+            {renderLegendSidebar()}
+          </div>
         );
 
       default:
