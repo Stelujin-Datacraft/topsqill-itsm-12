@@ -22,7 +22,8 @@ import {
   User,
   CheckCircle,
   AlertCircle,
-  Trash2
+  Trash2,
+  Copy
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
@@ -112,6 +113,11 @@ export function ProjectsTable({
     console.log('Navigating to settings for project:', project.id);
     // For now, just show console log since settings page isn't implemented
     console.log('Settings page not yet implemented for project:', project.id);
+  };
+  const handleCopyId = (e: React.MouseEvent, projectId: string) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(projectId);
+    toast.success('Project ID copied to clipboard');
   };
 
   const handleDeleteProject = async (e: React.MouseEvent, project: Project) => {
@@ -241,6 +247,14 @@ export function ProjectsTable({
                     <div className="flex items-center gap-2">
                       {canManage ? (
                         <>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={(e) => handleCopyId(e, project.id)}
+                            title="Copy Project ID"
+                          >
+                            <Copy className="h-4 w-4" />
+                          </Button>
                           <Button
                             size="sm"
                             variant="outline"

@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { FileText, Calendar, Eye, Edit, Trash2 } from 'lucide-react';
+import { FileText, Calendar, Eye, Edit, Trash2, Copy } from 'lucide-react';
 import { ShareLinkButton } from '@/components/shared/ShareLinkButton';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
@@ -38,6 +38,14 @@ export function ReportsList({
   const navigate = useNavigate();
   const { toast } = useToast();
   const { getButtonState, checkPermissionWithAlert } = useUnifiedAccessControl();
+
+  const handleCopyId = (id: string, name: string) => {
+    navigator.clipboard.writeText(id);
+    toast({
+      title: "Copied",
+      description: `Report ID copied to clipboard`,
+    });
+  };
 
   const handleEditClick = (report: Report) => {
     if (!checkPermissionWithAlert('reports', 'update', report.id)) {
@@ -161,6 +169,14 @@ export function ReportsList({
                       {report.description && <CardDescription>{report.description}</CardDescription>}
                     </div>
                     <div className="flex space-x-1">
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => handleCopyId(report.id, report.name)} 
+                        title="Copy Report ID"
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
                       <ShareLinkButton 
                         assetType="report" 
                         assetId={report.id} 
