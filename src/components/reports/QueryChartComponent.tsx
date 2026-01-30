@@ -98,6 +98,40 @@ export function QueryChartComponent({ config }: QueryChartComponentProps) {
     };
   }, [refreshInterval, executeQuery]);
 
+  // Detect if X-axis has text values that need encoding (for scatter/bubble)
+  const xAxisTextMapping = React.useMemo(() => {
+    if (!queryResult || queryResult.columns.length < 2) return null;
+    if (chartType !== 'scatter' && chartType !== 'bubble') return null;
+    
+    const firstColumn = queryResult.columns[0];
+    const uniqueTextValues: string[] = [];
+    let hasTextValues = false;
+    
+    queryResult.rows.forEach(row => {
+      const value = row[0];
+      if (value !== null && value !== undefined) {
+        const numericValue = typeof value === 'string' ? parseFloat(value) : value;
+        if (isNaN(numericValue) || (typeof value === 'string' && value.trim() !== '' && isNaN(Number(value)))) {
+          hasTextValues = true;
+          const strValue = String(value);
+          if (!uniqueTextValues.includes(strValue)) {
+            uniqueTextValues.push(strValue);
+          }
+        }
+      }
+    });
+    
+    if (!hasTextValues) return null;
+    
+    // Create mapping: text -> index (1-based for visibility)
+    const mapping: Record<string, number> = {};
+    uniqueTextValues.sort().forEach((text, idx) => {
+      mapping[text] = idx + 1;
+    });
+    
+    return { column: firstColumn, mapping, values: uniqueTextValues.sort() };
+  }, [queryResult, chartType]);
+
   // Detect if Y-axis has text values that need encoding
   const yAxisTextMapping = React.useMemo(() => {
     if (!queryResult || queryResult.columns.length < 2) return null;
@@ -124,11 +158,11 @@ export function QueryChartComponent({ config }: QueryChartComponentProps) {
     
     // Create mapping: text -> index (1-based for visibility)
     const mapping: Record<string, number> = {};
-    uniqueTextValues.forEach((text, idx) => {
+    uniqueTextValues.sort().forEach((text, idx) => {
       mapping[text] = idx + 1;
     });
     
-    return { column: secondColumn, mapping, values: uniqueTextValues };
+    return { column: secondColumn, mapping, values: uniqueTextValues.sort() };
   }, [queryResult]);
 
   // Transform data for charts
@@ -178,7 +212,7 @@ export function QueryChartComponent({ config }: QueryChartComponentProps) {
     }).filter(item => item.value > 0);
   }, [chartData, queryResult]);
 
-  // Scatter/Bubble data with text encoding
+  // Scatter/Bubble data with text encoding for both X and Y axes
   const scatterData = React.useMemo(() => {
     if (!queryResult || queryResult.columns.length < 2) return [];
     
@@ -197,8 +231,15 @@ export function QueryChartComponent({ config }: QueryChartComponentProps) {
         : item[secondColumn];
       const sizeRaw = thirdColumn ? item[thirdColumn] : 1;
       
-      let x = typeof xRaw === 'number' ? xRaw : parseFloat(xRaw);
-      if (isNaN(x)) x = idx + 1;
+      // Encode X value if text mapping exists
+      let x: number;
+      if (xAxisTextMapping) {
+        const strValue = String(xRaw);
+        x = xAxisTextMapping.mapping[strValue] ?? idx + 1;
+      } else {
+        x = typeof xRaw === 'number' ? xRaw : parseFloat(xRaw);
+        if (isNaN(x)) x = idx + 1;
+      }
       
       let y = typeof yRaw === 'number' ? yRaw : parseFloat(yRaw);
       if (isNaN(y)) y = 0;
@@ -215,7 +256,14 @@ export function QueryChartComponent({ config }: QueryChartComponentProps) {
         name: String(xRaw)
       };
     });
-  }, [chartData, queryResult, yAxisTextMapping]);
+  }, [chartData, queryResult, yAxisTextMapping, xAxisTextMapping]);
+
+  // X-axis tick formatter for text encoding
+  const xAxisTickFormatter = (value: number) => {
+    if (!xAxisTextMapping) return String(value);
+    const entry = Object.entries(xAxisTextMapping.mapping).find(([_, v]) => v === value);
+    return entry ? entry[0] : String(value);
+  };
 
   // Y-axis tick formatter for text encoding
   const yAxisTickFormatter = (value: number) => {
@@ -284,9 +332,12 @@ export function QueryChartComponent({ config }: QueryChartComponentProps) {
     const secondColumn = queryResult.columns[1];
     const thirdColumn = queryResult.columns[2];
 
-    // Calculate Y-axis domain for text encoding
+    // Calculate axis domains for text encoding
+    const xDomain = xAxisTextMapping 
+      ? [0, xAxisTextMapping.values.length + 1] as [number, number]
+      : undefined;
     const yDomain = yAxisTextMapping 
-      ? [0, yAxisTextMapping.values.length + 1] 
+      ? [0, yAxisTextMapping.values.length + 1] as [number, number]
       : undefined;
 
     switch (chartType) {
@@ -421,15 +472,25 @@ export function QueryChartComponent({ config }: QueryChartComponentProps) {
       case 'scatter':
         return (
           <div className="flex h-full">
-            <ResponsiveContainer width={yAxisTextMapping ? "calc(100% - 140px)" : "100%"} height={280}>
-              <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+            <ResponsiveContainer width={(yAxisTextMapping || xAxisTextMapping) ? "calc(100% - 140px)" : "100%"} height={280}>
+              <ScatterChart margin={{ top: 20, right: 20, bottom: xAxisTextMapping ? 60 : 20, left: 20 }}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis type="number" dataKey="x" name={firstColumn} />
+                <XAxis 
+                  type="number" 
+                  dataKey="x" 
+                  name={firstColumn}
+                  domain={xDomain}
+                  ticks={xAxisTextMapping ? xAxisTextMapping.values.map((_, i) => i + 1) : undefined}
+                  tickFormatter={xAxisTextMapping ? xAxisTickFormatter : undefined}
+                  angle={xAxisTextMapping && xAxisTextMapping.values.length > 4 ? -45 : 0}
+                  textAnchor={xAxisTextMapping && xAxisTextMapping.values.length > 4 ? "end" : "middle"}
+                />
                 <YAxis 
                   type="number" 
                   dataKey="y" 
                   name={secondColumn}
                   domain={yDomain}
+                  ticks={yAxisTextMapping ? yAxisTextMapping.values.map((_, i) => i + 1) : undefined}
                   tickFormatter={yAxisTextMapping ? yAxisTickFormatter : undefined}
                 />
                 <Tooltip
@@ -471,15 +532,25 @@ export function QueryChartComponent({ config }: QueryChartComponentProps) {
       case 'bubble':
         return (
           <div className="flex h-full">
-            <ResponsiveContainer width={yAxisTextMapping ? "calc(100% - 140px)" : "100%"} height={280}>
-              <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+            <ResponsiveContainer width={(yAxisTextMapping || xAxisTextMapping) ? "calc(100% - 140px)" : "100%"} height={280}>
+              <ScatterChart margin={{ top: 20, right: 20, bottom: xAxisTextMapping ? 60 : 20, left: 20 }}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis type="number" dataKey="x" name={firstColumn} />
+                <XAxis 
+                  type="number" 
+                  dataKey="x" 
+                  name={firstColumn}
+                  domain={xDomain}
+                  ticks={xAxisTextMapping ? xAxisTextMapping.values.map((_, i) => i + 1) : undefined}
+                  tickFormatter={xAxisTextMapping ? xAxisTickFormatter : undefined}
+                  angle={xAxisTextMapping && xAxisTextMapping.values.length > 4 ? -45 : 0}
+                  textAnchor={xAxisTextMapping && xAxisTextMapping.values.length > 4 ? "end" : "middle"}
+                />
                 <YAxis 
                   type="number" 
                   dataKey="y" 
                   name={secondColumn}
                   domain={yDomain}
+                  ticks={yAxisTextMapping ? yAxisTextMapping.values.map((_, i) => i + 1) : undefined}
                   tickFormatter={yAxisTextMapping ? yAxisTickFormatter : undefined}
                 />
                 <ZAxis type="number" dataKey="z" range={[50, 400]} name={thirdColumn || 'Size'} />
