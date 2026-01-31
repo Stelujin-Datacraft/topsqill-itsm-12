@@ -488,8 +488,10 @@ function EmailTemplateForm({
 }: EmailTemplateFormProps) {
   const [formData, setFormData] = useState<EmailTemplate>(template);
   const [formFields, setFormFields] = useState<Record<string, FormFieldInfo[]>>({});
+  const [allFormFields, setAllFormFields] = useState<Record<string, FormFieldInfo[]>>({});
+  const [selectedFormForVariables, setSelectedFormForVariables] = useState<string>('');
 
-  // Load fields for a specific form (cached)
+  // Load email-compatible fields for recipient selection (cached)
   const loadFormFields = async (formId: string) => {
     if (formFields[formId]) return; // Already loaded
 
@@ -498,7 +500,7 @@ function EmailTemplateForm({
         .from('form_fields')
         .select('id, label, field_type')
         .eq('form_id', formId)
-        .in('field_type', ['email', 'text', 'short_text', 'select', 'dropdown', 'radio', 'submission-access']) // Email-compatible fields including selection types
+        .in('field_type', ['email', 'text', 'short_text', 'select', 'dropdown', 'radio', 'submission-access'])
         .order('field_order');
 
       if (error) throw error;
@@ -509,6 +511,36 @@ function EmailTemplateForm({
     } catch (error) {
       console.error('Error loading form fields:', error);
     }
+  };
+
+  // Load ALL fields from a form for body variable insertion
+  const loadAllFormFields = async (formId: string) => {
+    if (allFormFields[formId]) return; // Already loaded
+
+    try {
+      const { data, error } = await supabase
+        .from('form_fields')
+        .select('id, label, field_type')
+        .eq('form_id', formId)
+        .order('field_order');
+
+      if (error) throw error;
+      setAllFormFields(prev => ({
+        ...prev,
+        [formId]: data || []
+      }));
+    } catch (error) {
+      console.error('Error loading all form fields:', error);
+    }
+  };
+
+  // Insert field variable into content
+  const insertFieldVariable = (fieldId: string, fieldLabel: string) => {
+    const variable = `{{${fieldId}}}`;
+    const currentContent = contentMode === 'html' ? formData.html_content : (formData.text_content || '');
+    const newContent = currentContent + variable;
+    const updatedTemplate = onContentChange(formData, newContent, contentMode === 'html');
+    setFormData(updatedTemplate);
   };
 
   // Load form fields for existing parameter recipients when editing
@@ -796,6 +828,54 @@ function EmailTemplateForm({
               </div>
             )}
             
+            {/* Insert Form Field Variables */}
+            <div className="space-y-2">
+              <Label>Insert Form Field Variable</Label>
+              <div className="flex gap-2">
+                <Select
+                  value={selectedFormForVariables}
+                  onValueChange={(formId) => {
+                    setSelectedFormForVariables(formId);
+                    loadAllFormFields(formId);
+                  }}
+                >
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Select form..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {forms.map((form) => (
+                      <SelectItem key={form.id} value={form.id}>
+                        {form.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                
+                <Select
+                  value=""
+                  onValueChange={(fieldId) => {
+                    const field = allFormFields[selectedFormForVariables]?.find(f => f.id === fieldId);
+                    if (field) {
+                      insertFieldVariable(field.id, field.label);
+                    }
+                  }}
+                  disabled={!selectedFormForVariables || !allFormFields[selectedFormForVariables]?.length}
+                >
+                  <SelectTrigger className="flex-1">
+                    <SelectValue placeholder={selectedFormForVariables ? "Select field to insert..." : "Select form first"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {selectedFormForVariables && allFormFields[selectedFormForVariables]?.map((field) => (
+                      <SelectItem key={field.id} value={field.id}>
+                        {field.label} ({field.field_type})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <p className="text-xs text-muted-foreground">Select a form and field to insert as a variable in the content</p>
+            </div>
+
             <div>
               <Label>{contentMode === 'html' ? 'HTML Content' : 'Text Content'}</Label>
               <Textarea
