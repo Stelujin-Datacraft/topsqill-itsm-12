@@ -1150,14 +1150,15 @@ app.post('/workflows/:id/trigger', validateApiKey, async (c) => {
     return c.json({ error: 'Workflow not found or inactive' }, 404, corsHeaders);
   }
 
-  // Create workflow execution using correct column names
+  // Create workflow execution using correct column names and valid status
+  // Valid statuses: 'running', 'completed', 'failed', 'paused', 'waiting'
   const { data: execution, error } = await supabase
     .from('workflow_executions')
     .insert({
       workflow_id: workflow.id,
       form_submission_id: actualSubmissionId,
       trigger_submission_id: actualSubmissionId,
-      status: 'pending',
+      status: 'running',
       trigger_data: { 
         triggered_via: 'api', 
         api_key_id: keyInfo.api_key_id 
