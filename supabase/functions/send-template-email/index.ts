@@ -19,6 +19,8 @@ interface RecipientConfig {
   type: 'static' | 'parameter' | 'dynamic';
   value: string;
   label?: string;
+  formId?: string;
+  fieldId?: string;
 }
 
 interface TemplateRecipients {
@@ -92,15 +94,27 @@ const handler = async (req: Request): Promise<Response> => {
           if (recipient.type === 'static' && recipient.value) {
             console.log('📧 Adding static TO recipient:', recipient.value);
             allRecipients.add(recipient.value.trim().toLowerCase());
-          } else if (recipient.type === 'parameter' && recipient.value && templateData) {
-            // Extract variable name from {{variable}}
-            const varMatch = recipient.value.match(/\{\{\s*(\w+)\s*\}\}/);
-            if (varMatch && templateData[varMatch[1]]) {
-              const email = String(templateData[varMatch[1]]).trim().toLowerCase();
-              if (email.includes('@')) {
-                console.log('📧 Adding parameter TO recipient:', email);
-                allRecipients.add(email);
+          } else if (recipient.type === 'parameter' && templateData) {
+            // Parameter can be either a fieldId (new format) or a {{variable}} (legacy format)
+            let email: string | null = null;
+            
+            if (recipient.fieldId) {
+              // New format: use fieldId to lookup value from templateData
+              const fieldValue = templateData[recipient.fieldId];
+              if (fieldValue && typeof fieldValue === 'string') {
+                email = fieldValue.trim().toLowerCase();
               }
+            } else if (recipient.value) {
+              // Legacy format: extract variable name from {{variable}}
+              const varMatch = recipient.value.match(/\{\{\s*(\w+)\s*\}\}/);
+              if (varMatch && templateData[varMatch[1]]) {
+                email = String(templateData[varMatch[1]]).trim().toLowerCase();
+              }
+            }
+            
+            if (email && email.includes('@')) {
+              console.log('📧 Adding parameter TO recipient:', email);
+              allRecipients.add(email);
             }
           } else if (recipient.type === 'dynamic' && recipient.value) {
             // Dynamic recipient from form field - value should be resolved already

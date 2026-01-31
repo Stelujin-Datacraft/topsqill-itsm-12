@@ -45,6 +45,19 @@ interface RecipientConfig {
   type: 'static' | 'dynamic' | 'parameter';
   value: string;
   label?: string;
+  formId?: string;
+  fieldId?: string;
+}
+
+interface FormInfo {
+  id: string;
+  name: string;
+}
+
+interface FormFieldInfo {
+  id: string;
+  label: string;
+  field_type: string;
 }
 
 interface SMTPConfig {
@@ -60,6 +73,7 @@ export default function EmailTemplatesPage() {
   const { currentProject } = useProject();
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
   const [users, setUsers] = useState<any[]>([]);
+  const [forms, setForms] = useState<FormInfo[]>([]);
   const [isCreating, setIsCreating] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<EmailTemplate | null>(null);
   const [smtpConfigs, setSmtpConfigs] = useState<SMTPConfig[]>([]);
@@ -123,6 +137,23 @@ export default function EmailTemplatesPage() {
     }
   };
 
+  const loadForms = async () => {
+    if (!currentProject?.id) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('forms')
+        .select('id, name')
+        .eq('project_id', currentProject.id)
+        .order('name');
+
+      if (error) throw error;
+      setForms(data || []);
+    } catch (error) {
+      console.error('Error loading forms:', error);
+    }
+  };
+
   const loadSMTPConfigs = async () => {
     if (!userProfile?.organization_id) return;
 
@@ -145,6 +176,7 @@ export default function EmailTemplatesPage() {
   useEffect(() => {
     loadTemplates();
     loadUsers();
+    loadForms();
     loadSMTPConfigs();
   }, [currentProject?.id, userProfile?.organization_id]);
 
@@ -310,6 +342,7 @@ export default function EmailTemplatesPage() {
             <EmailTemplateForm
               template={editingTemplate || createNewTemplate()}
               users={users}
+              forms={forms}
               smtpConfigs={smtpConfigs}
               onSave={saveTemplate}
               onCancel={handleCancel}
@@ -428,6 +461,7 @@ export default function EmailTemplatesPage() {
 interface EmailTemplateFormProps {
   template: EmailTemplate;
   users: any[];
+  forms: FormInfo[];
   smtpConfigs: SMTPConfig[];
   onSave: (template: EmailTemplate) => void;
   onCancel: () => void;
@@ -441,6 +475,7 @@ interface EmailTemplateFormProps {
 function EmailTemplateForm({ 
   template, 
   users,
+  forms,
   smtpConfigs, 
   onSave, 
   onCancel, 
@@ -451,6 +486,50 @@ function EmailTemplateForm({
   onContentChange
 }: EmailTemplateFormProps) {
   const [formData, setFormData] = useState<EmailTemplate>(template);
+  const [formFields, setFormFields] = useState<Record<string, FormFieldInfo[]>>({});
+
+  // Load fields for a specific form (cached)
+  const loadFormFields = async (formId: string) => {
+    if (formFields[formId]) return; // Already loaded
+
+    try {
+      const { data, error } = await supabase
+        .from('form_fields')
+        .select('id, label, field_type')
+        .eq('form_id', formId)
+        .in('field_type', ['email', 'text', 'short_text']) // Only email-compatible fields
+        .order('field_order');
+
+      if (error) throw error;
+      setFormFields(prev => ({
+        ...prev,
+        [formId]: data || []
+      }));
+    } catch (error) {
+      console.error('Error loading form fields:', error);
+    }
+  };
+
+  // Load form fields for existing parameter recipients when editing
+  React.useEffect(() => {
+    const loadExistingFormFields = async () => {
+      const allFormIds = new Set<string>();
+      
+      (['to', 'cc', 'bcc'] as const).forEach(type => {
+        formData.recipients[type]?.forEach(recipient => {
+          if (recipient.type === 'parameter' && recipient.formId) {
+            allFormIds.add(recipient.formId);
+          }
+        });
+      });
+
+      for (const formId of allFormIds) {
+        await loadFormFields(formId);
+      }
+    };
+
+    loadExistingFormFields();
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -591,27 +670,64 @@ function EmailTemplateForm({
                       className="flex-1"
                     />
                   ) : recipient.type === 'parameter' ? (
-                    <Select
-                      value={recipient.value || ''}
-                      onValueChange={(value) => updateRecipient(recipientType, index, { value })}
-                    >
-                      <SelectTrigger className="flex-1">
-                        <SelectValue placeholder="Select a template variable..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {formData.template_variables.length > 0 ? (
-                          formData.template_variables.map((variable) => (
-                            <SelectItem key={variable} value={`{{${variable}}}`}>
-                              {`{{${variable}}}`}
-                            </SelectItem>
-                          ))
-                        ) : (
-                          <div className="px-2 py-3 text-sm text-muted-foreground text-center">
-                            No template variables detected. Add variables like {'{{email}}'} in your email content first.
-                          </div>
-                        )}
-                      </SelectContent>
-                    </Select>
+                    <div className="flex flex-1 gap-2">
+                      {/* Form Selector */}
+                      <Select
+                        value={recipient.formId || ''}
+                        onValueChange={(formId) => {
+                          updateRecipient(recipientType, index, { formId, fieldId: '', value: '' });
+                          loadFormFields(formId);
+                        }}
+                      >
+                        <SelectTrigger className="w-40">
+                          <SelectValue placeholder="Select form..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {forms.length > 0 ? (
+                            forms.map((form) => (
+                              <SelectItem key={form.id} value={form.id}>
+                                {form.name}
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <div className="px-2 py-3 text-sm text-muted-foreground text-center">
+                              No forms available
+                            </div>
+                          )}
+                        </SelectContent>
+                      </Select>
+                      
+                      {/* Field Selector */}
+                      <Select
+                        value={recipient.fieldId || ''}
+                        onValueChange={(fieldId) => {
+                          const field = formFields[recipient.formId || '']?.find(f => f.id === fieldId);
+                          updateRecipient(recipientType, index, { 
+                            fieldId, 
+                            value: fieldId,
+                            label: field?.label || ''
+                          });
+                        }}
+                        disabled={!recipient.formId}
+                      >
+                        <SelectTrigger className="flex-1">
+                          <SelectValue placeholder={recipient.formId ? "Select field..." : "Select form first"} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {recipient.formId && formFields[recipient.formId]?.length > 0 ? (
+                            formFields[recipient.formId].map((field) => (
+                              <SelectItem key={field.id} value={field.id}>
+                                {field.label} ({field.field_type})
+                              </SelectItem>
+                            ))
+                          ) : recipient.formId ? (
+                            <div className="px-2 py-3 text-sm text-muted-foreground text-center">
+                              No email/text fields found
+                            </div>
+                          ) : null}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   ) : (
                     <Input
                       value={recipient.value}
