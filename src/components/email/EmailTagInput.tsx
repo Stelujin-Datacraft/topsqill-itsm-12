@@ -75,7 +75,6 @@ export function EmailTagInput({ value, onChange, placeholder = "Type email and p
           className="flex-1 min-w-[150px] border-0 p-0 h-6 focus-visible:ring-0 focus-visible:ring-offset-0"
         />
       </div>
-      <p className="text-xs text-muted-foreground mt-1">Press Enter to add email</p>
     </div>
   );
 }
