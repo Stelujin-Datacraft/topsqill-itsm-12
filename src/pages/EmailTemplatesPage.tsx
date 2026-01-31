@@ -105,20 +105,25 @@ export default function EmailTemplatesPage() {
 
       if (error) throw error;
       
-      const processedTemplates = (data || []).map(template => ({
-        ...template,
-        template_variables: Array.isArray(template.template_variables) 
-          ? template.template_variables.map(v => String(v))
-          : [],
-        recipients: (typeof template.recipients === 'object' && template.recipients !== null && !Array.isArray(template.recipients))
-          ? template.recipients as any
-          : {
-              to: [],
-              cc: [],
-              bcc: [],
-              permanent_recipients: []
-            }
-      })) as EmailTemplate[];
+      const processedTemplates = (data || []).map(template => {
+        const customParams = template.custom_params as Record<string, any> || {};
+        return {
+          ...template,
+          template_variables: Array.isArray(template.template_variables) 
+            ? template.template_variables.map(v => String(v))
+            : [],
+          recipients: (typeof template.recipients === 'object' && template.recipients !== null && !Array.isArray(template.recipients))
+            ? template.recipients as any
+            : {
+                to: [],
+                cc: [],
+                bcc: [],
+                permanent_recipients: []
+              },
+          attachments: customParams.attachments || [],
+          custom_params: customParams
+        };
+      }) as EmailTemplate[];
       
       setTemplates(processedTemplates);
     } catch (error) {
@@ -224,7 +229,10 @@ export default function EmailTemplatesPage() {
         text_content: template.text_content,
         template_variables: template.template_variables as any,
         recipients: template.recipients as any,
-        custom_params: template.custom_params || {},
+        custom_params: {
+          ...template.custom_params,
+          attachments: template.attachments || [],
+        } as any,
         is_active: template.is_active,
         project_id: currentProject.id,
         created_by: userProfile.id,
