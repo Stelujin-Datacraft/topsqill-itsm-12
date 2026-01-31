@@ -664,9 +664,9 @@ function EmailTemplateForm({
                   {recipient.type === 'dynamic' ? (
                     <MultiSelect
                       options={userOptions}
-                      selected={recipient.value ? [recipient.value] : []}
-                      onChange={(values) => updateRecipient(recipientType, index, { value: values[0] || '' })}
-                      placeholder="Select users..."
+                      selected={recipient.value ? recipient.value.split(',').filter(v => v.trim()) : []}
+                      onChange={(values) => updateRecipient(recipientType, index, { value: values.join(',') })}
+                      placeholder="Select multiple users..."
                       className="flex-1"
                     />
                   ) : recipient.type === 'parameter' ? (
@@ -729,12 +729,15 @@ function EmailTemplateForm({
                       </Select>
                     </div>
                   ) : (
-                    <Input
-                      value={recipient.value}
-                      onChange={(e) => updateRecipient(recipientType, index, { value: e.target.value })}
-                      placeholder="email@example.com"
-                      className="flex-1"
-                    />
+                    <div className="flex-1 space-y-1">
+                      <Input
+                        value={recipient.value}
+                        onChange={(e) => updateRecipient(recipientType, index, { value: e.target.value })}
+                        placeholder="email1@example.com, email2@example.com"
+                        className="w-full"
+                      />
+                      <p className="text-xs text-muted-foreground">Separate multiple emails with commas</p>
+                    </div>
                   )}
                   
                   <Button

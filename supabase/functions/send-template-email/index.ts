@@ -92,8 +92,12 @@ const handler = async (req: Request): Promise<Response> => {
       if (templateRecipients.to && Array.isArray(templateRecipients.to)) {
         for (const recipient of templateRecipients.to) {
           if (recipient.type === 'static' && recipient.value) {
-            console.log('📧 Adding static TO recipient:', recipient.value);
-            allRecipients.add(recipient.value.trim().toLowerCase());
+            // Static can have multiple comma-separated emails
+            const staticEmails = recipient.value.split(',').map(e => e.trim().toLowerCase()).filter(e => e.includes('@'));
+            for (const email of staticEmails) {
+              console.log('📧 Adding static TO recipient:', email);
+              allRecipients.add(email);
+            }
           } else if (recipient.type === 'parameter' && templateData) {
             // Parameter can be either a fieldId (new format) or a {{variable}} (legacy format)
             const extractedEmails: string[] = [];
@@ -173,10 +177,11 @@ const handler = async (req: Request): Promise<Response> => {
               allRecipients.add(email);
             }
           } else if (recipient.type === 'dynamic' && recipient.value) {
-            // Dynamic recipient from form field - value should be resolved already
-            if (recipient.value.includes('@')) {
-              console.log('📧 Adding dynamic TO recipient:', recipient.value);
-              allRecipients.add(recipient.value.trim().toLowerCase());
+            // Dynamic can have multiple comma-separated emails (from multi-user selection)
+            const dynamicEmails = recipient.value.split(',').map(e => e.trim().toLowerCase()).filter(e => e.includes('@'));
+            for (const email of dynamicEmails) {
+              console.log('📧 Adding dynamic TO recipient:', email);
+              allRecipients.add(email);
             }
           }
         }
