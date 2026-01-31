@@ -1150,17 +1150,20 @@ app.post('/workflows/:id/trigger', validateApiKey, async (c) => {
     return c.json({ error: 'Workflow not found or inactive' }, 404, corsHeaders);
   }
 
-  // Create workflow execution
+  // Create workflow execution using correct column names
   const { data: execution, error } = await supabase
     .from('workflow_executions')
     .insert({
       workflow_id: workflow.id,
-      submission_id: actualSubmissionId,
+      form_submission_id: actualSubmissionId,
+      trigger_submission_id: actualSubmissionId,
       status: 'pending',
-      triggered_by: 'api',
-      context: { api_key_id: keyInfo.api_key_id }
+      trigger_data: { 
+        triggered_via: 'api', 
+        api_key_id: keyInfo.api_key_id 
+      }
     })
-    .select('id, status, created_at')
+    .select('id, status, started_at')
     .single();
 
   if (error) {
@@ -1474,6 +1477,20 @@ app.post('/reports', validateApiKey, async (c) => {
 
   const supabase = getServiceClient();
 
+  // Get a valid user_id from the organization for created_by (required FK)
+  const { data: orgUser } = await supabase
+    .from('user_profiles')
+    .select('id')
+    .eq('organization_id', keyInfo.organization_id)
+    .eq('role', 'admin')
+    .limit(1)
+    .single();
+
+  if (!orgUser) {
+    await logRequest(c, 500, 'No admin user found for organization');
+    return c.json({ error: 'No admin user found for organization' }, 500, corsHeaders);
+  }
+
   const { data, error } = await supabase
     .from('reports')
     .insert({
@@ -1483,7 +1500,7 @@ app.post('/reports', validateApiKey, async (c) => {
       organization_id: keyInfo.organization_id,
       dashboard_id,
       is_public,
-      created_by: keyInfo.api_key_id
+      created_by: orgUser.id  // Use valid user_profiles.id instead of api_key_id
     })
     .select('id, name, reference_id, created_at')
     .single();
