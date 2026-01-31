@@ -96,23 +96,79 @@ const handler = async (req: Request): Promise<Response> => {
             allRecipients.add(recipient.value.trim().toLowerCase());
           } else if (recipient.type === 'parameter' && templateData) {
             // Parameter can be either a fieldId (new format) or a {{variable}} (legacy format)
-            let email: string | null = null;
+            const extractedEmails: string[] = [];
             
             if (recipient.fieldId) {
               // New format: use fieldId to lookup value from templateData
               const fieldValue = templateData[recipient.fieldId];
-              if (fieldValue && typeof fieldValue === 'string') {
-                email = fieldValue.trim().toLowerCase();
+              
+              if (fieldValue) {
+                // Handle different field value formats
+                if (typeof fieldValue === 'string') {
+                  // Simple string value (text, email, dropdown, radio, select)
+                  const email = fieldValue.trim().toLowerCase();
+                  if (email.includes('@')) {
+                    extractedEmails.push(email);
+                  }
+                } else if (Array.isArray(fieldValue)) {
+                  // Array of values (multi-select with multiple emails)
+                  for (const item of fieldValue) {
+                    if (typeof item === 'string') {
+                      const email = item.trim().toLowerCase();
+                      if (email.includes('@')) {
+                        extractedEmails.push(email);
+                      }
+                    }
+                  }
+                } else if (typeof fieldValue === 'object' && fieldValue !== null) {
+                  // Submission-access field format: { users: string[], groups: string[] }
+                  // For users, we need to fetch their emails from user_profiles
+                  if (fieldValue.users && Array.isArray(fieldValue.users)) {
+                    console.log('📧 Submission-access field detected, fetching user emails for:', fieldValue.users);
+                    // Note: User IDs need to be resolved to emails - this is handled by the workflow
+                    // that should pass resolved emails in templateData
+                    for (const userId of fieldValue.users) {
+                      if (typeof userId === 'string' && userId.includes('@')) {
+                        // Already an email
+                        extractedEmails.push(userId.trim().toLowerCase());
+                      }
+                    }
+                  }
+                  // For groups, emails should be pre-resolved by the workflow
+                  if (fieldValue.emails && Array.isArray(fieldValue.emails)) {
+                    for (const email of fieldValue.emails) {
+                      if (typeof email === 'string' && email.includes('@')) {
+                        extractedEmails.push(email.trim().toLowerCase());
+                      }
+                    }
+                  }
+                }
               }
             } else if (recipient.value) {
               // Legacy format: extract variable name from {{variable}}
               const varMatch = recipient.value.match(/\{\{\s*(\w+)\s*\}\}/);
               if (varMatch && templateData[varMatch[1]]) {
-                email = String(templateData[varMatch[1]]).trim().toLowerCase();
+                const val = templateData[varMatch[1]];
+                if (typeof val === 'string') {
+                  const email = val.trim().toLowerCase();
+                  if (email.includes('@')) {
+                    extractedEmails.push(email);
+                  }
+                } else if (Array.isArray(val)) {
+                  for (const item of val) {
+                    if (typeof item === 'string') {
+                      const email = item.trim().toLowerCase();
+                      if (email.includes('@')) {
+                        extractedEmails.push(email);
+                      }
+                    }
+                  }
+                }
               }
             }
             
-            if (email && email.includes('@')) {
+            // Add all extracted emails
+            for (const email of extractedEmails) {
               console.log('📧 Adding parameter TO recipient:', email);
               allRecipients.add(email);
             }
