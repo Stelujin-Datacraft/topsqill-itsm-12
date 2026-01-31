@@ -590,13 +590,33 @@ function EmailTemplateForm({
                       placeholder="Select users..."
                       className="flex-1"
                     />
+                  ) : recipient.type === 'parameter' ? (
+                    <Select
+                      value={recipient.value || ''}
+                      onValueChange={(value) => updateRecipient(recipientType, index, { value })}
+                    >
+                      <SelectTrigger className="flex-1">
+                        <SelectValue placeholder="Select a template variable..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {formData.template_variables.length > 0 ? (
+                          formData.template_variables.map((variable) => (
+                            <SelectItem key={variable} value={`{{${variable}}}`}>
+                              {`{{${variable}}}`}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <div className="px-2 py-3 text-sm text-muted-foreground text-center">
+                            No template variables detected. Add variables like {'{{email}}'} in your email content first.
+                          </div>
+                        )}
+                      </SelectContent>
+                    </Select>
                   ) : (
                     <Input
                       value={recipient.value}
                       onChange={(e) => updateRecipient(recipientType, index, { value: e.target.value })}
-                      placeholder={
-                        recipient.type === 'static' ? 'email@example.com' : '{{user_email}}'
-                      }
+                      placeholder="email@example.com"
                       className="flex-1"
                     />
                   )}
