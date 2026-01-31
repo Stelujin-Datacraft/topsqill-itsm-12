@@ -534,13 +534,25 @@ function EmailTemplateForm({
     }
   };
 
-  // Insert field variable into content
+  // Insert field variable into content using label for display
   const insertFieldVariable = (fieldId: string, fieldLabel: string) => {
-    const variable = `{{${fieldId}}}`;
+    // Use field label for display in the template
+    const variable = `{{${fieldLabel}}}`;
     const currentContent = contentMode === 'html' ? formData.html_content : (formData.text_content || '');
     const newContent = currentContent + variable;
     const updatedTemplate = onContentChange(formData, newContent, contentMode === 'html');
-    setFormData(updatedTemplate);
+    
+    // Store mapping of label to fieldId in custom_params for backend resolution
+    const fieldMappings = formData.custom_params?.fieldMappings || {};
+    fieldMappings[fieldLabel] = fieldId;
+    
+    setFormData({
+      ...updatedTemplate,
+      custom_params: {
+        ...updatedTemplate.custom_params,
+        fieldMappings
+      }
+    });
   };
 
   // Load form fields for existing parameter recipients when editing

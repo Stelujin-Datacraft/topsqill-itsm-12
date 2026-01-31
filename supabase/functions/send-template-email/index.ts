@@ -263,11 +263,24 @@ const handler = async (req: Request): Promise<Response> => {
     
     console.log('✅ SMTP config found:', smtpConfig.from_email);
 
+    // Get field mappings from custom_params (maps field labels to field IDs)
+    const fieldMappings = (template.custom_params as Record<string, any>)?.fieldMappings || {};
+    console.log('📋 Field mappings:', fieldMappings);
+
     // Process template variables
     const processTemplate = (text: string, data: Record<string, any>): string => {
       let processed = text;
       
-      // Replace template variables
+      // First, replace field labels with their values using the mapping
+      Object.entries(fieldMappings).forEach(([label, fieldId]) => {
+        const labelRegex = new RegExp(`{{\\s*${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*}}`, 'g');
+        const value = data[fieldId as string];
+        if (value !== undefined) {
+          processed = processed.replace(labelRegex, String(value || ''));
+        }
+      });
+      
+      // Then, replace any remaining variables by key (fieldId or custom variables)
       Object.keys(data).forEach(key => {
         const regex = new RegExp(`{{\\s*${key}\\s*}}`, 'g');
         processed = processed.replace(regex, String(data[key] || ''));
