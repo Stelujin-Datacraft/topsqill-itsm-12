@@ -497,7 +497,7 @@ function EmailTemplateForm({
         .from('form_fields')
         .select('id, label, field_type')
         .eq('form_id', formId)
-        .in('field_type', ['email', 'text', 'short_text']) // Only email-compatible fields
+        .in('field_type', ['email', 'text', 'short_text', 'select', 'dropdown', 'radio', 'submission-access']) // Email-compatible fields including selection types
         .order('field_order');
 
       if (error) throw error;
