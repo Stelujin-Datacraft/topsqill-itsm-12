@@ -457,7 +457,7 @@ function EmailTemplateForm({
     onSave(formData);
   };
 
-  const addRecipient = (type: 'to' | 'cc' | 'bcc' | 'permanent_recipients') => {
+  const addRecipient = (type: 'to' | 'cc' | 'bcc') => {
     setFormData({
       ...formData,
       recipients: {
@@ -468,7 +468,7 @@ function EmailTemplateForm({
   };
 
   const updateRecipient = (
-    recipientType: 'to' | 'cc' | 'bcc' | 'permanent_recipients',
+    recipientType: 'to' | 'cc' | 'bcc',
     index: number,
     updates: Partial<RecipientConfig>
   ) => {
@@ -483,7 +483,7 @@ function EmailTemplateForm({
     });
   };
 
-  const removeRecipient = (type: 'to' | 'cc' | 'bcc' | 'permanent_recipients', index: number) => {
+  const removeRecipient = (type: 'to' | 'cc' | 'bcc', index: number) => {
     setFormData({
       ...formData,
       recipients: {
@@ -547,10 +547,9 @@ function EmailTemplateForm({
             <TabsTrigger value="to">To</TabsTrigger>
             <TabsTrigger value="cc">CC</TabsTrigger>
             <TabsTrigger value="bcc">BCC</TabsTrigger>
-            <TabsTrigger value="permanent_recipients">Permanent</TabsTrigger>
           </TabsList>
           
-          {(['to', 'cc', 'bcc', 'permanent_recipients'] as const).map((recipientType) => (
+          {(['to', 'cc', 'bcc'] as const).map((recipientType) => (
             <TabsContent key={recipientType} value={recipientType} className="space-y-2">
               <div className="flex justify-between items-center">
                 <Label className="capitalize">{recipientType.replace('_', ' ')} Recipients</Label>
