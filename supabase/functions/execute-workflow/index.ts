@@ -196,18 +196,20 @@ Deno.serve(async (req) => {
             console.log(`📊 Condition evaluation result: ${conditionResult}`)
             outputData = { conditionResult, evaluated: true }
             
-            // Get connections for condition node
+            // Get connections for condition node - note: column is 'condition_type' and 'source_handle'
             const { data: condConnections } = await supabase
               .from('workflow_connections')
-              .select('target_node_id, connection_type')
+              .select('target_node_id, condition_type, source_handle')
               .eq('source_node_id', currentNode.id)
 
             console.log(`📊 Found ${condConnections?.length || 0} connections from condition node`)
             
             if (condConnections) {
               for (const conn of condConnections) {
-                console.log(`   📊 Connection: type="${conn.connection_type}", target="${conn.target_node_id}"`)
-                const connType = (conn.connection_type || '').toLowerCase()
+                // Use source_handle for true/false branching, fallback to condition_type
+                const handleType = (conn.source_handle || conn.condition_type || '').toLowerCase()
+                console.log(`   📊 Connection: source_handle="${conn.source_handle}", condition_type="${conn.condition_type}", target="${conn.target_node_id}"`)
+                const connType = handleType
                 const isTrue = connType === 'true' || connType === 'yes' || connType === 'default-true'
                 const isFalse = connType === 'false' || connType === 'no' || connType === 'default-false'
                 
