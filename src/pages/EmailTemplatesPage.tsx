@@ -16,6 +16,7 @@ import { useProject } from '@/contexts/ProjectContext';
 import { toast } from '@/hooks/use-toast';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { EmailPreview } from '@/components/email/EmailPreview';
+import { EmailTagInput } from '@/components/email/EmailTagInput';
 import { EMAIL_TEMPLATES } from '@/data/emailTemplates';
 import DashboardLayout from '@/components/DashboardLayout';
 
@@ -729,15 +730,11 @@ function EmailTemplateForm({
                       </Select>
                     </div>
                   ) : (
-                    <div className="flex-1 space-y-1">
-                      <Input
-                        value={recipient.value}
-                        onChange={(e) => updateRecipient(recipientType, index, { value: e.target.value })}
-                        placeholder="email1@example.com, email2@example.com"
-                        className="w-full"
-                      />
-                      <p className="text-xs text-muted-foreground">Separate multiple emails with commas</p>
-                    </div>
+                    <EmailTagInput
+                      value={recipient.value}
+                      onChange={(value) => updateRecipient(recipientType, index, { value })}
+                      placeholder="Type email and press Enter"
+                    />
                   )}
                   
                   <Button
