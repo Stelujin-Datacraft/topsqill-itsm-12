@@ -52,7 +52,7 @@ console.log(data);`,
       responseExample: `{
   "data": [
     {
-      "id": "uuid",
+      "id": "550e8400-e29b-41d4-a716-446655440000",
       "name": "Customer Feedback",
       "description": "Collect customer feedback",
       "reference_id": "CF00001234",
@@ -85,7 +85,7 @@ const data = await response.json();
 console.log(data);`,
       responseExample: `{
   "data": {
-    "id": "uuid",
+    "id": "550e8400-e29b-41d4-a716-446655440000",
     "name": "Customer Feedback",
     "description": "Collect customer feedback",
     "reference_id": "CF00001234",
@@ -119,7 +119,7 @@ console.log(data);`,
       responseExample: `{
   "data": [
     {
-      "id": "field-uuid",
+      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
       "label": "Full Name",
       "field_type": "text",
       "required": true,
@@ -128,7 +128,7 @@ console.log(data);`,
       "field_order": 1
     },
     {
-      "id": "field-uuid-2",
+      "id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
       "label": "Rating",
       "field_type": "select",
       "required": true,
@@ -155,7 +155,7 @@ console.log(data);`,
       requestExample: `{
   "name": "New Feedback Form",
   "description": "Collect customer feedback",
-  "project_id": "project-uuid",
+  "project_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "status": "draft"
 }`,
       curlExample: `curl -X POST '${BASE_URL}/forms' \\
@@ -164,7 +164,7 @@ console.log(data);`,
   -d '{
     "name": "New Feedback Form",
     "description": "Collect customer feedback",
-    "project_id": "project-uuid",
+    "project_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
     "status": "draft"
   }'`,
       jsExample: `const response = await fetch('${BASE_URL}/forms', {
@@ -176,7 +176,7 @@ console.log(data);`,
   body: JSON.stringify({
     name: 'New Feedback Form',
     description: 'Collect customer feedback',
-    project_id: 'project-uuid',
+    project_id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
     status: 'draft'
   })
 });
@@ -184,7 +184,7 @@ const data = await response.json();
 console.log(data);`,
       responseExample: `{
   "data": {
-    "id": "new-uuid",
+    "id": "c3d4e5f6-a7b8-9012-cdef-123456789012",
     "name": "New Feedback Form",
     "reference_id": "NF00001234",
     "status": "draft",
@@ -236,7 +236,7 @@ const data = await response.json();
 console.log(data);`,
       responseExample: `{
   "data": {
-    "id": "uuid",
+    "id": "550e8400-e29b-41d4-a716-446655440000",
     "name": "Updated Form Name",
     "reference_id": "NF00001234",
     "status": "active",
@@ -295,17 +295,17 @@ const data = await response.json();
 console.log(data);`,
       responseExample: `{
   "form": {
-    "id": "form-uuid",
+    "id": "550e8400-e29b-41d4-a716-446655440000",
     "name": "Customer Feedback",
     "reference_id": "CF00001234"
   },
   "data": [
     {
-      "id": "record-uuid",
+      "id": "d4e5f6a7-b8c9-0123-def0-123456789abc",
       "submission_ref_id": "CF01150001",
       "submission_data": {
-        "field-id-1": "John Doe",
-        "field-id-2": "Excellent"
+        "a1b2c3d4-e5f6-7890-abcd-ef1234567890": "John Doe",
+        "b2c3d4e5-f6a7-8901-bcde-f12345678901": "Excellent"
       },
       "submitted_at": "2025-01-15T10:30:00Z",
       "submitted_by": null,
@@ -341,16 +341,16 @@ const data = await response.json();
 console.log(data);`,
       responseExample: `{
   "form": {
-    "id": "form-uuid",
+    "id": "550e8400-e29b-41d4-a716-446655440000",
     "name": "Customer Feedback",
     "reference_id": "CF00001234"
   },
   "data": {
-    "id": "record-uuid",
+    "id": "d4e5f6a7-b8c9-0123-def0-123456789abc",
     "submission_ref_id": "CF01150001",
     "submission_data": {
-      "field-id-1": "John Doe",
-      "field-id-2": "Excellent"
+      "a1b2c3d4-e5f6-7890-abcd-ef1234567890": "John Doe",
+      "b2c3d4e5-f6a7-8901-bcde-f12345678901": "Excellent"
     },
     "submitted_at": "2025-01-15T10:30:00Z",
     "submitted_by": null,
@@ -401,14 +401,14 @@ const response2 = await fetch(
       responseExample: `{
   "data": [
     {
-      "id": "uuid",
-      "form_id": "form-uuid",
+      "id": "d4e5f6a7-b8c9-0123-def0-123456789abc",
+      "form_id": "550e8400-e29b-41d4-a716-446655440000",
       "form_name": "Customer Feedback",
       "form_reference_id": "CF00001234",
       "submission_ref_id": "CF01150001",
       "submission_data": {
-        "field-id-1": "John Doe",
-        "field-id-2": "Excellent"
+        "a1b2c3d4-e5f6-7890-abcd-ef1234567890": "John Doe",
+        "b2c3d4e5-f6a7-8901-bcde-f12345678901": "Excellent"
       },
       "submitted_at": "2025-01-15T10:30:00Z",
       "submitted_by": null,
@@ -418,7 +418,7 @@ const response2 = await fetch(
   "count": 1,
   "limit": 100,
   "offset": 0,
-  "form_id": "form-uuid"
+  "form_id": "550e8400-e29b-41d4-a716-446655440000"
 }`,
       notes: [
         'Either form_id or form_ref_id is required to filter by form',
@@ -447,14 +447,14 @@ const data = await response.json();
 console.log(data);`,
       responseExample: `{
   "data": {
-    "id": "uuid",
-    "form_id": "form-uuid",
+    "id": "d4e5f6a7-b8c9-0123-def0-123456789abc",
+    "form_id": "550e8400-e29b-41d4-a716-446655440000",
     "form_name": "Customer Feedback",
     "form_reference_id": "CF00001234",
     "submission_ref_id": "CF01150001",
     "submission_data": {
-      "field-id-1": "John Doe",
-      "field-id-2": "Excellent"
+      "a1b2c3d4-e5f6-7890-abcd-ef1234567890": "John Doe",
+      "b2c3d4e5-f6a7-8901-bcde-f12345678901": "Excellent"
     },
     "submitted_at": "2025-01-15T10:30:00Z",
     "submitted_by": null,
@@ -514,7 +514,7 @@ const data = await response.json();
 console.log(data);`,
       responseExample: `{
   "data": {
-    "id": "new-uuid",
+    "id": "e5f6a7b8-c9d0-1234-ef01-23456789abcd",
     "submission_ref_id": "CF01150002",
     "submitted_at": "2025-01-15T10:35:00Z"
   },
@@ -569,7 +569,7 @@ const data = await response.json();
 console.log(data);`,
       responseExample: `{
   "data": {
-    "id": "uuid",
+    "id": "d4e5f6a7-b8c9-0123-def0-123456789abc",
     "submission_ref_id": "CF01150001",
     "submitted_at": "2025-01-15T10:30:00Z"
   },
@@ -656,8 +656,8 @@ console.log(data);`,
   "data": {
     "created": 2,
     "submissions": [
-      { "id": "uuid-1", "submission_ref_id": "CF01150001" },
-      { "id": "uuid-2", "submission_ref_id": "CF01150002" }
+      { "id": "f6a7b8c9-d0e1-2345-f012-3456789abcde", "submission_ref_id": "CF01150001" },
+      { "id": "a7b8c9d0-e1f2-3456-0123-456789abcdef", "submission_ref_id": "CF01150002" }
     ]
   },
   "message": "2 submissions created successfully"
@@ -788,7 +788,7 @@ console.log(data);`,
       responseExample: `{
   "data": [
     {
-      "id": "uuid",
+      "id": "b8c9d0e1-f2a3-4567-8901-23456789abcd",
       "name": "Approval Workflow",
       "description": "Automated approval process",
       "reference_id": "AW00001234",
@@ -821,7 +821,7 @@ const data = await response.json();
 console.log(data);`,
       responseExample: `{
   "data": {
-    "id": "uuid",
+    "id": "b8c9d0e1-f2a3-4567-8901-23456789abcd",
     "name": "Approval Workflow",
     "description": "Automated approval process",
     "reference_id": "AW00001234",
@@ -849,7 +849,7 @@ console.log(data);`,
       requestExample: `{
   "name": "New Approval Workflow",
   "description": "Automated approval for new requests",
-  "project_id": "project-uuid",
+  "project_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "trigger_type": "form_submission",
   "status": "draft"
 }`,
@@ -859,7 +859,7 @@ console.log(data);`,
   -d '{
     "name": "New Approval Workflow",
     "description": "Automated approval for new requests",
-    "project_id": "project-uuid",
+    "project_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
     "trigger_type": "form_submission",
     "status": "draft"
   }'`,
@@ -872,7 +872,7 @@ console.log(data);`,
   body: JSON.stringify({
     name: 'New Approval Workflow',
     description: 'Automated approval for new requests',
-    project_id: 'project-uuid',
+    project_id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
     trigger_type: 'form_submission',
     status: 'draft'
   })
@@ -881,7 +881,7 @@ const data = await response.json();
 console.log(data);`,
       responseExample: `{
   "data": {
-    "id": "new-uuid",
+    "id": "c9d0e1f2-a3b4-5678-9012-3456789abcde",
     "name": "New Approval Workflow",
     "reference_id": "NA00001234",
     "status": "draft",
@@ -929,8 +929,8 @@ const data = await response.json();
 console.log(data);`,
       responseExample: `{
   "data": {
-    "id": "execution-uuid",
-    "status": "pending",
+    "id": "d0e1f2a3-b4c5-6789-0123-456789abcdef",
+    "status": "running",
     "created_at": "2025-01-15T12:00:00Z"
   },
   "message": "Workflow \\"Approval Workflow\\" triggered successfully"
@@ -981,7 +981,7 @@ const data = await response.json();
 console.log(data);`,
       responseExample: `{
   "data": {
-    "id": "uuid",
+    "id": "b8c9d0e1-f2a3-4567-8901-23456789abcd",
     "name": "Updated Workflow Name",
     "reference_id": "NA00001234",
     "status": "active",
@@ -1036,7 +1036,7 @@ console.log(data);`,
       responseExample: `{
   "data": [
     {
-      "id": "uuid",
+      "id": "e1f2a3b4-c5d6-7890-1234-56789abcdef0",
       "name": "Monthly Summary",
       "description": "Monthly submission summary report",
       "reference_id": "MS00001234",
@@ -1067,11 +1067,11 @@ const data = await response.json();
 console.log(data);`,
       responseExample: `{
   "data": {
-    "id": "uuid",
+    "id": "e1f2a3b4-c5d6-7890-1234-56789abcdef0",
     "name": "Monthly Summary",
     "description": "Monthly submission summary report",
     "reference_id": "MS00001234",
-    "dashboard_id": "dashboard-uuid",
+    "dashboard_id": "f2a3b4c5-d6e7-8901-2345-6789abcdef01",
     "is_public": false,
     "created_at": "2025-01-01T00:00:00Z",
     "updated_at": "2025-01-15T09:00:00Z"
@@ -1094,7 +1094,7 @@ console.log(data);`,
       requestExample: `{
   "name": "New Monthly Report",
   "description": "Monthly metrics summary",
-  "project_id": "project-uuid",
+  "project_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "is_public": false
 }`,
       curlExample: `curl -X POST '${BASE_URL}/reports' \\
@@ -1103,7 +1103,7 @@ console.log(data);`,
   -d '{
     "name": "New Monthly Report",
     "description": "Monthly metrics summary",
-    "project_id": "project-uuid",
+    "project_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
     "is_public": false
   }'`,
       jsExample: `const response = await fetch('${BASE_URL}/reports', {
@@ -1115,7 +1115,7 @@ console.log(data);`,
   body: JSON.stringify({
     name: 'New Monthly Report',
     description: 'Monthly metrics summary',
-    project_id: 'project-uuid',
+    project_id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
     is_public: false
   })
 });
@@ -1123,7 +1123,7 @@ const data = await response.json();
 console.log(data);`,
       responseExample: `{
   "data": {
-    "id": "new-uuid",
+    "id": "f2a3b4c5-d6e7-8901-2345-6789abcdef02",
     "name": "New Monthly Report",
     "reference_id": "NM00001234",
     "created_at": "2025-01-15T10:00:00Z"
@@ -1174,7 +1174,7 @@ const data = await response.json();
 console.log(data);`,
       responseExample: `{
   "data": {
-    "id": "uuid",
+    "id": "e1f2a3b4-c5d6-7890-1234-56789abcdef0",
     "name": "Updated Report Name",
     "reference_id": "NM00001234",
     "updated_at": "2025-01-15T11:00:00Z"
