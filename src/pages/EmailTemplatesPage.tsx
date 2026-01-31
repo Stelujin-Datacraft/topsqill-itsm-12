@@ -807,148 +807,6 @@ function EmailTemplateForm({
         </Tabs>
       </div>
 
-      {/* Content Section */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-medium">Email Content</h3>
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-2">
-              <Switch
-                checked={contentMode === 'html'}
-                onCheckedChange={(checked) => onContentModeChange(checked ? 'html' : 'text')}
-              />
-              <Label>{contentMode === 'html' ? 'HTML' : 'Text'}</Label>
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => onShowPreviewChange(!showPreview)}
-            >
-              <Eye className="h-4 w-4 mr-1" />
-              {showPreview ? 'Hide' : 'Show'} Preview
-            </Button>
-          </div>
-        </div>
-
-        <div className="grid gap-4" style={{ gridTemplateColumns: showPreview ? '1fr 1fr' : '1fr' }}>
-          <div className="space-y-4">
-            {contentMode === 'html' && (
-              <div>
-                <Label>Predefined Templates</Label>
-                <Select onValueChange={(value) => insertPredefinedTemplate(value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Choose a template..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {EMAIL_TEMPLATES.map((template, index) => (
-                      <SelectItem key={index} value={template.htmlContent}>
-                        {template.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-            
-            {/* Insert Form Field Variables */}
-            <div className="space-y-2">
-              <Label>Insert Form Field Variable</Label>
-              <div className="flex gap-2">
-                <Select
-                  value={selectedFormForVariables}
-                  onValueChange={(formId) => {
-                    setSelectedFormForVariables(formId);
-                    loadAllFormFields(formId);
-                  }}
-                >
-                  <SelectTrigger className="w-48">
-                    <SelectValue placeholder="Select form..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {forms.map((form) => (
-                      <SelectItem key={form.id} value={form.id}>
-                        {form.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                
-                <Select
-                  value=""
-                  onValueChange={(fieldId) => {
-                    const field = allFormFields[selectedFormForVariables]?.find(f => f.id === fieldId);
-                    if (field) {
-                      insertFieldVariable(field.id, field.label);
-                    }
-                  }}
-                  disabled={!selectedFormForVariables || !allFormFields[selectedFormForVariables]?.length}
-                >
-                  <SelectTrigger className="flex-1">
-                    <SelectValue placeholder={selectedFormForVariables ? "Select field to insert..." : "Select form first"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {selectedFormForVariables && allFormFields[selectedFormForVariables]?.map((field) => (
-                      <SelectItem key={field.id} value={field.id}>
-                        {field.label} ({field.field_type})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <p className="text-xs text-muted-foreground">Select a form and field to insert as a variable in the content</p>
-            </div>
-
-            <div>
-              <Label>{contentMode === 'html' ? 'HTML Content' : 'Text Content'}</Label>
-              <Textarea
-                value={contentMode === 'html' ? formData.html_content : formData.text_content || ''}
-                onChange={(e) => {
-                  const updatedTemplate = onContentChange(formData, e.target.value, contentMode === 'html');
-                  setFormData(updatedTemplate);
-                }}
-                placeholder={
-                  contentMode === 'html' ? 
-                  'Enter HTML content with variables like {{name}}...' :
-                  'Enter plain text content with variables like {{name}}...'
-                }
-                rows={15}
-                className="font-mono"
-              />
-            </div>
-          </div>
-
-          {showPreview && (
-            <div>
-              <Label>Preview</Label>
-              <div className="border rounded-lg p-4 bg-background min-h-[400px]">
-                <EmailPreview
-                  subject={formData.subject}
-                  htmlContent={formData.html_content}
-                  textContent={formData.text_content}
-                  templateVariables={formData.template_variables.map(v => ({ name: v, value: `[${v}]` }))}
-                  isHtmlMode={contentMode === 'html'}
-                />
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Template Variables */}
-      {formData.template_variables.length > 0 && (
-        <div>
-          <Label>Detected Variables</Label>
-          <div className="flex flex-wrap gap-2 mt-2">
-            {formData.template_variables.map((variable) => (
-              <Badge key={variable} variant="outline">
-                {`{{${variable}}}`}
-              </Badge>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* Attachments Section */}
       <div className="space-y-4">
         <div className="flex justify-between items-center">
@@ -1093,6 +951,149 @@ function EmailTemplateForm({
           Upload static files or link to file fields from forms for dynamic attachments
         </p>
       </div>
+
+      {/* Content Section */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-medium">Email Content</h3>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={contentMode === 'html'}
+                onCheckedChange={(checked) => onContentModeChange(checked ? 'html' : 'text')}
+              />
+              <Label>{contentMode === 'html' ? 'HTML' : 'Text'}</Label>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => onShowPreviewChange(!showPreview)}
+            >
+              <Eye className="h-4 w-4 mr-1" />
+              {showPreview ? 'Hide' : 'Show'} Preview
+            </Button>
+          </div>
+        </div>
+
+        <div className="grid gap-4" style={{ gridTemplateColumns: showPreview ? '1fr 1fr' : '1fr' }}>
+          <div className="space-y-4">
+            {contentMode === 'html' && (
+              <div>
+                <Label>Predefined Templates</Label>
+                <Select onValueChange={(value) => insertPredefinedTemplate(value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choose a template..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {EMAIL_TEMPLATES.map((template, index) => (
+                      <SelectItem key={index} value={template.htmlContent}>
+                        {template.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            
+            {/* Insert Form Field Variables */}
+            <div className="space-y-2">
+              <Label>Insert Form Field Variable</Label>
+              <div className="flex gap-2">
+                <Select
+                  value={selectedFormForVariables}
+                  onValueChange={(formId) => {
+                    setSelectedFormForVariables(formId);
+                    loadAllFormFields(formId);
+                  }}
+                >
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Select form..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {forms.map((form) => (
+                      <SelectItem key={form.id} value={form.id}>
+                        {form.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                
+                <Select
+                  value=""
+                  onValueChange={(fieldId) => {
+                    const field = allFormFields[selectedFormForVariables]?.find(f => f.id === fieldId);
+                    if (field) {
+                      insertFieldVariable(field.id, field.label);
+                    }
+                  }}
+                  disabled={!selectedFormForVariables || !allFormFields[selectedFormForVariables]?.length}
+                >
+                  <SelectTrigger className="flex-1">
+                    <SelectValue placeholder={selectedFormForVariables ? "Select field to insert..." : "Select form first"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {selectedFormForVariables && allFormFields[selectedFormForVariables]?.map((field) => (
+                      <SelectItem key={field.id} value={field.id}>
+                        {field.label} ({field.field_type})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <p className="text-xs text-muted-foreground">Select a form and field to insert as a variable in the content</p>
+            </div>
+
+            <div>
+              <Label>{contentMode === 'html' ? 'HTML Content' : 'Text Content'}</Label>
+              <Textarea
+                value={contentMode === 'html' ? formData.html_content : formData.text_content || ''}
+                onChange={(e) => {
+                  const updatedTemplate = onContentChange(formData, e.target.value, contentMode === 'html');
+                  setFormData(updatedTemplate);
+                }}
+                placeholder={
+                  contentMode === 'html' ? 
+                  'Enter HTML content with variables like {{name}}...' :
+                  'Enter plain text content with variables like {{name}}...'
+                }
+                rows={15}
+                className="font-mono"
+              />
+            </div>
+          </div>
+
+          {showPreview && (
+            <div>
+              <Label>Preview</Label>
+              <div className="border rounded-lg p-4 bg-background min-h-[400px]">
+                <EmailPreview
+                  subject={formData.subject}
+                  htmlContent={formData.html_content}
+                  textContent={formData.text_content}
+                  templateVariables={formData.template_variables.map(v => ({ name: v, value: `[${v}]` }))}
+                  isHtmlMode={contentMode === 'html'}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Template Variables */}
+      {formData.template_variables.length > 0 && (
+        <div>
+          <Label>Detected Variables</Label>
+          <div className="flex flex-wrap gap-2 mt-2">
+            {formData.template_variables.map((variable) => (
+              <Badge key={variable} variant="outline">
+                {`{{${variable}}}`}
+              </Badge>
+            ))}
+          </div>
+        </div>
+      )}
+
 
 
       {/* SMTP Configuration */}
