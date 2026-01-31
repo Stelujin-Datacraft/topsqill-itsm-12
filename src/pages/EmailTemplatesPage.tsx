@@ -819,40 +819,57 @@ function EmailTemplateForm({
               onClick={() => {
                 const input = document.createElement('input');
                 input.type = 'file';
+                input.multiple = true;
                 input.onchange = async (e) => {
-                  const file = (e.target as HTMLInputElement).files?.[0];
-                  if (!file) return;
+                  const files = (e.target as HTMLInputElement).files;
+                  if (!files || files.length === 0) return;
                   
-                  try {
-                    const fileName = `${Date.now()}-${file.name}`;
-                    const { data, error } = await supabase.storage
-                      .from('email-attachments')
-                      .upload(fileName, file);
-                    
-                    if (error) throw error;
-                    
-                    const { data: urlData } = supabase.storage
-                      .from('email-attachments')
-                      .getPublicUrl(fileName);
-                    
+                  const newAttachments: AttachmentConfig[] = [];
+                  let successCount = 0;
+                  let failCount = 0;
+                  
+                  for (const file of Array.from(files)) {
+                    try {
+                      const fileName = `${Date.now()}-${file.name}`;
+                      const { data, error } = await supabase.storage
+                        .from('email-attachments')
+                        .upload(fileName, file);
+                      
+                      if (error) throw error;
+                      
+                      const { data: urlData } = supabase.storage
+                        .from('email-attachments')
+                        .getPublicUrl(fileName);
+                      
+                      newAttachments.push({ type: 'static', name: file.name, url: urlData.publicUrl });
+                      successCount++;
+                    } catch (error: any) {
+                      console.error(`Failed to upload ${file.name}:`, error);
+                      failCount++;
+                    }
+                  }
+                  
+                  if (newAttachments.length > 0) {
                     setFormData({
                       ...formData,
-                      attachments: [
-                        ...(formData.attachments || []),
-                        { type: 'static', name: file.name, url: urlData.publicUrl }
-                      ]
+                      attachments: [...(formData.attachments || []), ...newAttachments]
                     });
-                    
-                    toast({ title: 'File uploaded successfully' });
-                  } catch (error: any) {
-                    toast({ title: 'Upload failed', description: error.message, variant: 'destructive' });
+                  }
+                  
+                  if (successCount > 0) {
+                    toast({ 
+                      title: 'Files uploaded', 
+                      description: `${successCount} file(s) uploaded successfully${failCount > 0 ? `, ${failCount} failed` : ''}`
+                    });
+                  } else if (failCount > 0) {
+                    toast({ title: 'Upload failed', description: 'All file uploads failed', variant: 'destructive' });
                   }
                 };
                 input.click();
               }}
             >
               <Plus className="h-4 w-4 mr-1" />
-              Upload File
+              Upload Files
             </Button>
             <Button
               type="button"
