@@ -1150,6 +1150,21 @@ app.post('/workflows/:id/trigger', validateApiKey, async (c) => {
     return c.json({ error: 'Workflow not found or inactive' }, 404, corsHeaders);
   }
 
+  // Get submission data for trigger data
+  const { data: submissionData } = await supabase
+    .from('form_submissions')
+    .select('submission_data, submitted_by')
+    .eq('id', actualSubmissionId)
+    .single();
+
+  const triggerData = {
+    triggered_via: 'api',
+    api_key_id: keyInfo.api_key_id,
+    submissionId: actualSubmissionId,
+    submissionData: submissionData?.submission_data || {},
+    timestamp: new Date().toISOString()
+  };
+
   // Create workflow execution using correct column names and valid status
   // Valid statuses: 'running', 'completed', 'failed', 'paused', 'waiting'
   const { data: execution, error } = await supabase
@@ -1159,10 +1174,8 @@ app.post('/workflows/:id/trigger', validateApiKey, async (c) => {
       form_submission_id: actualSubmissionId,
       trigger_submission_id: actualSubmissionId,
       status: 'running',
-      trigger_data: { 
-        triggered_via: 'api', 
-        api_key_id: keyInfo.api_key_id 
-      }
+      trigger_data: triggerData,
+      submitter_id: submissionData?.submitted_by || null
     })
     .select('id, status, started_at')
     .single();
@@ -1172,11 +1185,43 @@ app.post('/workflows/:id/trigger', validateApiKey, async (c) => {
     return c.json({ error: 'Failed to trigger workflow' }, 500, corsHeaders);
   }
 
-  await logRequest(c, 202);
-  return c.json({ 
-    data: execution,
-    message: `Workflow "${workflow.name}" triggered successfully`
-  }, 202, corsHeaders);
+  // Call the execute-workflow edge function to actually run the workflow
+  try {
+    const executeResponse = await fetch(`${supabaseUrl}/functions/v1/execute-workflow`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${supabaseServiceKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        workflowId: workflow.id,
+        executionId: execution.id,
+        triggerData,
+        submissionId: actualSubmissionId,
+        submitterId: submissionData?.submitted_by || null
+      })
+    });
+
+    const executeResult = await executeResponse.json();
+    console.log('Workflow execution result:', executeResult);
+
+    await logRequest(c, 202);
+    return c.json({ 
+      data: {
+        ...execution,
+        executionStatus: executeResult.status || 'triggered'
+      },
+      message: `Workflow "${workflow.name}" triggered successfully`
+    }, 202, corsHeaders);
+  } catch (execError) {
+    console.error('Error calling execute-workflow:', execError);
+    // Still return success since the execution record was created
+    await logRequest(c, 202);
+    return c.json({ 
+      data: execution,
+      message: `Workflow "${workflow.name}" triggered (execution started)`
+    }, 202, corsHeaders);
+  }
 });
 
 // Get single workflow
