@@ -30,6 +30,15 @@ interface TemplateRecipients {
   permanent_recipients?: string[];
 }
 
+interface AttachmentConfig {
+  type: 'static' | 'dynamic';
+  name: string;
+  url?: string;
+  formId?: string;
+  fieldId?: string;
+  fieldLabel?: string;
+}
+
 const handler = async (req: Request): Promise<Response> => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -295,6 +304,61 @@ const handler = async (req: Request): Promise<Response> => {
       ? processTemplate(template.text_content, templateData || {}) 
       : undefined;
 
+    // Process attachments
+    const attachments: Array<{ filename: string; content: Uint8Array; contentType?: string }> = [];
+    const templateAttachments = (template.custom_params as Record<string, any>)?.attachments || template.attachments || [];
+    
+    console.log('📎 Processing attachments:', templateAttachments.length);
+    
+    for (const attachment of templateAttachments as AttachmentConfig[]) {
+      try {
+        if (attachment.type === 'static' && attachment.url) {
+          // Fetch static attachment from URL
+          console.log('📎 Fetching static attachment:', attachment.name);
+          const response = await fetch(attachment.url);
+          if (response.ok) {
+            const arrayBuffer = await response.arrayBuffer();
+            attachments.push({
+              filename: attachment.name,
+              content: new Uint8Array(arrayBuffer),
+              contentType: response.headers.get('content-type') || 'application/octet-stream'
+            });
+          }
+        } else if (attachment.type === 'dynamic' && attachment.fieldId && templateData) {
+          // Get file URL from form submission data
+          const fileData = templateData[attachment.fieldId];
+          console.log('📎 Processing dynamic attachment from field:', attachment.fieldId, fileData);
+          
+          if (fileData) {
+            // fileData could be a URL string or an array of file objects
+            const fileUrls = Array.isArray(fileData) ? fileData : [fileData];
+            
+            for (const fileUrl of fileUrls) {
+              const url = typeof fileUrl === 'string' ? fileUrl : fileUrl?.url;
+              const name = typeof fileUrl === 'string' ? attachment.name : (fileUrl?.name || attachment.name);
+              
+              if (url && typeof url === 'string') {
+                console.log('📎 Fetching dynamic attachment:', url);
+                const response = await fetch(url);
+                if (response.ok) {
+                  const arrayBuffer = await response.arrayBuffer();
+                  attachments.push({
+                    filename: name || 'attachment',
+                    content: new Uint8Array(arrayBuffer),
+                    contentType: response.headers.get('content-type') || 'application/octet-stream'
+                  });
+                }
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error('❌ Error processing attachment:', error);
+      }
+    }
+    
+    console.log(`📎 Total attachments prepared: ${attachments.length}`);
+
     // Send emails to all recipients
     console.log(`📮 Processing ${finalRecipients.length} recipient(s)`);
     const emailResults = [];
@@ -317,8 +381,8 @@ const handler = async (req: Request): Promise<Response> => {
       });
       
       try {
-        // Send email using SMTP
-        await smtpClient.send({
+        // Prepare email with attachments
+        const emailPayload: any = {
           from: smtpConfig.from_name 
             ? `${smtpConfig.from_name} <${smtpConfig.from_email}>` 
             : smtpConfig.from_email,
@@ -326,7 +390,19 @@ const handler = async (req: Request): Promise<Response> => {
           subject: processedSubject,
           content: processedTextContent || processedHtmlContent.replace(/<[^>]*>/g, ''),
           html: processedHtmlContent,
-        });
+        };
+        
+        // Add attachments if any
+        if (attachments.length > 0) {
+          emailPayload.attachments = attachments.map(att => ({
+            filename: att.filename,
+            content: att.content,
+            contentType: att.contentType,
+          }));
+        }
+        
+        // Send email using SMTP
+        await smtpClient.send(emailPayload);
 
         // Close connection after successful send
         await smtpClient.close();

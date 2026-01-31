@@ -20,6 +20,15 @@ import { EmailTagInput } from '@/components/email/EmailTagInput';
 import { EMAIL_TEMPLATES } from '@/data/emailTemplates';
 import DashboardLayout from '@/components/DashboardLayout';
 
+interface AttachmentConfig {
+  type: 'static' | 'dynamic';
+  name: string;
+  url?: string; // For static attachments (storage URL)
+  formId?: string; // For dynamic attachments from form file fields
+  fieldId?: string;
+  fieldLabel?: string;
+}
+
 interface EmailTemplate {
   id: string;
   name: string;
@@ -34,10 +43,12 @@ interface EmailTemplate {
     bcc: RecipientConfig[];
     permanent_recipients: RecipientConfig[];
   };
+  attachments?: AttachmentConfig[];
   is_active: boolean;
   project_id: string;
   custom_params?: {
     smtp_config_id?: string;
+    fieldMappings?: Record<string, string>;
     [key: string]: any;
   };
 }
@@ -937,6 +948,152 @@ function EmailTemplateForm({
           </div>
         </div>
       )}
+
+      {/* Attachments Section */}
+      <div className="space-y-4">
+        <div className="flex justify-between items-center">
+          <Label>Attachments</Label>
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.onchange = async (e) => {
+                  const file = (e.target as HTMLInputElement).files?.[0];
+                  if (!file) return;
+                  
+                  try {
+                    const fileName = `${Date.now()}-${file.name}`;
+                    const { data, error } = await supabase.storage
+                      .from('email-attachments')
+                      .upload(fileName, file);
+                    
+                    if (error) throw error;
+                    
+                    const { data: urlData } = supabase.storage
+                      .from('email-attachments')
+                      .getPublicUrl(fileName);
+                    
+                    setFormData({
+                      ...formData,
+                      attachments: [
+                        ...(formData.attachments || []),
+                        { type: 'static', name: file.name, url: urlData.publicUrl }
+                      ]
+                    });
+                    
+                    toast({ title: 'File uploaded successfully' });
+                  } catch (error: any) {
+                    toast({ title: 'Upload failed', description: error.message, variant: 'destructive' });
+                  }
+                };
+                input.click();
+              }}
+            >
+              <Plus className="h-4 w-4 mr-1" />
+              Upload File
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setFormData({
+                ...formData,
+                attachments: [
+                  ...(formData.attachments || []),
+                  { type: 'dynamic', name: '', formId: '', fieldId: '' }
+                ]
+              })}
+            >
+              <Plus className="h-4 w-4 mr-1" />
+              From Form Field
+            </Button>
+          </div>
+        </div>
+        
+        {(formData.attachments || []).length > 0 && (
+          <div className="space-y-2">
+            {formData.attachments?.map((attachment, index) => (
+              <div key={index} className="flex items-center gap-2 p-2 border rounded-md">
+                {attachment.type === 'static' ? (
+                  <div className="flex-1 flex items-center gap-2">
+                    <Badge variant="secondary">Static</Badge>
+                    <span className="text-sm truncate">{attachment.name}</span>
+                  </div>
+                ) : (
+                  <div className="flex-1 flex items-center gap-2">
+                    <Badge variant="outline">Dynamic</Badge>
+                    <Select
+                      value={attachment.formId || ''}
+                      onValueChange={(formId) => {
+                        const newAttachments = [...(formData.attachments || [])];
+                        newAttachments[index] = { ...attachment, formId, fieldId: '' };
+                        setFormData({ ...formData, attachments: newAttachments });
+                        loadAllFormFields(formId);
+                      }}
+                    >
+                      <SelectTrigger className="w-40">
+                        <SelectValue placeholder="Select form..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {forms.map((form) => (
+                          <SelectItem key={form.id} value={form.id}>{form.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select
+                      value={attachment.fieldId || ''}
+                      onValueChange={(fieldId) => {
+                        const field = allFormFields[attachment.formId || '']?.find(f => f.id === fieldId);
+                        const newAttachments = [...(formData.attachments || [])];
+                        newAttachments[index] = { 
+                          ...attachment, 
+                          fieldId, 
+                          fieldLabel: field?.label,
+                          name: field?.label || 'File attachment'
+                        };
+                        setFormData({ ...formData, attachments: newAttachments });
+                      }}
+                      disabled={!attachment.formId}
+                    >
+                      <SelectTrigger className="flex-1">
+                        <SelectValue placeholder="Select file field..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {attachment.formId && allFormFields[attachment.formId]
+                          ?.filter(f => f.field_type === 'file')
+                          .map((field) => (
+                            <SelectItem key={field.id} value={field.id}>
+                              {field.label}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    const newAttachments = (formData.attachments || []).filter((_, i) => i !== index);
+                    setFormData({ ...formData, attachments: newAttachments });
+                  }}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+        <p className="text-xs text-muted-foreground">
+          Upload static files or link to file fields from forms for dynamic attachments
+        </p>
+      </div>
+
 
       {/* SMTP Configuration */}
       <div className="space-y-2">
