@@ -191,8 +191,9 @@ Deno.serve(async (req) => {
             break
 
           case 'condition':
-            console.log('🔍 Condition node')
+            console.log('🔍 Condition node - evaluating...')
             const conditionResult = await evaluateCondition(supabase, currentNode, triggerData, submissionId)
+            console.log(`📊 Condition evaluation result: ${conditionResult}`)
             outputData = { conditionResult, evaluated: true }
             
             // Get connections for condition node
@@ -201,19 +202,34 @@ Deno.serve(async (req) => {
               .select('target_node_id, connection_type')
               .eq('source_node_id', currentNode.id)
 
+            console.log(`📊 Found ${condConnections?.length || 0} connections from condition node`)
+            
             if (condConnections) {
               for (const conn of condConnections) {
-                const isTrue = conn.connection_type === 'true' || conn.connection_type === 'yes'
-                const isFalse = conn.connection_type === 'false' || conn.connection_type === 'no'
+                console.log(`   📊 Connection: type="${conn.connection_type}", target="${conn.target_node_id}"`)
+                const connType = (conn.connection_type || '').toLowerCase()
+                const isTrue = connType === 'true' || connType === 'yes' || connType === 'default-true'
+                const isFalse = connType === 'false' || connType === 'no' || connType === 'default-false'
                 
-                if ((conditionResult && isTrue) || (!conditionResult && isFalse) || 
-                    (!conn.connection_type || conn.connection_type === 'default')) {
-                  if ((conditionResult && isTrue) || (!conditionResult && isFalse)) {
+                // Only follow the appropriate branch based on condition result
+                if (conditionResult && isTrue) {
+                  console.log(`   ✅ Following TRUE branch to ${conn.target_node_id}`)
+                  nextNodeIds.push(conn.target_node_id)
+                } else if (!conditionResult && isFalse) {
+                  console.log(`   ❌ Following FALSE branch to ${conn.target_node_id}`)
+                  nextNodeIds.push(conn.target_node_id)
+                } else if (!isTrue && !isFalse) {
+                  // Handle default/unlabeled connections - follow based on condition result
+                  console.log(`   ➡️ Unlabeled connection, treating as default`)
+                  // Default connections typically go to true path
+                  if (conditionResult) {
                     nextNodeIds.push(conn.target_node_id)
                   }
                 }
               }
             }
+            
+            console.log(`📊 Next nodes to execute: ${nextNodeIds.join(', ') || 'none'}`)
             break
 
           default:
@@ -425,56 +441,296 @@ async function executeNotificationNode(supabase: any, node: WorkflowNode, execut
 
 async function evaluateCondition(supabase: any, node: WorkflowNode, triggerData: any, submissionId?: string): Promise<boolean> {
   const config = node.config as any
-  const conditions = config?.conditions || []
+  const legacyConditions = config?.conditions || []
+  const enhancedCondition = config?.enhancedCondition
   
-  if (!submissionId || conditions.length === 0) {
-    return true // Default to true if no conditions
-  }
+  console.log(`📋 Condition config:`, JSON.stringify(config, null, 2))
+  console.log(`📋 Has enhancedCondition: ${!!enhancedCondition}`)
+  console.log(`📋 Legacy conditions count: ${legacyConditions.length}`)
 
   // Get submission data
-  const { data: submission } = await supabase
-    .from('form_submissions')
-    .select('submission_data')
-    .eq('id', submissionId)
-    .single()
+  let submissionData: Record<string, any> = triggerData?.submissionData || {}
+  
+  if (submissionId) {
+    const { data: submission } = await supabase
+      .from('form_submissions')
+      .select('submission_data')
+      .eq('id', submissionId)
+      .single()
 
-  if (!submission) {
+    if (submission) {
+      submissionData = submission.submission_data || {}
+    }
+  }
+
+  console.log(`📋 Submission data keys: ${Object.keys(submissionData).join(', ')}`)
+
+  // Helper: normalize a value for comparison
+  const normalizeValue = (v: any): string => {
+    if (v === null || v === undefined) return ''
+    if (typeof v === 'boolean') return v.toString()
+    if (typeof v === 'object' && !Array.isArray(v)) {
+      if ('value' in v) return String(v.value).toLowerCase().trim()
+      if ('id' in v) return String(v.id).toLowerCase().trim()
+      return JSON.stringify(v).toLowerCase()
+    }
+    return String(v).toLowerCase().trim()
+  }
+
+  // Helper: check if value is array-like
+  const isArrayField = (v: any): boolean => {
+    if (Array.isArray(v)) return true
+    if (typeof v === 'object' && v !== null && ('users' in v || 'groups' in v)) return true
     return false
   }
 
-  const submissionData = submission.submission_data || {}
+  // Helper: get array values (handles arrays and submission-access objects)
+  const getArrayValues = (v: any): string[] => {
+    if (Array.isArray(v)) {
+      return v.map(item => {
+        if (typeof item === 'object' && item !== null) {
+          if ('value' in item) return String(item.value).toLowerCase().trim()
+          if ('id' in item) return String(item.id).toLowerCase().trim()
+        }
+        const strVal = String(item).toLowerCase().trim()
+        if (strVal.startsWith('user:')) return strVal.substring(5)
+        if (strVal.startsWith('group:')) return strVal.substring(6)
+        return strVal
+      })
+    }
+    if (typeof v === 'object' && v !== null) {
+      const results: string[] = []
+      if ('users' in v && Array.isArray(v.users)) {
+        results.push(...v.users.map((u: any) => normalizeValue(u)))
+      }
+      if ('groups' in v && Array.isArray(v.groups)) {
+        results.push(...v.groups.map((g: any) => normalizeValue(g)))
+      }
+      if (results.length > 0) return results
+    }
+    const strVal = normalizeValue(v)
+    if (strVal.startsWith('user:')) return [strVal.substring(5)]
+    if (strVal.startsWith('group:')) return [strVal.substring(6)]
+    return [strVal]
+  }
 
-  // Evaluate conditions
-  for (const condition of conditions) {
-    const fieldValue = submissionData[condition.fieldId]
-    const targetValue = condition.value
-    const operator = condition.operator || 'equals'
+  // Helper: compare values with proper array handling
+  const compareValues = (left: any, right: any, operator: string): boolean => {
+    const isLeftArray = isArrayField(left)
+    
+    // Parse right operand if it's a JSON string
+    let parsedRight = right
+    if (typeof right === 'string' && (right.startsWith('[') || right.startsWith('{'))) {
+      try {
+        parsedRight = JSON.parse(right)
+      } catch {
+        // Keep as string
+      }
+    }
+    const isRightArray = isArrayField(parsedRight)
+    const rightStr = normalizeValue(right)
 
-    let result = false
+    console.log(`   🔍 compareValues: operator=${operator}, isLeftArray=${isLeftArray}, isRightArray=${isRightArray}`)
+    console.log(`   🔍 Left: ${JSON.stringify(left)}, Right: ${JSON.stringify(parsedRight)}`)
+
     switch (operator) {
       case 'equals':
-        result = fieldValue === targetValue
-        break
-      case 'not_equals':
-        result = fieldValue !== targetValue
-        break
-      case 'contains':
-        result = String(fieldValue).includes(String(targetValue))
-        break
-      case 'greater_than':
-        result = Number(fieldValue) > Number(targetValue)
-        break
-      case 'less_than':
-        result = Number(fieldValue) < Number(targetValue)
-        break
-      default:
-        result = fieldValue === targetValue
-    }
+      case '==':
+        if (isLeftArray && isRightArray) {
+          const leftValues = getArrayValues(left)
+          const rightValues = getArrayValues(parsedRight)
+          console.log(`   🔍 Array comparison: left=${JSON.stringify(leftValues)}, right=${JSON.stringify(rightValues)}`)
+          if (leftValues.length !== rightValues.length) return false
+          return rightValues.every(rv => leftValues.includes(rv))
+        }
+        if (isLeftArray) {
+          const leftValues = getArrayValues(left)
+          return leftValues.length === 1 && leftValues.includes(rightStr)
+        }
+        if (isRightArray) {
+          const rightValues = getArrayValues(parsedRight)
+          return rightValues.length === 1 && rightValues.includes(normalizeValue(left))
+        }
+        return normalizeValue(left) === rightStr
 
-    if (!result) {
-      return false
+      case 'not_equals':
+      case '!=':
+        if (isLeftArray && isRightArray) {
+          const leftValues = getArrayValues(left)
+          const rightValues = getArrayValues(parsedRight)
+          if (leftValues.length !== rightValues.length) return true
+          return !rightValues.every(rv => leftValues.includes(rv))
+        }
+        if (isLeftArray) {
+          const leftValues = getArrayValues(left)
+          return leftValues.length !== 1 || !leftValues.includes(rightStr)
+        }
+        if (isRightArray) {
+          const rightValues = getArrayValues(parsedRight)
+          return rightValues.length !== 1 || !rightValues.includes(normalizeValue(left))
+        }
+        return normalizeValue(left) !== rightStr
+
+      case 'contains':
+      case 'includes':
+        if (isLeftArray) {
+          const leftValues = getArrayValues(left)
+          if (isRightArray) {
+            const rightValues = getArrayValues(parsedRight)
+            return rightValues.some(rv => leftValues.includes(rv))
+          }
+          return leftValues.includes(rightStr)
+        }
+        return normalizeValue(left).includes(rightStr)
+
+      case 'not_contains':
+      case 'excludes':
+        if (isLeftArray) {
+          const leftValues = getArrayValues(left)
+          if (isRightArray) {
+            const rightValues = getArrayValues(parsedRight)
+            return !rightValues.some(rv => leftValues.includes(rv))
+          }
+          return !leftValues.includes(rightStr)
+        }
+        return !normalizeValue(left).includes(rightStr)
+
+      case 'greater_than':
+      case '>':
+        return parseFloat(String(left)) > parseFloat(String(right))
+
+      case 'less_than':
+      case '<':
+        return parseFloat(String(left)) < parseFloat(String(right))
+
+      case 'greater_than_or_equals':
+      case '>=':
+        return parseFloat(String(left)) >= parseFloat(String(right))
+
+      case 'less_than_or_equals':
+      case '<=':
+        return parseFloat(String(left)) <= parseFloat(String(right))
+
+      case 'exists':
+        return left !== undefined && left !== null && left !== ''
+
+      case 'not_exists':
+        return left === undefined || left === null || left === ''
+
+      default:
+        console.log(`⚠️ Unknown operator: ${operator}`)
+        return normalizeValue(left) === rightStr
     }
   }
 
-  return true
+  // Evaluate field-level condition
+  const evaluateFieldLevelCondition = (flc: any): boolean => {
+    const fieldId = flc?.fieldId
+    const operator = flc?.operator
+    const expectedValue = flc?.value
+    
+    if (!fieldId) {
+      console.log(`⚠️ No fieldId in field-level condition`)
+      return false
+    }
+    
+    const actualValue = submissionData[fieldId]
+    console.log(`📊 Evaluating field-level: fieldId=${fieldId}, operator=${operator}`)
+    console.log(`   Expected: ${JSON.stringify(expectedValue)}, Actual: ${JSON.stringify(actualValue)}`)
+    
+    const result = compareValues(actualValue, expectedValue, operator)
+    console.log(`   Result: ${result}`)
+    return result
+  }
+
+  // Evaluate enhanced condition format
+  const evaluateEnhancedCondition = (ec: any): boolean => {
+    if (!ec) return true
+    
+    const conditions = ec.conditions || []
+    const useManualExpression = ec.useManualExpression
+    const manualExpression = ec.manualExpression
+    
+    console.log(`📊 Enhanced condition: ${conditions.length} conditions, useManual=${useManualExpression}`)
+    
+    if (conditions.length === 0) {
+      if (ec.fieldLevelCondition) {
+        return evaluateFieldLevelCondition(ec.fieldLevelCondition)
+      }
+      return true
+    }
+    
+    const results: boolean[] = []
+    for (const cond of conditions) {
+      let condResult = false
+      if (cond.fieldLevelCondition) {
+        condResult = evaluateFieldLevelCondition(cond.fieldLevelCondition)
+      } else if (cond.fieldCondition) {
+        const fieldValue = submissionData[cond.fieldCondition.fieldId]
+        condResult = compareValues(fieldValue, cond.fieldCondition.value, cond.fieldCondition.operator)
+      }
+      console.log(`   Condition ${cond.id}: result=${condResult}`)
+      results.push(condResult)
+    }
+    
+    // Handle manual expression like "1 AND 2" or "(1 AND 2) OR 3"
+    if (useManualExpression && manualExpression) {
+      console.log(`📊 Evaluating manual expression: ${manualExpression}`)
+      try {
+        let expr = manualExpression.toString()
+        for (let i = results.length; i >= 1; i--) {
+          expr = expr.replace(new RegExp(`\\b${i}\\b`, 'g'), results[i - 1] ? 'true' : 'false')
+        }
+        expr = expr.replace(/\bAND\b/gi, '&&').replace(/\bOR\b/gi, '||').replace(/\bNOT\b/gi, '!')
+        console.log(`   Parsed expression: ${expr}`)
+        const evalResult = Function('"use strict"; return (' + expr + ')')()
+        console.log(`   Expression result: ${evalResult}`)
+        return Boolean(evalResult)
+      } catch (e) {
+        console.log(`⚠️ Error evaluating expression: ${e}`)
+      }
+    }
+    
+    // Default logic based on logicalOperatorWithNext
+    const hasOrLogic = conditions.some((c: any) => c.logicalOperatorWithNext === 'OR')
+    if (hasOrLogic) {
+      return results.some(r => r)
+    }
+    return results.every(r => r)
+  }
+
+  // Evaluate legacy condition
+  const evaluateLegacyCondition = (condition: any): boolean => {
+    const fieldValue = submissionData[condition.fieldId || condition.field]
+    const targetValue = condition.value
+    const operator = condition.operator || 'equals'
+    
+    console.log(`📊 Evaluating legacy: field=${condition.fieldId || condition.field}, operator=${operator}`)
+    console.log(`   Target: ${JSON.stringify(targetValue)}, Actual: ${JSON.stringify(fieldValue)}`)
+    
+    return compareValues(fieldValue, targetValue, operator)
+  }
+
+  // Main evaluation logic
+  let conditionResult = true
+  
+  // Check enhanced condition first (new format)
+  if (enhancedCondition) {
+    console.log(`📊 Using enhanced condition evaluation`)
+    conditionResult = evaluateEnhancedCondition(enhancedCondition)
+    console.log(`📊 Enhanced condition result: ${conditionResult}`)
+  } else if (legacyConditions.length > 0) {
+    // Fall back to legacy conditions
+    console.log(`📊 Using legacy condition evaluation`)
+    for (const condition of legacyConditions) {
+      if (!evaluateLegacyCondition(condition)) {
+        conditionResult = false
+        break
+      }
+    }
+    console.log(`📊 Legacy condition result: ${conditionResult}`)
+  }
+
+  console.log(`📊 Final condition result: ${conditionResult}`)
+  return conditionResult
 }
