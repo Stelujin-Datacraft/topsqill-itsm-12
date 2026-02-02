@@ -170,7 +170,10 @@ app.get('/docs', (c) => {
         'GET /submissions/:id': 'Get submission by ID (UUID) or submission_ref_id',
         'POST /submissions': 'Create new submission (body: form_id or form_ref_id, submission_data)',
         'PUT /submissions/:id': 'Update submission',
-        'DELETE /submissions/:id': 'Delete submission'
+        'DELETE /submissions/:id': 'Delete submission',
+        'POST /submissions/bulk': 'Bulk create submissions (body: submissions[], form_id, use_labels)',
+        'PUT /submissions/bulk': 'Bulk update submissions (body: updates[], use_labels, merge)',
+        'DELETE /submissions/bulk': 'Bulk delete submissions (body: ids[] or submission_ref_ids[])'
       },
       workflows: {
         'GET /workflows': 'List workflows',
@@ -1050,6 +1053,322 @@ app.delete('/submissions/:id', validateApiKey, async (c) => {
 
   await logRequest(c, 200);
   return c.json({ message: 'Submission deleted successfully' }, 200, corsHeaders);
+});
+
+// =============================================
+// BULK SUBMISSIONS ENDPOINTS
+// =============================================
+
+// Bulk create submissions
+app.post('/submissions/bulk', validateApiKey, async (c) => {
+  const keyInfo = c.get('apiKeyInfo');
+
+  if (!hasPermission(keyInfo, 'submissions', 'create')) {
+    await logRequest(c, 403, 'Permission denied: submissions.create');
+    return c.json({ error: 'Permission denied' }, 403, corsHeaders);
+  }
+
+  let body: any;
+  try {
+    body = await c.req.json();
+  } catch {
+    await logRequest(c, 400, 'Invalid JSON body');
+    return c.json({ error: 'Invalid JSON body' }, 400, corsHeaders);
+  }
+
+  const { submissions, form_id, form_ref_id, use_labels } = body;
+
+  if (!submissions || !Array.isArray(submissions) || submissions.length === 0) {
+    await logRequest(c, 400, 'submissions array is required');
+    return c.json({ error: 'submissions array is required and must not be empty' }, 400, corsHeaders);
+  }
+
+  if (!form_id && !form_ref_id) {
+    await logRequest(c, 400, 'form_id or form_ref_id required');
+    return c.json({ error: 'form_id or form_ref_id is required' }, 400, corsHeaders);
+  }
+
+  if (submissions.length > 100) {
+    await logRequest(c, 400, 'Maximum 100 submissions per request');
+    return c.json({ error: 'Maximum 100 submissions per bulk request' }, 400, corsHeaders);
+  }
+
+  const supabase = getServiceClient();
+
+  // Resolve form ID
+  let actualFormId = form_id;
+  if (form_ref_id && !form_id) {
+    const { data: form } = await supabase
+      .from('forms')
+      .select('id')
+      .eq('reference_id', form_ref_id)
+      .eq('organization_id', keyInfo.organization_id)
+      .single();
+    
+    if (!form) {
+      await logRequest(c, 404, 'Form not found');
+      return c.json({ error: 'Form not found' }, 404, corsHeaders);
+    }
+    actualFormId = form.id;
+  } else {
+    // Verify form exists and belongs to org
+    const { data: form } = await supabase
+      .from('forms')
+      .select('id')
+      .eq('id', form_id)
+      .eq('organization_id', keyInfo.organization_id)
+      .single();
+    
+    if (!form) {
+      await logRequest(c, 404, 'Form not found');
+      return c.json({ error: 'Form not found' }, 404, corsHeaders);
+    }
+  }
+
+  // Get fields for label mapping if needed
+  let labelToId: Map<string, string> | null = null;
+  if (use_labels) {
+    const { data: fields } = await supabase
+      .from('form_fields')
+      .select('id, label')
+      .eq('form_id', actualFormId);
+
+    if (fields) {
+      labelToId = new Map(fields.map(f => [f.label.toLowerCase(), f.id]));
+    }
+  }
+
+  // Process submissions
+  const insertData = submissions.map((sub: any) => {
+    let submissionData = sub.submission_data || sub;
+    
+    // Convert labels to IDs if needed
+    if (labelToId && typeof submissionData === 'object') {
+      const converted: Record<string, any> = {};
+      for (const [key, value] of Object.entries(submissionData)) {
+        const fieldId = labelToId.get(key.toLowerCase()) || key;
+        converted[fieldId] = value;
+      }
+      submissionData = converted;
+    }
+
+    return {
+      form_id: actualFormId,
+      submission_data: submissionData,
+      submitted_by: null
+    };
+  });
+
+  const { data, error } = await supabase
+    .from('form_submissions')
+    .insert(insertData)
+    .select('id, submission_ref_id, submitted_at');
+
+  if (error) {
+    await logRequest(c, 500, error.message);
+    return c.json({ error: 'Failed to create submissions', details: error.message }, 500, corsHeaders);
+  }
+
+  await logRequest(c, 201);
+  return c.json({ 
+    data,
+    created: data?.length || 0,
+    message: `Successfully created ${data?.length || 0} submissions`
+  }, 201, corsHeaders);
+});
+
+// Bulk update submissions
+app.put('/submissions/bulk', validateApiKey, async (c) => {
+  const keyInfo = c.get('apiKeyInfo');
+
+  if (!hasPermission(keyInfo, 'submissions', 'update')) {
+    await logRequest(c, 403, 'Permission denied: submissions.update');
+    return c.json({ error: 'Permission denied' }, 403, corsHeaders);
+  }
+
+  let body: any;
+  try {
+    body = await c.req.json();
+  } catch {
+    await logRequest(c, 400, 'Invalid JSON body');
+    return c.json({ error: 'Invalid JSON body' }, 400, corsHeaders);
+  }
+
+  const { updates, use_labels, merge = true } = body;
+
+  if (!updates || !Array.isArray(updates) || updates.length === 0) {
+    await logRequest(c, 400, 'updates array is required');
+    return c.json({ error: 'updates array is required and must not be empty' }, 400, corsHeaders);
+  }
+
+  if (updates.length > 100) {
+    await logRequest(c, 400, 'Maximum 100 updates per request');
+    return c.json({ error: 'Maximum 100 updates per bulk request' }, 400, corsHeaders);
+  }
+
+  const supabase = getServiceClient();
+  const results: { id: string; success: boolean; error?: string }[] = [];
+  let successCount = 0;
+  let failedCount = 0;
+
+  for (const update of updates) {
+    const { id: submissionId, submission_ref_id, submission_data } = update;
+    
+    const lookupId = submissionId || submission_ref_id;
+    if (!lookupId) {
+      results.push({ id: 'unknown', success: false, error: 'id or submission_ref_id required' });
+      failedCount++;
+      continue;
+    }
+
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(lookupId);
+
+    // Find the submission
+    let findQuery = supabase
+      .from('form_submissions')
+      .select('id, form_id, submission_data, forms!inner(organization_id)')
+      .eq('forms.organization_id', keyInfo.organization_id);
+
+    if (isUuid) {
+      findQuery = findQuery.eq('id', lookupId);
+    } else {
+      findQuery = findQuery.eq('submission_ref_id', lookupId);
+    }
+
+    const { data: existing, error: findError } = await findQuery.single();
+
+    if (findError || !existing) {
+      results.push({ id: lookupId, success: false, error: 'Submission not found' });
+      failedCount++;
+      continue;
+    }
+
+    // Convert labels to IDs if needed
+    let finalData = submission_data;
+    if (use_labels && submission_data) {
+      const { data: fields } = await supabase
+        .from('form_fields')
+        .select('id, label')
+        .eq('form_id', existing.form_id);
+
+      if (fields) {
+        const labelToId = new Map(fields.map(f => [f.label.toLowerCase(), f.id]));
+        finalData = {};
+        for (const [key, value] of Object.entries(submission_data)) {
+          const fieldId = labelToId.get(key.toLowerCase()) || key;
+          finalData[fieldId] = value;
+        }
+      }
+    }
+
+    // Merge or replace data
+    const newData = merge
+      ? { ...(existing.submission_data as object), ...finalData }
+      : finalData;
+
+    const { error: updateError } = await supabase
+      .from('form_submissions')
+      .update({ submission_data: newData })
+      .eq('id', existing.id);
+
+    if (updateError) {
+      results.push({ id: lookupId, success: false, error: updateError.message });
+      failedCount++;
+    } else {
+      results.push({ id: existing.id, success: true });
+      successCount++;
+    }
+  }
+
+  await logRequest(c, 200);
+  return c.json({ 
+    results,
+    updated: successCount,
+    failed: failedCount,
+    message: `Updated ${successCount} submissions, ${failedCount} failed`
+  }, 200, corsHeaders);
+});
+
+// Bulk delete submissions
+app.delete('/submissions/bulk', validateApiKey, async (c) => {
+  const keyInfo = c.get('apiKeyInfo');
+
+  if (!hasPermission(keyInfo, 'submissions', 'delete')) {
+    await logRequest(c, 403, 'Permission denied: submissions.delete');
+    return c.json({ error: 'Permission denied' }, 403, corsHeaders);
+  }
+
+  let body: any;
+  try {
+    body = await c.req.json();
+  } catch {
+    await logRequest(c, 400, 'Invalid JSON body');
+    return c.json({ error: 'Invalid JSON body' }, 400, corsHeaders);
+  }
+
+  const { ids, submission_ref_ids } = body;
+
+  const allIds = [...(ids || []), ...(submission_ref_ids || [])];
+  
+  if (allIds.length === 0) {
+    await logRequest(c, 400, 'ids or submission_ref_ids required');
+    return c.json({ error: 'ids or submission_ref_ids array is required' }, 400, corsHeaders);
+  }
+
+  if (allIds.length > 100) {
+    await logRequest(c, 400, 'Maximum 100 deletions per request');
+    return c.json({ error: 'Maximum 100 deletions per bulk request' }, 400, corsHeaders);
+  }
+
+  const supabase = getServiceClient();
+  const results: { id: string; success: boolean; error?: string }[] = [];
+  let successCount = 0;
+  let failedCount = 0;
+
+  for (const lookupId of allIds) {
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(lookupId);
+
+    // Find the submission first
+    let findQuery = supabase
+      .from('form_submissions')
+      .select('id, forms!inner(organization_id)')
+      .eq('forms.organization_id', keyInfo.organization_id);
+
+    if (isUuid) {
+      findQuery = findQuery.eq('id', lookupId);
+    } else {
+      findQuery = findQuery.eq('submission_ref_id', lookupId);
+    }
+
+    const { data: existing, error: findError } = await findQuery.single();
+
+    if (findError || !existing) {
+      results.push({ id: lookupId, success: false, error: 'Submission not found' });
+      failedCount++;
+      continue;
+    }
+
+    const { error: deleteError } = await supabase
+      .from('form_submissions')
+      .delete()
+      .eq('id', existing.id);
+
+    if (deleteError) {
+      results.push({ id: lookupId, success: false, error: deleteError.message });
+      failedCount++;
+    } else {
+      results.push({ id: existing.id, success: true });
+      successCount++;
+    }
+  }
+
+  await logRequest(c, 200);
+  return c.json({ 
+    results,
+    deleted: successCount,
+    failed: failedCount,
+    message: `Deleted ${successCount} submissions, ${failedCount} failed`
+  }, 200, corsHeaders);
 });
 
 // =============================================
