@@ -440,6 +440,22 @@ export class RuleProcessor {
           variant: "destructive"
         });
         break;
+      
+      // Instant notification/email actions (moved from form rules)
+      case 'notify':
+        toast({
+          title: "Notification",
+          description: rule.actionValue?.toString() || "Rule condition triggered.",
+        });
+        break;
+      
+      case 'sendEmail':
+        context.onFormAction?.('sendEmail', rule.actionValue);
+        toast({
+          title: "Email Triggered",
+          description: "Email notification will be sent.",
+        });
+        break;
     }
   }
 

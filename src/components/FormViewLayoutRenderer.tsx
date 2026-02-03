@@ -123,19 +123,20 @@ export function FormViewLayoutRenderer({
     });
   }, [form.fields]);
 
-  // Process rules when form data changes
+  // Process FIELD rules when form data changes (instant/real-time actions)
+  // Form rules are now processed ONLY on submit - see FormRuleWorkflowTrigger
   useEffect(() => {
     const fieldRules = Array.isArray(form.fieldRules) ? form.fieldRules : [];
-    const formRules = Array.isArray(form.formRules) ? form.formRules : [];
     const formFields = Array.isArray(form.fields) ? form.fields : [];
 
-    // Create rule processing context
+    // Create rule processing context for field rules (instant actions only)
     const context: RuleProcessingContext = {
       formData,
       formFields,
       setFormData,
       setFieldStates,
       onFormAction: async (action: string, value?: any) => {
+        // Field rules can trigger these instant form-level actions
         switch (action) {
           case 'allowSubmit':
             setSubmitAllowed(true);
@@ -158,21 +159,19 @@ export function FormViewLayoutRenderer({
             console.log('Change form header:', value);
             break;
           case 'sendEmail':
+            // Instant email sending for field rules
             try {
               const { templateId, recipients, templateData, emailTemplate } = value;
               
-              // Convert recipients array to email strings
               const recipientEmails = recipients.map((r: any) => 
                 typeof r === 'string' ? r : r.value
               );
 
-              // Convert templateData array to object
               const templateDataObj = templateData.reduce((acc: Record<string, any>, item: any) => {
                 acc[item.key] = item.value;
                 return acc;
               }, {});
 
-              // Extract SMTP config ID from the email template's custom_params
               const smtpConfigId = emailTemplate?.custom_params?.smtp_config_id;
 
               await sendTemplateEmail({
@@ -181,32 +180,30 @@ export function FormViewLayoutRenderer({
                 templateData: templateDataObj,
                 smtpConfigId: smtpConfigId,
                 triggerContext: {
-                  trigger_type: 'form_rule',
+                  trigger_type: 'field_rule',
                   form_id: form.id,
                   form_data: formData,
                 }
               });
             } catch (error) {
-              console.error('Failed to send email via form rule:', error);
+              console.error('Failed to send email via field rule:', error);
             }
             break;
           default:
-            console.log('Form action:', action, value);
+            console.log('Field rule action:', action, value);
         }
       }
     };
 
-    // Process field rules
+    // Process field rules only (instant/real-time actions)
     if (fieldRules.length > 0) {
       const processedStates = RuleProcessor.processFieldRules(fieldRules, context);
       setFieldStates(processedStates);
     }
 
-    // Process form rules
-    if (formRules.length > 0) {
-      RuleProcessor.processFormRules(formRules, context);
-    }
-  }, [formData, form.fieldRules, form.formRules, form.fields]);
+    // NOTE: Form rules are NO LONGER processed here - they trigger on submit only
+    // See FormRuleWorkflowTrigger.evaluateAndTriggerWorkflows
+  }, [formData, form.fieldRules, form.fields]);
 
   const handleFieldChange = (fieldId: string, value: any) => {
     setFormData(prev => ({

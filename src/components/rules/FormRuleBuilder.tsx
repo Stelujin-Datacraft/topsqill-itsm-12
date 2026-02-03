@@ -27,9 +27,14 @@ const fieldOperators: { value: FieldOperator; label: string }[] = [
   { value: 'not contains', label: 'does not contain' },
 ];
 
+// Form rule actions - these trigger ONLY on form submission when conditions are met
 const formActions: { value: FormRuleAction; label: string }[] = [
-  { value: 'notify', label: 'Trigger Notification' },
-  { value: 'sendEmail', label: 'Send Email' },
+  { value: 'notify', label: 'Send Notification (On Submit)' },
+  { value: 'sendEmail', label: 'Send Email (On Submit)' },
+  { value: 'approve', label: 'Auto-Approve Submission' },
+  { value: 'reject', label: 'Auto-Reject Submission' },
+  { value: 'startWorkflow', label: 'Start Workflow' },
+  { value: 'assignForm', label: 'Assign to User/Group' },
 ];
 
 export function FormRuleBuilder({ fields, rules, onRulesChange }: FormRuleBuilderProps) {
