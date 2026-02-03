@@ -31,6 +31,7 @@ const fieldOperators: { value: FieldOperator; label: string }[] = [
 ];
 
 const fieldActions: { value: FieldRuleAction; label: string }[] = [
+  // Field visibility/state actions (instant)
   { value: 'show', label: 'Show Field' },
   { value: 'hide', label: 'Hide Field' },
   { value: 'enable', label: 'Enable Field' },
@@ -39,18 +40,16 @@ const fieldActions: { value: FieldRuleAction; label: string }[] = [
   { value: 'optional', label: 'Make Optional' },
   { value: 'setDefault', label: 'Set Default Value' },
   { value: 'clearValue', label: 'Clear Value' },
-  // Form-level actions transferred to field rules
+  // Form-level instant actions
   { value: 'redirect', label: 'Redirect' },
   { value: 'lockForm', label: 'Lock Form' },
   { value: 'unlockForm', label: 'Unlock Form' },
   { value: 'showSuccessModal', label: 'Show Success Modal' },
   { value: 'allowSubmit', label: 'Allow Submit' },
   { value: 'preventSubmit', label: 'Prevent Submit' },
-  // Hidden actions - kept for backwards compatibility but not shown in UI:
-  // { value: 'changeOptions', label: 'Change Field Options' },
-  // { value: 'changeLabel', label: 'Change Label' },
-  // { value: 'showTooltip', label: 'Show Tooltip' },
-  // { value: 'showError', label: 'Show Error' },
+  // Instant notification/email actions (moved from form rules)
+  { value: 'notify', label: 'Show Notification (Instant)' },
+  { value: 'sendEmail', label: 'Send Email (Instant)' },
 ];
 
 export function FieldRuleBuilder({ fields, rules, onRulesChange }: FieldRuleBuilderProps) {

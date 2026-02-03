@@ -13,6 +13,7 @@ export interface FieldRuleCondition {
   compareToField?: string;
 }
 
+// Field rule actions - these trigger INSTANTLY when conditions are satisfied during form filling
 export interface FieldRule {
   id: string;
   name: string;
@@ -20,7 +21,7 @@ export interface FieldRule {
   conditions?: FieldRuleCondition[]; // Multiple conditions for new system
   condition?: FieldRuleCondition; // Legacy single condition (backward compatibility)
   logicExpression?: string; // New: logical expression (e.g., "1 AND (2 OR 3) AND NOT 4")
-  action: 'show' | 'hide' | 'enable' | 'disable' | 'require' | 'optional' | 'setRequired' | 'setOptional' | 'changeLabel' | 'changeOptions' | 'setDefault' | 'clearValue' | 'showTooltip' | 'showError' | 'filterOptions' | 'redirect' | 'lockForm' | 'unlockForm' | 'showSuccessModal' | 'allowSubmit' | 'preventSubmit';
+  action: 'show' | 'hide' | 'enable' | 'disable' | 'require' | 'optional' | 'setRequired' | 'setOptional' | 'changeLabel' | 'changeOptions' | 'setDefault' | 'clearValue' | 'showTooltip' | 'showError' | 'filterOptions' | 'redirect' | 'lockForm' | 'unlockForm' | 'showSuccessModal' | 'allowSubmit' | 'preventSubmit' | 'notify' | 'sendEmail';
   actionValue?: string | number | boolean | any[];
   isActive: boolean;
 }

@@ -14,6 +14,7 @@ export type FieldOperator =
   | 'isEmpty'
   | 'isNotEmpty';
 
+// Field rule actions - these trigger INSTANTLY when conditions are satisfied during form filling
 export type FieldAction = 
   | 'show' 
   | 'hide' 
@@ -30,26 +31,30 @@ export type FieldAction =
   | 'require'
   | 'optional'
   | 'filterOptions'
-  // Form-level actions transferred to field rules
+  // Form-level instant actions
   | 'redirect'
   | 'lockForm'
   | 'unlockForm'
   | 'showSuccessModal'
   | 'allowSubmit'
-  | 'preventSubmit';
+  | 'preventSubmit'
+  // Instant notification/email actions (moved from form rules)
+  | 'notify'
+  | 'sendEmail';
 
+// Form rule actions - these trigger ONLY on form submission when conditions are satisfied
 export type FormAction = 
   | 'allowSubmit' 
   | 'preventSubmit' 
   | 'showMessage' 
   | 'redirectTo' 
   | 'triggerWebhook' 
-  | 'sendEmail' 
+  | 'sendEmail'  // Sends email on submit
   | 'updateField'
   | 'approve'
   | 'reject'
   | 'disapprove'
-  | 'notify'
+  | 'notify'     // Sends notification on submit
   | 'redirect'
   | 'startWorkflow'
   | 'assignForm'
