@@ -84,9 +84,6 @@ const fieldActions: { value: FieldRuleAction; label: string }[] = [
   { value: 'setDefault', label: 'Set Default Value' },
   { value: 'clearValue', label: 'Clear Value' },
   { value: 'filterOptions', label: 'Filter Options' },
-  // Instant notification actions
-  { value: 'notify', label: 'Trigger Notification' },
-  { value: 'sendEmail', label: 'Send Email' },
   // Form-level actions transferred to field rules
   { value: 'redirect', label: 'Redirect' },
   { value: 'lockForm', label: 'Lock Form' },
