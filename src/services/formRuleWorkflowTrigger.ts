@@ -11,7 +11,7 @@ interface FormField {
 
 export class FormRuleWorkflowTrigger {
   /**
-   * Evaluate form rules and trigger any associated workflows
+   * Evaluate form rules and trigger any associated workflows or direct actions
    */
   static async evaluateAndTriggerWorkflows(
     formId: string,
@@ -25,7 +25,7 @@ export class FormRuleWorkflowTrigger {
       // Fetch form with rules and fields
       const { data: form, error: formError } = await supabase
         .from('forms')
-        .select('form_rules')
+        .select('form_rules, project_id')
         .eq('id', formId)
         .single();
 
@@ -47,7 +47,7 @@ export class FormRuleWorkflowTrigger {
         return;
       }
 
-      // Fetch form fields for condition evaluation
+      // Fetch form fields for condition evaluation and field label mapping
       const { data: fields } = await supabase
         .from('form_fields')
         .select('id, label, field_type, options')
@@ -60,6 +60,12 @@ export class FormRuleWorkflowTrigger {
         options: f.options as any[]
       }));
 
+      // Create a map of field ID to label for template variable resolution
+      const fieldIdToLabel: Record<string, string> = {};
+      formFields.forEach(f => {
+        fieldIdToLabel[f.id] = f.label;
+      });
+
       console.log(`📋 Evaluating ${formRules.length} form rules`);
 
       // Evaluate each active rule
@@ -70,11 +76,15 @@ export class FormRuleWorkflowTrigger {
         
         console.log(`📊 Rule "${rule.name}" (${rule.id}) evaluation:`, {
           conditionsMet,
-          action: rule.action
+          action: rule.action,
+          actionValue: rule.actionValue
         });
 
-        // Trigger workflow for rule success
+        // Execute the rule's direct action if conditions are met
         if (conditionsMet) {
+          await this.executeRuleAction(rule, formData, formFields, fieldIdToLabel, submissionId, userId, form.project_id);
+          
+          // Also trigger any workflows configured for rule success
           await TriggerService.handleRuleTrigger(
             formId,
             rule.id,
@@ -85,7 +95,7 @@ export class FormRuleWorkflowTrigger {
             userId
           );
         } else {
-          // Trigger workflow for rule failure
+          // Trigger workflow for rule failure (no direct action execution)
           await TriggerService.handleRuleTrigger(
             formId,
             rule.id,
@@ -99,6 +109,189 @@ export class FormRuleWorkflowTrigger {
       }
     } catch (error) {
       console.error('❌ Error evaluating form rules for workflows:', error);
+    }
+  }
+
+  /**
+   * Execute the direct action defined in a form rule
+   */
+  private static async executeRuleAction(
+    rule: FormRule,
+    formData: Record<string, any>,
+    formFields: FormField[],
+    fieldIdToLabel: Record<string, string>,
+    submissionId: string,
+    userId?: string,
+    projectId?: string
+  ): Promise<void> {
+    console.log(`🎯 Executing form rule action: ${rule.action}`, { ruleId: rule.id, ruleName: rule.name });
+
+    try {
+      switch (rule.action) {
+        case 'sendEmail':
+          await this.executeSendEmailAction(rule, formData, formFields, fieldIdToLabel, submissionId, userId, projectId);
+          break;
+        case 'notify':
+          await this.executeNotifyAction(rule, formData, submissionId, userId);
+          break;
+        // Other actions can be handled here as needed
+        default:
+          console.log(`📝 Action "${rule.action}" does not require direct execution or is handled elsewhere`);
+      }
+    } catch (error) {
+      console.error(`❌ Error executing rule action "${rule.action}":`, error);
+    }
+  }
+
+  /**
+   * Execute sendEmail action from form rule
+   */
+  private static async executeSendEmailAction(
+    rule: FormRule,
+    formData: Record<string, any>,
+    formFields: FormField[],
+    fieldIdToLabel: Record<string, string>,
+    submissionId: string,
+    userId?: string,
+    projectId?: string
+  ): Promise<void> {
+    const actionValue = rule.actionValue as any;
+    
+    if (!actionValue?.templateId && !actionValue?.emailTemplate?.id) {
+      console.error('❌ No email template configured for sendEmail action');
+      return;
+    }
+
+    const templateId = actionValue.templateId || actionValue.emailTemplate?.id;
+    console.log('📧 Executing sendEmail action with template:', templateId);
+
+    try {
+      // Build template data from form submission
+      // Map field IDs to their labels for template variable replacement
+      const templateData: Record<string, any> = {
+        submissionId,
+        submittedAt: new Date().toISOString(),
+        ...formData
+      };
+
+      // Add label-keyed values for template variable replacement
+      for (const [fieldId, value] of Object.entries(formData)) {
+        const label = fieldIdToLabel[fieldId];
+        if (label) {
+          templateData[label] = value;
+        }
+      }
+
+      // Add any custom template data from the rule configuration
+      if (actionValue.templateData && Array.isArray(actionValue.templateData)) {
+        for (const item of actionValue.templateData) {
+          if (item.key) {
+            if (item.type === 'field' && item.value) {
+              // Map field value
+              templateData[item.key] = formData[item.value] || '';
+            } else if (item.type === 'static') {
+              templateData[item.key] = item.value || '';
+            }
+          }
+        }
+      }
+
+      // Get recipients - they can be configured in the rule or in the template
+      let recipients: string[] = [];
+      
+      if (actionValue.recipients && Array.isArray(actionValue.recipients)) {
+        // Recipients configured directly in the rule
+        for (const recipient of actionValue.recipients) {
+          if (typeof recipient === 'string') {
+            recipients.push(recipient);
+          } else if (recipient.type === 'static' && recipient.value) {
+            recipients.push(...recipient.value.split(',').map((e: string) => e.trim()).filter(Boolean));
+          } else if (recipient.type === 'field' && recipient.value) {
+            const fieldValue = formData[recipient.value];
+            if (fieldValue) {
+              if (typeof fieldValue === 'string') {
+                recipients.push(...fieldValue.split(',').map(e => e.trim()).filter(Boolean));
+              } else if (Array.isArray(fieldValue)) {
+                recipients.push(...fieldValue.filter(v => typeof v === 'string'));
+              }
+            }
+          }
+        }
+      }
+
+      console.log('📧 Calling send-template-email edge function:', {
+        templateId,
+        recipients: recipients.length > 0 ? recipients : 'Using template default recipients',
+        templateDataKeys: Object.keys(templateData)
+      });
+
+      // Call the edge function
+      const { data, error } = await supabase.functions.invoke('send-template-email', {
+        body: {
+          templateId,
+          recipients: recipients.length > 0 ? recipients : undefined,
+          templateData,
+          triggerContext: {
+            trigger_type: 'form_rule',
+            rule_id: rule.id,
+            rule_name: rule.name,
+            submission_id: submissionId,
+            form_data: formData
+          }
+        }
+      });
+
+      if (error) {
+        console.error('❌ Error sending email via form rule:', error);
+        throw error;
+      }
+
+      console.log('✅ Email sent successfully via form rule:', data);
+    } catch (error) {
+      console.error('❌ Failed to execute sendEmail action:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Execute notify action from form rule
+   */
+  private static async executeNotifyAction(
+    rule: FormRule,
+    formData: Record<string, any>,
+    submissionId: string,
+    userId?: string
+  ): Promise<void> {
+    const actionValue = rule.actionValue as any;
+    
+    console.log('🔔 Executing notify action:', { ruleId: rule.id, actionValue });
+    
+    try {
+      // Create notification in the database
+      if (actionValue?.message && userId) {
+        const { error } = await supabase
+          .from('notifications')
+          .insert({
+            user_id: userId,
+            type: 'form_rule',
+            title: actionValue.title || `Rule: ${rule.name}`,
+            message: actionValue.message,
+            data: {
+              rule_id: rule.id,
+              rule_name: rule.name,
+              submission_id: submissionId,
+              form_data: formData
+            }
+          });
+
+        if (error) {
+          console.error('❌ Error creating notification:', error);
+        } else {
+          console.log('✅ Notification created successfully');
+        }
+      }
+    } catch (error) {
+      console.error('❌ Failed to execute notify action:', error);
     }
   }
 
