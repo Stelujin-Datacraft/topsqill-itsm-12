@@ -84,6 +84,9 @@ const fieldActions: { value: FieldRuleAction; label: string }[] = [
   { value: 'setDefault', label: 'Set Default Value' },
   { value: 'clearValue', label: 'Clear Value' },
   { value: 'filterOptions', label: 'Filter Options' },
+  // Instant notification actions
+  { value: 'notify', label: 'Trigger Notification' },
+  { value: 'sendEmail', label: 'Send Email' },
   // Form-level actions transferred to field rules
   { value: 'redirect', label: 'Redirect' },
   { value: 'lockForm', label: 'Lock Form' },
@@ -91,11 +94,6 @@ const fieldActions: { value: FieldRuleAction; label: string }[] = [
   { value: 'showSuccessModal', label: 'Show Success Modal' },
   { value: 'allowSubmit', label: 'Allow Submit' },
   { value: 'preventSubmit', label: 'Prevent Submit' },
-  // Hidden actions - kept for backwards compatibility but not shown in UI:
-  // { value: 'changeOptions', label: 'Change Field Options' },
-  // { value: 'changeLabel', label: 'Change Label' },
-  // { value: 'showTooltip', label: 'Show Tooltip' },
-  // { value: 'showError', label: 'Show Error' },
 ];
 
 export function EnhancedFieldRuleBuilder({ fields, rules, onRulesChange }: EnhancedFieldRuleBuilderProps) {
