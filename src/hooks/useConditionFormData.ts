@@ -35,96 +35,105 @@ export function useConditionFormData() {
 
       console.log('✅ Fetched published forms:', formsData?.length || 0);
 
-      const formsWithFields = await Promise.all(
-        formsData.map(async (form) => {
-          const { data: fieldsData, error: fieldsError } = await supabase
-            .from('form_fields')
-            .select('*')
-            .eq('form_id', form.id)
-            .order('field_order');
+      // Batch fetch all fields for all forms in a single query (N+1 optimization)
+      const formIds = formsData.map(f => f.id);
+      const { data: allFieldsData, error: fieldsError } = await supabase
+        .from('form_fields')
+        .select('*')
+        .in('form_id', formIds)
+        .order('field_order');
 
-          if (fieldsError) {
-            console.error('❌ Error fetching fields for form:', form.id, fieldsError);
-            return {
-              id: form.id,
-              name: form.name,
-              fields: []
-            };
+      if (fieldsError) {
+        console.error('❌ Error fetching form fields:', fieldsError);
+        throw fieldsError;
+      }
+
+      // Group fields by form_id for efficient lookup
+      const fieldsByFormId = new Map<string, typeof allFieldsData>();
+      for (const field of allFieldsData || []) {
+        const formId = field.form_id;
+        if (!fieldsByFormId.has(formId)) {
+          fieldsByFormId.set(formId, []);
+        }
+        fieldsByFormId.get(formId)!.push(field);
+      }
+
+      // Process forms with their pre-fetched fields
+      const formsWithFields = formsData.map((form) => {
+        const fieldsData = fieldsByFormId.get(form.id) || [];
+
+        // Filter out static/layout fields that don't hold data
+        const dataFields = fieldsData.filter(
+          field => !STATIC_LAYOUT_FIELD_TYPES.includes(field.field_type as any)
+        );
+
+        const fields: FormFieldOption[] = dataFields.map(field => {
+          let processedOptions: Array<{ id: string; value: string; label: string }> = [];
+          
+          // Handle options - could be array, JSON string, or null
+          let rawOptions = field.options;
+          
+          if (typeof rawOptions === 'string') {
+            try {
+              rawOptions = JSON.parse(rawOptions);
+            } catch (e) {
+              rawOptions = [];
+            }
+          }
+          
+          if (rawOptions && Array.isArray(rawOptions) && rawOptions.length > 0) {
+            processedOptions = rawOptions.map((opt: any) => ({
+              id: String(opt.id || opt.value || opt.label || opt),
+              value: String(opt.value || opt.id || opt.label || opt),
+              label: String(opt.label || opt.value || opt.id || opt)
+            }));
           }
 
-          // Filter out static/layout fields that don't hold data
-          const dataFields = fieldsData.filter(
-            field => !STATIC_LAYOUT_FIELD_TYPES.includes(field.field_type as any)
-          );
-
-          const fields: FormFieldOption[] = dataFields.map(field => {
-            let processedOptions: Array<{ id: string; value: string; label: string }> = [];
-            
-            // Handle options - could be array, JSON string, or null
-            let rawOptions = field.options;
-            
-            if (typeof rawOptions === 'string') {
+          // Parse custom_config if it's a string or non-object
+          let customConfig: Record<string, any> = {};
+          if (field.custom_config) {
+            if (typeof field.custom_config === 'string') {
               try {
-                rawOptions = JSON.parse(rawOptions);
+                customConfig = JSON.parse(field.custom_config);
               } catch (e) {
-                rawOptions = [];
+                customConfig = {};
               }
+            } else if (typeof field.custom_config === 'object' && !Array.isArray(field.custom_config)) {
+              customConfig = field.custom_config as Record<string, any>;
             }
-            
-            if (rawOptions && Array.isArray(rawOptions) && rawOptions.length > 0) {
-              processedOptions = rawOptions.map((opt: any) => ({
-                id: String(opt.id || opt.value || opt.label || opt),
-                value: String(opt.value || opt.id || opt.label || opt),
-                label: String(opt.label || opt.value || opt.id || opt)
-              }));
-            }
+          }
 
-            // Parse custom_config if it's a string or non-object
-            let customConfig: Record<string, any> = {};
-            if (field.custom_config) {
-              if (typeof field.custom_config === 'string') {
-                try {
-                  customConfig = JSON.parse(field.custom_config);
-                } catch (e) {
-                  customConfig = {};
-                }
-              } else if (typeof field.custom_config === 'object' && !Array.isArray(field.custom_config)) {
-                customConfig = field.custom_config as Record<string, any>;
+          // Parse validation if needed
+          let validation: Record<string, any> = {};
+          if (field.validation) {
+            if (typeof field.validation === 'string') {
+              try {
+                validation = JSON.parse(field.validation);
+              } catch (e) {
+                validation = {};
               }
+            } else if (typeof field.validation === 'object' && !Array.isArray(field.validation)) {
+              validation = field.validation as Record<string, any>;
             }
-
-            // Parse validation if needed
-            let validation: Record<string, any> = {};
-            if (field.validation) {
-              if (typeof field.validation === 'string') {
-                try {
-                  validation = JSON.parse(field.validation);
-                } catch (e) {
-                  validation = {};
-                }
-              } else if (typeof field.validation === 'object' && !Array.isArray(field.validation)) {
-                validation = field.validation as Record<string, any>;
-              }
-            }
-
-            return {
-              id: field.id,
-              label: field.label,
-              type: field.field_type,
-              options: processedOptions,
-              required: field.required || false,
-              custom_config: customConfig,
-              validation: validation
-            };
-          });
+          }
 
           return {
-            id: form.id,
-            name: form.name,
-            fields
+            id: field.id,
+            label: field.label,
+            type: field.field_type,
+            options: processedOptions,
+            required: field.required || false,
+            custom_config: customConfig,
+            validation: validation
           };
-        })
-      );
+        });
+
+        return {
+          id: form.id,
+          name: form.name,
+          fields
+        };
+      });
 
       return formsWithFields as FormOption[];
     },
