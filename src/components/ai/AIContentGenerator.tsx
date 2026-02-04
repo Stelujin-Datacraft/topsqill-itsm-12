@@ -27,6 +27,7 @@ interface AIContentGeneratorProps {
   buttonLabel?: string;
   buttonVariant?: 'default' | 'outline' | 'ghost' | 'secondary';
   buttonSize?: 'default' | 'sm' | 'lg' | 'icon';
+  outputFormat?: 'html' | 'text'; // For email body - whether to generate HTML or plain text
 }
 
 export function AIContentGenerator({
@@ -37,7 +38,8 @@ export function AIContentGenerator({
   placeholder,
   buttonLabel = 'AI Generate',
   buttonVariant = 'outline',
-  buttonSize = 'sm'
+  buttonSize = 'sm',
+  outputFormat = 'text'
 }: AIContentGeneratorProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [prompt, setPrompt] = useState('');
@@ -72,7 +74,8 @@ export function AIContentGenerator({
     const result = await generateContent(contentType, prompt, {
       contentContext: context,
       tone,
-      formName
+      formName,
+      outputFormat: contentType === 'email_body' ? outputFormat : undefined
     });
 
     if (result) {

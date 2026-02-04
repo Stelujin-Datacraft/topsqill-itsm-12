@@ -27,13 +27,18 @@ interface AIRequest {
     contentType?: 'email_subject' | 'email_body' | 'form_description' | 'summary' | 'response';
     contentContext?: string;
     tone?: 'professional' | 'friendly' | 'formal' | 'casual';
+    outputFormat?: 'html' | 'text'; // For email body - whether to generate HTML or plain text
     // Chatbot
     chatHistory?: Array<{ role: 'user' | 'assistant'; content: string }>;
     availableForms?: Array<{ id: string; name: string; description?: string }>;
     availableWorkflows?: Array<{ id: string; name: string; description?: string }>;
+    availableReports?: Array<{ id: string; name: string; description?: string }>;
+    currentRoute?: string;
     // Formula builder
     formulaType?: 'calculated_field' | 'sql_query' | 'filter_expression';
     availableFields?: Array<{ id: string; label: string; type: string }>;
+    selectedFormId?: string;
+    selectedFormName?: string;
   };
 }
 
@@ -237,13 +242,26 @@ Generate 3 subject line options. Return JSON:
 }`;
             break;
           case 'email_body':
-            userPrompt = `Generate an email body.
+            const isHtmlFormat = context.outputFormat === 'html';
+            userPrompt = `Generate an email body${isHtmlFormat ? ' in HTML format' : ' as plain text'}.
 
 Context: ${context.contentContext || 'General email'}
 User Request: "${context.userInput}"
+Output Format: ${isHtmlFormat ? 'HTML' : 'Plain Text'}
 
-Generate a complete email body. You may include placeholders like {{recipient_name}}, {{sender_name}}, etc. for personalization.
-Return the email body as plain text (the response will be used as the email content).`;
+${isHtmlFormat 
+  ? `Generate a complete HTML email body with proper HTML structure including:
+- Use semantic HTML tags (<p>, <h1>, <h2>, <ul>, <li>, <strong>, <em>, etc.)
+- Use inline CSS styles for formatting
+- Create visually appealing email layout
+- You may include placeholders like {{recipient_name}}, {{sender_name}}, etc. for personalization.`
+  : `Generate a plain text email body:
+- Use simple text formatting
+- Use line breaks for paragraphs
+- Use dashes or asterisks for bullet points
+- You may include placeholders like {{recipient_name}}, {{sender_name}}, etc. for personalization.`}
+
+Return JSON: { "text": "the email body content" }`;
             break;
           case 'form_description':
             userPrompt = `Generate a form description.
@@ -285,27 +303,46 @@ Generate appropriate content for this request.`;
         temperature = 0.5;
         maxTokens = 1500;
         
-        systemPrompt = `You are a helpful AI assistant for a form and workflow management system. Help users navigate and understand how to use forms, workflows, and features.
+        systemPrompt = `You are a helpful AI assistant for a form and workflow management system called TopsQill ITSM. Help users navigate and understand how to use forms, workflows, reports, and features.
 
 Your capabilities:
-- Explain how to submit forms
+- **Navigate users** to different sections of the application
+- Explain how to submit forms and what each form is for
 - Guide users through workflow processes
+- Help users understand reports and dashboards
 - Answer questions about form fields and requirements
-- Provide step-by-step instructions
-- Suggest relevant forms or workflows based on user needs
+- Provide step-by-step instructions for common tasks
 
-Available Forms:
+**Navigation Commands**: When users want to go somewhere, provide a navigation link in this format:
+- To go to forms: [Navigate to Forms](/forms)
+- To go to a specific form: [Open Form Name](/forms/{formId}/view)
+- To go to workflows: [Navigate to Workflows](/workflows)
+- To go to reports: [Navigate to Reports](/reports)
+- To go to dashboards: [Navigate to Dashboards](/dashboards)
+- To go to email templates: [Navigate to Email Templates](/email-templates)
+- To go to settings: [Navigate to Settings](/settings)
+- To go to query builder: [Navigate to Query Builder](/query)
+
+Available Forms in this project:
 ${JSON.stringify(context.availableForms || [], null, 2)}
 
 Available Workflows:
 ${JSON.stringify(context.availableWorkflows || [], null, 2)}
 
+Available Reports:
+${JSON.stringify(context.availableReports || [], null, 2)}
+
+Current Route: ${context.currentRoute || 'Unknown'}
+
 Rules:
 - Be helpful, clear, and concise
+- Provide navigation links when users want to go somewhere
 - If you don't know something, admit it and suggest alternatives
 - Provide actionable guidance when possible
-- Reference specific forms/workflows by name when relevant
-- Use markdown formatting for clarity (lists, bold, etc.)`;
+- Reference specific forms/workflows/reports by name when relevant
+- Use markdown formatting for clarity (lists, bold, links, etc.)
+- Help users understand how different parts of the system connect
+- Suggest relevant features based on what the user is trying to accomplish`;
 
         // Build conversation history
         const chatMessages = context.chatHistory?.map(msg => ({
@@ -420,24 +457,34 @@ Formula syntax:
             break;
             
           case 'sql_query':
-            userPrompt = `Convert this to a PostgreSQL query:
+            userPrompt = `Convert this to a custom SQL-like query for querying form submissions.
 
 Request: "${context.userInput}"
 
-Available fields/columns:
+${context.selectedFormId ? `Target Form: ${context.selectedFormName || 'Unknown'} (ID: ${context.selectedFormId})` : 'No form selected - please specify the form context.'}
+
+Available form fields:
 ${JSON.stringify(context.availableFields?.map(f => ({ id: f.id, label: f.label, type: f.type })), null, 2)}
 
-Table: form_submissions (with submission_data JSONB column containing the fields)
+The query system uses this syntax:
+- SELECT FIELD("field-id") FROM "form-id" 
+- WHERE FIELD("field-id") = 'value'
+- Aggregate functions: COUNT(), SUM(), AVG(), MIN(), MAX()
+- String functions: UPPER(), LOWER(), CONCAT(), TRIM()
+- Date functions: NOW(), YEAR(), MONTH(), DAY()
+- System columns: submission_id, submitted_by, submitted_at, approval_status
 
 Return JSON:
 {
-  "query": "the SQL query",
+  "query": "the SQL-like query using SELECT FIELD(...) FROM form-id syntax",
   "explanation": "what this query does",
   "parameters": ["any parameters that should be bound"],
   "warnings": ["any potential issues or considerations"]
 }
 
-Note: Fields are stored in submission_data JSONB column. Access them like: submission_data->>'field_id'`;
+Example queries:
+- "SELECT FIELD(\\"name\\"), FIELD(\\"status\\") FROM \\"${context.selectedFormId || 'form-uuid'}\\" WHERE FIELD(\\"status\\") = 'active'"
+- "SELECT COUNT(FIELD(\\"id\\")) FROM \\"${context.selectedFormId || 'form-uuid'}\\" WHERE FIELD(\\"priority\\") = 'high'"`;
             break;
             
           case 'filter_expression':
