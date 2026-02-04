@@ -664,20 +664,60 @@ Return JSON with format:
         temperature = 0.3;
         maxTokens = 2500;
         
-        systemPrompt = `You are an expert workflow automation designer. Suggest workflow steps and configurations based on goals.
+        systemPrompt = `You are an expert workflow automation designer. Suggest workflow steps with COMPLETE configurations.
 
-IMPORTANT: You MUST only use these exact node types (no others):
-- start: Workflow entry point with trigger conditions
-- action: Performs automated actions like send email, send notification, assign form, approve/reject, update fields, change status, trigger webhook
+IMPORTANT: You MUST only use these exact node types:
+- start: Workflow entry point
+- action: Performs automated actions (send email, notification, assign form, approve/reject, update fields, webhook)
 - condition: Branch based on data (if/else logic)  
 - wait: Pause for time or until condition is met
 - end: Workflow completion
 
-DO NOT use these types (they don't exist): form-assignment, notification, approval, email, trigger, branch, decision, delay, pause, stop, finish, complete. Map them to the valid types above.
+Each node MUST include a detailed "config" object:
 
-Trigger types: form_submission, form_completion, form_approval, form_rejection, rule_success, rule_failure, manual, webhook, schedule
+START node config:
+{
+  "triggerType": "form_submission" | "manual" | "schedule" | "webhook",
+  "formId": "optional - form that triggers this",
+  "scheduleConfig": { "frequency": "daily" | "weekly", "time": "09:00" }
+}
 
-Action types (for action nodes): approve_form, disapprove_form, send_email, send_notification, trigger_webhook, change_form_status, set_field_values, log_event, assign_form`;
+ACTION node config:
+{
+  "actionType": "send_email" | "send_notification" | "assign_form" | "approve_form" | "disapprove_form" | "change_form_status" | "set_field_values" | "trigger_webhook" | "log_event",
+  "emailConfig": { "to": "recipient type or email", "subject": "email subject", "body": "email body with {{variables}}" },
+  "notificationConfig": { "to": "user/role/group", "message": "notification text" },
+  "assignFormConfig": { "formId": "form to assign", "assignTo": "user/role/group", "dueInDays": 3 },
+  "webhookConfig": { "url": "webhook URL", "method": "POST", "headers": {} },
+  "fieldUpdates": [{ "fieldId": "field", "value": "new value" }],
+  "newStatus": "approved" | "rejected" | "pending"
+}
+
+CONDITION node config:
+{
+  "conditionType": "if",
+  "conditions": [
+    { "field": "field_name", "operator": "equals" | "not_equals" | "greater_than" | "less_than" | "contains", "value": "compare value", "logic": "AND" | "OR" }
+  ],
+  "trueBranch": "description of true path",
+  "falseBranch": "description of false path"
+}
+
+WAIT node config:
+{
+  "waitType": "duration" | "until_condition" | "until_date",
+  "duration": { "value": 2, "unit": "hours" | "days" | "minutes" },
+  "condition": { "field": "field_name", "operator": "equals", "value": "expected value" }
+}
+
+END node config:
+{
+  "statusMessage": "Workflow completed message",
+  "finalFormStatus": "completed" | "approved" | "rejected",
+  "enableLogging": true
+}
+
+Generate realistic, complete configurations based on the user's goal.`;
 
         userPrompt = `Design a workflow based on this goal:
 
