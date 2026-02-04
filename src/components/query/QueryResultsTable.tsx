@@ -1,33 +1,28 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useRef } from 'react';
 import {
   createColumnHelper,
   flexRender,
   getCoreRowModel,
   getSortedRowModel,
-  getPaginationRowModel,
   getFilteredRowModel,
   useReactTable,
   SortingState,
   ColumnDef,
   ColumnFiltersState,
 } from '@tanstack/react-table';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu';
 import { Input } from '@/components/ui/input';
 import { 
-  Download, 
   ArrowUpDown, 
   ArrowUp, 
   ArrowDown,
   Clock, 
   BarChart3, 
   Info,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsLeft,
-  ChevronsRight,
   Search
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -128,6 +123,9 @@ export const QueryResultsTable: React.FC<QueryResultsTableProps> = ({
     );
   }, [data]);
 
+  // Parent ref for virtualization
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+
   const table = useReactTable({
     data: data || [],
     columns,
@@ -140,12 +138,15 @@ export const QueryResultsTable: React.FC<QueryResultsTableProps> = ({
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    initialState: {
-      pagination: {
-        pageSize: 50,
-      },
-    },
+  });
+
+  // Virtualization for large datasets
+  const { rows } = table.getRowModel();
+  const rowVirtualizer = useVirtualizer({
+    count: rows.length,
+    getScrollElement: () => tableContainerRef.current,
+    estimateSize: () => 40, // Row height estimate
+    overscan: 10,
   });
 
   const handleCopyCell = (value: any) => {
@@ -259,42 +260,57 @@ export const QueryResultsTable: React.FC<QueryResultsTableProps> = ({
         <div className="flex-1 overflow-hidden">
           <TabsContent value="results" className="h-full m-0 p-4">
             <div className="h-full flex flex-col">
-              {/* Table Container with horizontal scroll only */}
-              <div className="flex-1 overflow-hidden rounded-lg border border-border">
-                <div className="overflow-x-auto overflow-y-auto h-full">
-                  <table className="w-full border-collapse min-w-full">
-                    {/* Table Header */}
-                    <thead className="sticky top-0 bg-muted z-10">
-                      {table.getHeaderGroups().map(headerGroup => (
-                        <tr key={headerGroup.id} className="border-b border-border">
-                          {headerGroup.headers.map(header => (
-                            <th
-                              key={header.id}
-                              className="border-r border-border bg-muted hover:bg-muted/80 transition-colors"
-                              style={{ 
-                                width: header.getSize(),
-                                maxWidth: '150px',
-                                minWidth: '100px'
-                              }}
-                            >
-                              {header.isPlaceholder
-                                ? null
-                                : flexRender(
-                                    header.column.columnDef.header,
-                                    header.getContext()
-                                  )}
-                            </th>
-                          ))}
-                        </tr>
-                      ))}
-                    </thead>
-                    
-                    {/* Table Body */}
-                    <tbody>
-                      {table.getRowModel().rows.map(row => (
+              {/* Virtualized Table Container */}
+              <div 
+                ref={tableContainerRef}
+                className="flex-1 overflow-auto rounded-lg border border-border"
+                style={{ height: '500px', contain: 'strict' }}
+              >
+                <table className="w-full border-collapse min-w-full">
+                  {/* Table Header - Sticky */}
+                  <thead className="sticky top-0 bg-muted z-10">
+                    {table.getHeaderGroups().map(headerGroup => (
+                      <tr key={headerGroup.id} className="border-b border-border">
+                        {headerGroup.headers.map(header => (
+                          <th
+                            key={header.id}
+                            className="border-r border-border bg-muted hover:bg-muted/80 transition-colors"
+                            style={{ 
+                              width: header.getSize(),
+                              maxWidth: '150px',
+                              minWidth: '100px'
+                            }}
+                          >
+                            {header.isPlaceholder
+                              ? null
+                              : flexRender(
+                                  header.column.columnDef.header,
+                                  header.getContext()
+                                )}
+                          </th>
+                        ))}
+                      </tr>
+                    ))}
+                  </thead>
+                  
+                  {/* Virtualized Table Body */}
+                  <tbody style={{ height: `${rowVirtualizer.getTotalSize()}px`, position: 'relative' }}>
+                    {rowVirtualizer.getVirtualItems().map(virtualRow => {
+                      const row = rows[virtualRow.index];
+                      return (
                         <tr 
-                          key={row.id} 
+                          key={row.id}
+                          data-index={virtualRow.index}
                           className="border-b border-border hover:bg-muted/30 transition-colors"
+                          style={{
+                            height: `${virtualRow.size}px`,
+                            transform: `translateY(${virtualRow.start}px)`,
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            width: '100%',
+                            display: 'table-row',
+                          }}
                         >
                           {row.getVisibleCells().map(cell => (
                             <td
@@ -309,63 +325,19 @@ export const QueryResultsTable: React.FC<QueryResultsTableProps> = ({
                             </td>
                           ))}
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
 
-              {/* Pagination Controls */}
+              {/* Row count info (replaces pagination) */}
               <div className="flex items-center justify-between pt-4">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <span>
-                    Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} to{' '}
-                    {Math.min(
-                      (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
-                      table.getFilteredRowModel().rows.length
-                    )}{' '}
-                    of {table.getFilteredRowModel().rows.length} entries
-                  </span>
-                </div>
-                
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => table.setPageIndex(0)}
-                    disabled={!table.getCanPreviousPage()}
-                  >
-                    <ChevronsLeft className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => table.previousPage()}
-                    disabled={!table.getCanPreviousPage()}
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
-                  
-                  <span className="text-sm text-muted-foreground px-2">
-                    Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
-                  </span>
-                  
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => table.nextPage()}
-                    disabled={!table.getCanNextPage()}
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => table.setPageIndex(table.getPageCount() - 1)}
-                    disabled={!table.getCanNextPage()}
-                  >
-                    <ChevronsRight className="h-4 w-4" />
-                  </Button>
+                <div className="text-sm text-muted-foreground">
+                  Showing {table.getFilteredRowModel().rows.length} rows
+                  {table.getFilteredRowModel().rows.length !== (data?.length || 0) && 
+                    ` (filtered from ${data?.length || 0} total)`
+                  }
                 </div>
               </div>
             </div>
