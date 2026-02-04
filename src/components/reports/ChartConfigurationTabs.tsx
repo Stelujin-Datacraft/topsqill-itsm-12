@@ -226,13 +226,13 @@ export function ChartConfigurationTabs({
       <TabsContent value="basic" className="space-y-4">
         <div className="flex items-center justify-between">
           <Label htmlFor="title">Chart Title</Label>
-          {config.formId && formFields.length > 0 && (
+          {config.formId && (
             <AIChartSuggester
-              formFields={formFields.map(f => ({ 
+              formFields={formFields.length > 0 ? formFields.map(f => ({ 
                 id: f.id, 
                 label: f.label, 
                 type: (f as any).field_type || f.type 
-              }))}
+              })) : []}
               formName={forms.find(f => f.id === config.formId)?.name}
               onApply={handleAIChartApply}
               buttonLabel="AI Suggest"
