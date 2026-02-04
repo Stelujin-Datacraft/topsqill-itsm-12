@@ -68,7 +68,23 @@ import NotFound from "./pages/NotFound";
 import LdapSettings from "./pages/LdapSettings";
 import DashboardView from "./pages/DashboardView";
 import { AIChatbot } from "./components/ai/AIChatbot";
-const queryClient = new QueryClient();
+
+// Performance-optimized React Query configuration
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // Data remains fresh for 2 minutes - prevents unnecessary refetches
+      staleTime: 2 * 60 * 1000,
+      // Cache data retained for 10 minutes after becoming unused
+      gcTime: 10 * 60 * 1000,
+      // Prevent refetch on window focus for better UX
+      refetchOnWindowFocus: false,
+      // Retry failed requests once with delay
+      retry: 1,
+      retryDelay: 1000,
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
