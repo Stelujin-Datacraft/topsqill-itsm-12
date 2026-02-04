@@ -26,6 +26,7 @@ import {
 } from './chart-data-sections';
 import { Database, Sparkles, Lightbulb, CheckSquare } from 'lucide-react';
 import { getChartMetricCapabilities } from '@/utils/chartConfig';
+import { AIChartSuggester } from '@/components/ai/AIChartSuggester';
 
 interface ChartConfigurationTabsProps {
   config: ChartConfig;
@@ -194,6 +195,25 @@ export function ChartConfigurationTabs({
     }
   };
 
+  // Handle AI chart suggestion
+  const handleAIChartApply = (suggestion: {
+    chartType: string;
+    title: string;
+    dimensions: string[];
+    metrics: string[];
+    aggregation: string;
+  }) => {
+    handleConfigUpdate({
+      chartType: suggestion.chartType as any,
+      title: suggestion.title,
+      dimensions: suggestion.dimensions,
+      metrics: suggestion.metrics,
+      aggregationType: suggestion.aggregation as any,
+      xAxis: suggestion.dimensions[0],
+      yAxis: suggestion.metrics[0]
+    });
+  };
+
   return (
     <Tabs defaultValue="basic" className="w-full">
       <TabsList className="grid w-full grid-cols-4">
@@ -204,15 +224,29 @@ export function ChartConfigurationTabs({
       </TabsList>
 
       <TabsContent value="basic" className="space-y-4">
-        <div>
+        <div className="flex items-center justify-between">
           <Label htmlFor="title">Chart Title</Label>
-          <Input
-            id="title"
-            value={config.title || ''}
-            onChange={(e) => handleConfigUpdate({ title: e.target.value })}
-            placeholder="Enter chart title"
-          />
+          {config.formId && formFields.length > 0 && (
+            <AIChartSuggester
+              formFields={formFields.map(f => ({ 
+                id: f.id, 
+                label: f.label, 
+                type: (f as any).field_type || f.type 
+              }))}
+              formName={forms.find(f => f.id === config.formId)?.name}
+              onApply={handleAIChartApply}
+              buttonLabel="AI Suggest"
+              buttonVariant="ghost"
+              buttonSize="sm"
+            />
+          )}
         </div>
+        <Input
+          id="title"
+          value={config.title || ''}
+          onChange={(e) => handleConfigUpdate({ title: e.target.value })}
+          placeholder="Enter chart title"
+        />
 
         <div>
           <Label>Chart Type</Label>

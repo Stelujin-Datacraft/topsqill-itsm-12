@@ -10,9 +10,10 @@ import { useAuth } from '@/contexts/AuthContext';
 import { TriggerService } from '@/services/triggerService';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Save, ArrowLeft, Activity, Play, Loader2 } from 'lucide-react';
+import { Save, ArrowLeft, Activity, Play, Loader2, Sparkles } from 'lucide-react';
 import { WorkflowNode, WorkflowConnection } from '@/types/workflow';
 import { useToast } from '@/hooks/use-toast';
+import { AIWorkflowSuggester } from '@/components/ai/AIWorkflowSuggester';
 
 const WorkflowDesignerPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -167,11 +168,65 @@ const WorkflowDesignerPage = () => {
     );
   }
 
+  // Handle AI workflow suggestions
+  const handleAIWorkflowApply = (suggestion: {
+    name: string;
+    description: string;
+    nodes: Array<{
+      type: string;
+      label: string;
+      config: Record<string, any>;
+      connections?: Array<{ to: string; condition?: string }>;
+    }>;
+  }) => {
+    // Convert AI suggestions to workflow format and update state
+    const newNodes: WorkflowNode[] = suggestion.nodes.map((node, index) => ({
+      id: `ai-node-${index}-${Date.now()}`,
+      type: node.type as any,
+      label: node.label,
+      position: { x: 250, y: 100 + index * 120 },
+      data: { config: node.config }
+    }));
+
+    // Build connections from node.connections
+    const newConnections: WorkflowConnection[] = [];
+    suggestion.nodes.forEach((node, sourceIndex) => {
+      if (node.connections) {
+        node.connections.forEach((conn, connIndex) => {
+          const targetIndex = suggestion.nodes.findIndex(n => n.label === conn.to || n.type === conn.to);
+          if (targetIndex !== -1) {
+            newConnections.push({
+              id: `conn-${sourceIndex}-${connIndex}-${Date.now()}`,
+              source: newNodes[sourceIndex].id,
+              target: newNodes[targetIndex].id,
+              label: conn.condition
+            });
+          }
+        });
+      }
+    });
+
+    // Update local state
+    setWorkflowData({ nodes: newNodes, connections: newConnections });
+    
+    toast({
+      title: "AI Workflow Applied",
+      description: "The suggested workflow has been loaded. Make adjustments and save when ready.",
+    });
+  };
+
   return (
     <DashboardLayout 
       title={`Workflow Designer${currentWorkflow ? ` - ${currentWorkflow.name}` : ''}`}
       actions={
         <div className="flex space-x-2">
+          <AIWorkflowSuggester
+            onApply={handleAIWorkflowApply}
+            existingNodes={workflowData.nodes.map(n => ({ id: n.id, type: n.type, label: n.label }))}
+            buttonLabel="AI Suggest"
+            buttonVariant="outline"
+            buttonSize="default"
+          />
           {isManualTrigger && (
             <Button 
               variant="default" 
