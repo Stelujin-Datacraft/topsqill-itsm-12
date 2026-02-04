@@ -662,56 +662,144 @@ Return JSON with format:
       // NEW: Workflow Suggestions
       case 'suggest-workflow':
         temperature = 0.3;
-        maxTokens = 2500;
+        maxTokens = 3000;
         
-        systemPrompt = `You are an expert workflow automation designer. Suggest workflow steps and configurations based on goals.
+        systemPrompt = `You are an expert workflow automation designer. Create detailed workflow configurations that can be directly used.
 
-IMPORTANT: You MUST only use these exact node types (no others):
+CRITICAL: You MUST only use these EXACT node types (no others):
 - start: Workflow entry point with trigger conditions
-- action: Performs automated actions like send email, send notification, assign form, approve/reject, update fields, change status, trigger webhook
-- condition: Branch based on data (if/else logic)  
-- wait: Pause for time or until condition is met
+- action: Performs automated actions (send email, notification, change field values, create records)
+- condition: Branch based on data (if/else logic) - ALWAYS has exactly 2 connections: "true" and "false"
+- wait: Pause for time duration or until a date
 - end: Workflow completion
 
-DO NOT use these types (they don't exist): form-assignment, notification, approval, email, trigger, branch, decision, delay, pause, stop, finish, complete. Map them to the valid types above.
+FORBIDDEN types (do NOT use): form-assignment, notification, approval, email, trigger, branch, decision, delay, pause, stop, finish, complete.
 
-Trigger types: form_submission, form_completion, form_approval, form_rejection, rule_success, rule_failure, manual, webhook, schedule
+=== NODE CONFIGURATION SCHEMAS ===
 
-Action types (for action nodes): approve_form, disapprove_form, send_email, send_notification, trigger_webhook, change_form_status, set_field_values, log_event, assign_form`;
+START NODE config:
+{
+  "triggerType": "form_submission" | "form_completion" | "rule_success" | "rule_failure" | "manual",
+  "triggerFormId": "form_id_if_known",
+  "triggerFormName": "Form Name"
+}
 
-        userPrompt = `Design a workflow based on this goal:
+ACTION NODE config (based on actionType):
+For send_notification:
+{
+  "actionType": "send_notification",
+  "notificationConfig": {
+    "type": "email" | "in_app",
+    "subject": "Email Subject",
+    "message": "Email/notification body with {{field_name}} placeholders",
+    "recipientConfig": {
+      "type": "submitter" | "form_owner" | "specific_users" | "field_value",
+      "specificEmails": ["email@example.com"],
+      "fieldId": "email_field_id"
+    }
+  }
+}
+
+For change_field_value:
+{
+  "actionType": "change_field_value",
+  "targetFormId": "form_id",
+  "fieldUpdates": [
+    { "fieldId": "status_field", "value": "approved", "valueType": "static" }
+  ]
+}
+
+For create_record:
+{
+  "actionType": "create_record",
+  "targetFormId": "target_form_id",
+  "recordCount": 1,
+  "initialStatus": "pending",
+  "setSubmittedBy": "trigger_submitter",
+  "fieldMappings": [
+    { "sourceFieldId": "source_field", "targetFieldId": "target_field" }
+  ]
+}
+
+CONDITION NODE config:
+{
+  "enhancedCondition": {
+    "systemType": "field_level",
+    "conditions": [
+      {
+        "id": "cond_1",
+        "systemType": "field_level",
+        "fieldLevelCondition": {
+          "id": "flc_1",
+          "formId": "form_id",
+          "fieldId": "field_id",
+          "fieldLabel": "Field Label",
+          "fieldType": "text",
+          "operator": "==" | "!=" | ">" | "<" | "contains" | "not_contains",
+          "value": "comparison_value"
+        }
+      }
+    ]
+  }
+}
+
+WAIT NODE config:
+{
+  "waitType": "duration" | "until_date" | "until_event",
+  "durationValue": 24,
+  "durationUnit": "minutes" | "hours" | "days" | "weeks"
+}
+
+END NODE config:
+{
+  "endStatus": "completed" | "failed" | "cancelled",
+  "summary": "Workflow completion description"
+}
+
+=== CONNECTION RULES ===
+- Start node: exactly 1 connection to next node
+- Action node: exactly 1 connection to next node
+- Condition node: MUST have exactly 2 connections with "condition": "true" and "condition": "false"
+- Wait node: exactly 1 connection to next node
+- End node: no connections
+
+Use the "connections" array to specify edges. Reference target nodes by their "label" field.`;
+
+        userPrompt = `Design a complete workflow based on this goal:
 
 Goal: "${context.workflowGoal || context.userInput}"
-${context.triggerForm ? `Trigger Form: ${context.triggerForm.name}
-Form Fields: ${JSON.stringify(context.triggerForm.fields?.map(f => ({ label: f.label, type: f.type })), null, 2)}` : ''}
-${context.existingNodes?.length ? `Existing Nodes: ${JSON.stringify(context.existingNodes, null, 2)}` : ''}
+${context.triggerForm ? `
+Trigger Form: ${context.triggerForm.name}
+Form ID: ${context.triggerForm.id}
+Form Fields:
+${JSON.stringify(context.triggerForm.fields?.map(f => ({ id: f.id, label: f.label, type: f.type })), null, 2)}` : ''}
+${context.existingNodes?.length ? `
+Existing Nodes to consider:
+${JSON.stringify(context.existingNodes, null, 2)}` : ''}
 
-Return JSON with format:
+IMPORTANT: 
+- Use the actual field IDs and form ID from above in your configurations
+- For condition nodes, reference actual field IDs and labels
+- Ensure every node except "end" has proper connections
+- Condition nodes MUST have both "true" and "false" connections
+
+Return a valid JSON object:
 {
-  "name": "Suggested Workflow Name",
+  "name": "Descriptive Workflow Name",
   "description": "What this workflow accomplishes",
   "nodes": [
     {
-      "type": "node_type",
-      "label": "Node Label",
-      "description": "What this node does",
-      "config": {
-        // Node-specific configuration
-        "triggerType": "for start node",
-        "condition": { "field": "field_label", "operator": "==", "value": "value" },
-        "notificationType": "email|sms|in_app",
-        "message": "notification message",
-        "recipients": ["description of who receives"],
-        "waitDuration": 24, "waitUnit": "hours",
-        "actions": [{ "type": "action_type", "details": "..." }]
-      },
+      "type": "start|action|condition|wait|end",
+      "label": "Unique Node Label",
+      "description": "What this step does",
+      "config": { /* node-specific config as defined above */ },
       "connections": [
-        { "to": "next_node_label", "condition": "optional: true|false path" }
+        { "to": "Next Node Label", "condition": "true|false for condition nodes only" }
       ]
     }
   ],
-  "suggestions": ["Additional recommendations for this workflow"],
-  "estimatedDuration": "How long workflow typically takes"
+  "suggestions": ["Additional recommendations"],
+  "estimatedDuration": "Estimated time to complete"
 }`;
         break;
 

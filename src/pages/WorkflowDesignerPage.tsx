@@ -195,6 +195,92 @@ const WorkflowDesignerPage = () => {
     return typeMap[normalized] || 'action'; // Default to action for unknown types
   };
 
+  // Normalize AI-generated config to match our expected structure
+  const normalizeNodeConfig = (nodeType: string, aiConfig: Record<string, any>): Record<string, any> => {
+    const config = { ...aiConfig };
+    
+    switch (nodeType) {
+      case 'start':
+        // Ensure triggerType has a valid value
+        if (!config.triggerType) {
+          config.triggerType = 'form_submission';
+        }
+        break;
+        
+      case 'action':
+        // Normalize action type variations
+        if (!config.actionType) {
+          // Infer from config structure
+          if (config.notificationConfig || config.message || config.recipients) {
+            config.actionType = 'send_notification';
+          } else if (config.fieldUpdates || config.targetFieldId) {
+            config.actionType = 'change_field_value';
+          } else if (config.targetFormId && config.fieldMappings) {
+            config.actionType = 'create_record';
+          } else {
+            config.actionType = 'send_notification'; // Default
+          }
+        }
+        
+        // Normalize notification config if present
+        if (config.actionType === 'send_notification' && !config.notificationConfig) {
+          config.notificationConfig = {
+            type: config.notificationType || 'email',
+            subject: config.subject || 'Notification',
+            message: config.message || '',
+            recipientConfig: config.recipientConfig || {
+              type: 'submitter'
+            }
+          };
+        }
+        break;
+        
+      case 'condition':
+        // Ensure enhancedCondition structure exists
+        if (!config.enhancedCondition && config.condition) {
+          // Convert simple condition to enhanced format
+          const simpleCondition = config.condition;
+          config.enhancedCondition = {
+            systemType: 'field_level',
+            conditions: [{
+              id: `cond_${Date.now()}`,
+              systemType: 'field_level',
+              fieldLevelCondition: {
+                id: `flc_${Date.now()}`,
+                formId: simpleCondition.formId || '',
+                fieldId: simpleCondition.fieldId || simpleCondition.field || '',
+                fieldLabel: simpleCondition.fieldLabel || simpleCondition.field || '',
+                fieldType: simpleCondition.fieldType || 'text',
+                operator: simpleCondition.operator || '==',
+                value: simpleCondition.value || ''
+              }
+            }]
+          };
+        }
+        break;
+        
+      case 'wait':
+        // Ensure wait config has required fields
+        if (!config.waitType) {
+          config.waitType = 'duration';
+        }
+        if (config.waitType === 'duration') {
+          config.durationValue = config.durationValue || config.waitDuration || 1;
+          config.durationUnit = config.durationUnit || config.waitUnit || 'hours';
+        }
+        break;
+        
+      case 'end':
+        // Ensure end status
+        if (!config.endStatus) {
+          config.endStatus = 'completed';
+        }
+        break;
+    }
+    
+    return config;
+  };
+
   // Handle AI workflow suggestions
   const handleAIWorkflowApply = (suggestion: {
     name: string;
@@ -202,35 +288,81 @@ const WorkflowDesignerPage = () => {
     nodes: Array<{
       type: string;
       label: string;
+      description?: string;
       config: Record<string, any>;
       connections?: Array<{ to: string; condition?: string }>;
     }>;
   }) => {
-    // Convert AI suggestions to workflow format with valid node types
-    const newNodes: WorkflowNode[] = suggestion.nodes.map((node, index) => ({
-      id: `ai-node-${index}-${Date.now()}`,
-      type: mapNodeType(node.type) as any,
-      label: node.label,
-      position: { x: 250, y: 100 + index * 120 },
-      data: { config: node.config }
-    }));
+    const timestamp = Date.now();
+    
+    // Convert AI suggestions to workflow format with valid node types and normalized configs
+    const newNodes: WorkflowNode[] = suggestion.nodes.map((node, index) => {
+      const nodeType = mapNodeType(node.type);
+      const normalizedConfig = normalizeNodeConfig(nodeType, node.config || {});
+      
+      // Calculate positions - condition nodes need more space for branches
+      const yOffset = 100 + index * 150;
+      const xOffset = nodeType === 'condition' ? 350 : 250;
+      
+      return {
+        id: `ai-node-${index}-${timestamp}`,
+        type: nodeType as any,
+        label: node.label,
+        position: { x: xOffset, y: yOffset },
+        data: { 
+          config: normalizedConfig,
+          description: node.description || ''
+        }
+      };
+    });
 
-    // Build connections from node.connections
+    // Build connections from node.connections with proper edge handling
     const newConnections: WorkflowConnection[] = [];
+    const connectionTimestamp = Date.now();
+    
     suggestion.nodes.forEach((node, sourceIndex) => {
-      if (node.connections) {
+      const sourceNode = newNodes[sourceIndex];
+      
+      if (node.connections && node.connections.length > 0) {
         node.connections.forEach((conn, connIndex) => {
-          const targetIndex = suggestion.nodes.findIndex(n => n.label === conn.to || n.type === conn.to);
+          // Find target by label (case-insensitive)
+          const targetIndex = suggestion.nodes.findIndex(n => 
+            n.label.toLowerCase() === conn.to.toLowerCase()
+          );
+          
           if (targetIndex !== -1) {
+            const targetNode = newNodes[targetIndex];
+            
+            // Determine source handle for condition nodes
+            let sourceHandle: string | undefined;
+            if (sourceNode.type === 'condition' && conn.condition) {
+              sourceHandle = conn.condition.toLowerCase() === 'true' ? 'true' : 'false';
+            }
+            
             newConnections.push({
-              id: `conn-${sourceIndex}-${connIndex}-${Date.now()}`,
-              source: newNodes[sourceIndex].id,
-              target: newNodes[targetIndex].id,
-              label: conn.condition
+              id: `conn-${sourceIndex}-${connIndex}-${connectionTimestamp}`,
+              source: sourceNode.id,
+              target: targetNode.id,
+              sourceHandle,
+              label: sourceNode.type === 'condition' ? conn.condition : undefined
             });
           }
         });
+      } else if (sourceNode.type !== 'end' && sourceIndex < suggestion.nodes.length - 1) {
+        // Auto-connect sequential nodes if no connections specified (except for end nodes)
+        const nextNode = newNodes[sourceIndex + 1];
+        newConnections.push({
+          id: `conn-auto-${sourceIndex}-${connectionTimestamp}`,
+          source: sourceNode.id,
+          target: nextNode.id
+        });
       }
+    });
+
+    console.log('🤖 AI Workflow Applied:', { 
+      nodes: newNodes.length, 
+      connections: newConnections.length,
+      nodeTypes: newNodes.map(n => n.type)
     });
 
     // Update local state
@@ -238,7 +370,7 @@ const WorkflowDesignerPage = () => {
     
     toast({
       title: "AI Workflow Applied",
-      description: "The suggested workflow has been loaded. Make adjustments and save when ready.",
+      description: `Created ${newNodes.length} nodes with ${newConnections.length} connections. Configure each node as needed.`,
     });
   };
 
