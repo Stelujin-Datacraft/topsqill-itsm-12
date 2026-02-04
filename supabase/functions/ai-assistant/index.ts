@@ -318,7 +318,7 @@ Generate appropriate content for this request.`;
         temperature = 0.5;
         maxTokens = 1500;
         
-        systemPrompt = `You are a helpful AI assistant for a form and workflow management system called TopsQill ITSM. Help users navigate and understand how to use forms, workflows, reports, and features.
+        systemPrompt = `You are a helpful AI assistant for a form and workflow management system called TopSqill BPM. Help users navigate and understand how to use forms, workflows, reports, and features.
 
 Your capabilities:
 - **Navigate users** to different sections of the application

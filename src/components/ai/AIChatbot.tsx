@@ -37,7 +37,7 @@ export function AIChatbot() {
     {
       id: 'welcome',
       role: 'assistant',
-      content: `Hi! 👋 I'm your TopsQill ITSM assistant. I can help you:
+      content: `Hi! 👋 I'm your TopSqill BPM assistant. I can help you:
 
 - **Navigate** to forms, workflows, reports, or settings
 - **Explain** how features work
@@ -202,7 +202,7 @@ What would you like to do?`,
       {
         id: 'welcome',
         role: 'assistant',
-        content: `Hi! 👋 I'm your TopsQill ITSM assistant. I can help you:
+        content: `Hi! 👋 I'm your TopSqill BPM assistant. I can help you:
 
 - **Navigate** to forms, workflows, reports, or settings
 - **Explain** how features work

@@ -146,7 +146,7 @@ app.get('/health', (c) => {
 // Documentation endpoint (no auth required)
 app.get('/docs', (c) => {
   const docs = {
-    name: 'Topsqill ITSM Public API',
+    name: 'TopSqill BPM Public API',
     version: '1.0.0',
     description: 'External API for integrating with forms, submissions, workflows, and reports',
     authentication: {

@@ -1527,7 +1527,7 @@ const ApiDocs: React.FC = () => {
                   <CardHeader>
                     <CardTitle>Getting Started with the Public API</CardTitle>
                     <CardDescription>
-                      Integrate Topsqill with external systems using our secure REST API
+                      Integrate TopSqill BPM with external systems using our secure REST API
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">

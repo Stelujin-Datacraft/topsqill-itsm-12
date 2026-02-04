@@ -315,7 +315,7 @@ serve(async (req) => {
           return
         }
 
-        const loginUrl = 'https://itsm.topsqill.com'
+        const loginUrl = 'https://bpm.topsqill.com'
         const emailHtml = generateWelcomeEmailHtml({
           firstName,
           lastName,

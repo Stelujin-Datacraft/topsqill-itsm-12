@@ -62,8 +62,8 @@ const AcceptInvitation = () => {
           <div className="w-16 h-16 bg-primary rounded-lg flex items-center justify-center mx-auto mb-4">
             <span className="text-primary-foreground font-bold text-2xl">T</span>
           </div>
-          <h1 className="text-2xl font-bold text-foreground">Topsqill</h1>
-          <p className="text-muted-foreground">ITSM Platform</p>
+          <h1 className="text-2xl font-bold text-foreground">TopSqill</h1>
+          <p className="text-muted-foreground">BPM Platform</p>
         </div>
 
         <Card>

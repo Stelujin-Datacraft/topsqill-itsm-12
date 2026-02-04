@@ -27,7 +27,7 @@ import TrustLogosSection from '@/components/landing/TrustLogosSection';
 const Index = () => {
   useEffect(() => {
     // Set the page title dynamically
-    document.title = 'Topsqill - Enterprise Form Platform with AI & Workflow Automation';
+    document.title = 'TopSqill BPM - Enterprise Form Platform with AI & Workflow Automation';
   }, []);
 
   return (
@@ -45,7 +45,7 @@ const Index = () => {
                 className="w-10 h-10 object-contain"
               />
               <span className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
-                Topsqill
+                TopSqill
               </span>
             </div>
             <div className="hidden md:flex items-center space-x-6">
@@ -307,7 +307,7 @@ const Index = () => {
                     alt="Topsqill Logo" 
                     className="w-8 h-8 object-contain"
                   />
-                  <span className="text-xl font-bold">Topsqill</span>
+                  <span className="text-xl font-bold">TopSqill</span>
                 </div>
                 <p className="text-muted-foreground mb-4">
                   Enterprise form platform powering the next generation of business automation.
@@ -351,7 +351,7 @@ const Index = () => {
             </div>
             
             <div className="border-t mt-8 pt-8 text-center text-muted-foreground">
-              <p>&copy; 2025 Topsqill. All rights reserved. | Privacy Policy | Terms of Service</p>
+              <p>&copy; 2025 TopSqill. All rights reserved. | Privacy Policy | Terms of Service</p>
             </div>
           </div>
         </footer>
