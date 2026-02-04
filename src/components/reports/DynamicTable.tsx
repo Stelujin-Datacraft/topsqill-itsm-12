@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { parseISO, isAfter, isBefore, isWithinInterval, startOfDay, endOfDay, subDays, subWeeks, subMonths, isValid } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -284,7 +285,7 @@ export function DynamicTable({
       console.log('🔍 After complex filters:', beforeComplexFilter, '->', filtered.length);
     }
 
-    // Apply AI query filters
+    // Apply AI query filters with comprehensive operator support
     if (aiQueryFilters.length > 0) {
       console.log('🤖 Applying AI query filters:', aiQueryFilters);
       const beforeAIFilter = filtered.length;
@@ -294,17 +295,123 @@ export function DynamicTable({
           const filterValue = filter.value?.toString().toLowerCase() || '';
           const actualValue = value?.toString().toLowerCase() || '';
           
+          // Helper to parse dates
+          const parseDate = (dateStr: string): Date | null => {
+            try {
+              // Handle relative dates
+              const lowerStr = dateStr.toLowerCase().trim();
+              const now = new Date();
+              
+              if (lowerStr === 'today') return startOfDay(now);
+              if (lowerStr === 'yesterday') return startOfDay(subDays(now, 1));
+              if (lowerStr === 'last week' || lowerStr === 'last_week') return startOfDay(subWeeks(now, 1));
+              if (lowerStr === 'last month' || lowerStr === 'last_month') return startOfDay(subMonths(now, 1));
+              if (lowerStr.match(/^\d+ days? ago$/)) {
+                const days = parseInt(lowerStr);
+                return startOfDay(subDays(now, days));
+              }
+              
+              // Try ISO parse
+              const parsed = parseISO(dateStr);
+              return isValid(parsed) ? parsed : null;
+            } catch {
+              return null;
+            }
+          };
+          
           switch (filter.operator) {
             case 'equals':
               return actualValue === filterValue;
-            case 'contains':
-              return actualValue.includes(filterValue);
-            case 'greater_than':
-              return parseFloat(actualValue) > parseFloat(filterValue);
-            case 'less_than':
-              return parseFloat(actualValue) < parseFloat(filterValue);
             case 'not_equals':
               return actualValue !== filterValue;
+            case 'contains':
+              return actualValue.includes(filterValue);
+            case 'not_contains':
+              return !actualValue.includes(filterValue);
+            case 'starts_with':
+              return actualValue.startsWith(filterValue);
+            case 'ends_with':
+              return actualValue.endsWith(filterValue);
+            case 'greater_than': {
+              // Try numeric first
+              const numActual = parseFloat(actualValue);
+              const numFilter = parseFloat(filterValue);
+              if (!isNaN(numActual) && !isNaN(numFilter)) {
+                return numActual > numFilter;
+              }
+              // Try date
+              const dateActual = parseDate(value?.toString() || '');
+              const dateFilter = parseDate(filterValue);
+              if (dateActual && dateFilter) {
+                return isAfter(dateActual, dateFilter);
+              }
+              return actualValue > filterValue;
+            }
+            case 'less_than': {
+              const numActual = parseFloat(actualValue);
+              const numFilter = parseFloat(filterValue);
+              if (!isNaN(numActual) && !isNaN(numFilter)) {
+                return numActual < numFilter;
+              }
+              const dateActual = parseDate(value?.toString() || '');
+              const dateFilter = parseDate(filterValue);
+              if (dateActual && dateFilter) {
+                return isBefore(dateActual, dateFilter);
+              }
+              return actualValue < filterValue;
+            }
+            case 'greater_than_or_equal': {
+              const numActual = parseFloat(actualValue);
+              const numFilter = parseFloat(filterValue);
+              if (!isNaN(numActual) && !isNaN(numFilter)) {
+                return numActual >= numFilter;
+              }
+              return actualValue >= filterValue;
+            }
+            case 'less_than_or_equal': {
+              const numActual = parseFloat(actualValue);
+              const numFilter = parseFloat(filterValue);
+              if (!isNaN(numActual) && !isNaN(numFilter)) {
+                return numActual <= numFilter;
+              }
+              return actualValue <= filterValue;
+            }
+            case 'between': {
+              // Expect value format: "start,end" or "start|end"
+              const parts = filterValue.split(/[,|]/);
+              if (parts.length === 2) {
+                const start = parts[0].trim();
+                const end = parts[1].trim();
+                // Try numeric
+                const numActual = parseFloat(actualValue);
+                const numStart = parseFloat(start);
+                const numEnd = parseFloat(end);
+                if (!isNaN(numActual) && !isNaN(numStart) && !isNaN(numEnd)) {
+                  return numActual >= numStart && numActual <= numEnd;
+                }
+                // Try date
+                const dateActual = parseDate(value?.toString() || '');
+                const dateStart = parseDate(start);
+                const dateEnd = parseDate(end);
+                if (dateActual && dateStart && dateEnd) {
+                  return isWithinInterval(dateActual, { start: startOfDay(dateStart), end: endOfDay(dateEnd) });
+                }
+              }
+              return false;
+            }
+            case 'is_empty':
+              return !value || actualValue === '' || actualValue === 'null' || actualValue === 'undefined';
+            case 'is_not_empty':
+              return value && actualValue !== '' && actualValue !== 'null' && actualValue !== 'undefined';
+            case 'in': {
+              // Expect comma-separated values
+              const options = filterValue.split(',').map(o => o.trim().toLowerCase());
+              return options.includes(actualValue);
+            }
+            case 'not_in': {
+              const options = filterValue.split(',').map(o => o.trim().toLowerCase());
+              return !options.includes(actualValue);
+            }
             default:
               return actualValue.includes(filterValue);
           }

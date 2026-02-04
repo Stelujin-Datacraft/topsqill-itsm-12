@@ -139,10 +139,30 @@ Generate a concise summary of this submission.`;
         systemPrompt = `You are a query assistant that helps users search and filter form data. Convert natural language queries into structured filters.
 
 Rules:
-- Understand common query patterns like "show me", "find", "filter by"
-- Extract field names, operators, and values
-- Support date ranges, comparisons, and text searches
-- Return a structured filter object`;
+- Understand common query patterns like "show me", "find", "filter by", "where", "with", "that have"
+- Match user terms to field labels (case-insensitive, partial match OK)
+- Extract field names, operators, and values accurately
+- Support all operator types for comprehensive filtering
+- For date filters, use relative terms like "today", "yesterday", "last week", "last month", or ISO dates
+- For "between" operator, format value as "start,end" (e.g., "2024-01-01,2024-01-31" or "10,100")
+- For "in" operator, format value as comma-separated list (e.g., "pending,approved,review")
+
+Available operators:
+- equals: exact match
+- not_equals: does not match
+- contains: text contains substring
+- not_contains: text does not contain
+- starts_with: text starts with
+- ends_with: text ends with
+- greater_than: numeric/date greater than
+- less_than: numeric/date less than
+- greater_than_or_equal: numeric >=
+- less_than_or_equal: numeric <=
+- between: within range (value format: "start,end")
+- is_empty: field has no value
+- is_not_empty: field has a value
+- in: value is one of (value format: "val1,val2,val3")
+- not_in: value is not one of`;
 
         userPrompt = `Available form fields:
 ${JSON.stringify(context.formFields?.map(f => ({ id: f.id, label: f.label, type: f.type })), null, 2)}
@@ -152,12 +172,19 @@ User query: "${context.query}"
 Convert this query to a structured filter. Return JSON with format:
 {
   "filters": [
-    { "fieldId": "field_id", "operator": "equals|contains|greater_than|less_than|between", "value": "value" }
+    { "fieldId": "field_id", "operator": "equals|not_equals|contains|not_contains|starts_with|ends_with|greater_than|less_than|greater_than_or_equal|less_than_or_equal|between|is_empty|is_not_empty|in|not_in", "value": "value" }
   ],
   "sortBy": "field_id or null",
   "sortOrder": "asc|desc",
   "interpretation": "what you understood from the query"
-}`;
+}
+
+Examples:
+- "show pending or approved requests" → operator: "in", value: "pending,approved"
+- "created between Jan 1 and Jan 31" → operator: "between", value: "2024-01-01,2024-01-31"
+- "records with no email" → operator: "is_empty"
+- "status not equal to rejected" → operator: "not_equals", value: "rejected"
+- "priority is high or critical" → operator: "in", value: "high,critical"`;
         break;
 
       default:
