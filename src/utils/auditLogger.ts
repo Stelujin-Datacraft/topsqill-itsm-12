@@ -94,9 +94,10 @@ export const getUserAuditLogs = async (
   }
 ) => {
   try {
+    // Optimized: Select only required columns
     let query = supabase
       .from('audit_logs')
-      .select('*', { count: 'exact' })
+      .select('id, user_id, event_type, event_category, description, ip_address, created_at, metadata', { count: 'exact' })
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
 
@@ -150,9 +151,10 @@ export const getAllAuditLogs = async (
   }
 ) => {
   try {
+    // Optimized: Select only required columns
     let query = supabase
       .from('audit_logs')
-      .select('*', { count: 'exact' })
+      .select('id, user_id, event_type, event_category, description, ip_address, created_at, metadata', { count: 'exact' })
       .order('created_at', { ascending: false });
 
     if (options?.userId) {

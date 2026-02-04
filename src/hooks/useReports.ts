@@ -140,9 +140,10 @@ export function useReports() {
   };
 
   const getFormSubmissionData = useCallback(async (formId: string) => {
+    // Optimized: Select only columns needed for reports (id, submission_data, metadata)
     const { data, error } = await supabase
       .from('form_submissions')
-      .select('*')
+      .select('id, form_id, submitted_at, submitted_by, approval_status, submission_data, submission_ref_id')
       .eq('form_id', formId);
 
     if (error) throw error;

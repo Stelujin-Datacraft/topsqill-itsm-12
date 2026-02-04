@@ -44,10 +44,10 @@ export function TablePreview({ formId, selectedColumns, filters = [], pageSize =
         setFields(fieldsData);
       }
 
-      // Load submissions (limited for preview)
+      // Optimized: Select only columns needed for table preview
       const { data: submissions } = await supabase
         .from('form_submissions')
-        .select('*')
+        .select('id, form_id, submitted_at, submitted_by, approval_status, submission_data, submission_ref_id')
         .eq('form_id', formId)
         .order('submitted_at', { ascending: false })
         .limit(pageSize);

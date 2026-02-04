@@ -93,10 +93,11 @@ export function MySubmissions() {
         return;
       }
 
+      // Optimized: Select only columns needed for submissions list
       const { data, error } = await supabase
         .from('form_submissions')
         .select(`
-          *,
+          id, form_id, submitted_at, submission_data, submission_ref_id,
           forms!inner(name, reference_id, project_id)
         `)
         .eq('submitted_by', userProfile.id)
