@@ -466,25 +466,58 @@ ${context.selectedFormId ? `Target Form: ${context.selectedFormName || 'Unknown'
 Available form fields:
 ${JSON.stringify(context.availableFields?.map(f => ({ id: f.id, label: f.label, type: f.type })), null, 2)}
 
-The query system uses this syntax:
-- SELECT FIELD("field-id") FROM "form-id" 
-- WHERE FIELD("field-id") = 'value'
-- Aggregate functions: COUNT(), SUM(), AVG(), MIN(), MAX()
-- String functions: UPPER(), LOWER(), CONCAT(), TRIM()
-- Date functions: NOW(), YEAR(), MONTH(), DAY()
+The query system uses standard SQL syntax with these features:
+
+**SELECT clause:**
+- SELECT FIELD("field-id"), FIELD("another-field") FROM "form-id"
+- SELECT DISTINCT FIELD("field-id") for unique values
+- Aggregate functions: COUNT(*), COUNT(FIELD("id")), SUM(FIELD("amount")), AVG(FIELD("score")), MIN(FIELD("date")), MAX(FIELD("value"))
+- Aliases: SELECT COUNT(*) AS total_count, AVG(FIELD("score")) AS avg_score
+
+**WHERE clause:**
+- Comparison: =, !=, <, >, <=, >=
+- LIKE for pattern matching: WHERE FIELD("name") LIKE '%smith%'
+- IN for multiple values: WHERE FIELD("status") IN ('pending', 'approved')
+- BETWEEN for ranges: WHERE FIELD("amount") BETWEEN 100 AND 500
+- IS NULL / IS NOT NULL
+- AND, OR for combining conditions
+
+**GROUP BY clause:**
+- GROUP BY FIELD("category") - group results by a field
+- GROUP BY FIELD("status"), FIELD("priority") - group by multiple fields
+- Always use GROUP BY when using aggregate functions with non-aggregated fields
+
+**HAVING clause (filter on aggregated results):**
+- HAVING COUNT(*) > 5
+- HAVING SUM(FIELD("amount")) >= 1000
+- HAVING AVG(FIELD("score")) < 50
+
+**ORDER BY clause:**
+- ORDER BY FIELD("date") DESC
+- ORDER BY FIELD("priority") ASC, FIELD("created_at") DESC
+- ORDER BY COUNT(*) DESC - order by aggregate
+
+**LIMIT and OFFSET:**
+- LIMIT 10 - return first 10 results
+- LIMIT 10 OFFSET 20 - pagination
+
+**Functions:**
+- String: UPPER(), LOWER(), CONCAT(), TRIM(), SUBSTRING()
+- Date: NOW(), YEAR(), MONTH(), DAY(), DATE_TRUNC()
 - System columns: submission_id, submitted_by, submitted_at, approval_status
 
 Return JSON:
 {
-  "query": "the SQL-like query using SELECT FIELD(...) FROM form-id syntax",
-  "explanation": "what this query does",
-  "parameters": ["any parameters that should be bound"],
-  "warnings": ["any potential issues or considerations"]
+  "query": "the complete SQL query",
+  "explanation": "what this query does in plain English",
+  "parameters": ["any dynamic parameters"],
+  "warnings": ["potential issues or performance considerations"]
 }
 
 Example queries:
-- "SELECT FIELD(\\"name\\"), FIELD(\\"status\\") FROM \\"${context.selectedFormId || 'form-uuid'}\\" WHERE FIELD(\\"status\\") = 'active'"
-- "SELECT COUNT(FIELD(\\"id\\")) FROM \\"${context.selectedFormId || 'form-uuid'}\\" WHERE FIELD(\\"priority\\") = 'high'"`;
+- Simple: "SELECT FIELD(\\"name\\"), FIELD(\\"status\\") FROM \\"${context.selectedFormId || 'form-uuid'}\\" WHERE FIELD(\\"status\\") = 'active'"
+- Aggregation with GROUP BY: "SELECT FIELD(\\"status\\"), COUNT(*) AS count FROM \\"${context.selectedFormId || 'form-uuid'}\\" GROUP BY FIELD(\\"status\\") ORDER BY count DESC"
+- Complex: "SELECT FIELD(\\"category\\"), SUM(FIELD(\\"amount\\")) AS total, AVG(FIELD(\\"amount\\")) AS average FROM \\"${context.selectedFormId || 'form-uuid'}\\" WHERE FIELD(\\"date\\") >= '2024-01-01' GROUP BY FIELD(\\"category\\") HAVING SUM(FIELD(\\"amount\\")) > 1000 ORDER BY total DESC LIMIT 10"`;
             break;
             
           case 'filter_expression':
