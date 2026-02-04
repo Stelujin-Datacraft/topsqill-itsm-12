@@ -726,33 +726,57 @@ ${context.triggerForm ? `Trigger Form: ${context.triggerForm.name}
 Form Fields: ${JSON.stringify(context.triggerForm.fields?.map(f => ({ label: f.label, type: f.type })), null, 2)}` : ''}
 ${context.existingNodes?.length ? `Existing Nodes: ${JSON.stringify(context.existingNodes, null, 2)}` : ''}
 
-Return JSON with format:
+IMPORTANT: Each node MUST have a complete "config" object as defined in the system prompt.
+
+Return JSON:
 {
-  "name": "Suggested Workflow Name",
-  "description": "What this workflow accomplishes",
+  "name": "Workflow Name",
+  "description": "What this workflow does",
   "nodes": [
     {
-      "type": "node_type",
-      "label": "Node Label",
-      "description": "What this node does",
+      "type": "start",
+      "label": "Start",
+      "description": "Workflow begins here",
+      "config": { "triggerType": "form_submission", "formId": "optional" }
+    },
+    {
+      "type": "action",
+      "label": "Send Notification",
+      "description": "Notify the team",
+      "config": { 
+        "actionType": "send_email",
+        "emailConfig": { "to": "manager@example.com", "subject": "New submission", "body": "A new form was submitted" }
+      }
+    },
+    {
+      "type": "condition",
+      "label": "Check Priority",
+      "description": "Route based on priority level",
       "config": {
-        // Node-specific configuration
-        "triggerType": "for start node",
-        "condition": { "field": "field_label", "operator": "==", "value": "value" },
-        "notificationType": "email|sms|in_app",
-        "message": "notification message",
-        "recipients": ["description of who receives"],
-        "waitDuration": 24, "waitUnit": "hours",
-        "actions": [{ "type": "action_type", "details": "..." }]
-      },
-      "connections": [
-        { "to": "next_node_label", "condition": "optional: true|false path" }
-      ]
+        "conditionType": "if",
+        "conditions": [{ "field": "priority", "operator": "equals", "value": "high", "logic": "AND" }],
+        "trueBranch": "Escalate",
+        "falseBranch": "Standard Process"
+      }
+    },
+    {
+      "type": "wait",
+      "label": "Wait for Response",
+      "description": "Wait 24 hours",
+      "config": { "waitType": "duration", "duration": { "value": 24, "unit": "hours" } }
+    },
+    {
+      "type": "end",
+      "label": "Complete",
+      "description": "Workflow ends",
+      "config": { "statusMessage": "Workflow completed", "finalFormStatus": "completed", "enableLogging": true }
     }
   ],
-  "suggestions": ["Additional recommendations for this workflow"],
-  "estimatedDuration": "How long workflow typically takes"
-}`;
+  "suggestions": ["Optimization tips"],
+  "estimatedDuration": "Estimated time"
+}
+
+Generate a COMPLETE workflow with FULL config for each node based on the goal. Do not use empty configs.`;
         break;
 
       // NEW: Data Feed Field Mapping Suggestions
@@ -926,6 +950,11 @@ Return JSON with format:
     const content = data.choices[0]?.message?.content;
 
     console.log('AI response received successfully');
+    
+    // Log workflow responses for debugging
+    if (action === 'suggest-workflow') {
+      console.log('Workflow suggestion raw content:', content?.substring(0, 500));
+    }
 
     // Try to parse JSON from the response
     let result;
@@ -934,6 +963,15 @@ Return JSON with format:
       const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
       const jsonStr = jsonMatch ? jsonMatch[1].trim() : content.trim();
       result = JSON.parse(jsonStr);
+      
+      // Log parsed workflow for debugging
+      if (action === 'suggest-workflow' && result.nodes) {
+        console.log('Parsed workflow nodes:', JSON.stringify(result.nodes.map(n => ({ 
+          type: n.type, 
+          label: n.label, 
+          hasConfig: !!n.config && Object.keys(n.config).length > 0 
+        }))));
+      }
     } catch {
       // If not valid JSON, return as text
       result = { text: content };
