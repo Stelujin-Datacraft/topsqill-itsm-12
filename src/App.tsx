@@ -67,6 +67,7 @@ import AcceptInvitation from "./pages/AcceptInvitation";
 import NotFound from "./pages/NotFound";
 import LdapSettings from "./pages/LdapSettings";
 import DashboardView from "./pages/DashboardView";
+import { AIChatbot } from "./components/ai/AIChatbot";
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -141,6 +142,7 @@ const App = () => (
                      <Route path="/api-docs" element={<ProtectedRoute><ApiDocs /></ProtectedRoute>} />
                      <Route path="*" element={<NotFound />} />
                   </Routes>
+                  <AIChatbot />
                   </BrowserRouter>
                 </TooltipProvider>
               </WorkflowProvider>

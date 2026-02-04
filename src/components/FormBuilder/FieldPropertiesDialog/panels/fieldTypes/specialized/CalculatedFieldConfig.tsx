@@ -10,9 +10,10 @@ import { HelpDialog, HelpSection, HelpExample, HelpBadge } from '@/components/ui
 import { CALCULATION_FUNCTIONS, validateExpression, getAutoSuggestions } from '@/utils/calculationEngine';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Plus } from 'lucide-react';
+import { Plus, Sparkles } from 'lucide-react';
 import { FieldSelector } from '@/components/form-fields/FieldSelector';
 import { ParsedFieldReference, createFieldRef, replaceFieldReferencesInExpression, extractFieldIdsFromExpression } from '@/utils/fieldReferenceParser';
+import { AIFormulaBuilder } from '@/components/ai/AIFormulaBuilder';
 
 interface CalculatedFieldConfigProps {
   config: any;
@@ -162,6 +163,23 @@ export function CalculatedFieldConfig({ config, onUpdate, errors }: CalculatedFi
           <div className="flex items-center justify-between">
             <Label htmlFor="formula">Formula Expression</Label>
             <div className="flex gap-2">
+              <AIFormulaBuilder
+                availableFields={availableFields.map(f => ({ 
+                  id: f.id, 
+                  label: f.label, 
+                  type: f.type || 'text' 
+                }))}
+                onApply={(result) => {
+                  if (result.formula) {
+                    onUpdate({
+                      customConfig: { ...customConfig, expression: result.formula }
+                    });
+                  }
+                }}
+                defaultType="calculated_field"
+                buttonLabel="AI"
+                buttonSize="sm"
+              />
               <Button
                 type="button"
                 variant="outline"

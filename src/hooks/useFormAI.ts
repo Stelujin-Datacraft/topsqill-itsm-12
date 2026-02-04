@@ -34,6 +34,31 @@ interface AIQueryResult {
   interpretation: string;
 }
 
+interface AIContentResult {
+  subjects?: string[];
+  recommended?: string;
+  text?: string;
+}
+
+interface AIChatbotResult {
+  message: string;
+}
+
+interface AIFormulaResult {
+  formula?: string;
+  query?: string;
+  expression?: string;
+  explanation: string;
+  type?: string;
+  fieldReferences?: string[];
+  resultType?: string;
+  examples?: Array<{ inputs: Record<string, any>; output: string }>;
+  conditions?: Array<{ fieldId: string; operator: string; value: string }>;
+  logic?: string;
+  parameters?: string[];
+  warnings?: string[];
+}
+
 export function useFormAI() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -123,6 +148,55 @@ export function useFormAI() {
     });
   }, [callAI]);
 
+  // NEW: Content Generation
+  const generateContent = useCallback(async (
+    contentType: 'email_subject' | 'email_body' | 'form_description' | 'summary' | 'response',
+    userInput: string,
+    options?: {
+      contentContext?: string;
+      tone?: 'professional' | 'friendly' | 'formal' | 'casual';
+      formName?: string;
+    }
+  ): Promise<AIContentResult | null> => {
+    return callAI('generate-content', {
+      contentType,
+      userInput,
+      contentContext: options?.contentContext,
+      tone: options?.tone || 'professional',
+      formName: options?.formName
+    });
+  }, [callAI]);
+
+  // NEW: Chatbot Assistant
+  const chatbotAssist = useCallback(async (
+    userInput: string,
+    chatHistory: Array<{ role: 'user' | 'assistant'; content: string }>,
+    options?: {
+      availableForms?: Array<{ id: string; name: string; description?: string }>;
+      availableWorkflows?: Array<{ id: string; name: string; description?: string }>;
+    }
+  ): Promise<AIChatbotResult | null> => {
+    return callAI('chatbot-assist', {
+      userInput,
+      chatHistory,
+      availableForms: options?.availableForms || [],
+      availableWorkflows: options?.availableWorkflows || []
+    });
+  }, [callAI]);
+
+  // NEW: Formula/Query Builder
+  const generateFormula = useCallback(async (
+    userInput: string,
+    formulaType: 'calculated_field' | 'sql_query' | 'filter_expression',
+    availableFields: Array<{ id: string; label: string; type: string }>
+  ): Promise<AIFormulaResult | null> => {
+    return callAI('generate-formula', {
+      userInput,
+      formulaType,
+      availableFields
+    });
+  }, [callAI]);
+
   return {
     isLoading,
     error,
@@ -130,6 +204,9 @@ export function useFormAI() {
     suggestRouting,
     analyzeContent,
     generateSummary,
-    naturalLanguageQuery
+    naturalLanguageQuery,
+    generateContent,
+    chatbotAssist,
+    generateFormula
   };
 }
