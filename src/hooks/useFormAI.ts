@@ -59,6 +59,78 @@ interface AIFormulaResult {
   warnings?: string[];
 }
 
+interface AIFormGenerationResult {
+  name: string;
+  description: string;
+  fields: Array<{
+    type: string;
+    label: string;
+    required: boolean;
+    placeholder?: string;
+    tooltip?: string;
+    options?: Array<{ value: string; label: string }>;
+    validation?: Record<string, any>;
+    defaultValue?: string;
+    isFullWidth?: boolean;
+  }>;
+  pages?: Array<{
+    name: string;
+    description?: string;
+    fieldIndexes: number[];
+  }>;
+  suggestedLayout?: 1 | 2 | 3;
+  estimatedCompletionTime?: string;
+}
+
+interface AIWorkflowSuggestionResult {
+  name: string;
+  description: string;
+  nodes: Array<{
+    type: string;
+    label: string;
+    description?: string;
+    config: Record<string, any>;
+    connections?: Array<{ to: string; condition?: string }>;
+  }>;
+  suggestions?: string[];
+  estimatedDuration?: string;
+}
+
+interface AIFieldMappingResult {
+  mappings: Array<{
+    sourceFieldId: string;
+    sourceFieldLabel: string;
+    targetFieldId: string;
+    targetFieldLabel: string;
+    confidence: number;
+    transformation?: string;
+    transformationDetails?: string;
+    reason: string;
+  }>;
+  unmappedSourceFields?: Array<{ fieldId: string; fieldLabel: string; suggestion?: string }>;
+  unmappedTargetFields?: Array<{ fieldId: string; fieldLabel: string; required?: boolean; suggestion?: string }>;
+  warnings?: string[];
+  overallConfidence: number;
+}
+
+interface AIChartSuggestionResult {
+  suggestions: Array<{
+    chartType: 'bar' | 'line' | 'area' | 'pie' | 'scatter' | 'bubble' | 'table';
+    title: string;
+    description: string;
+    dimensions: string[];
+    metrics: string[];
+    aggregation: 'count' | 'sum' | 'avg' | 'min' | 'max';
+    sortBy?: string;
+    sortOrder?: 'asc' | 'desc';
+    filters?: Array<{ fieldId: string; operator: string; value: string }>;
+    reasoning: string;
+    priority: number;
+  }>;
+  insights?: string[];
+  warnings?: string[];
+}
+
 export function useFormAI() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -209,6 +281,75 @@ export function useFormAI() {
     });
   }, [callAI]);
 
+  // NEW: Form Generation from natural language
+  const generateForm = useCallback(async (
+    userInput: string,
+    options?: {
+      formPurpose?: string;
+      industry?: string;
+    }
+  ): Promise<AIFormGenerationResult | null> => {
+    return callAI('generate-form', {
+      userInput,
+      formPurpose: options?.formPurpose,
+      industry: options?.industry
+    });
+  }, [callAI]);
+
+  // NEW: Workflow Suggestions
+  const suggestWorkflow = useCallback(async (
+    workflowGoal: string,
+    options?: {
+      triggerForm?: { id: string; name: string; fields: Array<{ id: string; label: string; type: string }> };
+      existingNodes?: Array<{ id: string; type: string; label: string }>;
+    }
+  ): Promise<AIWorkflowSuggestionResult | null> => {
+    return callAI('suggest-workflow', {
+      workflowGoal,
+      userInput: workflowGoal,
+      triggerForm: options?.triggerForm,
+      existingNodes: options?.existingNodes
+    });
+  }, [callAI]);
+
+  // NEW: Data Feed Field Mapping Suggestions
+  const suggestFieldMappings = useCallback(async (
+    sourceFields: Array<{ id: string; label: string; type: string }>,
+    targetFields: Array<{ id: string; label: string; type: string }>,
+    options?: {
+      sourceFormName?: string;
+      targetFormName?: string;
+      additionalContext?: string;
+    }
+  ): Promise<AIFieldMappingResult | null> => {
+    return callAI('suggest-field-mappings', {
+      sourceFields,
+      targetFields,
+      sourceFormName: options?.sourceFormName,
+      targetFormName: options?.targetFormName,
+      userInput: options?.additionalContext
+    });
+  }, [callAI]);
+
+  // NEW: Chart/Report Suggestions
+  const suggestCharts = useCallback(async (
+    formFields: Array<{ id: string; label: string; type: string }>,
+    options?: {
+      formName?: string;
+      formData?: Array<Record<string, any>>;
+      existingCharts?: Array<{ type: string; dimensions: string[]; metrics: string[] }>;
+      userRequest?: string;
+    }
+  ): Promise<AIChartSuggestionResult | null> => {
+    return callAI('suggest-chart', {
+      availableFields: formFields,
+      selectedFormName: options?.formName,
+      formData: options?.formData,
+      existingCharts: options?.existingCharts,
+      userInput: options?.userRequest
+    });
+  }, [callAI]);
+
   return {
     isLoading,
     error,
@@ -219,6 +360,11 @@ export function useFormAI() {
     naturalLanguageQuery,
     generateContent,
     chatbotAssist,
-    generateFormula
+    generateFormula,
+    // New AI capabilities
+    generateForm,
+    suggestWorkflow,
+    suggestFieldMappings,
+    suggestCharts
   };
 }
