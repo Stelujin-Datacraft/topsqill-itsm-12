@@ -255,7 +255,7 @@ const Auth = () => {
             <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
               <span className="text-primary-foreground font-bold text-lg">T</span>
             </div>
-            <span className="text-2xl font-bold">Topsqill</span>
+            <span className="text-2xl font-bold">TopSqill</span>
           </div>
           <CardTitle className="text-2xl">Authentication</CardTitle>
           <CardDescription>
