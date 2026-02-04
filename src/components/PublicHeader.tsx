@@ -6,12 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { Link, useNavigate } from 'react-router-dom';
 
-interface PublicHeaderProps {
-  /** When true, shows only the logo - no user info, org name, or navigation */
-  minimal?: boolean;
-}
-
-export function PublicHeader({ minimal = false }: PublicHeaderProps) {
+export function PublicHeader() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { user, userProfile, signOut } = useAuth();
   const { currentOrganization } = useOrganization();
@@ -21,24 +16,6 @@ export function PublicHeader({ minimal = false }: PublicHeaderProps) {
     signOut();
     navigate('/');
   };
-
-  // Minimal header - just logo, no distractions
-  if (minimal) {
-    return (
-      <header className="bg-background border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-center items-center h-14">
-            <Link to="/" className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                <span className="text-primary-foreground font-bold text-sm">T</span>
-              </div>
-              <span className="text-xl font-semibold text-foreground">TopSqill</span>
-            </Link>
-          </div>
-        </div>
-      </header>
-    );
-  }
 
   return (
     <header className="bg-background border-b">
