@@ -33,9 +33,9 @@ serve(async (req) => {
   }
 
   try {
-    const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
-    if (!OPENAI_API_KEY) {
-      throw new Error('OPENAI_API_KEY is not configured');
+    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+    if (!LOVABLE_API_KEY) {
+      throw new Error('LOVABLE_API_KEY is not configured');
     }
 
     const { action, context }: AIRequest = await req.json();
@@ -164,14 +164,16 @@ Convert this query to a structured filter. Return JSON with format:
         throw new Error(`Unknown action: ${action}`);
     }
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    console.log(`Processing AI request: ${action}`);
+
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'google/gemini-3-flash-preview',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
@@ -183,7 +185,7 @@ Convert this query to a structured filter. Return JSON with format:
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('OpenAI API error:', response.status, errorText);
+      console.error('AI Gateway error:', response.status, errorText);
       
       if (response.status === 429) {
         return new Response(JSON.stringify({ 
@@ -195,21 +197,23 @@ Convert this query to a structured filter. Return JSON with format:
         });
       }
       
-      if (response.status === 401) {
+      if (response.status === 402) {
         return new Response(JSON.stringify({ 
           success: false, 
-          error: 'Invalid OpenAI API key. Please check your configuration.' 
+          error: 'AI credits exhausted. Please add credits to your Lovable workspace.' 
         }), {
-          status: 401,
+          status: 402,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
       
-      throw new Error(`OpenAI API error: ${response.status}`);
+      throw new Error(`AI Gateway error: ${response.status}`);
     }
 
     const data = await response.json();
     const content = data.choices[0]?.message?.content;
+
+    console.log('AI response received successfully');
 
     // Try to parse JSON from the response
     let result;
