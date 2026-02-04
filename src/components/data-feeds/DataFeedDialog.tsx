@@ -11,7 +11,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Plus, Trash2, ArrowRight, Clock, Calendar, RefreshCw, AlertCircle, Filter, Link2, GitBranch } from 'lucide-react';
+import { Plus, Trash2, ArrowRight, Clock, Calendar, RefreshCw, AlertCircle, Filter, Link2, GitBranch, Sparkles } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
@@ -20,6 +20,7 @@ import { Separator } from '@/components/ui/separator';
 import { FilterValueInput } from './FilterValueInput';
 import { ExternalSourceConfig } from './ExternalSourceConfig';
 import { NestedCrossRefMappings } from './NestedCrossRefMappings';
+import { AIFieldMapper } from '@/components/ai/AIFieldMapper';
 
 interface DataFeedDialogProps {
   open: boolean;
@@ -1682,10 +1683,35 @@ export function DataFeedDialog({
                         </p>
                       </div>
                     </div>
-                    <Button type="button" variant="outline" size="sm" onClick={() => addFieldMapping('direct')}>
-                      <Plus className="h-4 w-4 mr-1" />
-                      Add Mapping
-                    </Button>
+                    <div className="flex gap-2">
+                      {sourceFields.length > 0 && targetFields.length > 0 && (
+                        <AIFieldMapper
+                          sourceFields={sourceFields.map(f => ({ id: f.id, label: f.label, type: f.field_type }))}
+                          targetFields={targetFields.map(f => ({ id: f.id, label: f.label, type: f.field_type }))}
+                          onApply={(aiMappings) => {
+                            // Add AI-suggested mappings
+                            const newMappings: FieldMapping[] = aiMappings.map(m => ({
+                              mappingType: 'direct' as const,
+                              sourceFieldId: m.sourceFieldId,
+                              sourceFieldName: m.sourceFieldLabel,
+                              targetFieldId: m.targetFieldId,
+                              targetFieldName: m.targetFieldLabel
+                            }));
+                            setFormData(prev => ({
+                              ...prev,
+                              field_mappings: [...prev.field_mappings, ...newMappings]
+                            }));
+                          }}
+                          buttonLabel="AI Map"
+                          buttonVariant="outline"
+                          buttonSize="sm"
+                        />
+                      )}
+                      <Button type="button" variant="outline" size="sm" onClick={() => addFieldMapping('direct')}>
+                        <Plus className="h-4 w-4 mr-1" />
+                        Add Mapping
+                      </Button>
+                    </div>
                   </div>
                 </div>
 
