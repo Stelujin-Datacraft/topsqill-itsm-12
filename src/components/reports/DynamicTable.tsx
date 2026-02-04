@@ -51,6 +51,7 @@ import { ManualWorkflowTrigger } from '@/components/ManualWorkflowTrigger';
 import { SubmissionRefDisplay } from '@/components/SubmissionRefDisplay';
 import { useBulkWorkflowTrigger } from '@/hooks/useBulkWorkflowTrigger';
 import { BulkWorkflowTriggerDialog } from './BulkWorkflowTriggerDialog';
+import { AIQueryInput } from './AIQueryInput';
 interface TableConfig {
   title: string;
   formId: string;
@@ -110,6 +111,8 @@ export function DynamicTable({
   const [bulkWorkflowTriggerMode, setBulkWorkflowTriggerMode] = useState<'selected' | 'all'>('selected');
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [showUpdateDialog, setShowUpdateDialog] = useState(false);
+  const [aiQueryFilters, setAiQueryFilters] = useState<Array<{ fieldId: string; operator: string; value: string }>>([]);
+  const [aiQuerySort, setAiQuerySort] = useState<{ field: string | null; order: 'asc' | 'desc' }>({ field: null, order: 'asc' });
 
   // Custom hooks
   const {
@@ -281,6 +284,45 @@ export function DynamicTable({
       console.log('🔍 After complex filters:', beforeComplexFilter, '->', filtered.length);
     }
 
+    // Apply AI query filters
+    if (aiQueryFilters.length > 0) {
+      console.log('🤖 Applying AI query filters:', aiQueryFilters);
+      const beforeAIFilter = filtered.length;
+      filtered = filtered.filter(row => {
+        return aiQueryFilters.every(filter => {
+          const value = row.submission_data?.[filter.fieldId];
+          const filterValue = filter.value?.toString().toLowerCase() || '';
+          const actualValue = value?.toString().toLowerCase() || '';
+          
+          switch (filter.operator) {
+            case 'equals':
+              return actualValue === filterValue;
+            case 'contains':
+              return actualValue.includes(filterValue);
+            case 'greater_than':
+              return parseFloat(actualValue) > parseFloat(filterValue);
+            case 'less_than':
+              return parseFloat(actualValue) < parseFloat(filterValue);
+            case 'not_equals':
+              return actualValue !== filterValue;
+            default:
+              return actualValue.includes(filterValue);
+          }
+        });
+      });
+      console.log('🤖 After AI query filters:', beforeAIFilter, '->', filtered.length);
+    }
+
+    // Apply AI query sorting if set
+    if (aiQuerySort.field) {
+      filtered = [...filtered].sort((a, b) => {
+        const aValue = a.submission_data?.[aiQuerySort.field!] || '';
+        const bValue = b.submission_data?.[aiQuerySort.field!] || '';
+        const comparison = aValue.toString().localeCompare(bValue.toString());
+        return aiQuerySort.order === 'asc' ? comparison : -comparison;
+      });
+    }
+
     // Apply multi-level sorting
     if (sortConfigs.length > 0 && config.enableSorting) {
       filtered = [...filtered].sort((a, b) => {
@@ -296,7 +338,7 @@ export function DynamicTable({
 
     console.log('✅ Final filtered count:', filtered.length);
     return filtered;
-  }, [data, searchTerm, columnFilters, appliedFilters, sortConfigs, displayFields, config, evaluateCondition, applyAccessFilter]);
+  }, [data, searchTerm, columnFilters, appliedFilters, sortConfigs, displayFields, config, evaluateCondition, applyAccessFilter, aiQueryFilters, aiQuerySort]);
   const paginatedData = useMemo(() => {
     const startIndex = (currentPage - 1) * pageSize;
     const endIndex = startIndex + pageSize;
@@ -1008,10 +1050,25 @@ export function DynamicTable({
               )}
             </div>
 
-            {/* Right Side - Search */}
+            {/* Right Side - Search and AI Query */}
             <div className="flex items-center gap-2">
+              {/* AI Natural Language Query */}
+              {config.enableSearch && currentForm && (
+                <AIQueryInput
+                  formFields={currentForm.fields}
+                  onApplyQuery={(result) => {
+                    setAiQueryFilters(result.filters);
+                    setAiQuerySort({ field: result.sortBy, order: result.sortOrder });
+                  }}
+                  onClearQuery={() => {
+                    setAiQueryFilters([]);
+                    setAiQuerySort({ field: null, order: 'asc' });
+                  }}
+                />
+              )}
+
               {config.enableSearch && (
-                <div className="relative w-80">
+                <div className="relative w-64">
                   <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3 w-3 text-muted-foreground" />
                   <Input 
                     placeholder="Search records..." 
