@@ -14,7 +14,7 @@ interface FormField {
 }
 
 interface AIRequest {
-  action: 'auto-fill' | 'suggest-routing' | 'analyze-content' | 'generate-summary' | 'natural-language-query' | 'generate-content' | 'chatbot-assist' | 'generate-formula';
+  action: 'auto-fill' | 'suggest-routing' | 'analyze-content' | 'generate-summary' | 'natural-language-query' | 'generate-content' | 'chatbot-assist' | 'generate-formula' | 'generate-form' | 'suggest-workflow' | 'suggest-field-mappings' | 'suggest-chart';
   context: {
     formFields?: FormField[];
     currentValues?: Record<string, any>;
@@ -39,6 +39,21 @@ interface AIRequest {
     availableFields?: Array<{ id: string; label: string; type: string }>;
     selectedFormId?: string;
     selectedFormName?: string;
+    // Form generation
+    formPurpose?: string;
+    industry?: string;
+    // Workflow suggestions
+    workflowGoal?: string;
+    triggerForm?: { id: string; name: string; fields: Array<{ id: string; label: string; type: string }> };
+    existingNodes?: Array<{ id: string; type: string; label: string }>;
+    // Data feed mapping
+    sourceFields?: Array<{ id: string; label: string; type: string }>;
+    targetFields?: Array<{ id: string; label: string; type: string }>;
+    sourceFormName?: string;
+    targetFormName?: string;
+    // Chart suggestions
+    formData?: Array<Record<string, any>>;
+    existingCharts?: Array<{ type: string; dimensions: string[]; metrics: string[] }>;
   };
 }
 
@@ -554,6 +569,261 @@ Return JSON:
   "explanation": "what this does"
 }`;
         }
+        break;
+
+      // NEW: Form Generation
+      case 'generate-form':
+        temperature = 0.4;
+        maxTokens = 3000;
+        
+        systemPrompt = `You are an expert form designer. Generate complete form schemas from natural language descriptions.
+
+Rules:
+- Create well-structured forms with appropriate field types
+- Include validation rules where applicable
+- Group related fields logically
+- Consider user experience and flow
+- Add helpful placeholders and tooltips
+- Include common field types: text, email, phone, number, date, select, checkbox, radio, textarea, file
+- For select/radio fields, include sensible options
+
+Available field types:
+- text: Single line text input
+- textarea: Multi-line text input
+- number: Numeric input
+- email: Email with validation
+- phone: Phone number
+- date: Date picker
+- time: Time picker
+- datetime: Date and time picker
+- select: Dropdown selection
+- multi-select: Multiple selection
+- radio: Radio button group
+- checkbox: Single checkbox
+- checkbox-group: Multiple checkboxes
+- toggle: On/off switch
+- file: File upload
+- image: Image upload
+- signature: Signature capture
+- rating: Star rating
+- slider: Range slider
+- rich-text: Rich text editor
+- divider: Visual separator
+- heading: Section heading`;
+
+        userPrompt = `Generate a complete form schema based on this request:
+
+Request: "${context.userInput}"
+Purpose: ${context.formPurpose || 'General purpose form'}
+Industry: ${context.industry || 'General'}
+
+Return JSON with format:
+{
+  "name": "Suggested Form Name",
+  "description": "Clear description of the form's purpose",
+  "fields": [
+    {
+      "type": "field_type",
+      "label": "Field Label",
+      "required": true|false,
+      "placeholder": "Helpful placeholder text",
+      "tooltip": "Help text for users",
+      "options": [{"value": "opt1", "label": "Option 1"}] // for select/radio/checkbox-group only
+      "validation": {
+        "min": number, // for number/slider
+        "max": number,
+        "minLength": number, // for text
+        "maxLength": number,
+        "pattern": "regex" // for text
+      },
+      "defaultValue": "optional default",
+      "isFullWidth": true|false
+    }
+  ],
+  "pages": [
+    {
+      "name": "Page Name",
+      "description": "Page description",
+      "fieldIndexes": [0, 1, 2] // indexes of fields on this page
+    }
+  ],
+  "suggestedLayout": 1|2|3, // recommended column layout
+  "estimatedCompletionTime": "5 minutes"
+}`;
+        break;
+
+      // NEW: Workflow Suggestions
+      case 'suggest-workflow':
+        temperature = 0.3;
+        maxTokens = 2500;
+        
+        systemPrompt = `You are an expert workflow automation designer. Suggest workflow steps and configurations based on goals.
+
+Available node types:
+- start: Workflow entry point with trigger conditions
+- form-assignment: Assign a form to someone to fill
+- notification: Send email, SMS, or in-app notification
+- condition: Branch based on data (if/else logic)
+- wait: Pause for time or until condition is met
+- action: Perform automated actions (update fields, change status)
+- approval: Require approval from designated person/group
+- end: Workflow completion
+
+Trigger types: form_submission, form_completion, form_approval, form_rejection, rule_success, rule_failure, manual, webhook, schedule
+
+Action types: approve_form, disapprove_form, send_email, send_notification, trigger_webhook, change_form_status, set_field_values, log_event`;
+
+        userPrompt = `Design a workflow based on this goal:
+
+Goal: "${context.workflowGoal || context.userInput}"
+${context.triggerForm ? `Trigger Form: ${context.triggerForm.name}
+Form Fields: ${JSON.stringify(context.triggerForm.fields?.map(f => ({ label: f.label, type: f.type })), null, 2)}` : ''}
+${context.existingNodes?.length ? `Existing Nodes: ${JSON.stringify(context.existingNodes, null, 2)}` : ''}
+
+Return JSON with format:
+{
+  "name": "Suggested Workflow Name",
+  "description": "What this workflow accomplishes",
+  "nodes": [
+    {
+      "type": "node_type",
+      "label": "Node Label",
+      "description": "What this node does",
+      "config": {
+        // Node-specific configuration
+        "triggerType": "for start node",
+        "condition": { "field": "field_label", "operator": "==", "value": "value" },
+        "notificationType": "email|sms|in_app",
+        "message": "notification message",
+        "recipients": ["description of who receives"],
+        "waitDuration": 24, "waitUnit": "hours",
+        "actions": [{ "type": "action_type", "details": "..." }]
+      },
+      "connections": [
+        { "to": "next_node_label", "condition": "optional: true|false path" }
+      ]
+    }
+  ],
+  "suggestions": ["Additional recommendations for this workflow"],
+  "estimatedDuration": "How long workflow typically takes"
+}`;
+        break;
+
+      // NEW: Data Feed Field Mapping Suggestions
+      case 'suggest-field-mappings':
+        temperature = 0.2;
+        maxTokens = 2000;
+        
+        systemPrompt = `You are an expert data integration specialist. Suggest optimal field mappings between source and target forms.
+
+Rules:
+- Match fields by semantic meaning, not just name similarity
+- Consider data types compatibility
+- Suggest transformations when needed
+- Identify fields that likely correspond
+- Flag fields that may need manual review
+- Consider common field name variations (e.g., "name" = "full_name" = "customer_name")`;
+
+        userPrompt = `Suggest field mappings between these forms:
+
+Source Form: ${context.sourceFormName || 'Source'}
+Source Fields:
+${JSON.stringify(context.sourceFields, null, 2)}
+
+Target Form: ${context.targetFormName || 'Target'}
+Target Fields:
+${JSON.stringify(context.targetFields, null, 2)}
+
+${context.userInput ? `Additional Context: ${context.userInput}` : ''}
+
+Return JSON with format:
+{
+  "mappings": [
+    {
+      "sourceFieldId": "source_field_id",
+      "sourceFieldLabel": "Source Field Label",
+      "targetFieldId": "target_field_id",
+      "targetFieldLabel": "Target Field Label",
+      "confidence": 0.0-1.0,
+      "transformation": null | "uppercase" | "lowercase" | "trim" | "format_date" | "parse_number" | "custom",
+      "transformationDetails": "optional explanation",
+      "reason": "why these fields match"
+    }
+  ],
+  "unmappedSourceFields": [
+    { "fieldId": "id", "fieldLabel": "label", "suggestion": "why it wasn't mapped or what to do" }
+  ],
+  "unmappedTargetFields": [
+    { "fieldId": "id", "fieldLabel": "label", "required": true|false, "suggestion": "how to handle this" }
+  ],
+  "warnings": ["any potential issues with the mappings"],
+  "overallConfidence": 0.0-1.0
+}`;
+        break;
+
+      // NEW: Chart/Report Suggestions
+      case 'suggest-chart':
+        temperature = 0.4;
+        maxTokens = 2000;
+        
+        systemPrompt = `You are a data visualization expert. Suggest optimal chart configurations based on form data and fields.
+
+Available chart types:
+- bar: Best for comparing categories
+- line: Best for trends over time
+- area: Like line but emphasizes volume
+- pie: Best for showing parts of a whole (limit to <7 segments)
+- scatter: Best for showing correlations between two numeric values
+- bubble: Like scatter but with a third dimension (size)
+- table: Best for detailed data display
+
+Aggregation types: count, sum, avg, min, max
+
+Rules:
+- Match chart type to data characteristics
+- Suggest meaningful dimensions and metrics
+- Consider data cardinality (too many categories = bad for pie)
+- Time fields should typically be on X-axis for trends
+- Numeric fields are good metrics
+- Categorical fields are good dimensions`;
+
+        userPrompt = `Suggest chart configurations for this form:
+
+Form: ${context.selectedFormName || 'Form'}
+Available Fields:
+${JSON.stringify(context.availableFields, null, 2)}
+
+${context.formData?.length ? `Sample Data (${context.formData.length} records):
+${JSON.stringify(context.formData.slice(0, 5), null, 2)}` : ''}
+
+${context.existingCharts?.length ? `Already Created Charts:
+${JSON.stringify(context.existingCharts, null, 2)}` : ''}
+
+${context.userInput ? `User Request: "${context.userInput}"` : 'Suggest the most insightful visualizations for this data.'}
+
+Return JSON with format:
+{
+  "suggestions": [
+    {
+      "chartType": "bar|line|area|pie|scatter|bubble|table",
+      "title": "Descriptive Chart Title",
+      "description": "What insight this chart provides",
+      "dimensions": ["field_id_for_grouping"],
+      "metrics": ["field_id_for_measuring"],
+      "aggregation": "count|sum|avg|min|max",
+      "sortBy": "metric|dimension",
+      "sortOrder": "asc|desc",
+      "filters": [{ "fieldId": "id", "operator": "equals", "value": "value" }],
+      "reasoning": "Why this visualization is useful",
+      "priority": 1-5 // 1 = most recommended
+    }
+  ],
+  "insights": [
+    "Key observation about the data",
+    "Recommended analysis approach"
+  ],
+  "warnings": ["Any data quality issues noticed"]
+}`;
         break;
 
       default:
