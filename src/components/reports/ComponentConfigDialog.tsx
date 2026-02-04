@@ -59,6 +59,7 @@ import { MetricsSelector } from './MetricsSelector';
 import { DimensionsSelector } from './DimensionsSelector';
 import { FormField } from '@/types/form';
 import { supabase } from '@/integrations/supabase/client';
+import { AIChartSuggester } from '@/components/ai/AIChartSuggester';
 
 interface ComponentConfigDialogProps {
   open: boolean;
@@ -632,7 +633,35 @@ export function ComponentConfigDialog({
 
         <TabsContent value="basic" className="space-y-4">
           <div>
-            <Label htmlFor="title">{componentType === 'table' ? 'Table Title' : 'Chart Title'}</Label>
+            <div className="flex items-center justify-between mb-1">
+              <Label htmlFor="title">{componentType === 'table' ? 'Table Title' : 'Chart Title'}</Label>
+              {componentType === 'chart' && config.formId && formFields.length > 0 && (
+                <AIChartSuggester
+                  formFields={formFields.map(f => ({ 
+                    id: f.id, 
+                    label: f.label, 
+                    type: (f as any).field_type || f.type 
+                  }))}
+                  formName={forms.find(f => f.id === config.formId)?.name}
+                  onApply={(suggestion) => {
+                    setConfig(prev => ({
+                      ...prev,
+                      chartType: suggestion.chartType,
+                      title: suggestion.title || prev.title,
+                      dimensions: suggestion.dimensions,
+                      metrics: suggestion.metrics,
+                      aggregation: suggestion.aggregation,
+                      sortBy: suggestion.sortBy,
+                      sortOrder: suggestion.sortOrder,
+                      filters: suggestion.filters || prev.filters
+                    }));
+                  }}
+                  buttonLabel="AI Suggest"
+                  buttonVariant="ghost"
+                  buttonSize="sm"
+                />
+              )}
+            </div>
             <Input
               id="title"
               value={config.title || ''}
