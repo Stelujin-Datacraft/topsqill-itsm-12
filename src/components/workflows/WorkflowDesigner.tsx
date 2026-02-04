@@ -245,21 +245,44 @@ function WorkflowDesignerInner({ workflowId, projectId, initialNodes, initialCon
     });
   }, [setReactFlowNodes, setReactFlowEdges]);
 
-  // Initialize only once from props
+  // Track previous props to detect external changes (e.g., AI suggestions)
+  const prevInitialNodesRef = useRef<string>('');
+  const prevInitialConnectionsRef = useRef<string>('');
+
+  // Initialize only once from props OR sync when props change externally
   useEffect(() => {
-    if (!isInitialized.current && (initialNodes.length > 0 || initialConnections.length > 0)) {
-      console.log('Initializing WorkflowDesigner with data:', { nodes: initialNodes.length, connections: initialConnections.length });
+    const currentNodesJson = JSON.stringify(initialNodes);
+    const currentConnectionsJson = JSON.stringify(initialConnections);
+    
+    // Check if props have changed externally (e.g., AI workflow applied)
+    const propsChanged = prevInitialNodesRef.current !== currentNodesJson || 
+                         prevInitialConnectionsRef.current !== currentConnectionsJson;
+    
+    if (!isInitialized.current) {
+      // First initialization
+      if (initialNodes.length > 0 || initialConnections.length > 0) {
+        console.log('Initializing WorkflowDesigner with data:', { nodes: initialNodes.length, connections: initialConnections.length });
+        setWorkflowNodes([...initialNodes]);
+        setWorkflowConnections([...initialConnections]);
+        syncToReactFlow(initialNodes, initialConnections);
+      } else {
+        console.log('Initializing WorkflowDesigner with empty state');
+        setWorkflowNodes([]);
+        setWorkflowConnections([]);
+        setReactFlowNodes([]);
+        setReactFlowEdges([]);
+      }
+      isInitialized.current = true;
+      prevInitialNodesRef.current = currentNodesJson;
+      prevInitialConnectionsRef.current = currentConnectionsJson;
+    } else if (propsChanged && (initialNodes.length > 0 || initialConnections.length > 0)) {
+      // Props changed after initialization (e.g., AI workflow applied)
+      console.log('🔄 External props changed - syncing to canvas:', { nodes: initialNodes.length, connections: initialConnections.length });
       setWorkflowNodes([...initialNodes]);
       setWorkflowConnections([...initialConnections]);
       syncToReactFlow(initialNodes, initialConnections);
-      isInitialized.current = true;
-    } else if (!isInitialized.current) {
-      console.log('Initializing WorkflowDesigner with empty state');
-      setWorkflowNodes([]);
-      setWorkflowConnections([]);
-      setReactFlowNodes([]);
-      setReactFlowEdges([]);
-      isInitialized.current = true;
+      prevInitialNodesRef.current = currentNodesJson;
+      prevInitialConnectionsRef.current = currentConnectionsJson;
     }
   }, [initialNodes, initialConnections, syncToReactFlow, setReactFlowNodes, setReactFlowEdges]);
 
