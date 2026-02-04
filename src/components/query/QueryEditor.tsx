@@ -176,13 +176,6 @@ export const QueryEditor = forwardRef<QueryEditorRef, QueryEditorProps>(({
         </div>
         <div className="flex items-center gap-2">
           <AIFormulaBuilder
-            availableFields={[
-              { id: 'submission_data', label: 'Submission Data', type: 'jsonb' },
-              { id: 'form_id', label: 'Form ID', type: 'uuid' },
-              { id: 'submitted_at', label: 'Submitted At', type: 'timestamp' },
-              { id: 'submitted_by', label: 'Submitted By', type: 'uuid' },
-              { id: 'approval_status', label: 'Approval Status', type: 'text' }
-            ]}
             onApply={(result) => {
               if (result.query) {
                 onChange(result.query);
@@ -191,6 +184,7 @@ export const QueryEditor = forwardRef<QueryEditorRef, QueryEditorProps>(({
             defaultType="sql_query"
             buttonLabel="AI Query"
             buttonSize="sm"
+            showFormSelector={true}
           />
           
           <Button 

@@ -2,10 +2,13 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { MessageCircle, X, Send, Loader2, Sparkles, Minimize2, Maximize2 } from 'lucide-react';
+import { MessageCircle, X, Send, Loader2, Sparkles, Minimize2, Maximize2, Navigation, FileText, GitBranch, BarChart3, Layout, Mail, Settings, Database } from 'lucide-react';
 import { useFormAI } from '@/hooks/useFormAI';
 import { useForm } from '@/contexts/FormContext';
+import { useProject } from '@/contexts/ProjectContext';
 import { cn } from '@/lib/utils';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
 import ReactMarkdown from 'react-markdown';
 
 interface Message {
@@ -15,26 +18,99 @@ interface Message {
   timestamp: Date;
 }
 
-interface AIChatbotProps {
-  availableWorkflows?: Array<{ id: string; name: string; description?: string }>;
+interface WorkflowInfo {
+  id: string;
+  name: string;
+  description?: string;
 }
 
-export function AIChatbot({ availableWorkflows = [] }: AIChatbotProps) {
+interface ReportInfo {
+  id: string;
+  name: string;
+  description?: string;
+}
+
+export function AIChatbot() {
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 'welcome',
       role: 'assistant',
-      content: "Hi! 👋 I'm your AI assistant. I can help you navigate forms, understand workflows, and answer questions about the system. What would you like to know?",
+      content: `Hi! 👋 I'm your TopsQill ITSM assistant. I can help you:
+
+- **Navigate** to forms, workflows, reports, or settings
+- **Explain** how features work
+- **Guide** you through common tasks
+- **Find** specific forms or workflows
+
+What would you like to do?`,
       timestamp: new Date()
     }
   ]);
   const [input, setInput] = useState('');
+  const [workflows, setWorkflows] = useState<WorkflowInfo[]>([]);
+  const [reports, setReports] = useState<ReportInfo[]>([]);
   const { chatbotAssist, isLoading } = useFormAI();
   const { forms } = useForm();
+  const { currentProject } = useProject();
+  const location = useLocation();
+  const navigate = useNavigate();
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Load workflows and reports when project changes
+  useEffect(() => {
+    const loadData = async () => {
+      if (!currentProject?.id) return;
+
+      try {
+        // Load workflows using raw query to avoid type issues
+        const workflowResponse = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/workflows?project_id=eq.${currentProject.id}&is_active=eq.true&select=id,name,description&order=name`,
+          {
+            headers: {
+              'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY,
+              'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+            }
+          }
+        );
+        
+        if (workflowResponse.ok) {
+          const workflowData = await workflowResponse.json();
+          setWorkflows(workflowData.map((w: any) => ({ 
+            id: w.id, 
+            name: w.name, 
+            description: w.description || undefined 
+          })));
+        }
+
+        // Load reports
+        const reportResponse = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/reports?project_id=eq.${currentProject.id}&select=id,name,description&order=name`,
+          {
+            headers: {
+              'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY,
+              'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+            }
+          }
+        );
+
+        if (reportResponse.ok) {
+          const reportData = await reportResponse.json();
+          setReports(reportData.map((r: any) => ({ 
+            id: r.id, 
+            name: r.name, 
+            description: r.description || undefined 
+          })));
+        }
+      } catch (error) {
+        console.error('Error loading workflows/reports:', error);
+      }
+    };
+
+    loadData();
+  }, [currentProject?.id]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -49,6 +125,18 @@ export function AIChatbot({ availableWorkflows = [] }: AIChatbotProps) {
       inputRef.current.focus();
     }
   }, [isOpen, isMinimized]);
+
+  // Handle navigation links in messages
+  const handleNavigationClick = (path: string) => {
+    navigate(path);
+    // Show a brief confirmation
+    setMessages(prev => [...prev, {
+      id: `nav-${Date.now()}`,
+      role: 'assistant',
+      content: `✓ Navigating to ${path}...`,
+      timestamp: new Date()
+    }]);
+  };
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
@@ -77,7 +165,9 @@ export function AIChatbot({ availableWorkflows = [] }: AIChatbotProps) {
           name: f.name, 
           description: f.description 
         })),
-        availableWorkflows
+        availableWorkflows: workflows,
+        availableReports: reports,
+        currentRoute: location.pathname
       }
     );
 
@@ -112,10 +202,32 @@ export function AIChatbot({ availableWorkflows = [] }: AIChatbotProps) {
       {
         id: 'welcome',
         role: 'assistant',
-        content: "Hi! 👋 I'm your AI assistant. I can help you navigate forms, understand workflows, and answer questions about the system. What would you like to know?",
+        content: `Hi! 👋 I'm your TopsQill ITSM assistant. I can help you:
+
+- **Navigate** to forms, workflows, reports, or settings
+- **Explain** how features work
+- **Guide** you through common tasks
+- **Find** specific forms or workflows
+
+What would you like to do?`,
         timestamp: new Date()
       }
     ]);
+  };
+
+  // Custom link renderer that handles navigation
+  const LinkRenderer = ({ href, children }: { href?: string; children?: React.ReactNode }) => {
+    if (href && href.startsWith('/')) {
+      return (
+        <button
+          onClick={() => handleNavigationClick(href)}
+          className="text-primary underline hover:text-primary/80 cursor-pointer font-medium"
+        >
+          {children}
+        </button>
+      );
+    }
+    return <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary underline">{children}</a>;
   };
 
   // Floating button when closed
@@ -135,7 +247,7 @@ export function AIChatbot({ availableWorkflows = [] }: AIChatbotProps) {
     <div
       className={cn(
         "fixed bottom-6 right-6 bg-background border rounded-lg shadow-xl z-50 flex flex-col transition-all duration-200",
-        isMinimized ? "w-72 h-14" : "w-96 h-[500px]"
+        isMinimized ? "w-72 h-14" : "w-[420px] h-[550px]"
       )}
     >
       {/* Header */}
@@ -199,6 +311,7 @@ export function AIChatbot({ availableWorkflows = [] }: AIChatbotProps) {
                             li: ({ children }) => <li className="mb-1">{children}</li>,
                             strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
                             code: ({ children }) => <code className="bg-muted-foreground/20 px-1 rounded text-xs">{children}</code>,
+                            a: LinkRenderer,
                           }}
                         >
                           {message.content}
@@ -220,6 +333,49 @@ export function AIChatbot({ availableWorkflows = [] }: AIChatbotProps) {
             </div>
           </ScrollArea>
 
+          {/* Quick Navigation */}
+          <div className="px-3 py-2 border-t bg-muted/30">
+            <div className="text-xs text-muted-foreground mb-2">Quick Navigate:</div>
+            <div className="flex gap-1 flex-wrap">
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs h-7 gap-1"
+                onClick={() => navigate('/forms')}
+              >
+                <FileText className="h-3 w-3" />
+                Forms
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs h-7 gap-1"
+                onClick={() => navigate('/workflows')}
+              >
+                <GitBranch className="h-3 w-3" />
+                Workflows
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs h-7 gap-1"
+                onClick={() => navigate('/reports')}
+              >
+                <BarChart3 className="h-3 w-3" />
+                Reports
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs h-7 gap-1"
+                onClick={() => navigate('/query')}
+              >
+                <Database className="h-3 w-3" />
+                Query
+              </Button>
+            </div>
+          </div>
+
           {/* Quick Actions */}
           <div className="px-3 py-2 border-t">
             <div className="flex gap-1 flex-wrap">
@@ -227,9 +383,9 @@ export function AIChatbot({ availableWorkflows = [] }: AIChatbotProps) {
                 variant="outline"
                 size="sm"
                 className="text-xs h-7"
-                onClick={() => setInput("How do I submit a form?")}
+                onClick={() => setInput("How do I create a new form?")}
               >
-                Submit form
+                Create form
               </Button>
               <Button
                 variant="outline"
@@ -243,7 +399,7 @@ export function AIChatbot({ availableWorkflows = [] }: AIChatbotProps) {
                 variant="outline"
                 size="sm"
                 className="text-xs h-7"
-                onClick={() => setInput("How do workflows work?")}
+                onClick={() => setInput("How do I set up a workflow?")}
               >
                 Workflows
               </Button>
@@ -266,7 +422,7 @@ export function AIChatbot({ availableWorkflows = [] }: AIChatbotProps) {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Ask me anything..."
+                placeholder="Ask me anything or say where to go..."
                 disabled={isLoading}
                 className="flex-1"
               />

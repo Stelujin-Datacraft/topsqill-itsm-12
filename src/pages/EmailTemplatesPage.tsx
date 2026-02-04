@@ -1002,6 +1002,7 @@ function EmailTemplateForm({
               context={`Template: ${formData.name}. Subject: ${formData.subject}`}
               buttonLabel="AI Draft"
               buttonSize="sm"
+              outputFormat={contentMode}
             />
             <div className="flex items-center gap-2">
               <Switch

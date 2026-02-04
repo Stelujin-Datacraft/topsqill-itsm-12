@@ -156,6 +156,7 @@ export function useFormAI() {
       contentContext?: string;
       tone?: 'professional' | 'friendly' | 'formal' | 'casual';
       formName?: string;
+      outputFormat?: 'html' | 'text'; // For email body - HTML or plain text
     }
   ): Promise<AIContentResult | null> => {
     return callAI('generate-content', {
@@ -163,7 +164,8 @@ export function useFormAI() {
       userInput,
       contentContext: options?.contentContext,
       tone: options?.tone || 'professional',
-      formName: options?.formName
+      formName: options?.formName,
+      outputFormat: options?.outputFormat || 'text'
     });
   }, [callAI]);
 
@@ -174,13 +176,17 @@ export function useFormAI() {
     options?: {
       availableForms?: Array<{ id: string; name: string; description?: string }>;
       availableWorkflows?: Array<{ id: string; name: string; description?: string }>;
+      availableReports?: Array<{ id: string; name: string; description?: string }>;
+      currentRoute?: string;
     }
   ): Promise<AIChatbotResult | null> => {
     return callAI('chatbot-assist', {
       userInput,
       chatHistory,
       availableForms: options?.availableForms || [],
-      availableWorkflows: options?.availableWorkflows || []
+      availableWorkflows: options?.availableWorkflows || [],
+      availableReports: options?.availableReports || [],
+      currentRoute: options?.currentRoute
     });
   }, [callAI]);
 
@@ -188,12 +194,18 @@ export function useFormAI() {
   const generateFormula = useCallback(async (
     userInput: string,
     formulaType: 'calculated_field' | 'sql_query' | 'filter_expression',
-    availableFields: Array<{ id: string; label: string; type: string }>
+    availableFields: Array<{ id: string; label: string; type: string }>,
+    options?: {
+      selectedFormId?: string;
+      selectedFormName?: string;
+    }
   ): Promise<AIFormulaResult | null> => {
     return callAI('generate-formula', {
       userInput,
       formulaType,
-      availableFields
+      availableFields,
+      selectedFormId: options?.selectedFormId,
+      selectedFormName: options?.selectedFormName
     });
   }, [callAI]);
 

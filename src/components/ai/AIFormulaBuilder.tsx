@@ -1,10 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Sparkles, Loader2, Copy, Check, Code, Database, Filter, AlertTriangle } from 'lucide-react';
 import { useFormAI } from '@/hooks/useFormAI';
+import { useForm } from '@/contexts/FormContext';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import {
   Dialog,
@@ -18,8 +21,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
+interface FormFieldInfo {
+  id: string;
+  label: string;
+  type: string;
+}
+
 interface AIFormulaBuilderProps {
-  availableFields: Array<{ id: string; label: string; type: string }>;
+  availableFields?: Array<{ id: string; label: string; type: string }>;
   onApply: (result: {
     formula?: string;
     query?: string;
@@ -31,19 +40,25 @@ interface AIFormulaBuilderProps {
   buttonLabel?: string;
   buttonVariant?: 'default' | 'outline' | 'ghost' | 'secondary';
   buttonSize?: 'default' | 'sm' | 'lg' | 'icon';
+  showFormSelector?: boolean; // Whether to show form selection dropdown
 }
 
 export function AIFormulaBuilder({
-  availableFields,
+  availableFields: propFields,
   onApply,
   defaultType = 'calculated_field',
   buttonLabel = 'AI Formula',
   buttonVariant = 'outline',
-  buttonSize = 'sm'
+  buttonSize = 'sm',
+  showFormSelector = false
 }: AIFormulaBuilderProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [prompt, setPrompt] = useState('');
   const [formulaType, setFormulaType] = useState<'calculated_field' | 'sql_query' | 'filter_expression'>(defaultType);
+  const [selectedFormId, setSelectedFormId] = useState<string>('');
+  const [selectedFormName, setSelectedFormName] = useState<string>('');
+  const [formFields, setFormFields] = useState<FormFieldInfo[]>([]);
+  const [loadingFields, setLoadingFields] = useState(false);
   const [result, setResult] = useState<{
     formula?: string;
     query?: string;
@@ -60,6 +75,44 @@ export function AIFormulaBuilder({
   } | null>(null);
   const [copied, setCopied] = useState(false);
   const { generateFormula, isLoading } = useFormAI();
+  const { forms } = useForm();
+
+  // Use provided fields or fields from selected form
+  const availableFields = propFields || formFields;
+
+  // Load form fields when a form is selected
+  useEffect(() => {
+    const loadFormFields = async () => {
+      if (!selectedFormId) {
+        setFormFields([]);
+        return;
+      }
+
+      setLoadingFields(true);
+      try {
+        const { data, error } = await supabase
+          .from('form_fields')
+          .select('id, label, field_type')
+          .eq('form_id', selectedFormId)
+          .order('field_order');
+
+        if (error) throw error;
+        
+        setFormFields((data || []).map(f => ({
+          id: f.id,
+          label: f.label,
+          type: f.field_type
+        })));
+      } catch (error) {
+        console.error('Error loading form fields:', error);
+        toast.error('Failed to load form fields');
+      } finally {
+        setLoadingFields(false);
+      }
+    };
+
+    loadFormFields();
+  }, [selectedFormId]);
 
   const typeIcons = {
     calculated_field: <Code className="h-4 w-4" />,
@@ -75,7 +128,7 @@ export function AIFormulaBuilder({
 
   const typePlaceholders = {
     calculated_field: 'e.g., "Calculate the total price by multiplying quantity and unit price"',
-    sql_query: 'e.g., "Show average resolution time grouped by category"',
+    sql_query: 'e.g., "Show all records where status is pending, ordered by date"',
     filter_expression: 'e.g., "Find all high priority items created in the last 7 days"'
   };
 
@@ -85,7 +138,15 @@ export function AIFormulaBuilder({
       return;
     }
 
-    const response = await generateFormula(prompt, formulaType, availableFields);
+    if (formulaType === 'sql_query' && showFormSelector && !selectedFormId) {
+      toast.error('Please select a form first');
+      return;
+    }
+
+    const response = await generateFormula(prompt, formulaType, availableFields, {
+      selectedFormId,
+      selectedFormName
+    });
 
     if (response) {
       setResult(response);
@@ -120,6 +181,13 @@ export function AIFormulaBuilder({
 
   const getFormulaContent = () => {
     return result?.formula || result?.query || result?.expression || '';
+  };
+
+  const handleFormChange = (formId: string) => {
+    setSelectedFormId(formId);
+    const form = forms.find(f => f.id === formId);
+    setSelectedFormName(form?.name || '');
+    setResult(null); // Clear previous results when form changes
   };
 
   return (
@@ -160,10 +228,41 @@ export function AIFormulaBuilder({
             </TabsList>
           </Tabs>
 
+          {/* Form Selection (for SQL queries) */}
+          {(showFormSelector || formulaType === 'sql_query') && (
+            <div className="space-y-2">
+              <Label>Select Form to Query</Label>
+              <Select value={selectedFormId} onValueChange={handleFormChange}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose a form..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {forms.map((form) => (
+                    <SelectItem key={form.id} value={form.id}>
+                      {form.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {formulaType === 'sql_query' && !selectedFormId && (
+                <p className="text-xs text-amber-600">Please select a form before generating a query</p>
+              )}
+            </div>
+          )}
+
           {/* Available Fields */}
           <div className="space-y-2">
-            <Label className="text-muted-foreground">Available fields:</Label>
+            <Label className="text-muted-foreground">
+              {loadingFields ? 'Loading fields...' : `Available fields (${availableFields.length}):`}
+            </Label>
             <div className="flex flex-wrap gap-1 max-h-20 overflow-auto">
+              {availableFields.length === 0 && !loadingFields && (
+                <span className="text-xs text-muted-foreground">
+                  {showFormSelector || formulaType === 'sql_query' 
+                    ? 'Select a form to see available fields' 
+                    : 'No fields available'}
+                </span>
+              )}
               {availableFields.map((field) => (
                 <Badge key={field.id} variant="secondary" className="text-xs">
                   {field.label} ({field.type})
@@ -187,7 +286,7 @@ export function AIFormulaBuilder({
           {/* Generate Button */}
           <Button
             onClick={handleGenerate}
-            disabled={isLoading || !prompt.trim()}
+            disabled={isLoading || !prompt.trim() || (formulaType === 'sql_query' && showFormSelector && !selectedFormId)}
             className="w-full"
           >
             {isLoading ? (
@@ -225,7 +324,7 @@ export function AIFormulaBuilder({
                     </div>
                   </CardHeader>
                   <CardContent className="py-0 pb-3">
-                    <pre className="bg-muted p-3 rounded-md text-sm overflow-x-auto font-mono">
+                    <pre className="bg-muted p-3 rounded-md text-sm overflow-x-auto font-mono whitespace-pre-wrap">
                       {getFormulaContent()}
                     </pre>
                   </CardContent>
