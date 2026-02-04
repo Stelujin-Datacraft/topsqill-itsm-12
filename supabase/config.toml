@@ -35,3 +35,6 @@ verify_jwt = false
 
 [functions.public-api]
 verify_jwt = false
+
+[functions.ai-assistant]
+verify_jwt = false

@@ -5,6 +5,7 @@ import { ParsedFieldReference } from '@/utils/fieldReferenceParser';
 import { RecordTableField } from './form-fields/RecordTableField';
 import { CrossReferenceField } from './form-fields/CrossReferenceField';
 import { ChildCrossReferenceField } from './form-fields/ChildCrossReferenceField';
+import { AIAutoFillInput } from './form-fields/AIAutoFillInput';
 
 import { RatingField } from './form-fields/RatingField';
 import { UserPickerField } from './form-fields/UserPickerField';
@@ -70,6 +71,9 @@ interface FormFieldsRendererProps {
   highlightedFieldId?: string | null;
   formId?: string;
   currentSubmissionId?: string;
+  formName?: string;
+  formDescription?: string;
+  showAIAutoFill?: boolean;
 }
 
 export function FormFieldsRenderer({
@@ -86,6 +90,9 @@ export function FormFieldsRenderer({
   highlightedFieldId,
   formId,
   currentSubmissionId,
+  formName,
+  formDescription,
+  showAIAutoFill = true,
 }: FormFieldsRendererProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1179,8 +1186,29 @@ case 'query-field':
     }
   };
 
+  const handleAIAutoFill = (values: Record<string, any>) => {
+    Object.entries(values).forEach(([fieldId, value]) => {
+      onFieldChange(fieldId, value);
+    });
+  };
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {showAIAutoFill && fields.length > 0 && (
+        <div className="flex items-center gap-2 pb-2 border-b">
+          <AIAutoFillInput
+            formFields={fields}
+            currentValues={formData}
+            formName={formName}
+            formDescription={formDescription}
+            onAutoFill={handleAIAutoFill}
+          />
+          <span className="text-xs text-muted-foreground">
+            Describe your request and AI will fill relevant fields
+          </span>
+        </div>
+      )}
+      
       <div className={`grid gap-6 ${
         columns === 1 ? 'grid-cols-1' : 
         columns === 2 ? 'grid-cols-2' : 
