@@ -666,19 +666,18 @@ Return JSON with format:
         
         systemPrompt = `You are an expert workflow automation designer. Suggest workflow steps and configurations based on goals.
 
-Available node types:
+IMPORTANT: You MUST only use these exact node types (no others):
 - start: Workflow entry point with trigger conditions
-- form-assignment: Assign a form to someone to fill
-- notification: Send email, SMS, or in-app notification
-- condition: Branch based on data (if/else logic)
+- action: Performs automated actions like send email, send notification, assign form, approve/reject, update fields, change status, trigger webhook
+- condition: Branch based on data (if/else logic)  
 - wait: Pause for time or until condition is met
-- action: Perform automated actions (update fields, change status)
-- approval: Require approval from designated person/group
 - end: Workflow completion
+
+DO NOT use these types (they don't exist): form-assignment, notification, approval, email, trigger, branch, decision, delay, pause, stop, finish, complete. Map them to the valid types above.
 
 Trigger types: form_submission, form_completion, form_approval, form_rejection, rule_success, rule_failure, manual, webhook, schedule
 
-Action types: approve_form, disapprove_form, send_email, send_notification, trigger_webhook, change_form_status, set_field_values, log_event`;
+Action types (for action nodes): approve_form, disapprove_form, send_email, send_notification, trigger_webhook, change_form_status, set_field_values, log_event, assign_form`;
 
         userPrompt = `Design a workflow based on this goal:
 

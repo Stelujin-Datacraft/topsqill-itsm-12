@@ -168,6 +168,33 @@ const WorkflowDesignerPage = () => {
     );
   }
 
+  // Valid node types in our system
+  const VALID_NODE_TYPES = ['start', 'action', 'condition', 'wait', 'end'];
+
+  // Map AI-generated node types to valid types
+  const mapNodeType = (aiType: string): string => {
+    const typeMap: Record<string, string> = {
+      'form-assignment': 'action',
+      'notification': 'action',
+      'approval': 'action',
+      'email': 'action',
+      'trigger': 'start',
+      'branch': 'condition',
+      'decision': 'condition',
+      'delay': 'wait',
+      'pause': 'wait',
+      'stop': 'end',
+      'finish': 'end',
+      'complete': 'end',
+    };
+    
+    const normalized = aiType.toLowerCase().replace(/\s+/g, '-');
+    if (VALID_NODE_TYPES.includes(normalized)) {
+      return normalized;
+    }
+    return typeMap[normalized] || 'action'; // Default to action for unknown types
+  };
+
   // Handle AI workflow suggestions
   const handleAIWorkflowApply = (suggestion: {
     name: string;
@@ -179,10 +206,10 @@ const WorkflowDesignerPage = () => {
       connections?: Array<{ to: string; condition?: string }>;
     }>;
   }) => {
-    // Convert AI suggestions to workflow format and update state
+    // Convert AI suggestions to workflow format with valid node types
     const newNodes: WorkflowNode[] = suggestion.nodes.map((node, index) => ({
       id: `ai-node-${index}-${Date.now()}`,
-      type: node.type as any,
+      type: mapNodeType(node.type) as any,
       label: node.label,
       position: { x: 250, y: 100 + index * 120 },
       data: { config: node.config }
