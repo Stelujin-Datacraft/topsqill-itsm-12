@@ -551,15 +551,30 @@ export function FormViewLayoutRenderer({
                     </p>
                   )}
                 </div>
-                <Button
-                  onClick={handlePrint}
-                  variant="outline"
-                  size="sm"
-                  className="flex items-center gap-2 shrink-0"
-                >
-                  <FileDown className="h-4 w-4" />
-                  Save as PDF
-                </Button>
+                <div className="flex items-center gap-2 shrink-0">
+                  {Array.isArray(form.fields) && form.fields.length > 0 && (
+                    <AIAutoFillInput
+                      formFields={form.fields}
+                      currentValues={formData}
+                      formName={form.name}
+                      formDescription={form.description}
+                      onAutoFill={(values) => {
+                        Object.entries(values).forEach(([fieldId, value]) => {
+                          handleFieldChange(fieldId, value);
+                        });
+                      }}
+                    />
+                  )}
+                  <Button
+                    onClick={handlePrint}
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center gap-2"
+                  >
+                    <FileDown className="h-4 w-4" />
+                    Save as PDF
+                  </Button>
+                </div>
               </div>
             </CardTitle>
 
@@ -604,25 +619,6 @@ export function FormViewLayoutRenderer({
               <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-slate-200 dark:via-slate-700 to-transparent"></div>
               <div className="px-16 py-16 bg-white dark:bg-gray-950 min-h-[500px]">
                 <div className="max-w-5xl mx-auto space-y-8">
-                  {/* AI Auto-Fill - Single button at top */}
-                  {Array.isArray(form.fields) && form.fields.length > 0 && (
-                    <div className="flex items-center gap-2 pb-4 border-b border-slate-200 dark:border-slate-700">
-                      <AIAutoFillInput
-                        formFields={form.fields}
-                        currentValues={formData}
-                        formName={form.name}
-                        formDescription={form.description}
-                        onAutoFill={(values) => {
-                          Object.entries(values).forEach(([fieldId, value]) => {
-                            handleFieldChange(fieldId, value);
-                          });
-                        }}
-                      />
-                      <span className="text-xs text-muted-foreground">
-                        Describe your request and AI will fill relevant fields
-                      </span>
-                    </div>
-                  )}
                   {renderFieldsWithSmartLayout()}
                 </div>
               </div>
