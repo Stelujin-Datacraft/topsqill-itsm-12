@@ -13,7 +13,7 @@ import { WorkflowProvider } from "@/contexts/WorkflowContext";
 import { ImpersonationProvider } from "@/contexts/ImpersonationContext";
 import { SessionTimeoutWarning } from "@/components/SessionTimeoutWarning";
 import { ImpersonationBanner } from "@/components/ImpersonationBanner";
-import ProtectedRoute from "@/components/ProtectedRoute";
+import ProtectedLayout from "@/components/ProtectedLayout";
 import PasswordExpiryWarning from "./components/PasswordExpiryWarning";
 import { AIChatbot } from "./components/ai/AIChatbot";
 import { RoutePreloader } from "./components/RoutePreloader";
@@ -114,77 +114,100 @@ const App = () => (
                   <BrowserRouter>
                     <RoutePreloader />
                     <PasswordExpiryWarning />
-                    <Suspense fallback={<RouteLoader />}>
-                      <Routes>
-                        {/* Eagerly loaded routes */}
-                        <Route path="/" element={<Index />} />
-                        <Route path="/auth" element={<Auth />} />
-                        <Route path="/login" element={<Navigate to="/auth" replace />} />
-                        <Route path="*" element={<NotFound />} />
+                    <Routes>
+                      {/* Public routes - eagerly loaded */}
+                      <Route path="/" element={<Index />} />
+                      <Route path="/auth" element={<Auth />} />
+                      <Route path="/login" element={<Navigate to="/auth" replace />} />
+                      
+                      {/* Public routes - lazy loaded */}
+                      <Route path="/docs" element={
+                        <Suspense fallback={<RouteLoader />}>
+                          <Documentation />
+                        </Suspense>
+                      } />
+                      <Route path="/forgot-password" element={
+                        <Suspense fallback={<RouteLoader />}>
+                          <ForgotPassword />
+                        </Suspense>
+                      } />
+                      <Route path="/accept-invitation" element={
+                        <Suspense fallback={<RouteLoader />}>
+                          <AcceptInvitation />
+                        </Suspense>
+                      } />
+                      <Route path="/public/form/:id" element={
+                        <Suspense fallback={<RouteLoader />}>
+                          <PublicFormView />
+                        </Suspense>
+                      } />
+                      <Route path="/change-password" element={
+                        <Suspense fallback={<RouteLoader />}>
+                          <ChangePassword />
+                        </Suspense>
+                      } />
+                      
+                      {/* Protected routes - nested under ProtectedLayout for persistent sidebar */}
+                      <Route element={<ProtectedLayout />}>
+                        {/* Dashboard */}
+                        <Route path="/dashboard" element={<Dashboard />} />
+                        <Route path="/query" element={<QueryPage />} />
                         
-                        {/* Public routes */}
-                        <Route path="/docs" element={<Documentation />} />
-                        <Route path="/forgot-password" element={<ForgotPassword />} />
-                        <Route path="/accept-invitation" element={<AcceptInvitation />} />
-                        <Route path="/public/form/:id" element={<PublicFormView />} />
-                        <Route path="/change-password" element={<ChangePassword />} />
+                        {/* Forms */}
+                        <Route path="/forms" element={<Forms />} />
+                        <Route path="/form-builder" element={<FormBuilder />} />
+                        <Route path="/form-builder/:id" element={<FormBuilder />} />
+                        <Route path="/form-edit/:id" element={<FormEdit />} />
+                        <Route path="/form/:id" element={<FormView />} />
+                        <Route path="/form/:id/submit" element={<FormSubmission />} />
+                        <Route path="/form/:id/preview" element={<FormPreviewPage />} />
+                        <Route path="/form/:id/access" element={<FormAccessManagement />} />
+                        <Route path="/form/:id/settings" element={<FormView />} />
+                        <Route path="/my-submissions" element={<MySubmissions />} />
+                        <Route path="/submission/:submissionId" element={<SubmissionView />} />
+                        <Route path="/form-submissions" element={<FormSubmissionsTable />} />
                         
-                        {/* Protected routes - Dashboard */}
-                        <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-                        <Route path="/query" element={<ProtectedRoute><QueryPage /></ProtectedRoute>} />
+                        {/* Workflows */}
+                        <Route path="/workflows" element={<Workflows />} />
+                        <Route path="/workflow-view/:id" element={<WorkflowViewerPage />} />
+                        <Route path="/workflow-designer/:id" element={<WorkflowDesignerPage />} />
+                        <Route path="/workflow/:id/access" element={<WorkflowAccessManagement />} />
                         
-                        {/* Protected routes - Forms */}
-                        <Route path="/forms" element={<ProtectedRoute><Forms /></ProtectedRoute>} />
-                        <Route path="/form-builder" element={<ProtectedRoute><FormBuilder /></ProtectedRoute>} />
-                        <Route path="/form-builder/:id" element={<ProtectedRoute><FormBuilder /></ProtectedRoute>} />
-                        <Route path="/form-edit/:id" element={<ProtectedRoute><FormEdit /></ProtectedRoute>} />
-                        <Route path="/form/:id" element={<ProtectedRoute><FormView /></ProtectedRoute>} />
-                        <Route path="/form/:id/submit" element={<ProtectedRoute><FormSubmission /></ProtectedRoute>} />
-                        <Route path="/form/:id/preview" element={<ProtectedRoute><FormPreviewPage /></ProtectedRoute>} />
-                        <Route path="/form/:id/access" element={<ProtectedRoute><FormAccessManagement /></ProtectedRoute>} />
-                        <Route path="/form/:id/settings" element={<ProtectedRoute><FormView /></ProtectedRoute>} />
-                        <Route path="/my-submissions" element={<ProtectedRoute><MySubmissions /></ProtectedRoute>} />
-                        <Route path="/submission/:submissionId" element={<ProtectedRoute><SubmissionView /></ProtectedRoute>} />
-                        <Route path="/form-submissions" element={<ProtectedRoute><FormSubmissionsTable /></ProtectedRoute>} />
+                        {/* Reports */}
+                        <Route path="/reports" element={<Reports />} />
+                        <Route path="/dashboard-view/:id" element={<DashboardView />} />
+                        <Route path="/report-editor/:id" element={<ReportEditor />} />
+                        <Route path="/report-view/:id" element={<ReportViewerPage />} />
+                        <Route path="/report/:id/access" element={<ReportAccessManagement />} />
                         
-                        {/* Protected routes - Workflows */}
-                        <Route path="/workflows" element={<ProtectedRoute><Workflows /></ProtectedRoute>} />
-                        <Route path="/workflow-view/:id" element={<ProtectedRoute><WorkflowViewerPage /></ProtectedRoute>} />
-                        <Route path="/workflow-designer/:id" element={<ProtectedRoute><WorkflowDesignerPage /></ProtectedRoute>} />
-                        <Route path="/workflow/:id/access" element={<ProtectedRoute><WorkflowAccessManagement /></ProtectedRoute>} />
-                        
-                        {/* Protected routes - Reports */}
-                        <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
-                        <Route path="/dashboard-view/:id" element={<ProtectedRoute><DashboardView /></ProtectedRoute>} />
-                        <Route path="/report-editor/:id" element={<ProtectedRoute><ReportEditor /></ProtectedRoute>} />
-                        <Route path="/report-view/:id" element={<ProtectedRoute><ReportViewerPage /></ProtectedRoute>} />
-                        <Route path="/report/:id/access" element={<ProtectedRoute><ReportAccessManagement /></ProtectedRoute>} />
-                        
-                        {/* Protected routes - Admin */}
-                        <Route path="/users" element={<ProtectedRoute><Users /></ProtectedRoute>} />
-                        <Route path="/roles-and-access" element={<ProtectedRoute><RolesAndAccess /></ProtectedRoute>} />
-                        <Route path="/projects" element={<ProtectedRoute><Projects /></ProtectedRoute>} />
-                        <Route path="/projects/:projectId/access" element={<ProtectedRoute><ProjectAccessPage /></ProtectedRoute>} />
-                        <Route path="/projects/:projectId/overview" element={<ProtectedRoute><ProjectOverview /></ProtectedRoute>} />
-                        <Route path="/organizations" element={<ProtectedRoute><Organizations /></ProtectedRoute>} />
-                        <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
-                        <Route path="/analytics-dashboard" element={<ProtectedRoute><AnalyticsDashboard /></ProtectedRoute>} />
-                        <Route path="/data-table-builder" element={<ProtectedRoute><DataTableBuilder /></ProtectedRoute>} />
-                        <Route path="/email-config" element={<ProtectedRoute><EmailConfigPage /></ProtectedRoute>} />
-                        <Route path="/email-config/:projectId" element={<ProtectedRoute><EmailConfigPage /></ProtectedRoute>} />
-                        <Route path="/email-templates" element={<ProtectedRoute><EmailTemplatesPage /></ProtectedRoute>} />
-                        <Route path="/email-templates/:templateId" element={<ProtectedRoute><EmailTemplatesPage /></ProtectedRoute>} />
-                        <Route path="/data-feeds" element={<ProtectedRoute><DataFeeds /></ProtectedRoute>} />
-                        <Route path="/profile" element={<ProtectedRoute><UserProfile /></ProtectedRoute>} />
-                        <Route path="/manage-sessions" element={<ProtectedRoute><ManageSessions /></ProtectedRoute>} />
-                        <Route path="/audit-logs" element={<ProtectedRoute><AuditLogs /></ProtectedRoute>} />
-                        <Route path="/form-audit-logs" element={<ProtectedRoute><FormAuditLogs /></ProtectedRoute>} />
-                        <Route path="/investigate-access" element={<ProtectedRoute><InvestigateAccess /></ProtectedRoute>} />
-                        <Route path="/ldap-settings" element={<ProtectedRoute><LdapSettings /></ProtectedRoute>} />
-                        <Route path="/api-integration" element={<ProtectedRoute><ApiIntegration /></ProtectedRoute>} />
-                        <Route path="/api-docs" element={<ProtectedRoute><ApiDocs /></ProtectedRoute>} />
-                      </Routes>
-                    </Suspense>
+                        {/* Admin */}
+                        <Route path="/users" element={<Users />} />
+                        <Route path="/roles-and-access" element={<RolesAndAccess />} />
+                        <Route path="/projects" element={<Projects />} />
+                        <Route path="/projects/:projectId/access" element={<ProjectAccessPage />} />
+                        <Route path="/projects/:projectId/overview" element={<ProjectOverview />} />
+                        <Route path="/organizations" element={<Organizations />} />
+                        <Route path="/settings" element={<SettingsPage />} />
+                        <Route path="/analytics-dashboard" element={<AnalyticsDashboard />} />
+                        <Route path="/data-table-builder" element={<DataTableBuilder />} />
+                        <Route path="/email-config" element={<EmailConfigPage />} />
+                        <Route path="/email-config/:projectId" element={<EmailConfigPage />} />
+                        <Route path="/email-templates" element={<EmailTemplatesPage />} />
+                        <Route path="/email-templates/:templateId" element={<EmailTemplatesPage />} />
+                        <Route path="/data-feeds" element={<DataFeeds />} />
+                        <Route path="/profile" element={<UserProfile />} />
+                        <Route path="/manage-sessions" element={<ManageSessions />} />
+                        <Route path="/audit-logs" element={<AuditLogs />} />
+                        <Route path="/form-audit-logs" element={<FormAuditLogs />} />
+                        <Route path="/investigate-access" element={<InvestigateAccess />} />
+                        <Route path="/ldap-settings" element={<LdapSettings />} />
+                        <Route path="/api-integration" element={<ApiIntegration />} />
+                        <Route path="/api-docs" element={<ApiDocs />} />
+                      </Route>
+                      
+                      {/* Catch-all */}
+                      <Route path="*" element={<NotFound />} />
+                    </Routes>
                     <AIChatbot />
                   </BrowserRouter>
                 </TooltipProvider>
