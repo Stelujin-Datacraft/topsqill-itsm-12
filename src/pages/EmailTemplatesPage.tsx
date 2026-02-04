@@ -9,7 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Trash2, Plus, Mail, Eye, Code, FileText, X } from 'lucide-react';
+import { Trash2, Plus, Mail, Eye, Code, FileText, X, Sparkles } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProject } from '@/contexts/ProjectContext';
@@ -19,6 +19,7 @@ import { EmailPreview } from '@/components/email/EmailPreview';
 import { EmailTagInput } from '@/components/email/EmailTagInput';
 import { EMAIL_TEMPLATES } from '@/data/emailTemplates';
 import DashboardLayout from '@/components/DashboardLayout';
+import { AIContentGenerator } from '@/components/ai/AIContentGenerator';
 
 interface AttachmentConfig {
   type: 'static' | 'dynamic';
@@ -661,13 +662,23 @@ function EmailTemplateForm({
         </div>
         <div>
           <Label htmlFor="subject">Subject</Label>
-          <Input
-            id="subject"
-            value={formData.subject}
-            onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-            placeholder="Welcome to {{company_name}}!"
-            required
-          />
+          <div className="flex gap-2">
+            <Input
+              id="subject"
+              value={formData.subject}
+              onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
+              placeholder="Welcome to {{company_name}}!"
+              required
+              className="flex-1"
+            />
+            <AIContentGenerator
+              contentType="email_subject"
+              onApply={(content) => setFormData({ ...formData, subject: content })}
+              context={formData.name}
+              buttonLabel="AI"
+              buttonSize="sm"
+            />
+          </div>
         </div>
       </div>
 
@@ -982,6 +993,16 @@ function EmailTemplateForm({
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-medium">Email Content</h3>
           <div className="flex items-center gap-2">
+            <AIContentGenerator
+              contentType="email_body"
+              onApply={(content) => {
+                const updatedTemplate = onContentChange(formData, content, contentMode === 'html');
+                setFormData(updatedTemplate);
+              }}
+              context={`Template: ${formData.name}. Subject: ${formData.subject}`}
+              buttonLabel="AI Draft"
+              buttonSize="sm"
+            />
             <div className="flex items-center gap-2">
               <Switch
                 checked={contentMode === 'html'}

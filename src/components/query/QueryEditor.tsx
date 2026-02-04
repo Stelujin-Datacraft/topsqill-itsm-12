@@ -4,10 +4,11 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { parseUserQuery, ParseResult } from '@/services/sqlParser';
-import { Loader2, Play, Copy, Check, Save, ChevronDown, ChevronUp, Wand2, Keyboard } from 'lucide-react';
+import { Loader2, Play, Copy, Check, Save, ChevronDown, ChevronUp, Wand2, Keyboard, Sparkles } from 'lucide-react';
 import { formatSQL } from '@/utils/queryFormatter';
 import { KeyboardShortcutsDialog } from './KeyboardShortcutsDialog';
 import { useToast } from '@/hooks/use-toast';
+import { AIFormulaBuilder } from '@/components/ai/AIFormulaBuilder';
 
 // Import CodeMirror editor
 import CodeMirror from '@uiw/react-codemirror';
@@ -174,6 +175,24 @@ export const QueryEditor = forwardRef<QueryEditorRef, QueryEditorProps>(({
           )}
         </div>
         <div className="flex items-center gap-2">
+          <AIFormulaBuilder
+            availableFields={[
+              { id: 'submission_data', label: 'Submission Data', type: 'jsonb' },
+              { id: 'form_id', label: 'Form ID', type: 'uuid' },
+              { id: 'submitted_at', label: 'Submitted At', type: 'timestamp' },
+              { id: 'submitted_by', label: 'Submitted By', type: 'uuid' },
+              { id: 'approval_status', label: 'Approval Status', type: 'text' }
+            ]}
+            onApply={(result) => {
+              if (result.query) {
+                onChange(result.query);
+              }
+            }}
+            defaultType="sql_query"
+            buttonLabel="AI Query"
+            buttonSize="sm"
+          />
+          
           <Button 
             onClick={handleFormat}
             size="sm"

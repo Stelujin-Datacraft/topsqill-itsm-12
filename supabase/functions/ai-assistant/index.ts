@@ -14,7 +14,7 @@ interface FormField {
 }
 
 interface AIRequest {
-  action: 'auto-fill' | 'suggest-routing' | 'analyze-content' | 'generate-summary' | 'natural-language-query';
+  action: 'auto-fill' | 'suggest-routing' | 'analyze-content' | 'generate-summary' | 'natural-language-query' | 'generate-content' | 'chatbot-assist' | 'generate-formula';
   context: {
     formFields?: FormField[];
     currentValues?: Record<string, any>;
@@ -23,6 +23,17 @@ interface AIRequest {
     formDescription?: string;
     submissionData?: Record<string, any>;
     query?: string;
+    // Content generation
+    contentType?: 'email_subject' | 'email_body' | 'form_description' | 'summary' | 'response';
+    contentContext?: string;
+    tone?: 'professional' | 'friendly' | 'formal' | 'casual';
+    // Chatbot
+    chatHistory?: Array<{ role: 'user' | 'assistant'; content: string }>;
+    availableForms?: Array<{ id: string; name: string; description?: string }>;
+    availableWorkflows?: Array<{ id: string; name: string; description?: string }>;
+    // Formula builder
+    formulaType?: 'calculated_field' | 'sql_query' | 'filter_expression';
+    availableFields?: Array<{ id: string; label: string; type: string }>;
   };
 }
 
@@ -42,6 +53,8 @@ serve(async (req) => {
 
     let systemPrompt = '';
     let userPrompt = '';
+    let maxTokens = 1000;
+    let temperature = 0.3;
 
     switch (action) {
       case 'auto-fill':
@@ -187,6 +200,282 @@ Examples:
 - "priority is high or critical" → operator: "in", value: "high,critical"`;
         break;
 
+      // NEW: Content Generation
+      case 'generate-content':
+        temperature = 0.7; // More creative for content generation
+        maxTokens = 2000;
+        
+        const toneGuide = {
+          professional: 'Use professional, business-appropriate language. Be clear, concise, and respectful.',
+          friendly: 'Use warm, approachable language. Be helpful and personable while remaining professional.',
+          formal: 'Use formal, official language. Maintain a serious and authoritative tone.',
+          casual: 'Use relaxed, conversational language. Be natural and easygoing.'
+        };
+
+        systemPrompt = `You are an expert content writer for business applications. Generate high-quality content based on the user's request.
+
+Tone: ${toneGuide[context.tone || 'professional']}
+
+Rules:
+- Write clear, well-structured content
+- Be concise but comprehensive
+- Use appropriate formatting (paragraphs, bullet points when helpful)
+- Tailor content to the specific type requested
+- Include placeholders like {{variable_name}} for dynamic content where appropriate`;
+
+        switch (context.contentType) {
+          case 'email_subject':
+            userPrompt = `Generate an email subject line.
+
+Context: ${context.contentContext || 'General email'}
+User Request: "${context.userInput}"
+
+Generate 3 subject line options. Return JSON:
+{
+  "subjects": ["Subject 1", "Subject 2", "Subject 3"],
+  "recommended": "The best subject line from the options"
+}`;
+            break;
+          case 'email_body':
+            userPrompt = `Generate an email body.
+
+Context: ${context.contentContext || 'General email'}
+User Request: "${context.userInput}"
+
+Generate a complete email body. You may include placeholders like {{recipient_name}}, {{sender_name}}, etc. for personalization.
+Return the email body as plain text (the response will be used as the email content).`;
+            break;
+          case 'form_description':
+            userPrompt = `Generate a form description.
+
+Form Name: ${context.formName || 'Form'}
+Context: ${context.contentContext || 'General form'}
+User Request: "${context.userInput}"
+
+Generate a clear, helpful description for this form that explains its purpose and provides guidance for users filling it out.`;
+            break;
+          case 'summary':
+            userPrompt = `Generate a summary.
+
+Content to summarize:
+${context.contentContext || context.userInput}
+
+Generate a concise, informative summary highlighting key points.`;
+            break;
+          case 'response':
+            userPrompt = `Draft a response.
+
+Original message/context: ${context.contentContext || 'N/A'}
+User Request: "${context.userInput}"
+
+Generate an appropriate response that addresses the context provided.`;
+            break;
+          default:
+            userPrompt = `Generate content based on:
+
+Context: ${context.contentContext || 'General content'}
+Request: "${context.userInput}"
+
+Generate appropriate content for this request.`;
+        }
+        break;
+
+      // NEW: Chatbot Assistant
+      case 'chatbot-assist':
+        temperature = 0.5;
+        maxTokens = 1500;
+        
+        systemPrompt = `You are a helpful AI assistant for a form and workflow management system. Help users navigate and understand how to use forms, workflows, and features.
+
+Your capabilities:
+- Explain how to submit forms
+- Guide users through workflow processes
+- Answer questions about form fields and requirements
+- Provide step-by-step instructions
+- Suggest relevant forms or workflows based on user needs
+
+Available Forms:
+${JSON.stringify(context.availableForms || [], null, 2)}
+
+Available Workflows:
+${JSON.stringify(context.availableWorkflows || [], null, 2)}
+
+Rules:
+- Be helpful, clear, and concise
+- If you don't know something, admit it and suggest alternatives
+- Provide actionable guidance when possible
+- Reference specific forms/workflows by name when relevant
+- Use markdown formatting for clarity (lists, bold, etc.)`;
+
+        // Build conversation history
+        const chatMessages = context.chatHistory?.map(msg => ({
+          role: msg.role,
+          content: msg.content
+        })) || [];
+        
+        userPrompt = context.userInput || '';
+        
+        // For chatbot, we'll include history in the request
+        const chatResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'google/gemini-3-flash-preview',
+            messages: [
+              { role: 'system', content: systemPrompt },
+              ...chatMessages,
+              { role: 'user', content: userPrompt }
+            ],
+            temperature,
+            max_tokens: maxTokens,
+          }),
+        });
+
+        if (!chatResponse.ok) {
+          const errorText = await chatResponse.text();
+          console.error('AI Gateway error:', chatResponse.status, errorText);
+          
+          if (chatResponse.status === 429) {
+            return new Response(JSON.stringify({ 
+              success: false, 
+              error: 'AI rate limit exceeded. Please try again in a few moments.' 
+            }), {
+              status: 429,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+          
+          if (chatResponse.status === 402) {
+            return new Response(JSON.stringify({ 
+              success: false, 
+              error: 'AI credits exhausted. Please add credits to your Lovable workspace.' 
+            }), {
+              status: 402,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+          
+          throw new Error(`AI Gateway error: ${chatResponse.status}`);
+        }
+
+        const chatData = await chatResponse.json();
+        const chatContent = chatData.choices[0]?.message?.content;
+
+        return new Response(JSON.stringify({ 
+          success: true, 
+          result: { message: chatContent } 
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+
+      // NEW: Formula/Query Builder
+      case 'generate-formula':
+        temperature = 0.2; // Lower temperature for precise formulas
+        maxTokens = 1500;
+        
+        systemPrompt = `You are an expert at converting natural language into formulas, SQL queries, and filter expressions.
+
+Available Fields:
+${JSON.stringify(context.availableFields || [], null, 2)}
+
+Rules:
+- Generate syntactically correct expressions
+- Use only the fields provided
+- Explain what the formula does
+- Provide alternatives when applicable
+- For SQL, use standard SQL syntax compatible with PostgreSQL
+- For calculated fields, use JavaScript-like expressions
+- For filters, use the filter expression format`;
+
+        switch (context.formulaType) {
+          case 'calculated_field':
+            userPrompt = `Convert this to a calculated field formula:
+
+Request: "${context.userInput}"
+
+Available fields (use these exact IDs in your formula):
+${JSON.stringify(context.availableFields?.map(f => ({ id: f.id, label: f.label, type: f.type })), null, 2)}
+
+Return JSON:
+{
+  "formula": "the formula expression using field IDs",
+  "explanation": "what this formula calculates",
+  "fieldReferences": ["field_id_1", "field_id_2"],
+  "resultType": "number|string|boolean|date",
+  "examples": [
+    { "inputs": {"field_id": "value"}, "output": "result" }
+  ]
+}
+
+Formula syntax:
+- Field references: {field_id}
+- Arithmetic: +, -, *, /, %
+- Comparison: ==, !=, >, <, >=, <=
+- Logical: &&, ||, !
+- Functions: SUM(), AVG(), COUNT(), MAX(), MIN(), IF(condition, then, else), CONCAT(), DATEDIFF()
+- String: UPPER(), LOWER(), TRIM(), SUBSTRING()`;
+            break;
+            
+          case 'sql_query':
+            userPrompt = `Convert this to a PostgreSQL query:
+
+Request: "${context.userInput}"
+
+Available fields/columns:
+${JSON.stringify(context.availableFields?.map(f => ({ id: f.id, label: f.label, type: f.type })), null, 2)}
+
+Table: form_submissions (with submission_data JSONB column containing the fields)
+
+Return JSON:
+{
+  "query": "the SQL query",
+  "explanation": "what this query does",
+  "parameters": ["any parameters that should be bound"],
+  "warnings": ["any potential issues or considerations"]
+}
+
+Note: Fields are stored in submission_data JSONB column. Access them like: submission_data->>'field_id'`;
+            break;
+            
+          case 'filter_expression':
+            userPrompt = `Convert this to a filter expression:
+
+Request: "${context.userInput}"
+
+Available fields:
+${JSON.stringify(context.availableFields?.map(f => ({ id: f.id, label: f.label, type: f.type })), null, 2)}
+
+Return JSON:
+{
+  "expression": "the filter expression",
+  "conditions": [
+    { "fieldId": "field_id", "operator": "equals|contains|greater_than|less_than|between|in", "value": "value" }
+  ],
+  "logic": "AND|OR",
+  "explanation": "what this filter does"
+}`;
+            break;
+            
+          default:
+            userPrompt = `Convert this natural language to a formula/expression:
+
+Request: "${context.userInput}"
+
+Available fields:
+${JSON.stringify(context.availableFields?.map(f => ({ id: f.id, label: f.label, type: f.type })), null, 2)}
+
+Return JSON:
+{
+  "formula": "the formula or expression",
+  "type": "calculated_field|sql_query|filter_expression",
+  "explanation": "what this does"
+}`;
+        }
+        break;
+
       default:
         throw new Error(`Unknown action: ${action}`);
     }
@@ -205,8 +494,8 @@ Examples:
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
         ],
-        temperature: 0.3,
-        max_tokens: 1000,
+        temperature,
+        max_tokens: maxTokens,
       }),
     });
 
