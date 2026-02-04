@@ -14,7 +14,19 @@ import { AlertCircle, LogIn, ArrowLeft, Home, HelpCircle, Info } from 'lucide-re
 import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { FormLoadingView } from '@/components/FormLoadingView';
-import { PublicHeader } from '@/components/PublicHeader';
+
+const FormBackButton = () => (
+  <div className="bg-background border-b">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+      <Link to="/forms">
+        <Button variant="ghost" size="sm" className="gap-2">
+          <ArrowLeft className="h-4 w-4" />
+          Back to Forms
+        </Button>
+      </Link>
+    </div>
+  </div>
+);
 
 const FormView = () => {
   const { id } = useParams<{ id: string }>();
@@ -210,7 +222,7 @@ const FormView = () => {
   if (submissionResult) {
     return (
       <div className="min-h-screen bg-background">
-        <PublicHeader /> 
+        <FormBackButton />
         <div className="min-h-screen bg-gray-50 py-12 px-4">
           <div className="max-w-7xl mx-auto">
             <FormSubmissionSuccess 
@@ -240,7 +252,7 @@ const FormView = () => {
 
     return (
       <div className="min-h-screen bg-background">
-        <PublicHeader /> 
+        <FormBackButton />
         <div className="min-h-screen bg-gray-50 py-12 px-4">
           <div className="max-w-7xl mx-auto">
             <FormViewLayoutRenderer 
@@ -386,7 +398,7 @@ const FormView = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <PublicHeader /> 
+      <FormBackButton />
       <div className="min-h-screen bg-gray-50 py-12 px-4">
         <div className="max-w-7xl mx-auto">
           <FormViewLayoutRenderer 
