@@ -39,9 +39,10 @@ export function useFormSubmissionData(formId?: string) {
 
     try {
       setLoading(true);
+      // Optimized: Select only columns actually used in the interface
       const { data, error } = await supabase
         .from('form_submissions')
-        .select('*')
+        .select('id, form_id, submitted_by, submitted_at, submission_data, approval_status, approved_by, approval_timestamp')
         .eq('form_id', selectedFormId)
         .order('submitted_at', { ascending: false });
 

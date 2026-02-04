@@ -32,6 +32,7 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { DeleteLogsDialog } from '@/components/shared/DeleteLogsDialog';
 
+// Optimized: Only include fields we actually display in the UI
 interface AuditLog {
   id: string;
   user_id: string | null;
@@ -39,8 +40,6 @@ interface AuditLog {
   event_category: string;
   description: string | null;
   ip_address: string | null;
-  user_agent: string | null;
-  metadata: unknown;
   created_at: string;
 }
 
@@ -69,9 +68,10 @@ const AuditLogs: React.FC = () => {
 
     setLoading(true);
     try {
+      // Optimized: Select only required columns instead of *
       let query = supabase
         .from('audit_logs')
-        .select('*', { count: 'exact' })
+        .select('id, user_id, event_type, event_category, description, ip_address, created_at', { count: 'exact' })
         .order('created_at', { ascending: false })
         .range(page * pageSize, (page + 1) * pageSize - 1);
 
