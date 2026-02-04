@@ -1,4 +1,4 @@
-
+import React, { memo } from 'react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -33,28 +33,34 @@ interface UserTableRowProps {
   onDelete: (userId: string, userName: string) => void;
 }
 
-const UserTableRow = ({ user, onRoleChange, onDelete }: UserTableRowProps) => {
-  const getInitials = (firstName?: string, lastName?: string, email?: string) => {
-    if (firstName && lastName) {
-      return `${firstName[0]}${lastName[0]}`.toUpperCase();
-    }
-    if (firstName) {
-      return firstName[0].toUpperCase();
-    }
-    if (email) {
-      return email[0].toUpperCase();
-    }
-    return 'U';
-  };
+// Helper functions moved outside component to prevent recreation
+const getInitials = (firstName?: string, lastName?: string, email?: string) => {
+  if (firstName && lastName) {
+    return `${firstName[0]}${lastName[0]}`.toUpperCase();
+  }
+  if (firstName) {
+    return firstName[0].toUpperCase();
+  }
+  if (email) {
+    return email[0].toUpperCase();
+  }
+  return 'U';
+};
 
-  const getStatusBadgeVariant = (status: string) => {
-    switch (status) {
-      case 'active': return 'default';
-      case 'pending': return 'secondary';
-      case 'inactive': return 'destructive';
-      default: return 'secondary';
-    }
-  };
+const getStatusBadgeVariant = (status: string) => {
+  switch (status) {
+    case 'active': return 'default';
+    case 'pending': return 'secondary';
+    case 'inactive': return 'destructive';
+    default: return 'secondary';
+  }
+};
+
+// Memoized component prevents re-renders when parent list changes but this user data is unchanged
+const UserTableRow = memo(function UserTableRow({ user, onRoleChange, onDelete }: UserTableRowProps) {
+  const displayName = user.first_name && user.last_name 
+    ? `${user.first_name} ${user.last_name}` 
+    : user.email.split('@')[0];
 
   return (
     <TableRow>
@@ -65,12 +71,7 @@ const UserTableRow = ({ user, onRoleChange, onDelete }: UserTableRowProps) => {
               {getInitials(user.first_name, user.last_name, user.email)}
             </AvatarFallback>
           </Avatar>
-          <span className="font-medium">
-            {user.first_name && user.last_name 
-              ? `${user.first_name} ${user.last_name}` 
-              : user.email.split('@')[0]
-            }
-          </span>
+          <span className="font-medium">{displayName}</span>
         </div>
       </TableCell>
       <TableCell>{user.email}</TableCell>
@@ -109,14 +110,14 @@ const UserTableRow = ({ user, onRoleChange, onDelete }: UserTableRowProps) => {
               <AlertDialogHeader>
                 <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  This will permanently delete {user.first_name && user.last_name ? `${user.first_name} ${user.last_name}` : user.email} from the organization.
+                  This will permanently delete {displayName} from the organization.
                   This action cannot be undone.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
                 <AlertDialogAction 
-                  onClick={() => onDelete(user.id, user.first_name && user.last_name ? `${user.first_name} ${user.last_name}` : user.email)}
+                  onClick={() => onDelete(user.id, displayName)}
                   className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                 >
                   Delete
@@ -128,6 +129,6 @@ const UserTableRow = ({ user, onRoleChange, onDelete }: UserTableRowProps) => {
       </TableCell>
     </TableRow>
   );
-};
+});
 
 export default UserTableRow;

@@ -1,17 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Report } from '@/types/reports';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { FileText, Calendar, Eye, Edit, Trash2, Copy } from 'lucide-react';
-import { ShareLinkButton } from '@/components/shared/ShareLinkButton';
-import { format } from 'date-fns';
+import { FileText } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { useToast } from '@/hooks/use-toast';
 import { useUnifiedAccessControl } from '@/hooks/useUnifiedAccessControl';
 import { supabase } from '@/integrations/supabase/client';
+import { ReportCard } from './ReportCard';
 
 export interface ReportsListProps {
   reports: Report[];
@@ -161,77 +158,17 @@ export function ReportsList({
             const deleteButtonState = getButtonState('reports', 'delete', report.id);
             
             return (
-              <Card key={report.id} className="hover:shadow-md transition-shadow">
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-1">
-                      <CardTitle className="text-lg">{report.name}</CardTitle>
-                      {report.description && <CardDescription>{report.description}</CardDescription>}
-                    </div>
-                    <div className="flex space-x-1">
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        onClick={() => handleCopyId(report.id, report.name)} 
-                        title="Copy Report ID"
-                      >
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                      <ShareLinkButton 
-                        assetType="report" 
-                        assetId={report.id} 
-                        assetName={report.name} 
-                      />
-                      <Button variant="ghost" size="sm" onClick={() => onView(report)} title="View Report">
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              onClick={() => handleEditClick(report)} 
-                              disabled={editButtonState.disabled}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>{editButtonState.disabled ? editButtonState.tooltip : "Edit Report"}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              onClick={() => handleDeleteClick(report)} 
-                              disabled={deleteButtonState.disabled || loading}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>{deleteButtonState.disabled ? deleteButtonState.tooltip : "Delete Report"}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center justify-between text-sm text-muted-foreground">
-                    <div className="flex items-center space-x-1">
-                      <Calendar className="h-3 w-3" />
-                      <span>{format(new Date(report.created_at), 'MMM d, yyyy')}</span>
-                    </div>
-                    {report.is_public && <Badge variant="secondary">Public</Badge>}
-                  </div>
-                </CardContent>
-              </Card>
+              <ReportCard
+                key={report.id}
+                report={report}
+                editButtonState={editButtonState}
+                deleteButtonState={deleteButtonState}
+                loading={loading}
+                onView={onView}
+                onEdit={handleEditClick}
+                onDelete={handleDeleteClick}
+                onCopyId={handleCopyId}
+              />
             );
           })}
         </div>
