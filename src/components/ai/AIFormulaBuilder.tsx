@@ -4,7 +4,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Sparkles, Loader2, Copy, Check, Code, Database, Filter, AlertTriangle } from 'lucide-react';
+import { Sparkles, Loader2, Copy, Check, Code, Database, AlertTriangle } from 'lucide-react';
 import { useFormAI } from '@/hooks/useFormAI';
 import { useForm } from '@/contexts/FormContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -17,7 +17,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -32,29 +31,30 @@ interface AIFormulaBuilderProps {
   onApply: (result: {
     formula?: string;
     query?: string;
-    expression?: string;
     type: string;
     explanation: string;
   }) => void;
-  defaultType?: 'calculated_field' | 'sql_query' | 'filter_expression';
+  /** 
+   * The type of formula to generate:
+   * - 'calculated_field': For form field calculations (used in Form Builder)
+   * - 'sql_query': For report queries (used in Query Builder)
+   */
+  formulaType: 'calculated_field' | 'sql_query';
   buttonLabel?: string;
   buttonVariant?: 'default' | 'outline' | 'ghost' | 'secondary';
   buttonSize?: 'default' | 'sm' | 'lg' | 'icon';
-  showFormSelector?: boolean; // Whether to show form selection dropdown
 }
 
 export function AIFormulaBuilder({
   availableFields: propFields,
   onApply,
-  defaultType = 'calculated_field',
-  buttonLabel = 'AI Formula',
+  formulaType,
+  buttonLabel,
   buttonVariant = 'outline',
   buttonSize = 'sm',
-  showFormSelector = false
 }: AIFormulaBuilderProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [prompt, setPrompt] = useState('');
-  const [formulaType, setFormulaType] = useState<'calculated_field' | 'sql_query' | 'filter_expression'>(defaultType);
   const [selectedFormId, setSelectedFormId] = useState<string>('');
   const [selectedFormName, setSelectedFormName] = useState<string>('');
   const [formFields, setFormFields] = useState<FormFieldInfo[]>([]);
@@ -62,14 +62,11 @@ export function AIFormulaBuilder({
   const [result, setResult] = useState<{
     formula?: string;
     query?: string;
-    expression?: string;
     explanation: string;
     type?: string;
     fieldReferences?: string[];
     resultType?: string;
     examples?: Array<{ inputs: Record<string, any>; output: string }>;
-    conditions?: Array<{ fieldId: string; operator: string; value: string }>;
-    logic?: string;
     parameters?: string[];
     warnings?: string[];
   } | null>(null);
@@ -77,11 +74,38 @@ export function AIFormulaBuilder({
   const { generateFormula, isLoading } = useFormAI();
   const { forms } = useForm();
 
+  // Determine if this is SQL query mode (needs form selector)
+  const isSqlMode = formulaType === 'sql_query';
+  
   // Use provided fields or fields from selected form
   const availableFields = propFields || formFields;
 
-  // Load form fields when a form is selected
+  // Determine labels based on type
+  const config = {
+    calculated_field: {
+      icon: <Code className="h-4 w-4" />,
+      title: 'AI Calculated Field',
+      description: 'Describe the calculation you want in plain English.',
+      buttonLabel: buttonLabel || 'AI Formula',
+      placeholder: 'e.g., "Calculate the total price by multiplying quantity and unit price"',
+      generateLabel: 'Generate Formula',
+      resultLabel: 'Generated Formula'
+    },
+    sql_query: {
+      icon: <Database className="h-4 w-4" />,
+      title: 'AI Query Builder',
+      description: 'Describe what data you want to retrieve or aggregate.',
+      buttonLabel: buttonLabel || 'AI Query',
+      placeholder: 'e.g., "Show all records where status is pending, ordered by date"',
+      generateLabel: 'Generate Query',
+      resultLabel: 'Generated Query'
+    }
+  }[formulaType];
+
+  // Load form fields when a form is selected (SQL mode only)
   useEffect(() => {
+    if (!isSqlMode) return;
+    
     const loadFormFields = async () => {
       if (!selectedFormId) {
         setFormFields([]);
@@ -112,25 +136,7 @@ export function AIFormulaBuilder({
     };
 
     loadFormFields();
-  }, [selectedFormId]);
-
-  const typeIcons = {
-    calculated_field: <Code className="h-4 w-4" />,
-    sql_query: <Database className="h-4 w-4" />,
-    filter_expression: <Filter className="h-4 w-4" />
-  };
-
-  const typeLabels = {
-    calculated_field: 'Calculated Field',
-    sql_query: 'SQL Query',
-    filter_expression: 'Filter Expression'
-  };
-
-  const typePlaceholders = {
-    calculated_field: 'e.g., "Calculate the total price by multiplying quantity and unit price"',
-    sql_query: 'e.g., "Show all records where status is pending, ordered by date"',
-    filter_expression: 'e.g., "Find all high priority items created in the last 7 days"'
-  };
+  }, [selectedFormId, isSqlMode]);
 
   const handleGenerate = async () => {
     if (!prompt.trim()) {
@@ -138,7 +144,7 @@ export function AIFormulaBuilder({
       return;
     }
 
-    if (formulaType === 'sql_query' && showFormSelector && !selectedFormId) {
+    if (isSqlMode && !selectedFormId) {
       toast.error('Please select a form first');
       return;
     }
@@ -154,7 +160,7 @@ export function AIFormulaBuilder({
   };
 
   const handleCopy = async () => {
-    const content = result?.formula || result?.query || result?.expression;
+    const content = result?.formula || result?.query;
     if (content) {
       await navigator.clipboard.writeText(content);
       setCopied(true);
@@ -168,26 +174,25 @@ export function AIFormulaBuilder({
       onApply({
         formula: result.formula,
         query: result.query,
-        expression: result.expression,
         type: formulaType,
         explanation: result.explanation
       });
       setIsOpen(false);
       setResult(null);
       setPrompt('');
-      toast.success('Formula applied');
+      toast.success(isSqlMode ? 'Query applied' : 'Formula applied');
     }
   };
 
   const getFormulaContent = () => {
-    return result?.formula || result?.query || result?.expression || '';
+    return result?.formula || result?.query || '';
   };
 
   const handleFormChange = (formId: string) => {
     setSelectedFormId(formId);
     const form = forms.find(f => f.id === formId);
     setSelectedFormName(form?.name || '');
-    setResult(null); // Clear previous results when form changes
+    setResult(null);
   };
 
   return (
@@ -195,41 +200,23 @@ export function AIFormulaBuilder({
       <DialogTrigger asChild>
         <Button variant={buttonVariant} size={buttonSize} className="gap-2">
           <Sparkles className="h-4 w-4" />
-          {buttonLabel}
+          {config.buttonLabel}
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-3xl max-h-[90vh]">
+      <DialogContent className="max-w-2xl max-h-[85vh]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-primary" />
-            AI Formula Builder
+            {config.title}
           </DialogTitle>
           <DialogDescription>
-            Describe what you want to calculate or query in plain English.
+            {config.description}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Formula Type Selection */}
-          <Tabs value={formulaType} onValueChange={(v) => setFormulaType(v as typeof formulaType)}>
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="calculated_field" className="gap-2">
-                <Code className="h-4 w-4" />
-                Calculated Field
-              </TabsTrigger>
-              <TabsTrigger value="sql_query" className="gap-2">
-                <Database className="h-4 w-4" />
-                SQL Query
-              </TabsTrigger>
-              <TabsTrigger value="filter_expression" className="gap-2">
-                <Filter className="h-4 w-4" />
-                Filter
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-
-          {/* Form Selection (for SQL queries) */}
-          {(showFormSelector || formulaType === 'sql_query') && (
+          {/* Form Selection (SQL mode only) */}
+          {isSqlMode && (
             <div className="space-y-2">
               <Label>Select Form to Query</Label>
               <Select value={selectedFormId} onValueChange={handleFormChange}>
@@ -244,8 +231,11 @@ export function AIFormulaBuilder({
                   ))}
                 </SelectContent>
               </Select>
-              {formulaType === 'sql_query' && !selectedFormId && (
-                <p className="text-xs text-amber-600">Please select a form before generating a query</p>
+              {!selectedFormId && (
+                <p className="text-xs text-amber-600 flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3" />
+                  Select a form to provide field context for the AI
+                </p>
               )}
             </div>
           )}
@@ -258,9 +248,7 @@ export function AIFormulaBuilder({
             <div className="flex flex-wrap gap-1 max-h-20 overflow-auto">
               {availableFields.length === 0 && !loadingFields && (
                 <span className="text-xs text-muted-foreground">
-                  {showFormSelector || formulaType === 'sql_query' 
-                    ? 'Select a form to see available fields' 
-                    : 'No fields available'}
+                  {isSqlMode ? 'Select a form to see available fields' : 'No fields available'}
                 </span>
               )}
               {availableFields.map((field) => (
@@ -275,7 +263,7 @@ export function AIFormulaBuilder({
           <div className="space-y-2">
             <Label>Describe what you want:</Label>
             <Textarea
-              placeholder={typePlaceholders[formulaType]}
+              placeholder={config.placeholder}
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               rows={3}
@@ -286,7 +274,7 @@ export function AIFormulaBuilder({
           {/* Generate Button */}
           <Button
             onClick={handleGenerate}
-            disabled={isLoading || !prompt.trim() || (formulaType === 'sql_query' && showFormSelector && !selectedFormId)}
+            disabled={isLoading || !prompt.trim() || (isSqlMode && !selectedFormId)}
             className="w-full"
           >
             {isLoading ? (
@@ -297,29 +285,25 @@ export function AIFormulaBuilder({
             ) : (
               <>
                 <Sparkles className="h-4 w-4 mr-2" />
-                Generate {typeLabels[formulaType]}
+                {config.generateLabel}
               </>
             )}
           </Button>
 
           {/* Result */}
           {result && (
-            <ScrollArea className="max-h-[300px]">
+            <ScrollArea className="max-h-[250px]">
               <div className="space-y-4">
-                {/* Formula/Query/Expression */}
+                {/* Formula/Query */}
                 <Card>
                   <CardHeader className="py-3">
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-sm flex items-center gap-2">
-                        {typeIcons[formulaType]}
-                        Generated {typeLabels[formulaType]}
+                        {config.icon}
+                        {config.resultLabel}
                       </CardTitle>
                       <Button variant="ghost" size="sm" onClick={handleCopy}>
-                        {copied ? (
-                          <Check className="h-4 w-4" />
-                        ) : (
-                          <Copy className="h-4 w-4" />
-                        )}
+                        {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                       </Button>
                     </div>
                   </CardHeader>
@@ -357,7 +341,7 @@ export function AIFormulaBuilder({
                   </div>
                 )}
 
-                {/* Result Type */}
+                {/* Result Type (for calculated fields) */}
                 {result.resultType && (
                   <div className="flex items-center gap-2">
                     <Label className="text-sm">Result Type:</Label>
@@ -380,29 +364,6 @@ export function AIFormulaBuilder({
                             <span className="font-medium">{example.output}</span>
                           </div>
                         ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-
-                {/* Conditions (for filter expressions) */}
-                {result.conditions && result.conditions.length > 0 && (
-                  <Card>
-                    <CardHeader className="py-3">
-                      <CardTitle className="text-sm">Filter Conditions ({result.logic})</CardTitle>
-                    </CardHeader>
-                    <CardContent className="py-0 pb-3">
-                      <div className="space-y-2">
-                        {result.conditions.map((condition, index) => {
-                          const field = availableFields.find(f => f.id === condition.fieldId);
-                          return (
-                            <div key={index} className="text-sm flex items-center gap-2">
-                              <Badge variant="outline">{field?.label || condition.fieldId}</Badge>
-                              <span className="text-muted-foreground">{condition.operator}</span>
-                              <Badge variant="secondary">{condition.value}</Badge>
-                            </div>
-                          );
-                        })}
                       </div>
                     </CardContent>
                   </Card>
@@ -437,7 +398,7 @@ export function AIFormulaBuilder({
                 Cancel
               </Button>
               <Button onClick={handleApply}>
-                Apply Formula
+                Apply {isSqlMode ? 'Query' : 'Formula'}
               </Button>
             </div>
           )}

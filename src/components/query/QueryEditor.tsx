@@ -181,10 +181,9 @@ export const QueryEditor = forwardRef<QueryEditorRef, QueryEditorProps>(({
                 onChange(result.query);
               }
             }}
-            defaultType="sql_query"
+            formulaType="sql_query"
             buttonLabel="AI Query"
             buttonSize="sm"
-            showFormSelector={true}
           />
           
           <Button 
