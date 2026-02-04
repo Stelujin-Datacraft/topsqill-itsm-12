@@ -57,30 +57,29 @@ export function useGroups() {
 
       if (error) throw error;
 
-      // Get member counts for each group
-      const enrichedGroups = await Promise.all(
-        (groupsData || []).map(async (group) => {
-          try {
-            const { count } = await supabase
-              .from('group_memberships')
-              .select('*', { count: 'exact', head: true })
-              .eq('group_id', group.id);
+      // Batch fetch all member counts in a single query (N+1 optimization)
+      const groupIds = (groupsData || []).map(g => g.id);
+      let memberCountMap = new Map<string, number>();
+      
+      if (groupIds.length > 0) {
+        const { data: memberships } = await supabase
+          .from('group_memberships')
+          .select('group_id')
+          .in('group_id', groupIds);
+        
+        // Count memberships per group
+        for (const membership of memberships || []) {
+          const count = memberCountMap.get(membership.group_id) || 0;
+          memberCountMap.set(membership.group_id, count + 1);
+        }
+      }
 
-            return {
-              ...group,
-              role_name: group.roles?.name,
-              member_count: count || 0
-            };
-          } catch (memberError) {
-            console.error('Error fetching member count for group:', group.id, memberError);
-            return {
-              ...group,
-              role_name: group.roles?.name,
-              member_count: 0
-            };
-          }
-        })
-      );
+      // Enrich groups with pre-fetched member counts
+      const enrichedGroups = (groupsData || []).map((group) => ({
+        ...group,
+        role_name: group.roles?.name,
+        member_count: memberCountMap.get(group.id) || 0
+      }));
 
       setGroups(enrichedGroups);
     } catch (error) {
