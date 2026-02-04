@@ -246,15 +246,20 @@ function WorkflowDesignerInner({ workflowId, projectId, initialNodes, initialCon
   }, [setReactFlowNodes, setReactFlowEdges]);
 
   // Track previous props to detect external updates (e.g., from AI Apply)
-  const prevInitialNodesRef = useRef<WorkflowNode[]>([]);
-  const prevInitialConnectionsRef = useRef<WorkflowConnection[]>([]);
+  // Use null to distinguish "never set" from "empty array"
+  const prevInitialNodesRef = useRef<string | null>(null);
+  const prevInitialConnectionsRef = useRef<string | null>(null);
 
   // Initialize from props and sync when props change externally
   useEffect(() => {
-    const nodesChanged = JSON.stringify(initialNodes) !== JSON.stringify(prevInitialNodesRef.current);
-    const connectionsChanged = JSON.stringify(initialConnections) !== JSON.stringify(prevInitialConnectionsRef.current);
+    const currentNodesJson = JSON.stringify(initialNodes);
+    const currentConnectionsJson = JSON.stringify(initialConnections);
     
-    if (!isInitialized.current) {
+    const isFirstRun = prevInitialNodesRef.current === null;
+    const nodesChanged = currentNodesJson !== prevInitialNodesRef.current;
+    const connectionsChanged = currentConnectionsJson !== prevInitialConnectionsRef.current;
+    
+    if (isFirstRun) {
       // First initialization
       if (initialNodes.length > 0 || initialConnections.length > 0) {
         console.log('Initializing WorkflowDesigner with data:', { nodes: initialNodes.length, connections: initialConnections.length });
@@ -277,9 +282,9 @@ function WorkflowDesignerInner({ workflowId, projectId, initialNodes, initialCon
       syncToReactFlow(initialNodes, initialConnections);
     }
     
-    // Update refs for next comparison
-    prevInitialNodesRef.current = initialNodes;
-    prevInitialConnectionsRef.current = initialConnections;
+    // Update refs for next comparison (store as JSON string for reliable comparison)
+    prevInitialNodesRef.current = currentNodesJson;
+    prevInitialConnectionsRef.current = currentConnectionsJson;
   }, [initialNodes, initialConnections, syncToReactFlow, setReactFlowNodes, setReactFlowEdges]);
 
   // Track last added node position for sequential placement
