@@ -664,60 +664,20 @@ Return JSON with format:
         temperature = 0.3;
         maxTokens = 2500;
         
-        systemPrompt = `You are an expert workflow automation designer. Suggest workflow steps with COMPLETE configurations.
+        systemPrompt = `You are an expert workflow automation designer. Suggest workflow steps and configurations based on goals.
 
-IMPORTANT: You MUST only use these exact node types:
-- start: Workflow entry point
-- action: Performs automated actions (send email, notification, assign form, approve/reject, update fields, webhook)
+IMPORTANT: You MUST only use these exact node types (no others):
+- start: Workflow entry point with trigger conditions
+- action: Performs automated actions like send email, send notification, assign form, approve/reject, update fields, change status, trigger webhook
 - condition: Branch based on data (if/else logic)  
 - wait: Pause for time or until condition is met
 - end: Workflow completion
 
-Each node MUST include a detailed "config" object:
+DO NOT use these types (they don't exist): form-assignment, notification, approval, email, trigger, branch, decision, delay, pause, stop, finish, complete. Map them to the valid types above.
 
-START node config:
-{
-  "triggerType": "form_submission" | "manual" | "schedule" | "webhook",
-  "formId": "optional - form that triggers this",
-  "scheduleConfig": { "frequency": "daily" | "weekly", "time": "09:00" }
-}
+Trigger types: form_submission, form_completion, form_approval, form_rejection, rule_success, rule_failure, manual, webhook, schedule
 
-ACTION node config:
-{
-  "actionType": "send_email" | "send_notification" | "assign_form" | "approve_form" | "disapprove_form" | "change_form_status" | "set_field_values" | "trigger_webhook" | "log_event",
-  "emailConfig": { "to": "recipient type or email", "subject": "email subject", "body": "email body with {{variables}}" },
-  "notificationConfig": { "to": "user/role/group", "message": "notification text" },
-  "assignFormConfig": { "formId": "form to assign", "assignTo": "user/role/group", "dueInDays": 3 },
-  "webhookConfig": { "url": "webhook URL", "method": "POST", "headers": {} },
-  "fieldUpdates": [{ "fieldId": "field", "value": "new value" }],
-  "newStatus": "approved" | "rejected" | "pending"
-}
-
-CONDITION node config:
-{
-  "conditionType": "if",
-  "conditions": [
-    { "field": "field_name", "operator": "equals" | "not_equals" | "greater_than" | "less_than" | "contains", "value": "compare value", "logic": "AND" | "OR" }
-  ],
-  "trueBranch": "description of true path",
-  "falseBranch": "description of false path"
-}
-
-WAIT node config:
-{
-  "waitType": "duration" | "until_condition" | "until_date",
-  "duration": { "value": 2, "unit": "hours" | "days" | "minutes" },
-  "condition": { "field": "field_name", "operator": "equals", "value": "expected value" }
-}
-
-END node config:
-{
-  "statusMessage": "Workflow completed message",
-  "finalFormStatus": "completed" | "approved" | "rejected",
-  "enableLogging": true
-}
-
-Generate realistic, complete configurations based on the user's goal.`;
+Action types (for action nodes): approve_form, disapprove_form, send_email, send_notification, trigger_webhook, change_form_status, set_field_values, log_event, assign_form`;
 
         userPrompt = `Design a workflow based on this goal:
 
@@ -726,57 +686,33 @@ ${context.triggerForm ? `Trigger Form: ${context.triggerForm.name}
 Form Fields: ${JSON.stringify(context.triggerForm.fields?.map(f => ({ label: f.label, type: f.type })), null, 2)}` : ''}
 ${context.existingNodes?.length ? `Existing Nodes: ${JSON.stringify(context.existingNodes, null, 2)}` : ''}
 
-IMPORTANT: Each node MUST have a complete "config" object as defined in the system prompt.
-
-Return JSON:
+Return JSON with format:
 {
-  "name": "Workflow Name",
-  "description": "What this workflow does",
+  "name": "Suggested Workflow Name",
+  "description": "What this workflow accomplishes",
   "nodes": [
     {
-      "type": "start",
-      "label": "Start",
-      "description": "Workflow begins here",
-      "config": { "triggerType": "form_submission", "formId": "optional" }
-    },
-    {
-      "type": "action",
-      "label": "Send Notification",
-      "description": "Notify the team",
-      "config": { 
-        "actionType": "send_email",
-        "emailConfig": { "to": "manager@example.com", "subject": "New submission", "body": "A new form was submitted" }
-      }
-    },
-    {
-      "type": "condition",
-      "label": "Check Priority",
-      "description": "Route based on priority level",
+      "type": "node_type",
+      "label": "Node Label",
+      "description": "What this node does",
       "config": {
-        "conditionType": "if",
-        "conditions": [{ "field": "priority", "operator": "equals", "value": "high", "logic": "AND" }],
-        "trueBranch": "Escalate",
-        "falseBranch": "Standard Process"
-      }
-    },
-    {
-      "type": "wait",
-      "label": "Wait for Response",
-      "description": "Wait 24 hours",
-      "config": { "waitType": "duration", "duration": { "value": 24, "unit": "hours" } }
-    },
-    {
-      "type": "end",
-      "label": "Complete",
-      "description": "Workflow ends",
-      "config": { "statusMessage": "Workflow completed", "finalFormStatus": "completed", "enableLogging": true }
+        // Node-specific configuration
+        "triggerType": "for start node",
+        "condition": { "field": "field_label", "operator": "==", "value": "value" },
+        "notificationType": "email|sms|in_app",
+        "message": "notification message",
+        "recipients": ["description of who receives"],
+        "waitDuration": 24, "waitUnit": "hours",
+        "actions": [{ "type": "action_type", "details": "..." }]
+      },
+      "connections": [
+        { "to": "next_node_label", "condition": "optional: true|false path" }
+      ]
     }
   ],
-  "suggestions": ["Optimization tips"],
-  "estimatedDuration": "Estimated time"
-}
-
-Generate a COMPLETE workflow with FULL config for each node based on the goal. Do not use empty configs.`;
+  "suggestions": ["Additional recommendations for this workflow"],
+  "estimatedDuration": "How long workflow typically takes"
+}`;
         break;
 
       // NEW: Data Feed Field Mapping Suggestions
@@ -950,11 +886,6 @@ Return JSON with format:
     const content = data.choices[0]?.message?.content;
 
     console.log('AI response received successfully');
-    
-    // Log workflow responses for debugging
-    if (action === 'suggest-workflow') {
-      console.log('Workflow suggestion raw content:', content?.substring(0, 500));
-    }
 
     // Try to parse JSON from the response
     let result;
@@ -963,15 +894,6 @@ Return JSON with format:
       const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
       const jsonStr = jsonMatch ? jsonMatch[1].trim() : content.trim();
       result = JSON.parse(jsonStr);
-      
-      // Log parsed workflow for debugging
-      if (action === 'suggest-workflow' && result.nodes) {
-        console.log('Parsed workflow nodes:', JSON.stringify(result.nodes.map(n => ({ 
-          type: n.type, 
-          label: n.label, 
-          hasConfig: !!n.config && Object.keys(n.config).length > 0 
-        }))));
-      }
     } catch {
       // If not valid JSON, return as text
       result = { text: content };
