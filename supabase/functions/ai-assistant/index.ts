@@ -584,10 +584,10 @@ Rules:
 - Group related fields logically
 - Consider user experience and flow
 - Add helpful placeholders and tooltips
-- Include common field types: text, email, phone, number, date, select, checkbox, radio, textarea, file
 - For select/radio fields, include sensible options
+- CRITICAL: You must ONLY use the exact field types listed below. Do NOT invent new types.
 
-Available field types:
+Available field types (use EXACTLY these values):
 - text: Single line text input
 - textarea: Multi-line text input
 - number: Numeric input
@@ -597,19 +597,26 @@ Available field types:
 - time: Time picker
 - datetime: Date and time picker
 - select: Dropdown selection
-- multi-select: Multiple selection
+- multi-select: Multiple selection dropdown
 - radio: Radio button group
-- checkbox: Single checkbox
-- checkbox-group: Multiple checkboxes
-- toggle: On/off switch
+- checkbox: Checkbox (for multiple options, use multiple checkboxes)
+- toggle-switch: On/off toggle switch
 - file: File upload
 - image: Image upload
 - signature: Signature capture
 - rating: Star rating
 - slider: Range slider
-- rich-text: Rich text editor
-- divider: Visual separator
-- heading: Section heading`;
+- header: Section header/title
+- description: Help text or description
+- horizontal-line: Visual separator
+- section-break: Section break with title
+- tags: Tag input
+- country: Country selector
+- address: Address input
+- currency: Currency input
+- url: URL input
+- color: Color picker
+- barcode: Barcode scanner`;
 
         userPrompt = `Generate a complete form schema based on this request:
 

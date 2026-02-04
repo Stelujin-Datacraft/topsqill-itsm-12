@@ -48,6 +48,43 @@ const Forms = () => {
 
   const canCreateForm = hasPermission('forms', 'create');
 
+  // Valid field types matching database constraint
+  const VALID_FIELD_TYPES = new Set([
+    'header', 'description', 'section-break', 'horizontal-line', 'full-width-container',
+    'rich-text', 'record-table', 'matrix-grid',
+    'text', 'textarea', 'number', 'date', 'time', 'datetime',
+    'select', 'multi-select', 'radio', 'checkbox', 'toggle-switch',
+    'slider', 'rating', 'file', 'image', 'color',
+    'country', 'phone', 'address', 'currency', 'email', 'url',
+    'ip-address', 'barcode', 'user-picker', 'group-picker',
+    'approval', 'signature', 'tags', 'dynamic-dropdown',
+    'cross-reference', 'child-cross-reference', 'calculated', 'conditional-section',
+    'geo-location', 'workflow-trigger', 'submission-access', 'query-field'
+  ]);
+
+  // Map AI-generated field types to valid database types
+  const sanitizeFieldType = (type: string): string => {
+    const typeMapping: Record<string, string> = {
+      'checkbox-group': 'checkbox',
+      'toggle': 'toggle-switch',
+      'divider': 'horizontal-line',
+      'heading': 'header',
+      'rich-text-editor': 'rich-text',
+      'multiselect': 'multi-select',
+      'switch': 'toggle-switch',
+      'separator': 'horizontal-line',
+      'title': 'header',
+      'text-area': 'textarea',
+      'dropdown': 'select'
+    };
+    
+    const normalizedType = type.toLowerCase().trim();
+    if (VALID_FIELD_TYPES.has(normalizedType)) {
+      return normalizedType;
+    }
+    return typeMapping[normalizedType] || 'text'; // Default to text if unknown
+  };
+
   // Handle AI-generated form creation
   const handleAIFormApply = async (generatedForm: {
     name: string;
@@ -91,9 +128,12 @@ const Forms = () => {
             label: opt.label
           }));
           
+          // Sanitize the field type to ensure it's valid
+          const sanitizedType = sanitizeFieldType(field.type);
+          
           await addField(newForm.id, {
             label: field.label,
-            type: field.type as any,
+            type: sanitizedType as any,
             required: field.required,
             placeholder: field.placeholder,
             options: mappedOptions,
