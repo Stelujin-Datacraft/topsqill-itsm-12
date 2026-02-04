@@ -68,6 +68,7 @@ import NotFound from "./pages/NotFound";
 import LdapSettings from "./pages/LdapSettings";
 import DashboardView from "./pages/DashboardView";
 import { AIChatbot } from "./components/ai/AIChatbot";
+import { RoutePreloader } from "./components/RoutePreloader";
 
 // Performance-optimized React Query configuration
 const queryClient = new QueryClient({
@@ -100,6 +101,7 @@ const App = () => (
                   <SessionTimeoutWarning />
                   <ImpersonationBanner />
                   <BrowserRouter>
+                    <RoutePreloader />
                     <PasswordExpiryWarning />
                   <Routes>
                     <Route path="/" element={<Index />} />
