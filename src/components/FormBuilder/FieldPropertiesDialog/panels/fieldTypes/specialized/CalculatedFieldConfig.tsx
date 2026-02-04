@@ -176,7 +176,7 @@ export function CalculatedFieldConfig({ config, onUpdate, errors }: CalculatedFi
                     });
                   }
                 }}
-                defaultType="calculated_field"
+                formulaType="calculated_field"
                 buttonLabel="AI"
                 buttonSize="sm"
               />
