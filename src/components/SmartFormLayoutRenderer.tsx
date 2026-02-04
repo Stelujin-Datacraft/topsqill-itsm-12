@@ -125,6 +125,8 @@ export function SmartFormLayoutRenderer({
             onSubmit={onSubmit}
             showButtons={false}
             formId={form.id}
+            formName={form.name}
+            formDescription={form.description}
           />
         </CardContent>
       </Card>
@@ -145,6 +147,9 @@ export function SmartFormLayoutRenderer({
             onSubmit={onSubmit}
             showButtons={false}
             formId={form.id}
+            formName={form.name}
+            formDescription={form.description}
+            showAIAutoFill={false}
           />
         </CardContent>
       </Card>
