@@ -385,18 +385,15 @@ const FormView = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <PublicHeader minimal /> 
-      <div className="min-h-screen bg-gray-50 py-12 px-4">
-        <div className="max-w-7xl mx-auto">
-          <FormViewLayoutRenderer 
-            form={form}
-            onSubmit={onFormSubmit}
-            showNavigation={true}
-            showPublicHeader={false}
-          />
-        </div>
-      </div>    
+    <div className="min-h-screen bg-gray-50 py-12 px-4">
+      <div className="max-w-7xl mx-auto">
+        <FormViewLayoutRenderer 
+          form={form}
+          onSubmit={onFormSubmit}
+          showNavigation={true}
+          showPublicHeader={false}
+        />
+      </div>
     </div>
   );
 };
