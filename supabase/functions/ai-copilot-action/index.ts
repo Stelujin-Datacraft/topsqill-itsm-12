@@ -171,7 +171,17 @@
        }
  
        case 'create_workflow': {
-         const { name, description, triggerFormId } = params;
+         let { name, description, triggerFormId, nodes: nodeDefinitions } = params;
+         
+         // Parse nodes if it's a string
+         if (typeof nodeDefinitions === 'string') {
+           try {
+             nodeDefinitions = JSON.parse(nodeDefinitions);
+           } catch (e) {
+             console.error('Failed to parse nodes JSON:', e);
+             nodeDefinitions = [];
+           }
+         }
          
          const { data: workflow, error: wfError } = await supabase
            .from('workflows')
@@ -181,19 +191,262 @@
              project_id: projectId,
              created_by: userId,
              organization_id: organizationId,
-             status: 'draft',
-             trigger_type: triggerFormId ? 'form_submission' : 'manual',
-             trigger_form_id: triggerFormId || null,
-             nodes: [],
-             connections: []
+             status: 'draft'
            })
            .select()
            .single();
  
          if (wfError) throw wfError;
+         
+         // Create workflow trigger if form is specified
+         if (triggerFormId) {
+           await supabase
+             .from('workflow_triggers')
+             .insert({
+               organization_id: organizationId,
+               trigger_id: `trigger_${workflow.id}`,
+               target_workflow_id: workflow.id,
+               trigger_type: 'form_submission',
+               source_form_id: triggerFormId,
+               is_active: true,
+               created_by: userId
+             });
+         }
+         
+         // Create nodes if provided
+         if (Array.isArray(nodeDefinitions) && nodeDefinitions.length > 0) {
+           const nodeIdMap: Record<string, string> = {};
+           const nodesToInsert = [];
+           
+           for (let i = 0; i < nodeDefinitions.length; i++) {
+             const nodeDef = nodeDefinitions[i];
+             const tempId = nodeDef.tempId || `node_${i}`;
+             const nodeId = crypto.randomUUID();
+             nodeIdMap[tempId] = nodeId;
+             
+             nodesToInsert.push({
+               id: nodeId,
+               workflow_id: workflow.id,
+               node_type: nodeDef.type || 'action',
+               label: nodeDef.label || `Node ${i + 1}`,
+               position_x: nodeDef.positionX || 250,
+               position_y: nodeDef.positionY || 100 + (i * 150),
+               config: nodeDef.config || {}
+             });
+           }
+           
+           await supabase.from('workflow_nodes').insert(nodesToInsert);
+           
+           // Create connections between nodes
+           const connectionsToInsert = [];
+           for (let i = 0; i < nodeDefinitions.length; i++) {
+             const nodeDef = nodeDefinitions[i];
+             const connections = nodeDef.connections || [];
+             
+             for (const conn of connections) {
+               const sourceId = nodeIdMap[nodeDef.tempId || `node_${i}`];
+               const targetId = nodeIdMap[conn.to];
+               
+               if (sourceId && targetId) {
+                 connectionsToInsert.push({
+                   workflow_id: workflow.id,
+                   source_node_id: sourceId,
+                   target_node_id: targetId,
+                   source_handle: conn.sourceHandle || 'bottom',
+                   target_handle: conn.targetHandle || 'top',
+                   condition_type: conn.conditionType || null
+                 });
+               }
+             }
+           }
+           
+           if (connectionsToInsert.length > 0) {
+             await supabase.from('workflow_connections').insert(connectionsToInsert);
+           }
+         }
  
          result = { workflowId: workflow.id };
          message = `Created workflow "${name}"!`;
+         break;
+       }
+       
+       case 'create_form_with_workflow': {
+         let { formName, formDescription, fields, workflowName, workflowDescription, workflowNodes } = params;
+         
+         // Parse fields if string
+         if (typeof fields === 'string') {
+           try {
+             fields = JSON.parse(fields);
+           } catch (e) {
+             console.error('Failed to parse fields JSON:', e);
+             fields = [];
+           }
+         }
+         if (!Array.isArray(fields)) fields = [];
+         
+         // Parse workflow nodes if string
+         if (typeof workflowNodes === 'string') {
+           try {
+             workflowNodes = JSON.parse(workflowNodes);
+           } catch (e) {
+             console.error('Failed to parse workflowNodes JSON:', e);
+             workflowNodes = [];
+           }
+         }
+         if (!Array.isArray(workflowNodes)) workflowNodes = [];
+         
+         // 1. Create the form
+         const { data: form, error: formError } = await supabase
+           .from('forms')
+           .insert({
+             name: formName,
+             description: formDescription,
+             project_id: projectId,
+             created_by: userId,
+             status: 'draft',
+             organization_id: organizationId
+           })
+           .select()
+           .single();
+ 
+         if (formError) throw formError;
+         
+         // 2. Create form fields
+         if (fields.length > 0) {
+           const formFields = fields.map((f: any, idx: number) => ({
+             form_id: form.id,
+             field_type: f.type || 'text',
+             label: f.label,
+             placeholder: f.placeholder,
+             required: f.required || false,
+             field_order: idx + 1,
+             options: f.options ? JSON.stringify(f.options) : null,
+             tooltip: f.tooltip
+           }));
+           await supabase.from('form_fields').insert(formFields);
+         }
+         
+         // 3. Create the workflow
+         const { data: workflow, error: wfError } = await supabase
+           .from('workflows')
+           .insert({
+             name: workflowName || `${formName} Workflow`,
+             description: workflowDescription || `Automated workflow for ${formName}`,
+             project_id: projectId,
+             created_by: userId,
+             organization_id: organizationId,
+             status: 'draft'
+           })
+           .select()
+           .single();
+ 
+         if (wfError) throw wfError;
+         
+         // 4. Create workflow trigger linked to form
+         await supabase
+           .from('workflow_triggers')
+           .insert({
+             organization_id: organizationId,
+             trigger_id: `trigger_${workflow.id}`,
+             target_workflow_id: workflow.id,
+             trigger_type: 'form_submission',
+             source_form_id: form.id,
+             is_active: true,
+             created_by: userId
+           });
+         
+         // 5. Create workflow nodes
+         if (workflowNodes.length > 0) {
+           const nodeIdMap: Record<string, string> = {};
+           const nodesToInsert = [];
+           
+           for (let i = 0; i < workflowNodes.length; i++) {
+             const nodeDef = workflowNodes[i];
+             const tempId = nodeDef.tempId || `node_${i}`;
+             const nodeId = crypto.randomUUID();
+             nodeIdMap[tempId] = nodeId;
+             
+             nodesToInsert.push({
+               id: nodeId,
+               workflow_id: workflow.id,
+               node_type: nodeDef.type || 'action',
+               label: nodeDef.label || `Node ${i + 1}`,
+               position_x: nodeDef.positionX || 250,
+               position_y: nodeDef.positionY || 100 + (i * 150),
+               config: nodeDef.config || {}
+             });
+           }
+           
+           await supabase.from('workflow_nodes').insert(nodesToInsert);
+           
+           // Create connections
+           const connectionsToInsert = [];
+           for (let i = 0; i < workflowNodes.length; i++) {
+             const nodeDef = workflowNodes[i];
+             const connections = nodeDef.connections || [];
+             
+             for (const conn of connections) {
+               const sourceId = nodeIdMap[nodeDef.tempId || `node_${i}`];
+               const targetId = nodeIdMap[conn.to];
+               
+               if (sourceId && targetId) {
+                 connectionsToInsert.push({
+                   workflow_id: workflow.id,
+                   source_node_id: sourceId,
+                   target_node_id: targetId,
+                   source_handle: conn.sourceHandle || 'bottom',
+                   target_handle: conn.targetHandle || 'top',
+                   condition_type: conn.conditionType || null
+                 });
+               }
+             }
+           }
+           
+           if (connectionsToInsert.length > 0) {
+             await supabase.from('workflow_connections').insert(connectionsToInsert);
+           }
+         } else {
+           // Create basic start and end nodes if no nodes specified
+           const startNodeId = crypto.randomUUID();
+           const endNodeId = crypto.randomUUID();
+           
+           await supabase.from('workflow_nodes').insert([
+             {
+               id: startNodeId,
+               workflow_id: workflow.id,
+               node_type: 'start',
+               label: 'Start',
+               position_x: 250,
+               position_y: 100,
+               config: {}
+             },
+             {
+               id: endNodeId,
+               workflow_id: workflow.id,
+               node_type: 'end',
+               label: 'End',
+               position_x: 250,
+               position_y: 400,
+               config: {}
+             }
+           ]);
+           
+           await supabase.from('workflow_connections').insert({
+             workflow_id: workflow.id,
+             source_node_id: startNodeId,
+             target_node_id: endNodeId,
+             source_handle: 'bottom',
+             target_handle: 'top'
+           });
+         }
+ 
+         result = { 
+           formId: form.id, 
+           formName: form.name,
+           workflowId: workflow.id,
+           workflowName: workflow.name
+         };
+         message = `Created form "${formName}" with linked workflow "${workflow.name}"!`;
          break;
        }
  
