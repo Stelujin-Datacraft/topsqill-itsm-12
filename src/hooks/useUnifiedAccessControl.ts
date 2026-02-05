@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProject } from '@/contexts/ProjectContext';
@@ -59,72 +60,91 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
   // Use effective user when impersonating, otherwise use provided userId or real user
   const targetUserId = userId || effectiveUserId || userProfile?.id;
 
-  const loadAccessControl = async () => {
-    if (!targetProjectId || !targetUserId) {
-      setState(prev => ({ ...prev, loading: false }));
-      return;
-    }
+  const queryClient = useQueryClient();
+  
+  // Use React Query for caching - prevents repeated DB calls on navigation
+  const queryKey = ['unified-access-control', targetProjectId, targetUserId, effectiveRole];
+  
+  const { data: accessData, isLoading } = useQuery({
+    queryKey,
+    queryFn: async () => {
+      if (!targetProjectId || !targetUserId) {
+        return {
+          topLevelPermissions: {
+            forms: { can_create: false, can_read: false, can_update: false, can_delete: false },
+            workflows: { can_create: false, can_read: false, can_update: false, can_delete: false },
+            reports: { can_create: false, can_read: false, can_update: false, can_delete: false }
+          },
+          rolePermissions: {
+            forms: {},
+            workflows: {},
+            reports: {}
+          },
+          userRole: null,
+          isProjectAdmin: false,
+          isOrgAdmin: false
+        };
+      }
 
-    try {
-      setState(prev => ({ ...prev, loading: true }));
+      // Batch all queries in parallel for performance
+      const [topLevelResult, projectUserResult, projectResult, roleAssignmentsResult] = await Promise.all([
+        supabase
+          .from('project_top_level_permissions')
+          .select('*')
+          .eq('project_id', targetProjectId)
+          .eq('user_id', targetUserId)
+          .neq('entity_type', 'projects'),
+        supabase
+          .from('project_users')
+          .select('role')
+          .eq('project_id', targetProjectId)
+          .eq('user_id', targetUserId)
+          .single(),
+        supabase
+          .from('projects')
+          .select('created_by')
+          .eq('id', targetProjectId)
+          .single(),
+        supabase
+          .from('user_role_assignments')
+          .select(`
+            id,
+            role_id,
+            roles (
+              id,
+              name,
+              description
+            )
+          `)
+          .eq('user_id', targetUserId)
+      ]);
 
-      const { data: topLevelData, error: topLevelError } = await supabase
-        .from('project_top_level_permissions')
-        .select('*')
-        .eq('project_id', targetProjectId)
-        .eq('user_id', targetUserId)
-        .neq('entity_type', 'projects');
+      const topLevelData = topLevelResult.data;
+      const projectUserData = projectUserResult.data;
+      const projectData = projectResult.data;
+      const roleAssignments = roleAssignmentsResult.data;
 
-      const { data: projectUserData } = await supabase
-        .from('project_users')
-        .select('role')
-        .eq('project_id', targetProjectId)
-        .eq('user_id', targetUserId)
-        .single();
-
-      // Use effective role for impersonation support
       const isProjectAdmin = projectUserData?.role === 'admin' || effectiveRole === 'admin';
       const isOrgAdmin = effectiveRole === 'admin';
-
-      const { data: projectData } = await supabase
-        .from('projects')
-        .select('created_by')
-        .eq('id', targetProjectId)
-        .single();
-      
       const isProjectCreator = projectData?.created_by === targetUserId;
 
-      const { data: roleAssignments, error: roleError } = await supabase
-        .from('user_role_assignments')
-        .select(`
-          id,
-          role_id,
-          roles (
-            id,
-            name,
-            description
-          )
-        `)
-        .eq('user_id', targetUserId);
-
+      // Fetch role permissions if needed
       const rolePermissionsMap = new Map<string, any[]>();
       
       if (roleAssignments && roleAssignments.length > 0) {
         const roleIds = roleAssignments.map(assignment => assignment.role_id);
         
-        const { data: rolePermissions, error: permError } = await supabase
+        const { data: rolePermissions } = await supabase
           .from('role_permissions')
           .select('*')
           .in('role_id', roleIds);
 
-        if (!permError) {
-          rolePermissions?.forEach(perm => {
-            if (!rolePermissionsMap.has(perm.role_id)) {
-              rolePermissionsMap.set(perm.role_id, []);
-            }
-            rolePermissionsMap.get(perm.role_id)?.push(perm);
-          });
-        }
+        rolePermissions?.forEach(perm => {
+          if (!rolePermissionsMap.has(perm.role_id)) {
+            rolePermissionsMap.set(perm.role_id, []);
+          }
+          rolePermissionsMap.get(perm.role_id)?.push(perm);
+        });
       }
 
       const processedTopLevel: Record<EntityType, TopLevelPermissions> = {
@@ -204,23 +224,47 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
         });
       }
 
-      setState({
+      return {
         topLevelPermissions: processedTopLevel,
         rolePermissions: processedRolePermissions,
         userRole: userRoleName,
         isProjectAdmin: isProjectAdmin || isProjectCreator,
-        isOrgAdmin,
+        isOrgAdmin
+      };
+    },
+    enabled: !!targetProjectId && !!targetUserId,
+    staleTime: 2 * 60 * 1000, // 2 minutes - matches global cache strategy
+    gcTime: 10 * 60 * 1000, // 10 minutes garbage collection
+  });
+
+  // Update state from query data
+  useEffect(() => {
+    if (accessData) {
+      setState({
+        topLevelPermissions: accessData.topLevelPermissions,
+        rolePermissions: accessData.rolePermissions,
+        userRole: accessData.userRole,
+        isProjectAdmin: accessData.isProjectAdmin,
+        isOrgAdmin: accessData.isOrgAdmin,
         loading: false
       });
-
-    } catch (error) {
+    } else if (!isLoading) {
       setState(prev => ({ ...prev, loading: false }));
     }
-  };
+  }, [accessData, isLoading]);
 
+  // Keep loading state in sync
   useEffect(() => {
-    loadAccessControl();
-  }, [targetProjectId, targetUserId, effectiveRole]);
+    if (isLoading && !state.loading) {
+      // Don't set loading to true if we already have cached data
+      // This prevents flash of loading state on navigation
+    }
+  }, [isLoading]);
+
+  const loadAccessControl = async () => {
+    // Invalidate and refetch
+    await queryClient.invalidateQueries({ queryKey });
+  };
 
   const hasPermission = (entityType: EntityType, action: ActionType, resourceId?: string): boolean => {
     if (state.isOrgAdmin || state.isProjectAdmin) {
