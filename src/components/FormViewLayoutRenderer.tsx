@@ -13,7 +13,7 @@ import { RuleProcessor, RuleProcessingContext } from '@/utils/ruleProcessor';
 import { parseFormFields } from '@/utils/fieldReferenceParser';
 import { useUniqueFieldValidation } from '@/hooks/useUniqueFieldValidation';
 import { useEmailTemplates } from '@/hooks/useEmailTemplates';
-import { AIAutoFillInput } from './form-fields/AIAutoFillInput';
+
 
 interface FormViewLayoutRendererProps {
   form: Form;
@@ -552,19 +552,6 @@ export function FormViewLayoutRenderer({
                   )}
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  {Array.isArray(form.fields) && form.fields.length > 0 && (
-                    <AIAutoFillInput
-                      formFields={form.fields}
-                      currentValues={formData}
-                      formName={form.name}
-                      formDescription={form.description}
-                      onAutoFill={(values) => {
-                        Object.entries(values).forEach(([fieldId, value]) => {
-                          handleFieldChange(fieldId, value);
-                        });
-                      }}
-                    />
-                  )}
                   <Button
                     onClick={handlePrint}
                     variant="outline"
