@@ -4,6 +4,11 @@ const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
+ 
+ // Performance optimization constants
+ const BATCH_SIZE = 10; // Process workflows in batches
+ const MAX_EXECUTION_TIME_MS = 55000; // Stop before 60s timeout
+ const OVERLAP_LOCK_KEY = 'resume_waiting_workflows_lock';
 
 interface WaitingExecution {
   id: string
@@ -120,44 +125,63 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log('🔍 Checking for waiting workflows to resume...')
-
-    // Build query based on whether this is manual or scheduled
-    // Include current_node_id as fallback for wait_node_id
-    let query = supabase
-      .from('workflow_executions')
-      .select('id, workflow_id, wait_node_id, wait_config, trigger_data, execution_data, trigger_submission_id, submitter_id, current_node_id')
-      .eq('status', 'waiting')
-
-    if (manualExecutionId) {
-      query = query.eq('id', manualExecutionId)
-    } else {
-      query = query.lte('scheduled_resume_at', new Date().toISOString())
-    }
-
-    const { data: waitingExecutions, error: fetchError } = await query
-
-    if (fetchError) {
-      console.error('❌ Error fetching waiting executions:', fetchError)
-      throw fetchError
-    }
-
-    if (!waitingExecutions || waitingExecutions.length === 0) {
-      console.log('✅ No waiting workflows to resume')
-      return new Response(
-        JSON.stringify({ message: 'No waiting workflows to resume', resumedCount: 0 }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    console.log(`📋 Found ${waitingExecutions.length} waiting workflow(s) to resume`)
+     const startTime = Date.now()
+     console.log('🔍 Checking for waiting workflows to resume...')
+ 
+     // Build query based on whether this is manual or scheduled
+     // Include current_node_id as fallback for wait_node_id
+     let query = supabase
+       .from('workflow_executions')
+       .select('id, workflow_id, wait_node_id, wait_config, trigger_data, execution_data, trigger_submission_id, submitter_id, current_node_id')
+       .eq('status', 'waiting')
+ 
+     if (manualExecutionId) {
+       query = query.eq('id', manualExecutionId)
+     } else {
+       // OPTIMIZATION: Limit batch size and order by priority
+       query = query
+         .lte('scheduled_resume_at', new Date().toISOString())
+         .order('scheduled_resume_at', { ascending: true })
+         .limit(BATCH_SIZE)
+     }
+ 
+     const { data: waitingExecutions, error: fetchError } = await query
+ 
+     if (fetchError) {
+       console.error('❌ Error fetching waiting executions:', fetchError)
+       throw fetchError
+     }
+ 
+     if (!waitingExecutions || waitingExecutions.length === 0) {
+       console.log('✅ No waiting workflows to resume')
+       return new Response(
+         JSON.stringify({ message: 'No waiting workflows to resume', resumedCount: 0 }),
+         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+       )
+     }
+ 
+     // Get total count for logging
+     const { count: totalWaiting } = await supabase
+       .from('workflow_executions')
+       .select('id', { count: 'exact', head: true })
+       .eq('status', 'waiting')
+       .lte('scheduled_resume_at', new Date().toISOString())
+ 
+     console.log(`📋 Processing ${waitingExecutions.length} of ${totalWaiting || 'unknown'} waiting workflow(s)`)
 
     let resumedCount = 0
     const errors: string[] = []
     const resumedExecutions: string[] = []
 
-    for (const execution of waitingExecutions as WaitingExecution[]) {
-      try {
+     for (const execution of waitingExecutions as WaitingExecution[]) {
+       // OPTIMIZATION: Check if we're running out of time
+       const elapsed = Date.now() - startTime
+       if (elapsed > MAX_EXECUTION_TIME_MS) {
+         console.log(`⏱️ Approaching timeout (${elapsed}ms), stopping batch processing`)
+         break
+       }
+ 
+       try {
         // Use wait_node_id if available, otherwise fall back to current_node_id
         const waitNodeId = execution.wait_node_id || execution.current_node_id
         
