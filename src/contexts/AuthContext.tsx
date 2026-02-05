@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { User, Session } from '@supabase/supabase-js';
 import { useQueryClient } from '@tanstack/react-query';
 import { prefetchDefaultProjectPermissions } from '@/utils/prefetchPermissions';
+ import { usePermissionRealtimeSync } from '@/hooks/usePermissionRealtimeSync';
 import { 
   checkAccountLockout, 
   recordFailedLogin, 
@@ -577,3 +578,9 @@ export const useAuth = () => {
   }
   return context;
 };
+ 
+ /**
+  * Hook to enable real-time permission sync.
+  * Call this once at the app root level (e.g., in App.tsx or a layout component).
+  */
+ export { usePermissionRealtimeSync };
