@@ -100,22 +100,68 @@ export function AIChatbot() {
  
    // Parse AI response for action commands
    const parseActionCommands = (content: string): { action: string; params: Record<string, any> } | null => {
-     // Look for action patterns like: [ACTION:create_form|name=Test Form|fields=...]
-     const actionMatch = content.match(/\[ACTION:(\w+)\|([^\]]+)\]/);
-     if (actionMatch) {
-       const action = actionMatch[1];
-       const paramsStr = actionMatch[2];
-       const params: Record<string, any> = {};
-       paramsStr.split('|').forEach(pair => {
-         const [key, value] = pair.split('=');
-         if (key && value) {
-           try {
-             params[key] = JSON.parse(value);
-           } catch {
-             params[key] = value;
+    // Look for action patterns like: [ACTION:create_form|name=Test Form|fields=[...]]
+    // Use a more robust approach that handles nested brackets in JSON values
+    const actionStartMatch = content.match(/\[ACTION:(\w+)\|/);
+    if (actionStartMatch) {
+      const action = actionStartMatch[1];
+      const startIndex = actionStartMatch.index! + actionStartMatch[0].length;
+      
+      // Find the matching closing bracket, accounting for nested brackets
+      let bracketCount = 1;
+      let endIndex = startIndex;
+      for (let i = startIndex; i < content.length && bracketCount > 0; i++) {
+        if (content[i] === '[') bracketCount++;
+        else if (content[i] === ']') bracketCount--;
+        if (bracketCount === 0) {
+          endIndex = i;
+          break;
+        }
+      }
+      
+      const paramsStr = content.substring(startIndex, endIndex);
+      const params: Record<string, any> = {};
+      
+      // Parse params more carefully - split by | but not within brackets
+      let currentParam = '';
+      let inBrackets = 0;
+      for (let i = 0; i < paramsStr.length; i++) {
+        const char = paramsStr[i];
+        if (char === '[') inBrackets++;
+        else if (char === ']') inBrackets--;
+        
+        if (char === '|' && inBrackets === 0) {
+          // Process current param
+          const eqIndex = currentParam.indexOf('=');
+          if (eqIndex > 0) {
+            const key = currentParam.substring(0, eqIndex).trim();
+            const value = currentParam.substring(eqIndex + 1);
+            try {
+              params[key] = JSON.parse(value);
+            } catch {
+              params[key] = value;
+            }
            }
+          currentParam = '';
+        } else {
+          currentParam += char;
          }
-       });
+      }
+      
+      // Don't forget the last param
+      if (currentParam) {
+        const eqIndex = currentParam.indexOf('=');
+        if (eqIndex > 0) {
+          const key = currentParam.substring(0, eqIndex).trim();
+          const value = currentParam.substring(eqIndex + 1);
+          try {
+            params[key] = JSON.parse(value);
+          } catch {
+            params[key] = value;
+          }
+        }
+      }
+      
        return { action, params };
      }
      return null;
