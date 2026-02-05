@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FormField } from '@/types/form';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -6,10 +6,12 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { EnhancedOptionConfig } from '../EnhancedOptionConfig';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ChevronDown, ChevronRight, GitBranch, MessageSquare, Trash2, Plus, AlertTriangle, Settings2, Activity } from 'lucide-react';
+import { ChevronDown, ChevronRight, GitBranch, MessageSquare, Trash2, Plus, AlertTriangle, Settings2, Activity, Clock, Zap } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface SelectFieldConfigProps {
   field: FormField;
@@ -20,8 +22,12 @@ export function SelectFieldConfig({ field, onConfigChange }: SelectFieldConfigPr
   const config = (field.customConfig || {}) as Record<string, any>;
   const [lifecycleOpen, setLifecycleOpen] = useState(config.displayAsLifecycle || false);
   const [rulesOpen, setRulesOpen] = useState(false);
+  const [slaOpen, setSlaOpen] = useState(false);
   const [newRuleFrom, setNewRuleFrom] = useState('');
   const [newRuleTo, setNewRuleTo] = useState('');
+  const [slaTemplates, setSlaTemplates] = useState<any[]>([]);
+  const [escalationChains, setEscalationChains] = useState<any[]>([]);
+  const { userProfile } = useAuth();
   
   // Ensure options is always an array
   const ensureOptionsArray = (opts: any): any[] => {
@@ -38,6 +44,33 @@ export function SelectFieldConfig({ field, onConfigChange }: SelectFieldConfigPr
   };
   
   const options = ensureOptionsArray(field.options);
+
+  // Fetch SLA templates and escalation chains
+  useEffect(() => {
+    const fetchSlaData = async () => {
+      if (!userProfile?.organization_id) return;
+      
+      const [templatesRes, chainsRes] = await Promise.all([
+        supabase
+          .from('sla_templates')
+          .select('id, name, warning_hours, breach_hours')
+          .eq('organization_id', userProfile.organization_id)
+          .eq('is_active', true)
+          .order('name'),
+        supabase
+          .from('escalation_chains')
+          .select('id, name')
+          .eq('organization_id', userProfile.organization_id)
+          .eq('is_active', true)
+          .order('name')
+      ]);
+      
+      setSlaTemplates(templatesRes.data || []);
+      setEscalationChains(chainsRes.data || []);
+    };
+    
+    fetchSlaData();
+  }, [userProfile?.organization_id]);
 
   const handleOptionsChange = (newOptions: any[]) => {
     onConfigChange({ options: newOptions });
@@ -294,6 +327,129 @@ export function SelectFieldConfig({ field, onConfigChange }: SelectFieldConfigPr
                       <Plus className="h-3 w-3 mr-1" />
                       Set Sequential Flow
                     </Button>
+                  )}
+                </CollapsibleContent>
+              </Collapsible>
+
+              {/* SLA Configuration */}
+              <Collapsible open={slaOpen} onOpenChange={setSlaOpen}>
+                <CollapsibleTrigger className="flex items-center gap-2 text-sm hover:text-foreground w-full py-1">
+                  {slaOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                  <Clock className="h-4 w-4 text-blue-500" />
+                  <span>SLA & Escalation</span>
+                  {config.slaTemplateId && (
+                    <Badge variant="default" className="ml-auto text-xs">Configured</Badge>
+                  )}
+                </CollapsibleTrigger>
+                <CollapsibleContent className="space-y-3 pt-3 pl-2">
+                  <p className="text-xs text-muted-foreground">
+                    Configure automated SLA tracking and escalations for this lifecycle field.
+                  </p>
+                  
+                  {/* Enable SLA Tracking */}
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="enableSlaTracking"
+                      checked={config.enableSlaTracking || false}
+                      onCheckedChange={(checked) => {
+                        onConfigChange({ enableSlaTracking: checked });
+                        if (!checked) {
+                          onConfigChange({ slaTemplateId: null, escalationChainId: null });
+                        }
+                      }}
+                    />
+                    <Label htmlFor="enableSlaTracking" className="cursor-pointer flex items-center gap-2">
+                      <Zap className="h-4 w-4 text-primary" />
+                      Enable SLA Tracking
+                    </Label>
+                  </div>
+
+                  {config.enableSlaTracking && (
+                    <div className="space-y-3 mt-2">
+                      {/* SLA Template Selection */}
+                      <div className="space-y-2">
+                        <Label className="text-xs">SLA Template</Label>
+                        {slaTemplates.length > 0 ? (
+                          <Select 
+                            value={config.slaTemplateId || ''} 
+                            onValueChange={(value) => onConfigChange({ slaTemplateId: value || null })}
+                          >
+                            <SelectTrigger className="h-8 text-xs">
+                              <SelectValue placeholder="Select SLA template" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="">None</SelectItem>
+                              {slaTemplates.map((template) => (
+                                <SelectItem key={template.id} value={template.id}>
+                                  {template.name} ({template.warning_hours}h warn / {template.breach_hours}h breach)
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <p className="text-xs text-muted-foreground italic">
+                            No SLA templates found. Create one in SLA Management.
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Escalation Chain Selection */}
+                      <div className="space-y-2">
+                        <Label className="text-xs">Escalation Chain</Label>
+                        {escalationChains.length > 0 ? (
+                          <Select 
+                            value={config.escalationChainId || ''} 
+                            onValueChange={(value) => onConfigChange({ escalationChainId: value || null })}
+                          >
+                            <SelectTrigger className="h-8 text-xs">
+                              <SelectValue placeholder="Select escalation chain" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="">None</SelectItem>
+                              {escalationChains.map((chain) => (
+                                <SelectItem key={chain.id} value={chain.id}>
+                                  {chain.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <p className="text-xs text-muted-foreground italic">
+                            No escalation chains found. Create one in SLA Management.
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Stage-specific SLA overrides */}
+                      <div className="space-y-2">
+                        <Label className="text-xs">Track SLA for stages:</Label>
+                        <div className="flex flex-wrap gap-2">
+                          {options.map((opt) => {
+                            const optValue = getOptionValue(opt);
+                            const trackedStages = config.slaTrackedStages || [];
+                            const isTracked = trackedStages.includes(optValue);
+                            return (
+                              <Badge
+                                key={optValue}
+                                variant={isTracked ? "default" : "outline"}
+                                className="cursor-pointer text-xs"
+                                onClick={() => {
+                                  const newTracked = isTracked
+                                    ? trackedStages.filter((s: string) => s !== optValue)
+                                    : [...trackedStages, optValue];
+                                  onConfigChange({ slaTrackedStages: newTracked });
+                                }}
+                              >
+                                {getOptionLabel(opt)}
+                              </Badge>
+                            );
+                          })}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Click stages to toggle SLA tracking. Empty = all stages tracked.
+                        </p>
+                      </div>
+                    </div>
                   )}
                 </CollapsibleContent>
               </Collapsible>

@@ -522,6 +522,7 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
                 disabled={saving}
                 isEditing={isEditing}
                 submissionId={submission.id}
+                formId={form?.id}
               />
             ))}
           </div>
