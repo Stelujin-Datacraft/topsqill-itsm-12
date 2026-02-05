@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/contexts/OrganizationContext';
 
@@ -29,13 +28,13 @@ export function useRoles() {
   const [loading, setLoading] = useState(true);
   const { currentOrganization } = useOrganization();
 
-  const fetchRoles = async () => {
+  const fetchRoles = useCallback(async () => {
     if (!currentOrganization?.id) return;
 
     try {
       setLoading(true);
       
-      // First, fetch roles
+      // Fetch roles, user profiles, and permissions in parallel where possible
       const { data: rolesData, error: rolesError } = await supabase
         .from('roles')
         .select('*')
@@ -44,34 +43,23 @@ export function useRoles() {
 
       if (rolesError) throw rolesError;
 
-      // Then fetch user profiles for creators
+      // Batch fetch user profiles and permissions
       const creatorIds = [...new Set(rolesData?.map(role => role.created_by) || [])];
-      let userProfiles: any[] = [];
-      
-      if (creatorIds.length > 0) {
-        const { data: profilesData, error: profilesError } = await supabase
-          .from('user_profiles')
-          .select('id, first_name, last_name, email')
-          .in('id', creatorIds);
-
-        if (!profilesError) {
-          userProfiles = profilesData || [];
-        }
-      }
-
-      // Fetch permissions for each role
       const roleIds = rolesData?.map(role => role.id) || [];
       
-      let permissionsData: any[] = [];
-      if (roleIds.length > 0) {
-        const { data, error: permissionsError } = await supabase
-          .from('role_permissions')
-          .select('*')
-          .in('role_id', roleIds);
+      const [profilesResult, permissionsResult] = await Promise.all([
+        creatorIds.length > 0 
+          ? supabase.from('user_profiles').select('id, first_name, last_name, email').in('id', creatorIds)
+          : Promise.resolve({ data: [], error: null }),
+        roleIds.length > 0
+          ? supabase.from('role_permissions').select('*').in('role_id', roleIds)
+          : Promise.resolve({ data: [], error: null })
+      ]);
 
-        if (permissionsError) throw permissionsError;
-        permissionsData = data || [];
-      }
+      const userProfiles = profilesResult.data || [];
+      const permissionsData = permissionsResult.data || [];
+
+      if (permissionsResult.error) throw permissionsResult.error;
 
       // Combine roles with their permissions and creator info
       const enrichedRoles: Role[] = (rolesData || []).map(role => {
@@ -104,15 +92,15 @@ export function useRoles() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentOrganization?.id]);
 
-  const refetchRoles = () => {
+  const refetchRoles = useCallback(() => {
     fetchRoles();
-  };
+  }, [fetchRoles]);
 
   useEffect(() => {
     fetchRoles();
-  }, [currentOrganization?.id]);
+  }, [fetchRoles]);
 
   return {
     roles,

@@ -1,5 +1,5 @@
-import { useState } from 'react';
- import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useState, useCallback } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Form, FormField } from '@/types/form';
 import { toast } from '@/hooks/use-toast';
@@ -9,18 +9,18 @@ export function useFormsLoader() {
   const [forms, setForms] = useState<Form[]>([]);
   const [loading, setLoading] = useState(true);
  
-   const safeParseJson = (jsonString: any, fallback: any = null) => {
-     if (!jsonString) return fallback;
-     if (typeof jsonString === 'object') return jsonString;
-     
-     try {
-       return JSON.parse(jsonString);
-     } catch {
-       return fallback;
-     }
-   };
+  const safeParseJson = useCallback((jsonString: any, fallback: any = null) => {
+    if (!jsonString) return fallback;
+    if (typeof jsonString === 'object') return jsonString;
+    
+    try {
+      return JSON.parse(jsonString);
+    } catch {
+      return fallback;
+    }
+  }, []);
 
-  const loadForms = async (
+  const loadForms = useCallback(async (
     organizationId: string, 
     projectId?: string,
     cachedPermissions?: {
@@ -225,7 +225,7 @@ export function useFormsLoader() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [safeParseJson]);
 
   return {
     forms,
