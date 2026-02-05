@@ -402,6 +402,12 @@ Generate appropriate content for this request.`;
  14. **link_form_to_sla** - Attach SLA tracking to an existing form
      - Params: formId OR formName (string), lifecycleFieldLabel (string), slaTemplateId OR slaTemplateName (string), escalationChainId OR escalationChainName (optional)
      - Example: [ACTION:link_form_to_sla|formName=Support Ticket|lifecycleFieldLabel=Status|slaTemplateName=Standard Support SLA|escalationChainName=Support Escalation]
+
+ 15. **create_email_template** - Create a standalone email template (independent of workflows/forms)
+     - Params: name (string), description (optional string), subject (string), htmlContent (string - full HTML email body), textContent (optional string), recipientType (optional: submitter/form_owner)
+     - IMPORTANT: You MUST provide complete, contextual content - NOT placeholders or empty content
+     - htmlContent should include proper HTML structure with {{variable_name}} placeholders for dynamic values
+     - Example: [ACTION:create_email_template|name=Order Confirmation|description=Sent when an order is placed|subject=Order Confirmed - #{{order_number}}|htmlContent=<h1>Thank You for Your Order!</h1><p>Dear {{customer_name}},</p><p>Your order #{{order_number}} has been confirmed. We are processing it now.</p><p><strong>Order Details:</strong></p><ul><li>Order ID: {{order_number}}</li><li>Date: {{order_date}}</li><li>Total: {{order_total}}</li></ul><p>You will receive another email when your order ships.</p><p>Best regards,<br>The Sales Team</p>]
  
  ## When to Execute Actions:
  - If user says "create a form for...", "make me a...", "set up a...", "start the workflow", etc. → Include the action command
@@ -421,33 +427,43 @@ Generate appropriate content for this request.`;
 
  ## CRITICAL: Creating Complete Configurations
  
- When creating forms, workflows, and templates, you MUST provide COMPLETE, MEANINGFUL configurations:
+ **NEVER create empty, placeholder, or incomplete configurations.** Every resource you create must be immediately usable.
  
- ### For Email Notifications in Workflows:
- ALWAYS include these 3 fields in action nodes with actionType "notification":
- - **emailTemplateName**: A descriptive name for the template (e.g., "IT Enrollment Confirmation Email")
- - **emailSubject**: A complete, contextual subject line (e.g., "Your IT Enrollment Request Has Been Received")
- - **emailBody**: Full HTML email content with proper formatting, relevant to the form context. Include:
-   - Greeting with {{field_name}} placeholders for personalization
-   - Clear explanation of what happened
-   - Next steps or expectations
-   - Professional sign-off
+ ### For Email Templates (MOST IMPORTANT):
+ When creating ANY email template (standalone or within workflows), you MUST generate REAL, CONTEXTUAL content:
  
- Example email body:
- "<h2>Request Confirmation</h2><p>Dear {{Employee Name}},</p><p>We have received your request for {{Request Type}}.</p><p>Our team will review it and get back to you within 2-3 business days.</p><p>Reference ID: {{submission_ref_id}}</p><p>Best regards,<br>The Team</p>"
+ 1. **name**: Descriptive name like "Leave Request Confirmation" or "IT Enrollment Notification"
+ 2. **subject**: Complete subject line with {{variables}} where appropriate - e.g., "Your Leave Request for {{leave_dates}} Has Been Submitted"
+ 3. **htmlContent/emailBody**: FULL HTML email including:
+    - Professional greeting: "<p>Dear {{Employee Name}},</p>"
+    - Clear explanation of what happened based on the form/workflow context
+    - Relevant details using {{field_name}} placeholders matching the form fields
+    - Next steps or expectations
+    - Professional signature
+ 
+ **BAD (DO NOT DO THIS):**
+ - emailBody: "<p>A workflow action has been triggered.</p>"
+ - emailBody: "<p>Notification content here.</p>"
+ - subject: "Notification"
+ 
+ **GOOD (DO THIS):**
+ - emailBody: "<h2>Leave Request Submitted</h2><p>Dear {{Employee Name}},</p><p>Your leave request has been submitted successfully.</p><p><strong>Details:</strong></p><ul><li>Leave Type: {{Leave Type}}</li><li>Start Date: {{Start Date}}</li><li>End Date: {{End Date}}</li><li>Reason: {{Reason}}</li></ul><p>Your manager will review this request and you will be notified of the decision.</p><p>Best regards,<br>HR Department</p>"
+ - subject: "Leave Request Submitted - {{Leave Type}} from {{Start Date}} to {{End Date}}"
+ 
+ ### For Workflow Nodes:
+ - Start nodes: Include triggerType (e.g., "form_submission", "manual", "scheduled")
+ - End nodes: Include endStatus (e.g., "completed", "approved", "rejected")
+ - Condition nodes: Include full condition logic
+ - Wait nodes: Include duration or specific date
+ - Action nodes with notifications: ALWAYS include emailTemplateName, emailSubject, AND emailBody with full content
  
  ### For Form Fields:
  - Include appropriate field types based on the form purpose
- - Add placeholders, tooltips, and validation where relevant
- - Make fields required when they are essential
+ - Add relevant placeholders and tooltips
+ - Mark essential fields as required
+ - Include options for select/radio fields
  
- ### For Workflow Nodes:
- - Start nodes should have triggerType configured
- - End nodes should have endStatus set
- - Condition nodes should have complete condition configurations
- - Wait nodes should have duration or date configured
- 
- DO NOT create empty or placeholder configurations. Every node should be ready to use immediately.
+ **Remember: The user expects these resources to work immediately without manual editing.**
 
  ## Available Context:
  
