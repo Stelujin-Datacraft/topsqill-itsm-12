@@ -32,7 +32,7 @@
          )
        `)
        .in('status', ['active', 'warning'])
-       .order('due_at', { ascending: true });
+      .order('breach_at', { ascending: true });
  
      if (slaError) {
        console.error('Error fetching SLA instances:', slaError);
@@ -74,7 +74,7 @@
      // Predict breach risk for each active instance
      const predictions = slaInstances?.map(instance => {
        const now = new Date();
-       const dueAt = new Date(instance.due_at);
+        const dueAt = new Date(instance.breach_at);
        const startedAt = new Date(instance.started_at);
        
        const totalDuration = dueAt.getTime() - startedAt.getTime();
@@ -145,7 +145,7 @@
          submission_ref: instance.submission?.submission_data?.reference_id || instance.submission_id?.slice(0, 8),
          template_name: instance.template?.name || 'Unknown Template',
          status: instance.status,
-         due_at: instance.due_at,
+          due_at: instance.breach_at,
          hours_remaining: Math.max(0, hoursRemaining),
          percent_elapsed: Math.min(100, percentElapsed),
          risk_score: Math.round(riskScore),
