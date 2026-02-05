@@ -121,131 +121,157 @@ serve(async (req) => {
       log: [] as string[],
     };
 
-    try {
-      // In production, this would connect to the actual LDAP server
-      // For now, we simulate the sync process
-      console.log('📝 Note: Using simulated LDAP sync');
-      console.log('🔧 For production, integrate with actual LDAP library or proxy service');
-      
-      // Simulate fetching users from LDAP
-      const ldapUsers = await simulateLdapUserFetch(config);
-      syncResults.usersFound = ldapUsers.length;
-      syncResults.log.push(`Found ${ldapUsers.length} users in LDAP directory`);
-
-      // Get group mappings for this config
-      const { data: groupMappings } = await supabase
-        .from('ldap_group_mappings')
-        .select('*')
-        .eq('ldap_config_id', configId)
-        .eq('is_active', true)
-        .order('priority', { ascending: true });
-
-      // Process each LDAP user
-      for (const ldapUser of ldapUsers) {
-        try {
-          // Check if user already exists
-          const { data: existingProfile } = await supabase
-            .from('user_profiles')
-            .select('id, status')
-            .eq('email', ldapUser.email.toLowerCase())
-            .eq('organization_id', profile.organization_id)
-            .single();
-
-          if (existingProfile) {
-            // Update existing user
-            const updates: any = {
-              first_name: ldapUser.firstName,
-              last_name: ldapUser.lastName,
-            };
-
-            // Update status based on LDAP account status
-            if (config.sync_user_status) {
-              updates.status = ldapUser.isEnabled ? 'active' : 'inactive';
-            }
-
-            await supabase
-              .from('user_profiles')
-              .update(updates)
-              .eq('id', existingProfile.id);
-
-            // Update LDAP user link
-            await supabase
-              .from('ldap_user_links')
-              .upsert({
-                user_id: existingProfile.id,
-                ldap_config_id: configId,
-                ldap_dn: ldapUser.dn,
-                ldap_username: ldapUser.username,
-                ldap_groups: ldapUser.groups,
-                last_synced_at: new Date().toISOString(),
-              }, { onConflict: 'user_id' });
-
-            // Apply group mappings
-            if (groupMappings && groupMappings.length > 0) {
-              await applyGroupMappings(supabase, groupMappings, existingProfile.id, ldapUser.groups);
-            }
-
-            syncResults.usersUpdated++;
-            syncResults.log.push(`Updated user: ${ldapUser.email}`);
-          } else if (config.auto_provision_users) {
-            // Create new user
-            const tempPassword = crypto.randomUUID() + crypto.randomUUID();
-            const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
-              email: ldapUser.email.toLowerCase(),
-              password: tempPassword,
-              email_confirm: true,
-              user_metadata: {
-                first_name: ldapUser.firstName,
-                last_name: ldapUser.lastName,
-                ldap_dn: ldapUser.dn,
-                organization_id: profile.organization_id,
-              }
-            });
-
-            if (authError) {
-              syncResults.errorsCount++;
-              syncResults.errors.push(`Failed to create auth user ${ldapUser.email}: ${authError.message}`);
-              continue;
-            }
-
-            // Create user profile
-            await supabase
-              .from('user_profiles')
-              .insert({
-                id: authUser.user.id,
-                email: ldapUser.email.toLowerCase(),
-                first_name: ldapUser.firstName,
-                last_name: ldapUser.lastName,
-                organization_id: profile.organization_id,
-                role: 'user',
-                status: ldapUser.isEnabled ? 'active' : 'inactive',
-              });
-
-            // Create LDAP user link
-            await supabase
-              .from('ldap_user_links')
-              .insert({
-                user_id: authUser.user.id,
-                ldap_config_id: configId,
-                ldap_dn: ldapUser.dn,
-                ldap_username: ldapUser.username,
-                ldap_groups: ldapUser.groups,
-                last_synced_at: new Date().toISOString(),
-              });
-
-            // Apply group mappings
-            if (groupMappings && groupMappings.length > 0) {
-              await applyGroupMappings(supabase, groupMappings, authUser.user.id, ldapUser.groups);
-            }
-
-            syncResults.usersCreated++;
-            syncResults.log.push(`Created user: ${ldapUser.email}`);
-          }
-        } catch (userError: any) {
-          syncResults.errorsCount++;
-          syncResults.errors.push(`Error processing ${ldapUser.email}: ${userError.message}`);
-        }
-      }
+     try {
+       // In production, this would connect to the actual LDAP server
+       // For now, we simulate the sync process
+       console.log('📝 Note: Using simulated LDAP sync');
+       console.log('🔧 For production, integrate with actual LDAP library or proxy service');
+       
+       // Simulate fetching users from LDAP
+       const ldapUsers = await simulateLdapUserFetch(config);
+       syncResults.usersFound = ldapUsers.length;
+       syncResults.log.push(`Found ${ldapUsers.length} users in LDAP directory`);
+ 
+       // Get group mappings for this config
+       const { data: groupMappings } = await supabase
+         .from('ldap_group_mappings')
+         .select('*')
+         .eq('ldap_config_id', configId)
+         .eq('is_active', true)
+         .order('priority', { ascending: true });
+ 
+       // OPTIMIZATION: Process LDAP users in parallel batches instead of sequentially
+       const BATCH_SIZE = 10; // Process 10 users concurrently
+       
+       for (let i = 0; i < ldapUsers.length; i += BATCH_SIZE) {
+         const batch = ldapUsers.slice(i, i + BATCH_SIZE);
+         
+         const batchResults = await Promise.allSettled(
+           batch.map(async (ldapUser) => {
+             try {
+               // Check if user already exists
+               const { data: existingProfile } = await supabase
+                 .from('user_profiles')
+                 .select('id, status')
+                 .eq('email', ldapUser.email.toLowerCase())
+                 .eq('organization_id', profile.organization_id)
+                 .single();
+ 
+               if (existingProfile) {
+                 // Update existing user
+                 const updates: any = {
+                   first_name: ldapUser.firstName,
+                   last_name: ldapUser.lastName,
+                 };
+ 
+                 // Update status based on LDAP account status
+                 if (config.sync_user_status) {
+                   updates.status = ldapUser.isEnabled ? 'active' : 'inactive';
+                 }
+ 
+                 // Parallel updates for profile and LDAP link
+                 await Promise.all([
+                   supabase
+                     .from('user_profiles')
+                     .update(updates)
+                     .eq('id', existingProfile.id),
+                   supabase
+                     .from('ldap_user_links')
+                     .upsert({
+                       user_id: existingProfile.id,
+                       ldap_config_id: configId,
+                       ldap_dn: ldapUser.dn,
+                       ldap_username: ldapUser.username,
+                       ldap_groups: ldapUser.groups,
+                       last_synced_at: new Date().toISOString(),
+                     }, { onConflict: 'user_id' })
+                 ]);
+ 
+                 // Apply group mappings
+                 if (groupMappings && groupMappings.length > 0) {
+                   await applyGroupMappings(supabase, groupMappings, existingProfile.id, ldapUser.groups);
+                 }
+ 
+                 return { type: 'updated', email: ldapUser.email };
+               } else if (config.auto_provision_users) {
+                 // Create new user
+                 const tempPassword = crypto.randomUUID() + crypto.randomUUID();
+                 const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
+                   email: ldapUser.email.toLowerCase(),
+                   password: tempPassword,
+                   email_confirm: true,
+                   user_metadata: {
+                     first_name: ldapUser.firstName,
+                     last_name: ldapUser.lastName,
+                     ldap_dn: ldapUser.dn,
+                     organization_id: profile.organization_id,
+                   }
+                 });
+ 
+                 if (authError) {
+                   throw new Error(`Failed to create auth user: ${authError.message}`);
+                 }
+ 
+                 // Parallel inserts for profile and LDAP link
+                 await Promise.all([
+                   supabase
+                     .from('user_profiles')
+                     .insert({
+                       id: authUser.user.id,
+                       email: ldapUser.email.toLowerCase(),
+                       first_name: ldapUser.firstName,
+                       last_name: ldapUser.lastName,
+                       organization_id: profile.organization_id,
+                       role: 'user',
+                       status: ldapUser.isEnabled ? 'active' : 'inactive',
+                     }),
+                   supabase
+                     .from('ldap_user_links')
+                     .insert({
+                       user_id: authUser.user.id,
+                       ldap_config_id: configId,
+                       ldap_dn: ldapUser.dn,
+                       ldap_username: ldapUser.username,
+                       ldap_groups: ldapUser.groups,
+                       last_synced_at: new Date().toISOString(),
+                     })
+                 ]);
+ 
+                 // Apply group mappings
+                 if (groupMappings && groupMappings.length > 0) {
+                   await applyGroupMappings(supabase, groupMappings, authUser.user.id, ldapUser.groups);
+                 }
+ 
+                 return { type: 'created', email: ldapUser.email };
+               }
+               
+               return { type: 'skipped', email: ldapUser.email };
+             } catch (userError: any) {
+               throw { email: ldapUser.email, message: userError.message };
+             }
+           })
+         );
+         
+         // Process batch results
+         for (const result of batchResults) {
+           if (result.status === 'fulfilled') {
+             const value = result.value;
+             if (value.type === 'updated') {
+               syncResults.usersUpdated++;
+               syncResults.log.push(`Updated user: ${value.email}`);
+             } else if (value.type === 'created') {
+               syncResults.usersCreated++;
+               syncResults.log.push(`Created user: ${value.email}`);
+             }
+           } else {
+             syncResults.errorsCount++;
+             syncResults.errors.push(`Error processing ${result.reason.email}: ${result.reason.message}`);
+           }
+         }
+         
+         // Log batch progress
+         console.log(`📊 Processed batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(ldapUsers.length / BATCH_SIZE)}`);
+       }
 
       // Handle disabled users (users in our system but not in LDAP)
       if (config.sync_user_status) {
