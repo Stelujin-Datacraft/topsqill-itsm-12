@@ -33,7 +33,22 @@
  
      switch (action) {
        case 'create_form': {
-         const { name, description, fields } = params;
+         let { name, description, fields } = params;
+         
+         // Parse fields if it's a string (from AI response)
+         if (typeof fields === 'string') {
+           try {
+             fields = JSON.parse(fields);
+           } catch (e) {
+             console.error('Failed to parse fields JSON:', e);
+             throw new Error('Invalid fields format');
+           }
+         }
+         
+         // Ensure fields is an array
+         if (!Array.isArray(fields)) {
+           fields = [];
+         }
          
          // Create form
          const { data: form, error: formError } = await supabase
