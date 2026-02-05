@@ -3222,6 +3222,105 @@ export type Database = {
           },
         ]
       }
+      workflow_queue: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          execution_id: string | null
+          id: string
+          last_error: string | null
+          max_retries: number
+          next_retry_at: string | null
+          organization_id: string | null
+          priority: number
+          project_id: string | null
+          retry_count: number
+          started_at: string | null
+          status: string
+          submission_id: string | null
+          trigger_data: Json
+          trigger_ref: string | null
+          trigger_source: string
+          workflow_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          execution_id?: string | null
+          id?: string
+          last_error?: string | null
+          max_retries?: number
+          next_retry_at?: string | null
+          organization_id?: string | null
+          priority?: number
+          project_id?: string | null
+          retry_count?: number
+          started_at?: string | null
+          status?: string
+          submission_id?: string | null
+          trigger_data?: Json
+          trigger_ref?: string | null
+          trigger_source?: string
+          workflow_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          execution_id?: string | null
+          id?: string
+          last_error?: string | null
+          max_retries?: number
+          next_retry_at?: string | null
+          organization_id?: string | null
+          priority?: number
+          project_id?: string | null
+          retry_count?: number
+          started_at?: string | null
+          status?: string
+          submission_id?: string | null
+          trigger_data?: Json
+          trigger_ref?: string | null
+          trigger_source?: string
+          workflow_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_queue_execution_id_fkey"
+            columns: ["execution_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_executions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_queue_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_queue_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_queue_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "form_submissions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_queue_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "workflows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       workflow_triggers: {
         Row: {
           created_at: string
