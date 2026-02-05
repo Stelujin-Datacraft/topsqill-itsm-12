@@ -327,13 +327,13 @@ export function EscalationChainDialog({ open, onClose, chain, aiGeneratedLevels 
                          </Label>
                          <Select
                            value={level.escalate_to_user_id || ''}
-                           onValueChange={(v) => updateLevel(index, { escalate_to_user_id: v || null })}
+                          onValueChange={(v) => updateLevel(index, { escalate_to_user_id: v === '_none_' ? null : v })}
                          >
                            <SelectTrigger className="h-8">
                              <SelectValue placeholder="Select user..." />
                            </SelectTrigger>
                            <SelectContent>
-                             <SelectItem value="">None</SelectItem>
+                            <SelectItem value="_none_">None</SelectItem>
                              {users.map(u => (
                                <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
                              ))}
@@ -346,13 +346,13 @@ export function EscalationChainDialog({ open, onClose, chain, aiGeneratedLevels 
                          </Label>
                          <Select
                            value={level.escalate_to_group_id || ''}
-                           onValueChange={(v) => updateLevel(index, { escalate_to_group_id: v || null })}
+                          onValueChange={(v) => updateLevel(index, { escalate_to_group_id: v === '_none_' ? null : v })}
                          >
                            <SelectTrigger className="h-8">
                              <SelectValue placeholder="Select group..." />
                            </SelectTrigger>
                            <SelectContent>
-                             <SelectItem value="">None</SelectItem>
+                            <SelectItem value="_none_">None</SelectItem>
                              {groups.map(g => (
                                <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
                              ))}
