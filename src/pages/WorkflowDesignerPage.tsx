@@ -4,16 +4,18 @@ import { useParams, useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/DashboardLayout';
 import { WorkflowDesigner } from '@/components/workflows/WorkflowDesigner';
 import { WorkflowInstances } from '@/components/workflows/WorkflowInstances';
+import { WorkflowSettingsPanel } from '@/components/workflows/WorkflowSettingsPanel';
 
 import { useWorkflowData } from '@/hooks/useWorkflowData';
 import { useAuth } from '@/contexts/AuthContext';
 import { TriggerService } from '@/services/triggerService';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Save, ArrowLeft, Activity, Play, Loader2, Sparkles } from 'lucide-react';
+import { Save, ArrowLeft, Activity, Play, Loader2, Sparkles, Settings } from 'lucide-react';
 import { WorkflowNode, WorkflowConnection } from '@/types/workflow';
 import { useToast } from '@/hooks/use-toast';
 import { AIWorkflowSuggester } from '@/components/ai/AIWorkflowSuggester';
+import { supabase } from '@/integrations/supabase/client';
 
 const WorkflowDesignerPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -35,6 +37,11 @@ const WorkflowDesignerPage = () => {
   const [saving, setSaving] = useState(false);
   const [running, setRunning] = useState(false);
   const [activeTab, setActiveTab] = useState('designer');
+  
+  // Enrollment settings state
+  const [enrollmentMode, setEnrollmentMode] = useState<'allow_always' | 'once_per_record' | 'cooldown'>('allow_always');
+  const [enrollmentCooldownHours, setEnrollmentCooldownHours] = useState(24);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
 
   // Get current workflow info
   const currentWorkflow = workflows.find(w => w.id === id);
@@ -74,7 +81,7 @@ const WorkflowDesignerPage = () => {
     }
   };
 
-  // Load workflow data only once on mount
+  // Load workflow data and settings only once on mount
   useEffect(() => {
     let isMounted = true;
     
@@ -93,6 +100,20 @@ const WorkflowDesignerPage = () => {
         console.log('Loaded workflow data:', { nodes: nodes.length, connections: connections.length });
         
         setWorkflowData({ nodes, connections });
+        
+        // Load enrollment settings
+        const { data: workflowSettings } = await supabase
+          .from('workflows')
+          .select('enrollment_mode, enrollment_cooldown_hours')
+          .eq('id', id)
+          .single();
+        
+        if (isMounted && workflowSettings) {
+          const mode = workflowSettings.enrollment_mode as 'allow_always' | 'once_per_record' | 'cooldown' | null;
+          setEnrollmentMode(mode || 'allow_always');
+          setEnrollmentCooldownHours(workflowSettings.enrollment_cooldown_hours || 24);
+          setSettingsLoaded(true);
+        }
       } catch (error) {
         console.error('Error loading workflow data:', error);
         if (isMounted) {
@@ -115,6 +136,47 @@ const WorkflowDesignerPage = () => {
       isMounted = false;
     };
   }, [id, loadWorkflowNodes, toast]);
+
+  // Save enrollment settings when they change
+  const handleEnrollmentModeChange = async (mode: 'allow_always' | 'once_per_record' | 'cooldown') => {
+    if (!id) return;
+    
+    setEnrollmentMode(mode);
+    
+    const { error } = await supabase
+      .from('workflows')
+      .update({ enrollment_mode: mode })
+      .eq('id', id);
+    
+    if (error) {
+      console.error('Error saving enrollment mode:', error);
+      toast({
+        title: "Failed to save setting",
+        description: "Could not update enrollment mode.",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Setting saved",
+        description: `Enrollment mode set to "${mode.replace(/_/g, ' ')}"`,
+      });
+    }
+  };
+
+  const handleCooldownHoursChange = async (hours: number) => {
+    if (!id) return;
+    
+    setEnrollmentCooldownHours(hours);
+    
+    const { error } = await supabase
+      .from('workflows')
+      .update({ enrollment_cooldown_hours: hours })
+      .eq('id', id);
+    
+    if (error) {
+      console.error('Error saving cooldown hours:', error);
+    }
+  };
 
   // Save workflow to database and update local state
   const handleSave = async (nodes: WorkflowNode[], connections: WorkflowConnection[]) => {
@@ -410,7 +472,7 @@ const WorkflowDesignerPage = () => {
       <div className="h-[calc(100vh-140px)] flex flex-col">
         
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-          <TabsList className="grid w-full grid-cols-2 mb-4">
+          <TabsList className="grid w-full grid-cols-3 mb-4">
             <TabsTrigger value="designer" className="flex items-center space-x-2">
               <Save className="h-4 w-4" />
               <span>Designer</span>
@@ -418,6 +480,10 @@ const WorkflowDesignerPage = () => {
             <TabsTrigger value="instances" className="flex items-center space-x-2">
               <Activity className="h-4 w-4" />
               <span>Execution History</span>
+            </TabsTrigger>
+            <TabsTrigger value="settings" className="flex items-center space-x-2">
+              <Settings className="h-4 w-4" />
+              <span>Settings</span>
             </TabsTrigger>
           </TabsList>
 
@@ -433,6 +499,15 @@ const WorkflowDesignerPage = () => {
 
           <TabsContent value="instances" className="flex-1">
             <WorkflowInstances workflowId={id} />
+          </TabsContent>
+
+          <TabsContent value="settings" className="flex-1 overflow-auto">
+            <WorkflowSettingsPanel
+              enrollmentMode={enrollmentMode}
+              enrollmentCooldownHours={enrollmentCooldownHours}
+              onEnrollmentModeChange={handleEnrollmentModeChange}
+              onCooldownHoursChange={handleCooldownHoursChange}
+            />
           </TabsContent>
         </Tabs>
       </div>
