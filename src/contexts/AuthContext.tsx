@@ -1,7 +1,9 @@
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { User, Session } from '@supabase/supabase-js';
+import { useQueryClient } from '@tanstack/react-query';
+import { prefetchDefaultProjectPermissions } from '@/utils/prefetchPermissions';
 import { 
   checkAccountLockout, 
   recordFailedLogin, 
@@ -66,6 +68,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
   const [pendingMfa, setPendingMfa] = useState<{ userId: string; email: string } | null>(null);
   const [passwordExpired, setPasswordExpired] = useState(false);
+  
+  // Get query client for prefetching - wrapped in try/catch for safety
+  let queryClient: ReturnType<typeof useQueryClient> | null = null;
+  try {
+    queryClient = useQueryClient();
+  } catch {
+    // QueryClient not available (e.g., during SSR or outside provider)
+  }
 
   const loadUserProfile = async (userId: string) => {
     try {
@@ -88,6 +98,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUserProfile(profile as UserProfile);
 
       if (profile.organization_id) {
+        // Prefetch permissions in the background (non-blocking)
+        if (queryClient) {
+          setTimeout(() => {
+            prefetchDefaultProjectPermissions(
+              queryClient!,
+              userId,
+              profile.organization_id
+            );
+          }, 0);
+        }
+
         const { data: org, error: orgError } = await supabase
           .from('organizations')
           .select('*')
