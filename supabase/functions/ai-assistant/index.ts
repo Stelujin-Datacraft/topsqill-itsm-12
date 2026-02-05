@@ -377,12 +377,43 @@ Generate appropriate content for this request.`;
     - Params: submissionId (string), status (approved/rejected), notes (optional string)
     - Example: [ACTION:update_submission_status|submissionId=sub123|status=approved|notes=Looks good]
  
+ 10. **create_form_with_sla** - Create a form with SLA tracking attached
+     - Params: formName, formDescription, fields (JSON array), lifecycleFieldLabel (string), slaTemplateName (optional - to link existing), createNewSlaTemplate (boolean), newSlaConfig (JSON for new template), escalationChainName (optional), createNewEscalationChain (boolean), newEscalationConfig (JSON)
+     - newSlaConfig format: {"name":"Template Name","warningThresholdHours":4,"breachThresholdHours":8,"businessHoursStart":"09:00","businessHoursEnd":"17:00"}
+     - newEscalationConfig format: {"name":"Chain Name","levels":[{"level":"L1","hoursAfterBreach":2,"sendEmail":true}]}
+     - Example: [ACTION:create_form_with_sla|formName=Support Ticket|formDescription=Customer support tickets|fields=[{"type":"text","label":"Subject","required":true},{"type":"textarea","label":"Description"}]|lifecycleFieldLabel=Status|createNewSlaTemplate=true|newSlaConfig={"name":"Support SLA","warningThresholdHours":2,"breachThresholdHours":4}]
+ 
+ 11. **create_form_with_email_template** - Create a form with email notifications
+     - Params: formName, formDescription, fields (JSON array), emailTemplateName (string), emailSubject (string), emailBody (HTML string), emailRecipientType (submitter/form_owner), existingTemplateName (optional - to link existing)
+     - Example: [ACTION:create_form_with_email_template|formName=Contact Form|formDescription=Customer inquiries|fields=[{"type":"text","label":"Name","required":true},{"type":"email","label":"Email","required":true}]|emailTemplateName=Contact Confirmation|emailSubject=Thank you for contacting us|emailBody=<p>We received your message and will respond shortly.</p>|emailRecipientType=submitter]
+ 
+ 12. **add_email_action_to_workflow** - Add an email notification node to an existing workflow
+     - Params: workflowId OR workflowName (string), emailTemplateId OR emailTemplateName (string), actionLabel (optional string), createNewTemplate (boolean), newTemplateConfig (JSON)
+     - Example: [ACTION:add_email_action_to_workflow|workflowName=Approval Process|emailTemplateName=Approval Notification|actionLabel=Send Approval Email]
+ 
+ 13. **link_form_to_workflow** - Link an existing form to an existing workflow as trigger
+     - Params: formId OR formName (string), workflowId OR workflowName (string)
+     - Example: [ACTION:link_form_to_workflow|formName=Leave Request|workflowName=Leave Approval]
+ 
+ 14. **link_form_to_sla** - Attach SLA tracking to an existing form
+     - Params: formId OR formName (string), lifecycleFieldLabel (string), slaTemplateId OR slaTemplateName (string), escalationChainId OR escalationChainName (optional)
+     - Example: [ACTION:link_form_to_sla|formName=Support Ticket|lifecycleFieldLabel=Status|slaTemplateName=Standard Support SLA|escalationChainName=Support Escalation]
+ 
  ## When to Execute Actions:
  - If user says "create a form for...", "make me a...", "set up a...", "start the workflow", etc. → Include the action command
  - If user wants BOTH a form AND workflow together (like "create a leave request form with approval workflow") → Use create_form_with_workflow
+  - If user wants a form with SLA/deadline tracking → Use create_form_with_sla
+  - If user wants a form with email notifications → Use create_form_with_email_template
+  - If user wants to add email actions to an existing workflow → Use add_email_action_to_workflow
+  - If user wants to link existing resources together → Use link_form_to_workflow or link_form_to_sla
  - If user just asks "how do I create a form?" → Explain but don't execute
  - If user asks "what are my SLA risks?" → Execute get_sla_predictions
  - Always confirm what you're about to do before the action command
+ 
+  ## Linking Existing Resources:
+  You can reference existing resources by NAME instead of ID. The system will look up the resource automatically.
+  - "Link the Leave Request form to the Approval workflow" → [ACTION:link_form_to_workflow|formName=Leave Request|workflowName=Approval]
+  - "Add email notifications using the Welcome Template to the Onboarding workflow" → [ACTION:add_email_action_to_workflow|workflowName=Onboarding|emailTemplateName=Welcome Template]
 
  ## Available Context:
  
