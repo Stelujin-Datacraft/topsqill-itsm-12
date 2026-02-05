@@ -6,3 +6,4 @@
  export { BusinessHolidaysTab } from './BusinessHolidaysTab';
  export { SLAStatusBadge } from './SLAStatusBadge';
 export { AISLAGenerator } from './AISLAGenerator';
+export { SLAPredictions } from './SLAPredictions';
