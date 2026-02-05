@@ -258,7 +258,7 @@ const WorkflowDesignerPage = () => {
   };
 
   // Normalize AI-generated config to match our expected structure
-  const normalizeNodeConfig = (nodeType: string, aiConfig: Record<string, any>): Record<string, any> => {
+  const normalizeNodeConfig = (nodeType: string, aiConfig: Record<string, any>, triggerForm?: { id: string; name: string } | null): Record<string, any> => {
     const config = { ...aiConfig };
     
     switch (nodeType) {
@@ -267,6 +267,11 @@ const WorkflowDesignerPage = () => {
         if (!config.triggerType) {
           config.triggerType = 'form_submission';
         }
+       // Ensure form info is present for display
+       if (triggerForm && !config.triggerFormId) {
+         config.triggerFormId = triggerForm.id;
+         config.triggerFormName = triggerForm.name;
+       }
         break;
         
       case 'action':
@@ -287,18 +292,52 @@ const WorkflowDesignerPage = () => {
         // Normalize notification config if present
         if (config.actionType === 'send_notification' && !config.notificationConfig) {
           config.notificationConfig = {
-            type: config.notificationType || 'email',
-            subject: config.subject || 'Notification',
-            message: config.message || '',
+           type: config.notificationType || config.type || 'email',
+           subject: config.subject || config.emailSubject || 'Workflow Notification',
+           message: config.message || config.body || config.emailBody || 'This is an automated notification from the workflow.',
             recipientConfig: config.recipientConfig || {
-              type: 'submitter'
+             type: config.recipientType || 'submitter'
             }
           };
         }
+       
+       // Normalize change_field_value config
+       if (config.actionType === 'change_field_value') {
+         if (!config.targetFormId && triggerForm) {
+           config.targetFormId = triggerForm.id;
+           config.targetFormName = triggerForm.name;
+         }
+         // Ensure fieldUpdates array exists
+         if (!config.fieldUpdates && config.fieldId) {
+           config.fieldUpdates = [{
+             fieldId: config.fieldId,
+             fieldLabel: config.fieldLabel || config.fieldId,
+             value: config.value || config.newValue || '',
+             valueType: config.valueType || 'static'
+           }];
+         }
+         // Set display-friendly properties
+         if (config.fieldUpdates && config.fieldUpdates[0]) {
+           config.targetFieldId = config.fieldUpdates[0].fieldId;
+           config.targetFieldName = config.fieldUpdates[0].fieldLabel || config.fieldUpdates[0].fieldId;
+           config.staticValue = config.fieldUpdates[0].value;
+           config.valueType = config.fieldUpdates[0].valueType || 'static';
+         }
+       }
+       
+       // Normalize create_record config
+       if (config.actionType === 'create_record') {
+         if (!config.recordCount) {
+           config.recordCount = 1;
+         }
+         if (!config.targetFormName && config.targetFormId) {
+           config.targetFormName = 'Target Form';
+         }
+       }
         break;
         
       case 'condition':
-        // Ensure enhancedCondition structure exists
+       // Ensure enhancedCondition structure exists with proper display info
         if (!config.enhancedCondition && config.condition) {
           // Convert simple condition to enhanced format
           const simpleCondition = config.condition;
@@ -309,7 +348,7 @@ const WorkflowDesignerPage = () => {
               systemType: 'field_level',
               fieldLevelCondition: {
                 id: `flc_${Date.now()}`,
-                formId: simpleCondition.formId || '',
+               formId: simpleCondition.formId || triggerForm?.id || '',
                 fieldId: simpleCondition.fieldId || simpleCondition.field || '',
                 fieldLabel: simpleCondition.fieldLabel || simpleCondition.field || '',
                 fieldType: simpleCondition.fieldType || 'text',
@@ -318,6 +357,24 @@ const WorkflowDesignerPage = () => {
               }
             }]
           };
+       } else if (!config.enhancedCondition && config.fieldId) {
+         // Build from flat config
+         config.enhancedCondition = {
+           systemType: 'field_level',
+           conditions: [{
+             id: `cond_${Date.now()}`,
+             systemType: 'field_level',
+             fieldLevelCondition: {
+               id: `flc_${Date.now()}`,
+               formId: config.formId || triggerForm?.id || '',
+               fieldId: config.fieldId,
+               fieldLabel: config.fieldLabel || config.fieldId,
+               fieldType: config.fieldType || 'text',
+               operator: config.operator || '==',
+               value: config.value || ''
+             }
+           }]
+         };
         }
         break;
         
@@ -337,6 +394,9 @@ const WorkflowDesignerPage = () => {
         if (!config.endStatus) {
           config.endStatus = 'completed';
         }
+       if (!config.summary) {
+         config.summary = 'Workflow completed';
+       }
         break;
     }
     
@@ -357,10 +417,17 @@ const WorkflowDesignerPage = () => {
   }) => {
     const timestamp = Date.now();
     
+   // Try to extract trigger form info from the first start node config if available
+   const startNode = suggestion.nodes.find(n => n.type.toLowerCase() === 'start' || n.type.toLowerCase() === 'trigger');
+   const triggerFormInfo = startNode?.config?.triggerFormId ? {
+     id: startNode.config.triggerFormId,
+     name: startNode.config.triggerFormName || 'Trigger Form'
+   } : null;
+   
     // Convert AI suggestions to workflow format with valid node types and normalized configs
     const newNodes: WorkflowNode[] = suggestion.nodes.map((node, index) => {
       const nodeType = mapNodeType(node.type);
-      const normalizedConfig = normalizeNodeConfig(nodeType, node.config || {});
+     const normalizedConfig = normalizeNodeConfig(nodeType, node.config || {}, triggerFormInfo);
       
       // Calculate positions - condition nodes need more space for branches
       const yOffset = 100 + index * 150;

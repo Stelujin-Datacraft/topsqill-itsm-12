@@ -860,6 +860,10 @@ IMPORTANT:
 - For condition nodes, reference actual field IDs and labels
 - Ensure every node except "end" has proper connections
 - Condition nodes MUST have both "true" and "false" connections
+- CRITICAL: Every node config MUST be COMPLETE with all required nested properties
+- For action nodes with send_notification: MUST include full notificationConfig with type, subject, message, and recipientConfig
+- For action nodes with change_field_value: MUST include targetFormId, targetFormName, targetFieldId, targetFieldName, staticValue/dynamicValuePath, and fieldUpdates array
+- Do NOT return empty or partial configs - users should see meaningful node descriptions, not "Click to configure"
 
 Return a valid JSON object:
 {
@@ -870,7 +874,7 @@ Return a valid JSON object:
       "type": "start|action|condition|wait|end",
       "label": "Unique Node Label",
       "description": "What this step does",
-      "config": { /* node-specific config as defined above */ },
+      "config": { /* COMPLETE node-specific config with ALL required fields as defined above */ },
       "connections": [
         { "to": "Next Node Label", "condition": "true|false for condition nodes only" }
       ]
