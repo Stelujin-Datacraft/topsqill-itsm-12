@@ -1220,26 +1220,79 @@
          break;
        }
  
-       case 'update_submission_status': {
-         const { submissionId, status, notes } = params;
-         
-         const { error } = await supabase
-           .from('form_submissions')
-           .update({
-             approval_status: status,
-             approval_notes: notes,
-             approval_timestamp: new Date().toISOString(),
-             approved_by: userId
-           })
-           .eq('id', submissionId);
- 
-         if (error) throw error;
- 
-         message = `Submission ${status}!`;
-         break;
-       }
- 
-       default:
+        case 'update_submission_status': {
+          const { submissionId, status, notes } = params;
+          
+          const { error } = await supabase
+            .from('form_submissions')
+            .update({
+              approval_status: status,
+              approval_notes: notes,
+              approval_timestamp: new Date().toISOString(),
+              approved_by: userId
+            })
+            .eq('id', submissionId);
+
+          if (error) throw error;
+
+          message = `Submission ${status}!`;
+          break;
+        }
+
+        case 'create_email_template': {
+          let { name, description, subject, htmlContent, textContent, recipientType, recipients } = params;
+          
+          // Build recipient config
+          const recipientConfig: any = recipients || { to: [], cc: [], bcc: [], permanent_recipients: [] };
+          
+          if (recipientType === 'submitter' && (!recipients?.to?.length)) {
+            recipientConfig.to = [{ type: 'parameter', parameterType: 'submitter_email', fieldId: null }];
+          } else if (recipientType === 'form_owner' && (!recipients?.to?.length)) {
+            recipientConfig.to = [{ type: 'parameter', parameterType: 'form_owner_email', fieldId: null }];
+          }
+          
+          // Extract template variables from content
+          const variableRegex = /\{\{([^}]+)\}\}/g;
+          const allContent = `${subject || ''} ${htmlContent || ''} ${textContent || ''}`;
+          const variables: string[] = [];
+          let match;
+          while ((match = variableRegex.exec(allContent)) !== null) {
+            const varName = match[1].trim();
+            if (!variables.includes(varName)) {
+              variables.push(varName);
+            }
+          }
+          
+          const { data: template, error: templateError } = await supabase
+            .from('email_templates')
+            .insert({
+              name: name || 'New Email Template',
+              description: description || 'Created by AI Copilot',
+              subject: subject || 'Notification',
+              html_content: htmlContent || '<p>Email content goes here.</p>',
+              text_content: textContent || null,
+              project_id: projectId,
+              created_by: userId,
+              is_active: true,
+              recipients: recipientConfig,
+              template_variables: variables,
+              custom_params: {}
+            })
+            .select()
+            .single();
+
+          if (templateError) throw templateError;
+
+          result = { 
+            templateId: template.id, 
+            templateName: template.name,
+            variables: variables
+          };
+          message = `Created email template "${template.name}" with ${variables.length} variable(s)!`;
+          break;
+        }
+
+        default:
          throw new Error(`Unknown action: ${action}`);
      }
  
