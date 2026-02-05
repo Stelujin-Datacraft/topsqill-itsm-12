@@ -14,7 +14,7 @@ interface FormField {
 }
 
 interface AIRequest {
-  action: 'auto-fill' | 'suggest-routing' | 'analyze-content' | 'generate-summary' | 'natural-language-query' | 'generate-content' | 'chatbot-assist' | 'generate-formula' | 'generate-form' | 'suggest-workflow' | 'suggest-field-mappings' | 'suggest-chart';
+  action: 'auto-fill' | 'suggest-routing' | 'analyze-content' | 'generate-summary' | 'natural-language-query' | 'generate-content' | 'chatbot-assist' | 'generate-formula' | 'generate-form' | 'suggest-workflow' | 'suggest-field-mappings' | 'suggest-chart' | 'generate-sla-template' | 'generate-escalation-chain';
   context: {
     formFields?: FormField[];
     currentValues?: Record<string, any>;
@@ -54,6 +54,8 @@ interface AIRequest {
     // Chart suggestions
     formData?: Array<Record<string, any>>;
     existingCharts?: Array<{ type: string; dimensions: string[]; metrics: string[] }>;
+    // SLA generation
+    industry?: string;
   };
 }
 
@@ -920,6 +922,117 @@ Return JSON with format:
   ],
   "warnings": ["Any data quality issues noticed"]
 }`;
+        break;
+
+      // NEW: SLA Template Generation
+      case 'generate-sla-template':
+        temperature = 0.4;
+        maxTokens = 1500;
+        
+        const industryContextTemplate: Record<string, string> = {
+          general: 'general business operations with standard response expectations',
+          it_support: 'IT support/help desk with tiered priority levels (P1-P4), critical incidents requiring immediate response',
+          customer_service: 'customer service with focus on first response time and resolution time',
+          healthcare: 'healthcare with urgent patient-related matters requiring fast response',
+          finance: 'financial services with regulatory compliance and audit requirements',
+          manufacturing: 'manufacturing with equipment downtime and production impact considerations',
+          hr: 'human resources with employee request and onboarding timelines',
+          legal: 'legal services with court deadlines and client matter urgency'
+        };
+        
+        systemPrompt = `You are an SLA configuration expert. Generate an SLA template based on user requirements.
+
+Industry Context: ${industryContextTemplate[context.industry || 'general'] || 'general business'}
+
+Rules:
+- Warning time should typically be 50-75% of breach time
+- Consider business hours for non-urgent items
+- Priority multipliers: high priority = faster (0.5x), low priority = slower (1.5x)
+- Business hours typically 9:00-17:00 unless specified
+- Be realistic with timing based on industry standards`;
+
+        userPrompt = `Create an SLA template based on this requirement:
+
+"${context.userInput}"
+
+Return a JSON object:
+{
+  "name": "Descriptive template name",
+  "description": "What this SLA covers",
+  "warning_hours": number (when to warn before breach),
+  "breach_hours": number (when SLA is breached),
+  "use_business_hours": boolean (count only business hours),
+  "business_start_time": "HH:MM:SS" (if use_business_hours),
+  "business_end_time": "HH:MM:SS" (if use_business_hours),
+  "business_days": ["Monday", "Tuesday", ...] (if use_business_hours),
+  "priority_multipliers": {
+    "critical": 0.25,
+    "high": 0.5,
+    "medium": 1.0,
+    "low": 1.5
+  }
+}`;
+        break;
+
+      // NEW: Escalation Chain Generation
+      case 'generate-escalation-chain':
+        temperature = 0.4;
+        maxTokens = 1500;
+        
+        const industryContextChain: Record<string, string> = {
+          general: 'standard business escalation from team to manager to director',
+          it_support: 'IT escalation from L1 support through L2/L3 specialists to IT management',
+          customer_service: 'customer service escalation from agent to supervisor to manager',
+          healthcare: 'clinical escalation with urgency for patient safety',
+          finance: 'financial services escalation with compliance officer involvement',
+          manufacturing: 'production escalation from operator to supervisor to plant manager',
+          hr: 'HR escalation from HR specialist to HR manager to HR director',
+          legal: 'legal escalation from paralegal to associate to partner'
+        };
+        
+        systemPrompt = `You are an escalation management expert. Generate an escalation chain based on user requirements.
+
+Industry Context: ${industryContextChain[context.industry || 'general'] || 'standard business'}
+
+Rules:
+- L1 is typically immediate or within 1-2 hours of breach
+- Each subsequent level adds more time (e.g., L2 at +4h, L3 at +8h, L4 at +24h)
+- Higher levels should include more senior personnel
+- Critical issues may skip levels or have faster escalation
+- Consider notification methods appropriate for urgency`;
+
+        userPrompt = `Create an escalation chain based on this requirement:
+
+"${context.userInput}"
+
+Return a JSON object:
+{
+  "name": "Descriptive chain name",
+  "description": "What this escalation chain is for",
+  "levels": [
+    {
+      "level": "L1",
+      "hours_after_breach": 0,
+      "send_email": true,
+      "send_notification": true,
+      "change_priority": false,
+      "new_priority": null,
+      "custom_message": "Optional notification message"
+    },
+    {
+      "level": "L2",
+      "hours_after_breach": 2,
+      "send_email": true,
+      "send_notification": true,
+      "change_priority": true,
+      "new_priority": "high",
+      "custom_message": "Escalated - requires immediate attention"
+    }
+    // Add L3, L4 as needed
+  ]
+}
+
+Generate between 2-4 levels based on the complexity described.`;
         break;
 
       default:

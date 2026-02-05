@@ -5,6 +5,7 @@
  import { Plus, Edit, Trash2, AlertTriangle, ArrowRight, Users, User } from 'lucide-react';
  import { useEscalationChains, EscalationChain } from '@/hooks/useSLAManagement';
  import { EscalationChainDialog } from './EscalationChainDialog';
+import { AISLAGenerator } from './AISLAGenerator';
  import {
    AlertDialog,
    AlertDialogAction,
@@ -22,14 +23,23 @@
    const [editingChain, setEditingChain] = useState<EscalationChain | null>(null);
    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
    const [chainToDelete, setChainToDelete] = useState<string | null>(null);
+  const [aiGeneratedData, setAiGeneratedData] = useState<any>(null);
  
    const handleCreate = () => {
      setEditingChain(null);
+    setAiGeneratedData(null);
      setDialogOpen(true);
    };
  
+  const handleAIGenerate = (data: any) => {
+    setEditingChain(null);
+    setAiGeneratedData(data);
+    setDialogOpen(true);
+  };
+
    const handleEdit = (chain: EscalationChain) => {
      setEditingChain(chain);
+    setAiGeneratedData(null);
      setDialogOpen(true);
    };
  
@@ -75,10 +85,13 @@
              Define escalation paths when SLAs are breached (L1 → L2 → L3 → L4)
            </p>
          </div>
-         <Button onClick={handleCreate} className="flex items-center gap-2">
-           <Plus className="h-4 w-4" />
-           Create Chain
-         </Button>
+          <div className="flex items-center gap-2">
+            <AISLAGenerator type="chain" onApply={handleAIGenerate} />
+            <Button onClick={handleCreate} className="flex items-center gap-2">
+              <Plus className="h-4 w-4" />
+              Create Chain
+            </Button>
+          </div>
        </div>
  
        {chains.length === 0 ? (
@@ -175,7 +188,8 @@
            setDialogOpen(false);
            fetchChains();
          }}
-         chain={editingChain}
+          chain={editingChain || aiGeneratedData}
+          aiGeneratedLevels={aiGeneratedData?.levels}
        />
  
        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

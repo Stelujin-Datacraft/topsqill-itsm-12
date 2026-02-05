@@ -24,6 +24,15 @@
    open: boolean;
    onClose: () => void;
    chain: EscalationChain | null;
+  aiGeneratedLevels?: Array<{
+    level: 'L1' | 'L2' | 'L3' | 'L4';
+    hours_after_breach: number;
+    send_email: boolean;
+    send_notification: boolean;
+    change_priority: boolean;
+    new_priority?: string;
+    custom_message?: string;
+  }>;
  }
  
  interface LevelFormData {
@@ -38,7 +47,7 @@
    custom_message: string;
  }
  
- export function EscalationChainDialog({ open, onClose, chain }: EscalationChainDialogProps) {
+export function EscalationChainDialog({ open, onClose, chain, aiGeneratedLevels }: EscalationChainDialogProps) {
    const { userProfile } = useAuth();
    const { toast } = useToast();
    const [name, setName] = useState('');
@@ -54,19 +63,35 @@
        setName(chain.name);
        setDescription(chain.description || '');
        setIsActive(chain.is_active);
-       setLevels(
-         (chain.levels || []).map(l => ({
-           id: l.id,
-           level: l.level,
-           hours_after_breach: l.hours_after_breach,
-           escalate_to_user_id: l.escalate_to_user_id,
-           escalate_to_group_id: l.escalate_to_group_id,
-           send_email: l.send_email,
-           send_notification: l.send_notification,
-           auto_reassign: l.auto_reassign,
-           custom_message: l.custom_message || ''
-         }))
-       );
+      // Use AI generated levels if provided, otherwise use chain's levels
+      if (aiGeneratedLevels && aiGeneratedLevels.length > 0) {
+        setLevels(
+          aiGeneratedLevels.map(l => ({
+            level: l.level,
+            hours_after_breach: l.hours_after_breach,
+            escalate_to_user_id: null,
+            escalate_to_group_id: null,
+            send_email: l.send_email,
+            send_notification: l.send_notification,
+            auto_reassign: false,
+            custom_message: l.custom_message || ''
+          }))
+        );
+      } else {
+        setLevels(
+          (chain.levels || []).map(l => ({
+            id: l.id,
+            level: l.level,
+            hours_after_breach: l.hours_after_breach,
+            escalate_to_user_id: l.escalate_to_user_id,
+            escalate_to_group_id: l.escalate_to_group_id,
+            send_email: l.send_email,
+            send_notification: l.send_notification,
+            auto_reassign: l.auto_reassign,
+            custom_message: l.custom_message || ''
+          }))
+        );
+      }
      } else {
        setName('');
        setDescription('');
@@ -82,7 +107,7 @@
          custom_message: ''
        }]);
      }
-   }, [chain, open]);
+  }, [chain, open, aiGeneratedLevels]);
  
    useEffect(() => {
      const fetchOptions = async () => {

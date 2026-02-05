@@ -5,6 +5,7 @@
  import { Plus, Edit, Trash2, Clock, Building2 } from 'lucide-react';
  import { useSLATemplates, SLATemplate } from '@/hooks/useSLAManagement';
  import { SLATemplateDialog } from './SLATemplateDialog';
+import { AISLAGenerator } from './AISLAGenerator';
  import {
    AlertDialog,
    AlertDialogAction,
@@ -22,14 +23,34 @@
    const [editingTemplate, setEditingTemplate] = useState<SLATemplate | null>(null);
    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
    const [templateToDelete, setTemplateToDelete] = useState<string | null>(null);
+  const [aiGeneratedData, setAiGeneratedData] = useState<Partial<SLATemplate> | null>(null);
  
    const handleCreate = () => {
      setEditingTemplate(null);
+    setAiGeneratedData(null);
      setDialogOpen(true);
    };
  
+  const handleAIGenerate = (data: any) => {
+    setEditingTemplate(null);
+    setAiGeneratedData({
+      name: data.name,
+      description: data.description,
+      warning_hours: data.warning_hours,
+      breach_hours: data.breach_hours,
+      use_business_hours: data.use_business_hours || false,
+      business_start_time: data.business_start_time,
+      business_end_time: data.business_end_time,
+      business_days: data.business_days,
+      priority_multipliers: data.priority_multipliers,
+      is_active: true,
+    });
+    setDialogOpen(true);
+  };
+
    const handleEdit = (template: SLATemplate) => {
      setEditingTemplate(template);
+    setAiGeneratedData(null);
      setDialogOpen(true);
    };
  
@@ -69,10 +90,13 @@
              Define reusable SLA rules with warning and breach thresholds
            </p>
          </div>
-         <Button onClick={handleCreate} className="flex items-center gap-2">
-           <Plus className="h-4 w-4" />
-           Create Template
-         </Button>
+          <div className="flex items-center gap-2">
+            <AISLAGenerator type="template" onApply={handleAIGenerate} />
+            <Button onClick={handleCreate} className="flex items-center gap-2">
+              <Plus className="h-4 w-4" />
+              Create Template
+            </Button>
+          </div>
        </div>
  
        {templates.length === 0 ? (
@@ -161,7 +185,7 @@
          open={dialogOpen}
          onClose={() => setDialogOpen(false)}
          onSave={handleSave}
-         template={editingTemplate}
+          template={editingTemplate || (aiGeneratedData ? aiGeneratedData as SLATemplate : null)}
        />
  
        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

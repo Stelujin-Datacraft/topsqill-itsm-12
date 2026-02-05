@@ -5,3 +5,4 @@
  export { SLADashboardTab } from './SLADashboardTab';
  export { BusinessHolidaysTab } from './BusinessHolidaysTab';
  export { SLAStatusBadge } from './SLAStatusBadge';
+export { AISLAGenerator } from './AISLAGenerator';
