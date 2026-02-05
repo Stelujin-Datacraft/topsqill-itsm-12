@@ -247,15 +247,16 @@
                const sourceId = nodeIdMap[nodeDef.tempId || `node_${i}`];
                const targetId = nodeIdMap[conn.to];
                
-               if (sourceId && targetId) {
-                 connectionsToInsert.push({
-                   workflow_id: workflow.id,
-                   source_node_id: sourceId,
-                   target_node_id: targetId,
-                   source_handle: conn.sourceHandle || 'bottom',
-                   target_handle: conn.targetHandle || 'top',
-                   condition_type: conn.conditionType || null
-                 });
+                if (sourceId && targetId) {
+                  connectionsToInsert.push({
+                    workflow_id: workflow.id,
+                    source_node_id: sourceId,
+                    target_node_id: targetId,
+                    // Use null for default handles - React Flow nodes without explicit handle IDs use null
+                    source_handle: conn.sourceHandle || null,
+                    target_handle: conn.targetHandle || null,
+                    condition_type: conn.conditionType || null
+                  });
                }
              }
            }
@@ -355,99 +356,167 @@
              created_by: userId
            });
          
-         // 5. Create workflow nodes
-         if (workflowNodes.length > 0) {
-           const nodeIdMap: Record<string, string> = {};
-           const nodesToInsert = [];
-           
-           for (let i = 0; i < workflowNodes.length; i++) {
-             const nodeDef = workflowNodes[i];
-             const tempId = nodeDef.tempId || `node_${i}`;
-             const nodeId = crypto.randomUUID();
-             nodeIdMap[tempId] = nodeId;
-             
-             nodesToInsert.push({
-               id: nodeId,
-               workflow_id: workflow.id,
-               node_type: nodeDef.type || 'action',
-               label: nodeDef.label || `Node ${i + 1}`,
-               position_x: nodeDef.positionX || 250,
-               position_y: nodeDef.positionY || 100 + (i * 150),
-               config: nodeDef.config || {}
-             });
-           }
-           
-           await supabase.from('workflow_nodes').insert(nodesToInsert);
-           
-           // Create connections
-           const connectionsToInsert = [];
-           for (let i = 0; i < workflowNodes.length; i++) {
-             const nodeDef = workflowNodes[i];
-             const connections = nodeDef.connections || [];
-             
-             for (const conn of connections) {
-               const sourceId = nodeIdMap[nodeDef.tempId || `node_${i}`];
-               const targetId = nodeIdMap[conn.to];
-               
-               if (sourceId && targetId) {
-                 connectionsToInsert.push({
-                   workflow_id: workflow.id,
-                   source_node_id: sourceId,
-                   target_node_id: targetId,
-                   source_handle: conn.sourceHandle || 'bottom',
-                   target_handle: conn.targetHandle || 'top',
-                   condition_type: conn.conditionType || null
-                 });
-               }
-             }
-           }
-           
-           if (connectionsToInsert.length > 0) {
-             await supabase.from('workflow_connections').insert(connectionsToInsert);
-           }
-         } else {
-           // Create basic start and end nodes if no nodes specified
-           const startNodeId = crypto.randomUUID();
-           const endNodeId = crypto.randomUUID();
-           
-           await supabase.from('workflow_nodes').insert([
-             {
-               id: startNodeId,
-               workflow_id: workflow.id,
-               node_type: 'start',
-               label: 'Start',
-               position_x: 250,
-               position_y: 100,
-               config: {}
-             },
-             {
-               id: endNodeId,
-               workflow_id: workflow.id,
-               node_type: 'end',
-               label: 'End',
-               position_x: 250,
-               position_y: 400,
-               config: {}
-             }
-           ]);
-           
-           await supabase.from('workflow_connections').insert({
-             workflow_id: workflow.id,
-             source_node_id: startNodeId,
-             target_node_id: endNodeId,
-             source_handle: 'bottom',
-             target_handle: 'top'
-           });
-         }
+          // 5. Create workflow nodes and process any embedded email templates
+          const createdTemplates: Array<{ nodeLabel: string; templateId: string; templateName: string }> = [];
+          
+          if (workflowNodes.length > 0) {
+            const nodeIdMap: Record<string, string> = {};
+            const nodesToInsert = [];
+            
+            for (let i = 0; i < workflowNodes.length; i++) {
+              const nodeDef = workflowNodes[i];
+              const tempId = nodeDef.tempId || `node_${i}`;
+              const nodeId = crypto.randomUUID();
+              nodeIdMap[tempId] = nodeId;
+              
+              // Process node config - check if it references an email template that needs to be created
+              let processedConfig = nodeDef.config || {};
+              
+              if (nodeDef.config?.actionType === 'notification' || nodeDef.config?.actionType === 'send_notification') {
+                const emailTemplateName = nodeDef.config.emailTemplateName;
+                const emailSubject = nodeDef.config.emailSubject;
+                const emailBody = nodeDef.config.emailBody;
+                
+                if (emailTemplateName && (emailSubject || emailBody)) {
+                  // Create the email template
+                  const { data: newTemplate, error: templateError } = await supabase
+                    .from('email_templates')
+                    .insert({
+                      name: emailTemplateName,
+                      description: `Auto-generated template for workflow "${workflowName || formName}"`,
+                      subject: emailSubject || `Notification from ${formName}`,
+                      html_content: emailBody || `<p>A workflow action has been triggered.</p>`,
+                      project_id: projectId,
+                      created_by: userId,
+                      is_active: true,
+                      recipients: { to: [], cc: [], bcc: [] },
+                      template_variables: [],
+                      custom_params: {}
+                    })
+                    .select()
+                    .single();
+                  
+                  if (!templateError && newTemplate) {
+                    createdTemplates.push({
+                      nodeLabel: nodeDef.label,
+                      templateId: newTemplate.id,
+                      templateName: newTemplate.name
+                    });
+                    
+                    // Update config to reference the created template
+                    processedConfig = {
+                      ...processedConfig,
+                      actionType: 'send_notification',
+                      notificationConfig: {
+                        type: 'email',
+                        templateId: newTemplate.id,
+                        templateName: newTemplate.name
+                      }
+                    };
+                    
+                    console.log(`Created email template "${newTemplate.name}" for node "${nodeDef.label}"`);
+                  } else {
+                    console.error('Failed to create email template:', templateError);
+                  }
+                }
+              }
+              
+              nodesToInsert.push({
+                id: nodeId,
+                workflow_id: workflow.id,
+                node_type: nodeDef.type || 'action',
+                label: nodeDef.label || `Node ${i + 1}`,
+                position_x: nodeDef.positionX || 250,
+                position_y: nodeDef.positionY || 100 + (i * 150),
+                config: processedConfig
+              });
+            }
+            
+            await supabase.from('workflow_nodes').insert(nodesToInsert);
+            
+            // Create connections - use null for handle IDs to match React Flow's default behavior
+            // The node components use Position.Right (source) and Position.Left (target) without explicit IDs
+            const connectionsToInsert = [];
+            for (let i = 0; i < workflowNodes.length; i++) {
+              const nodeDef = workflowNodes[i];
+              const connections = nodeDef.connections || [];
+              
+              for (const conn of connections) {
+                const sourceId = nodeIdMap[nodeDef.tempId || `node_${i}`];
+                const targetId = nodeIdMap[conn.to];
+                
+                if (sourceId && targetId) {
+                  connectionsToInsert.push({
+                    workflow_id: workflow.id,
+                    source_node_id: sourceId,
+                    target_node_id: targetId,
+                    // Use null for default handles - React Flow nodes without explicit handle IDs use null
+                    source_handle: conn.sourceHandle || null,
+                    target_handle: conn.targetHandle || null,
+                    condition_type: conn.conditionType || null
+                  });
+                }
+              }
+            }
+            
+            if (connectionsToInsert.length > 0) {
+              const { error: connError } = await supabase.from('workflow_connections').insert(connectionsToInsert);
+              if (connError) {
+                console.error('Error creating connections:', connError);
+              } else {
+                console.log(`Created ${connectionsToInsert.length} connections for workflow`);
+              }
+            }
+          } else {
+            // Create basic start and end nodes if no nodes specified
+            const startNodeId = crypto.randomUUID();
+            const endNodeId = crypto.randomUUID();
+            
+            await supabase.from('workflow_nodes').insert([
+              {
+                id: startNodeId,
+                workflow_id: workflow.id,
+                node_type: 'start',
+                label: 'Start',
+                position_x: 250,
+                position_y: 100,
+                config: {}
+              },
+              {
+                id: endNodeId,
+                workflow_id: workflow.id,
+                node_type: 'end',
+                label: 'End',
+                position_x: 250,
+                position_y: 400,
+                config: {}
+              }
+            ]);
+            
+            // Use null handles for default connection
+            await supabase.from('workflow_connections').insert({
+              workflow_id: workflow.id,
+              source_node_id: startNodeId,
+              target_node_id: endNodeId,
+              source_handle: null,
+              target_handle: null
+            });
+          }
  
-         result = { 
-           formId: form.id, 
-           formName: form.name,
-           workflowId: workflow.id,
-           workflowName: workflow.name
-         };
-         message = `Created form "${formName}" with linked workflow "${workflow.name}"!`;
-         break;
+          result = { 
+            formId: form.id, 
+            formName: form.name,
+            workflowId: workflow.id,
+            workflowName: workflow.name,
+            createdTemplates: createdTemplates.length > 0 ? createdTemplates : undefined
+          };
+          
+          let templateInfo = '';
+          if (createdTemplates.length > 0) {
+            templateInfo = ` with ${createdTemplates.length} email template(s): ${createdTemplates.map(t => t.templateName).join(', ')}`;
+          }
+          message = `Created form "${formName}" with linked workflow "${workflow.name}"${templateInfo}!`;
+          break;
        }
  
        case 'create_form_with_sla': {
