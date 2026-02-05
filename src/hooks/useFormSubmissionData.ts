@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
@@ -21,7 +20,7 @@ interface DatabaseSubmission {
   form_id: string;
   submitted_by: string;
   submitted_at: string;
-  submission_data: any; // This is Json type from Supabase
+  submission_data: any;
   approval_status?: string;
   approved_by?: string;
   approval_timestamp?: string;
@@ -34,12 +33,11 @@ export function useFormSubmissionData(formId?: string) {
   const [submissions, setSubmissions] = useState<FormSubmission[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const loadSubmissions = async (selectedFormId: string) => {
+  const loadSubmissions = useCallback(async (selectedFormId: string) => {
     if (!selectedFormId) return;
 
     try {
       setLoading(true);
-      // Optimized: Select only columns actually used in the interface
       const { data, error } = await supabase
         .from('form_submissions')
         .select('id, form_id, submitted_by, submitted_at, submission_data, approval_status, approved_by, approval_timestamp')
@@ -48,7 +46,6 @@ export function useFormSubmissionData(formId?: string) {
 
       if (error) throw error;
 
-      // Convert database response to our interface
       const formattedSubmissions: FormSubmission[] = (data as DatabaseSubmission[])?.map(submission => ({
         id: submission.id,
         form_id: submission.form_id,
@@ -75,13 +72,13 @@ export function useFormSubmissionData(formId?: string) {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (formId) {
       loadSubmissions(formId);
     }
-  }, [formId]);
+  }, [formId, loadSubmissions]);
 
   return {
     submissions,
