@@ -150,53 +150,78 @@ export function useFormAccessMatrix(formId: string) {
     }
   };
 
-  const bulkUpdatePermissions = async (userIds: string[], permissions: Record<string, boolean>) => {
-    if (!currentProject) return;
-
-    try {
-      setUpdating('bulk');
-      
-      for (const userId of userIds) {
-        for (const [permissionType, grant] of Object.entries(permissions)) {
-          if (grant) {
-            await supabase
-              .from('asset_permissions')
-              .upsert({
-                project_id: currentProject.id,
-                user_id: userId,
-                asset_type: 'form',
-                asset_id: formId,
-                permission_type: permissionType,
-              });
-          } else {
-            await supabase
-              .from('asset_permissions')
-              .delete()
-              .eq('project_id', currentProject.id)
-              .eq('user_id', userId)
-              .eq('asset_type', 'form')
-              .eq('asset_id', formId)
-              .eq('permission_type', permissionType);
-          }
-        }
-      }
-
-      await loadFormPermissions();
-      toast({
-        title: "Permissions updated",
-        description: `Bulk permissions updated for ${userIds.length} users`,
-      });
-    } catch (error) {
-      console.error('Error updating bulk permissions:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update permissions",
-        variant: "destructive",
-      });
-    } finally {
-      setUpdating(null);
-    }
-  };
+   const bulkUpdatePermissions = async (userIds: string[], permissions: Record<string, boolean>) => {
+     if (!currentProject) return;
+ 
+     try {
+       setUpdating('bulk');
+       
+       // Separate permissions into grants and revokes for batch processing
+       const permissionsToGrant: string[] = [];
+       const permissionsToRevoke: string[] = [];
+       
+       for (const [permissionType, grant] of Object.entries(permissions)) {
+         if (grant) {
+           permissionsToGrant.push(permissionType);
+         } else {
+           permissionsToRevoke.push(permissionType);
+         }
+       }
+ 
+       // Batch upsert all grants in a single operation
+       if (permissionsToGrant.length > 0) {
+         const upsertData = userIds.flatMap(userId =>
+           permissionsToGrant.map(permissionType => ({
+             project_id: currentProject.id,
+             user_id: userId,
+             asset_type: 'form',
+             asset_id: formId,
+             permission_type: permissionType,
+           }))
+         );
+         
+         const { error: upsertError } = await supabase
+           .from('asset_permissions')
+           .upsert(upsertData, { onConflict: 'project_id,user_id,asset_type,asset_id,permission_type' });
+         
+         if (upsertError) {
+           console.error('Bulk upsert error:', upsertError);
+           throw upsertError;
+         }
+       }
+ 
+       // Batch delete all revokes in parallel (one query per permission type)
+       if (permissionsToRevoke.length > 0) {
+         await Promise.all(
+           permissionsToRevoke.map(permissionType =>
+             supabase
+               .from('asset_permissions')
+               .delete()
+               .eq('project_id', currentProject.id)
+               .in('user_id', userIds)
+               .eq('asset_type', 'form')
+               .eq('asset_id', formId)
+               .eq('permission_type', permissionType)
+           )
+         );
+       }
+ 
+       await loadFormPermissions();
+       toast({
+         title: "Permissions updated",
+         description: `Bulk permissions updated for ${userIds.length} users`,
+       });
+     } catch (error) {
+       console.error('Error updating bulk permissions:', error);
+       toast({
+         title: "Error",
+         description: "Failed to update permissions",
+         variant: "destructive",
+       });
+     } finally {
+       setUpdating(null);
+     }
+   };
 
   useEffect(() => {
     loadFormPermissions();
