@@ -37,7 +37,7 @@ export function useFormUserAccess(formId: string) {
           .eq('form_id', formId)
           .eq('user_id', userProfile.id)
           .eq('status', 'active')
-          .single();
+          .maybeSingle();
 
         if (error && error.code !== 'PGRST116') {
           console.error('❌ [FORM ACCESS] Error checking form access:', error);
