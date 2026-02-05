@@ -81,11 +81,11 @@ const WorkflowDesignerPage = () => {
     }
   };
 
-  // Load workflow data and settings only once on mount
+  // Load workflow data and settings only once on mount - loadWorkflowNodes is now memoized
   useEffect(() => {
     let isMounted = true;
     
-    const loadWorkflowData = async () => {
+    const loadWorkflowDataOnce = async () => {
       if (!id) {
         setLoading(false);
         return;
@@ -93,25 +93,27 @@ const WorkflowDesignerPage = () => {
 
       try {
         console.log('Loading workflow data for ID:', id);
-        const { nodes, connections } = await loadWorkflowNodes(id);
+        
+        // Load workflow data and settings in parallel
+        const [workflowNodesData, settingsResult] = await Promise.all([
+          loadWorkflowNodes(id),
+          supabase
+            .from('workflows')
+            .select('enrollment_mode, enrollment_cooldown_hours')
+            .eq('id', id)
+            .single()
+        ]);
         
         if (!isMounted) return;
 
-        console.log('Loaded workflow data:', { nodes: nodes.length, connections: connections.length });
+        console.log('Loaded workflow data:', { nodes: workflowNodesData.nodes.length, connections: workflowNodesData.connections.length });
         
-        setWorkflowData({ nodes, connections });
+        setWorkflowData(workflowNodesData);
         
-        // Load enrollment settings
-        const { data: workflowSettings } = await supabase
-          .from('workflows')
-          .select('enrollment_mode, enrollment_cooldown_hours')
-          .eq('id', id)
-          .single();
-        
-        if (isMounted && workflowSettings) {
-          const mode = workflowSettings.enrollment_mode as 'allow_always' | 'once_per_record' | 'cooldown' | null;
+        if (settingsResult.data) {
+          const mode = settingsResult.data.enrollment_mode as 'allow_always' | 'once_per_record' | 'cooldown' | null;
           setEnrollmentMode(mode || 'allow_always');
-          setEnrollmentCooldownHours(workflowSettings.enrollment_cooldown_hours || 24);
+          setEnrollmentCooldownHours(settingsResult.data.enrollment_cooldown_hours || 24);
           setSettingsLoaded(true);
         }
       } catch (error) {
@@ -130,7 +132,7 @@ const WorkflowDesignerPage = () => {
       }
     };
 
-    loadWorkflowData();
+    loadWorkflowDataOnce();
     
     return () => {
       isMounted = false;
