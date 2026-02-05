@@ -362,11 +362,12 @@ Generate appropriate content for this request.`;
     - Params: name (string), description (optional string), triggerFormId (optional string), nodes (optional JSON array)
     - Example: [ACTION:create_workflow|name=Approval Process|description=Auto-approve requests|triggerFormId=form123]
  
- 6. **create_form_with_workflow** - Create a form AND linked workflow in one action (RECOMMENDED for complex requests)
-    - Params: formName, formDescription, fields (JSON array), workflowName, workflowDescription, workflowNodes (JSON array)
-    - workflowNodes format: [{"tempId":"start","type":"start","label":"Start","connections":[{"to":"action1"}]},{"tempId":"action1","type":"action","label":"Send Notification","config":{"actionType":"notification"},"connections":[{"to":"end"}]},{"tempId":"end","type":"end","label":"End"}]
-    - Node types: start, action, condition, wait, end
-    - Example: [ACTION:create_form_with_workflow|formName=Leave Request|formDescription=Employee leave requests|fields=[{"type":"text","label":"Employee Name","required":true},{"type":"date","label":"Start Date","required":true},{"type":"date","label":"End Date","required":true},{"type":"textarea","label":"Reason"}]|workflowName=Leave Approval|workflowNodes=[{"tempId":"start","type":"start","label":"Start","connections":[{"to":"notify"}]},{"tempId":"notify","type":"action","label":"Notify Manager","config":{"actionType":"notification","message":"New leave request submitted"},"connections":[{"to":"end"}]},{"tempId":"end","type":"end","label":"End"}]]
+  6. **create_form_with_workflow** - Create a form AND linked workflow in one action (RECOMMENDED for complex requests)
+     - Params: formName, formDescription, fields (JSON array), workflowName, workflowDescription, workflowNodes (JSON array)
+     - workflowNodes format: Each node must be FULLY CONFIGURED with all details
+     - Node types: start, action, condition, wait, end
+     - CRITICAL for notification nodes: Include emailTemplateName, emailSubject, and emailBody to auto-create the email template
+     - Example with email: [ACTION:create_form_with_workflow|formName=IT Enrollment|formDescription=IT asset enrollment form|fields=[{"type":"text","label":"Employee Name","required":true},{"type":"select","label":"Asset Type","options":[{"value":"laptop","label":"Laptop"},{"value":"desktop","label":"Desktop"}],"required":true}]|workflowName=IT Enrollment Workflow|workflowNodes=[{"tempId":"start","type":"start","label":"Start","config":{"triggerType":"form_submission"},"connections":[{"to":"notify"}]},{"tempId":"notify","type":"action","label":"Send Confirmation","config":{"actionType":"notification","emailTemplateName":"IT Enrollment Confirmation","emailSubject":"Your IT Enrollment Request Received","emailBody":"<h2>IT Enrollment Confirmation</h2><p>Dear {{Employee Name}},</p><p>Your request for a {{Asset Type}} has been received and is being processed.</p><p>You will be notified once your asset is ready.</p><p>Best regards,<br>IT Department</p>"},"connections":[{"to":"end"}]},{"tempId":"end","type":"end","label":"End","config":{"endStatus":"completed"}}]]
 
  7. **get_sla_predictions** - Get AI-powered SLA breach predictions
     - No params needed
@@ -412,11 +413,41 @@ Generate appropriate content for this request.`;
  - If user just asks "how do I create a form?" → Explain but don't execute
  - If user asks "what are my SLA risks?" → Execute get_sla_predictions
  - Always confirm what you're about to do before the action command
- 
+
   ## Linking Existing Resources:
   You can reference existing resources by NAME instead of ID. The system will look up the resource automatically.
   - "Link the Leave Request form to the Approval workflow" → [ACTION:link_form_to_workflow|formName=Leave Request|workflowName=Approval]
   - "Add email notifications using the Welcome Template to the Onboarding workflow" → [ACTION:add_email_action_to_workflow|workflowName=Onboarding|emailTemplateName=Welcome Template]
+
+ ## CRITICAL: Creating Complete Configurations
+ 
+ When creating forms, workflows, and templates, you MUST provide COMPLETE, MEANINGFUL configurations:
+ 
+ ### For Email Notifications in Workflows:
+ ALWAYS include these 3 fields in action nodes with actionType "notification":
+ - **emailTemplateName**: A descriptive name for the template (e.g., "IT Enrollment Confirmation Email")
+ - **emailSubject**: A complete, contextual subject line (e.g., "Your IT Enrollment Request Has Been Received")
+ - **emailBody**: Full HTML email content with proper formatting, relevant to the form context. Include:
+   - Greeting with {{field_name}} placeholders for personalization
+   - Clear explanation of what happened
+   - Next steps or expectations
+   - Professional sign-off
+ 
+ Example email body:
+ "<h2>Request Confirmation</h2><p>Dear {{Employee Name}},</p><p>We have received your request for {{Request Type}}.</p><p>Our team will review it and get back to you within 2-3 business days.</p><p>Reference ID: {{submission_ref_id}}</p><p>Best regards,<br>The Team</p>"
+ 
+ ### For Form Fields:
+ - Include appropriate field types based on the form purpose
+ - Add placeholders, tooltips, and validation where relevant
+ - Make fields required when they are essential
+ 
+ ### For Workflow Nodes:
+ - Start nodes should have triggerType configured
+ - End nodes should have endStatus set
+ - Condition nodes should have complete condition configurations
+ - Wait nodes should have duration or date configured
+ 
+ DO NOT create empty or placeholder configurations. Every node should be ready to use immediately.
 
  ## Available Context:
  
