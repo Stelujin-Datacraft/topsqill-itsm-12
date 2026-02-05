@@ -44,18 +44,21 @@ export function AIChatbot() {
     {
       id: 'welcome',
       role: 'assistant',
-       content: `Hi! 👋 I'm your **AI Copilot** for TopSqill BPM. I can:
+       content: `Hi! 👋 I'm your **AI Copilot** for TopSqill BPM.
 
- 🚀 **Execute Actions** - Create forms, trigger workflows, check SLA risks
- 🧭 **Navigate** - Take you anywhere in the system
- 💡 **Assist** - Explain features and guide you through tasks
+ 🚀 **Execute Actions**
+ Create forms, trigger workflows, check SLA risks
 
- Try saying:
- - "Create a feedback form with name, email, and rating fields"
- - "What are my SLA risks right now?"
- - "Take me to workflows"
+ 🧭 **Navigate**
+ Take you anywhere in the system
  
- What would you like me to do?`,
+ 💡 **Assist**
+ Explain features and guide you through tasks
+
+ **Try saying:**
+ • "Create a feedback form with name and email"
+ • "What are my SLA risks right now?"
+ • "Take me to workflows"`,
       timestamp: new Date()
     }
   ]);
@@ -351,18 +354,21 @@ export function AIChatbot() {
       {
         id: 'welcome',
         role: 'assistant',
-         content: `Hi! 👋 I'm your **AI Copilot** for TopSqill BPM. I can:
+         content: `Hi! 👋 I'm your **AI Copilot** for TopSqill BPM.
 
- 🚀 **Execute Actions** - Create forms, trigger workflows, check SLA risks
- 🧭 **Navigate** - Take you anywhere in the system
- 💡 **Assist** - Explain features and guide you through tasks
+ 🚀 **Execute Actions**
+ Create forms, trigger workflows, check SLA risks
 
- Try saying:
- - "Create a feedback form with name, email, and rating fields"
- - "What are my SLA risks right now?"
- - "Take me to workflows"
+ 🧭 **Navigate**
+ Take you anywhere in the system
  
- What would you like me to do?`,
+ 💡 **Assist**
+ Explain features and guide you through tasks
+
+ **Try saying:**
+ • "Create a feedback form with name and email"
+ • "What are my SLA risks right now?"
+ • "Take me to workflows"`,
         timestamp: new Date()
       }
     ]);
