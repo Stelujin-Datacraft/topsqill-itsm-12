@@ -1,6 +1,6 @@
 
 import * as React from "react"
-import { LayoutDashboard, FolderKanban, GalleryVerticalEnd, Calendar, ChevronUp, User2, Plus, LogOut, Bell, Building2, Shield, FileText, Mail, GitBranch, BarChart3, Database, Monitor, ClipboardList, History, RefreshCw, Search, ServerCog, Key } from "lucide-react"
+import { LayoutDashboard, FolderKanban, GalleryVerticalEnd, Calendar, ChevronUp, User2, Plus, LogOut, Bell, Building2, Shield, FileText, Mail, GitBranch, BarChart3, Database, Monitor, ClipboardList, History, RefreshCw, Search, ServerCog, Key, Timer } from "lucide-react"
 import { NavMain } from "@/components/nav-main"
 import { NavProjects } from "@/components/nav-projects"
 import { NavUser } from "@/components/nav-user"
@@ -108,6 +108,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         title: "Form History",
         url: "/form-audit-logs",
         icon: History,
+      },
+      {
+        title: "SLA Management",
+        url: "/sla-management",
+        icon: Timer,
+        isDisabled: !currentProject,
       },
       // My Access - available to all users
       {
