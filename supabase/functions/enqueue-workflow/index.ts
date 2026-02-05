@@ -100,6 +100,34 @@
        }
      }
      
+      // Validate project_id exists if set (to avoid FK constraint errors)
+      if (projId) {
+        const { data: projectExists } = await supabase
+          .from('projects')
+          .select('id')
+          .eq('id', projId)
+          .maybeSingle();
+        
+        if (!projectExists) {
+          console.warn(`[enqueue-workflow] Project ${projId} not found, setting to null`);
+          projId = null;
+        }
+      }
+      
+      // Validate organization_id exists if set
+      if (orgId) {
+        const { data: orgExists } = await supabase
+          .from('organizations')
+          .select('id')
+          .eq('id', orgId)
+          .maybeSingle();
+        
+        if (!orgExists) {
+          console.warn(`[enqueue-workflow] Organization ${orgId} not found, setting to null`);
+          orgId = null;
+        }
+      }
+
      // Insert into queue
      const { data: queueItem, error: insertError } = await supabase
        .from('workflow_queue')
@@ -110,8 +138,8 @@
          trigger_source: body.trigger_source || 'form_submission',
          trigger_ref: body.trigger_ref || null,
          priority: Math.min(10, Math.max(1, body.priority || 5)),
-         organization_id: orgId,
-         project_id: projId,
+          organization_id: orgId || null,
+          project_id: projId || null,
          status: 'pending'
        })
        .select('id')
