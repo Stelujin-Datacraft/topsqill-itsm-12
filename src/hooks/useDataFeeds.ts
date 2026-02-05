@@ -1,21 +1,40 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback } from 'react';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { DataFeed, DataFeedRun, DataFeedFormData, MatchingRule, FieldMapping, SourceFilter, CrossRefMatchRule } from '@/types/dataFeed';
 import { useToast } from '@/hooks/use-toast';
 
+// Helper to parse JSONB fields
+const parseFeed = (feed: any): DataFeed => ({
+  ...feed,
+  matching_rules: Array.isArray(feed.matching_rules) 
+    ? (feed.matching_rules as unknown as MatchingRule[]) 
+    : [],
+  field_mappings: Array.isArray(feed.field_mappings) 
+    ? (feed.field_mappings as unknown as FieldMapping[]) 
+    : [],
+  source_filters: Array.isArray(feed.source_filters)
+    ? (feed.source_filters as unknown as SourceFilter[])
+    : [],
+  cross_ref_match_rules: Array.isArray((feed as any).cross_ref_match_rules)
+    ? ((feed as any).cross_ref_match_rules as unknown as CrossRefMatchRule[])
+    : [],
+  nested_cross_ref_mappings: Array.isArray(feed.nested_cross_ref_mappings)
+    ? feed.nested_cross_ref_mappings
+    : [],
+  last_run_stats: feed.last_run_stats as DataFeed['last_run_stats'],
+});
+
 export function useDataFeeds(projectId: string) {
-  const [feeds, setFeeds] = useState<DataFeed[]>([]);
-  const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
-  const fetchFeeds = useCallback(async () => {
-    if (!projectId) {
-      setLoading(false);
-      return;
-    }
+  // Use React Query for caching
+  const { data: feeds = [], isLoading: loading, refetch: fetchFeeds } = useQuery({
+    queryKey: ['data-feeds', projectId],
+    queryFn: async () => {
+      if (!projectId) return [];
 
-    setLoading(true);
-    try {
       const { data, error } = await supabase
         .from('data_feeds')
         .select('*')
@@ -23,47 +42,15 @@ export function useDataFeeds(projectId: string) {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
+      return (data || []).map(parseFeed);
+    },
+    enabled: !!projectId,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+  });
 
-      // Parse JSONB fields
-      const parsed = (data || []).map(feed => ({
-        ...feed,
-        matching_rules: Array.isArray(feed.matching_rules) 
-          ? (feed.matching_rules as unknown as MatchingRule[]) 
-          : [],
-        field_mappings: Array.isArray(feed.field_mappings) 
-          ? (feed.field_mappings as unknown as FieldMapping[]) 
-          : [],
-        source_filters: Array.isArray(feed.source_filters)
-          ? (feed.source_filters as unknown as SourceFilter[])
-          : [],
-        cross_ref_match_rules: Array.isArray((feed as any).cross_ref_match_rules)
-          ? ((feed as any).cross_ref_match_rules as unknown as CrossRefMatchRule[])
-          : [],
-        nested_cross_ref_mappings: Array.isArray(feed.nested_cross_ref_mappings)
-          ? feed.nested_cross_ref_mappings
-          : [],
-        last_run_stats: feed.last_run_stats as DataFeed['last_run_stats'],
-      })) as unknown as DataFeed[];
-
-      setFeeds(parsed);
-    } catch (error) {
-      console.error('Error fetching data feeds:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to load data feeds',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, [projectId, toast]);
-
-  useEffect(() => {
-    fetchFeeds();
-  }, [fetchFeeds]);
-
-  const createFeed = async (data: DataFeedFormData): Promise<DataFeed | null> => {
-    try {
+  const createFeedMutation = useMutation({
+    mutationFn: async (data: DataFeedFormData) => {
       const { data: user } = await supabase.auth.getUser();
       if (!user.user) throw new Error('Not authenticated');
 
@@ -98,81 +85,40 @@ export function useDataFeeds(projectId: string) {
         .single();
 
       if (error) throw error;
-
-      toast({
-        title: 'Success',
-        description: 'Data feed created successfully',
-      });
-
-      await fetchFeeds();
-      
-      // Parse JSONB fields for the returned feed
-      const parsed = {
-        ...newFeed,
-        matching_rules: Array.isArray(newFeed.matching_rules) 
-          ? (newFeed.matching_rules as unknown as MatchingRule[]) 
-          : [],
-        field_mappings: Array.isArray(newFeed.field_mappings) 
-          ? (newFeed.field_mappings as unknown as FieldMapping[]) 
-          : [],
-        source_filters: Array.isArray(newFeed.source_filters)
-          ? (newFeed.source_filters as unknown as SourceFilter[])
-          : [],
-        cross_ref_match_rules: Array.isArray((newFeed as any).cross_ref_match_rules)
-          ? ((newFeed as any).cross_ref_match_rules as unknown as CrossRefMatchRule[])
-          : [],
-        nested_cross_ref_mappings: Array.isArray(newFeed.nested_cross_ref_mappings)
-          ? newFeed.nested_cross_ref_mappings
-          : [],
-        last_run_stats: newFeed.last_run_stats as DataFeed['last_run_stats'],
-      } as unknown as DataFeed;
-      
-      return parsed;
-    } catch (error) {
+      return parseFeed(newFeed);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['data-feeds', projectId] });
+      toast({ title: 'Success', description: 'Data feed created successfully' });
+    },
+    onError: (error) => {
       console.error('Error creating data feed:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to create data feed',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: 'Failed to create data feed', variant: 'destructive' });
+    },
+  });
+
+  const createFeed = async (data: DataFeedFormData): Promise<DataFeed | null> => {
+    try {
+      return await createFeedMutation.mutateAsync(data);
+    } catch {
       return null;
     }
   };
 
-  const updateFeed = async (id: string, data: Partial<DataFeedFormData>): Promise<boolean> => {
-    try {
+  const updateFeedMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<DataFeedFormData> }) => {
       // Convert arrays to JSON for Supabase
       const updateData: Record<string, any> = { ...data };
-      if (data.matching_rules) {
-        updateData.matching_rules = data.matching_rules as any;
-      }
-      if (data.field_mappings) {
-        updateData.field_mappings = data.field_mappings as any;
-      }
-      if (data.source_filters !== undefined) {
-        updateData.source_filters = (data.source_filters || []) as any;
-      }
-      if (data.cross_ref_record_selection !== undefined) {
-        updateData.cross_ref_record_selection = data.cross_ref_record_selection;
-      }
-      if (data.cross_ref_match_rules !== undefined) {
-        updateData.cross_ref_match_rules = (data.cross_ref_match_rules || []) as any;
-      }
-      if (data.cross_ref_match_logic !== undefined) {
-        updateData.cross_ref_match_logic = data.cross_ref_match_logic || '';
-      }
-      if (data.source_type !== undefined) {
-        updateData.source_type = data.source_type;
-      }
-      if (data.external_source_config !== undefined) {
-        updateData.external_source_config = data.external_source_config || null;
-      }
-      if (data.data_source_connection_id !== undefined) {
-        updateData.data_source_connection_id = data.data_source_connection_id || null;
-      }
-      if (data.nested_cross_ref_mappings !== undefined) {
-        updateData.nested_cross_ref_mappings = (data.nested_cross_ref_mappings || []) as any;
-      }
+      if (data.matching_rules) updateData.matching_rules = data.matching_rules as any;
+      if (data.field_mappings) updateData.field_mappings = data.field_mappings as any;
+      if (data.source_filters !== undefined) updateData.source_filters = (data.source_filters || []) as any;
+      if (data.cross_ref_record_selection !== undefined) updateData.cross_ref_record_selection = data.cross_ref_record_selection;
+      if (data.cross_ref_match_rules !== undefined) updateData.cross_ref_match_rules = (data.cross_ref_match_rules || []) as any;
+      if (data.cross_ref_match_logic !== undefined) updateData.cross_ref_match_logic = data.cross_ref_match_logic || '';
+      if (data.source_type !== undefined) updateData.source_type = data.source_type;
+      if (data.external_source_config !== undefined) updateData.external_source_config = data.external_source_config || null;
+      if (data.data_source_connection_id !== undefined) updateData.data_source_connection_id = data.data_source_connection_id || null;
+      if (data.nested_cross_ref_mappings !== undefined) updateData.nested_cross_ref_mappings = (data.nested_cross_ref_mappings || []) as any;
 
       const { error } = await supabase
         .from('data_feeds')
@@ -180,48 +126,50 @@ export function useDataFeeds(projectId: string) {
         .eq('id', id);
 
       if (error) throw error;
-
-      toast({
-        title: 'Success',
-        description: 'Data feed updated successfully',
-      });
-
-      await fetchFeeds();
-      return true;
-    } catch (error) {
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['data-feeds', projectId] });
+      toast({ title: 'Success', description: 'Data feed updated successfully' });
+    },
+    onError: (error) => {
       console.error('Error updating data feed:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to update data feed',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: 'Failed to update data feed', variant: 'destructive' });
+    },
+  });
+
+  const updateFeed = async (id: string, data: Partial<DataFeedFormData>): Promise<boolean> => {
+    try {
+      await updateFeedMutation.mutateAsync({ id, data });
+      return true;
+    } catch {
       return false;
     }
   };
 
-  const deleteFeed = async (id: string): Promise<boolean> => {
-    try {
+  const deleteFeedMutation = useMutation({
+    mutationFn: async (id: string) => {
       const { error } = await supabase
         .from('data_feeds')
         .delete()
         .eq('id', id);
 
       if (error) throw error;
-
-      toast({
-        title: 'Success',
-        description: 'Data feed deleted successfully',
-      });
-
-      await fetchFeeds();
-      return true;
-    } catch (error) {
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['data-feeds', projectId] });
+      toast({ title: 'Success', description: 'Data feed deleted successfully' });
+    },
+    onError: (error) => {
       console.error('Error deleting data feed:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to delete data feed',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: 'Failed to delete data feed', variant: 'destructive' });
+    },
+  });
+
+  const deleteFeed = async (id: string): Promise<boolean> => {
+    try {
+      await deleteFeedMutation.mutateAsync(id);
+      return true;
+    } catch {
       return false;
     }
   };
@@ -249,7 +197,7 @@ export function useDataFeeds(projectId: string) {
         });
       }
 
-      await fetchFeeds();
+      queryClient.invalidateQueries({ queryKey: ['data-feeds', projectId] });
       return result.success;
     } catch (error) {
       console.error('Error executing data feed:', error);
@@ -269,7 +217,7 @@ export function useDataFeeds(projectId: string) {
   return {
     feeds,
     loading,
-    fetchFeeds,
+    fetchFeeds: () => fetchFeeds(),
     createFeed,
     updateFeed,
     deleteFeed,
@@ -279,17 +227,11 @@ export function useDataFeeds(projectId: string) {
 }
 
 export function useDataFeedRuns(feedId: string) {
-  const [runs, setRuns] = useState<DataFeedRun[]>([]);
-  const [loading, setLoading] = useState(false);
-
-  const refetch = useCallback(async () => {
-    if (!feedId) {
-      setRuns([]);
-      return;
-    }
-    
-    setLoading(true);
-    try {
+  const { data: runs = [], isLoading: loading, refetch } = useQuery({
+    queryKey: ['data-feed-runs', feedId],
+    queryFn: async () => {
+      if (!feedId) return [];
+      
       const { data, error } = await supabase
         .from('data_feed_runs')
         .select('*')
@@ -299,25 +241,15 @@ export function useDataFeedRuns(feedId: string) {
 
       if (error) throw error;
 
-      const parsed = (data || []).map(run => ({
+      return (data || []).map(run => ({
         ...run,
         run_log: Array.isArray(run.run_log) ? run.run_log : JSON.parse(run.run_log as any || '[]'),
       })) as DataFeedRun[];
+    },
+    enabled: !!feedId,
+    staleTime: 30 * 1000, // 30 seconds for runs (more dynamic data)
+    gcTime: 5 * 60 * 1000, // 5 minutes
+  });
 
-      setRuns(parsed);
-    } catch (error) {
-      console.error('Error fetching feed runs:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [feedId]);
-
-  // Initial fetch when feedId changes
-  useEffect(() => {
-    if (feedId) {
-      refetch();
-    }
-  }, [feedId, refetch]);
-
-  return { runs, loading, refetch };
+  return { runs, loading, refetch: () => refetch() };
 }
