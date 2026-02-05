@@ -1484,62 +1484,51 @@ app.post('/workflows/:id/trigger', validateApiKey, async (c) => {
     timestamp: new Date().toISOString()
   };
 
-  // Create workflow execution using correct column names and valid status
-  // Valid statuses: 'running', 'completed', 'failed', 'paused', 'waiting'
-  const { data: execution, error } = await supabase
-    .from('workflow_executions')
-    .insert({
-      workflow_id: workflow.id,
-      form_submission_id: actualSubmissionId,
-      trigger_submission_id: actualSubmissionId,
-      status: 'running',
-      trigger_data: triggerData,
-      submitter_id: submissionData?.submitted_by || null
-    })
-    .select('id, status, started_at')
-    .single();
-
-  if (error) {
-    await logRequest(c, 500, error.message);
-    return c.json({ error: 'Failed to trigger workflow' }, 500, corsHeaders);
-  }
-
-  // Call the execute-workflow edge function to actually run the workflow
+  // Use the queue system for reliable, server-side execution
   try {
-    const executeResponse = await fetch(`${supabaseUrl}/functions/v1/execute-workflow`, {
+    const enqueueResponse = await fetch(`${supabaseUrl}/functions/v1/enqueue-workflow`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${supabaseServiceKey}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        workflowId: workflow.id,
-        executionId: execution.id,
-        triggerData,
-        submissionId: actualSubmissionId,
-        submitterId: submissionData?.submitted_by || null
+        workflow_id: workflow.id,
+        submission_id: actualSubmissionId,
+        trigger_data: triggerData,
+        trigger_source: 'api',
+        trigger_ref: `api-${workflow.id}-${actualSubmissionId}-${Date.now()}`,
+        priority: 3, // Higher priority for API-triggered workflows
+        organization_id: keyInfo.organization_id
       })
     });
 
-    const executeResult = await executeResponse.json();
-    console.log('Workflow execution result:', executeResult);
+    const enqueueResult = await enqueueResponse.json();
+    console.log('Workflow enqueue result:', enqueueResult);
+
+    if (!enqueueResult.success) {
+      await logRequest(c, 500, enqueueResult.error || 'Failed to queue workflow');
+      return c.json({ error: enqueueResult.error || 'Failed to queue workflow' }, 500, corsHeaders);
+    }
 
     await logRequest(c, 202);
     return c.json({ 
       data: {
-        ...execution,
-        executionStatus: executeResult.status || 'triggered'
+        queue_id: enqueueResult.queue_id,
+        workflow_id: workflow.id,
+        workflow_name: workflow.name,
+        submission_id: actualSubmissionId,
+        status: 'queued',
+        deduplicated: enqueueResult.deduplicated || false
       },
-      message: `Workflow "${workflow.name}" triggered successfully`
+      message: enqueueResult.deduplicated 
+        ? `Workflow "${workflow.name}" already queued for this submission`
+        : `Workflow "${workflow.name}" queued successfully`
     }, 202, corsHeaders);
-  } catch (execError) {
-    console.error('Error calling execute-workflow:', execError);
-    // Still return success since the execution record was created
-    await logRequest(c, 202);
-    return c.json({ 
-      data: execution,
-      message: `Workflow "${workflow.name}" triggered (execution started)`
-    }, 202, corsHeaders);
+  } catch (enqueueError) {
+    console.error('Error calling enqueue-workflow:', enqueueError);
+    await logRequest(c, 500, 'Failed to queue workflow');
+    return c.json({ error: 'Failed to queue workflow' }, 500, corsHeaders);
   }
 });
 
