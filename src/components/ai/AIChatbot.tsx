@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { MessageCircle, X, Send, Loader2, Sparkles, Minimize2, Maximize2, Navigation, FileText, GitBranch, BarChart3, Layout, Mail, Settings, Database } from 'lucide-react';
+ import { MessageCircle, X, Send, Loader2, Sparkles, Minimize2, Maximize2, Navigation, FileText, GitBranch, BarChart3, Layout, Mail, Settings, Database, Zap, CheckCircle, AlertTriangle } from 'lucide-react';
 import { useFormAI } from '@/hooks/useFormAI';
 import { useForm } from '@/contexts/FormContext';
 import { useProject } from '@/contexts/ProjectContext';
@@ -10,12 +10,19 @@ import { cn } from '@/lib/utils';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import ReactMarkdown from 'react-markdown';
+ import { toast } from 'sonner';
+ import { Badge } from '@/components/ui/badge';
 
 interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
+   action?: {
+     type: string;
+     status: 'pending' | 'executing' | 'success' | 'error';
+     result?: any;
+   };
 }
 
 interface WorkflowInfo {
@@ -37,20 +44,25 @@ export function AIChatbot() {
     {
       id: 'welcome',
       role: 'assistant',
-      content: `Hi! 👋 I'm your TopSqill BPM assistant. I can help you:
+       content: `Hi! 👋 I'm your **AI Copilot** for TopSqill BPM. I can:
 
-- **Navigate** to forms, workflows, reports, or settings
-- **Explain** how features work
-- **Guide** you through common tasks
-- **Find** specific forms or workflows
+ 🚀 **Execute Actions** - Create forms, trigger workflows, check SLA risks
+ 🧭 **Navigate** - Take you anywhere in the system
+ 💡 **Assist** - Explain features and guide you through tasks
 
-What would you like to do?`,
+ Try saying:
+ - "Create a feedback form with name, email, and rating fields"
+ - "What are my SLA risks right now?"
+ - "Take me to workflows"
+ 
+ What would you like me to do?`,
       timestamp: new Date()
     }
   ]);
   const [input, setInput] = useState('');
   const [workflows, setWorkflows] = useState<WorkflowInfo[]>([]);
   const [reports, setReports] = useState<ReportInfo[]>([]);
+   const [copilotEnabled, setCopilotEnabled] = useState(true);
   const { chatbotAssist, isLoading } = useFormAI();
   const { forms } = useForm();
   const { currentProject } = useProject();
@@ -59,6 +71,53 @@ What would you like to do?`,
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+   // Execute copilot action
+   const executeCopilotAction = async (action: string, params: Record<string, any>) => {
+     try {
+       const { data: { user } } = await supabase.auth.getUser();
+       if (!user) throw new Error('Not authenticated');
+ 
+       const { data, error } = await supabase.functions.invoke('ai-copilot-action', {
+         body: {
+           action,
+           params,
+           userId: user.id,
+           projectId: currentProject?.id,
+           organizationId: currentProject?.organization_id
+         }
+       });
+ 
+       if (error) throw error;
+       return data;
+     } catch (err) {
+       console.error('Copilot action error:', err);
+       throw err;
+     }
+   };
+ 
+   // Parse AI response for action commands
+   const parseActionCommands = (content: string): { action: string; params: Record<string, any> } | null => {
+     // Look for action patterns like: [ACTION:create_form|name=Test Form|fields=...]
+     const actionMatch = content.match(/\[ACTION:(\w+)\|([^\]]+)\]/);
+     if (actionMatch) {
+       const action = actionMatch[1];
+       const paramsStr = actionMatch[2];
+       const params: Record<string, any> = {};
+       paramsStr.split('|').forEach(pair => {
+         const [key, value] = pair.split('=');
+         if (key && value) {
+           try {
+             params[key] = JSON.parse(value);
+           } catch {
+             params[key] = value;
+           }
+         }
+       });
+       return { action, params };
+     }
+     return null;
+   };
+ 
   // Load workflows and reports when project changes
   useEffect(() => {
     const loadData = async () => {
@@ -172,13 +231,103 @@ What would you like to do?`,
     );
 
     if (result) {
-      const assistantMessage: Message = {
-        id: `assistant-${Date.now()}`,
-        role: 'assistant',
-        content: result.message,
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, assistantMessage]);
+       let messageContent = result.message;
+       
+       // Check for action commands in the response
+       const actionCommand = parseActionCommands(messageContent);
+       
+       if (actionCommand && copilotEnabled) {
+         // Remove the action command from displayed message
+         const cleanContent = messageContent.replace(/\[ACTION:[^\]]+\]/, '').trim();
+         
+         const assistantMessage: Message = {
+           id: `assistant-${Date.now()}`,
+           role: 'assistant',
+           content: cleanContent,
+           timestamp: new Date(),
+           action: {
+             type: actionCommand.action,
+             status: 'executing'
+           }
+         };
+         setMessages(prev => [...prev, assistantMessage]);
+         
+         // Execute the action
+         try {
+           const actionResult = await executeCopilotAction(actionCommand.action, actionCommand.params);
+           
+           // Update message with success
+           setMessages(prev => prev.map(m => 
+             m.id === assistantMessage.id 
+               ? { ...m, action: { type: actionCommand.action, status: 'success', result: actionResult } }
+               : m
+           ));
+           
+           // Add result message
+           const resultMessage: Message = {
+             id: `result-${Date.now()}`,
+             role: 'assistant',
+             content: `✅ **Action completed!** ${actionResult.message || 'Done'}`,
+             timestamp: new Date()
+           };
+           setMessages(prev => [...prev, resultMessage]);
+           
+           toast.success('Action completed', { description: actionResult.message });
+           
+           // If action created something, offer to navigate
+           if (actionResult.result?.formId) {
+             const navMessage: Message = {
+               id: `nav-offer-${Date.now()}`,
+               role: 'assistant',
+               content: `Would you like to [open the form](/forms/${actionResult.result.formId}/edit)?`,
+               timestamp: new Date()
+             };
+             setMessages(prev => [...prev, navMessage]);
+           } else if (actionResult.result?.workflowId) {
+             const navMessage: Message = {
+               id: `nav-offer-${Date.now()}`,
+               role: 'assistant',
+               content: `Would you like to [open the workflow](/workflows/${actionResult.result.workflowId})?`,
+               timestamp: new Date()
+             };
+             setMessages(prev => [...prev, navMessage]);
+           } else if (actionResult.result?.dashboardId) {
+             const navMessage: Message = {
+               id: `nav-offer-${Date.now()}`,
+               role: 'assistant',
+               content: `Would you like to [open the dashboard](/dashboard-view/${actionResult.result.dashboardId})?`,
+               timestamp: new Date()
+             };
+             setMessages(prev => [...prev, navMessage]);
+           }
+           
+         } catch (err) {
+           // Update message with error
+           setMessages(prev => prev.map(m => 
+             m.id === assistantMessage.id 
+               ? { ...m, action: { type: actionCommand.action, status: 'error' } }
+               : m
+           ));
+           
+           const errorMessage: Message = {
+             id: `error-${Date.now()}`,
+             role: 'assistant',
+             content: `❌ **Action failed:** ${err instanceof Error ? err.message : 'Unknown error'}`,
+             timestamp: new Date()
+           };
+           setMessages(prev => [...prev, errorMessage]);
+           
+           toast.error('Action failed', { description: err instanceof Error ? err.message : 'Unknown error' });
+         }
+       } else {
+         const assistantMessage: Message = {
+           id: `assistant-${Date.now()}`,
+           role: 'assistant',
+           content: messageContent,
+           timestamp: new Date()
+         };
+         setMessages(prev => [...prev, assistantMessage]);
+       }
     } else {
       const errorMessage: Message = {
         id: `error-${Date.now()}`,
@@ -202,14 +351,18 @@ What would you like to do?`,
       {
         id: 'welcome',
         role: 'assistant',
-        content: `Hi! 👋 I'm your TopSqill BPM assistant. I can help you:
+         content: `Hi! 👋 I'm your **AI Copilot** for TopSqill BPM. I can:
 
-- **Navigate** to forms, workflows, reports, or settings
-- **Explain** how features work
-- **Guide** you through common tasks
-- **Find** specific forms or workflows
+ 🚀 **Execute Actions** - Create forms, trigger workflows, check SLA risks
+ 🧭 **Navigate** - Take you anywhere in the system
+ 💡 **Assist** - Explain features and guide you through tasks
 
-What would you like to do?`,
+ Try saying:
+ - "Create a feedback form with name, email, and rating fields"
+ - "What are my SLA risks right now?"
+ - "Take me to workflows"
+ 
+ What would you like me to do?`,
         timestamp: new Date()
       }
     ]);
@@ -253,10 +406,24 @@ What would you like to do?`,
       {/* Header */}
       <div className="flex items-center justify-between p-3 border-b bg-muted/50 rounded-t-lg">
         <div className="flex items-center gap-2">
-          <Sparkles className="h-5 w-5 text-primary" />
-          <span className="font-semibold text-sm">AI Assistant</span>
+           <Zap className="h-5 w-5 text-primary" />
+           <span className="font-semibold text-sm">AI Copilot</span>
+           {copilotEnabled && (
+             <Badge variant="secondary" className="text-xs h-5 px-1.5">
+               Actions On
+             </Badge>
+           )}
         </div>
         <div className="flex items-center gap-1">
+           <Button
+             variant={copilotEnabled ? "default" : "ghost"}
+             size="icon"
+             className="h-7 w-7"
+             onClick={() => setCopilotEnabled(!copilotEnabled)}
+             title={copilotEnabled ? "Disable action execution" : "Enable action execution"}
+           >
+             <Zap className={cn("h-4 w-4", copilotEnabled && "text-primary-foreground")} />
+           </Button>
           <Button
             variant="ghost"
             size="icon"

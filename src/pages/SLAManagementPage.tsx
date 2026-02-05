@@ -2,11 +2,12 @@
  import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
  import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
  import { Button } from '@/components/ui/button';
- import { Plus, Clock, AlertTriangle, CheckCircle, XCircle, TrendingUp, Calendar } from 'lucide-react';
+ import { Plus, Clock, AlertTriangle, CheckCircle, XCircle, TrendingUp, Calendar, Brain } from 'lucide-react';
  import { SLATemplatesTab } from '@/components/sla/SLATemplatesTab';
  import { EscalationChainsTab } from '@/components/sla/EscalationChainsTab';
  import { SLADashboardTab } from '@/components/sla/SLADashboardTab';
  import { BusinessHolidaysTab } from '@/components/sla/BusinessHolidaysTab';
+ import { SLAPredictions } from '@/components/sla/SLAPredictions';
  import { useSLADashboardStats } from '@/hooks/useSLAManagement';
  
  export default function SLAManagementPage() {
@@ -100,7 +101,11 @@
  
        {/* Main Tabs */}
        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-         <TabsList className="grid w-full max-w-2xl grid-cols-4">
+          <TabsList className="grid w-full max-w-3xl grid-cols-5">
+            <TabsTrigger value="predictions" className="flex items-center gap-2">
+              <Brain className="h-4 w-4" />
+              AI Predictions
+            </TabsTrigger>
            <TabsTrigger value="dashboard" className="flex items-center gap-2">
              <TrendingUp className="h-4 w-4" />
              Dashboard
@@ -118,6 +123,10 @@
              Holidays
            </TabsTrigger>
          </TabsList>
+ 
+          <TabsContent value="predictions">
+            <SLAPredictions />
+          </TabsContent>
  
          <TabsContent value="dashboard">
            <SLADashboardTab />
