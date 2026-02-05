@@ -4,6 +4,7 @@ import { SidebarProvider } from '@/components/ui/sidebar';
 import { AppSidebar } from './AppSidebar';
 import { useImpersonation } from '@/contexts/ImpersonationContext';
 import { useAuth } from '@/contexts/AuthContext';
+ import { usePermissionRealtimeSync } from '@/hooks/usePermissionRealtimeSync';
 import { Navigate, useLocation } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 
@@ -31,6 +32,9 @@ const ProtectedLayout: React.FC = () => {
   const { user, userProfile, isLoading } = useAuth();
   const { isImpersonating } = useImpersonation();
   const location = useLocation();
+ 
+   // Enable real-time permission sync for authenticated users
+   usePermissionRealtimeSync();
 
   // Auth loading state - show full page loader since we don't know if user is authenticated
   if (isLoading) {
