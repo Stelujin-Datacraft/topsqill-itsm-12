@@ -221,14 +221,21 @@ const FormView = () => {
   // Show submission success if form was submitted
   if (submissionResult) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background flex flex-col">
         <FormBackButton />
-        <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50/50 to-teal-50 dark:from-green-950/20 dark:via-emerald-950/10 dark:to-teal-950/20 py-4 px-4 relative overflow-hidden">
-          {/* Decorative background elements */}
-          <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            <div className="absolute -top-24 -right-24 w-96 h-96 bg-gradient-to-br from-green-200/30 to-emerald-200/30 dark:from-green-800/10 dark:to-emerald-800/10 rounded-full blur-3xl" />
-            <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-gradient-to-tr from-teal-200/30 to-green-200/30 dark:from-teal-800/10 dark:to-green-800/10 rounded-full blur-3xl" />
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-radial from-white/50 to-transparent dark:from-white/5 rounded-full" />
+        <div className="flex-1 bg-muted/30 py-4 px-4 relative overflow-hidden">
+          {/* Subtle skeleton-style background pattern */}
+          <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-50">
+            <div className="absolute top-8 left-8 w-64 h-4 bg-muted/40 rounded animate-pulse" />
+            <div className="absolute top-8 right-8 w-32 h-4 bg-muted/40 rounded animate-pulse" />
+            <div className="absolute top-16 left-8 w-48 h-4 bg-muted/30 rounded animate-pulse" />
+            <div className="absolute bottom-8 left-8 w-40 h-4 bg-muted/40 rounded animate-pulse" />
+            <div className="absolute bottom-8 right-8 w-56 h-4 bg-muted/30 rounded animate-pulse" />
+            <div className="absolute bottom-16 right-8 w-36 h-4 bg-muted/40 rounded animate-pulse" />
+            <div className="absolute top-1/4 left-12 w-24 h-3 bg-muted/20 rounded animate-pulse" />
+            <div className="absolute top-1/3 right-16 w-44 h-3 bg-muted/20 rounded animate-pulse" />
+            <div className="absolute bottom-1/4 left-16 w-52 h-3 bg-muted/20 rounded animate-pulse" />
+            <div className="absolute bottom-1/3 right-12 w-28 h-3 bg-muted/20 rounded animate-pulse" />
           </div>
           <div className="max-w-7xl mx-auto relative z-10 flex items-center justify-center min-h-[calc(100vh-4rem)]">
             <FormSubmissionSuccess 
@@ -257,9 +264,9 @@ const FormView = () => {
     };
 
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background flex flex-col">
         <FormBackButton />
-        <div className="min-h-screen bg-gray-50 py-4 px-4">
+        <div className="flex-1 bg-muted/20 py-4 px-4 overflow-auto">
           <div className="max-w-7xl mx-auto">
             <FormViewLayoutRenderer 
               form={form}
@@ -403,9 +410,9 @@ const FormView = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col">
       <FormBackButton />
-      <div className="min-h-screen bg-gray-50 py-4 px-4">
+      <div className="flex-1 bg-muted/20 py-4 px-4 overflow-auto">
         <div className="max-w-7xl mx-auto">
           <FormViewLayoutRenderer 
             form={form}
