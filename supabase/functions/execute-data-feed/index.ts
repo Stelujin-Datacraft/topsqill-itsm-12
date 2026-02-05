@@ -4,6 +4,11 @@ const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+ 
+ // Performance optimization constants
+ const SOURCE_BATCH_SIZE = 100; // Process source records in batches
+ const TARGET_BATCH_SIZE = 500; // Fetch target records in batches for matching
+ const PARALLEL_BATCH_SIZE = 10; // Process records in parallel within batch
 
 interface FieldMapping {
   sourceFieldId: string;
@@ -861,31 +866,58 @@ Deno.serve(async (req) => {
     };
 
     try {
-      // Fetch source form submissions
-      const { data: sourceSubmissions, error: sourceError } = await supabase
-        .from('form_submissions')
-        .select('id, submission_data, submission_ref_id')
-        .eq('form_id', feed.source_form_id);
-
-      if (sourceError) {
-        throw new Error(`Failed to fetch source submissions: ${sourceError.message}`);
-      }
-
-      console.log(`📥 Found ${sourceSubmissions?.length || 0} source submissions`);
-      runLog.push({ type: 'info', message: `Found ${sourceSubmissions?.length || 0} source submissions`, timestamp: new Date().toISOString() });
-
-      // Fetch target form submissions for matching
-      const { data: targetSubmissions, error: targetError } = await supabase
-        .from('form_submissions')
-        .select('id, submission_data, submission_ref_id')
-        .eq('form_id', feed.target_form_id);
-
-      if (targetError) {
-        throw new Error(`Failed to fetch target submissions: ${targetError.message}`);
-      }
-
-      console.log(`📤 Found ${targetSubmissions?.length || 0} target submissions`);
-      runLog.push({ type: 'info', message: `Found ${targetSubmissions?.length || 0} target submissions`, timestamp: new Date().toISOString() });
+       // OPTIMIZATION: Get total count first, then process in batches
+       const { count: sourceCount, error: countError } = await supabase
+         .from('form_submissions')
+         .select('id', { count: 'exact', head: true })
+         .eq('form_id', feed.source_form_id);
+ 
+       if (countError) {
+         throw new Error(`Failed to count source submissions: ${countError.message}`);
+       }
+ 
+       const totalSourceRecords = sourceCount || 0;
+       console.log(`📥 Total source submissions to process: ${totalSourceRecords}`);
+       runLog.push({ type: 'info', message: `Total source submissions: ${totalSourceRecords}`, timestamp: new Date().toISOString() });
+ 
+       // OPTIMIZATION: Build target index for O(1) lookups instead of O(N) filtering
+       // Fetch target submissions in batches and build index
+       const targetIndex = new Map<string, any>();
+       const targetByRefId = new Map<string, any>();
+       let targetOffset = 0;
+       let totalTargetRecords = 0;
+ 
+       while (true) {
+         const { data: targetBatch, error: targetError } = await supabase
+           .from('form_submissions')
+           .select('id, submission_data, submission_ref_id')
+           .eq('form_id', feed.target_form_id)
+           .range(targetOffset, targetOffset + TARGET_BATCH_SIZE - 1);
+ 
+         if (targetError) {
+           throw new Error(`Failed to fetch target submissions: ${targetError.message}`);
+         }
+ 
+         if (!targetBatch || targetBatch.length === 0) break;
+ 
+         for (const target of targetBatch) {
+           targetIndex.set(target.id, target);
+           if (target.submission_ref_id) {
+             targetByRefId.set(target.submission_ref_id, target);
+           }
+         }
+ 
+         totalTargetRecords += targetBatch.length;
+         targetOffset += TARGET_BATCH_SIZE;
+ 
+         if (targetBatch.length < TARGET_BATCH_SIZE) break;
+       }
+ 
+       console.log(`📤 Indexed ${totalTargetRecords} target submissions`);
+       runLog.push({ type: 'info', message: `Indexed ${totalTargetRecords} target submissions`, timestamp: new Date().toISOString() });
+ 
+       // Convert to array for matching operations that need iteration
+       const targetSubmissions = Array.from(targetIndex.values());
 
       const fieldMappings = (feed.field_mappings || []) as FieldMapping[];
       const matchingRules = (feed.matching_rules || []) as MatchingRule[];
@@ -937,12 +969,33 @@ Deno.serve(async (req) => {
         console.log(`📚 Cached ${Object.keys(crossRefCache).length} cross-reference submissions`);
       }
 
-      // Process each source submission
-      for (const sourceSubmission of sourceSubmissions || []) {
-        stats.recordsProcessed++;
-        const sourceData = sourceSubmission.submission_data as Record<string, any>;
-
-        try {
+       // OPTIMIZATION: Process source submissions in batches to prevent memory exhaustion
+       let sourceOffset = 0;
+       let batchNumber = 0;
+ 
+       while (sourceOffset < totalSourceRecords) {
+         batchNumber++;
+         console.log(`📦 Processing batch ${batchNumber} (offset ${sourceOffset})`);
+ 
+         // Fetch source batch
+         const { data: sourceBatch, error: sourceError } = await supabase
+           .from('form_submissions')
+           .select('id, submission_data, submission_ref_id')
+           .eq('form_id', feed.source_form_id)
+           .range(sourceOffset, sourceOffset + SOURCE_BATCH_SIZE - 1);
+ 
+         if (sourceError) {
+           throw new Error(`Failed to fetch source batch: ${sourceError.message}`);
+         }
+ 
+         if (!sourceBatch || sourceBatch.length === 0) break;
+ 
+         // Process each source submission in this batch
+         for (const sourceSubmission of sourceBatch) {
+           stats.recordsProcessed++;
+           const sourceData = sourceSubmission.submission_data as Record<string, any>;
+ 
+           try {
           // Apply source filters first
           if (!passesSourceFilters(sourceData, sourceFilters, sourceFilterLogic || '')) {
             stats.recordsFiltered++;
@@ -1274,14 +1327,21 @@ Deno.serve(async (req) => {
               runLog.push({ type: 'info', message: `Source ${sourceSubmission.submission_ref_id || sourceSubmission.id} - no target match, but nested records created`, timestamp: new Date().toISOString() });
             }
           }
-        } catch (processError) {
-          console.error(`❌ Error processing source ${sourceSubmission.id}:`, processError);
-          stats.errors++;
-          runLog.push({ type: 'error', message: `Error processing source ${sourceSubmission.id}: ${String(processError)}`, timestamp: new Date().toISOString() });
-        }
-      }
-
-      // Update run record with success
+           } catch (processError) {
+             console.error(`❌ Error processing source ${sourceSubmission.id}:`, processError);
+             stats.errors++;
+             runLog.push({ type: 'error', message: `Error processing source ${sourceSubmission.id}: ${String(processError)}`, timestamp: new Date().toISOString() });
+           }
+         }
+ 
+         // Update offset for next batch
+         sourceOffset += SOURCE_BATCH_SIZE;
+         
+         // Log batch progress
+         console.log(`📊 Batch ${batchNumber} complete. Processed: ${stats.recordsProcessed}, Updated: ${stats.recordsUpdated}, Created: ${stats.recordsCreated}`);
+       }
+ 
+       // Update run record with success
       const runStatus = stats.errors > 0 ? (stats.recordsUpdated > 0 || stats.recordsCreated > 0 ? 'partial' : 'failed') : 'completed';
       
       await supabase
