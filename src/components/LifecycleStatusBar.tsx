@@ -6,6 +6,7 @@ import { StageChangeDialog } from './StageChangeDialog';
 import { LifecycleHistoryDialog } from './LifecycleHistoryDialog';
 import { useLifecycleHistory } from '@/hooks/useLifecycleHistory';
 import { useSLANotification } from '@/hooks/useSLANotification';
+import { useSLATracking } from '@/hooks/useSLATracking';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -23,6 +24,7 @@ interface LifecycleStatusBarProps {
   disabled?: boolean;
   isEditing?: boolean;
   submissionId?: string;
+  formId?: string;
 }
 
 export function LifecycleStatusBar({ 
@@ -31,7 +33,8 @@ export function LifecycleStatusBar({
   onChange, 
   disabled = false,
   isEditing = false,
-  submissionId
+  submissionId,
+  formId
 }: LifecycleStatusBarProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
@@ -49,6 +52,8 @@ export function LifecycleStatusBar({
     refetch: refetchHistory
   } = useLifecycleHistory(submissionId || '', field.id);
 
+  // SLA Tracking hook
+  const { handleStageChange: triggerSLATracking } = useSLATracking();
 
   // Parse options from the field
   const options = Array.isArray(field.options) 
@@ -61,6 +66,10 @@ export function LifecycleStatusBar({
   const transitionRules = customConfig.transitionRules || {};
   const requireCommentOnChange = customConfig.requireCommentOnChange || false;
   const slaWarningHours = customConfig.slaWarningHours || null;
+  const enableSlaTracking = customConfig.enableSlaTracking || false;
+  const slaTemplateId = customConfig.slaTemplateId || null;
+  const escalationChainId = customConfig.escalationChainId || null;
+  const slaTrackedStages = customConfig.slaTrackedStages || [];
 
   // SLA Notification hook
   useSLANotification({
@@ -236,11 +245,31 @@ export function LifecycleStatusBar({
       
       if (submissionId) {
         console.log('Adding history entry with comment:', comment);
-        // Run all async operations in parallel for speed
-        Promise.all([
+        // Run all async operations in parallel for speed, including SLA tracking
+        const operations: Promise<any>[] = [
           addHistoryEntry(previousStage, newStage, comment || undefined),
           sendStageChangeNotification(previousStage, newStage)
-        ]).then(() => {
+        ];
+        
+        // Trigger SLA tracking if enabled
+        if (enableSlaTracking && slaTemplateId && submissionId && formId) {
+          operations.push(
+            triggerSLATracking({
+              submissionId,
+              fieldId: field.id,
+              formId,
+              currentStage: newStage,
+              config: {
+                enableSlaTracking,
+                slaTemplateId,
+                escalationChainId,
+                slaTrackedStages
+              }
+            })
+          );
+        }
+        
+        Promise.all(operations).then(() => {
           refetchHistory();
         }).catch(err => {
           console.error('Error in stage change operations:', err);

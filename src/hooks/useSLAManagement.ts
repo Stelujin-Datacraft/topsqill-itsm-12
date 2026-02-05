@@ -312,3 +312,60 @@
  
    return { stats, loading };
  }
+
+/**
+ * Hook to fetch SLA status for a specific submission
+ */
+export function useSubmissionSLAStatus(submissionId: string | null) {
+  const [slaStatus, setSlaStatus] = useState<{
+    status: 'on_track' | 'warning' | 'breached' | 'completed' | 'paused';
+    warningAt: string | null;
+    breachAt: string | null;
+    templateName: string | null;
+    currentStage: string | null;
+  } | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchStatus = async () => {
+      if (!submissionId) {
+        setSlaStatus(null);
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('sla_instances')
+          .select('status, warning_at, breach_at, current_stage, template:sla_templates(name)')
+          .eq('submission_id', submissionId)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (error) throw error;
+        
+        if (data) {
+          setSlaStatus({
+            status: data.status as any,
+            warningAt: data.warning_at,
+            breachAt: data.breach_at,
+            templateName: (data.template as any)?.name || null,
+            currentStage: data.current_stage
+          });
+        } else {
+          setSlaStatus(null);
+        }
+      } catch (err) {
+        console.error('Error fetching SLA status:', err);
+        setSlaStatus(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStatus();
+  }, [submissionId]);
+
+  return { slaStatus, loading };
+}
