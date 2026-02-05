@@ -6,6 +6,15 @@
    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
  };
  
+// Re-enrollment check result
+interface EnrollmentCheck {
+  allowed: boolean;
+  reason?: string;
+  lastExecutionId?: string;
+  lastExecutionStatus?: string;
+  lastExecutionTime?: string;
+}
+
  interface EnqueueRequest {
    workflow_id: string;
    submission_id?: string;
@@ -15,6 +24,7 @@
    priority?: number; // 1-10, lower = higher priority
    organization_id?: string;
    project_id?: string;
+  skip_enrollment_check?: boolean; // For manual/bulk triggers to bypass re-enrollment rules
  }
  
  interface EnqueueResponse {
@@ -23,8 +33,101 @@
    message?: string;
    error?: string;
    deduplicated?: boolean; // True if a duplicate was found and skipped
+  enrollment_blocked?: boolean; // True if blocked by re-enrollment rules
+  enrollment_reason?: string; // Reason for blocking
  }
  
+/**
+ * Check if a submission is allowed to enroll in a workflow based on enrollment_mode
+ */
+async function checkEnrollmentAllowed(
+  supabase: any,
+  workflowId: string,
+  submissionId: string | null | undefined
+): Promise<EnrollmentCheck> {
+  // If no submission ID, always allow (manual triggers without submission)
+  if (!submissionId) {
+    return { allowed: true };
+  }
+
+  // Get workflow's enrollment settings
+  const { data: workflow, error: workflowError } = await supabase
+    .from('workflows')
+    .select('enrollment_mode, enrollment_cooldown_hours')
+    .eq('id', workflowId)
+    .single();
+
+  if (workflowError || !workflow) {
+    console.log(`[enqueue-workflow] Could not fetch workflow settings, allowing enrollment`);
+    return { allowed: true };
+  }
+
+  const { enrollment_mode, enrollment_cooldown_hours } = workflow;
+
+  // Default mode: allow always
+  if (enrollment_mode === 'allow_always' || !enrollment_mode) {
+    return { allowed: true };
+  }
+
+  // Check for existing executions for this workflow + submission
+  const { data: existingExecutions, error: execError } = await supabase
+    .from('workflow_executions')
+    .select('id, status, started_at, completed_at')
+    .eq('workflow_id', workflowId)
+    .eq('trigger_submission_id', submissionId)
+    .in('status', ['completed', 'running', 'waiting'])
+    .order('started_at', { ascending: false })
+    .limit(1);
+
+  if (execError) {
+    console.error(`[enqueue-workflow] Error checking enrollment history:`, execError);
+    return { allowed: true }; // Allow on error to avoid blocking
+  }
+
+  if (!existingExecutions || existingExecutions.length === 0) {
+    // No previous execution, allow enrollment
+    return { allowed: true };
+  }
+
+  const lastExecution = existingExecutions[0];
+
+  // Mode: once_per_record - never re-enroll
+  if (enrollment_mode === 'once_per_record') {
+    return {
+      allowed: false,
+      reason: `Record already enrolled in this workflow (execution: ${lastExecution.id.slice(0, 8)}...)`,
+      lastExecutionId: lastExecution.id,
+      lastExecutionStatus: lastExecution.status,
+      lastExecutionTime: lastExecution.started_at
+    };
+  }
+
+  // Mode: cooldown - check time since last execution
+  if (enrollment_mode === 'cooldown') {
+    const cooldownHours = enrollment_cooldown_hours || 24;
+    const lastTime = new Date(lastExecution.completed_at || lastExecution.started_at).getTime();
+    const now = Date.now();
+    const hoursSinceLastRun = (now - lastTime) / (1000 * 60 * 60);
+
+    if (hoursSinceLastRun < cooldownHours) {
+      const remainingHours = Math.ceil(cooldownHours - hoursSinceLastRun);
+      return {
+        allowed: false,
+        reason: `Cooldown period active (${remainingHours}h remaining of ${cooldownHours}h cooldown)`,
+        lastExecutionId: lastExecution.id,
+        lastExecutionStatus: lastExecution.status,
+        lastExecutionTime: lastExecution.started_at
+      };
+    }
+
+    // Cooldown expired, allow enrollment
+    return { allowed: true };
+  }
+
+  // Unknown mode, allow by default
+  return { allowed: true };
+}
+
  serve(async (req) => {
    // Handle CORS preflight
    if (req.method === 'OPTIONS') {
@@ -57,9 +160,32 @@
        submission_id: body.submission_id,
        trigger_source: body.trigger_source || 'form_submission',
        trigger_ref: body.trigger_ref,
-       priority: body.priority || 5
+      priority: body.priority || 5,
+      skip_enrollment_check: body.skip_enrollment_check || false
      });
      
+    // Check re-enrollment rules (unless explicitly skipped for manual/bulk triggers)
+    if (!body.skip_enrollment_check && body.submission_id) {
+      const enrollmentCheck = await checkEnrollmentAllowed(
+        supabase,
+        body.workflow_id,
+        body.submission_id
+      );
+
+      if (!enrollmentCheck.allowed) {
+        console.log(`[enqueue-workflow] Enrollment blocked: ${enrollmentCheck.reason}`);
+        return new Response(JSON.stringify({
+          success: false,
+          error: enrollmentCheck.reason,
+          enrollment_blocked: true,
+          enrollment_reason: enrollmentCheck.reason
+        } as EnqueueResponse), {
+          status: 200, // Return 200 since this is not an error, just a policy block
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
      // Check for duplicate if trigger_ref is provided
      if (body.trigger_ref) {
        const { data: existing } = await supabase

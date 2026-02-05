@@ -3393,6 +3393,8 @@ export type Database = {
           created_at: string
           created_by: string
           description: string | null
+          enrollment_cooldown_hours: number | null
+          enrollment_mode: string
           id: string
           name: string
           organization_id: string | null
@@ -3405,6 +3407,8 @@ export type Database = {
           created_at?: string
           created_by: string
           description?: string | null
+          enrollment_cooldown_hours?: number | null
+          enrollment_mode?: string
           id?: string
           name: string
           organization_id?: string | null
@@ -3417,6 +3421,8 @@ export type Database = {
           created_at?: string
           created_by?: string
           description?: string | null
+          enrollment_cooldown_hours?: number | null
+          enrollment_mode?: string
           id?: string
           name?: string
           organization_id?: string | null
