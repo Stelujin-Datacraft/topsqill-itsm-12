@@ -1,5 +1,5 @@
-
-import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/contexts/OrganizationContext';
 
@@ -12,49 +12,43 @@ interface OrganizationUser {
 }
 
 export function useOrganizationUsers() {
-  const [users, setUsers] = useState<OrganizationUser[]>([]);
-  const [loading, setLoading] = useState(false);
   const { currentOrganization } = useOrganization();
 
-  const loadUsers = async () => {
-    if (!currentOrganization?.id) return;
-
-    try {
-      setLoading(true);
+  // Use React Query for caching organization users
+  const { data: users = [], isLoading: loading, refetch } = useQuery({
+    queryKey: ['organization-users', currentOrganization?.id],
+    queryFn: async () => {
+      if (!currentOrganization?.id) return [];
+      
       const { data, error } = await supabase
         .rpc('get_organization_users', { org_id: currentOrganization.id });
 
-      if (error) {
-        console.error('Error loading organization users:', error);
-      } else {
-        setUsers(data || []);
-      }
-    } catch (error) {
-      console.error('Error loading organization users:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+      if (error) throw error;
+      return (data || []) as OrganizationUser[];
+    },
+    enabled: !!currentOrganization?.id,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+  });
 
-  const searchUsers = (query: string) => {
-    if (!query.trim()) return users;
-    
-    const lowercaseQuery = query.toLowerCase();
-    return users.filter(user => 
-      user.email.toLowerCase().includes(lowercaseQuery) ||
-      user.first_name?.toLowerCase().includes(lowercaseQuery) ||
-      user.last_name?.toLowerCase().includes(lowercaseQuery)
-    );
-  };
-
-  useEffect(() => {
-    loadUsers();
-  }, [currentOrganization?.id]);
+  // Memoized search function
+  const searchUsers = useMemo(() => {
+    return (query: string) => {
+      if (!query.trim()) return users;
+      
+      const lowercaseQuery = query.toLowerCase();
+      return users.filter(user => 
+        user.email.toLowerCase().includes(lowercaseQuery) ||
+        user.first_name?.toLowerCase().includes(lowercaseQuery) ||
+        user.last_name?.toLowerCase().includes(lowercaseQuery)
+      );
+    };
+  }, [users]);
 
   return {
     users,
     loading,
     searchUsers,
-    loadUsers
+    loadUsers: () => refetch()
   };
 }

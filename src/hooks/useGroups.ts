@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/contexts/OrganizationContext';
 
@@ -29,21 +28,14 @@ export interface CreateGroupData {
 }
 
 export function useGroups() {
-  const [groups, setGroups] = useState<Group[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const { currentOrganization } = useOrganization();
+  const queryClient = useQueryClient();
 
-  const fetchGroups = async () => {
-    if (!currentOrganization?.id) {
-      setGroups([]);
-      setLoading(false);
-      return;
-    }
-
-    try {
-      setLoading(true);
-      setError(null);
+  // Use React Query for caching
+  const { data: groups = [], isLoading: loading, error: queryError, refetch } = useQuery({
+    queryKey: ['groups', currentOrganization?.id],
+    queryFn: async () => {
+      if (!currentOrganization?.id) return [];
       
       // Fetch groups with role information
       const { data: groupsData, error } = await supabase
@@ -75,26 +67,23 @@ export function useGroups() {
       }
 
       // Enrich groups with pre-fetched member counts
-      const enrichedGroups = (groupsData || []).map((group) => ({
+      return (groupsData || []).map((group) => ({
         ...group,
         role_name: group.roles?.name,
         member_count: memberCountMap.get(group.id) || 0
-      }));
+      })) as Group[];
+    },
+    enabled: !!currentOrganization?.id,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+  });
 
-      setGroups(enrichedGroups);
-    } catch (error) {
-      console.error('Error fetching groups:', error);
-      setError('Failed to load groups');
-      setGroups([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const error = queryError ? 'Failed to load groups' : null;
 
-  const createGroup = async (data: CreateGroupData) => {
-    if (!currentOrganization?.id) throw new Error('No organization selected');
-
-    try {
+  const createGroupMutation = useMutation({
+    mutationFn: async (data: CreateGroupData) => {
+      if (!currentOrganization?.id) throw new Error('No organization selected');
+      
       // Get current user
       const { data: userData } = await supabase.auth.getUser();
       const currentUserId = userData.user?.id;
@@ -131,16 +120,19 @@ export function useGroups() {
         if (membershipError) throw membershipError;
       }
 
-      await fetchGroups();
       return groupData;
-    } catch (error) {
-      console.error('Error creating group:', error);
-      throw error;
-    }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['groups', currentOrganization?.id] });
+    },
+  });
+
+  const createGroup = async (data: CreateGroupData) => {
+    return createGroupMutation.mutateAsync(data);
   };
 
-  const updateGroup = async (groupId: string, data: CreateGroupData) => {
-    try {
+  const updateGroupMutation = useMutation({
+    mutationFn: async ({ groupId, data }: { groupId: string; data: CreateGroupData }) => {
       // Get current user
       const { data: userData } = await supabase.auth.getUser();
       const currentUserId = userData.user?.id;
@@ -182,28 +174,32 @@ export function useGroups() {
 
         if (membershipError) throw membershipError;
       }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['groups', currentOrganization?.id] });
+    },
+  });
 
-      await fetchGroups();
-    } catch (error) {
-      console.error('Error updating group:', error);
-      throw error;
-    }
+  const updateGroup = async (groupId: string, data: CreateGroupData) => {
+    return updateGroupMutation.mutateAsync({ groupId, data });
   };
 
-  const deleteGroup = async (groupId: string) => {
-    try {
+  const deleteGroupMutation = useMutation({
+    mutationFn: async (groupId: string) => {
       const { error } = await supabase
         .from('groups')
         .delete()
         .eq('id', groupId);
 
       if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['groups', currentOrganization?.id] });
+    },
+  });
 
-      await fetchGroups();
-    } catch (error) {
-      console.error('Error deleting group:', error);
-      throw error;
-    }
+  const deleteGroup = async (groupId: string) => {
+    return deleteGroupMutation.mutateAsync(groupId);
   };
 
   const getGroupMembers = async (groupId: string): Promise<GroupMember[]> => {
@@ -227,10 +223,6 @@ export function useGroups() {
     }
   };
 
-  useEffect(() => {
-    fetchGroups();
-  }, [currentOrganization?.id]);
-
   return {
     groups,
     loading,
@@ -239,6 +231,6 @@ export function useGroups() {
     updateGroup,
     deleteGroup,
     getGroupMembers,
-    refetch: fetchGroups
+    refetch: () => refetch()
   };
 }
