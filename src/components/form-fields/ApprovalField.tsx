@@ -83,37 +83,28 @@ export function ApprovalField({ field, value, onChange, error, disabled, formDat
           return;
         }
 
-        // Approve selected submissions
-        const approvalPromises = crossReferenceSelections.map(async (selection) => {
-          const submissionId = selection.id;
-          
-          // Use user ID if available, otherwise store as null and use email in notes
-          const updateData: any = {
-            approval_status: approved ? 'approved' : 'rejected',
-            approval_timestamp: new Date().toISOString(),
-            approval_notes: comments.trim()
-          };
+        // OPTIMIZATION: Batch update all selected submissions in a single query
+        const submissionIds = crossReferenceSelections.map(s => s.id);
+        
+        const updateData: any = {
+          approval_status: approved ? 'approved' : 'rejected',
+          approval_timestamp: new Date().toISOString(),
+          approval_notes: user?.id ? comments.trim() : `${comments.trim()} (Approved by: ${user?.email || 'Unknown'})`
+        };
 
-          // Only set approved_by if we have a valid user ID
-          if (user?.id) {
-            updateData.approved_by = user.id;
-          } else {
-            // Store email in notes if no user ID available
-            updateData.approval_notes = `${comments.trim()} (Approved by: ${user?.email || 'Unknown'})`;
-          }
+        if (user?.id) {
+          updateData.approved_by = user.id;
+        }
 
-          const { error } = await supabase
-            .from('form_submissions')
-            .update(updateData)
-            .eq('id', submissionId);
+        const { error: batchError } = await supabase
+          .from('form_submissions')
+          .update(updateData)
+          .in('id', submissionIds);
 
-          if (error) {
-            console.error('Error updating submission approval:', error);
-            throw error;
-          }
-        });
-
-        await Promise.all(approvalPromises);
+        if (batchError) {
+          console.error('Error batch updating submission approvals:', batchError);
+          throw batchError;
+        }
 
         onChange(approvalData);
 
