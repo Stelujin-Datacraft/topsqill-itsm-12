@@ -1,12 +1,12 @@
 /**
-  * Route Preloader
-  * Preloads ALL application routes after login for instant navigation
-  * Eliminates lazy-loading delays by warming the browser cache
+  * Critical Route Preloader
+  * Preloads high-traffic routes after login for instant navigation
+  * Other routes use hover-based prefetch (usePrefetch hook) for on-demand loading
  */
 
- // ALL routes that use lazy loading - preloaded for instant navigation
- const ALL_LAZY_ROUTES = [
-   // Primary sections
+ // Critical routes - most frequently accessed (preloaded immediately after login)
+ // Other routes rely on hover-based prefetch for optimized bandwidth usage
+ const CRITICAL_ROUTES = [
   '/dashboard',
   '/forms',
   '/workflows',
@@ -15,35 +15,8 @@
   '/users',
   '/data-feeds',
   '/my-submissions',
-   // Form routes
-   '/form-builder',
    '/form-submissions',
-   // Workflow routes
-   '/workflow-designer',
-   '/workflow-view',
-   // Report routes
-   '/report-editor',
-   '/report-view',
-   '/dashboard-view',
-   // Admin routes
-   '/organizations',
    '/settings',
-   '/roles-and-access',
-   '/analytics-dashboard',
-   '/email-config',
-   '/email-templates',
-   '/audit-logs',
-   '/form-audit-logs',
-   '/investigate-access',
-   '/ldap-settings',
-   '/sla-management',
-   '/api-integration',
-   '/api-docs',
-   '/profile',
-   '/manage-sessions',
-   // Public routes
-   '/docs',
-   '/forgot-password',
 ] as const;
 
 // Track which routes have been preloaded to avoid duplicate work
@@ -87,11 +60,11 @@ export function preloadCriticalRoutes(): void {
     return;
   }
 
-   // Preload ALL routes with staggered timing to avoid overwhelming the browser
-   ALL_LAZY_ROUTES.forEach((route, index) => {
+   // Preload critical routes with staggered timing
+   CRITICAL_ROUTES.forEach((route, index) => {
     setTimeout(() => {
       preloadRoute(route);
-     }, index * 30); // 30ms delay between each route for faster completion
+     }, index * 50); // 50ms delay between each route
   });
 }
 
@@ -111,8 +84,8 @@ export function prefetchRoute(path: string): void {
 }
 
 /**
- * Get list of critical routes (for testing/debugging)
+  * Get list of preloaded routes (for testing/debugging)
  */
 export function getCriticalRoutes(): readonly string[] {
-   return ALL_LAZY_ROUTES;
+   return CRITICAL_ROUTES;
 }
