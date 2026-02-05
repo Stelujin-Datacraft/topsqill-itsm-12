@@ -333,11 +333,38 @@ export function AIChatbot() {
                timestamp: new Date()
              };
              setMessages(prev => [...prev, navMessage]);
+           } else if (actionResult.result?.formId && actionResult.result?.slaTemplateId) {
+             // Form with SLA created
+             const navMessage: Message = {
+               id: `nav-offer-${Date.now()}`,
+               role: 'assistant',
+               content: `🎉 **Form with SLA tracking created!**\n\n• [Open the form](/form-edit/${actionResult.result.formId})\n• [View SLA Management](/sla-management)`,
+               timestamp: new Date()
+             };
+             setMessages(prev => [...prev, navMessage]);
+           } else if (actionResult.result?.formId && actionResult.result?.emailTemplateId) {
+             // Form with email template created
+             const navMessage: Message = {
+               id: `nav-offer-${Date.now()}`,
+               role: 'assistant',
+               content: `🎉 **Form with email notifications created!**\n\n• [Open the form](/form-edit/${actionResult.result.formId})\n• [View Email Templates](/email-templates)`,
+               timestamp: new Date()
+             };
+             setMessages(prev => [...prev, navMessage]);
            } else if (actionResult.result?.formId) {
              const navMessage: Message = {
                id: `nav-offer-${Date.now()}`,
                role: 'assistant',
                content: `Would you like to [open the form](/form-edit/${actionResult.result.formId})?`,
+               timestamp: new Date()
+             };
+             setMessages(prev => [...prev, navMessage]);
+           } else if (actionResult.result?.workflowId && actionResult.result?.nodeId) {
+             // Email action added to workflow
+             const navMessage: Message = {
+               id: `nav-offer-${Date.now()}`,
+               role: 'assistant',
+               content: `✅ **Email action added!**\n\n• [Open the workflow](/workflow-builder/${actionResult.result.workflowId})`,
                timestamp: new Date()
              };
              setMessages(prev => [...prev, navMessage]);
@@ -354,6 +381,15 @@ export function AIChatbot() {
                id: `nav-offer-${Date.now()}`,
                role: 'assistant',
                content: `Would you like to [open the dashboard](/dashboard-view/${actionResult.result.dashboardId})?`,
+               timestamp: new Date()
+             };
+             setMessages(prev => [...prev, navMessage]);
+           } else if (actionResult.result?.slaTemplateId) {
+             // SLA linked to existing form
+             const navMessage: Message = {
+               id: `nav-offer-${Date.now()}`,
+               role: 'assistant',
+               content: `✅ **SLA tracking configured!**\n\n• [View SLA Management](/sla-management)`,
                timestamp: new Date()
              };
              setMessages(prev => [...prev, navMessage]);
