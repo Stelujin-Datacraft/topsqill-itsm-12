@@ -131,6 +131,48 @@ interface AIChartSuggestionResult {
   warnings?: string[];
 }
 
+interface AIFieldRuleSuggestion {
+  name: string;
+  targetFieldId: string;
+  targetFieldLabel: string;
+  conditions: Array<{
+    fieldId: string;
+    fieldLabel: string;
+    operator: string;
+    value: string | string[] | number | boolean;
+  }>;
+  logicExpression: string;
+  action: string;
+  actionValue?: string | string[] | number | boolean;
+  explanation: string;
+}
+
+interface AIFieldRuleSuggestionResult {
+  rules: AIFieldRuleSuggestion[];
+  summary: string;
+  suggestions?: string[];
+}
+
+interface AIFormRuleSuggestion {
+  name: string;
+  conditions: Array<{
+    fieldId: string;
+    fieldLabel: string;
+    operator: string;
+    value: string | string[] | number | boolean;
+  }>;
+  logicExpression: string;
+  action: string;
+  actionValue?: string | any;
+  explanation: string;
+}
+
+interface AIFormRuleSuggestionResult {
+  rules: AIFormRuleSuggestion[];
+  summary: string;
+  suggestions?: string[];
+}
+
 export function useFormAI() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -350,6 +392,64 @@ export function useFormAI() {
     });
   }, [callAI]);
 
+  // NEW: Field Rule Suggestions
+  const suggestFieldRules = useCallback(async (
+    formFields: FormField[],
+    userInput: string,
+    options?: {
+      formName?: string;
+      formDescription?: string;
+      existingRules?: Array<{ name: string; targetField: string; action: string }>;
+    }
+  ): Promise<AIFieldRuleSuggestionResult | null> => {
+    return callAI('suggest-field-rules', {
+      formFields: formFields.map(f => ({
+        id: f.id,
+        type: f.type,
+        label: f.label,
+        options: f.options?.map(o => ({
+          id: o.id || o.value,
+          value: o.value,
+          label: o.label
+        })),
+        required: f.required
+      })),
+      userInput,
+      formName: options?.formName,
+      formDescription: options?.formDescription,
+      existingFieldRules: options?.existingRules
+    });
+  }, [callAI]);
+
+  // NEW: Form Rule Suggestions
+  const suggestFormRules = useCallback(async (
+    formFields: FormField[],
+    userInput: string,
+    options?: {
+      formName?: string;
+      formDescription?: string;
+      existingRules?: Array<{ name: string; action: string }>;
+    }
+  ): Promise<AIFormRuleSuggestionResult | null> => {
+    return callAI('suggest-form-rules', {
+      formFields: formFields.map(f => ({
+        id: f.id,
+        type: f.type,
+        label: f.label,
+        options: f.options?.map(o => ({
+          id: o.id || o.value,
+          value: o.value,
+          label: o.label
+        })),
+        required: f.required
+      })),
+      userInput,
+      formName: options?.formName,
+      formDescription: options?.formDescription,
+      existingFormRules: options?.existingRules
+    });
+  }, [callAI]);
+
   return {
     isLoading,
     error,
@@ -365,6 +465,8 @@ export function useFormAI() {
     generateForm,
     suggestWorkflow,
     suggestFieldMappings,
-    suggestCharts
+    suggestCharts,
+    suggestFieldRules,
+    suggestFormRules
   };
 }

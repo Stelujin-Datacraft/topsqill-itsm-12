@@ -14,6 +14,7 @@ import { FormSubmissions } from './FormSubmissions';
 import { FormUserAccess } from './FormUserAccess';
 import { EnhancedFieldRuleBuilder } from './rules/EnhancedFieldRuleBuilder';
 import { EnhancedFormRuleBuilder } from './rules/EnhancedFormRuleBuilder';
+import { AIRuleSuggester } from './ai/AIRuleSuggester';
 import { FormNavigationPanel } from './FormNavigationPanel';
 import { Zap, Users, Database, Settings, Save, ArrowLeft, Undo2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
@@ -608,9 +609,23 @@ function FormBuilderContent({
             </TabsContent>
 
             <TabsContent value="rules">
-              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                {workingForm && (
+                  <div className="flex justify-end">
+                    <AIRuleSuggester
+                      formFields={workingForm.fields}
+                      formName={workingForm.name}
+                      formDescription={workingForm.description || ''}
+                      existingFieldRules={workingForm.fieldRules || []}
+                      existingFormRules={workingForm.formRules || []}
+                      onApplyFieldRules={(rules) => updateFormDetails({ fieldRules: rules })}
+                      onApplyFormRules={(rules) => updateFormDetails({ formRules: rules })}
+                    />
+                  </div>
+                )}
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
                 {workingForm ? <>
-                    <Card className="bg-white shadow-sm">
+                    <Card className="bg-card shadow-sm">
                       <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                           <Settings className="h-5 w-5" />
@@ -624,7 +639,7 @@ function FormBuilderContent({
                       </CardContent>
                     </Card>
 
-                    <Card className="bg-white shadow-sm">
+                    <Card className="bg-card shadow-sm">
                       <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                           <Zap className="h-5 w-5" />
@@ -637,11 +652,12 @@ function FormBuilderContent({
                     })} />
                       </CardContent>
                     </Card>
-                  </> : <Card className="col-span-2 bg-white shadow-sm">
+                  </> : <Card className="col-span-2 bg-card shadow-sm">
                     <CardContent className="py-12 text-center">
                       <p className="text-muted-foreground">Save your form first to configure rules</p>
                     </CardContent>
                   </Card>}
+                </div>
               </div>
             </TabsContent>
 

@@ -14,7 +14,7 @@ interface FormField {
 }
 
 interface AIRequest {
-   action: 'auto-fill' | 'suggest-routing' | 'analyze-content' | 'generate-summary' | 'natural-language-query' | 'generate-content' | 'chatbot-assist' | 'chatbot-copilot' | 'generate-formula' | 'generate-form' | 'suggest-workflow' | 'suggest-field-mappings' | 'suggest-chart' | 'generate-sla-template' | 'generate-escalation-chain';
+   action: 'auto-fill' | 'suggest-routing' | 'analyze-content' | 'generate-summary' | 'natural-language-query' | 'generate-content' | 'chatbot-assist' | 'chatbot-copilot' | 'generate-formula' | 'generate-form' | 'suggest-workflow' | 'suggest-field-mappings' | 'suggest-chart' | 'generate-sla-template' | 'generate-escalation-chain' | 'suggest-field-rules' | 'suggest-form-rules';
   context: {
     formFields?: FormField[];
     currentValues?: Record<string, any>;
@@ -54,6 +54,9 @@ interface AIRequest {
     // Chart suggestions
     formData?: Array<Record<string, any>>;
     existingCharts?: Array<{ type: string; dimensions: string[]; metrics: string[] }>;
+    // Rule generation
+    existingFieldRules?: Array<{ name: string; targetField: string; action: string }>;
+    existingFormRules?: Array<{ name: string; action: string }>;
     // SLA generation
     industry?: string;
   };
@@ -1111,6 +1114,179 @@ Return a JSON object:
 }
 
 Generate between 2-4 levels based on the complexity described.`;
+        break;
+
+      // NEW: Field Rule Suggestions
+      case 'suggest-field-rules':
+        temperature = 0.4;
+        maxTokens = 2500;
+        
+        systemPrompt = `You are a form logic expert. Generate field rules that control real-time UI behavior during form filling.
+
+Available Field Actions:
+- show: Show a hidden field
+- hide: Hide a visible field
+- enable: Enable a disabled field
+- disable: Disable an enabled field
+- require: Make a field required
+- optional: Make a field optional
+- setDefault: Set a default value for a field
+- clearValue: Clear the field's current value
+- filterOptions: Filter dropdown/radio options based on another field
+- preventSubmit: Prevent form submission
+- allowSubmit: Allow form submission
+
+Available Operators:
+- == : equals
+- != : not equals
+- < : less than
+- > : greater than
+- <= : less than or equal
+- >= : greater than or equal
+- contains : text contains
+- not contains : text does not contain
+- startsWith : text starts with
+- endsWith : text ends with
+- in : value is in list
+- isEmpty : field is empty
+- isNotEmpty : field is not empty
+
+Rules:
+- Use field IDs exactly as provided (they are UUIDs)
+- Match operators to field types (numeric operators for numbers, text operators for text)
+- Create meaningful rule names that describe the behavior
+- The logicExpression uses condition numbers (1, 2, 3...) with AND, OR, NOT operators
+- For simple single-condition rules, use "1" as the expression
+- For complex rules, combine like "1 AND 2" or "1 OR (2 AND 3)"
+- Only suggest rules that make logical sense for the form context`;
+
+        userPrompt = `Generate field rules for this form based on the user's request:
+
+Form: ${context.formName || 'Form'}
+Description: ${context.formDescription || 'No description'}
+
+Available Fields:
+${JSON.stringify(context.formFields?.map(f => ({
+  id: f.id,
+  label: f.label,
+  type: f.type,
+  options: f.options?.map(o => ({ id: o.id, label: o.label })),
+  required: f.required
+})), null, 2)}
+
+${context.existingFieldRules?.length ? `Existing Rules (avoid duplicates):
+${JSON.stringify(context.existingFieldRules, null, 2)}` : ''}
+
+User Request: "${context.userInput}"
+
+Return JSON with format:
+{
+  "rules": [
+    {
+      "name": "Descriptive rule name",
+      "targetFieldId": "field_uuid_to_affect",
+      "targetFieldLabel": "Human readable label",
+      "conditions": [
+        {
+          "fieldId": "condition_field_uuid",
+          "fieldLabel": "Condition field label",
+          "operator": "==|!=|<|>|<=|>=|contains|not contains|startsWith|endsWith|in|isEmpty|isNotEmpty",
+          "value": "value_to_compare"
+        }
+      ],
+      "logicExpression": "1" or "1 AND 2" or "1 OR (2 AND 3)",
+      "action": "show|hide|enable|disable|require|optional|setDefault|clearValue|filterOptions|preventSubmit|allowSubmit",
+      "actionValue": "optional value for setDefault or filterOptions",
+      "explanation": "What this rule does in plain English"
+    }
+  ],
+  "summary": "Brief summary of all rules generated",
+  "suggestions": ["Additional rules that might be useful"]
+}`;
+        break;
+
+      // NEW: Form Rule Suggestions
+      case 'suggest-form-rules':
+        temperature = 0.4;
+        maxTokens = 2500;
+        
+        systemPrompt = `You are a form automation expert. Generate form rules that trigger actions upon form submission.
+
+Available Form Actions:
+- approve: Approve the submission
+- reject: Reject the submission
+- notify: Send an in-app notification
+- sendEmail: Send an email notification
+- startWorkflow: Start a workflow process
+- assignForm: Assign to a user/team
+- lockForm: Lock the form from further edits
+- unlockForm: Unlock the form for editing
+- redirect: Redirect after submission
+
+Available Operators:
+- == : equals
+- != : not equals
+- < : less than
+- > : greater than
+- <= : less than or equal
+- >= : greater than or equal
+- contains : text contains
+- not contains : text does not contain
+- startsWith : text starts with
+- endsWith : text ends with
+- in : value is in list
+- isEmpty : field is empty
+- isNotEmpty : field is not empty
+
+Rules:
+- Use field IDs exactly as provided (they are UUIDs)
+- Form rules execute ONLY when the form is submitted
+- Create meaningful rule names that describe the submission behavior
+- The logicExpression uses condition numbers (1, 2, 3...) with AND, OR, NOT operators
+- For approval workflows, consider common patterns like auto-approve/reject based on field values
+- For notifications, consider who should be notified and when`;
+
+        userPrompt = `Generate form rules (submission-triggered) for this form based on the user's request:
+
+Form: ${context.formName || 'Form'}
+Description: ${context.formDescription || 'No description'}
+
+Available Fields:
+${JSON.stringify(context.formFields?.map(f => ({
+  id: f.id,
+  label: f.label,
+  type: f.type,
+  options: f.options?.map(o => ({ id: o.id, label: o.label })),
+  required: f.required
+})), null, 2)}
+
+${context.existingFormRules?.length ? `Existing Rules (avoid duplicates):
+${JSON.stringify(context.existingFormRules, null, 2)}` : ''}
+
+User Request: "${context.userInput}"
+
+Return JSON with format:
+{
+  "rules": [
+    {
+      "name": "Descriptive rule name",
+      "conditions": [
+        {
+          "fieldId": "condition_field_uuid",
+          "fieldLabel": "Condition field label",
+          "operator": "==|!=|<|>|<=|>=|contains|not contains|startsWith|endsWith|in|isEmpty|isNotEmpty",
+          "value": "value_to_compare"
+        }
+      ],
+      "logicExpression": "1" or "1 AND 2" or "1 OR (2 AND 3)",
+      "action": "approve|reject|notify|sendEmail|startWorkflow|assignForm|lockForm|unlockForm|redirect",
+      "actionValue": "optional value depending on action type",
+      "explanation": "What this rule does in plain English"
+    }
+  ],
+  "summary": "Brief summary of all rules generated",
+  "suggestions": ["Additional rules that might be useful"]
+}`;
         break;
 
       default:
