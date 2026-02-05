@@ -328,7 +328,7 @@ export function AIChatbot() {
              const navMessage: Message = {
                id: `nav-offer-${Date.now()}`,
                role: 'assistant',
-               content: `Would you like to [open the form](/forms/${actionResult.result.formId}/edit)?`,
+               content: `Would you like to [open the form](/form-edit/${actionResult.result.formId})?`,
                timestamp: new Date()
              };
              setMessages(prev => [...prev, navMessage]);
@@ -336,7 +336,7 @@ export function AIChatbot() {
              const navMessage: Message = {
                id: `nav-offer-${Date.now()}`,
                role: 'assistant',
-               content: `Would you like to [open the workflow](/workflows/${actionResult.result.workflowId})?`,
+               content: `Would you like to [open the workflow](/workflow-builder/${actionResult.result.workflowId})?`,
                timestamp: new Date()
              };
              setMessages(prev => [...prev, navMessage]);
