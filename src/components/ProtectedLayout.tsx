@@ -6,21 +6,42 @@ import { useImpersonation } from '@/contexts/ImpersonationContext';
 import { useAuth } from '@/contexts/AuthContext';
  import { usePermissionRealtimeSync } from '@/hooks/usePermissionRealtimeSync';
 import { Navigate, useLocation } from 'react-router-dom';
-import { Loader2 } from 'lucide-react';
+ import { PageSkeleton } from '@/components/loading/PageSkeleton';
+ import { Skeleton } from '@/components/ui/skeleton';
 
 // Context to signal that we're inside ProtectedLayout
 // DashboardLayout checks this to avoid double-wrapping
 export const LayoutContext = createContext<boolean>(false);
 
 /**
- * Content loader - shown only in the main content area during route transitions
+  * Content loader with skeleton - shown during route transitions
+  * Maintains layout structure for smoother visual experience
  */
 function ContentLoader() {
-  return (
-    <div className="flex-1 flex items-center justify-center">
-      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-    </div>
-  );
+   return <PageSkeleton />;
+ }
+ 
+ /**
+  * Auth loading skeleton - full page while checking authentication
+  */
+ function AuthLoadingSkeleton() {
+   return (
+     <div className="min-h-screen flex">
+       {/* Sidebar placeholder */}
+       <div className="w-64 border-r border-border/30 bg-card/30 p-4 space-y-4 hidden md:block">
+         <Skeleton className="h-10 w-full bg-muted/40" />
+         <div className="space-y-2 pt-4">
+           {[...Array(8)].map((_, i) => (
+             <Skeleton key={i} className="h-9 w-full bg-muted/30" />
+           ))}
+         </div>
+       </div>
+       {/* Main content placeholder */}
+       <div className="flex-1 p-6">
+         <PageSkeleton />
+       </div>
+     </div>
+   );
 }
 
 /**
@@ -38,11 +59,7 @@ const ProtectedLayout: React.FC = () => {
 
   // Auth loading state - show full page loader since we don't know if user is authenticated
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
+     return <AuthLoadingSkeleton />;
   }
 
   // No user - redirect to auth
