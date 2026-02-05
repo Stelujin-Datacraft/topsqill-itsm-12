@@ -1,4 +1,4 @@
-import React from 'react';
+ import React, { useState } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { WorkflowsList } from '@/components/workflows/WorkflowsList';
 import { CreateWorkflowDialog } from '@/components/workflows/CreateWorkflowDialog';
@@ -8,7 +8,10 @@ import { useUnifiedAccessControl } from '@/hooks/useUnifiedAccessControl';
 import { useProject } from '@/contexts/ProjectContext';
 import { Workflow } from '@/types/workflow';
 import NoProjectSelected from '@/components/NoProjectSelected';
-import { useToast } from '@/hooks/use-toast';
+ import { useToast } from '@/hooks/use-toast';
+ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+ import { WorkflowQueueMonitor } from '@/components/workflows/WorkflowQueueMonitor';
+ import { ListTree, Inbox } from 'lucide-react';
 
 const Workflows = () => {
   const navigate = useNavigate();
@@ -16,6 +19,7 @@ const Workflows = () => {
   const { hasPermission, checkPermissionWithAlert, getVisibleResources, loading: permissionLoading } = useUnifiedAccessControl();
   const { currentProject } = useProject();
   const { toast } = useToast();
+ const [activeTab, setActiveTab] = useState('workflows');
 
   const handleWorkflowCreated = (workflowId: string) => {
     toast({
@@ -71,20 +75,39 @@ const Workflows = () => {
   // Filter workflows based on user's permissions
   const visibleWorkflows = getVisibleResources('workflows', workflows);
 
-  return (
-    <DashboardLayout 
-      title="Workflows"
-      description="Design and manage automated workflows and business processes"
-      actions={<CreateWorkflowDialog onWorkflowCreated={handleWorkflowCreated} />}
-    >
-      <WorkflowsList
-        workflows={visibleWorkflows}
-        onView={handleViewWorkflow}
-        onEdit={handleEditWorkflow}
-        onDelete={handleDeleteWorkflow}
-      />
-    </DashboardLayout>
-  );
+ return (
+   <DashboardLayout 
+     title="Workflows"
+     description="Design and manage automated workflows and business processes"
+     actions={activeTab === 'workflows' ? <CreateWorkflowDialog onWorkflowCreated={handleWorkflowCreated} /> : undefined}
+   >
+     <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+       <TabsList>
+         <TabsTrigger value="workflows" className="flex items-center gap-2">
+           <ListTree className="h-4 w-4" />
+           Workflows
+         </TabsTrigger>
+         <TabsTrigger value="queue" className="flex items-center gap-2">
+           <Inbox className="h-4 w-4" />
+           Queue Monitor
+         </TabsTrigger>
+       </TabsList>
+ 
+       <TabsContent value="workflows">
+         <WorkflowsList
+           workflows={visibleWorkflows}
+           onView={handleViewWorkflow}
+           onEdit={handleEditWorkflow}
+           onDelete={handleDeleteWorkflow}
+         />
+       </TabsContent>
+ 
+       <TabsContent value="queue">
+         <WorkflowQueueMonitor />
+       </TabsContent>
+     </Tabs>
+   </DashboardLayout>
+ );
 };
 
 export default Workflows;
