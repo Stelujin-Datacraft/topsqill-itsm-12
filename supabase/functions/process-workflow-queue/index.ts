@@ -170,7 +170,9 @@
                executionId: execution.id,
                triggerData: item.trigger_data,
                submissionId: item.submission_id,
-               submitterId: item.trigger_data?.submitter_id || null
+                submitterId: item.trigger_data?.submitterId || null,
+                startNodeId: item.trigger_data?.startNodeId || null,
+                formOwnerId: item.trigger_data?.formOwnerId || null
              })
            }
          );
