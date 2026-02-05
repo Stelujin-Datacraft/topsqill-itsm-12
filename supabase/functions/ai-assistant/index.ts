@@ -356,23 +356,30 @@ Generate appropriate content for this request.`;
     - Example: [ACTION:create_dashboard|name=Sales Overview|description=Weekly sales metrics]
  
  5. **create_workflow** - Create a new workflow
-    - Params: name (string), description (optional string), triggerFormId (optional string)
-    - Example: [ACTION:create_workflow|name=Approval Process|description=Auto-approve requests]
+    - Params: name (string), description (optional string), triggerFormId (optional string), nodes (optional JSON array)
+    - Example: [ACTION:create_workflow|name=Approval Process|description=Auto-approve requests|triggerFormId=form123]
  
- 6. **get_sla_predictions** - Get AI-powered SLA breach predictions
+ 6. **create_form_with_workflow** - Create a form AND linked workflow in one action (RECOMMENDED for complex requests)
+    - Params: formName, formDescription, fields (JSON array), workflowName, workflowDescription, workflowNodes (JSON array)
+    - workflowNodes format: [{"tempId":"start","type":"start","label":"Start","connections":[{"to":"action1"}]},{"tempId":"action1","type":"action","label":"Send Notification","config":{"actionType":"notification"},"connections":[{"to":"end"}]},{"tempId":"end","type":"end","label":"End"}]
+    - Node types: start, action, condition, wait, end
+    - Example: [ACTION:create_form_with_workflow|formName=Leave Request|formDescription=Employee leave requests|fields=[{"type":"text","label":"Employee Name","required":true},{"type":"date","label":"Start Date","required":true},{"type":"date","label":"End Date","required":true},{"type":"textarea","label":"Reason"}]|workflowName=Leave Approval|workflowNodes=[{"tempId":"start","type":"start","label":"Start","connections":[{"to":"notify"}]},{"tempId":"notify","type":"action","label":"Notify Manager","config":{"actionType":"notification","message":"New leave request submitted"},"connections":[{"to":"end"}]},{"tempId":"end","type":"end","label":"End"}]]
+
+ 7. **get_sla_predictions** - Get AI-powered SLA breach predictions
     - No params needed
     - Example: [ACTION:get_sla_predictions]
  
- 7. **get_form_stats** - Get submission statistics for a form
+ 8. **get_form_stats** - Get submission statistics for a form
     - Params: formId (string)
     - Example: [ACTION:get_form_stats|formId=abc123]
  
- 8. **update_submission_status** - Approve or reject a submission
+ 9. **update_submission_status** - Approve or reject a submission
     - Params: submissionId (string), status (approved/rejected), notes (optional string)
     - Example: [ACTION:update_submission_status|submissionId=sub123|status=approved|notes=Looks good]
  
  ## When to Execute Actions:
  - If user says "create a form for...", "make me a...", "set up a...", "start the workflow", etc. → Include the action command
+ - If user wants BOTH a form AND workflow together (like "create a leave request form with approval workflow") → Use create_form_with_workflow
  - If user just asks "how do I create a form?" → Explain but don't execute
  - If user asks "what are my SLA risks?" → Execute get_sla_predictions
  - Always confirm what you're about to do before the action command

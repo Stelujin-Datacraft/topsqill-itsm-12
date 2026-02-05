@@ -324,7 +324,16 @@ export function AIChatbot() {
            toast.success('Action completed', { description: actionResult.message });
            
            // If action created something, offer to navigate
-           if (actionResult.result?.formId) {
+           if (actionResult.result?.formId && actionResult.result?.workflowId) {
+             // Both form and workflow were created
+             const navMessage: Message = {
+               id: `nav-offer-${Date.now()}`,
+               role: 'assistant',
+               content: `🎉 **Created both!**\n\n• [Open the form](/form-edit/${actionResult.result.formId})\n• [Open the workflow](/workflow-builder/${actionResult.result.workflowId})`,
+               timestamp: new Date()
+             };
+             setMessages(prev => [...prev, navMessage]);
+           } else if (actionResult.result?.formId) {
              const navMessage: Message = {
                id: `nav-offer-${Date.now()}`,
                role: 'assistant',
