@@ -216,6 +216,44 @@ export type Database = {
         }
         Relationships: []
       }
+      business_holidays: {
+        Row: {
+          created_at: string | null
+          created_by: string
+          holiday_date: string
+          id: string
+          is_recurring: boolean | null
+          name: string
+          organization_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          created_by: string
+          holiday_date: string
+          id?: string
+          is_recurring?: boolean | null
+          name: string
+          organization_id: string
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string
+          holiday_date?: string
+          id?: string
+          is_recurring?: boolean | null
+          name?: string
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_holidays_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dashboards: {
         Row: {
           created_at: string
@@ -665,6 +703,176 @@ export type Database = {
         }
         Relationships: []
       }
+      escalation_chains: {
+        Row: {
+          created_at: string | null
+          created_by: string
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          organization_id: string | null
+          project_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by: string
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          organization_id?: string | null
+          project_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          organization_id?: string | null
+          project_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "escalation_chains_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "escalation_chains_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      escalation_events: {
+        Row: {
+          actions_taken: Json | null
+          created_at: string | null
+          escalation_level: Database["public"]["Enums"]["escalation_level"]
+          event_type: string
+          id: string
+          message: string | null
+          notified_groups: string[] | null
+          notified_users: string[] | null
+          sla_instance_id: string
+          triggered_by: string | null
+        }
+        Insert: {
+          actions_taken?: Json | null
+          created_at?: string | null
+          escalation_level: Database["public"]["Enums"]["escalation_level"]
+          event_type: string
+          id?: string
+          message?: string | null
+          notified_groups?: string[] | null
+          notified_users?: string[] | null
+          sla_instance_id: string
+          triggered_by?: string | null
+        }
+        Update: {
+          actions_taken?: Json | null
+          created_at?: string | null
+          escalation_level?: Database["public"]["Enums"]["escalation_level"]
+          event_type?: string
+          id?: string
+          message?: string | null
+          notified_groups?: string[] | null
+          notified_users?: string[] | null
+          sla_instance_id?: string
+          triggered_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "escalation_events_sla_instance_id_fkey"
+            columns: ["sla_instance_id"]
+            isOneToOne: false
+            referencedRelation: "sla_instances"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      escalation_levels: {
+        Row: {
+          auto_reassign: boolean | null
+          chain_id: string
+          change_priority: boolean | null
+          created_at: string | null
+          custom_message: string | null
+          escalate_to_group_id: string | null
+          escalate_to_role: string | null
+          escalate_to_user_id: string | null
+          hours_after_breach: number
+          id: string
+          level: Database["public"]["Enums"]["escalation_level"]
+          level_order: number
+          new_priority: string | null
+          send_email: boolean | null
+          send_notification: boolean | null
+          send_sms: boolean | null
+        }
+        Insert: {
+          auto_reassign?: boolean | null
+          chain_id: string
+          change_priority?: boolean | null
+          created_at?: string | null
+          custom_message?: string | null
+          escalate_to_group_id?: string | null
+          escalate_to_role?: string | null
+          escalate_to_user_id?: string | null
+          hours_after_breach?: number
+          id?: string
+          level: Database["public"]["Enums"]["escalation_level"]
+          level_order?: number
+          new_priority?: string | null
+          send_email?: boolean | null
+          send_notification?: boolean | null
+          send_sms?: boolean | null
+        }
+        Update: {
+          auto_reassign?: boolean | null
+          chain_id?: string
+          change_priority?: boolean | null
+          created_at?: string | null
+          custom_message?: string | null
+          escalate_to_group_id?: string | null
+          escalate_to_role?: string | null
+          escalate_to_user_id?: string | null
+          hours_after_breach?: number
+          id?: string
+          level?: Database["public"]["Enums"]["escalation_level"]
+          level_order?: number
+          new_priority?: string | null
+          send_email?: boolean | null
+          send_notification?: boolean | null
+          send_sms?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "escalation_levels_chain_id_fkey"
+            columns: ["chain_id"]
+            isOneToOne: false
+            referencedRelation: "escalation_chains"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "escalation_levels_escalate_to_group_id_fkey"
+            columns: ["escalate_to_group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       form_access_requests: {
         Row: {
           created_at: string
@@ -831,6 +1039,64 @@ export type Database = {
             columns: ["form_id"]
             isOneToOne: false
             referencedRelation: "forms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      form_field_sla_config: {
+        Row: {
+          chain_id: string | null
+          created_at: string | null
+          field_id: string
+          form_id: string
+          id: string
+          is_active: boolean | null
+          stage_overrides: Json | null
+          template_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          chain_id?: string | null
+          created_at?: string | null
+          field_id: string
+          form_id: string
+          id?: string
+          is_active?: boolean | null
+          stage_overrides?: Json | null
+          template_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          chain_id?: string | null
+          created_at?: string | null
+          field_id?: string
+          form_id?: string
+          id?: string
+          is_active?: boolean | null
+          stage_overrides?: Json | null
+          template_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "form_field_sla_config_chain_id_fkey"
+            columns: ["chain_id"]
+            isOneToOne: false
+            referencedRelation: "escalation_chains"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_field_sla_config_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "forms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_field_sla_config_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "sla_templates"
             referencedColumns: ["id"]
           },
         ]
@@ -2577,6 +2843,191 @@ export type Database = {
         }
         Relationships: []
       }
+      sla_instances: {
+        Row: {
+          assigned_to: string | null
+          breach_at: string | null
+          chain_id: string | null
+          completed_at: string | null
+          created_at: string | null
+          current_escalation_level:
+            | Database["public"]["Enums"]["escalation_level"]
+            | null
+          current_stage: string
+          escalation_count: number | null
+          field_id: string
+          form_id: string
+          id: string
+          last_escalation_at: string | null
+          metadata: Json | null
+          paused_at: string | null
+          priority: string | null
+          started_at: string | null
+          status: Database["public"]["Enums"]["sla_status"] | null
+          submission_id: string
+          template_id: string | null
+          total_paused_minutes: number | null
+          updated_at: string | null
+          warning_at: string | null
+        }
+        Insert: {
+          assigned_to?: string | null
+          breach_at?: string | null
+          chain_id?: string | null
+          completed_at?: string | null
+          created_at?: string | null
+          current_escalation_level?:
+            | Database["public"]["Enums"]["escalation_level"]
+            | null
+          current_stage: string
+          escalation_count?: number | null
+          field_id: string
+          form_id: string
+          id?: string
+          last_escalation_at?: string | null
+          metadata?: Json | null
+          paused_at?: string | null
+          priority?: string | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["sla_status"] | null
+          submission_id: string
+          template_id?: string | null
+          total_paused_minutes?: number | null
+          updated_at?: string | null
+          warning_at?: string | null
+        }
+        Update: {
+          assigned_to?: string | null
+          breach_at?: string | null
+          chain_id?: string | null
+          completed_at?: string | null
+          created_at?: string | null
+          current_escalation_level?:
+            | Database["public"]["Enums"]["escalation_level"]
+            | null
+          current_stage?: string
+          escalation_count?: number | null
+          field_id?: string
+          form_id?: string
+          id?: string
+          last_escalation_at?: string | null
+          metadata?: Json | null
+          paused_at?: string | null
+          priority?: string | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["sla_status"] | null
+          submission_id?: string
+          template_id?: string | null
+          total_paused_minutes?: number | null
+          updated_at?: string | null
+          warning_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sla_instances_chain_id_fkey"
+            columns: ["chain_id"]
+            isOneToOne: false
+            referencedRelation: "escalation_chains"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sla_instances_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "forms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sla_instances_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "form_submissions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sla_instances_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "sla_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sla_templates: {
+        Row: {
+          breach_hours: number
+          business_days: string[] | null
+          business_end_time: string | null
+          business_start_time: string | null
+          created_at: string | null
+          created_by: string
+          description: string | null
+          exclude_holidays: boolean | null
+          id: string
+          is_active: boolean | null
+          name: string
+          organization_id: string | null
+          priority_multipliers: Json | null
+          project_id: string | null
+          updated_at: string | null
+          use_business_hours: boolean | null
+          warning_hours: number
+        }
+        Insert: {
+          breach_hours?: number
+          business_days?: string[] | null
+          business_end_time?: string | null
+          business_start_time?: string | null
+          created_at?: string | null
+          created_by: string
+          description?: string | null
+          exclude_holidays?: boolean | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          organization_id?: string | null
+          priority_multipliers?: Json | null
+          project_id?: string | null
+          updated_at?: string | null
+          use_business_hours?: boolean | null
+          warning_hours?: number
+        }
+        Update: {
+          breach_hours?: number
+          business_days?: string[] | null
+          business_end_time?: string | null
+          business_start_time?: string | null
+          created_at?: string | null
+          created_by?: string
+          description?: string | null
+          exclude_holidays?: boolean | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          organization_id?: string | null
+          priority_multipliers?: Json | null
+          project_id?: string | null
+          updated_at?: string | null
+          use_business_hours?: boolean | null
+          warning_hours?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sla_templates_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sla_templates_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       smtp_configs: {
         Row: {
           created_at: string
@@ -3458,6 +3909,17 @@ export type Database = {
         Args: { _field_id: string; _form_id: string; _new_value: Json }
         Returns: number
       }
+      calculate_business_hours: {
+        Args: {
+          business_days?: string[]
+          business_end?: string
+          business_start?: string
+          end_time: string
+          org_id?: string
+          start_time: string
+        }
+        Returns: number
+      }
       can_create_asset_in_project: {
         Args: { _project_id: string; _user_id: string }
         Returns: boolean
@@ -3730,7 +4192,8 @@ export type Database = {
       }
     }
     Enums: {
-      [_ in never]: never
+      escalation_level: "L1" | "L2" | "L3" | "L4"
+      sla_status: "on_track" | "warning" | "breached" | "completed" | "paused"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -3857,6 +4320,9 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      escalation_level: ["L1", "L2", "L3", "L4"],
+      sla_status: ["on_track", "warning", "breached", "completed", "paused"],
+    },
   },
 } as const

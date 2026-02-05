@@ -80,6 +80,7 @@ const AuditLogs = lazy(() => import("./pages/AuditLogs"));
 const FormAuditLogs = lazy(() => import("./pages/FormAuditLogs"));
 const InvestigateAccess = lazy(() => import("./pages/InvestigateAccess"));
 const LdapSettings = lazy(() => import("./pages/LdapSettings"));
+const SLAManagementPage = lazy(() => import("./pages/SLAManagementPage"));
 
 // Performance-optimized React Query configuration
 const queryClient = new QueryClient({
@@ -201,6 +202,7 @@ const App = () => (
                         <Route path="/form-audit-logs" element={<FormAuditLogs />} />
                         <Route path="/investigate-access" element={<InvestigateAccess />} />
                         <Route path="/ldap-settings" element={<LdapSettings />} />
+                        <Route path="/sla-management" element={<SLAManagementPage />} />
                         <Route path="/api-integration" element={<ApiIntegration />} />
                         <Route path="/api-docs" element={<ApiDocs />} />
                       </Route>
