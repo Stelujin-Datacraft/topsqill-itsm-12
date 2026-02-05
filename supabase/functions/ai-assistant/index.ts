@@ -330,13 +330,15 @@ Your capabilities:
 
 **Navigation Commands**: When users want to go somewhere, provide a navigation link in this format:
 - To go to forms: [Navigate to Forms](/forms)
-- To go to a specific form: [Open Form Name](/forms/{formId}/view)
+- To go to a specific form: [Open Form Name](/form/{formId})
 - To go to workflows: [Navigate to Workflows](/workflows)
 - To go to reports: [Navigate to Reports](/reports)
-- To go to dashboards: [Navigate to Dashboards](/dashboards)
+- To go to a specific dashboard: [View Dashboard Name](/dashboard-view/{dashboardId})
 - To go to email templates: [Navigate to Email Templates](/email-templates)
 - To go to settings: [Navigate to Settings](/settings)
 - To go to query builder: [Navigate to Query Builder](/query)
+- To view a specific workflow: [View Workflow Name](/workflow-view/{workflowId})
+- To view a specific report: [View Report Name](/report-view/{reportId})
 
 Available Forms in this project:
 ${JSON.stringify(context.availableForms || [], null, 2)}
