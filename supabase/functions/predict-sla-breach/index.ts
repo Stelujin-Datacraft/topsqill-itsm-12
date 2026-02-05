@@ -31,7 +31,7 @@
            form:forms(id, name)
          )
        `)
-       .in('status', ['active', 'warning'])
+      .in('status', ['on_track', 'warning'])
       .order('breach_at', { ascending: true });
  
      if (slaError) {
