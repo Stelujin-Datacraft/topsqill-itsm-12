@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -120,25 +119,24 @@ export function useWorkflowData() {
     },
   });
 
-  const loadWorkflowNodes = async (workflowId: string): Promise<{ nodes: WorkflowNode[], connections: WorkflowConnection[] }> => {
+  const loadWorkflowNodes = useCallback(async (workflowId: string): Promise<{ nodes: WorkflowNode[], connections: WorkflowConnection[] }> => {
     try {
-      // Load nodes
-      const { data: nodesData, error: nodesError } = await supabase
-        .from('workflow_nodes')
-        .select('*')
-        .eq('workflow_id', workflowId);
+      // Load nodes and connections in parallel for better performance
+      const [nodesResult, connectionsResult] = await Promise.all([
+        supabase
+          .from('workflow_nodes')
+          .select('*')
+          .eq('workflow_id', workflowId),
+        supabase
+          .from('workflow_connections')
+          .select('*')
+          .eq('workflow_id', workflowId)
+      ]);
 
-      if (nodesError) throw nodesError;
+      if (nodesResult.error) throw nodesResult.error;
+      if (connectionsResult.error) throw connectionsResult.error;
 
-      // Load connections
-      const { data: connectionsData, error: connectionsError } = await supabase
-        .from('workflow_connections')
-        .select('*')
-        .eq('workflow_id', workflowId);
-
-      if (connectionsError) throw connectionsError;
-
-      const nodes: WorkflowNode[] = (nodesData || []).map(node => ({
+      const nodes: WorkflowNode[] = (nodesResult.data || []).map(node => ({
         id: node.id,
         type: node.node_type as WorkflowNode['type'],
         label: node.label,
@@ -146,7 +144,7 @@ export function useWorkflowData() {
         data: { config: node.config }
       }));
 
-      const connections: WorkflowConnection[] = (connectionsData || []).map(conn => ({
+      const connections: WorkflowConnection[] = (connectionsResult.data || []).map(conn => ({
         id: conn.id,
         source: conn.source_node_id,
         target: conn.target_node_id,
@@ -159,7 +157,7 @@ export function useWorkflowData() {
       console.error('Error loading workflow nodes:', error);
       return { nodes: [], connections: [] };
     }
-  };
+  }, []);
 
   const saveWorkflowNodes = async (
     workflowId: string, 
