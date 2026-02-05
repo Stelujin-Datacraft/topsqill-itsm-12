@@ -16,8 +16,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { FormLoadingView } from '@/components/FormLoadingView';
 
 const FormBackButton = () => (
-  <div className="bg-background border-b">
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+  <div className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
       <Link to="/forms">
         <Button variant="ghost" size="sm" className="gap-2">
           <ArrowLeft className="h-4 w-4" />
@@ -223,8 +223,14 @@ const FormView = () => {
     return (
       <div className="min-h-screen bg-background">
         <FormBackButton />
-        <div className="min-h-screen bg-gray-50 py-12 px-4">
-          <div className="max-w-7xl mx-auto">
+        <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50/50 to-teal-50 dark:from-green-950/20 dark:via-emerald-950/10 dark:to-teal-950/20 py-4 px-4 relative overflow-hidden">
+          {/* Decorative background elements */}
+          <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            <div className="absolute -top-24 -right-24 w-96 h-96 bg-gradient-to-br from-green-200/30 to-emerald-200/30 dark:from-green-800/10 dark:to-emerald-800/10 rounded-full blur-3xl" />
+            <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-gradient-to-tr from-teal-200/30 to-green-200/30 dark:from-teal-800/10 dark:to-green-800/10 rounded-full blur-3xl" />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-radial from-white/50 to-transparent dark:from-white/5 rounded-full" />
+          </div>
+          <div className="max-w-7xl mx-auto relative z-10 flex items-center justify-center min-h-[calc(100vh-4rem)]">
             <FormSubmissionSuccess 
               submissionRefId={submissionResult.submissionRefId}
               submissionId={submissionResult.submissionId}
@@ -253,7 +259,7 @@ const FormView = () => {
     return (
       <div className="min-h-screen bg-background">
         <FormBackButton />
-        <div className="min-h-screen bg-gray-50 py-12 px-4">
+        <div className="min-h-screen bg-gray-50 py-4 px-4">
           <div className="max-w-7xl mx-auto">
             <FormViewLayoutRenderer 
               form={form}
@@ -399,7 +405,7 @@ const FormView = () => {
   return (
     <div className="min-h-screen bg-background">
       <FormBackButton />
-      <div className="min-h-screen bg-gray-50 py-12 px-4">
+      <div className="min-h-screen bg-gray-50 py-4 px-4">
         <div className="max-w-7xl mx-auto">
           <FormViewLayoutRenderer 
             form={form}
