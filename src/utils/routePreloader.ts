@@ -9,6 +9,9 @@
 const CRITICAL_MODULE_IMPORTS: Record<string, () => Promise<unknown>> = {
   '/dashboard': () => import('@/pages/Dashboard'),
   '/forms': () => import('@/pages/Forms'),
+  '/form-builder': () => import('@/pages/FormBuilder'),
+  '/form-edit': () => import('@/pages/FormEdit'),
+  '/form-view': () => import('@/pages/FormView'),
   '/workflows': () => import('@/pages/Workflows'),
   '/reports': () => import('@/pages/Reports'),
   '/projects': () => import('@/pages/Projects'),

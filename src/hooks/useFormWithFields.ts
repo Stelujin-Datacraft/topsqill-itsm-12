@@ -34,12 +34,22 @@ export function useFormWithFields(formId: string | undefined) {
         setLoading(true);
         setError(null);
 
-        // First load the form
-        const { data: formData, error: formError } = await supabase
-          .from('forms')
-          .select('*')
-          .eq('id', formId)
-          .single();
+        // Load form and fields in parallel for better performance
+        const [formResult, fieldsResult] = await Promise.all([
+          supabase
+            .from('forms')
+            .select('*')
+            .eq('id', formId)
+            .single(),
+          supabase
+            .from('form_fields')
+            .select('*')
+            .eq('form_id', formId)
+            .order('field_order')
+        ]);
+
+        const { data: formData, error: formError } = formResult;
+        const { data: fieldsData, error: fieldsError } = fieldsResult;
 
         if (formError) {
           // Check if this is an access denied error (RLS blocking access = no rows returned)
@@ -50,13 +60,6 @@ export function useFormWithFields(formId: string | undefined) {
           }
           return;
         }
-
-        // Then load the form fields
-        const { data: fieldsData, error: fieldsError } = await supabase
-          .from('form_fields')
-          .select('*')
-          .eq('form_id', formId)
-          .order('field_order');
 
         if (fieldsError) {
           setError('Failed to load form fields: ' + fieldsError.message);
