@@ -151,6 +151,20 @@ export function AIEmailTemplateGenerator({ onTemplateCreated }: AIEmailTemplateG
 
     setIsSaving(true);
     try {
+      // Build fieldMappings from template variables and selected form fields
+      const fieldMappings: Record<string, string> = {};
+      if (selectedForm && generatedTemplate.templateVariables) {
+        generatedTemplate.templateVariables.forEach(variable => {
+          // Find matching field by normalized label
+          const matchingField = selectedForm.fields.find(f => 
+            f.label.toLowerCase().replace(/\s+/g, '_') === variable.toLowerCase()
+          );
+          if (matchingField) {
+            fieldMappings[variable] = matchingField.id;
+          }
+        });
+      }
+
       const templateData = {
         name: generatedTemplate.name,
         description: generatedTemplate.description,
@@ -167,6 +181,11 @@ export function AIEmailTemplateGenerator({ onTemplateCreated }: AIEmailTemplateG
         is_active: true,
         project_id: currentProject.id,
         created_by: userProfile.id,
+        custom_params: selectedFormId ? {
+          attached_form_id: selectedFormId,
+          attached_form_name: selectedForm?.name,
+          fieldMappings
+        } : undefined
       };
 
       const { error } = await supabase
@@ -225,6 +244,20 @@ export function AIEmailTemplateGenerator({ onTemplateCreated }: AIEmailTemplateG
       }
 
       const result = data.result;
+      
+      // Build fieldMappings from template variables and selected form fields
+      const fieldMappings: Record<string, string> = {};
+      if (selectedForm && result.templateVariables) {
+        result.templateVariables.forEach((variable: string) => {
+          const matchingField = selectedForm.fields.find(f => 
+            f.label.toLowerCase().replace(/\s+/g, '_') === variable.toLowerCase()
+          );
+          if (matchingField) {
+            fieldMappings[variable] = matchingField.id;
+          }
+        });
+      }
+
       const templateData = {
         name: result.name,
         description: result.description,
@@ -236,6 +269,11 @@ export function AIEmailTemplateGenerator({ onTemplateCreated }: AIEmailTemplateG
         is_active: true,
         project_id: currentProject.id,
         created_by: userProfile.id,
+        custom_params: selectedFormId ? {
+          attached_form_id: selectedFormId,
+          attached_form_name: selectedForm?.name,
+          fieldMappings
+        } : undefined
       };
 
       const { error: saveError } = await supabase
