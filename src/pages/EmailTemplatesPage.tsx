@@ -515,7 +515,18 @@ function EmailTemplateForm({
   const [formData, setFormData] = useState<EmailTemplate>(template);
   const [formFields, setFormFields] = useState<Record<string, FormFieldInfo[]>>({});
   const [allFormFields, setAllFormFields] = useState<Record<string, FormFieldInfo[]>>({});
-  const [selectedFormForVariables, setSelectedFormForVariables] = useState<string>('');
+  // Initialize from attached_form_id in custom_params if available
+  const [selectedFormForVariables, setSelectedFormForVariables] = useState<string>(
+    template.custom_params?.attached_form_id || ''
+  );
+
+  // Load form fields when component mounts if there's an attached form
+  useEffect(() => {
+    const attachedFormId = template.custom_params?.attached_form_id;
+    if (attachedFormId) {
+      loadAllFormFields(attachedFormId);
+    }
+  }, [template.custom_params?.attached_form_id]);
 
   // Load email-compatible fields for recipient selection (cached)
   const loadFormFields = async (formId: string) => {
@@ -1058,6 +1069,16 @@ function EmailTemplateForm({
                   onValueChange={(formId) => {
                     setSelectedFormForVariables(formId);
                     loadAllFormFields(formId);
+                    // Persist attached form selection in custom_params
+                    const selectedForm = forms.find(f => f.id === formId);
+                    setFormData(prev => ({
+                      ...prev,
+                      custom_params: {
+                        ...prev.custom_params,
+                        attached_form_id: formId,
+                        attached_form_name: selectedForm?.name
+                      }
+                    }));
                   }}
                 >
                   <SelectTrigger className="w-48">
