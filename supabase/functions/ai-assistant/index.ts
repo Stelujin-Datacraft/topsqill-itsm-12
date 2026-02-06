@@ -14,7 +14,7 @@ interface FormField {
 }
 
 interface AIRequest {
-   action: 'auto-fill' | 'suggest-routing' | 'analyze-content' | 'generate-summary' | 'natural-language-query' | 'generate-content' | 'chatbot-assist' | 'chatbot-copilot' | 'generate-formula' | 'generate-form' | 'suggest-workflow' | 'suggest-field-mappings' | 'suggest-chart' | 'generate-sla-template' | 'generate-escalation-chain' | 'suggest-field-rules' | 'suggest-form-rules';
+   action: 'auto-fill' | 'suggest-routing' | 'analyze-content' | 'generate-summary' | 'natural-language-query' | 'generate-content' | 'chatbot-assist' | 'chatbot-copilot' | 'generate-formula' | 'generate-form' | 'suggest-workflow' | 'suggest-field-mappings' | 'suggest-chart' | 'generate-sla-template' | 'generate-escalation-chain' | 'suggest-field-rules' | 'suggest-form-rules' | 'generate-email-template';
   context: {
     formFields?: FormField[];
     currentValues?: Record<string, any>;
@@ -1334,6 +1334,63 @@ Return JSON with format:
   "summary": "Brief summary of all rules generated",
   "suggestions": ["Additional rules that might be useful"]
 }`;
+        break;
+
+      case 'generate-email-template':
+        temperature = 0.7;
+        maxTokens = 3000;
+        
+        const emailToneGuide = {
+          professional: 'Use professional, business-appropriate language. Be clear, concise, and respectful.',
+          friendly: 'Use warm, approachable language. Be helpful and personable while remaining professional.',
+          formal: 'Use formal, official language. Maintain a serious and authoritative tone.',
+          casual: 'Use relaxed, conversational language. Be natural and easygoing.'
+        };
+
+        systemPrompt = `You are an expert email template designer for business applications. You create complete, production-ready email templates with professional HTML content.
+
+Tone: ${emailToneGuide[context.tone || 'professional']}
+
+CRITICAL RULES:
+1. Generate a complete email template with ALL required fields
+2. The HTML content MUST be professional, visually appealing, and well-structured
+3. Use inline CSS styles for email compatibility
+4. Include placeholders using {{variable_name}} syntax where appropriate
+5. Extract any email addresses mentioned as static recipients
+6. If dynamic fields are mentioned (like "user's email field"), note them for dynamic recipients
+
+HTML Best Practices:
+- Use tables for layout (email-safe)
+- Use inline CSS styles
+- Include proper spacing and padding
+- Use readable fonts (Arial, Helvetica, sans-serif)
+- Include a header, body, and footer section
+- Make it mobile-responsive with max-width containers`;
+
+        userPrompt = `Generate a complete email template based on this description:
+
+"${context.userInput}"
+
+Return a JSON object with this EXACT structure:
+{
+  "name": "Template Name (clear, descriptive)",
+  "description": "Brief description of what this template is for",
+  "subject": "Email subject line (can include {{placeholders}})",
+  "htmlContent": "Complete HTML email body with inline CSS styling. Make it professional and visually appealing.",
+  "templateVariables": ["array", "of", "variable", "names", "used", "in", "content"],
+  "recipients": {
+    "to": [
+      {"type": "static", "value": "email@example.com", "label": "Recipient Name"}
+    ]
+  }
+}
+
+IMPORTANT:
+- htmlContent must be valid HTML with inline CSS
+- templateVariables should list ALL {{placeholders}} used in subject and htmlContent
+- recipients.to should include any static emails mentioned in the prompt
+- If no specific emails mentioned, leave recipients.to as empty array
+- Make the HTML visually professional with proper formatting, colors, and spacing`;
         break;
 
       default:

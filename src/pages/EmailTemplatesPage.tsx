@@ -20,6 +20,7 @@ import { EmailTagInput } from '@/components/email/EmailTagInput';
 import { EMAIL_TEMPLATES } from '@/data/emailTemplates';
 import DashboardLayout from '@/components/DashboardLayout';
 import { AIContentGenerator } from '@/components/ai/AIContentGenerator';
+import { AIEmailTemplateGenerator } from '@/components/email/AIEmailTemplateGenerator';
 
 interface AttachmentConfig {
   type: 'static' | 'dynamic';
@@ -382,7 +383,8 @@ export default function EmailTemplatesPage() {
   return (
     <DashboardLayout title="Email Templates">
       <div className="space-y-6">
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-2">
+          <AIEmailTemplateGenerator onTemplateCreated={loadTemplates} />
           <Button onClick={() => setIsCreating(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Create Template
