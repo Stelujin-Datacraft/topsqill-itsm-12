@@ -292,12 +292,12 @@ export function AIEmailTemplateGenerator({ onTemplateCreated }: AIEmailTemplateG
                   <FileText className="h-4 w-4" />
                   Attach Form (Optional)
                 </Label>
-                <Select value={selectedFormId} onValueChange={setSelectedFormId} disabled={loadingForms}>
+              <Select value={selectedFormId || "_none"} onValueChange={(v) => setSelectedFormId(v === "_none" ? "" : v)} disabled={loadingForms}>
                   <SelectTrigger>
                     <SelectValue placeholder={loadingForms ? "Loading forms..." : "Select a form to use its fields"} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">No form attached</SelectItem>
+                    <SelectItem value="_none">No form attached</SelectItem>
                     {forms.map((form) => (
                       <SelectItem key={form.id} value={form.id}>
                         {form.name} ({form.fields.length} fields)
