@@ -109,19 +109,23 @@ export default function EmailTemplatesPage() {
       
       const processedTemplates = (data || []).map(template => {
         const customParams = template.custom_params as Record<string, any> || {};
+        const defaultRecipients = { to: [], cc: [], bcc: [], permanent_recipients: [] };
+        const rawRecipients = (typeof template.recipients === 'object' && template.recipients !== null && !Array.isArray(template.recipients))
+          ? template.recipients as any
+          : {};
         return {
           ...template,
           template_variables: Array.isArray(template.template_variables) 
             ? template.template_variables.map(v => String(v))
             : [],
-          recipients: (typeof template.recipients === 'object' && template.recipients !== null && !Array.isArray(template.recipients))
-            ? template.recipients as any
-            : {
-                to: [],
-                cc: [],
-                bcc: [],
-                permanent_recipients: []
-              },
+          recipients: {
+            ...defaultRecipients,
+            ...rawRecipients,
+            to: Array.isArray(rawRecipients.to) ? rawRecipients.to : [],
+            cc: Array.isArray(rawRecipients.cc) ? rawRecipients.cc : [],
+            bcc: Array.isArray(rawRecipients.bcc) ? rawRecipients.bcc : [],
+            permanent_recipients: Array.isArray(rawRecipients.permanent_recipients) ? rawRecipients.permanent_recipients : []
+          },
           attachments: customParams.attachments || [],
           custom_params: customParams
         };
@@ -720,7 +724,7 @@ function EmailTemplateForm({
                 </Button>
               </div>
               
-              {formData.recipients[recipientType].map((recipient, index) => (
+              {(formData.recipients[recipientType] || []).map((recipient, index) => (
                 <div key={index} className="flex items-center gap-2">
                   <Select
                     value={recipient.type}
@@ -959,8 +963,8 @@ function EmailTemplateForm({
                         <SelectValue placeholder="Select file field..." />
                       </SelectTrigger>
                       <SelectContent>
-                        {attachment.formId && allFormFields[attachment.formId]
-                          ?.filter(f => f.field_type === 'file')
+                        {attachment.formId && (allFormFields[attachment.formId] || [])
+                          .filter(f => f.field_type === 'file')
                           .map((field) => (
                             <SelectItem key={field.id} value={field.id}>
                               {field.label}
