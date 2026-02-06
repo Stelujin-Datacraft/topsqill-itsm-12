@@ -93,6 +93,7 @@ export function SubmissionFormRenderer({
                   showButtons={false}
                   formId={formId}
                   currentSubmissionId={currentSubmissionId}
+                  showAIAutoFill={false}
                 />
               </div>
             ))}
@@ -131,6 +132,7 @@ export function SubmissionFormRenderer({
               showButtons={false}
               formId={formId}
               currentSubmissionId={currentSubmissionId}
+              showAIAutoFill={false}
             />
           </div>
         );
