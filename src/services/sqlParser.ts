@@ -168,17 +168,39 @@ export function parseUserQuery(input: string): ParseResult {
   // Normalize whitespace and newlines for multi-line queries - preserve structure but collapse whitespace
   const normalized = cleaned.replace(/\s+/g, ' ').trim();
   
-  // Check for DISTINCT - use 's' flag to match across newlines
-  // Support both quoted and unquoted form UUIDs as table names
-  // Also support optional alias with AS keyword
-  const distinctMatch = normalized.match(/^SELECT\s+(DISTINCT\s+)?(.+?)\s+FROM\s+['""]?([0-9a-fA-F\-]{36})['""]?(?:\s+(?:AS\s+)?(\w+))?(.*)$/is)
+  // PERFORMANCE FIX: First check if FROM exists before running expensive regex
+  // This prevents catastrophic backtracking when typing incomplete queries
+  const fromIndex = normalized.toUpperCase().indexOf(' FROM ');
+  if (fromIndex === -1) {
+    errors.push('Invalid syntax. Expected: SELECT [DISTINCT] … FROM "form_uuid" [JOIN ...] [WHERE …] [GROUP BY …] [ORDER BY …] [LIMIT …]')
+    return { errors }
+  }
+  
+  // Extract SELECT clause and rest of query using simple substring (avoids regex backtracking)
+  const selectPart = normalized.substring(0, fromIndex).trim();
+  const afterFrom = normalized.substring(fromIndex + 6).trim(); // Skip " FROM "
+  
+  // Parse DISTINCT from select part
+  const distinctMatch = selectPart.match(/^SELECT\s+(DISTINCT\s+)?(.+)$/i);
   if (!distinctMatch) {
     errors.push('Invalid syntax. Expected: SELECT [DISTINCT] … FROM "form_uuid" [JOIN ...] [WHERE …] [GROUP BY …] [ORDER BY …] [LIMIT …]')
     return { errors }
   }
   
-  let [, distinctKeyword, selectExpr, formUuid, tableAlias, restOfQuery] = distinctMatch
-  const isDistinct = Boolean(distinctKeyword)
+  const isDistinct = Boolean(distinctMatch[1]);
+  const selectExpr = distinctMatch[2].trim();
+  
+  // Extract form UUID from afterFrom using simple pattern (non-greedy is safe here since it's anchored)
+  const formUuidMatch = afterFrom.match(/^['""]?([0-9a-fA-F\-]{36})['""]?(?:\s+(?:AS\s+)?(\w+))?(.*)$/is);
+  if (!formUuidMatch) {
+    errors.push('Invalid syntax. Expected: SELECT [DISTINCT] … FROM "form_uuid" [JOIN ...] [WHERE …] [GROUP BY …] [ORDER BY …] [LIMIT …]')
+    return { errors }
+  }
+  
+  const formUuid = formUuidMatch[1];
+  const tableAlias = formUuidMatch[2] || null;
+  const restOfQuery = formUuidMatch[3] || '';
+  
   
   // Parse optional clauses
   let whereExpr = ''
