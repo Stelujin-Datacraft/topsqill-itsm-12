@@ -106,10 +106,11 @@ export function AIEmailTemplateGenerator({ onTemplateCreated }: AIEmailTemplateG
     setIsGenerating(true);
     try {
       // Build context with form fields if a form is selected
+      // Use EXACT field labels (not normalized) to match manual insertion format
       let formContext = '';
       if (selectedForm) {
-        const fieldList = selectedForm.fields.map(f => `{{${f.label.toLowerCase().replace(/\s+/g, '_')}}} (${f.type})`).join(', ');
-        formContext = `\n\nATTACHED FORM: "${selectedForm.name}" with these available dynamic fields: ${fieldList}. Use these field placeholders in the template content where appropriate.`;
+        const fieldList = selectedForm.fields.map(f => `{{${f.label}}} (${f.type})`).join(', ');
+        formContext = `\n\nATTACHED FORM: "${selectedForm.name}" with these available dynamic fields: ${fieldList}. IMPORTANT: Use these EXACT field placeholder names (including spaces and capitalization) in the template content where appropriate. For example, use {{First Name}} not {{first_name}}.`;
       }
 
       const { data, error } = await supabase.functions.invoke('ai-assistant', {
@@ -152,13 +153,14 @@ export function AIEmailTemplateGenerator({ onTemplateCreated }: AIEmailTemplateG
     setIsSaving(true);
     try {
       // Build fieldMappings from template variables and selected form fields
+      // Map exact field labels to field IDs (same format as manual insertion)
       const fieldMappings: Record<string, string> = {};
       if (selectedForm && generatedTemplate.templateVariables) {
         generatedTemplate.templateVariables.forEach(variable => {
-          // Find matching field by normalized label
-          const matchingField = selectedForm.fields.find(f => 
-            f.label.toLowerCase().replace(/\s+/g, '_') === variable.toLowerCase()
-          );
+          // Find matching field by exact label match first, then try case-insensitive
+          const matchingField = selectedForm.fields.find(f => f.label === variable) ||
+            selectedForm.fields.find(f => f.label.toLowerCase() === variable.toLowerCase()) ||
+            selectedForm.fields.find(f => f.label.toLowerCase().replace(/\s+/g, '_') === variable.toLowerCase().replace(/\s+/g, '_'));
           if (matchingField) {
             fieldMappings[variable] = matchingField.id;
           }
@@ -214,10 +216,11 @@ export function AIEmailTemplateGenerator({ onTemplateCreated }: AIEmailTemplateG
 
     setIsGenerating(true);
     try {
+      // Use EXACT field labels (not normalized) to match manual insertion format
       let formContext = '';
       if (selectedForm) {
-        const fieldList = selectedForm.fields.map(f => `{{${f.label.toLowerCase().replace(/\s+/g, '_')}}} (${f.type})`).join(', ');
-        formContext = `\n\nATTACHED FORM: "${selectedForm.name}" with these available dynamic fields: ${fieldList}. Use these field placeholders in the template content where appropriate.`;
+        const fieldList = selectedForm.fields.map(f => `{{${f.label}}} (${f.type})`).join(', ');
+        formContext = `\n\nATTACHED FORM: "${selectedForm.name}" with these available dynamic fields: ${fieldList}. IMPORTANT: Use these EXACT field placeholder names (including spaces and capitalization) in the template content where appropriate. For example, use {{First Name}} not {{first_name}}.`;
       }
 
       const { data, error } = await supabase.functions.invoke('ai-assistant', {
@@ -246,12 +249,14 @@ export function AIEmailTemplateGenerator({ onTemplateCreated }: AIEmailTemplateG
       const result = data.result;
       
       // Build fieldMappings from template variables and selected form fields
+      // Map exact field labels to field IDs (same format as manual insertion)
       const fieldMappings: Record<string, string> = {};
       if (selectedForm && result.templateVariables) {
         result.templateVariables.forEach((variable: string) => {
-          const matchingField = selectedForm.fields.find(f => 
-            f.label.toLowerCase().replace(/\s+/g, '_') === variable.toLowerCase()
-          );
+          // Find matching field by exact label match first, then try case-insensitive
+          const matchingField = selectedForm.fields.find(f => f.label === variable) ||
+            selectedForm.fields.find(f => f.label.toLowerCase() === variable.toLowerCase()) ||
+            selectedForm.fields.find(f => f.label.toLowerCase().replace(/\s+/g, '_') === variable.toLowerCase().replace(/\s+/g, '_'));
           if (matchingField) {
             fieldMappings[variable] = matchingField.id;
           }
