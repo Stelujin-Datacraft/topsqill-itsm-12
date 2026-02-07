@@ -327,7 +327,7 @@ export function FormPreview({ form, showNavigation = false }: FormPreviewProps) 
                   onSubmit={() => {}}
                   showButtons={false}
                   formId={form.id}
-                  showAIAutoFill={false}
+                showAIAutoFill={true}
                 />
               </div>
             ))}
@@ -361,7 +361,7 @@ export function FormPreview({ form, showNavigation = false }: FormPreviewProps) 
               onSubmit={() => {}}
               showButtons={false}
               formId={form.id}
-              showAIAutoFill={false}
+              showAIAutoFill={true}
             />
           </div>
         );

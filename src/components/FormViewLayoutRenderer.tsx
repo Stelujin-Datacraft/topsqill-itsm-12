@@ -440,7 +440,7 @@ export function FormViewLayoutRenderer({
                   allFormFields={allFormFields}
                   highlightedFieldId={highlightedFieldId}
                   formId={form.id}
-                  showAIAutoFill={false}
+                  showAIAutoFill={true}
                 />
               </div>
             ))}
@@ -477,7 +477,7 @@ export function FormViewLayoutRenderer({
               allFormFields={allFormFields}
               highlightedFieldId={highlightedFieldId}
               formId={form.id}
-              showAIAutoFill={false}
+              showAIAutoFill={true}
             />
           </div>
         );
