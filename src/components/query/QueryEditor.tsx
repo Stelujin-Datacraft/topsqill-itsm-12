@@ -40,6 +40,10 @@ export const QueryEditor = memo(forwardRef<QueryEditorRef, QueryEditorProps>(({
   const [parseResult, setParseResult] = useState<ParseResult>({
     errors: []
   });
+  // CRITICAL FIX: Use ref for parseResult to avoid cascading re-renders
+  const parseResultRef = useRef(parseResult);
+  parseResultRef.current = parseResult;
+  
   const [isValidating, setIsValidating] = useState(false);
   const [copied, setCopied] = useState(false);
   const [examplesOpen, setExamplesOpen] = useState(false);
@@ -93,12 +97,14 @@ export const QueryEditor = memo(forwardRef<QueryEditorRef, QueryEditorProps>(({
     return () => clearTimeout(timeoutId);
   }, [value, validateQuery]);
 
-  // PERFORMANCE FIX: Memoize handlers to prevent recreating on every render
+  // CRITICAL FIX: Use ref for parseResult to avoid dependency chain that causes re-renders
+  // This prevents handleExecute -> handleKeyDown -> useEffect cascade
   const handleExecute = useCallback(() => {
-    const isValid = parseResult.sql && parseResult.errors.length === 0;
+    const currentParseResult = parseResultRef.current;
+    const isValid = currentParseResult.sql && currentParseResult.errors.length === 0;
     if (!isValid || isExecuting) return;
-    onExecute(parseResult.sql!);
-  }, [parseResult.sql, parseResult.errors.length, isExecuting, onExecute]);
+    onExecute(currentParseResult.sql!);
+  }, [isExecuting, onExecute]); // Removed parseResult dependency!
 
   const handleCopy = useCallback(async () => {
     try {

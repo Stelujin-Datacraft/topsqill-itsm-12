@@ -33,6 +33,9 @@ export default function QueryPage() {
   const { saveQuery } = useSavedQueries();
   const { history, addToHistory, removeFromHistory, clearHistory } = useQueryHistory();
   const editorRef = useRef<QueryEditorRef>(null);
+  // CRITICAL FIX: Use ref to access current tabs without causing re-renders
+  const tabsRef = useRef(tabs);
+  tabsRef.current = tabs;
 
   // PERFORMANCE FIX: Memoize activeTab to prevent recalculation
   const activeTab = useMemo(() => tabs.find(tab => tab.id === activeTabId), [tabs, activeTabId]);
@@ -52,13 +55,15 @@ export default function QueryPage() {
     setShowSaveDialog(true);
   }, []);
 
+  // CRITICAL FIX: Remove tabs from dependencies - use ref instead to prevent
+  // executeQuery from being recreated on every keystroke
   const executeQuery = useCallback(async (sql: string) => {
     setIsExecuting(true);
     const startTime = performance.now();
     
     try {
-      // Get current query from tabs state directly via ref to avoid stale closure
-      const currentTabQuery = tabs.find(t => t.id === activeTabId)?.query || '';
+      // CRITICAL: Use ref to get current tabs without dependency
+      const currentTabQuery = tabsRef.current.find(t => t.id === activeTabId)?.query || '';
       const result = await executeUserQuery(currentTabQuery);
       const endTime = performance.now();
       const execTime = Math.round(endTime - startTime);
@@ -96,8 +101,8 @@ export default function QueryPage() {
       setQueryResult({ columns: [], rows: [], errors: [errorMessage] });
       setExecutionTime(execTime);
       
-      // Add failed query to history
-      const currentTabQuery = tabs.find(t => t.id === activeTabId)?.query || '';
+      // Add failed query to history - use ref
+      const currentTabQuery = tabsRef.current.find(t => t.id === activeTabId)?.query || '';
       addToHistory({
         query: currentTabQuery,
         executionTime: execTime,
@@ -114,7 +119,7 @@ export default function QueryPage() {
     } finally {
       setIsExecuting(false);
     }
-  }, [tabs, activeTabId, addToHistory, toast]);
+  }, [activeTabId, addToHistory, toast]); // Removed 'tabs' dependency!
 
   const handleNewTab = useCallback(() => {
     const newId = Date.now().toString();
@@ -131,24 +136,26 @@ export default function QueryPage() {
     setActiveTabId(newId);
   }, []);
 
+  // CRITICAL FIX: Use ref instead of tabs dependency
   const handleTabClose = useCallback((tabId: string) => {
     setTabs(prevTabs => {
       if (prevTabs.length === 1) return prevTabs;
-      const newTabs = prevTabs.filter(tab => tab.id !== tabId);
-      return newTabs;
+      return prevTabs.filter(tab => tab.id !== tabId);
     });
     
     setActiveTabId(prevActiveId => {
       if (prevActiveId === tabId) {
-        // We need to get the first tab that's not being closed
-        return tabs.find(t => t.id !== tabId)?.id || '1';
+        // Use ref to find next tab without dependency
+        const currentTabs = tabsRef.current;
+        return currentTabs.find(t => t.id !== tabId)?.id || '1';
       }
       return prevActiveId;
     });
-  }, [tabs]);
+  }, []); // No dependencies needed - uses ref
 
+  // CRITICAL FIX: Use ref instead of tabs dependency
   const handleSaveQuery = useCallback(async (name: string) => {
-    const currentTabQuery = tabs.find(t => t.id === activeTabId)?.query || '';
+    const currentTabQuery = tabsRef.current.find(t => t.id === activeTabId)?.query || '';
     const savedQuery = await saveQuery(name, currentTabQuery);
     if (savedQuery) {
       // Mark the current tab as saved and not dirty
@@ -158,7 +165,7 @@ export default function QueryPage() {
           : tab
       ));
     }
-  }, [saveQuery, tabs, activeTabId]);
+  }, [saveQuery, activeTabId]); // Removed tabs dependency
 
   // CRITICAL FIX: Use ref-based insertion to avoid dependency on currentQuery
   // This prevents FormsSidebar from re-rendering on every keystroke
