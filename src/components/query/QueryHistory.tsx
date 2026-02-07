@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo, useCallback } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Clock, Trash2, CheckCircle, XCircle } from 'lucide-react';
@@ -12,7 +12,71 @@ interface QueryHistoryProps {
   onClear: () => void;
 }
 
-export function QueryHistory({ history, onSelectQuery, onRemove, onClear }: QueryHistoryProps) {
+// Individual history item component - memoized to prevent re-renders
+const HistoryItem = memo(function HistoryItem({
+  item,
+  onSelect,
+  onRemove
+}: {
+  item: QueryHistoryItem;
+  onSelect: (query: string) => void;
+  onRemove: (id: string) => void;
+}) {
+  const handleClick = useCallback(() => {
+    onSelect(item.query);
+  }, [item.query, onSelect]);
+
+  const handleRemove = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    onRemove(item.id);
+  }, [item.id, onRemove]);
+
+  return (
+    <div
+      className="group p-3 rounded-md border border-border hover:border-primary/50 cursor-pointer transition-colors"
+      onClick={handleClick}
+    >
+      <div className="flex items-start justify-between gap-2 mb-2">
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          {item.success ? (
+            <CheckCircle className="h-3.5 w-3.5 text-green-500 flex-shrink-0" />
+          ) : (
+            <XCircle className="h-3.5 w-3.5 text-destructive flex-shrink-0" />
+          )}
+          <span className="text-xs text-muted-foreground">
+            {formatDistanceToNow(item.executedAt, { addSuffix: true })}
+          </span>
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleRemove}
+          className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100"
+        >
+          <Trash2 className="h-3 w-3" />
+        </Button>
+      </div>
+      
+      <code className="text-xs block mb-2 line-clamp-2 text-foreground/80">
+        {item.query}
+      </code>
+      
+      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+        <span>{item.rowCount} rows</span>
+        <span>•</span>
+        <span>{item.executionTime}ms</span>
+      </div>
+      
+      {item.error && (
+        <div className="mt-2 text-xs text-destructive line-clamp-1">
+          {item.error}
+        </div>
+      )}
+    </div>
+  );
+});
+
+export const QueryHistory = memo(function QueryHistory({ history, onSelectQuery, onRemove, onClear }: QueryHistoryProps) {
   if (history.length === 0) {
     return (
       <div className="p-4 text-center text-muted-foreground">
@@ -41,54 +105,15 @@ export function QueryHistory({ history, onSelectQuery, onRemove, onClear }: Quer
       <ScrollArea className="flex-1">
         <div className="p-2 space-y-2">
           {history.map((item) => (
-            <div
+            <HistoryItem
               key={item.id}
-              className="group p-3 rounded-md border border-border hover:border-primary/50 cursor-pointer transition-colors"
-              onClick={() => onSelectQuery(item.query)}
-            >
-              <div className="flex items-start justify-between gap-2 mb-2">
-                <div className="flex items-center gap-2 min-w-0 flex-1">
-                  {item.success ? (
-                    <CheckCircle className="h-3.5 w-3.5 text-green-500 flex-shrink-0" />
-                  ) : (
-                    <XCircle className="h-3.5 w-3.5 text-destructive flex-shrink-0" />
-                  )}
-                  <span className="text-xs text-muted-foreground">
-                    {formatDistanceToNow(item.executedAt, { addSuffix: true })}
-                  </span>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onRemove(item.id);
-                  }}
-                  className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100"
-                >
-                  <Trash2 className="h-3 w-3" />
-                </Button>
-              </div>
-              
-              <code className="text-xs block mb-2 line-clamp-2 text-foreground/80">
-                {item.query}
-              </code>
-              
-              <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                <span>{item.rowCount} rows</span>
-                <span>•</span>
-                <span>{item.executionTime}ms</span>
-              </div>
-              
-              {item.error && (
-                <div className="mt-2 text-xs text-destructive line-clamp-1">
-                  {item.error}
-                </div>
-              )}
-            </div>
+              item={item}
+              onSelect={onSelectQuery}
+              onRemove={onRemove}
+            />
           ))}
         </div>
       </ScrollArea>
     </div>
   );
-}
+});
