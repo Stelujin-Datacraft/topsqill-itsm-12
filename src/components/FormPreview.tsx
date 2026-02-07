@@ -7,6 +7,7 @@ import { Form, FormField } from '@/types/form';
 import { FormFieldsRenderer } from './FormFieldsRenderer';
 import { FormPagination } from './FormPagination';
 import { FormNavigationPanel } from './FormNavigationPanel';
+import { AIAutoFillInput } from './form-fields/AIAutoFillInput';
 import { Separator } from '@/components/ui/separator';
 
 interface FormPreviewProps {
@@ -290,6 +291,11 @@ export function FormPreview({ form, showNavigation = false }: FormPreviewProps) 
     }, 5000);
   };
 
+  // Handle AI Auto-Fill - applies filled values to form
+  const handleAIAutoFill = (filledValues: Record<string, any>) => {
+    setFormData(prev => ({ ...prev, ...filledValues }));
+  };
+
   // Enhanced field rendering logic for proper layout handling
   const renderFieldsWithSmartLayout = () => {
     const currentFields = getCurrentPageFields();
@@ -327,7 +333,7 @@ export function FormPreview({ form, showNavigation = false }: FormPreviewProps) 
                   onSubmit={() => {}}
                   showButtons={false}
                   formId={form.id}
-                showAIAutoFill={true}
+                showAIAutoFill={false}
                 />
               </div>
             ))}
@@ -361,7 +367,7 @@ export function FormPreview({ form, showNavigation = false }: FormPreviewProps) 
               onSubmit={() => {}}
               showButtons={false}
               formId={form.id}
-              showAIAutoFill={true}
+              showAIAutoFill={false}
             />
           </div>
         );
@@ -407,14 +413,27 @@ export function FormPreview({ form, showNavigation = false }: FormPreviewProps) 
             <CardHeader className="pb-4 border-b bg-slate-50/80 dark:bg-gray-900/80">
               <CardTitle className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                 <CardTitle className="flex flex-col gap-1">
-                  <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100 leading-tight font-['Inter',system-ui,sans-serif]">
-                    {form.name}
-                  </h1>
-                  {form.description && (
-                    <p className="text-base text-slate-600 dark:text-slate-300 leading-relaxed font-['Inter',system-ui,sans-serif]">
-                      {form.description}
-                    </p>
-                  )}
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100 leading-tight font-['Inter',system-ui,sans-serif]">
+                        {form.name}
+                      </h1>
+                      {form.description && (
+                        <p className="text-base text-slate-600 dark:text-slate-300 leading-relaxed font-['Inter',system-ui,sans-serif]">
+                          {form.description}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <AIAutoFillInput
+                        formFields={Array.isArray(form.fields) ? form.fields : []}
+                        currentValues={formData}
+                        formName={form.name}
+                        formDescription={form.description}
+                        onAutoFill={handleAIAutoFill}
+                      />
+                    </div>
+                  </div>
                 </CardTitle>
               </CardTitle>
             </CardHeader>
