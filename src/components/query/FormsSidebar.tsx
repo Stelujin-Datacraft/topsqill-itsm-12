@@ -1,11 +1,10 @@
-import React, { useState, useEffect, memo } from 'react';
+import React, { useState, useEffect, memo, useCallback } from 'react';
 import { ChevronDown, ChevronRight, Copy, Plus, Database, Table, Type, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { schemaCache, FormDefinition, FieldDefinition, SystemColumnDefinition } from '@/services/schemaCache';
 import { SavedQueriesSection } from './SavedQueriesSection';
@@ -19,45 +18,50 @@ interface FormsSidebarProps {
 
 interface ActionButtonsProps {
   type: 'form' | 'field' | 'system';
-  item: FormDefinition | FieldDefinition | SystemColumnDefinition;
-  onInsertText: (text: string) => void;
+  itemId: string;
+  itemLabel: string;
+  onCopy: (text: string, label: string) => void;
+  onInsert: (text: string, label: string) => void;
 }
 
-const ActionButtons: React.FC<ActionButtonsProps> = ({
+// CRITICAL FIX: Memoize ActionButtons to prevent re-renders
+// Props are now primitive values (strings) to enable proper shallow comparison
+const ActionButtons = memo(function ActionButtons({
   type,
-  item,
-  onInsertText
-}) => {
-  const { toast } = useToast();
+  itemId,
+  itemLabel,
+  onCopy,
+  onInsert
+}: ActionButtonsProps) {
+  const handleCopy = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    onCopy(itemId, itemLabel);
+  }, [itemId, itemLabel, onCopy]);
   
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    toast({
-      title: "Copied to clipboard",
-      description: `${type === 'form' ? 'Form' : type === 'system' ? 'System column' : 'Field'} ID copied`
-    });
-  };
+  const handleInsertId = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (type === 'form') {
+      onInsert(`"${itemId}"`, itemLabel);
+    } else if (type === 'system') {
+      onInsert(itemId, itemLabel);
+    } else {
+      onInsert(`FIELD("${itemId}")`, itemLabel);
+    }
+  }, [type, itemId, itemLabel, onInsert]);
   
-  const insertIntoEditor = (text: string) => {
-    onInsertText(text);
-    toast({
-      title: "Inserted into editor",
-      description: `${type === 'form' ? 'Form' : type === 'system' ? 'System column' : 'Field'} reference added`
-    });
-  };
+  const handleInsertSelect = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    onInsert(`SELECT FIELD("${itemId}") FROM `, itemLabel);
+  }, [itemId, itemLabel, onInsert]);
   
   if (type === 'form') {
-    const form = item as FormDefinition;
     return (
       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
         <Button
           size="sm"
           variant="ghost"
           className="h-6 w-6 p-0"
-          onClick={e => {
-            e.stopPropagation();
-            copyToClipboard(form.id);
-          }}
+          onClick={handleCopy}
           title="Copy Form ID"
         >
           <Copy className="h-3 w-3" />
@@ -66,10 +70,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
           size="sm"
           variant="ghost"
           className="h-6 w-6 p-0"
-          onClick={e => {
-            e.stopPropagation();
-            insertIntoEditor(`"${form.id}"`);
-          }}
+          onClick={handleInsertId}
           title="Insert Form Reference"
         >
           <Plus className="h-3 w-3" />
@@ -77,17 +78,13 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
       </div>
     );
   } else if (type === 'system') {
-    const column = item as SystemColumnDefinition;
     return (
       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
         <Button
           size="sm"
           variant="ghost"
           className="h-6 w-6 p-0"
-          onClick={e => {
-            e.stopPropagation();
-            copyToClipboard(column.id);
-          }}
+          onClick={handleCopy}
           title="Copy Column Name"
         >
           <Copy className="h-3 w-3" />
@@ -96,10 +93,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
           size="sm"
           variant="ghost"
           className="h-6 w-6 p-0"
-          onClick={e => {
-            e.stopPropagation();
-            insertIntoEditor(column.id);
-          }}
+          onClick={handleInsertId}
           title="Insert Column Reference"
         >
           <Plus className="h-3 w-3" />
@@ -107,17 +101,13 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
       </div>
     );
   } else {
-    const field = item as FieldDefinition;
     return (
       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
         <Button
           size="sm"
           variant="ghost"
           className="h-6 w-6 p-0"
-          onClick={e => {
-            e.stopPropagation();
-            copyToClipboard(field.id);
-          }}
+          onClick={handleCopy}
           title="Copy Field ID"
         >
           <Copy className="h-3 w-3" />
@@ -126,10 +116,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
           size="sm"
           variant="ghost"
           className="h-6 w-6 p-0"
-          onClick={e => {
-            e.stopPropagation();
-            insertIntoEditor(`FIELD("${field.id}")`);
-          }}
+          onClick={handleInsertId}
           title="Insert Field Reference"
         >
           <Plus className="h-3 w-3" />
@@ -138,10 +125,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
           size="sm"
           variant="ghost"
           className="h-6 w-6 p-0"
-          onClick={e => {
-            e.stopPropagation();
-            insertIntoEditor(`SELECT FIELD("${field.id}") FROM `);
-          }}
+          onClick={handleInsertSelect}
           title="Select Field"
         >
           <Database className="h-3 w-3" />
@@ -149,7 +133,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
       </div>
     );
   }
-};
+});
 
 export const FormsSidebar = memo(function FormsSidebar({
   onInsertText,
@@ -177,17 +161,30 @@ export const FormsSidebar = memo(function FormsSidebar({
   ];
 
   // Generate WHERE clause for system table based on organization context
-  const getSystemTableQuery = (tableName: string, orgFilterColumn: string | null) => {
+  const getSystemTableQuery = useCallback((tableName: string, orgFilterColumn: string | null) => {
     if (!orgFilterColumn || !userProfile?.organization_id) {
       return `SELECT * FROM ${tableName} LIMIT 10`;
     }
     
     return `SELECT * FROM ${tableName} WHERE ${orgFilterColumn} = '${userProfile.organization_id}' LIMIT 10`;
-  };
+  }, [userProfile?.organization_id]);
 
-  const handleSelectQuery = (query: SavedQuery) => {
+  const handleSelectQuery = useCallback((query: SavedQuery) => {
     onSelectQuery(query.query);
-  };
+  }, [onSelectQuery]);
+
+  // CRITICAL FIX: Memoize copy/insert handlers at parent level
+  // This prevents ActionButtons from recreating functions on each render
+  const handleCopy = useCallback((text: string, label: string) => {
+    navigator.clipboard.writeText(text);
+    // Use a simple console log instead of toast to avoid hook overhead
+    console.log(`Copied ${label} to clipboard`);
+  }, []);
+
+  const handleInsert = useCallback((text: string, label: string) => {
+    onInsertText(text);
+    console.log(`Inserted ${label} into editor`);
+  }, [onInsertText]);
 
   useEffect(() => {
     const loadForms = async () => {
@@ -205,7 +202,7 @@ export const FormsSidebar = memo(function FormsSidebar({
     loadForms();
   }, []);
 
-  const toggleForm = (formId: string) => {
+  const toggleForm = useCallback((formId: string) => {
     setOpenForms(prev => {
       const newSet = new Set(prev);
       if (newSet.has(formId)) {
@@ -215,9 +212,9 @@ export const FormsSidebar = memo(function FormsSidebar({
       }
       return newSet;
     });
-  };
+  }, []);
 
-  const getTypeColor = (type: string) => {
+  const getTypeColor = useCallback((type: string) => {
     switch (type) {
       case 'text':
         return 'bg-blue-100 text-blue-800';
@@ -232,7 +229,13 @@ export const FormsSidebar = memo(function FormsSidebar({
       default:
         return 'bg-gray-100 text-gray-800';
     }
-  };
+  }, []);
+
+  // Memoize system table click handler
+  const handleSystemTableClick = useCallback((tableName: string, orgFilter: string | null) => {
+    const query = getSystemTableQuery(tableName, orgFilter);
+    onInsertText(query);
+  }, [getSystemTableQuery, onInsertText]);
 
   if (loading) {
     return (
@@ -277,29 +280,11 @@ export const FormsSidebar = memo(function FormsSidebar({
             </CollapsibleTrigger>
             <CollapsibleContent className="mt-1 space-y-1">
               {systemTables.map(table => (
-                <div key={table.name} className="ml-4 p-2 rounded-md hover:bg-muted/50 group">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 flex-1">
-                      <span className="text-base">{table.icon}</span>
-                      <div className="flex flex-col flex-1 min-w-0">
-                        <span className="text-sm font-medium truncate">{table.name}</span>
-                        <span className="text-xs text-muted-foreground truncate">{table.description}</span>
-                      </div>
-                    </div>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100"
-                      onClick={() => {
-                        const query = getSystemTableQuery(table.name, table.orgFilter);
-                        onInsertText(query);
-                      }}
-                      title="Insert SELECT query with organization filter"
-                    >
-                      <Plus className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </div>
+                <SystemTableItem 
+                  key={table.name}
+                  table={table}
+                  onInsert={handleSystemTableClick}
+                />
               ))}
             </CollapsibleContent>
           </Collapsible>
@@ -315,67 +300,15 @@ export const FormsSidebar = memo(function FormsSidebar({
             </CollapsibleTrigger>
             <CollapsibleContent className="mt-1 space-y-1">
               {Object.values(forms).map(form => (
-                <Collapsible key={form.id} open={openForms.has(form.id)} onOpenChange={() => toggleForm(form.id)}>
-                  <CollapsibleTrigger className="w-full">
-                    <div className="flex items-center justify-between w-full p-2 rounded-md hover:bg-muted/50 group ml-4">
-                      <div className="flex items-center gap-2 flex-1">
-                        {openForms.has(form.id) ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                        <Table className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm font-medium truncate">{form.name}</span>
-                      </div>
-                      <ActionButtons type="form" item={form} onInsertText={onInsertText} />
-                    </div>
-                  </CollapsibleTrigger>
-                  
-                  <CollapsibleContent className="ml-10 space-y-1">
-                    {/* System Columns Section */}
-                    <div className="mt-2">
-                      <div className="flex items-center gap-2 px-2 py-1">
-                        <Settings className="h-3 w-3 text-muted-foreground" />
-                        <span className="text-xs font-medium text-muted-foreground">System Columns</span>
-                      </div>
-                      {Object.values(form.systemColumns).map(column => (
-                        <div key={column.id} className="flex items-center justify-between p-2 rounded-md hover:bg-muted/30 group">
-                          <div className="flex items-center gap-2 flex-1 min-w-0">
-                            <Settings className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                            <span className="text-xs truncate">{column.label}</span>
-                            <Badge variant="secondary" className={`text-xs px-1 py-0 ${getTypeColor(column.type)} flex-shrink-0`}>
-                              {column.type}
-                            </Badge>
-                          </div>
-                          <ActionButtons type="system" item={column} onInsertText={onInsertText} />
-                        </div>
-                      ))}
-                    </div>
-
-                    <Separator className="my-2" />
-
-                    {/* Form Fields Section */}
-                    <div>
-                      <div className="flex items-center gap-2 px-2 py-1">
-                        <Type className="h-3 w-3 text-muted-foreground" />
-                        <span className="text-xs font-medium text-muted-foreground">Form Fields</span>
-                      </div>
-                      {Object.values(form.fields).map(field => (
-                        <div key={field.id} className="flex items-center justify-between p-2 rounded-md hover:bg-muted/30 group">
-                          <div className="flex items-center gap-2 flex-1 min-w-0">
-                            <Type className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                            <span className="text-xs truncate">{field.label}</span>
-                            <Badge variant="secondary" className={`text-xs px-1 py-0 ${getTypeColor(field.type)} flex-shrink-0`}>
-                              {field.type}
-                            </Badge>
-                            {field.required && (
-                              <Badge variant="destructive" className="text-xs px-1 py-0">
-                                Required
-                              </Badge>
-                            )}
-                          </div>
-                          <ActionButtons type="field" item={field} onInsertText={onInsertText} />
-                        </div>
-                      ))}
-                    </div>
-                  </CollapsibleContent>
-                </Collapsible>
+                <FormItem
+                  key={form.id}
+                  form={form}
+                  isOpen={openForms.has(form.id)}
+                  onToggle={toggleForm}
+                  onCopy={handleCopy}
+                  onInsert={handleInsert}
+                  getTypeColor={getTypeColor}
+                />
               ))}
               
               {Object.keys(forms).length === 0 && (
@@ -390,5 +323,144 @@ export const FormsSidebar = memo(function FormsSidebar({
         </div>
       </ScrollArea>
     </div>
+  );
+});
+
+// CRITICAL FIX: Memoized sub-components to prevent re-renders
+interface SystemTableItemProps {
+  table: { name: string; icon: string; description: string; orgFilter: string | null };
+  onInsert: (tableName: string, orgFilter: string | null) => void;
+}
+
+const SystemTableItem = memo(function SystemTableItem({ table, onInsert }: SystemTableItemProps) {
+  const handleClick = useCallback(() => {
+    onInsert(table.name, table.orgFilter);
+  }, [table.name, table.orgFilter, onInsert]);
+
+  return (
+    <div className="ml-4 p-2 rounded-md hover:bg-muted/50 group">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 flex-1">
+          <span className="text-base">{table.icon}</span>
+          <div className="flex flex-col flex-1 min-w-0">
+            <span className="text-sm font-medium truncate">{table.name}</span>
+            <span className="text-xs text-muted-foreground truncate">{table.description}</span>
+          </div>
+        </div>
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100"
+          onClick={handleClick}
+          title="Insert SELECT query with organization filter"
+        >
+          <Plus className="h-3 w-3" />
+        </Button>
+      </div>
+    </div>
+  );
+});
+
+interface FormItemProps {
+  form: FormDefinition;
+  isOpen: boolean;
+  onToggle: (formId: string) => void;
+  onCopy: (text: string, label: string) => void;
+  onInsert: (text: string, label: string) => void;
+  getTypeColor: (type: string) => string;
+}
+
+const FormItem = memo(function FormItem({ 
+  form, 
+  isOpen, 
+  onToggle, 
+  onCopy, 
+  onInsert,
+  getTypeColor 
+}: FormItemProps) {
+  const handleToggle = useCallback(() => {
+    onToggle(form.id);
+  }, [form.id, onToggle]);
+
+  return (
+    <Collapsible open={isOpen} onOpenChange={handleToggle}>
+      <CollapsibleTrigger className="w-full">
+        <div className="flex items-center justify-between w-full p-2 rounded-md hover:bg-muted/50 group ml-4">
+          <div className="flex items-center gap-2 flex-1">
+            {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+            <Table className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium truncate">{form.name}</span>
+          </div>
+          <ActionButtons 
+            type="form" 
+            itemId={form.id} 
+            itemLabel={form.name}
+            onCopy={onCopy} 
+            onInsert={onInsert} 
+          />
+        </div>
+      </CollapsibleTrigger>
+      
+      <CollapsibleContent className="ml-10 space-y-1">
+        {/* System Columns Section */}
+        <div className="mt-2">
+          <div className="flex items-center gap-2 px-2 py-1">
+            <Settings className="h-3 w-3 text-muted-foreground" />
+            <span className="text-xs font-medium text-muted-foreground">System Columns</span>
+          </div>
+          {Object.values(form.systemColumns).map(column => (
+            <div key={column.id} className="flex items-center justify-between p-2 rounded-md hover:bg-muted/30 group">
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                <Settings className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                <span className="text-xs truncate">{column.label}</span>
+                <Badge variant="secondary" className={`text-xs px-1 py-0 ${getTypeColor(column.type)} flex-shrink-0`}>
+                  {column.type}
+                </Badge>
+              </div>
+              <ActionButtons 
+                type="system" 
+                itemId={column.id} 
+                itemLabel={column.label}
+                onCopy={onCopy} 
+                onInsert={onInsert} 
+              />
+            </div>
+          ))}
+        </div>
+
+        <Separator className="my-2" />
+
+        {/* Form Fields Section */}
+        <div>
+          <div className="flex items-center gap-2 px-2 py-1">
+            <Type className="h-3 w-3 text-muted-foreground" />
+            <span className="text-xs font-medium text-muted-foreground">Form Fields</span>
+          </div>
+          {Object.values(form.fields).map(field => (
+            <div key={field.id} className="flex items-center justify-between p-2 rounded-md hover:bg-muted/30 group">
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                <Type className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                <span className="text-xs truncate">{field.label}</span>
+                <Badge variant="secondary" className={`text-xs px-1 py-0 ${getTypeColor(field.type)} flex-shrink-0`}>
+                  {field.type}
+                </Badge>
+                {field.required && (
+                  <Badge variant="destructive" className="text-xs px-1 py-0">
+                    Required
+                  </Badge>
+                )}
+              </div>
+              <ActionButtons 
+                type="field" 
+                itemId={field.id} 
+                itemLabel={field.label}
+                onCopy={onCopy} 
+                onInsert={onInsert} 
+              />
+            </div>
+          ))}
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
   );
 });
