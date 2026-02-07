@@ -232,24 +232,51 @@ export function parseUserQuery(input: string): ParseResult {
     return -1;
   };
 
-  // Find all clause positions using iterative scanning (prevents catastrophic backtracking)
+  // PERFORMANCE FIX: Single-pass scanner to find all clause positions
+  // Instead of scanning 14 times (once per keyword), scan once and find all keywords
   const findClausePositions = (str: string) => {
     const positions: { keyword: string; index: number }[] = [];
     const keywords = ['INNER JOIN', 'LEFT OUTER JOIN', 'LEFT JOIN', 'RIGHT OUTER JOIN', 'RIGHT JOIN', 
                       'FULL OUTER JOIN', 'FULL JOIN', 'JOIN', 'WHERE', 'GROUP BY', 'HAVING', 'ORDER BY', 'LIMIT', 'OFFSET'];
     
-    for (const kw of keywords) {
-      let pos = 0;
-      while (pos < str.length) {
-        const found = findKeywordOutsideParens(str, kw, pos);
-        if (found === -1) break;
-        positions.push({ keyword: kw, index: found });
-        pos = found + kw.length;
+    const upperStr = str.toUpperCase();
+    let parenDepth = 0;
+    
+    // Single pass through the string
+    for (let i = 0; i < str.length; i++) {
+      const char = str[i];
+      if (char === '(') {
+        parenDepth++;
+        continue;
+      } else if (char === ')') {
+        parenDepth--;
+        continue;
+      }
+      
+      // Only check for keywords when outside parentheses
+      if (parenDepth !== 0) continue;
+      
+      // Check if we're at a word boundary (start of string or after whitespace)
+      if (i > 0 && !/\s/.test(str[i - 1])) continue;
+      
+      // Try to match each keyword at this position (check longer keywords first to avoid partial matches)
+      for (const kw of keywords) {
+        if (i + kw.length > str.length) continue;
+        
+        const slice = upperStr.substring(i, i + kw.length);
+        if (slice === kw) {
+          // Check for word boundary after keyword
+          const afterIdx = i + kw.length;
+          if (afterIdx >= str.length || /\s/.test(str[afterIdx])) {
+            positions.push({ keyword: kw, index: i });
+            i += kw.length - 1; // Skip ahead (the loop will add 1 more)
+            break; // Found a match, stop checking other keywords
+          }
+        }
       }
     }
     
-    // Sort by position
-    positions.sort((a, b) => a.index - b.index);
+    // Sort by position (should already be sorted since we scan left to right, but ensure it)
     return positions;
   };
 
@@ -552,28 +579,23 @@ export function parseUpdateFormQuery(input: string): ParseResult {
 export function parseInsertQuery(input: string): ParseResult {
   const errors: string[] = []
   
-  // Flexible pattern to match INSERT with or without INTO/FORM keywords
-  // Updated to handle nested parentheses in FIELD() syntax
-  const insertPattern = /^INSERT\s+(?:INTO\s+)?(?:FORM\s+)?(['""]?[0-9a-fA-F\-]{36}['""]?)\s*(?:\(([^)]*(?:\([^)]*\)[^)]*)*)\))?\s+(?:VALUES|SELECT)/i;
-  
-  const match = input.match(insertPattern);
-  
-  console.log('parseInsertQuery Debug:', { input, match, matchedFormId: match?.[1], matchedColumns: match?.[2] });
-  
-  if (!match) {
+  // PERFORMANCE FIX: Early exit checks before expensive regex
+  const upperInput = input.toUpperCase();
+  if (!upperInput.includes('VALUES') && !upperInput.includes('SELECT')) {
     errors.push('Invalid INSERT syntax. Use: INSERT INTO form_id (columns) VALUES (values) or INSERT INTO form_id SELECT ...');
     return { errors };
   }
   
-  // Extract form_id (remove quotes if present)
-  const formId = match[1].replace(/['"]/g, '');
+  // Simple pattern to extract just the form ID (avoid nested group catastrophic backtracking)
+  // First, find the UUID after INSERT [INTO] [FORM]
+  const formIdMatch = input.match(/^INSERT\s+(?:INTO\s+)?(?:FORM\s+)?['""]?([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})['""]?/i);
   
-  // Validate form_id is a valid UUID
-  const uuidPattern = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
-  if (!uuidPattern.test(formId)) {
-    errors.push('Form ID must be a valid UUID');
+  if (!formIdMatch) {
+    errors.push('Invalid INSERT syntax. Form ID must be a valid UUID. Use: INSERT INTO form_id (columns) VALUES (values)');
     return { errors };
   }
+  
+  const formId = formIdMatch[1];
   
   console.log('parseInsertQuery Success:', { formId });
   

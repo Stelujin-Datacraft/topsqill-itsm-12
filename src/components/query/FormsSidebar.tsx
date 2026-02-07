@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, memo } from 'react';
 import { ChevronDown, ChevronRight, Copy, Plus, Database, Table, Type, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -151,10 +151,10 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
   }
 };
 
-export const FormsSidebar: React.FC<FormsSidebarProps> = ({
+export const FormsSidebar = memo(function FormsSidebar({
   onInsertText,
   onSelectQuery
-}) => {
+}: FormsSidebarProps) {
   const [forms, setForms] = useState<Record<string, FormDefinition>>({});
   const [openForms, setOpenForms] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
@@ -391,4 +391,4 @@ export const FormsSidebar: React.FC<FormsSidebarProps> = ({
       </ScrollArea>
     </div>
   );
-};
+});
