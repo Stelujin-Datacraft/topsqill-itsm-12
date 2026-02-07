@@ -6,6 +6,7 @@ import { Form, FormField } from '@/types/form';
 import { FormFieldsRenderer } from './FormFieldsRenderer';
 import { FormPagination } from './FormPagination';
 import { FormNavigationPanel } from './FormNavigationPanel';
+import { AIAutoFillInput } from './form-fields/AIAutoFillInput';
 import { CheckCircle, FileDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { PublicHeader } from './PublicHeader';
@@ -395,6 +396,11 @@ export function FormViewLayoutRenderer({
     window.print();
   };
 
+  // Handle AI Auto-Fill - applies filled values to form
+  const handleAIAutoFill = (filledValues: Record<string, any>) => {
+    setFormData(prev => ({ ...prev, ...filledValues }));
+  };
+
   // Enhanced field rendering logic for proper layout handling - EXACT COPY from FormPreview
   const renderFieldsWithSmartLayout = () => {
     const currentFields = getCurrentPageFields();
@@ -440,7 +446,7 @@ export function FormViewLayoutRenderer({
                   allFormFields={allFormFields}
                   highlightedFieldId={highlightedFieldId}
                   formId={form.id}
-                  showAIAutoFill={true}
+                  showAIAutoFill={false}
                 />
               </div>
             ))}
@@ -477,7 +483,7 @@ export function FormViewLayoutRenderer({
               allFormFields={allFormFields}
               highlightedFieldId={highlightedFieldId}
               formId={form.id}
-              showAIAutoFill={true}
+              showAIAutoFill={false}
             />
           </div>
         );
@@ -551,7 +557,14 @@ export function FormViewLayoutRenderer({
                     </p>
                   )}
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center gap-2 shrink-0 print:hidden">
+                  <AIAutoFillInput
+                    formFields={Array.isArray(form.fields) ? form.fields : []}
+                    currentValues={formData}
+                    formName={form.name}
+                    formDescription={form.description}
+                    onAutoFill={handleAIAutoFill}
+                  />
                   <Button
                     onClick={handlePrint}
                     variant="outline"
