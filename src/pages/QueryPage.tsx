@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo, useCallback } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { QueryEditor, QueryEditorRef } from '@/components/query/QueryEditor';
 import { QueryResultsTable } from '@/components/query/QueryResultsTable';
@@ -33,13 +33,14 @@ export default function QueryPage() {
   const activeTab = tabs.find(tab => tab.id === activeTabId);
   const currentQuery = activeTab?.query || '';
 
-  const updateTabQuery = (query: string) => {
-    setTabs(tabs.map(tab => 
+  // CRITICAL FIX: Memoize updateTabQuery to prevent re-renders on every keystroke
+  const updateTabQuery = useCallback((query: string) => {
+    setTabs(prevTabs => prevTabs.map(tab => 
       tab.id === activeTabId 
         ? { ...tab, query, isDirty: !tab.savedQueryId || query !== tab.query }
         : tab
     ));
-  };
+  }, [activeTabId]);
 
   const executeQuery = async (sql: string) => {
     setIsExecuting(true);
@@ -102,52 +103,59 @@ export default function QueryPage() {
     }
   };
 
-  const handleNewTab = () => {
+  const handleNewTab = useCallback(() => {
     const newId = Date.now().toString();
-    const newTab: QueryTab = {
-      id: newId,
-      name: `Query ${tabs.length + 1}`,
-      query: '',
-      isActive: false,
-      isDirty: false
-    };
-    setTabs([...tabs, newTab]);
+    setTabs(prevTabs => {
+      const newTab: QueryTab = {
+        id: newId,
+        name: `Query ${prevTabs.length + 1}`,
+        query: '',
+        isActive: false,
+        isDirty: false
+      };
+      return [...prevTabs, newTab];
+    });
     setActiveTabId(newId);
-  };
+  }, []);
 
-  const handleTabClose = (tabId: string) => {
-    if (tabs.length === 1) return;
+  const handleTabClose = useCallback((tabId: string) => {
+    setTabs(prevTabs => {
+      if (prevTabs.length === 1) return prevTabs;
+      const newTabs = prevTabs.filter(tab => tab.id !== tabId);
+      return newTabs;
+    });
     
-    const newTabs = tabs.filter(tab => tab.id !== tabId);
-    setTabs(newTabs);
-    
-    if (activeTabId === tabId) {
-      setActiveTabId(newTabs[0].id);
-    }
-  };
+    setActiveTabId(prevActiveId => {
+      if (prevActiveId === tabId) {
+        // We need to get the first tab that's not being closed
+        return tabs.find(t => t.id !== tabId)?.id || '1';
+      }
+      return prevActiveId;
+    });
+  }, [tabs]);
 
-  const handleSaveQuery = async (name: string) => {
+  const handleSaveQuery = useCallback(async (name: string) => {
     const savedQuery = await saveQuery(name, currentQuery);
     if (savedQuery) {
       // Mark the current tab as saved and not dirty
-      setTabs(tabs.map(tab => 
+      setTabs(prevTabs => prevTabs.map(tab => 
         tab.id === activeTabId 
           ? { ...tab, name, isDirty: false, savedQueryId: savedQuery.id }
           : tab
       ));
     }
-  };
+  }, [saveQuery, currentQuery, activeTabId]);
 
-  const insertText = (text: string) => {
+  const insertText = useCallback((text: string) => {
     if (editorRef.current) {
       editorRef.current.insertAtCursor(text);
     } else {
       // Fallback to appending
       updateTabQuery(currentQuery + text);
     }
-  };
+  }, [updateTabQuery, currentQuery]);
 
-  const handleSelectQuery = (query: string) => {
+  const handleSelectQuery = useCallback((query: string) => {
     // Create a new tab for the selected query or update current if empty
     if (currentQuery.trim() === '') {
       updateTabQuery(query);
@@ -155,27 +163,32 @@ export default function QueryPage() {
       handleNewTab();
       // Update the new tab with the selected query
       setTimeout(() => {
-        setTabs(tabs => tabs.map(tab => 
+        setTabs(prevTabs => prevTabs.map(tab => 
           tab.id === activeTabId 
             ? { ...tab, query }
             : tab
         ));
       }, 0);
     }
-  };
+  }, [currentQuery, updateTabQuery, handleNewTab, activeTabId]);
 
-  // Convert QueryResult to the format expected by QueryResults component
-  const resultsData = queryResult.columns.length > 0 
-    ? queryResult.rows.map(row => {
-        const obj: Record<string, any> = {};
-        queryResult.columns.forEach((col, index) => {
-          obj[col] = row[index];
-        });
-        return obj;
-      })
-    : null;
+  // CRITICAL FIX: Memoize resultsData to prevent expensive recalculations on every keystroke
+  const resultsData = useMemo(() => {
+    if (queryResult.columns.length === 0) return null;
+    
+    return queryResult.rows.map(row => {
+      const obj: Record<string, any> = {};
+      queryResult.columns.forEach((col, index) => {
+        obj[col] = row[index];
+      });
+      return obj;
+    });
+  }, [queryResult.columns, queryResult.rows]);
 
-  const resultsError = queryResult.errors.length > 0 ? queryResult.errors[0] : null;
+  const resultsError = useMemo(() => 
+    queryResult.errors.length > 0 ? queryResult.errors[0] : null,
+    [queryResult.errors]
+  );
 
   return (
     <DashboardLayout title="Query Builder" description="Execute SQL queries and explore your data">
