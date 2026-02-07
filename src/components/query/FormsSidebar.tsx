@@ -384,22 +384,24 @@ const FormItem = memo(function FormItem({
 
   return (
     <Collapsible open={isOpen} onOpenChange={handleToggle}>
-      <CollapsibleTrigger className="w-full">
-        <div className="flex items-center justify-between w-full p-2 rounded-md hover:bg-muted/50 group ml-4">
-          <div className="flex items-center gap-2 flex-1">
-            {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-            <Table className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-medium truncate">{form.name}</span>
-          </div>
-          <ActionButtons 
-            type="form" 
-            itemId={form.id} 
-            itemLabel={form.name}
-            onCopy={onCopy} 
-            onInsert={onInsert} 
-          />
+      {/* CRITICAL FIX: Use div with onClick instead of CollapsibleTrigger to avoid button nesting */}
+      <div className="flex items-center justify-between w-full p-2 rounded-md hover:bg-muted/50 group ml-4">
+        <div 
+          className="flex items-center gap-2 flex-1 cursor-pointer"
+          onClick={handleToggle}
+        >
+          {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+          <Table className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm font-medium truncate">{form.name}</span>
         </div>
-      </CollapsibleTrigger>
+        <ActionButtons 
+          type="form" 
+          itemId={form.id} 
+          itemLabel={form.name}
+          onCopy={onCopy} 
+          onInsert={onInsert} 
+        />
+      </div>
       
       <CollapsibleContent className="ml-10 space-y-1">
         {/* System Columns Section */}
