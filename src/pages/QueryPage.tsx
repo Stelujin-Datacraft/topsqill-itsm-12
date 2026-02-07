@@ -15,6 +15,10 @@ import { QueryHistory } from '@/components/query/QueryHistory';
 import { Button } from '@/components/ui/button';
 import { History } from 'lucide-react';
 
+// QueryHistory is already memoized in its own file
+// Memoized QueryResultsTable wrapper to prevent re-renders
+const MemoizedQueryResultsTable = React.memo(QueryResultsTable);
+
 export default function QueryPage() {
   const [queryResult, setQueryResult] = useState<QueryResult>({ columns: [], rows: [], errors: [] });
   const [isExecuting, setIsExecuting] = useState(false);
@@ -156,31 +160,52 @@ export default function QueryPage() {
     }
   }, [saveQuery, tabs, activeTabId]);
 
+  // CRITICAL FIX: Use ref-based insertion to avoid dependency on currentQuery
+  // This prevents FormsSidebar from re-rendering on every keystroke
   const insertText = useCallback((text: string) => {
     if (editorRef.current) {
       editorRef.current.insertAtCursor(text);
     } else {
-      // Fallback to appending
-      updateTabQuery(currentQuery + text);
+      // Fallback: use functional update to avoid currentQuery dependency
+      setTabs(prevTabs => prevTabs.map(tab => 
+        tab.id === activeTabId 
+          ? { ...tab, query: tab.query + text, isDirty: true }
+          : tab
+      ));
     }
-  }, [updateTabQuery, currentQuery]);
+  }, [activeTabId]); // NO currentQuery dependency - this is the key fix!
 
+  // CRITICAL FIX: Use functional update to check current query without depending on it
+  // This prevents FormsSidebar from re-rendering on every keystroke
   const handleSelectQuery = useCallback((query: string) => {
-    // Create a new tab for the selected query or update current if empty
-    if (currentQuery.trim() === '') {
-      updateTabQuery(query);
-    } else {
-      handleNewTab();
-      // Update the new tab with the selected query
-      setTimeout(() => {
-        setTabs(prevTabs => prevTabs.map(tab => 
+    setTabs(prevTabs => {
+      const activeTab = prevTabs.find(t => t.id === activeTabId);
+      const currentQueryIsEmpty = !activeTab?.query?.trim();
+      
+      if (currentQueryIsEmpty) {
+        // Update existing tab
+        return prevTabs.map(tab => 
           tab.id === activeTabId 
-            ? { ...tab, query }
+            ? { ...tab, query, isDirty: true }
             : tab
-        ));
-      }, 0);
-    }
-  }, [currentQuery, updateTabQuery, handleNewTab, activeTabId]);
+        );
+      } else {
+        // Create new tab with the query
+        const newId = Date.now().toString();
+        const newTab: QueryTab = {
+          id: newId,
+          name: `Query ${prevTabs.length + 1}`,
+          query,
+          isActive: false,
+          isDirty: true
+        };
+        // We need to also set active tab, but can't do that inside this callback
+        // So schedule it for next tick
+        setTimeout(() => setActiveTabId(newId), 0);
+        return [...prevTabs, newTab];
+      }
+    });
+  }, [activeTabId]); // NO currentQuery dependency!
 
   // CRITICAL FIX: Memoize resultsData to prevent expensive recalculations on every keystroke
   const resultsData = useMemo(() => {
@@ -199,6 +224,19 @@ export default function QueryPage() {
     queryResult.errors.length > 0 ? queryResult.errors[0] : null,
     [queryResult.errors]
   );
+
+  // CRITICAL FIX: Memoize queryStats to prevent object recreation on every render
+  // This was breaking QueryResultsTable memoization
+  const queryStats = useMemo(() => ({
+    rowsAffected: resultsData?.length || 0,
+    rowsScanned: resultsData?.length || 0,
+    bytesProcessed: 1024
+  }), [resultsData?.length]);
+
+  // CRITICAL FIX: Memoize toggle handler to prevent recreation
+  const handleToggleHistory = useCallback(() => {
+    setShowHistory(prev => !prev);
+  }, []);
 
   return (
     <DashboardLayout title="Query Builder" description="Execute SQL queries and explore your data">
@@ -241,7 +279,7 @@ export default function QueryPage() {
                 <Button
                   variant={showHistory ? "secondary" : "ghost"}
                   size="sm"
-                  onClick={() => setShowHistory(!showHistory)}
+                  onClick={handleToggleHistory}
                   className="mr-2"
                   title="Toggle query history"
                 >
@@ -269,16 +307,12 @@ export default function QueryPage() {
                 {/* Results Panel */}
                 <ResizablePanel defaultSize={50} minSize={20}>
                   <div className="h-full">
-                    <QueryResultsTable 
+                    <MemoizedQueryResultsTable 
                       data={resultsData}
                       error={resultsError}
                       isLoading={isExecuting}
                       executionTime={executionTime}
-                      queryStats={{
-                        rowsAffected: resultsData?.length || 0,
-                        rowsScanned: resultsData?.length || 0,
-                        bytesProcessed: 1024
-                      }}
+                      queryStats={queryStats}
                     />
                   </div>
                 </ResizablePanel>
