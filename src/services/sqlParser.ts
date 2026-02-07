@@ -189,63 +189,128 @@ export function parseUserQuery(input: string): ParseResult {
   let offsetExpr = ''
   let joins: Array<{ joinType: string; formUuid: string; alias?: string; onCondition: string }> = []
   
-  // Extract JOIN clauses first (they come before WHERE, GROUP BY, etc.)
-  // Pattern: [INNER|LEFT|RIGHT|FULL] JOIN "form-uuid" [AS alias] ON condition
-  const joinPattern = /\s+(INNER\s+JOIN|LEFT\s+(?:OUTER\s+)?JOIN|RIGHT\s+(?:OUTER\s+)?JOIN|FULL\s+(?:OUTER\s+)?JOIN|JOIN)\s+['""]?([0-9a-fA-F\-]{36})['""]?(?:\s+(?:AS\s+)?(\w+))?\s+ON\s+(.+?)(?=\s+INNER\s+JOIN|\s+LEFT\s+|\s+RIGHT\s+|\s+FULL\s+|\s+JOIN\s+|\s+WHERE\s+|\s+GROUP\s+BY\s+|\s+HAVING\s+|\s+ORDER\s+BY\s+|\s+LIMIT\s+|\s+OFFSET\s+|$)/gi;
-  
-  let joinMatch;
-  while ((joinMatch = joinPattern.exec(restOfQuery)) !== null) {
-    const joinTypeRaw = joinMatch[1].toUpperCase().replace(/\s+/g, ' ');
-    let joinType = 'inner';
-    if (joinTypeRaw.includes('LEFT')) joinType = 'left';
-    else if (joinTypeRaw.includes('RIGHT')) joinType = 'right';
-    else if (joinTypeRaw.includes('FULL')) joinType = 'full';
+  // Helper function: Find keyword index outside of parentheses (avoids regex catastrophic backtracking)
+  const findKeywordOutsideParens = (str: string, keyword: string, startPos: number = 0): number => {
+    let parenDepth = 0;
+    const upperStr = str.toUpperCase();
+    const upperKeyword = keyword.toUpperCase();
+    for (let i = startPos; i <= str.length - keyword.length; i++) {
+      if (str[i] === '(') parenDepth++;
+      else if (str[i] === ')') parenDepth--;
+      else if (parenDepth === 0) {
+        // Check for keyword preceded by whitespace (or start) and followed by whitespace
+        const isStart = i === 0 || /\s/.test(str[i - 1]);
+        const isKeyword = upperStr.substring(i, i + keyword.length) === upperKeyword;
+        const isEnd = i + keyword.length >= str.length || /\s/.test(str[i + keyword.length]);
+        if (isStart && isKeyword && isEnd) {
+          return i;
+        }
+      }
+    }
+    return -1;
+  };
+
+  // Find all clause positions using iterative scanning (prevents catastrophic backtracking)
+  const findClausePositions = (str: string) => {
+    const positions: { keyword: string; index: number }[] = [];
+    const keywords = ['INNER JOIN', 'LEFT OUTER JOIN', 'LEFT JOIN', 'RIGHT OUTER JOIN', 'RIGHT JOIN', 
+                      'FULL OUTER JOIN', 'FULL JOIN', 'JOIN', 'WHERE', 'GROUP BY', 'HAVING', 'ORDER BY', 'LIMIT', 'OFFSET'];
     
-    joins.push({
-      joinType,
-      formUuid: joinMatch[2],
-      alias: joinMatch[3],
-      onCondition: joinMatch[4].trim()
-    });
+    for (const kw of keywords) {
+      let pos = 0;
+      while (pos < str.length) {
+        const found = findKeywordOutsideParens(str, kw, pos);
+        if (found === -1) break;
+        positions.push({ keyword: kw, index: found });
+        pos = found + kw.length;
+      }
+    }
+    
+    // Sort by position
+    positions.sort((a, b) => a.index - b.index);
+    return positions;
+  };
+
+  const clausePositions = findClausePositions(restOfQuery);
+  
+  // Extract JOIN clauses iteratively
+  for (let i = 0; i < clausePositions.length; i++) {
+    const pos = clausePositions[i];
+    if (!pos.keyword.includes('JOIN')) continue;
+    
+    // Determine join type
+    let joinType = 'inner';
+    if (pos.keyword.includes('LEFT')) joinType = 'left';
+    else if (pos.keyword.includes('RIGHT')) joinType = 'right';
+    else if (pos.keyword.includes('FULL')) joinType = 'full';
+    
+    // Find the next clause position for boundary
+    const nextClausePos = clausePositions[i + 1]?.index ?? restOfQuery.length;
+    const joinClauseText = restOfQuery.substring(pos.index + pos.keyword.length, nextClausePos).trim();
+    
+    // Parse: "form-uuid" [AS alias] ON condition
+    const joinDetailMatch = joinClauseText.match(/^['""]?([0-9a-fA-F\-]{36})['""]?(?:\s+(?:AS\s+)?(\w+))?\s+ON\s+(.+)$/is);
+    if (joinDetailMatch) {
+      joins.push({
+        joinType,
+        formUuid: joinDetailMatch[1],
+        alias: joinDetailMatch[3] ? joinDetailMatch[2] : undefined,
+        onCondition: joinDetailMatch[3]?.trim() || joinDetailMatch[2]?.trim() || ''
+      });
+    }
   }
   
-  // Remove JOIN clauses from restOfQuery for further parsing
-  let cleanedRestOfQuery = restOfQuery.replace(joinPattern, ' ');
-  
-  // Extract WHERE clause - use lookahead or end of string
-  const whereMatch = cleanedRestOfQuery.match(/\s+WHERE\s+(.+?)(?=\s+GROUP\s+BY\s+|\s+HAVING\s+|\s+ORDER\s+BY\s+|\s+LIMIT\s+|\s+OFFSET\s+|$)/is)
-  if (whereMatch) {
-    whereExpr = whereMatch[1].trim()
+  // Build cleanedRestOfQuery by removing JOIN clauses
+  let cleanedRestOfQuery = restOfQuery;
+  // Remove JOINs from back to front to preserve indices
+  const joinPositions = clausePositions.filter(p => p.keyword.includes('JOIN'));
+  for (let i = joinPositions.length - 1; i >= 0; i--) {
+    const startIdx = joinPositions[i].index;
+    const endIdx = clausePositions.find(p => p.index > startIdx && !p.keyword.includes('JOIN'))?.index ?? restOfQuery.length;
+    cleanedRestOfQuery = cleanedRestOfQuery.substring(0, startIdx) + ' ' + cleanedRestOfQuery.substring(endIdx);
   }
   
-  // Extract GROUP BY clause - handle end of string properly
-  const groupByMatch = cleanedRestOfQuery.match(/\s+GROUP\s+BY\s+(.+?)(?=\s+HAVING\s+|\s+ORDER\s+BY\s+|\s+LIMIT\s+|\s+OFFSET\s+|$)/is)
-  if (groupByMatch) {
-    groupByExpr = groupByMatch[1].trim()
-  }
+  // Re-find clause positions in cleaned query
+  const cleanedPositions = findClausePositions(cleanedRestOfQuery);
   
-  // Extract HAVING clause
-  const havingMatch = cleanedRestOfQuery.match(/\s+HAVING\s+(.+?)(?=\s+ORDER\s+BY\s+|\s+LIMIT\s+|\s+OFFSET\s+|$)/is)
-  if (havingMatch) {
-    havingExpr = havingMatch[1].trim()
-  }
+  // Helper to extract clause content between current keyword and next
+  const extractClause = (keyword: string, nextKeywords: string[]): string => {
+    const pos = cleanedPositions.find(p => p.keyword.toUpperCase() === keyword.toUpperCase());
+    if (!pos) return '';
+    
+    const startIdx = pos.index + pos.keyword.length;
+    let endIdx = cleanedRestOfQuery.length;
+    
+    for (const nk of nextKeywords) {
+      const nextPos = cleanedPositions.find(p => p.keyword.toUpperCase() === nk.toUpperCase() && p.index > pos.index);
+      if (nextPos && nextPos.index < endIdx) {
+        endIdx = nextPos.index;
+      }
+    }
+    
+    return cleanedRestOfQuery.substring(startIdx, endIdx).trim();
+  };
   
-  // Extract ORDER BY clause - handle end of string properly
-  const orderByMatch = cleanedRestOfQuery.match(/\s+ORDER\s+BY\s+(.+?)(?=\s+LIMIT\s+|\s+OFFSET\s+|$)/is)
-  if (orderByMatch) {
-    orderByExpr = orderByMatch[1].trim()
-  }
+  // Extract clauses using safe iterative method
+  whereExpr = extractClause('WHERE', ['GROUP BY', 'HAVING', 'ORDER BY', 'LIMIT', 'OFFSET']);
+  groupByExpr = extractClause('GROUP BY', ['HAVING', 'ORDER BY', 'LIMIT', 'OFFSET']);
+  havingExpr = extractClause('HAVING', ['ORDER BY', 'LIMIT', 'OFFSET']);
+  orderByExpr = extractClause('ORDER BY', ['LIMIT', 'OFFSET']);
   
   // Extract LIMIT clause
-  const limitMatch = cleanedRestOfQuery.match(/\s+LIMIT\s+(\d+)/i)
-  if (limitMatch) {
-    limitExpr = limitMatch[1]
+  const limitPos = cleanedPositions.find(p => p.keyword === 'LIMIT');
+  if (limitPos) {
+    const limitText = cleanedRestOfQuery.substring(limitPos.index + 5).trim();
+    const limitNum = limitText.match(/^(\d+)/);
+    if (limitNum) limitExpr = limitNum[1];
   }
   
-  // Extract OFFSET clause
-  const offsetMatch = cleanedRestOfQuery.match(/\s+OFFSET\s+(\d+)/i)
-  if (offsetMatch) {
-    offsetExpr = offsetMatch[1]
+  // Extract OFFSET clause  
+  const offsetPos = cleanedPositions.find(p => p.keyword === 'OFFSET');
+  if (offsetPos) {
+    const offsetText = cleanedRestOfQuery.substring(offsetPos.index + 6).trim();
+    const offsetNum = offsetText.match(/^(\d+)/);
+    if (offsetNum) offsetExpr = offsetNum[1];
   }
 
   // Store all parsed clauses for client-side execution
