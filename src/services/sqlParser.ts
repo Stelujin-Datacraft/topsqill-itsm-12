@@ -92,47 +92,54 @@ export function parseUserQuery(input: string): ParseResult {
 
   // Check if this is a CTE query (WITH ... AS ...)
   if (/^WITH\s+/i.test(cleaned)) {
-    // Parse CTEs
+    // Parse CTEs using iterative balanced parenthesis counting (avoids catastrophic regex backtracking)
     const ctes: Array<{name: string, query: string}> = [];
-    let remaining = cleaned;
+    let currentPos = 4; // Skip "WITH"
+    let loopCount = 0;
+    const maxIterations = 50; // Safety limit
     
-    // Extract all CTEs
-    const cteRegex = /WITH\s+(\w+)\s+AS\s+\(([\s\S]+?)\)(?:\s*,\s*(\w+)\s+AS\s+\(([\s\S]+?)\))*\s+(SELECT[\s\S]+)/i;
-    const cteMatch = remaining.match(cteRegex);
-    
-    if (cteMatch) {
-      // Parse first CTE
-      ctes.push({ name: cteMatch[1], query: cteMatch[2].trim() });
+    while (loopCount < maxIterations) {
+      loopCount++;
       
-      // Check for additional CTEs
-      const cteStartIndex = remaining.indexOf(cteMatch[2]);
-      if (cteStartIndex === -1 || cteMatch[2].length === 0) {
-        // Prevent infinite loop - move past the first CTE safely
-        let rest = remaining.substring(cteMatch[0].length);
-      } else {
-        let rest = remaining.substring(cteStartIndex + cteMatch[2].length);
-        let loopCount = 0;
-        const maxIterations = 100; // Safety limit to prevent infinite loops
-        
-        while (rest.match(/^\s*\)\s*,\s*(\w+)\s+AS\s+\(/) && loopCount < maxIterations) {
-          loopCount++;
-          const nextCteMatch = rest.match(/^\s*\)\s*,\s*(\w+)\s+AS\s+\(([\s\S]+?)\)(?=\s*(?:,|\s+SELECT))/);
-          if (nextCteMatch && nextCteMatch[2] && nextCteMatch[2].length > 0) {
-            ctes.push({ name: nextCteMatch[1], query: nextCteMatch[2].trim() });
-            const nextIndex = rest.indexOf(nextCteMatch[2]);
-            if (nextIndex === -1) break; // Safety check
-            rest = rest.substring(nextIndex + nextCteMatch[2].length);
-          } else {
-            break;
-          }
+      // Look for CTE name followed by AS (
+      const asMatch = cleaned.substring(currentPos).match(/^\s*(\w+)\s+AS\s+\(/i);
+      if (!asMatch) break;
+      
+      const name = asMatch[1];
+      const openParenIndex = currentPos + asMatch[0].length - 1;
+      
+      // Find matching closing parenthesis using balanced counting
+      let parenCount = 1;
+      let closeParenIndex = -1;
+      for (let i = openParenIndex + 1; i < cleaned.length && parenCount > 0; i++) {
+        if (cleaned[i] === '(') parenCount++;
+        else if (cleaned[i] === ')') parenCount--;
+        if (parenCount === 0) {
+          closeParenIndex = i;
+          break;
         }
       }
       
-      // Get the main SELECT query
-      const mainQueryMatch = remaining.match(/\)\s+(SELECT[\s\S]+)$/i);
-      const mainQuery = mainQueryMatch ? mainQueryMatch[1].trim() : '';
+      if (closeParenIndex === -1) break; // Unbalanced parentheses
       
-      // Return CTE metadata
+      const query = cleaned.substring(openParenIndex + 1, closeParenIndex).trim();
+      ctes.push({ name, query });
+      
+      // Check if there's another CTE after a comma
+      currentPos = closeParenIndex + 1;
+      const commaMatch = cleaned.substring(currentPos).match(/^\s*,\s*/);
+      if (commaMatch) {
+        currentPos += commaMatch[0].length;
+      } else {
+        break; // No more CTEs
+      }
+    }
+    
+    // Find the main SELECT query after all CTEs
+    const mainSelectMatch = cleaned.substring(currentPos).match(/^\s*(SELECT[\s\S]+)$/i);
+    const mainQuery = mainSelectMatch ? mainSelectMatch[1].trim() : '';
+    
+    if (ctes.length > 0 && mainQuery) {
       return {
         sql: `-- CTE_QUERY\n${JSON.stringify({ctes, mainQuery})}`,
         errors: []
@@ -282,17 +289,48 @@ export function parseUpdateFormQuery(input: string): ParseResult {
   // Parse the UPDATE FORM syntax with flexible WHERE clause
   // Supports both: WHERE submission_ref_id = 'id' and WHERE FIELD('field_id') operator 'value'
   // Also supports subqueries with multiple lines and boolean literals (TRUE/FALSE)
-  // Strategy: Find the LAST WHERE that's not inside parentheses (i.e., belongs to UPDATE, not a subquery)
-  const updateMatch = input.match(
-    /^UPDATE\s+FORM\s+['""]([0-9a-fA-F\-]{36})['"\"]\s+SET\s+FIELD\(\s*['""]([0-9a-fA-F\-]{36})['"\"]\s*\)\s*=\s*([\s\S]+)\s+WHERE\s+((?:submission_id|submission_ref_id)\s*(?:=|!=)\s*['"]?[^'";\s]+['"]?|TRUE|FALSE)[\s;]*$/im
-  )
-
-  if (!updateMatch) {
-    errors.push('Invalid UPDATE FORM syntax. Expected: UPDATE FORM \'form_id\' SET FIELD(\'field_id\') = value WHERE condition')
-    return { errors }
+  // Strategy: Find the LAST WHERE that's not inside parentheses using iterative search (avoids regex backtracking)
+  
+  // First, extract form ID and field ID with a simple non-greedy pattern
+  const headerMatch = input.match(
+    /^UPDATE\s+FORM\s+['""]([0-9a-fA-F\-]{36})['"\"]\s+SET\s+FIELD\(\s*['""]([0-9a-fA-F\-]{36})['"\"]\s*\)\s*=\s*/im
+  );
+  
+  if (!headerMatch) {
+    errors.push('Invalid UPDATE FORM syntax. Expected: UPDATE FORM \'form_id\' SET FIELD(\'field_id\') = value WHERE condition');
+    return { errors };
   }
-
-  const [, formId, fieldId, valueExpression, whereClause] = updateMatch
+  
+  // Find the last WHERE outside of parentheses
+  const afterHeader = input.substring(headerMatch[0].length);
+  let lastWhereIndex = -1;
+  let parenDepth = 0;
+  
+  for (let i = 0; i < afterHeader.length - 5; i++) {
+    if (afterHeader[i] === '(') parenDepth++;
+    else if (afterHeader[i] === ')') parenDepth--;
+    else if (parenDepth === 0 && afterHeader.substring(i, i + 6).toUpperCase() === 'WHERE ') {
+      lastWhereIndex = i;
+    }
+  }
+  
+  if (lastWhereIndex === -1) {
+    errors.push('Invalid UPDATE FORM syntax. Missing WHERE clause.');
+    return { errors };
+  }
+  
+  const valueExpression = afterHeader.substring(0, lastWhereIndex).trim();
+  const whereClause = afterHeader.substring(lastWhereIndex + 6).replace(/[\s;]*$/, '').trim();
+  
+  // Validate WHERE clause format
+  const whereValid = /^(?:submission_id|submission_ref_id)\s*(?:=|!=)\s*['"]?[^'";\s]+['"]?$|^TRUE$|^FALSE$/i.test(whereClause);
+  if (!whereValid) {
+    errors.push('Invalid WHERE clause. Expected: submission_id = value, submission_ref_id = value, TRUE, or FALSE');
+    return { errors };
+  }
+  
+  const formId = headerMatch[1];
+  const fieldId = headerMatch[2];
 
   console.log('📝 UPDATE Parser - Parsed components:');
   console.log('  - Form ID:', formId);
