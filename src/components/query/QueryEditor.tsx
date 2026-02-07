@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, forwardRef, useImperativeHandle } from 'react';
+import React, { useState, useEffect, useCallback, useRef, forwardRef, useImperativeHandle, memo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -28,7 +28,8 @@ export interface QueryEditorRef {
   insertAtCursor: (text: string) => void;
 }
 
-export const QueryEditor = forwardRef<QueryEditorRef, QueryEditorProps>(({ 
+// Wrap with memo to prevent unnecessary re-renders when parent state changes
+export const QueryEditor = memo(forwardRef<QueryEditorRef, QueryEditorProps>(({ 
   onExecute, 
   isExecuting,
   value,
@@ -125,7 +126,8 @@ export const QueryEditor = forwardRef<QueryEditorRef, QueryEditorProps>(({
     }
   };
 
-  const handleKeyDown = (event: KeyboardEvent) => {
+  // PERFORMANCE FIX: Memoize keyboard handler to prevent constant listener churn
+  const handleKeyDown = useCallback((event: KeyboardEvent) => {
     // Ctrl+Enter: Execute
     if (event.ctrlKey && event.key === 'Enter') {
       event.preventDefault();
@@ -151,12 +153,12 @@ export const QueryEditor = forwardRef<QueryEditorRef, QueryEditorProps>(({
       event.preventDefault();
       setShortcutsOpen(true);
     }
-  };
+  }, [onSave, onChange]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [value]);
+  }, [handleKeyDown]);
 
   const isValid = parseResult.sql && parseResult.errors.length === 0;
 
@@ -435,4 +437,4 @@ export const QueryEditor = forwardRef<QueryEditorRef, QueryEditorProps>(({
       />
     </div>
   );
-});
+}));

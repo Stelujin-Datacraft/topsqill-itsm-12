@@ -1,3 +1,4 @@
+import React, { memo } from 'react';
 import { X, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { QueryTab } from '@/types/queries';
@@ -10,7 +11,7 @@ interface QueryTabsProps {
   onNewTab: () => void;
 }
 
-export function QueryTabs({ tabs, activeTabId, onTabSelect, onTabClose, onNewTab }: QueryTabsProps) {
+export const QueryTabs = memo(function QueryTabs({ tabs, activeTabId, onTabSelect, onTabClose, onNewTab }: QueryTabsProps) {
   return (
     <div className="flex items-center border-b border-border bg-muted/30">
       {tabs.map((tab) => (
@@ -56,4 +57,4 @@ export function QueryTabs({ tabs, activeTabId, onTabSelect, onTabClose, onNewTab
       </Button>
     </div>
   );
-}
+});
