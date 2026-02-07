@@ -30,10 +30,11 @@ export default function QueryPage() {
   const { history, addToHistory, removeFromHistory, clearHistory } = useQueryHistory();
   const editorRef = useRef<QueryEditorRef>(null);
 
-  const activeTab = tabs.find(tab => tab.id === activeTabId);
+  // PERFORMANCE FIX: Memoize activeTab to prevent recalculation
+  const activeTab = useMemo(() => tabs.find(tab => tab.id === activeTabId), [tabs, activeTabId]);
   const currentQuery = activeTab?.query || '';
 
-  // CRITICAL FIX: Memoize updateTabQuery to prevent re-renders on every keystroke
+  // CRITICAL FIX: Memoize updateTabQuery with stable reference
   const updateTabQuery = useCallback((query: string) => {
     setTabs(prevTabs => prevTabs.map(tab => 
       tab.id === activeTabId 
@@ -42,12 +43,19 @@ export default function QueryPage() {
     ));
   }, [activeTabId]);
 
-  const executeQuery = async (sql: string) => {
+  // PERFORMANCE FIX: Memoize onSave to prevent breaking QueryEditor memoization
+  const handleOpenSaveDialog = useCallback(() => {
+    setShowSaveDialog(true);
+  }, []);
+
+  const executeQuery = useCallback(async (sql: string) => {
     setIsExecuting(true);
     const startTime = performance.now();
     
     try {
-      const result = await executeUserQuery(currentQuery);
+      // Get current query from tabs state directly via ref to avoid stale closure
+      const currentTabQuery = tabs.find(t => t.id === activeTabId)?.query || '';
+      const result = await executeUserQuery(currentTabQuery);
       const endTime = performance.now();
       const execTime = Math.round(endTime - startTime);
       
@@ -56,7 +64,7 @@ export default function QueryPage() {
       
       // Add to history
       addToHistory({
-        query: currentQuery,
+        query: currentTabQuery,
         executionTime: execTime,
         rowCount: result.rows.length,
         success: result.errors.length === 0,
@@ -85,8 +93,9 @@ export default function QueryPage() {
       setExecutionTime(execTime);
       
       // Add failed query to history
+      const currentTabQuery = tabs.find(t => t.id === activeTabId)?.query || '';
       addToHistory({
-        query: currentQuery,
+        query: currentTabQuery,
         executionTime: execTime,
         rowCount: 0,
         success: false,
@@ -101,7 +110,7 @@ export default function QueryPage() {
     } finally {
       setIsExecuting(false);
     }
-  };
+  }, [tabs, activeTabId, addToHistory, toast]);
 
   const handleNewTab = useCallback(() => {
     const newId = Date.now().toString();
@@ -135,7 +144,8 @@ export default function QueryPage() {
   }, [tabs]);
 
   const handleSaveQuery = useCallback(async (name: string) => {
-    const savedQuery = await saveQuery(name, currentQuery);
+    const currentTabQuery = tabs.find(t => t.id === activeTabId)?.query || '';
+    const savedQuery = await saveQuery(name, currentTabQuery);
     if (savedQuery) {
       // Mark the current tab as saved and not dirty
       setTabs(prevTabs => prevTabs.map(tab => 
@@ -144,7 +154,7 @@ export default function QueryPage() {
           : tab
       ));
     }
-  }, [saveQuery, currentQuery, activeTabId]);
+  }, [saveQuery, tabs, activeTabId]);
 
   const insertText = useCallback((text: string) => {
     if (editorRef.current) {
@@ -249,7 +259,7 @@ export default function QueryPage() {
                       isExecuting={isExecuting}
                       value={currentQuery}
                       onChange={updateTabQuery}
-                      onSave={() => setShowSaveDialog(true)}
+                      onSave={handleOpenSaveDialog}
                     />
                   </div>
                 </ResizablePanel>
