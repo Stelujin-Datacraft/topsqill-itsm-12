@@ -185,7 +185,7 @@ export function AIEmailTemplateGenerator({ onTemplateCreated }: AIEmailTemplateG
           attached_form_id: selectedFormId,
           attached_form_name: selectedForm?.name,
           fieldMappings
-        } : undefined
+        } : {}
       };
 
       const { error } = await supabase
@@ -273,7 +273,7 @@ export function AIEmailTemplateGenerator({ onTemplateCreated }: AIEmailTemplateG
           attached_form_id: selectedFormId,
           attached_form_name: selectedForm?.name,
           fieldMappings
-        } : undefined
+        } : {}
       };
 
       const { error: saveError } = await supabase
