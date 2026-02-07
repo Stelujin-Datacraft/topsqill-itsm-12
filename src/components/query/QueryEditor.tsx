@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, forwardRef, useImperativeHandle, memo } from 'react';
+import React, { useState, useEffect, useCallback, useRef, forwardRef, useImperativeHandle, memo, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -93,13 +93,14 @@ export const QueryEditor = memo(forwardRef<QueryEditorRef, QueryEditorProps>(({
     return () => clearTimeout(timeoutId);
   }, [value, validateQuery]);
 
-  const handleExecute = () => {
+  // PERFORMANCE FIX: Memoize handlers to prevent recreating on every render
+  const handleExecute = useCallback(() => {
     const isValid = parseResult.sql && parseResult.errors.length === 0;
     if (!isValid || isExecuting) return;
     onExecute(parseResult.sql!);
-  };
+  }, [parseResult.sql, parseResult.errors.length, isExecuting, onExecute]);
 
-  const handleCopy = async () => {
+  const handleCopy = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(value);
       setCopied(true);
@@ -107,9 +108,9 @@ export const QueryEditor = memo(forwardRef<QueryEditorRef, QueryEditorProps>(({
     } catch (err) {
       console.error('Failed to copy text: ', err);
     }
-  };
+  }, [value]);
 
-  const handleFormat = () => {
+  const handleFormat = useCallback(() => {
     try {
       const formatted = formatSQL(value);
       onChange(formatted);
@@ -124,7 +125,7 @@ export const QueryEditor = memo(forwardRef<QueryEditorRef, QueryEditorProps>(({
         variant: "destructive"
       });
     }
-  };
+  }, [value, onChange, toast]);
 
   // PERFORMANCE FIX: Memoize keyboard handler to prevent constant listener churn
   const handleKeyDown = useCallback((event: KeyboardEvent) => {
@@ -153,12 +154,38 @@ export const QueryEditor = memo(forwardRef<QueryEditorRef, QueryEditorProps>(({
       event.preventDefault();
       setShortcutsOpen(true);
     }
-  }, [onSave, onChange]);
+  }, [handleExecute, handleFormat, onSave, onChange]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
+
+  // PERFORMANCE FIX: Memoize CodeMirror extensions to prevent recreation on every render
+  const editorExtensions = useMemo(() => [sql(), EditorView.lineWrapping], []);
+  
+  // PERFORMANCE FIX: Memoize onCreateEditor callback
+  const handleEditorCreate = useCallback((view: EditorView) => {
+    editorViewRef.current = view;
+  }, []);
+
+  // PERFORMANCE FIX: Memoize basicSetup and style objects to prevent recreation
+  const editorBasicSetup = useMemo(() => ({
+    lineNumbers: true,
+    highlightActiveLine: true,
+    searchKeymap: true,
+    autocompletion: true,
+    bracketMatching: true,
+    closeBrackets: true,
+    highlightSelectionMatches: true
+  }), []);
+
+  const editorStyle = useMemo(() => ({
+    fontSize: '14px',
+    fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace',
+    width: '100%',
+    overflow: 'auto' as const
+  }), []);
 
   const isValid = parseResult.sql && parseResult.errors.length === 0;
 
@@ -239,27 +266,12 @@ export const QueryEditor = memo(forwardRef<QueryEditorRef, QueryEditorProps>(({
             <CodeMirror 
               value={value} 
               height="100%" 
-              extensions={[sql(), EditorView.lineWrapping]} 
-              onChange={val => onChange(val)}
-              onCreateEditor={(view) => {
-                editorViewRef.current = view;
-              }}
-              basicSetup={{
-                lineNumbers: true,
-                highlightActiveLine: true,
-                searchKeymap: true,
-                autocompletion: true,
-                bracketMatching: true,
-                closeBrackets: true,
-                highlightSelectionMatches: true
-              }}
+              extensions={editorExtensions}
+              onChange={onChange}
+              onCreateEditor={handleEditorCreate}
+              basicSetup={editorBasicSetup}
               theme="light"
-              style={{
-                fontSize: '14px',
-                fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace',
-                width: '100%',
-                overflow: 'auto'
-              }}
+              style={editorStyle}
             />
           </div>
         </ResizablePanel>
