@@ -50,14 +50,14 @@ export function KeyboardShortcutsDialog({ open, onOpenChange }: KeyboardShortcut
               </span>
               <div className="flex gap-1">
                 {shortcut.keys.map((key, i) => (
-                  <React.Fragment key={i}>
+                  <span key={i} className="contents">
                     <kbd className="px-2 py-1 text-xs font-semibold bg-muted border border-border rounded">
                       {key}
                     </kbd>
                     {i < shortcut.keys.length - 1 && (
                       <span className="text-muted-foreground">+</span>
                     )}
-                  </React.Fragment>
+                  </span>
                 ))}
               </div>
             </div>

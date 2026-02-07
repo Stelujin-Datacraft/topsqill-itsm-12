@@ -105,14 +105,26 @@ export function parseUserQuery(input: string): ParseResult {
       ctes.push({ name: cteMatch[1], query: cteMatch[2].trim() });
       
       // Check for additional CTEs
-      let rest = remaining.substring(remaining.indexOf(cteMatch[2]) + cteMatch[2].length);
-      while (rest.match(/^\s*\)\s*,\s*(\w+)\s+AS\s+\(/)) {
-        const nextCteMatch = rest.match(/^\s*\)\s*,\s*(\w+)\s+AS\s+\(([\s\S]+?)\)(?=\s*(?:,|\s+SELECT))/);
-        if (nextCteMatch) {
-          ctes.push({ name: nextCteMatch[1], query: nextCteMatch[2].trim() });
-          rest = rest.substring(rest.indexOf(nextCteMatch[2]) + nextCteMatch[2].length);
-        } else {
-          break;
+      const cteStartIndex = remaining.indexOf(cteMatch[2]);
+      if (cteStartIndex === -1 || cteMatch[2].length === 0) {
+        // Prevent infinite loop - move past the first CTE safely
+        let rest = remaining.substring(cteMatch[0].length);
+      } else {
+        let rest = remaining.substring(cteStartIndex + cteMatch[2].length);
+        let loopCount = 0;
+        const maxIterations = 100; // Safety limit to prevent infinite loops
+        
+        while (rest.match(/^\s*\)\s*,\s*(\w+)\s+AS\s+\(/) && loopCount < maxIterations) {
+          loopCount++;
+          const nextCteMatch = rest.match(/^\s*\)\s*,\s*(\w+)\s+AS\s+\(([\s\S]+?)\)(?=\s*(?:,|\s+SELECT))/);
+          if (nextCteMatch && nextCteMatch[2] && nextCteMatch[2].length > 0) {
+            ctes.push({ name: nextCteMatch[1], query: nextCteMatch[2].trim() });
+            const nextIndex = rest.indexOf(nextCteMatch[2]);
+            if (nextIndex === -1) break; // Safety check
+            rest = rest.substring(nextIndex + nextCteMatch[2].length);
+          } else {
+            break;
+          }
         }
       }
       
