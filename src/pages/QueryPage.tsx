@@ -14,10 +14,7 @@ import { useQueryHistory } from '@/hooks/useQueryHistory';
 import { QueryHistory } from '@/components/query/QueryHistory';
 import { Button } from '@/components/ui/button';
 import { History } from 'lucide-react';
-
-// QueryHistory is already memoized in its own file
-// Memoized QueryResultsTable wrapper to prevent re-renders
-const MemoizedQueryResultsTable = React.memo(QueryResultsTable);
+// QueryHistory and QueryResultsTable are already memoized in their own files
 
 export default function QueryPage() {
   const [queryResult, setQueryResult] = useState<QueryResult>({ columns: [], rows: [], errors: [] });
@@ -57,68 +54,78 @@ export default function QueryPage() {
 
   // CRITICAL FIX: Remove tabs from dependencies - use ref instead to prevent
   // executeQuery from being recreated on every keystroke
+  // Use requestAnimationFrame to batch state updates and prevent UI freeze
   const executeQuery = useCallback(async (sql: string) => {
-    setIsExecuting(true);
-    const startTime = performance.now();
-    
-    try {
-      // CRITICAL: Use ref to get current tabs without dependency
-      const currentTabQuery = tabsRef.current.find(t => t.id === activeTabId)?.query || '';
-      const result = await executeUserQuery(currentTabQuery);
-      const endTime = performance.now();
-      const execTime = Math.round(endTime - startTime);
+    // CRITICAL: Use requestAnimationFrame to allow React to finish current render cycle
+    // before starting the expensive operation - this prevents UI freeze
+    requestAnimationFrame(async () => {
+      setIsExecuting(true);
+      const startTime = performance.now();
       
-      setQueryResult(result);
-      setExecutionTime(execTime);
-      
-      // Add to history
-      addToHistory({
-        query: currentTabQuery,
-        executionTime: execTime,
-        rowCount: result.rows.length,
-        success: result.errors.length === 0,
-        error: result.errors[0]
-      });
-      
-      if (result.errors.length > 0) {
+      try {
+        // CRITICAL: Use ref to get current tabs without dependency
+        const currentTabQuery = tabsRef.current.find(t => t.id === activeTabId)?.query || '';
+        
+        // Wrap in setTimeout(0) to yield to the browser and prevent freeze
+        await new Promise(resolve => setTimeout(resolve, 0));
+        
+        const result = await executeUserQuery(currentTabQuery);
+        const endTime = performance.now();
+        const execTime = Math.round(endTime - startTime);
+        
+        // Batch state updates using React's automatic batching
+        setQueryResult(result);
+        setExecutionTime(execTime);
+        
+        // Add to history
+        addToHistory({
+          query: currentTabQuery,
+          executionTime: execTime,
+          rowCount: result.rows.length,
+          success: result.errors.length === 0,
+          error: result.errors[0]
+        });
+        
+        if (result.errors.length > 0) {
+          toast({
+            title: "Query Failed",
+            description: result.errors[0],
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Query Executed",
+            description: `Found ${result.rows.length} result${result.rows.length === 1 ? '' : 's'} in ${execTime}ms`,
+          });
+        }
+
+      } catch (err) {
+        const endTime = performance.now();
+        const execTime = Math.round(endTime - startTime);
+        const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
+        
+        setQueryResult({ columns: [], rows: [], errors: [errorMessage] });
+        setExecutionTime(execTime);
+        
+        // Add failed query to history - use ref
+        const currentTabQuery = tabsRef.current.find(t => t.id === activeTabId)?.query || '';
+        addToHistory({
+          query: currentTabQuery,
+          executionTime: execTime,
+          rowCount: 0,
+          success: false,
+          error: errorMessage
+        });
+        
         toast({
           title: "Query Failed",
-          description: result.errors[0],
+          description: errorMessage,
           variant: "destructive",
         });
-      } else {
-        toast({
-          title: "Query Executed",
-          description: `Found ${result.rows.length} result${result.rows.length === 1 ? '' : 's'} in ${execTime}ms`,
-        });
+      } finally {
+        setIsExecuting(false);
       }
-
-    } catch (err) {
-      const endTime = performance.now();
-      const execTime = Math.round(endTime - startTime);
-      const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
-      
-      setQueryResult({ columns: [], rows: [], errors: [errorMessage] });
-      setExecutionTime(execTime);
-      
-      // Add failed query to history - use ref
-      const currentTabQuery = tabsRef.current.find(t => t.id === activeTabId)?.query || '';
-      addToHistory({
-        query: currentTabQuery,
-        executionTime: execTime,
-        rowCount: 0,
-        success: false,
-        error: errorMessage
-      });
-      
-      toast({
-        title: "Query Failed",
-        description: errorMessage,
-        variant: "destructive",
-      });
-    } finally {
-      setIsExecuting(false);
-    }
+    });
   }, [activeTabId, addToHistory, toast]); // Removed 'tabs' dependency!
 
   const handleNewTab = useCallback(() => {
@@ -314,7 +321,7 @@ export default function QueryPage() {
                 {/* Results Panel */}
                 <ResizablePanel defaultSize={50} minSize={20}>
                   <div className="h-full">
-                    <MemoizedQueryResultsTable 
+                    <QueryResultsTable 
                       data={resultsData}
                       error={resultsError}
                       isLoading={isExecuting}

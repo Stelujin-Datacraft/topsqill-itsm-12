@@ -89,13 +89,18 @@ export const QueryEditor = memo(forwardRef<QueryEditorRef, QueryEditorProps>(({
     }
   }, []);
 
+  // CRITICAL FIX: Skip validation while executing to prevent re-render cascade
+  // This stops the freeze when Execute button is clicked
   useEffect(() => {
+    // Don't re-validate while a query is executing
+    if (isExecuting) return;
+    
     const timeoutId = setTimeout(() => {
       validateQuery(value);
     }, 500);
 
     return () => clearTimeout(timeoutId);
-  }, [value, validateQuery]);
+  }, [value, validateQuery, isExecuting]);
 
   // CRITICAL FIX: Use ref for parseResult to avoid dependency chain that causes re-renders
   // This prevents handleExecute -> handleKeyDown -> useEffect cascade

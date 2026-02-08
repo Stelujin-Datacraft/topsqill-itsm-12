@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useRef } from 'react';
+import React, { useMemo, useState, useRef, memo, useCallback } from 'react';
 import {
   createColumnHelper,
   flexRender,
@@ -41,7 +41,8 @@ interface QueryResultsTableProps {
   };
 }
 
-export const QueryResultsTable: React.FC<QueryResultsTableProps> = ({
+// PERFORMANCE FIX: Wrap component in memo to prevent re-renders from parent state changes
+const QueryResultsTableInner: React.FC<QueryResultsTableProps> = ({
   data,
   error,
   isLoading,
@@ -421,3 +422,16 @@ export const QueryResultsTable: React.FC<QueryResultsTableProps> = ({
     </div>
   );
 };
+
+// PERFORMANCE FIX: Export memoized component to prevent re-renders from parent state changes
+// Uses custom comparison to only re-render when data/error/loading actually change
+export const QueryResultsTable = memo(QueryResultsTableInner, (prevProps, nextProps) => {
+  // Custom comparison: only re-render if these specific props change
+  return (
+    prevProps.data === nextProps.data &&
+    prevProps.error === nextProps.error &&
+    prevProps.isLoading === nextProps.isLoading &&
+    prevProps.executionTime === nextProps.executionTime &&
+    prevProps.queryStats?.rowsAffected === nextProps.queryStats?.rowsAffected
+  );
+});
