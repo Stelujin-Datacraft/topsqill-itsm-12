@@ -515,8 +515,8 @@ function FormBuilderContent({
             }} onFieldDelete={fieldOperations.handleFieldDelete} onDragEnd={fieldOperations.handleDragEnd} showFormDetails={true} setShowFormDetails={() => {}} />
             </TabsContent>
 
-            <TabsContent value="builder" className="p-0 flex-1 overflow-hidden mt-0">
-              <div className="grid grid-cols-12 h-full gap-0">
+            <TabsContent value="builder" className="p-0 flex-1 overflow-hidden mt-0 min-h-0 data-[state=active]:flex data-[state=active]:flex-col">
+              <div className="grid grid-cols-12 flex-1 min-h-0 gap-0">
                 {/* Left Panel - Navigation (Fixed) */}
                 <div className={`${state.isNavigationCollapsed ? 'col-span-1' : 'col-span-3'} border-r bg-muted/30 overflow-hidden flex flex-col transition-all duration-200`}>
                   <div className="flex-shrink-0">
