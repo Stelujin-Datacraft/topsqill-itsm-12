@@ -438,7 +438,7 @@ function FormBuilderContent({
       </div>;
   }
   return <TooltipProvider>
-      <div className="h-screen flex flex-col bg-white px-[15px] py-[10px] overflow-hidden">
+      <div className="h-full flex flex-col bg-white px-[15px] py-[10px] overflow-hidden">
         {/* Top Action Bar */}
         <div className="bg-white border-b border-gray-200 px-6 py-3">
           <div className="flex items-center justify-between">

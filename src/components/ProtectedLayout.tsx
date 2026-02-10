@@ -113,7 +113,7 @@ const ProtectedLayout: React.FC = () => {
   return (
     <LayoutContext.Provider value={true}>
       <SidebarProvider>
-        <div className={`min-h-screen flex w-full ${isImpersonating ? 'pt-12' : ''}`}>
+        <div className={`h-screen flex w-full ${isImpersonating ? 'pt-12' : ''}`}>
           <AppSidebar />
           <main className="flex-1 flex flex-col overflow-hidden">
             {/* Suspense wraps only the content, sidebar stays visible */}
