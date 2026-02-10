@@ -438,7 +438,7 @@ function FormBuilderContent({
       </div>;
   }
   return <TooltipProvider>
-      <div className="min-h-screen bg-white px-[15px] py-[10px]">
+      <div className="h-screen flex flex-col bg-white px-[15px] py-[10px] overflow-hidden">
         {/* Top Action Bar */}
         <div className="bg-white border-b border-gray-200 px-6 py-3">
           <div className="flex items-center justify-between">
@@ -469,8 +469,8 @@ function FormBuilderContent({
         </div>
 
         {/* Main Content with Tabs at Top */}
-        <div className="flex-1 bg-white">
-          <Tabs defaultValue="builder" className="w-full">
+        <div className="flex-1 bg-white overflow-hidden">
+          <Tabs defaultValue="builder" className="w-full h-full flex flex-col">
             <div className="bg-white border-b border-gray-200 px-6">
               <TabsList className="grid w-full grid-cols-6 max-w-2xl">
                 <TabsTrigger value="details" className="flex items-center gap-2">
@@ -515,8 +515,8 @@ function FormBuilderContent({
             }} onFieldDelete={fieldOperations.handleFieldDelete} onDragEnd={fieldOperations.handleDragEnd} showFormDetails={true} setShowFormDetails={() => {}} />
             </TabsContent>
 
-            <TabsContent value="builder" className="p-0">
-              <div className="grid grid-cols-12 h-[calc(100vh-10rem)] gap-0">
+            <TabsContent value="builder" className="p-0 flex-1 overflow-hidden mt-0">
+              <div className="grid grid-cols-12 h-full gap-0">
                 {/* Left Panel - Navigation (Fixed) */}
                 <div className={`${state.isNavigationCollapsed ? 'col-span-1' : 'col-span-3'} border-r bg-muted/30 overflow-hidden flex flex-col transition-all duration-200`}>
                   <div className="flex-shrink-0">
