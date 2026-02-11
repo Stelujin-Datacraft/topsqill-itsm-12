@@ -433,12 +433,12 @@ function FormBuilderContent({
     });
   };
   if (loading) {
-    return <div className="flex items-center justify-center h-64">
+    return <div className="flex-1 flex items-center justify-center">
         <div className="text-muted-foreground">Loading forms...</div>
       </div>;
   }
   return <TooltipProvider>
-      <div className="h-full flex flex-col bg-white px-[15px] py-[10px] overflow-hidden">
+      <div className="flex-1 min-h-0 flex flex-col bg-white px-[15px] py-[10px] overflow-hidden">
         {/* Top Action Bar */}
         <div className="bg-white border-b border-gray-200 px-6 py-3">
           <div className="flex items-center justify-between">
@@ -469,7 +469,7 @@ function FormBuilderContent({
         </div>
 
         {/* Main Content with Tabs at Top */}
-        <div className="flex-1 bg-white overflow-hidden">
+        <div className="flex-1 bg-white overflow-hidden min-h-0">
           <Tabs defaultValue="builder" className="w-full h-full flex flex-col">
             <div className="bg-white border-b border-gray-200 px-6">
               <TabsList className="grid w-full grid-cols-6 max-w-2xl">
@@ -552,7 +552,7 @@ function FormBuilderContent({
                 </div>
 
                 {/* Center Panel - Form Layout */}
-                <div className={`${state.isNavigationCollapsed ? 'col-span-8' : 'col-span-6'} flex flex-col transition-all duration-200`}>
+                <div className={`${state.isNavigationCollapsed ? 'col-span-8' : 'col-span-6'} flex flex-col min-h-0 transition-all duration-200`}>
                   {/* Fixed Page Navigation */}
                   <div className="flex-shrink-0 bg-white border-b border-border">
                     <FormDetailsPanel formName={workingForm?.name || state.formName} setFormName={name => {
@@ -706,7 +706,7 @@ export function FormBuilder({
   const loading = formLoading || formsLoading;
   
   if (loading) {
-    return <div className="flex items-center justify-center h-64">
+    return <div className="flex-1 flex items-center justify-center">
         <div className="text-muted-foreground">Loading forms...</div>
       </div>;
   }
