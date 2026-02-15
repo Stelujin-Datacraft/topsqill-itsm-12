@@ -3,13 +3,18 @@ import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/DashboardLayout';
 import { FormsList } from '@/components/FormsList';
 import { CreateFormDialog } from '@/components/CreateFormDialog';
-import { AssignedFormsDialog } from '@/components/AssignedFormsDialog';
 import { FormSubmissionsDialog } from '@/components/FormSubmissionsDialog';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { useUnifiedAccessControl } from '@/hooks/useUnifiedAccessControl';
 import { useProject } from '@/contexts/ProjectContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { BarChart3, History, FileText, Timer } from 'lucide-react';
+import { BarChart3, History, FileText, Timer, MoreVertical } from 'lucide-react';
 import NoProjectSelected from '@/components/NoProjectSelected';
 import { AIFormGenerator } from '@/components/ai/AIFormGenerator';
 import { useFormsData } from '@/hooks/useFormsData';
@@ -151,18 +156,6 @@ const Forms = () => {
 
   const actions = (
     <div className="flex flex-wrap items-center gap-2">
-      <Button variant="outline" size="sm" onClick={() => navigate('/my-submissions')}>
-        <FileText className="h-4 w-4 mr-2 text-blue-500" />
-        My Submissions
-      </Button>
-      <Button variant="outline" size="sm" onClick={() => navigate('/form-audit-logs')}>
-        <History className="h-4 w-4 mr-2 text-amber-500" />
-        Form History
-      </Button>
-      <Button variant="outline" size="sm" onClick={() => navigate('/sla-management')} disabled={!currentProject}>
-        <Timer className="h-4 w-4 mr-2 text-rose-500" />
-        SLA Management
-      </Button>
       {canReadForms && (
         <FormSubmissionsDialog>
           <Button variant="outline" size="sm">
@@ -171,7 +164,6 @@ const Forms = () => {
           </Button>
         </FormSubmissionsDialog>
       )}
-      {canReadForms && <AssignedFormsDialog />}
       {canCreateForm && !permissionLoading && (
         <AIFormGenerator
           onApply={handleAIFormApply}
@@ -181,6 +173,27 @@ const Forms = () => {
         />
       )}
       {canCreateForm && !permissionLoading && <CreateFormDialog />}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="outline" size="sm">
+            <MoreVertical className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={() => navigate('/my-submissions')}>
+            <FileText className="h-4 w-4 mr-2 text-blue-500" />
+            My Submissions
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => navigate('/form-audit-logs')}>
+            <History className="h-4 w-4 mr-2 text-amber-500" />
+            Form History
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => navigate('/sla-management')} disabled={!currentProject}>
+            <Timer className="h-4 w-4 mr-2 text-rose-500" />
+            SLA Management
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 
