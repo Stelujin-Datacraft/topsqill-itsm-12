@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { useUnifiedAccessControl } from '@/hooks/useUnifiedAccessControl';
 import { useProject } from '@/contexts/ProjectContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { BarChart3 } from 'lucide-react';
+import { BarChart3, History, FileText, Timer } from 'lucide-react';
 import NoProjectSelected from '@/components/NoProjectSelected';
 import { AIFormGenerator } from '@/components/ai/AIFormGenerator';
 import { useFormsData } from '@/hooks/useFormsData';
@@ -150,10 +150,22 @@ const Forms = () => {
   };
 
   const actions = (
-    <div className="flex space-x-2">
+    <div className="flex flex-wrap items-center gap-2">
+      <Button variant="outline" size="sm" onClick={() => navigate('/my-submissions')}>
+        <FileText className="h-4 w-4 mr-2 text-blue-500" />
+        My Submissions
+      </Button>
+      <Button variant="outline" size="sm" onClick={() => navigate('/form-audit-logs')}>
+        <History className="h-4 w-4 mr-2 text-amber-500" />
+        Form History
+      </Button>
+      <Button variant="outline" size="sm" onClick={() => navigate('/sla-management')} disabled={!currentProject}>
+        <Timer className="h-4 w-4 mr-2 text-rose-500" />
+        SLA Management
+      </Button>
       {canReadForms && (
         <FormSubmissionsDialog>
-          <Button variant="outline">
+          <Button variant="outline" size="sm">
             <BarChart3 className="h-4 w-4 mr-2" />
             View Data Tables
           </Button>
