@@ -9,6 +9,7 @@ export function NavMain({
     title: string
     url: string
     icon?: LucideIcon
+    iconColor?: string
     isActive?: boolean
     isDisabled?: boolean
   }[]
@@ -28,7 +29,7 @@ export function NavMain({
               tooltip={item.title}
             >
               <Link to={item.url}>
-                {item.icon && <item.icon />}
+                {item.icon && <item.icon className={item.iconColor || ''} />}
                 <span>{item.title}</span>
               </Link>
             </SidebarMenuButton>

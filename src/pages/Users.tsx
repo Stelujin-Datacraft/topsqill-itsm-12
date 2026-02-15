@@ -17,7 +17,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Search, Trash2, UserPlus, Users as UsersIcon, UserCheck, UserX, UserMinus, Clock, Shield, User, ChevronDown, Upload, RefreshCw, Mail, BarChart2 } from 'lucide-react';
+import { Search, Trash2, UserPlus, Users as UsersIcon, UserCheck, UserX, UserMinus, Clock, Shield, User, ChevronDown, Upload, RefreshCw, Mail, BarChart2, Monitor, ClipboardList, Eye } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+import { useImpersonation } from '@/contexts/ImpersonationContext';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -37,6 +40,11 @@ import { SecurityParametersDialog } from '@/components/users/SecurityParametersD
 import { SecurityTemplatesManager } from '@/components/users/SecurityTemplatesManager';
 
 const Users = () => {
+  const navigate = useNavigate();
+  const { userProfile } = useAuth();
+  const { isImpersonating, impersonatedUser } = useImpersonation();
+  const effectiveProfile = isImpersonating && impersonatedUser ? impersonatedUser : userProfile;
+  const effectiveRole = effectiveProfile?.role || 'user';
   const { currentOrganization } = useOrganization();
   const { toast } = useToast();
   const {
@@ -264,6 +272,26 @@ const Users = () => {
               </div>
             </DropdownMenuContent>
           </DropdownMenu>
+          <Button size="sm" variant="outline" onClick={() => navigate('/investigate-access')}>
+            <Eye className="h-4 w-4 mr-2 text-cyan-500" />
+            {effectiveRole === 'admin' ? 'Investigate Access' : 'My Access'}
+          </Button>
+          {effectiveRole === 'admin' && (
+            <>
+              <Button size="sm" variant="outline" onClick={() => navigate('/roles-and-access')}>
+                <Shield className="h-4 w-4 mr-2 text-violet-500" />
+                Roles & Access
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => navigate('/manage-sessions')}>
+                <Monitor className="h-4 w-4 mr-2 text-emerald-500" />
+                Manage Sessions
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => navigate('/audit-logs')}>
+                <ClipboardList className="h-4 w-4 mr-2 text-amber-500" />
+                Audit Logs
+              </Button>
+            </>
+          )}
           <Button size="sm" variant="outline" onClick={() => setTemplatesManagerOpen(true)}>
             <Shield className="h-4 w-4 mr-2" />
             Security Templates
