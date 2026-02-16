@@ -1221,7 +1221,7 @@ export function DynamicTable({
           )}
         </CardHeader>
       
-        <CardContent className="p-0 flex flex-col h-full">
+        <CardContent className="p-0 flex flex-col h-full bg-gradient-to-br from-emerald-50/30 to-cyan-50/30">
           <div className={`${isExpanded ? 'h-[85vh]' : 'flex-1 min-h-0'} flex flex-col`}>
             <div className="flex flex-col h-full space-y-2 p-2">
               {/* Compact Page Size Selector */}
@@ -1369,20 +1369,20 @@ export function DynamicTable({
                         <TableCell className="py-2 bg-white">
                           <div className="flex items-center justify-center gap-1">
                               <Button variant="ghost" size="sm" onClick={() => handleViewSubmission(row.id)} className="h-6 w-6 p-0 hover:bg-blue-100" title="View submission">
-                                <Eye className="h-3 w-3 text-blue-600" />
+                                <Eye className="h-3 w-3 text-blue-800" />
                               </Button>
                               <Button variant="ghost" size="sm" onClick={e => {
                                 e.stopPropagation();
                                 handleEditSubmission(row);
                               }} className="h-6 w-6 p-0 hover:bg-amber-100" title="Edit submission">
-                                <Edit3 className="h-3 w-3 text-amber-600" />
+                                <Edit3 className="h-3 w-3 text-amber-800" />
                               </Button>
                               <Button variant="ghost" size="sm" onClick={e => {
                                 e.stopPropagation();
                                 setRecordHistorySubmission({ id: row.id, refId: row.submission_ref_id || row.id.slice(0, 8) });
                                 setShowRecordHistory(true);
                               }} className="h-6 w-6 p-0 hover:bg-purple-100" title="View record history">
-                                <History className="h-3 w-3 text-purple-600" />
+                                <History className="h-3 w-3 text-purple-800" />
                               </Button>
                              <ManualWorkflowTrigger
                                formId={config.formId}
@@ -1403,7 +1403,7 @@ export function DynamicTable({
               </div>
 
               {/* Compact Pagination */}
-              <div className="flex items-center justify-between px-2 py-1 border-t">
+              <div className="flex items-center justify-between px-2 py-1 border-t bg-gradient-to-r from-emerald-50/50 to-cyan-50/50">
                 <div className="text-xs text-muted-foreground">
                   {Math.min((currentPage - 1) * pageSize + 1, filteredAndSortedData.length)}-{Math.min(currentPage * pageSize, filteredAndSortedData.length)} of {filteredAndSortedData.length}
                 </div>
