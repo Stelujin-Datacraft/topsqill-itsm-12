@@ -1246,8 +1246,8 @@ export function DynamicTable({
   <div className="h-full w-full overflow-auto">
     <Table className="min-w-full">
 
-                <TableHeader className="sticky top-0 z-[5] bg-blue-600 border-b-2 border-blue-700">
-                  <TableRow className="border-b border-blue-500">
+                <TableHeader className="sticky top-0 z-[5] bg-gradient-to-r from-emerald-600 to-cyan-600 border-b-2 border-emerald-700">
+                  <TableRow className="border-b border-emerald-500">
                     <TableHead className="w-10 h-8 ">
                       <Checkbox checked={paginatedData.length > 0 && paginatedData.every(row => selectedRows.has(row.id))} onCheckedChange={handleSelectAll} aria-label="Select all rows" className="text-zinc-50 bg-transparent" />
                     </TableHead>
@@ -1269,12 +1269,7 @@ export function DynamicTable({
                         Submitted
                       </div>
                     </TableHead>
-                    <TableHead className="text-xs font-medium h-8 text-white  min-w-[80px]">
-                      <div className="flex items-center gap-1">
-                        <CheckCircle className="h-3 w-3" />
-                        Status
-                      </div>
-                    </TableHead>
+                    {/* Status column hidden */}
                     
                     {/* Form fields */}
                     {displayFields.map(field => <TableHead key={field.id} className="text-xs font-medium h-8 text-white min-w-[200px]">
@@ -1282,7 +1277,7 @@ export function DynamicTable({
                           <span className="font-medium">{field.label}</span>
                           {config.enableFiltering && <Popover>
                               <PopoverTrigger asChild>
-                                <Button variant="ghost" size="icon" className={`${columnFilters[field.id] ? 'text-white' : 'text-green-100'} h-5 w-5 p-0 hover:bg-green-700`} aria-label={`Filter ${field.label}`}>
+                                <Button variant="ghost" size="icon" className={`${columnFilters[field.id] ? 'text-white' : 'text-emerald-100'} h-5 w-5 p-0 hover:bg-emerald-700`} aria-label={`Filter ${field.label}`}>
                                   <Filter className="h-2.5 w-2.5" />
                                 </Button>
                               </PopoverTrigger>
@@ -1299,12 +1294,12 @@ export function DynamicTable({
                             </Popover>}
                         </div>
                       </TableHead>)}
-                    <TableHead className="text-xs font-medium text-center h-8 bg-green-600 text-white min-w-[110px]">Actions</TableHead>
+                    <TableHead className="text-xs font-medium text-center h-8 bg-gradient-to-r from-cyan-600 to-emerald-600 text-white min-w-[110px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {paginatedData.length === 0 ? <TableRow>
-                      <TableCell colSpan={displayFields.length + 6} className="text-center py-8">
+                      <TableCell colSpan={displayFields.length + 5} className="text-center py-8">
                         <div className="text-muted-foreground">
                           {data.length === 0 ? (
                             <div className="space-y-2">
@@ -1322,10 +1317,10 @@ export function DynamicTable({
                     </TableRow> : paginatedData.map(row => <TableRow
                       key={row.id} 
                       data-submission-ref={row.submission_ref_id}
-                      className={`hover:bg-gray-50 border-b border-gray-200 ${
-                        selectedRows.has(row.id) ? 'bg-blue-50' : 
+                      className={`border-b border-gray-200 transition-all duration-300 ${
+                        selectedRows.has(row.id) ? 'bg-emerald-50' : 
                         row.submission_ref_id === highlightedSubmissionRef ? 'bg-yellow-100 border-yellow-300' : 
-                        'bg-white'
+                        'bg-white hover:bg-gradient-to-r hover:from-emerald-50/50 hover:to-cyan-50/50'
                       }`}>
                         <TableCell className="py-2 bg-white">
                           <Checkbox checked={selectedRows.has(row.id)} onCheckedChange={checked => handleRowSelect(row.id, Boolean(checked))} aria-label={`Select row ${row.id}`} />
@@ -1362,12 +1357,7 @@ export function DynamicTable({
                          </div>
                        </TableCell>
                        
-                       {/* Status */}
-                       <TableCell className="py-2 bg-white">
-                         <Badge variant="secondary" className="text-xs">
-                           Submitted
-                         </Badge>
-                       </TableCell>
+                       {/* Status column hidden */}
                        
                        {/* Form Fields */}
                       {displayFields.map(field => <TableCell key={field.id} className="py-2 max-w-58 bg-white">
@@ -1378,22 +1368,22 @@ export function DynamicTable({
                        
                         <TableCell className="py-2 bg-white">
                           <div className="flex items-center justify-center gap-1">
-                             <Button variant="ghost" size="sm" onClick={() => handleViewSubmission(row.id)} className="h-6 w-6 p-0" title="View submission">
-                               <Eye className="h-3 w-3" />
-                             </Button>
-                             <Button variant="ghost" size="sm" onClick={e => {
-                               e.stopPropagation();
-                               handleEditSubmission(row);
-                             }} className="h-6 w-6 p-0" title="Edit submission">
-                               <Edit3 className="h-3 w-3" />
-                             </Button>
-                             <Button variant="ghost" size="sm" onClick={e => {
-                               e.stopPropagation();
-                               setRecordHistorySubmission({ id: row.id, refId: row.submission_ref_id || row.id.slice(0, 8) });
-                               setShowRecordHistory(true);
-                             }} className="h-6 w-6 p-0" title="View record history">
-                               <History className="h-3 w-3" />
-                             </Button>
+                              <Button variant="ghost" size="sm" onClick={() => handleViewSubmission(row.id)} className="h-6 w-6 p-0 hover:bg-blue-100" title="View submission">
+                                <Eye className="h-3 w-3 text-blue-600" />
+                              </Button>
+                              <Button variant="ghost" size="sm" onClick={e => {
+                                e.stopPropagation();
+                                handleEditSubmission(row);
+                              }} className="h-6 w-6 p-0 hover:bg-amber-100" title="Edit submission">
+                                <Edit3 className="h-3 w-3 text-amber-600" />
+                              </Button>
+                              <Button variant="ghost" size="sm" onClick={e => {
+                                e.stopPropagation();
+                                setRecordHistorySubmission({ id: row.id, refId: row.submission_ref_id || row.id.slice(0, 8) });
+                                setShowRecordHistory(true);
+                              }} className="h-6 w-6 p-0 hover:bg-purple-100" title="View record history">
+                                <History className="h-3 w-3 text-purple-600" />
+                              </Button>
                              <ManualWorkflowTrigger
                                formId={config.formId}
                                submissionId={row.id}
