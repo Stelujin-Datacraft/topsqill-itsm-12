@@ -162,14 +162,14 @@ export function FormsList() {
               <div className="flex items-start justify-between">
                 <div className="space-y-2 flex-1">
                   <CardTitle className="text-lg text-primary">{form.name}</CardTitle>
-                  {form.description && <p className="text-sm text-muted-foreground">{form.description}</p>}
+                  {/*{form.description && <p className="text-sm text-muted-foreground">{form.description}</p>}*/}
                   <div className="flex items-center gap-2">
                     <Badge {...statusBadgeProps}>
                       {form.status.replace('_', ' ')}
                     </Badge>
-                    <Badge variant={form.isPublic ? 'default' : 'secondary'} className={form.isPublic ? 'bg-cyan-500 hover:bg-cyan-600 text-white border-cyan-400' : 'bg-slate-600 hover:bg-slate-700 text-white border-slate-500'}>
-                      {form.isPublic ? <>Public</> : <><Lock className="h-3 w-3 mr-1" />Private</>}
-                    </Badge>
+                    <Badge variant={form.isPublic ? 'default' : 'secondary'} className={form.isPublic ? 'bg-cyan-500 hover:bg-cyan-600 text-white border-cyan-400' : 'hidden'}>
+  {form.isPublic ? 'Public' : ''}
+</Badge>
                   </div>
                 </div>
                 <div className="flex space-x-1">
@@ -242,9 +242,9 @@ export function FormsList() {
                       <Badge {...statusBadgeProps}>
                         {form.status.replace('_', ' ')}
                       </Badge>
-                      <Badge variant={form.isPublic ? 'default' : 'secondary'} className={form.isPublic ? 'bg-cyan-500 hover:bg-cyan-600 text-white border-cyan-400' : 'bg-slate-600 hover:bg-slate-700 text-white border-slate-500'}>
+                      {/*<Badge variant={form.isPublic ? 'default' : 'secondary'} className={form.isPublic ? 'bg-cyan-500 hover:bg-cyan-600 text-white border-cyan-400' : 'bg-slate-600 hover:bg-slate-700 text-white border-slate-500'}>
                         {form.isPublic ? <><Globe className="h-3 w-3 mr-1" />Public</> : <><Lock className="h-3 w-3 mr-1" />Private</>}
-                      </Badge>
+                      </Badge>*/}
                     </div>
                   </div>
                 </div>
@@ -289,7 +289,7 @@ export function FormsList() {
           </Card>;
     })}
     </div>;
-  const renderKanbanView = () => {
+ const renderKanbanView = () => {
     const statusColumns = [{
       key: 'draft',
       label: 'Draft',
@@ -430,16 +430,16 @@ export function FormsList() {
             <List className="h-4 w-4 mr-1" />
             List
           </Button>
-          <Button variant={viewMode === 'kanban' ? 'default' : 'outline'} size="sm" onClick={() => setViewMode('kanban')} className={viewMode === 'kanban' ? 'bg-blue-500 hover:bg-blue-600' : ''}>
+         {/* <Button variant={viewMode === 'kanban' ? 'default' : 'outline'} size="sm" onClick={() => setViewMode('kanban')} className={viewMode === 'kanban' ? 'bg-blue-500 hover:bg-blue-600' : ''}>
             <Columns className="h-4 w-4 mr-1" />
             Kanban
-          </Button>
+          </Button>*/}
         </div>
       </div>
 
       {/* Render based on view mode */}
       {viewMode === 'grid' && renderGridView()}
       {viewMode === 'list' && renderListView()}
-      {viewMode === 'kanban' && renderKanbanView()}
+      {/*{viewMode === 'kanban' && renderKanbanView()}*/}
     </div>;
 }

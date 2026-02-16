@@ -28,28 +28,28 @@ const Dashboard = () => {
 
   const quickActions = [
     {
-      title: 'Create Form',
+      title: 'Forms',
       description: 'Build a new form for data collection',
       icon: FileText,
       onClick: () => navigate('/forms'),
       disabled: !currentProject,
     },
     {
-      title: 'Create Workflow',
+      title: 'Workflow',
       description: 'Design automated processes',
       icon: Workflow,
       onClick: () => navigate('/workflows'),
       disabled: !currentProject,
     },
     {
-      title: 'View Reports',
+      title: 'Reports',
       description: 'Analyze your data and metrics',
       icon: BarChart3,
       onClick: () => navigate('/reports'),
       disabled: !currentProject,
     },
     {
-      title: 'Manage Users',
+      title: 'Users',
       description: 'Invite and manage team members',
       icon: Users,
       onClick: () => navigate('/users'),
@@ -84,7 +84,36 @@ const Dashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+  {quickActions.map((action, index) => {
+    const bgColors = [
+    'bg-blue-50 border-blue-200 hover:bg-blue-100',
+      'bg-green-50 border-green-200 hover:bg-green-100',
+      'bg-purple-50 border-purple-200 hover:bg-purple-100',
+      'bg-orange-50 border-orange-200 hover:bg-orange-100'
+    ];
+    
+    return (
+      <Button
+        key={index}
+        variant="outline"
+        className={`h-auto p-4 flex flex-col items-start space-y-2 ${bgColors[index % bgColors.length]}`}
+        onClick={action.onClick}
+        disabled={action.disabled}
+      >
+        <action.icon className="h-6 w-6" />
+        <div className="text-left">
+          <div className="text-xl">{action.title}</div>
+          <div className="text-xs text-muted-foreground">
+            {action.description}
+          </div>
+        </div>
+      </Button>
+    );
+  })}
+</div>
+            { /* <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {quickActions.map((action, index) => (
+                  
                   <Button
                     key={index}
                     variant="outline"
@@ -94,14 +123,14 @@ const Dashboard = () => {
                   >
                     <action.icon className="h-6 w-6" />
                     <div className="text-left">
-                      <div className="font-medium">{action.title}</div>
+                      <div className="text-xl">{action.title}</div>
                       <div className="text-xs text-muted-foreground">
                         {action.description}
                       </div>
                     </div>
                   </Button>
                 ))}
-              </div>
+              </div>*/}
               {!currentProject && (
                 <div className="mt-4 p-3 bg-blue-50 rounded-lg">
                   <p className="text-sm text-blue-700">

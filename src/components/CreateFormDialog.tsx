@@ -85,10 +85,15 @@ export function CreateFormDialog() {
             <Textarea
               id="description"
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={(e) => setDescription(e.target.value.slice(0, 50))}
               placeholder="Enter form description"
               rows={3}
-            />
+              maxLength={50}
+             />
+             <p className="text-xs text-gray-500 text-right">
+    {description.length}/50 characters
+  </p>
+            
           </div>
           <div className="flex justify-end space-x-2">
             <Button

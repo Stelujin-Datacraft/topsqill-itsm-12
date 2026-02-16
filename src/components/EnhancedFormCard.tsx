@@ -248,7 +248,7 @@ export function EnhancedFormCard({
     );
   }
 
-  if (layout === 'kanban') {
+ if (layout === 'kanban') {
     return (
       <Card className="w-full bg-white border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 hover:border-gray-300">
         <CardHeader className="pb-3">
@@ -270,7 +270,7 @@ export function EnhancedFormCard({
         <CardContent className="pt-0">
           <div className="space-y-3">
             {/* Form Stats */}
-            <div className="grid grid-cols-2 gap-3 text-sm">
+           <div className="grid grid-cols-2 gap-3 text-sm">
               <div className="flex items-center gap-2">
                 <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
                 <span className="text-xs">{form.fields?.length || 0} fields</span>
@@ -335,7 +335,7 @@ export function EnhancedFormCard({
             <span className="text-xs font-medium capitalize">{form.status.replace('_', ' ')}</span>
           </Badge>
         </div>
-        {form.description && (
+         {form.description && (
           <p className="text-sm text-muted-foreground line-clamp-3">
             {form.description}
           </p>
