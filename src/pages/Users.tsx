@@ -272,26 +272,37 @@ const Users = () => {
               </div>
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button size="sm" variant="outline" onClick={() => navigate('/investigate-access')}>
-            <Eye className="h-4 w-4 mr-2 text-cyan-500" />
-            {effectiveRole === 'admin' ? 'Investigate Access' : 'My Access'}
-          </Button>
-          {effectiveRole === 'admin' && (
-            <>
-              <Button size="sm" variant="outline" onClick={() => navigate('/roles-and-access')}>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
                 <Shield className="h-4 w-4 mr-2 text-violet-500" />
-                Roles & Access
+                Administration
+                <ChevronDown className="h-4 w-4 ml-2" />
               </Button>
-              <Button size="sm" variant="outline" onClick={() => navigate('/manage-sessions')}>
-                <Monitor className="h-4 w-4 mr-2 text-emerald-500" />
-                Manage Sessions
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => navigate('/audit-logs')}>
-                <ClipboardList className="h-4 w-4 mr-2 text-amber-500" />
-                Audit Logs
-              </Button>
-            </>
-          )}
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52 bg-background border border-border shadow-lg z-50">
+              <DropdownMenuItem onClick={() => navigate('/investigate-access')} className="cursor-pointer">
+                <Eye className="h-4 w-4 mr-2 text-cyan-500" />
+                {effectiveRole === 'admin' ? 'Investigate Access' : 'My Access'}
+              </DropdownMenuItem>
+              {effectiveRole === 'admin' && (
+                <>
+                  <DropdownMenuItem onClick={() => navigate('/roles-and-access')} className="cursor-pointer">
+                    <Shield className="h-4 w-4 mr-2 text-violet-500" />
+                    Roles & Access
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate('/manage-sessions')} className="cursor-pointer">
+                    <Monitor className="h-4 w-4 mr-2 text-emerald-500" />
+                    Manage Sessions
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate('/audit-logs')} className="cursor-pointer">
+                    <ClipboardList className="h-4 w-4 mr-2 text-amber-500" />
+                    Audit Logs
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button size="sm" variant="outline" onClick={() => setTemplatesManagerOpen(true)}>
             <Shield className="h-4 w-4 mr-2" />
             Security Templates
