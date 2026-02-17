@@ -62,8 +62,14 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
   // Filter lifecycle fields by visibility condition
   const lifecycleFields = useMemo(() => {
     return allLifecycleFields.filter((field) => {
-      const condition = (field.customConfig as any)?.lifecycleVisibilityCondition;
-      if (!condition || !condition.fieldId) return true; // No condition = always visible
+      const cfg = field.customConfig as any;
+      
+      // If "show without condition" is checked, always visible
+      if (cfg?.showWithoutCondition) return true;
+      
+      const condition = cfg?.lifecycleVisibilityCondition;
+      // No condition configured and showWithoutCondition is not checked = hidden by default
+      if (!condition || !condition.fieldId) return false;
       
       const fieldValue = formData[condition.fieldId];
       const conditionValue = condition.value;
@@ -80,7 +86,7 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
         case 'empty':
           return fieldValue === undefined || fieldValue === null || fieldValue === '';
         default:
-          return true;
+          return false;
       }
     });
   }, [allLifecycleFields, formData]);
