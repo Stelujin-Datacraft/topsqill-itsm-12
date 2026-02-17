@@ -52,12 +52,38 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
 
   // Find lifecycle dropdown fields (select fields with displayAsLifecycle enabled)
   // Must be called before any early returns to follow Rules of Hooks
-  const lifecycleFields = useMemo(() => {
+  const allLifecycleFields = useMemo(() => {
     if (!form?.fields) return [];
     return form.fields.filter(
       (field) => field.type === 'select' && (field.customConfig as any)?.displayAsLifecycle === true
     );
   }, [form?.fields]);
+
+  // Filter lifecycle fields by visibility condition
+  const lifecycleFields = useMemo(() => {
+    return allLifecycleFields.filter((field) => {
+      const condition = (field.customConfig as any)?.lifecycleVisibilityCondition;
+      if (!condition || !condition.fieldId) return true; // No condition = always visible
+      
+      const fieldValue = formData[condition.fieldId];
+      const conditionValue = condition.value;
+      
+      switch (condition.operator) {
+        case '==':
+          return String(fieldValue || '') === String(conditionValue || '');
+        case '!=':
+          return String(fieldValue || '') !== String(conditionValue || '');
+        case 'contains':
+          return String(fieldValue || '').toLowerCase().includes(String(conditionValue || '').toLowerCase());
+        case 'not_empty':
+          return fieldValue !== undefined && fieldValue !== null && fieldValue !== '';
+        case 'empty':
+          return fieldValue === undefined || fieldValue === null || fieldValue === '';
+        default:
+          return true;
+      }
+    });
+  }, [allLifecycleFields, formData]);
 
   // Load submission and form data
   const loadSubmissionAndForm = async () => {
@@ -672,8 +698,6 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
           isEditing={isEditing}
           submissionId={submission.id}
           formId={form?.id}
-          // Ensure LifecycleStatusBar internal CSS allows it to grow
-          className="w-full" 
         />
       </div>
     ))}
