@@ -14,6 +14,7 @@ import { LifecycleStatusBar } from './LifecycleStatusBar';
 import { RecordHistoryDialog } from './RecordHistoryDialog';
 import { ManualWorkflowTrigger } from './ManualWorkflowTrigger';
 import { Form, FormField } from '@/types/form';
+import { RuleProcessor, RuleProcessingContext } from '@/utils/ruleProcessor';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
@@ -347,6 +348,53 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
     }
   }, [form, isEditing]);
 
+  // Evaluate field rules on record load and when formData changes
+  // This ensures lifecycle status dropdowns and other conditional fields
+  // show/hide correctly based on stored submission values
+  useEffect(() => {
+    if (!form) return;
+    const fieldRules = Array.isArray(form.fieldRules) ? form.fieldRules : [];
+    if (fieldRules.length === 0) return;
+
+    const formFields = Array.isArray(form.fields) ? form.fields : [];
+
+    const context: RuleProcessingContext = {
+      formData,
+      formFields,
+      setFormData,
+      setFieldStates,
+      onFormAction: async (action: string, value?: any) => {
+        // Only handle UI-related actions in record view, skip destructive ones
+        switch (action) {
+          case 'lockForm':
+          case 'unlockForm':
+          case 'allowSubmit':
+          case 'preventSubmit':
+            // These are safe to process in record view
+            console.log('Record view field rule action:', action, value);
+            break;
+          default:
+            // Skip redirect, email, etc. in record view
+            break;
+        }
+      }
+    };
+
+    const processedStates = RuleProcessor.processFieldRules(fieldRules, context);
+    
+    // Merge with edit mode state: preserve isEnabled=false for read-only mode
+    if (!isEditing) {
+      Object.keys(processedStates).forEach(fieldId => {
+        processedStates[fieldId] = {
+          ...processedStates[fieldId],
+          isEnabled: false, // Keep read-only when not editing
+        };
+      });
+    }
+    
+    setFieldStates(processedStates);
+  }, [formData, form?.fieldRules, form?.fields, isEditing]);
+
   const handleFieldChange = (fieldId: string, value: any) => {
     console.log('Field change:', fieldId, value);
     setFormData(prev => ({
@@ -673,7 +721,7 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
           submissionId={submission.id}
           formId={form?.id}
           // Ensure LifecycleStatusBar internal CSS allows it to grow
-          className="w-full" 
+          
         />
       </div>
     ))}
