@@ -125,20 +125,25 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
       setSubmission(formattedSubmission);
       setFormData(formattedSubmission.submission_data || {});
 
-      // Load form structure
-      const { data: formData, error: formError } = await supabase
-        .from('forms')
-        .select(`
-          *,
-          form_fields(*)
-        `)
-        .eq('id', submissionData.form_id)
-        .single();
+      // Load form structure (separate queries to avoid RLS timeout on nested joins)
+      const [formResult, fieldsResult] = await Promise.all([
+        supabase
+          .from('forms')
+          .select('*')
+          .eq('id', submissionData.form_id)
+          .single(),
+        supabase
+          .from('form_fields')
+          .select('*')
+          .eq('form_id', submissionData.form_id)
+      ]);
 
-      if (formError) {
-        console.error('Error loading form:', formError);
-        throw formError;
+      if (formResult.error) {
+        console.error('Error loading form:', formResult.error);
+        throw formResult.error;
       }
+
+      const formData = { ...formResult.data, form_fields: fieldsResult.data || [] };
 
       console.log('Loaded form data:', formData);
 
