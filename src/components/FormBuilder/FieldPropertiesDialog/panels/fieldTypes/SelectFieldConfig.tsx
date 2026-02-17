@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -8,21 +8,25 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { EnhancedOptionConfig } from './EnhancedOptionConfig';
 import { FieldConfiguration } from '../../hooks/useFieldConfiguration';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ChevronDown, ChevronRight, Plus, Settings2, Activity, MessageSquare, AlertTriangle, GitBranch, Trash2, Workflow } from 'lucide-react';
+import { ChevronDown, ChevronRight, Plus, Settings2, Activity, MessageSquare, AlertTriangle, GitBranch, Trash2, Workflow, Eye } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { supabase } from '@/integrations/supabase/client';
 
 interface SelectFieldConfigProps {
   config: FieldConfiguration;
   onUpdate: (updates: Partial<FieldConfiguration>) => void;
   errors: Record<string, string>;
   fieldType: 'select' | 'multi-select' | 'radio' | 'checkbox';
+  formId?: string;
 }
 
-export function SelectFieldConfig({ config, onUpdate, errors, fieldType }: SelectFieldConfigProps) {
+export function SelectFieldConfig({ config, onUpdate, errors, fieldType, formId }: SelectFieldConfigProps) {
   const [rulesOpen, setRulesOpen] = useState(false);
+  const [visibilityOpen, setVisibilityOpen] = useState(false);
   const [transitionFrom, setTransitionFrom] = useState('');
   const [transitionTo, setTransitionTo] = useState('');
+  const [siblingFields, setSiblingFields] = useState<Array<{ id: string; label: string; type: string; options?: any[] }>>([]);
 
   const ensureOptionsArray = (opts: any): any[] => {
     if (Array.isArray(opts)) return opts;
@@ -41,6 +45,23 @@ export function SelectFieldConfig({ config, onUpdate, errors, fieldType }: Selec
   const customConfig = config.customConfig || {};
   const transitionRules = customConfig.transitionRules || {};
   const displayAsLifecycle = customConfig.displayAsLifecycle || false;
+  const visibilityCondition = customConfig.lifecycleVisibilityCondition || null;
+
+  // Fetch sibling fields for visibility condition
+  useEffect(() => {
+    const fetchSiblingFields = async () => {
+      if (!formId || !displayAsLifecycle) return;
+      const { data } = await supabase
+        .from('form_fields')
+        .select('id, label, field_type, options')
+        .eq('form_id', formId)
+        .order('field_order');
+      if (data) {
+        setSiblingFields(data.map(f => ({ id: f.id, label: f.label, type: f.field_type, options: f.options as any[] })));
+      }
+    };
+    fetchSiblingFields();
+  }, [formId, displayAsLifecycle]);
   
   // Radio and dropdown don't need "Allow Other" option
   const showAllowOther = fieldType === 'checkbox' || fieldType === 'multi-select';
@@ -326,6 +347,133 @@ export function SelectFieldConfig({ config, onUpdate, errors, fieldType }: Selec
                     >
                       <Workflow className="h-3 w-3 mr-2" />
                       Set Sequential Flow
+                    </Button>
+                  )}
+                </CollapsibleContent>
+              </Collapsible>
+
+              {/* Visibility Condition */}
+              <Collapsible open={visibilityOpen} onOpenChange={setVisibilityOpen}>
+                <CollapsibleTrigger className="flex items-center justify-between w-full rounded-lg bg-muted/50 p-3 hover:bg-muted transition-colors">
+                  <div className="flex items-center gap-3">
+                    <Eye className="h-4 w-4 text-primary" />
+                    <div className="text-left">
+                      <div className="text-sm font-normal">Visibility Condition</div>
+                      <p className="text-xs text-muted-foreground">Show this lifecycle bar based on a field value</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {visibilityCondition && (
+                      <Badge variant="secondary" className="text-xs">Active</Badge>
+                    )}
+                    {visibilityOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                  </div>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="pt-3 space-y-3">
+                  <p className="text-xs text-muted-foreground">
+                    When configured, this lifecycle status bar will only appear when the condition is met.
+                  </p>
+
+                  {/* Condition Field */}
+                  <div className="space-y-2">
+                    <Label className="text-xs">When field</Label>
+                    <Select
+                      value={visibilityCondition?.fieldId || ''}
+                      onValueChange={(val) => {
+                        const newCondition = { ...visibilityCondition, fieldId: val, operator: visibilityCondition?.operator || '==', value: '' };
+                        onUpdate({ customConfig: { ...customConfig, lifecycleVisibilityCondition: newCondition } });
+                      }}
+                    >
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue placeholder="Select a field" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {siblingFields
+                          .filter(f => !['header', 'description', 'section-break', 'horizontal-line'].includes(f.type))
+                          .map(f => (
+                            <SelectItem key={f.id} value={f.id}>{f.label}</SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Operator */}
+                  <div className="space-y-2">
+                    <Label className="text-xs">Operator</Label>
+                    <Select
+                      value={visibilityCondition?.operator || '=='}
+                      onValueChange={(val) => {
+                        const newCondition = { ...visibilityCondition, operator: val };
+                        onUpdate({ customConfig: { ...customConfig, lifecycleVisibilityCondition: newCondition } });
+                      }}
+                    >
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="==">Equals</SelectItem>
+                        <SelectItem value="!=">Not Equals</SelectItem>
+                        <SelectItem value="contains">Contains</SelectItem>
+                        <SelectItem value="not_empty">Is Not Empty</SelectItem>
+                        <SelectItem value="empty">Is Empty</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Value */}
+                  {visibilityCondition?.operator !== 'not_empty' && visibilityCondition?.operator !== 'empty' && (
+                    <div className="space-y-2">
+                      <Label className="text-xs">Value</Label>
+                      {(() => {
+                        const selectedField = siblingFields.find(f => f.id === visibilityCondition?.fieldId);
+                        const fieldOptions = selectedField?.options ? ensureOptionsArray(selectedField.options) : [];
+                        if (fieldOptions.length > 0) {
+                          return (
+                            <Select
+                              value={visibilityCondition?.value || ''}
+                              onValueChange={(val) => {
+                                const newCondition = { ...visibilityCondition, value: val };
+                                onUpdate({ customConfig: { ...customConfig, lifecycleVisibilityCondition: newCondition } });
+                              }}
+                            >
+                              <SelectTrigger className="h-8 text-xs">
+                                <SelectValue placeholder="Select value" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {fieldOptions.map((opt: any) => {
+                                  const val = typeof opt === 'string' ? opt : (opt.value || opt.label);
+                                  const lbl = typeof opt === 'string' ? opt : (opt.label || opt.value);
+                                  return <SelectItem key={val} value={val}>{lbl}</SelectItem>;
+                                })}
+                              </SelectContent>
+                            </Select>
+                          );
+                        }
+                        return (
+                          <Input
+                            value={visibilityCondition?.value || ''}
+                            onChange={(e) => {
+                              const newCondition = { ...visibilityCondition, value: e.target.value };
+                              onUpdate({ customConfig: { ...customConfig, lifecycleVisibilityCondition: newCondition } });
+                            }}
+                            placeholder="Enter value"
+                            className="h-8 text-xs"
+                          />
+                        );
+                      })()}
+                    </div>
+                  )}
+
+                  {/* Clear condition */}
+                  {visibilityCondition && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full text-xs"
+                      onClick={() => onUpdate({ customConfig: { ...customConfig, lifecycleVisibilityCondition: null } })}
+                    >
+                      <Trash2 className="h-3 w-3 mr-2" />
+                      Remove Condition
                     </Button>
                   )}
                 </CollapsibleContent>

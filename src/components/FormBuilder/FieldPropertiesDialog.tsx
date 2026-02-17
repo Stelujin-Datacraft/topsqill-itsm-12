@@ -425,7 +425,7 @@ const { localConfig: fieldConfig, updateConfig } = useFieldConfiguration(selecte
       case 'select':
       case 'radio':
       case 'checkbox':
-        return <SelectFieldConfig {...props} fieldType={fieldForConfig.type as any} />;
+        return <SelectFieldConfig {...props} fieldType={fieldForConfig.type as any} formId={(fieldForConfig as any).form_id} />;
       case 'multi-select':
         // Pass merged field with localConfig options for instant color updates
         const multiSelectField = {
