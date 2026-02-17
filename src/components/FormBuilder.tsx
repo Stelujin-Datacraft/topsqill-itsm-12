@@ -604,7 +604,7 @@ function FormBuilderContent({
 
               {/* Field Properties Dialog - wrapped with WorkingFormProvider for cross-reference field mapping */}
               <WorkingFormProvider value={{ workingForm }}>
-                <FieldPropertiesDialog selectedField={state.selectedField} open={state.showFieldProperties} onClose={() => state.setShowFieldProperties(false)} onSave={handleSaveFieldConfiguration} onDelete={fieldOperations.handleFieldDelete} />
+                <FieldPropertiesDialog selectedField={state.selectedField} open={state.showFieldProperties} onClose={() => state.setShowFieldProperties(false)} onSave={handleSaveFieldConfiguration} onDelete={fieldOperations.handleFieldDelete} formId={formId} />
               </WorkingFormProvider>
             </TabsContent>
 
