@@ -133,7 +133,8 @@ export function useFieldData() {
       errorMessage: dbData.error_message || undefined,
       pageId: pageId || 'default',
       customConfig: parsedCustomConfig,
-    };
+      form_id: dbData.form_id,
+    } as FormField & { form_id?: string };
     
     return transformedField;
   }, [parseCustomConfig]);
