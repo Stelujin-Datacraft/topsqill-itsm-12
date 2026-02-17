@@ -16,6 +16,7 @@ import { ManualWorkflowTrigger } from './ManualWorkflowTrigger';
 import { Form, FormField } from '@/types/form';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+
 interface SubmissionFormViewProps {
   submissionId: string;
   onBack?: () => void;
@@ -492,7 +493,7 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
       )}
 
       {/* Action Bar */}
-      <div className="flex items-center justify-between bg-card border rounded-lg px-4 py-3 shadow-sm">
+     {/* <div className="flex items-center justify-between bg-card border rounded-lg px-4 py-3 shadow-sm">
         <div className="flex items-center gap-4">
           <div className="flex flex-col">
             <h2 className="text-lg font-semibold">{submission.form_name}</h2>
@@ -509,10 +510,10 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
                 <span>{new Date(submission.submitted_at).toLocaleString()}</span>
               </div>
             </div>
-          </div>
+          </div>*/}
           
             {/* Lifecycle Dropdown Fields */}
-          <div className="flex items-center gap-4 ml-4">
+         {/* <div className="flex items-center gap-4 ml-4">
             {lifecycleFields.map((field) => (
               <LifecycleStatusBar
                 key={field.id}
@@ -575,7 +576,111 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
             </>
           )}
         </div>
+      </div>*/}
+
+      {/*Action bar */}
+      <div className='bg-card border rounded-lg px-4 py-3 space-y-3'>
+
+        {/* Row 1: Form name/info on left, action buttons on right */}
+
+        <div className='flex items-center justify-between'>
+          <div className='flex items-center gap-4'>
+            <div className='flex flex-col'>
+              <h2 className='text-lg font-semibold'>{submission.form_name}</h2>
+              <div className='flex items-center gap-4 text-sm text-muted-foreground'>
+                <SubmissionRefDisplay
+                submissionRefId={submission.submission_ref_id}
+                submissionId={submission.id}
+                formReferenceId={submission.form_reference_id}
+                formName={submission.form_name}
+                variant='default'
+                />
+                <div className='flex items-center gap-1'>
+                  <Clock className='h-3 w-3'/>
+                  <span>{new Date(submission.submitted_at).toLocaleString()}</span>
+
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+
+          {/* Action Buttons */}
+          <div className='flex items-center gap-2 shrink-0'>
+            {isEditing ? (
+              <>
+              <Button variant="outline"
+              size="icon"
+              className="h-8 w-8"
+              onClick={handleCancel}
+              disabled={saving}
+              >
+                <X className='h-4 w-4'/>
+                </Button>
+                <Button
+            size="sm"
+            onClick={handleSave}
+            disabled={saving}
+          >
+            <Save className="h-4 w-4 mr-1" />
+            {saving ? 'Saving...' : 'Save'}
+            </Button>
+
+              </>
+               ) : (
+                <>
+          {submission && form && (
+            <ManualWorkflowTrigger
+              formId={form.id}
+              submissionId={submission.id}
+              submissionData={formData}
+              submissionRefId={submission.submission_ref_id}
+            />
+            
+            )}
+
+            {/* Stage History button moved from LifecycleStatusBar */}
+     
+
+            <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowRecordHistory(true)}
+          > <History className="h-4 w-4 mr-1" />
+            History
+            </Button>
+            <Button size="sm" onClick={() => setIsEditing(true)}>
+            <Edit className="h-4 w-4 mr-1" />
+            Edit
+          </Button>
+          </>
+      )}
+          </div>
+
+        </div>
+        {/* Row 2: Lifecycle buttons - auto width based on number of buttons */}
+       {lifecycleFields.length > 0 && (
+  <div className="w-full mt-4"> {/* Added width full and some top spacing */}
+    {lifecycleFields.map((field) => (
+      <div key={field.id} className="w-full"> {/* Use w-full here */}
+        <LifecycleStatusBar
+          field={field}
+          value={formData[field.id] || ''}
+          onChange={(value) => handleFieldChange(field.id, value)}
+          disabled={saving}
+          isEditing={isEditing}
+          submissionId={submission.id}
+          formId={form?.id}
+          // Ensure LifecycleStatusBar internal CSS allows it to grow
+          className="w-full" 
+        />
       </div>
+    ))}
+  </div>
+)}
+        
+  </div>
 
       {/* Main Content Area with Navigation */}
       <div className={`grid gap-6 h-[calc(100vh-16rem)] ${

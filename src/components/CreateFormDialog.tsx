@@ -85,13 +85,13 @@ export function CreateFormDialog() {
             <Textarea
               id="description"
               value={description}
-              onChange={(e) => setDescription(e.target.value.slice(0, 50))}
+              onChange={(e) => setDescription(e.target.value.slice(0, 100))}
               placeholder="Enter form description"
               rows={3}
-              maxLength={50}
+              maxLength={100}
              />
              <p className="text-xs text-gray-500 text-right">
-    {description.length}/50 characters
+    {description.length}/100 characters
   </p>
             
           </div>
