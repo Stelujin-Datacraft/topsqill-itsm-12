@@ -358,10 +358,12 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
 
     const formFields = Array.isArray(form.fields) ? form.fields : [];
 
+    // Use a no-op setFormData to prevent infinite loops — in record view
+    // we only need visibility/enabled state changes, not data mutations
     const context: RuleProcessingContext = {
       formData,
       formFields,
-      setFormData,
+      setFormData: () => {}, // No-op: don't mutate formData from rules in record view
       setFieldStates,
       onFormAction: async (action: string, value?: any) => {
         // Only handle UI-related actions in record view, skip destructive ones
@@ -370,11 +372,9 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
           case 'unlockForm':
           case 'allowSubmit':
           case 'preventSubmit':
-            // These are safe to process in record view
             console.log('Record view field rule action:', action, value);
             break;
           default:
-            // Skip redirect, email, etc. in record view
             break;
         }
       }
@@ -387,7 +387,7 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
       Object.keys(processedStates).forEach(fieldId => {
         processedStates[fieldId] = {
           ...processedStates[fieldId],
-          isEnabled: false, // Keep read-only when not editing
+          isEnabled: false,
         };
       });
     }
