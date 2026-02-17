@@ -42,6 +42,7 @@ interface FieldPropertiesDialogProps {
   onClose: () => void;
   onSave: (fieldId: string, updates: Partial<FormField>) => Promise<void>;
   onDelete?: (fieldId: string) => void;
+  formId?: string;
 }
 interface FormFieldOption {
   id: string;
@@ -70,7 +71,8 @@ export function FieldPropertiesDialog({
   open,
   onClose,
   onSave,
-  onDelete
+  onDelete,
+  formId: propFormId
 }: FieldPropertiesDialogProps) {
   const [fieldForConfig, setFieldForConfig] = React.useState<FormField | null>(null);
   const [localConfig, setLocalConfig] = React.useState<Partial<FormField>>({});
@@ -425,7 +427,7 @@ const { localConfig: fieldConfig, updateConfig } = useFieldConfiguration(selecte
       case 'select':
       case 'radio':
       case 'checkbox':
-        return <SelectFieldConfig {...props} fieldType={fieldForConfig.type as any} formId={(fieldForConfig as any).form_id} />;
+        return <SelectFieldConfig {...props} fieldType={fieldForConfig.type as any} formId={(fieldForConfig as any).form_id || propFormId} />;
       case 'multi-select':
         // Pass merged field with localConfig options for instant color updates
         const multiSelectField = {
