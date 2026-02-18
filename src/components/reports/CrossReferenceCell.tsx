@@ -1,5 +1,6 @@
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { ExternalLink, Loader2, ChevronDown } from 'lucide-react';
+import { ExternalLink, Loader2, ChevronDown, Layers } from 'lucide-react';
 import { useCrossReferenceData } from '@/hooks/useCrossReferenceData';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -15,6 +16,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { SubmissionRefDisplay } from '@/components/SubmissionRefDisplay';
+import { CrossReferenceDrilldownModal } from './CrossReferenceDrilldownModal';
 
 interface CrossReferenceCellProps {
   submissionRefIds: string[] | string; // can be string (comma-separated) or array
@@ -23,6 +25,7 @@ interface CrossReferenceCellProps {
 
 export function CrossReferenceCell({ submissionRefIds, field }: CrossReferenceCellProps) {
   const navigate = useNavigate();
+  const [drilldownRecord, setDrilldownRecord] = useState<{ id: string; refId: string } | null>(null);
   
   // Parse custom_config if it's a JSON string (from database)
   let customConfig: any = field?.customConfig;
@@ -136,99 +139,150 @@ export function CrossReferenceCell({ submissionRefIds, field }: CrossReferenceCe
     );
   };
 
+  // Drilldown modal
+  const drilldownModal = drilldownRecord && targetFormId ? (
+    <CrossReferenceDrilldownModal
+      open={!!drilldownRecord}
+      onClose={() => setDrilldownRecord(null)}
+      submissionId={drilldownRecord.id}
+      submissionRefId={drilldownRecord.refId}
+      formId={targetFormId}
+      formName={targetFormName || 'Linked Form'}
+    />
+  ) : null;
+
   // Single record - show button with ID and display data
   if (records.length === 1) {
     const record = records[0];
     const hasDisplayData = record.displayData && record.displayData !== record.submission_ref_id;
     
     return (
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="outline"
-              size="sm"
-              className="cursor-pointer hover:bg-accent text-left justify-start h-auto py-1.5 px-2 min-w-0"
-              onClick={() => handleViewRecord(record.id)}
-            >
-              <ExternalLink className="h-3 w-3 mr-1.5 opacity-50 flex-shrink-0" />
-              <div className="flex flex-col items-start gap-0.5 overflow-hidden">
-                <SubmissionRefDisplay
-                  submissionRefId={record.submission_ref_id}
-                  submissionId={record.id}
-                  formName={targetFormName || undefined}
-                  variant="compact"
-                />
-                {hasDisplayData && (
-                  <span className="text-xs text-muted-foreground truncate max-w-[180px]">
-                    {record.displayData}
-                  </span>
-                )}
-              </div>
-            </Button>
-          </TooltipTrigger>
-          {hasDisplayData && (
-            <TooltipContent side="top" className="max-w-[300px]">
-              <div className="text-xs">
-                <SubmissionRefDisplay
-                  submissionRefId={record.submission_ref_id}
-                  submissionId={record.id}
-                  formName={targetFormName || undefined}
-                  variant="compact"
-                />
-                <div className="text-muted-foreground mt-0.5">{record.displayData}</div>
-              </div>
-            </TooltipContent>
-          )}
-        </Tooltip>
-      </TooltipProvider>
+      <>
+        <TooltipProvider>
+          <div className="flex items-center gap-1">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="cursor-pointer hover:bg-accent text-left justify-start h-auto py-1.5 px-2 min-w-0"
+                  onClick={() => handleViewRecord(record.id)}
+                >
+                  <ExternalLink className="h-3 w-3 mr-1.5 opacity-50 flex-shrink-0" />
+                  <div className="flex flex-col items-start gap-0.5 overflow-hidden">
+                    <SubmissionRefDisplay
+                      submissionRefId={record.submission_ref_id}
+                      submissionId={record.id}
+                      formName={targetFormName || undefined}
+                      variant="compact"
+                    />
+                    {hasDisplayData && (
+                      <span className="text-xs text-muted-foreground truncate max-w-[180px]">
+                        {record.displayData}
+                      </span>
+                    )}
+                  </div>
+                </Button>
+              </TooltipTrigger>
+              {hasDisplayData && (
+                <TooltipContent side="top" className="max-w-[300px]">
+                  <div className="text-xs">
+                    <SubmissionRefDisplay
+                      submissionRefId={record.submission_ref_id}
+                      submissionId={record.id}
+                      formName={targetFormName || undefined}
+                      variant="compact"
+                    />
+                    <div className="text-muted-foreground mt-0.5">{record.displayData}</div>
+                  </div>
+                </TooltipContent>
+              )}
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 text-muted-foreground hover:text-primary"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setDrilldownRecord({ id: record.id, refId: record.submission_ref_id });
+                  }}
+                >
+                  <Layers className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top">
+                <span className="text-xs">Drill down into linked records</span>
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        </TooltipProvider>
+        {drilldownModal}
+      </>
     );
   }
 
   // Multiple records - show dropdown with all linked records
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="outline"
-          size="sm"
-          className="cursor-pointer hover:bg-accent text-left justify-start h-auto py-1 px-2"
-        >
-          <ExternalLink className="h-3 w-3 mr-1 opacity-50" />
-          <span className="text-sm text-primary font-medium">
-            {records.length} linked records
-          </span>
-          <ChevronDown className="h-3 w-3 ml-1 opacity-50" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="max-h-[300px] overflow-y-auto min-w-[200px]">
-        {records.map((record) => {
-          const hasDisplayData = record.displayData && record.displayData !== record.submission_ref_id;
-          
-          return (
-            <DropdownMenuItem
-              key={record.id}
-              onClick={() => handleViewRecord(record.id)}
-              className="cursor-pointer flex items-start gap-2 py-2"
-            >
-              <ExternalLink className="h-3 w-3 mt-0.5 opacity-50 flex-shrink-0" />
-              <div className="flex flex-col gap-0.5 overflow-hidden">
-                <SubmissionRefDisplay
-                  submissionRefId={record.submission_ref_id}
-                  submissionId={record.id}
-                  formName={targetFormName || undefined}
-                  variant="compact"
-                />
-                {hasDisplayData && (
-                  <span className="text-xs text-muted-foreground truncate">
-                    {record.displayData}
-                  </span>
-                )}
-              </div>
-            </DropdownMenuItem>
-          );
-        })}
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="outline"
+            size="sm"
+            className="cursor-pointer hover:bg-accent text-left justify-start h-auto py-1 px-2"
+          >
+            <ExternalLink className="h-3 w-3 mr-1 opacity-50" />
+            <span className="text-sm text-primary font-medium">
+              {records.length} linked records
+            </span>
+            <ChevronDown className="h-3 w-3 ml-1 opacity-50" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="max-h-[300px] overflow-y-auto min-w-[250px]">
+          {records.map((record) => {
+            const hasDisplayData = record.displayData && record.displayData !== record.submission_ref_id;
+            
+            return (
+              <DropdownMenuItem
+                key={record.id}
+                className="cursor-pointer flex items-center justify-between gap-2 py-2"
+                onClick={() => handleViewRecord(record.id)}
+              >
+                <div className="flex items-start gap-2 flex-1 overflow-hidden">
+                  <ExternalLink className="h-3 w-3 mt-0.5 opacity-50 flex-shrink-0" />
+                  <div className="flex flex-col gap-0.5 overflow-hidden">
+                    <SubmissionRefDisplay
+                      submissionRefId={record.submission_ref_id}
+                      submissionId={record.id}
+                      formName={targetFormName || undefined}
+                      variant="compact"
+                    />
+                    {hasDisplayData && (
+                      <span className="text-xs text-muted-foreground truncate">
+                        {record.displayData}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 flex-shrink-0 text-muted-foreground hover:text-primary"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setDrilldownRecord({ id: record.id, refId: record.submission_ref_id });
+                  }}
+                >
+                  <Layers className="h-3.5 w-3.5" />
+                </Button>
+              </DropdownMenuItem>
+            );
+          })}
+        </DropdownMenuContent>
+      </DropdownMenu>
+      {drilldownModal}
+    </>
   );
 }
