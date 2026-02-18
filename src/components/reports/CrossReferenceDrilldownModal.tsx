@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { ChevronRight, Loader2, ExternalLink, Layers } from 'lucide-react';
+import { ChevronRight, Loader2, ExternalLink, Layers, Link2 } from 'lucide-react';
 import { SubmissionRefDisplay } from '@/components/SubmissionRefDisplay';
 import { useNavigate } from 'react-router-dom';
 
@@ -262,7 +262,7 @@ export function CrossReferenceDrilldownModal({
       <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col p-0">
         <DialogHeader className="px-6 pt-6 pb-2">
           <DialogTitle className="flex items-center gap-2">
-            <Layers className="h-5 w-5 text-primary" />
+            <Layers className="h-5 w-5 text-accent" />
             Record Drill-Down
           </DialogTitle>
         </DialogHeader>
@@ -280,7 +280,7 @@ export function CrossReferenceDrilldownModal({
                 >
                   {bc.formName}
                 </Button>
-                <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                <ChevronRight className="h-3 w-3 text-accent/60" />
               </React.Fragment>
             ))}
             <Badge variant="secondary" className="text-xs font-medium">
@@ -313,7 +313,7 @@ export function CrossReferenceDrilldownModal({
                   className="h-6 px-2 text-xs"
                   onClick={() => navigate(`/submission/${currentSubmissionId}`)}
                 >
-                  <ExternalLink className="h-3 w-3 mr-1" />
+                  <ExternalLink className="h-3 w-3 mr-1 text-info" />
                   Open
                 </Button>
               </div>
@@ -321,7 +321,7 @@ export function CrossReferenceDrilldownModal({
               {/* Regular Fields */}
               {fields.length > 0 && (
                 <div className="space-y-1">
-                  <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5">
                     Fields
                   </h4>
                   <div className="grid grid-cols-2 gap-x-4 gap-y-2">
@@ -342,7 +342,8 @@ export function CrossReferenceDrilldownModal({
               {/* Cross-Reference Fields with Drill-Down */}
               {(crossRefFields as any[]).length > 0 && (
                 <div className="space-y-3">
-                  <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                    <Link2 className="h-3.5 w-3.5 text-accent" />
                     Linked Records
                   </h4>
                   {(crossRefFields as any[]).map((cr) => (
@@ -378,7 +379,7 @@ export function CrossReferenceDrilldownModal({
                                 </span>
                               )}
                             </div>
-                            <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                            <ChevronRight className="h-4 w-4 text-accent opacity-0 group-hover:opacity-100 transition-opacity" />
                           </div>
                         ))}
                         {(!cr.linkedRecords || cr.linkedRecords.length === 0) && (

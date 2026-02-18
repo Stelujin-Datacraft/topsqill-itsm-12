@@ -168,7 +168,7 @@ export function CrossReferenceCell({ submissionRefIds, field }: CrossReferenceCe
                   className="cursor-pointer hover:bg-accent text-left justify-start h-auto py-1.5 px-2 min-w-0"
                   onClick={() => handleViewRecord(record.id)}
                 >
-                  <ExternalLink className="h-3 w-3 mr-1.5 opacity-50 flex-shrink-0" />
+                  <ExternalLink className="h-3 w-3 mr-1.5 text-info flex-shrink-0" />
                   <div className="flex flex-col items-start gap-0.5 overflow-hidden">
                     <SubmissionRefDisplay
                       submissionRefId={record.submission_ref_id}
@@ -203,7 +203,7 @@ export function CrossReferenceCell({ submissionRefIds, field }: CrossReferenceCe
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-6 w-6 text-muted-foreground hover:text-primary"
+                  className="h-6 w-6 text-accent hover:text-accent/80"
                   onClick={(e) => {
                     e.stopPropagation();
                     setDrilldownRecord({ id: record.id, refId: record.submission_ref_id });
@@ -233,7 +233,7 @@ export function CrossReferenceCell({ submissionRefIds, field }: CrossReferenceCe
             size="sm"
             className="cursor-pointer hover:bg-accent text-left justify-start h-auto py-1 px-2"
           >
-            <ExternalLink className="h-3 w-3 mr-1 opacity-50" />
+            <ExternalLink className="h-3 w-3 mr-1 text-info" />
             <span className="text-sm text-primary font-medium">
               {records.length} linked records
             </span>
@@ -251,7 +251,7 @@ export function CrossReferenceCell({ submissionRefIds, field }: CrossReferenceCe
                 onClick={() => handleViewRecord(record.id)}
               >
                 <div className="flex items-start gap-2 flex-1 overflow-hidden">
-                  <ExternalLink className="h-3 w-3 mt-0.5 opacity-50 flex-shrink-0" />
+                  <ExternalLink className="h-3 w-3 mt-0.5 text-info flex-shrink-0" />
                   <div className="flex flex-col gap-0.5 overflow-hidden">
                     <SubmissionRefDisplay
                       submissionRefId={record.submission_ref_id}
@@ -269,7 +269,7 @@ export function CrossReferenceCell({ submissionRefIds, field }: CrossReferenceCe
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-6 w-6 flex-shrink-0 text-muted-foreground hover:text-primary"
+                  className="h-6 w-6 flex-shrink-0 text-accent hover:text-accent/80"
                   onClick={(e) => {
                     e.stopPropagation();
                     setDrilldownRecord({ id: record.id, refId: record.submission_ref_id });
