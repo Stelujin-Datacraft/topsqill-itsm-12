@@ -88,7 +88,7 @@ const Index = () => {
               </Badge>
             </div>
             
-            <h1 className="text-4xl md:text-7xl font-bold mb-6 bg-gradient-to-r from-primary via-primary/80 to-secondary bg-clip-text text-transparent leading-tight">
+            <h1 className="text-4xl md:text-7xl font-bold mb-6 text-foreground leading-tight">
               Enterprise Forms<br />
               <span className="text-3xl md:text-5xl">Meet AI Automation</span>
             </h1>
