@@ -17,7 +17,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Search, Trash2, UserPlus, Users as UsersIcon, UserCheck, UserX, UserMinus, Clock, Shield, User, ChevronDown, Upload, RefreshCw, Mail, BarChart2, Monitor, ClipboardList, Eye } from 'lucide-react';
+import { Search, Trash2, UserPlus, Users as UsersIcon, UserCheck, UserX, UserMinus, Clock, Shield, User, ChevronDown, Upload, RefreshCw, Mail, BarChart2, Monitor, ClipboardList, Eye, Pencil } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useImpersonation } from '@/contexts/ImpersonationContext';
@@ -38,6 +38,7 @@ import { useOrganization } from '@/contexts/OrganizationContext';
 import { useToast } from '@/hooks/use-toast';
 import { SecurityParametersDialog } from '@/components/users/SecurityParametersDialog';
 import { SecurityTemplatesManager } from '@/components/users/SecurityTemplatesManager';
+import { UserEditDialog } from '@/components/users/UserEditDialog';
 
 const Users = () => {
   const navigate = useNavigate();
@@ -59,7 +60,8 @@ const Users = () => {
     handleCreateUser,
     handleDeleteUser,
     handleBulkImportUsers,
-    handleBulkUpdateUsers
+    handleBulkUpdateUsers,
+    loadUsers
   } = useUserManagement();
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -74,6 +76,8 @@ const Users = () => {
   const [securityDialogOpen, setSecurityDialogOpen] = useState(false);
   const [selectedUserForSecurity, setSelectedUserForSecurity] = useState<{ id: string; name: string; email: string } | null>(null);
   const [templatesManagerOpen, setTemplatesManagerOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [selectedUserForEdit, setSelectedUserForEdit] = useState<any>(null);
 
   const filteredUsers = users.filter(user =>
     (user.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) || '') ||
@@ -444,6 +448,18 @@ const Users = () => {
                             <Button 
                               variant="ghost" 
                               size="icon" 
+                              className="h-8 w-8 text-muted-foreground hover:text-blue-600 hover:bg-blue-500/10 transition-colors"
+                              onClick={() => {
+                                setSelectedUserForEdit(user);
+                                setEditDialogOpen(true);
+                              }}
+                              title="Edit User"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
                               className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
                               onClick={() => {
                                 setSelectedUserForSecurity({
@@ -547,6 +563,14 @@ const Users = () => {
           userEmail={selectedUserForSecurity.email}
         />
       )}
+
+      {/* Edit User Dialog */}
+      <UserEditDialog
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        user={selectedUserForEdit}
+        onUserUpdated={() => loadUsers()}
+      />
 
       {/* Security Templates Manager */}
       <SecurityTemplatesManager
