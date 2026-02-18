@@ -106,7 +106,7 @@ export function DashboardsList({
         <Card>
           <CardContent className="py-12">
             <div className="text-center space-y-4">
-              <LayoutDashboard className="h-12 w-12 text-muted-foreground mx-auto" />
+              <LayoutDashboard className="h-12 w-12 text-primary mx-auto" />
               <div>
                 <h3 className="text-lg font-semibold">No dashboards yet</h3>
                 <p className="text-muted-foreground">
@@ -154,16 +154,16 @@ export function DashboardsList({
                     </div>
                     <div className="flex space-x-1" onClick={(e) => e.stopPropagation()}>
                       <Button variant="ghost" size="sm" onClick={() => handleCopyId(dashboard.id)} title="Copy Dashboard ID">
-                        <Copy className="h-4 w-4" />
+                        <Copy className="h-4 w-4 text-blue-600" />
                       </Button>
                       <Button variant="ghost" size="sm" onClick={() => onView(dashboard)} title="View Dashboard">
-                        <Eye className="h-4 w-4" />
+                        <Eye className="h-4 w-4 text-emerald-600" />
                       </Button>
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <Button variant="ghost" size="sm" onClick={() => handleEditClick(dashboard)} disabled={editButtonState.disabled}>
-                              <Edit className="h-4 w-4" />
+                              <Edit className="h-4 w-4 text-orange-600" />
                             </Button>
                           </TooltipTrigger>
                           <TooltipContent>
@@ -175,7 +175,7 @@ export function DashboardsList({
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <Button variant="ghost" size="sm" onClick={() => handleDeleteClick(dashboard)} disabled={deleteButtonState.disabled || loading}>
-                              <Trash2 className="h-4 w-4" />
+                              <Trash2 className="h-4 w-4 text-red-600" />
                             </Button>
                           </TooltipTrigger>
                           <TooltipContent>
@@ -190,11 +190,11 @@ export function DashboardsList({
                   <div className="flex items-center justify-between text-sm text-muted-foreground">
                     <div className="flex items-center space-x-4">
                       <div className="flex items-center space-x-1">
-                        <FileText className="h-3 w-3" />
+                        <FileText className="h-3 w-3 text-violet-600" />
                         <span>{reportCount} report{reportCount !== 1 ? 's' : ''}</span>
                       </div>
                       <div className="flex items-center space-x-1">
-                        <Calendar className="h-3 w-3" />
+                        <Calendar className="h-3 w-3 text-primary" />
                         <span>{format(new Date(dashboard.created_at), 'MMM d, yyyy')}</span>
                       </div>
                     </div>
