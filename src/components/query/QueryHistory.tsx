@@ -80,7 +80,7 @@ export const QueryHistory = memo(function QueryHistory({ history, onSelectQuery,
   if (history.length === 0) {
     return (
       <div className="p-4 text-center text-muted-foreground">
-        <Clock className="h-8 w-8 mx-auto mb-2 opacity-50" />
+        <Clock className="h-8 w-8 mx-auto mb-2 opacity-50 text-primary" />
         <p className="text-sm">No query history yet</p>
       </div>
     );
@@ -90,7 +90,7 @@ export const QueryHistory = memo(function QueryHistory({ history, onSelectQuery,
     <div className="flex flex-col h-full">
       <div className="p-3 border-b border-border flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Clock className="h-4 w-4" />
+          <Clock className="h-4 w-4 text-primary" />
           <span className="text-sm font-medium">Query History</span>
         </div>
         <Button
