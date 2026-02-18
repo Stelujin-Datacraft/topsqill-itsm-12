@@ -217,17 +217,17 @@ export const FormsSidebar = memo(function FormsSidebar({
   const getTypeColor = useCallback((type: string) => {
     switch (type) {
       case 'text':
-        return 'bg-primary/10 text-primary';
+        return 'bg-primary/10 text-foreground';
       case 'number':
-        return 'bg-primary/10 text-primary';
+        return 'bg-primary/10 text-foreground';
       case 'datetime':
-        return 'bg-primary/10 text-primary';
+        return 'bg-primary/10 text-foreground';
       case 'boolean':
-        return 'bg-primary/10 text-primary';
+        return 'bg-primary/10 text-foreground';
       case 'select':
-        return 'bg-primary/10 text-primary';
+        return 'bg-primary/10 text-foreground';
       default:
-        return 'bg-muted text-muted-foreground';
+        return 'bg-muted text-foreground';
     }
   }, []);
 
