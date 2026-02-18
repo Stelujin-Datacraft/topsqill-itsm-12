@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { FormField } from '@/types/form';
-import { Check, Circle, ChevronRight, History } from 'lucide-react';
+import { Check, Circle, ChevronRight, History, Clock } from 'lucide-react';
 import { StageChangeDialog } from './StageChangeDialog';
 import { LifecycleHistoryDialog } from './LifecycleHistoryDialog';
 import { useLifecycleHistory } from '@/hooks/useLifecycleHistory';
@@ -214,7 +214,7 @@ export function LifecycleStatusBar({
   };
 
   const getStageIcon = (optionValue: string, index: number, currentIndex: number) => {
-    if (optionValue === value) return <Circle className="h-4 w-4 fill-current" />;
+    if (optionValue === value) return <Clock className="h-4 w-4" />;
     if (index < currentIndex) return <Check className="h-4 w-4" />;
     return <Circle className="h-4 w-4" />;
   };
@@ -362,9 +362,9 @@ export function LifecycleStatusBar({
         <Tooltip>
           <TooltipTrigger asChild>
             <Button 
-              variant="ghost" 
+              variant="outline" 
               size="sm" 
-              className="h-7 px-2 gap-1 bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-800 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-slate-300 whitespace-nowrap"
+              className="h-8 px-3 gap-1.5 border-border bg-background hover:bg-accent text-foreground whitespace-nowrap shadow-sm"
               onClick={() => setHistoryDialogOpen(true)}
             >
               <History className="h-3.5 w-3.5" />
