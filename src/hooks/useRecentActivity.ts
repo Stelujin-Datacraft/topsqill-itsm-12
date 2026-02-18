@@ -112,17 +112,13 @@ export function useRecentActivity() {
       // Get recent workflows
       const { data: workflows } = await supabase
         .from('workflows')
-        .select(`
-          id, name, created_at, created_by,
-          user_profiles!workflows_created_by_fkey(first_name, last_name, email)
-        `)
+        .select('id, name, created_at, created_by')
         .eq('project_id', currentProject.id)
         .order('created_at', { ascending: false })
         .limit(10);
 
       if (workflows) {
         workflows.forEach(workflow => {
-          const userProfile = workflow.user_profiles as any;
           activities.push({
             id: `workflow_${workflow.id}`,
             type: 'workflow_execution',
@@ -130,16 +126,12 @@ export function useRecentActivity() {
             description: `New workflow "${workflow.name}" was created`,
             metadata: {
               workflow_name: workflow.name,
-              user_name: userProfile ? 
-                `${userProfile.first_name} ${userProfile.last_name}` : 
-                'Unknown User',
-              user_email: userProfile?.email
+              user_name: 'Unknown User',
+              user_email: undefined
             },
             created_at: workflow.created_at,
             owner_id: workflow.created_by,
-            owner_name: userProfile ? 
-              `${userProfile.first_name} ${userProfile.last_name}` : 
-              'Unknown User',
+            owner_name: 'Unknown User',
             resource_id: workflow.id,
             resource_type: 'workflow'
           });
