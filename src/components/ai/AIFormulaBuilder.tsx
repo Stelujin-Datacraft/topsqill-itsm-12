@@ -199,7 +199,7 @@ export function AIFormulaBuilder({
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
         <Button variant={buttonVariant} size={buttonSize} className="gap-2">
-          <Sparkles className="h-4 w-4" />
+          <Sparkles className="h-4 w-4 text-purple-600" />
           {config.buttonLabel}
         </Button>
       </DialogTrigger>

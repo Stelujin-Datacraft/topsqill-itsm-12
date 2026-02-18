@@ -6,8 +6,7 @@ import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/componen
 import { parseUserQuery, ParseResult } from '@/services/sqlParser';
 import { Loader2, Play, Copy, Check, Save, ChevronDown, ChevronUp, Wand2, Keyboard, Sparkles } from 'lucide-react';
 
-// Icon style for consistent deep blue icons
-const iconClass = "h-4 w-4 text-primary";
+// No single iconClass - each icon gets its own color for visual distinction
 import { formatSQL } from '@/utils/queryFormatter';
 import { KeyboardShortcutsDialog } from './KeyboardShortcutsDialog';
 import { useToast } from '@/hooks/use-toast';
@@ -236,11 +235,11 @@ export const QueryEditor = memo(forwardRef<QueryEditorRef, QueryEditorProps>(({
             disabled={!value}
             title="Format SQL (Ctrl+F)"
           >
-            <Wand2 className={iconClass} />
+            <Wand2 className="h-4 w-4 text-violet-600" />
           </Button>
           
           <Button onClick={handleCopy} variant="outline" size="sm" className="gap-2" title="Copy to clipboard">
-            {copied ? <Check className={iconClass} /> : <Copy className={iconClass} />}
+            {copied ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4 text-blue-600" />}
             {copied ? 'Copied!' : 'Copy'}
           </Button>
           
@@ -252,7 +251,7 @@ export const QueryEditor = memo(forwardRef<QueryEditorRef, QueryEditorProps>(({
             disabled={!value.trim()}
             title="Save query (Ctrl+S)"
           >
-            <Save className={iconClass} />
+            <Save className="h-4 w-4 text-emerald-600" />
             Save
           </Button>
           
@@ -262,7 +261,7 @@ export const QueryEditor = memo(forwardRef<QueryEditorRef, QueryEditorProps>(({
             variant="ghost"
             title="Keyboard shortcuts (Ctrl+?)"
           >
-            <Keyboard className={iconClass} />
+            <Keyboard className="h-4 w-4 text-orange-600" />
           </Button>
           
           <Button onClick={handleExecute} disabled={!isValid || isExecuting} size="sm" className="gap-2">

@@ -100,7 +100,7 @@ const Dashboard = () => {
         onClick={action.onClick}
         disabled={action.disabled}
       >
-        <action.icon className="h-6 w-6" />
+        <action.icon className={`h-6 w-6 ${index === 0 ? 'text-blue-600' : index === 1 ? 'text-emerald-600' : index === 2 ? 'text-purple-600' : 'text-orange-600'}`} />
         <div className="text-left">
           <div className="text-xl">{action.title}</div>
           <div className="text-xs text-muted-foreground">
@@ -146,7 +146,7 @@ const Dashboard = () => {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Total Projects</CardTitle>
-                <Settings className="h-4 w-4 text-muted-foreground" />
+                <Settings className="h-4 w-4 text-primary" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{projects.length}</div>
@@ -159,7 +159,7 @@ const Dashboard = () => {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Current Role</CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
+                <Users className="h-4 w-4 text-emerald-600" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold capitalize">{userProfile?.role || 'User'}</div>
@@ -172,7 +172,7 @@ const Dashboard = () => {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Active Project</CardTitle>
-                <FileText className="h-4 w-4 text-muted-foreground" />
+                <FileText className="h-4 w-4 text-orange-600" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
