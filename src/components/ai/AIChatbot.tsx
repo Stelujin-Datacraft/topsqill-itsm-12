@@ -175,7 +175,7 @@ export function AIChatbot() {
       try {
         // Load workflows using raw query to avoid type issues
         const workflowResponse = await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/workflows?project_id=eq.${currentProject.id}&is_active=eq.true&select=id,name,description&order=name`,
+          `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/workflows?project_id=eq.${currentProject.id}&status=eq.active&select=id,name,description&order=name`,
           {
             headers: {
               'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY,
