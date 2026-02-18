@@ -9,7 +9,6 @@ export function NavMain({
     title: string
     url: string
     icon?: LucideIcon
-    iconColor?: string
     isActive?: boolean
     isDisabled?: boolean
   }[]
@@ -20,21 +19,24 @@ export function NavMain({
     <SidebarGroup>
       <SidebarGroupLabel>Platform</SidebarGroupLabel>
       <SidebarMenu>
-        {items.map((item) => (
-          <SidebarMenuItem key={item.title}>
-            <SidebarMenuButton 
-              asChild 
-              isActive={location.pathname === item.url}
-              disabled={item.isDisabled}
-              tooltip={item.title}
-            >
-              <Link to={item.url}>
-                {item.icon && <item.icon className={item.iconColor || ''} />}
-                <span>{item.title}</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        ))}
+        {items.map((item) => {
+          const active = location.pathname === item.url
+          return (
+            <SidebarMenuItem key={item.title}>
+              <SidebarMenuButton 
+                asChild 
+                isActive={active}
+                disabled={item.isDisabled}
+                tooltip={item.title}
+              >
+                <Link to={item.url}>
+                  {item.icon && <item.icon className={active ? 'text-primary' : 'text-muted-foreground'} />}
+                  <span>{item.title}</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          )
+        })}
       </SidebarMenu>
     </SidebarGroup>
   )
