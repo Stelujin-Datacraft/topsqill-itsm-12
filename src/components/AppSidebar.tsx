@@ -34,7 +34,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     user: {
       name: effectiveProfile?.first_name ? `${effectiveProfile.first_name} ${effectiveProfile.last_name}` : effectiveProfile?.email || "User",
       email: effectiveProfile?.email || "",
-      avatar: "/avatars/shadcn.jpg",
+      avatar: "",
     },
     teams: [
       {
