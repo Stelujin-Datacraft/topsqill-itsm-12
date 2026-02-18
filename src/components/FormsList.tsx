@@ -213,7 +213,7 @@ export function FormsList() {
             <CardContent>
               <div className="flex items-center justify-between text-sm text-muted-foreground">
                 <div className="flex items-center space-x-1">
-                  <Calendar className="h-3 w-3 text-blue-500" />
+                   <Calendar className="h-3 w-3 text-primary" />
                   <span>{format(new Date(form.createdAt), 'MMM d, yyyy')}</span>
                 </div>
               </div>
@@ -230,13 +230,13 @@ export function FormsList() {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4 flex-1">
-                  <FileText className="h-8 w-8 text-blue-500" />
+                  <FileText className="h-8 w-8 text-primary" />
                   <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-primary">{form.name}</h3>
+                    <h3 className="text-lg font-semibold text-foreground">{form.name}</h3>
                     <p className="text-sm text-muted-foreground">{form.description}</p>
                     <div className="flex items-center space-x-4 mt-2">
                       <div className="flex items-center space-x-1 text-xs text-muted-foreground">
-                        <Calendar className="h-3 w-3 text-blue-500" />
+                        <Calendar className="h-3 w-3 text-primary" />
                         <span>{format(new Date(form.createdAt), 'MMM d, yyyy')}</span>
                       </div>
                       <Badge {...statusBadgeProps}>
@@ -353,7 +353,7 @@ export function FormsList() {
                     <CardContent className="p-4">
                       <div className="space-y-3">
                         <div className="flex items-start justify-between">
-                          <h4 className="font-semibold text-primary line-clamp-2">{form.name}</h4>
+                          <h4 className="font-semibold text-foreground line-clamp-2">{form.name}</h4>
                           <Badge variant={form.isPublic ? 'default' : 'secondary'} className={`ml-2 shrink-0 ${form.isPublic ? 'bg-cyan-500 hover:bg-cyan-600 text-white border-cyan-400' : 'bg-slate-600 hover:bg-slate-700 text-white border-slate-500'}`}>
                             {form.isPublic ? <Globe className="h-3 w-3" /> : <Lock className="h-3 w-3" />}
                           </Badge>
@@ -361,7 +361,7 @@ export function FormsList() {
                         {form.description && <p className="text-sm text-muted-foreground line-clamp-2">{form.description}</p>}
                         <div className="flex items-center justify-between text-xs text-muted-foreground">
                           <div className="flex items-center gap-1">
-                            <Calendar className="h-3 w-3 text-blue-500" />
+                            <Calendar className="h-3 w-3 text-primary" />
                             <span>{format(new Date(form.createdAt), 'MMM d')}</span>
                           </div>
                         </div>
@@ -422,11 +422,11 @@ export function FormsList() {
       {/* View Mode Selector */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-2">
-          <Button variant={viewMode === 'grid' ? 'default' : 'outline'} size="sm" onClick={() => setViewMode('grid')} className={viewMode === 'grid' ? 'bg-blue-500 hover:bg-blue-600' : ''}>
+          <Button variant={viewMode === 'grid' ? 'default' : 'outline'} size="sm" onClick={() => setViewMode('grid')} className={viewMode === 'grid' ? 'bg-primary hover:bg-primary/90' : ''}>
             <Grid className="h-4 w-4 mr-1" />
             Grid
           </Button>
-          <Button variant={viewMode === 'list' ? 'default' : 'outline'} size="sm" onClick={() => setViewMode('list')} className={viewMode === 'list' ? 'bg-blue-500 hover:bg-blue-600' : ''}>
+          <Button variant={viewMode === 'list' ? 'default' : 'outline'} size="sm" onClick={() => setViewMode('list')} className={viewMode === 'list' ? 'bg-primary hover:bg-primary/90' : ''}>
             <List className="h-4 w-4 mr-1" />
             List
           </Button>
