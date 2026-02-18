@@ -28,6 +28,13 @@ interface UserData {
   timezone?: string;
 }
 
+const ROLE_OPTIONS = [
+  { value: 'user', label: 'User' },
+  { value: 'admin', label: 'Admin' },
+  { value: 'manager', label: 'Manager' },
+  { value: 'viewer', label: 'Viewer' },
+];
+
 interface UserEditDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -42,6 +49,7 @@ export function UserEditDialog({ open, onOpenChange, user, onUserUpdated }: User
     first_name: '',
     last_name: '',
     email: '',
+    role: 'user',
     mobile: '',
     nationality: '',
     gender: '',
@@ -55,6 +63,7 @@ export function UserEditDialog({ open, onOpenChange, user, onUserUpdated }: User
         first_name: user.first_name || '',
         last_name: user.last_name || '',
         email: user.email || '',
+        role: user.role || 'user',
         mobile: user.mobile || '',
         nationality: user.nationality || '',
         gender: user.gender || '',
@@ -73,6 +82,7 @@ export function UserEditDialog({ open, onOpenChange, user, onUserUpdated }: User
         .update({
           first_name: form.first_name || null,
           last_name: form.last_name || null,
+          role: form.role,
           mobile: form.mobile || null,
           nationality: form.nationality || null,
           gender: form.gender || null,
@@ -113,9 +123,24 @@ export function UserEditDialog({ open, onOpenChange, user, onUserUpdated }: User
               <Input id="last_name" value={form.last_name} onChange={(e) => setForm(f => ({ ...f, last_name: e.target.value }))} />
             </div>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input id="email" value={form.email} disabled className="bg-muted" />
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input id="email" value={form.email} disabled className="bg-muted" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="role">Role</Label>
+              <Select value={form.role} onValueChange={(v) => setForm(f => ({ ...f, role: v }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select role" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ROLE_OPTIONS.map(opt => (
+                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
