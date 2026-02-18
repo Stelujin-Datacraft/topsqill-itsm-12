@@ -3945,12 +3945,26 @@ export type Database = {
         Args: { _form_id: string; _user_id: string }
         Returns: boolean
       }
+      can_access_forms_row: {
+        Args: {
+          _created_by: string
+          _is_public: boolean
+          _org_id: string
+          _project_id: string
+          _user_id: string
+        }
+        Returns: boolean
+      }
       can_create_asset_in_project: {
         Args: { _project_id: string; _user_id: string }
         Returns: boolean
       }
       can_modify_form: {
         Args: { _form_id: string; _user_id: string }
+        Returns: boolean
+      }
+      can_modify_forms_row: {
+        Args: { _created_by: string; _org_id: string; _user_id: string }
         Returns: boolean
       }
       can_update_form_submission_via_workflow: {
