@@ -214,7 +214,7 @@ export function LifecycleStatusBar({
   };
 
   const getStageIcon = (optionValue: string, index: number, currentIndex: number) => {
-    if (optionValue === value) return <Circle className="h-4 w-4 fill-white text-white" />;
+    if (optionValue === value) return <Circle className="h-4 w-4 fill-current" />;
     if (index < currentIndex) return <Check className="h-4 w-4" />;
     return <Circle className="h-4 w-4" />;
   };
@@ -318,12 +318,12 @@ export function LifecycleStatusBar({
                           ? isSelected 
                             ? 'text-white font-semibold shadow-md border'
                             : isPast
-                              ? 'text-white opacity-70'
+                              ? 'text-white opacity-90'
                               : `bg-slate-200 text-slate-500 ${isEditing ? 'hover:bg-slate-300' : ''}`
                           : isSelected 
                             ? `${color.bg} ${color.hover} text-white ${color.border} font-semibold shadow-md` 
                             : isPast
-                              ? `${color.bg} ${color.hover} text-white opacity-70`
+                              ? `${color.bg} ${color.hover} text-white opacity-90`
                               : `bg-slate-200 text-slate-500 ${isEditing ? 'hover:bg-slate-300' : ''}`
                       } ${!canTransition && isEditing && !isSelected ? 'opacity-60 cursor-not-allowed' : ''}`}
                       style={
