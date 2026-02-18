@@ -1,5 +1,7 @@
 import React, { useState, useEffect, memo, useCallback } from 'react';
 import { ChevronDown, ChevronRight, Copy, Plus, Database, Table, Type, Settings } from 'lucide-react';
+
+const sidebarIconClass = "text-primary";
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -64,7 +66,7 @@ const ActionButtons = memo(function ActionButtons({
           onClick={handleCopy}
           title="Copy Form ID"
         >
-          <Copy className="h-3 w-3" />
+          <Copy className={`h-3 w-3 ${sidebarIconClass}`} />
         </Button>
         <Button
           size="sm"
@@ -73,7 +75,7 @@ const ActionButtons = memo(function ActionButtons({
           onClick={handleInsertId}
           title="Insert Form Reference"
         >
-          <Plus className="h-3 w-3" />
+          <Plus className={`h-3 w-3 ${sidebarIconClass}`} />
         </Button>
       </div>
     );
@@ -87,7 +89,7 @@ const ActionButtons = memo(function ActionButtons({
           onClick={handleCopy}
           title="Copy Column Name"
         >
-          <Copy className="h-3 w-3" />
+          <Copy className={`h-3 w-3 ${sidebarIconClass}`} />
         </Button>
         <Button
           size="sm"
@@ -96,7 +98,7 @@ const ActionButtons = memo(function ActionButtons({
           onClick={handleInsertId}
           title="Insert Column Reference"
         >
-          <Plus className="h-3 w-3" />
+          <Plus className={`h-3 w-3 ${sidebarIconClass}`} />
         </Button>
       </div>
     );
@@ -110,7 +112,7 @@ const ActionButtons = memo(function ActionButtons({
           onClick={handleCopy}
           title="Copy Field ID"
         >
-          <Copy className="h-3 w-3" />
+          <Copy className={`h-3 w-3 ${sidebarIconClass}`} />
         </Button>
         <Button
           size="sm"
@@ -119,7 +121,7 @@ const ActionButtons = memo(function ActionButtons({
           onClick={handleInsertId}
           title="Insert Field Reference"
         >
-          <Plus className="h-3 w-3" />
+          <Plus className={`h-3 w-3 ${sidebarIconClass}`} />
         </Button>
         <Button
           size="sm"
@@ -128,7 +130,7 @@ const ActionButtons = memo(function ActionButtons({
           onClick={handleInsertSelect}
           title="Select Field"
         >
-          <Database className="h-3 w-3" />
+          <Database className={`h-3 w-3 ${sidebarIconClass}`} />
         </Button>
       </div>
     );
@@ -242,7 +244,7 @@ export const FormsSidebar = memo(function FormsSidebar({
       <div className="w-full h-full border-r border-border bg-muted/10">
         <div className="p-4">
           <div className="flex items-center gap-2 mb-4">
-            <Database className="h-4 w-4" />
+            <Database className="h-4 w-4 text-primary" />
             <span className="font-medium">Loading...</span>
           </div>
         </div>
@@ -254,7 +256,7 @@ export const FormsSidebar = memo(function FormsSidebar({
     <div className="w-full h-full border-r border-border bg-muted/10">
       <div className="p-4 border-b border-border">
         <h2 className="font-semibold text-sm flex items-center">
-          <Database className="h-4 w-4 mr-2" />
+          <Database className="h-4 w-4 mr-2 text-primary" />
           Query Explorer
         </h2>
       </div>
@@ -273,8 +275,8 @@ export const FormsSidebar = memo(function FormsSidebar({
           <Collapsible open={isSystemTablesExpanded} onOpenChange={setIsSystemTablesExpanded}>
             <CollapsibleTrigger className="w-full">
               <div className="flex items-center gap-2 p-2 rounded-md hover:bg-muted/50 border border-border">
-                {isSystemTablesExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                <Database className="h-4 w-4" />
+                {isSystemTablesExpanded ? <ChevronDown className="h-4 w-4 text-primary" /> : <ChevronRight className="h-4 w-4 text-primary" />}
+                <Database className="h-4 w-4 text-primary" />
                 <span className="font-medium text-sm">System Tables</span>
               </div>
             </CollapsibleTrigger>
@@ -293,8 +295,8 @@ export const FormsSidebar = memo(function FormsSidebar({
           <Collapsible open={isFormsExpanded} onOpenChange={setIsFormsExpanded}>
             <CollapsibleTrigger className="w-full">
               <div className="flex items-center gap-2 p-2 rounded-md hover:bg-muted/50 border border-border">
-                {isFormsExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                <Table className="h-4 w-4" />
+                {isFormsExpanded ? <ChevronDown className="h-4 w-4 text-primary" /> : <ChevronRight className="h-4 w-4 text-primary" />}
+                <Table className="h-4 w-4 text-primary" />
                 <span className="font-medium text-sm">Forms & Fields</span>
               </div>
             </CollapsibleTrigger>
@@ -313,7 +315,7 @@ export const FormsSidebar = memo(function FormsSidebar({
               
               {Object.keys(forms).length === 0 && (
                 <div className="text-center py-8 text-muted-foreground ml-4">
-                  <Database className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <Database className="h-8 w-8 mx-auto mb-2 opacity-50 text-primary" />
                   <p className="text-sm">No forms found</p>
                   <p className="text-xs">Create a form to see it here</p>
                 </div>
@@ -354,7 +356,7 @@ const SystemTableItem = memo(function SystemTableItem({ table, onInsert }: Syste
           onClick={handleClick}
           title="Insert SELECT query with organization filter"
         >
-          <Plus className="h-3 w-3" />
+          <Plus className={`h-3 w-3 ${sidebarIconClass}`} />
         </Button>
       </div>
     </div>
@@ -390,8 +392,8 @@ const FormItem = memo(function FormItem({
           className="flex items-center gap-2 flex-1 cursor-pointer"
           onClick={handleToggle}
         >
-          {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-          <Table className="h-4 w-4 text-muted-foreground" />
+          {isOpen ? <ChevronDown className="h-4 w-4 text-primary" /> : <ChevronRight className="h-4 w-4 text-primary" />}
+          <Table className="h-4 w-4 text-primary" />
           <span className="text-sm font-medium truncate">{form.name}</span>
         </div>
         <ActionButtons 
@@ -407,13 +409,13 @@ const FormItem = memo(function FormItem({
         {/* System Columns Section */}
         <div className="mt-2">
           <div className="flex items-center gap-2 px-2 py-1">
-            <Settings className="h-3 w-3 text-muted-foreground" />
+            <Settings className="h-3 w-3 text-primary" />
             <span className="text-xs font-medium text-muted-foreground">System Columns</span>
           </div>
           {Object.values(form.systemColumns).map(column => (
             <div key={column.id} className="flex items-center justify-between p-2 rounded-md hover:bg-muted/30 group">
               <div className="flex items-center gap-2 flex-1 min-w-0">
-                <Settings className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                <Settings className="h-3 w-3 text-primary flex-shrink-0" />
                 <span className="text-xs truncate">{column.label}</span>
                 <Badge variant="secondary" className={`text-xs px-1 py-0 ${getTypeColor(column.type)} flex-shrink-0`}>
                   {column.type}
@@ -435,13 +437,13 @@ const FormItem = memo(function FormItem({
         {/* Form Fields Section */}
         <div>
           <div className="flex items-center gap-2 px-2 py-1">
-            <Type className="h-3 w-3 text-muted-foreground" />
+            <Type className="h-3 w-3 text-primary" />
             <span className="text-xs font-medium text-muted-foreground">Form Fields</span>
           </div>
           {Object.values(form.fields).map(field => (
             <div key={field.id} className="flex items-center justify-between p-2 rounded-md hover:bg-muted/30 group">
               <div className="flex items-center gap-2 flex-1 min-w-0">
-                <Type className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                <Type className="h-3 w-3 text-primary flex-shrink-0" />
                 <span className="text-xs truncate">{field.label}</span>
                 <Badge variant="secondary" className={`text-xs px-1 py-0 ${getTypeColor(field.type)} flex-shrink-0`}>
                   {field.type}

@@ -20,7 +20,7 @@ export function SavedQueriesSection({ savedQueries, isLoading, onSelectQuery, on
         className="w-full justify-start p-3 h-auto"
         onClick={() => setIsExpanded(!isExpanded)}
       >
-        {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+        {isExpanded ? <ChevronDown className="h-4 w-4 text-primary" /> : <ChevronRight className="h-4 w-4 text-primary" />}
         <span className="ml-2 font-medium">Saved Queries</span>
         <span className="ml-auto text-sm text-muted-foreground">({savedQueries.length})</span>
       </Button>
@@ -43,7 +43,7 @@ export function SavedQueriesSection({ savedQueries, isLoading, onSelectQuery, on
                   className="flex-1 justify-start h-8 px-2"
                   onClick={() => onSelectQuery(query)}
                 >
-                  <FileText className="h-3 w-3 mr-2" />
+                  <FileText className="h-3 w-3 mr-2 text-primary" />
                   <span className="truncate text-sm">{query.name}</span>
                 </Button>
                 <Button
@@ -52,7 +52,7 @@ export function SavedQueriesSection({ savedQueries, isLoading, onSelectQuery, on
                   className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
                   onClick={() => onDeleteQuery(query.id)}
                 >
-                  <Trash2 className="h-3 w-3" />
+                  <Trash2 className="h-3 w-3 text-primary" />
                 </Button>
               </div>
             ))

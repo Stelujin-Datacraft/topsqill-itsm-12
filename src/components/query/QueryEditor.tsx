@@ -5,6 +5,9 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { parseUserQuery, ParseResult } from '@/services/sqlParser';
 import { Loader2, Play, Copy, Check, Save, ChevronDown, ChevronUp, Wand2, Keyboard, Sparkles } from 'lucide-react';
+
+// Icon style for consistent deep blue icons
+const iconClass = "h-4 w-4 text-primary";
 import { formatSQL } from '@/utils/queryFormatter';
 import { KeyboardShortcutsDialog } from './KeyboardShortcutsDialog';
 import { useToast } from '@/hooks/use-toast';
@@ -233,11 +236,11 @@ export const QueryEditor = memo(forwardRef<QueryEditorRef, QueryEditorProps>(({
             disabled={!value}
             title="Format SQL (Ctrl+F)"
           >
-            <Wand2 className="h-4 w-4" />
+            <Wand2 className={iconClass} />
           </Button>
           
           <Button onClick={handleCopy} variant="outline" size="sm" className="gap-2" title="Copy to clipboard">
-            {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+            {copied ? <Check className={iconClass} /> : <Copy className={iconClass} />}
             {copied ? 'Copied!' : 'Copy'}
           </Button>
           
@@ -249,7 +252,7 @@ export const QueryEditor = memo(forwardRef<QueryEditorRef, QueryEditorProps>(({
             disabled={!value.trim()}
             title="Save query (Ctrl+S)"
           >
-            <Save className="h-4 w-4" />
+            <Save className={iconClass} />
             Save
           </Button>
           
@@ -259,11 +262,12 @@ export const QueryEditor = memo(forwardRef<QueryEditorRef, QueryEditorProps>(({
             variant="ghost"
             title="Keyboard shortcuts (Ctrl+?)"
           >
-            <Keyboard className="h-4 w-4" />
+            <Keyboard className={iconClass} />
           </Button>
           
           <Button onClick={handleExecute} disabled={!isValid || isExecuting} size="sm" className="gap-2">
             {isExecuting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+
             Execute
           </Button>
         </div>
@@ -326,7 +330,7 @@ export const QueryEditor = memo(forwardRef<QueryEditorRef, QueryEditorProps>(({
               <div className="border-t border-border bg-muted/10">
                 <CollapsibleTrigger className="w-full p-3 flex items-center justify-between hover:bg-muted/20 transition-colors">
                   <h4 className="text-sm font-medium text-muted-foreground">Example Queries</h4>
-                  {examplesOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                  {examplesOpen ? <ChevronUp className="h-4 w-4 text-primary" /> : <ChevronDown className="h-4 w-4 text-primary" />}
                 </CollapsibleTrigger>
                 <CollapsibleContent>
                   <div className="p-3 pt-0 space-y-1 text-xs text-muted-foreground font-mono max-h-[400px] overflow-y-auto">
