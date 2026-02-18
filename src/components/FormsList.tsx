@@ -161,7 +161,7 @@ export function FormsList() {
             <CardHeader>
               <div className="flex items-start justify-between">
                 <div className="space-y-2 flex-1">
-                  <CardTitle className="text-lg text-primary">{form.name}</CardTitle>
+                  <CardTitle className="text-lg text-foreground">{form.name}</CardTitle>
                   {/*{form.description && <p className="text-sm text-muted-foreground">{form.description}</p>}*/}
                   <div className="flex items-center gap-2">
                     <Badge {...statusBadgeProps}>
