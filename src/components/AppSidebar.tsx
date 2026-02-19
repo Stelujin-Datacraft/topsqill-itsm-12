@@ -124,7 +124,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarContent>
         {/* Project Switcher Section */}
         <div className="px-2 py-4 group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:py-2">
-          <div className="text-xs font-medium text-muted-foreground mb-2 px-2 group-data-[collapsible=icon]:hidden">
+          <div className="text-xs font-medium text-sidebar-foreground/60 mb-2 px-2 group-data-[collapsible=icon]:hidden">
             Current Project
           </div>
           <ProjectSwitcher />
