@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { ExternalLink, Loader2, ChevronDown, Plus, Minus } from 'lucide-react';
+import { ExternalLink, Loader2, ChevronDown, Plus, Minus, Layers } from 'lucide-react';
 import { useCrossReferenceData } from '@/hooks/useCrossReferenceData';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -16,150 +16,93 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { SubmissionRefDisplay } from '@/components/SubmissionRefDisplay';
+import { CrossReferenceDrilldownModal } from './CrossReferenceDrilldownModal';
 import { CrossReferenceInlineExpand } from './CrossReferenceInlineExpand';
 
 interface CrossReferenceCellProps {
-  submissionRefIds: string[] | string; // can be string (comma-separated) or array
+  submissionRefIds: string[] | string;
   field: any;
 }
 
 export function CrossReferenceCell({ submissionRefIds, field }: CrossReferenceCellProps) {
   const navigate = useNavigate();
   const [expanded, setExpanded] = useState(false);
-  
+  const [drilldownRecord, setDrilldownRecord] = useState<{ id: string; refId: string } | null>(null);
+
   // Parse custom_config if it's a JSON string (from database)
   let customConfig: any = field?.customConfig;
   if (!customConfig && field?.custom_config) {
     try {
-      customConfig = typeof field.custom_config === 'string' 
-        ? JSON.parse(field.custom_config) 
+      customConfig = typeof field.custom_config === 'string'
+        ? JSON.parse(field.custom_config)
         : field.custom_config;
     } catch (e) {
       console.error('Failed to parse custom_config:', e);
       customConfig = null;
     }
   }
-  
-  // Extract targetFormId - handle plain strings and ensure it's valid
+
   const targetFormId = customConfig?.targetFormId;
-  
-  // Use ONLY tableDisplayFields for Dynamic Table display
-  // This is what user configures in "Table Display Fields" section
-  // DO NOT fall back to displayColumns - they serve different purposes:
-  // - tableDisplayFields: controls what data is SAVED and shown in Dynamic Tables/reports
-  // - displayColumns: controls what columns are VISIBLE in the cross-reference selection table
+
   let tableDisplayFields: string[] = [];
   if (customConfig?.tableDisplayFields && Array.isArray(customConfig.tableDisplayFields)) {
     tableDisplayFields = customConfig.tableDisplayFields;
   }
 
-  // ✅ Normalize submissionRefIds: handle both array and comma-separated string
+  // Normalize submissionRefIds
   let normalizedSubmissionRefIds: string[] = [];
   if (typeof submissionRefIds === 'string') {
-    normalizedSubmissionRefIds = submissionRefIds
-      .split(',')
-      .map((id) => id.trim())
-      .filter((id) => id.length > 0);
+    normalizedSubmissionRefIds = submissionRefIds.split(',').map((id) => id.trim()).filter((id) => id.length > 0);
   } else if (Array.isArray(submissionRefIds)) {
-    // In case you accidentally have a single item array like ['id1,id2']
     if (submissionRefIds.length === 1 && submissionRefIds[0].includes(',')) {
-      normalizedSubmissionRefIds = submissionRefIds[0]
-        .split(',')
-        .map((id) => id.trim())
-        .filter((id) => id.length > 0);
+      normalizedSubmissionRefIds = submissionRefIds[0].split(',').map((id) => id.trim()).filter((id) => id.length > 0);
     } else {
       normalizedSubmissionRefIds = submissionRefIds.filter((id) => id && id.length > 0);
     }
   }
 
-  // Fetch only if valid targetFormId and submissionRefIds exist
   const shouldFetch = targetFormId && normalizedSubmissionRefIds.length > 0;
 
   const { records, targetFormName, loading } = useCrossReferenceData(
     shouldFetch ? targetFormId : undefined,
     shouldFetch ? normalizedSubmissionRefIds : undefined,
-    tableDisplayFields // Use tableDisplayFields to get field values for display
+    tableDisplayFields
   );
 
   const handleViewRecord = (recordId: string) => {
     navigate(`/submission/${recordId}`);
   };
 
-  // If no valid targetFormId, show configuration needed message
   if (!targetFormId) {
-    return (
-      <div className="text-xs text-muted-foreground italic">
-        Configuration needed
-      </div>
-    );
+    return <div className="text-xs text-muted-foreground italic">Configuration needed</div>;
   }
 
-  // If loading, show a loading indicator
   if (loading && shouldFetch) {
     return (
-      <Button
-        variant="outline"
-        size="sm"
-        disabled
-        className="cursor-pointer text-left justify-start h-auto py-1 px-2 min-w-[100px]"
-      >
+      <Button variant="outline" size="sm" disabled className="cursor-pointer text-left justify-start h-auto py-1 px-2 min-w-[100px]">
         <Loader2 className="h-3 w-3 mr-1 animate-spin" />
         <span className="text-xs">Loading...</span>
       </Button>
     );
   }
 
-  // No records found
   if (records.length === 0 && !loading) {
-    return (
-      <div className="text-xs text-muted-foreground italic">
-        No linked records
-      </div>
-    );
+    return <div className="text-xs text-muted-foreground italic">No linked records</div>;
   }
 
-  // Helper to render a single record with ID and display data
-  const renderRecordContent = (record: { id: string; submission_ref_id: string; displayData?: string }) => {
-    const hasDisplayData = record.displayData && record.displayData !== record.submission_ref_id;
-    
-    return (
-      <div className="flex flex-col gap-0.5">
-        <SubmissionRefDisplay
-          submissionRefId={record.submission_ref_id}
-          submissionId={record.id}
-          formName={targetFormName || undefined}
-          variant="compact"
-        />
-        {hasDisplayData && (
-          <span className="text-xs text-muted-foreground truncate max-w-[200px]">
-            {record.displayData}
-          </span>
-        )}
-      </div>
-    );
-  };
+  // Drilldown modal (kept as before)
+  const drilldownModal = drilldownRecord && targetFormId ? (
+    <CrossReferenceDrilldownModal
+      open={!!drilldownRecord}
+      onClose={() => setDrilldownRecord(null)}
+      submissionId={drilldownRecord.id}
+      submissionRefId={drilldownRecord.refId}
+      formId={targetFormId}
+      formName={targetFormName || 'Linked Form'}
+    />
+  ) : null;
 
-  const expandButton = (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-6 w-6 text-muted-foreground hover:text-foreground"
-          onClick={(e) => {
-            e.stopPropagation();
-            setExpanded((prev) => !prev);
-          }}
-        >
-          {expanded ? <Minus className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent side="top">
-        <span className="text-xs">{expanded ? 'Collapse linked records' : 'Expand linked records'}</span>
-      </TooltipContent>
-    </Tooltip>
-  );
-
+  // Inline expand content
   const inlineExpand = expanded && targetFormId ? (
     <CrossReferenceInlineExpand
       records={records}
@@ -168,16 +111,27 @@ export function CrossReferenceCell({ submissionRefIds, field }: CrossReferenceCe
     />
   ) : null;
 
-  // Single record - show button with ID and display data
+  // Single record
   if (records.length === 1) {
     const record = records[0];
     const hasDisplayData = record.displayData && record.displayData !== record.submission_ref_id;
-    
+
     return (
       <TooltipProvider>
         <div className="flex flex-col">
           <div className="flex items-center gap-1">
-            {expandButton}
+            {/* +/- expand button */}
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-6 w-6 flex-shrink-0 border-border bg-background hover:bg-muted"
+              onClick={(e) => { e.stopPropagation(); setExpanded((prev) => !prev); }}
+              title={expanded ? 'Collapse' : 'Expand linked records'}
+            >
+              {expanded ? <Minus className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
+            </Button>
+
+            {/* Main link button */}
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -205,77 +159,97 @@ export function CrossReferenceCell({ submissionRefIds, field }: CrossReferenceCe
               {hasDisplayData && (
                 <TooltipContent side="top" className="max-w-[300px]">
                   <div className="text-xs">
-                    <SubmissionRefDisplay
-                      submissionRefId={record.submission_ref_id}
-                      submissionId={record.id}
-                      formName={targetFormName || undefined}
-                      variant="compact"
-                    />
+                    <SubmissionRefDisplay submissionRefId={record.submission_ref_id} submissionId={record.id} formName={targetFormName || undefined} variant="compact" />
                     <div className="text-muted-foreground mt-0.5">{record.displayData}</div>
                   </div>
                 </TooltipContent>
               )}
             </Tooltip>
+
+            {/* Drilldown button */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 flex-shrink-0 text-accent hover:text-accent/80"
+                  onClick={(e) => { e.stopPropagation(); setDrilldownRecord({ id: record.id, refId: record.submission_ref_id }); }}
+                >
+                  <Layers className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top">
+                <span className="text-xs">Drill down into linked records</span>
+              </TooltipContent>
+            </Tooltip>
           </div>
           {inlineExpand}
         </div>
+        {drilldownModal}
       </TooltipProvider>
     );
   }
 
-  // Multiple records - show dropdown with all linked records
+  // Multiple records
   return (
-    <div className="flex flex-col">
-      <div className="flex items-center gap-1">
-        {/* Wrap expandButton in TooltipProvider since it's outside the dropdown's provider */}
-        <TooltipProvider>
-          {expandButton}
-        </TooltipProvider>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="outline"
-              size="sm"
-              className="cursor-pointer hover:bg-accent text-left justify-start h-auto py-1 px-2"
-            >
-              <ExternalLink className="h-3 w-3 mr-1 text-info" />
-              <span className="text-sm text-primary font-medium">
-                {records.length} linked records
-              </span>
-              <ChevronDown className="h-3 w-3 ml-1 opacity-50" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="max-h-[300px] overflow-y-auto min-w-[250px]">
-            {records.map((record) => {
-              const hasDisplayData = record.displayData && record.displayData !== record.submission_ref_id;
-              
-              return (
-                <DropdownMenuItem
-                  key={record.id}
-                  className="cursor-pointer flex items-center gap-2 py-2"
-                  onClick={() => handleViewRecord(record.id)}
-                >
-                  <ExternalLink className="h-3 w-3 text-info flex-shrink-0" />
-                  <div className="flex flex-col gap-0.5 overflow-hidden">
-                    <SubmissionRefDisplay
-                      submissionRefId={record.submission_ref_id}
-                      submissionId={record.id}
-                      formName={targetFormName || undefined}
-                      variant="compact"
-                    />
-                    {hasDisplayData && (
-                      <span className="text-xs text-muted-foreground truncate">
-                        {record.displayData}
-                      </span>
-                    )}
-                  </div>
-                </DropdownMenuItem>
-              );
-            })}
-          </DropdownMenuContent>
-        </DropdownMenu>
+    <TooltipProvider>
+      <div className="flex flex-col">
+        <div className="flex items-center gap-1">
+          {/* +/- expand button */}
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-6 w-6 flex-shrink-0 border-border bg-background hover:bg-muted"
+            onClick={(e) => { e.stopPropagation(); setExpanded((prev) => !prev); }}
+            title={expanded ? 'Collapse' : 'Expand linked records'}
+          >
+            {expanded ? <Minus className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
+          </Button>
+
+          {/* Dropdown for multiple records */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="cursor-pointer hover:bg-accent text-left justify-start h-auto py-1 px-2">
+                <ExternalLink className="h-3 w-3 mr-1 text-info" />
+                <span className="text-sm text-primary font-medium">{records.length} linked records</span>
+                <ChevronDown className="h-3 w-3 ml-1 opacity-50" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="max-h-[300px] overflow-y-auto min-w-[250px] bg-popover z-50">
+              {records.map((record) => {
+                const hasDisplayData = record.displayData && record.displayData !== record.submission_ref_id;
+                return (
+                  <DropdownMenuItem
+                    key={record.id}
+                    className="cursor-pointer flex items-center justify-between gap-2 py-2"
+                    onClick={() => handleViewRecord(record.id)}
+                  >
+                    <div className="flex items-start gap-2 flex-1 overflow-hidden">
+                      <ExternalLink className="h-3 w-3 mt-0.5 text-info flex-shrink-0" />
+                      <div className="flex flex-col gap-0.5 overflow-hidden">
+                        <SubmissionRefDisplay submissionRefId={record.submission_ref_id} submissionId={record.id} formName={targetFormName || undefined} variant="compact" />
+                        {hasDisplayData && (
+                          <span className="text-xs text-muted-foreground truncate">{record.displayData}</span>
+                        )}
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 flex-shrink-0 text-accent hover:text-accent/80"
+                      onClick={(e) => { e.stopPropagation(); setDrilldownRecord({ id: record.id, refId: record.submission_ref_id }); }}
+                    >
+                      <Layers className="h-3.5 w-3.5" />
+                    </Button>
+                  </DropdownMenuItem>
+                );
+              })}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+        {inlineExpand}
       </div>
-      {inlineExpand}
-    </div>
+      {drilldownModal}
+    </TooltipProvider>
   );
 }
