@@ -11,6 +11,7 @@ import { ProjectProvider } from "@/contexts/ProjectContext";
 import { FormProvider } from "@/contexts/FormContext";
 import { WorkflowProvider } from "@/contexts/WorkflowContext";
 import { ImpersonationProvider } from "@/contexts/ImpersonationContext";
+import { ThemeProvider } from "@/contexts/ThemeContext";
 import { SessionTimeoutWarning } from "@/components/SessionTimeoutWarning";
 import { ImpersonationBanner } from "@/components/ImpersonationBanner";
 import ProtectedLayout from "@/components/ProtectedLayout";
@@ -101,6 +102,7 @@ const queryClient = new QueryClient({
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
+    <ThemeProvider>
     <AuthProvider>
       <ImpersonationProvider>
         <OrganizationProvider>
@@ -219,6 +221,7 @@ const App = () => (
         </OrganizationProvider>
       </ImpersonationProvider>
     </AuthProvider>
+    </ThemeProvider>
   </QueryClientProvider>
 );
 
