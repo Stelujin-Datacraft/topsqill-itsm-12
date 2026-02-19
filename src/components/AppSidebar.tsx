@@ -19,6 +19,7 @@ import { useImpersonation } from "@/contexts/ImpersonationContext"
 import { useProject } from "@/contexts/ProjectContext"
 import { useOrganization } from "@/contexts/OrganizationContext"
 import { NotificationPanel } from "@/components/NotificationPanel"
+import { ThemeSelector } from "@/components/ThemeSelector"
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { userProfile: realUserProfile } = useAuth();
@@ -135,6 +136,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <NavProjects projects={data.projects} />
       </SidebarContent>
       <SidebarFooter>
+        <ThemeSelector />
         <NavUser user={data.user} />
       </SidebarFooter>
       <SidebarRail />
