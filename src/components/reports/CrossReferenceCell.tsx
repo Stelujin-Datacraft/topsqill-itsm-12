@@ -118,7 +118,7 @@ export function CrossReferenceCell({ submissionRefIds, field }: CrossReferenceCe
 
     return (
       <TooltipProvider>
-        <div className="flex flex-col">
+        <div className="flex flex-col relative">
           <div className="flex items-center gap-1">
             {/* +/- expand button */}
             <Button
@@ -193,7 +193,7 @@ export function CrossReferenceCell({ submissionRefIds, field }: CrossReferenceCe
   // Multiple records
   return (
     <TooltipProvider>
-      <div className="flex flex-col">
+      <div className="flex flex-col relative">
         <div className="flex items-center gap-1">
           {/* +/- expand button */}
           <Button
