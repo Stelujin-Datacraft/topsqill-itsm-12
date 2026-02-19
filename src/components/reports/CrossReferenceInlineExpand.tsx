@@ -103,7 +103,7 @@ export function CrossReferenceInlineExpand({
 
   if (loading) {
     return (
-      <div className="flex items-center gap-2 py-3 px-3 mt-1 border border-border rounded-md bg-background shadow-lg relative z-50">
+      <div className="absolute top-full left-0 mt-1 z-[100] flex items-center gap-2 py-3 px-3 border border-border rounded-md bg-background shadow-lg">
         <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
         <span className="text-xs text-muted-foreground">Loading linked records...</span>
       </div>
@@ -112,7 +112,7 @@ export function CrossReferenceInlineExpand({
 
   if (recordDetails.length === 0) {
     return (
-      <div className="text-xs text-muted-foreground italic py-2 px-3 mt-1 border border-border rounded-md bg-background shadow-lg relative z-50">
+      <div className="absolute top-full left-0 mt-1 z-[100] text-xs text-muted-foreground italic py-2 px-3 border border-border rounded-md bg-background shadow-lg">
         No linked records found
       </div>
     );
@@ -132,7 +132,7 @@ export function CrossReferenceInlineExpand({
   }
 
   return (
-    <div className="mt-1 relative z-50 min-w-[600px] w-full max-w-[1100px]">
+    <div className="absolute top-full left-0 mt-1 z-[100] min-w-[600px] w-max max-w-[1100px]">
       <div className="border border-border rounded-md overflow-auto bg-background shadow-lg">
         <table className="w-full text-xs">
           <thead>
