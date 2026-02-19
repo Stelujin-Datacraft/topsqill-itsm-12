@@ -52,7 +52,7 @@ import { ManualWorkflowTrigger } from '@/components/ManualWorkflowTrigger';
 import { SubmissionRefDisplay } from '@/components/SubmissionRefDisplay';
 import { useBulkWorkflowTrigger } from '@/hooks/useBulkWorkflowTrigger';
 import { BulkWorkflowTriggerDialog } from './BulkWorkflowTriggerDialog';
-import { generatePolicyDocument } from '@/utils/policyDocumentGenerator';
+import { PolicyGeneratorDialog } from './PolicyGeneratorDialog';
 import { toast } from 'sonner';
 import { AIQueryInput } from './AIQueryInput';
 interface TableConfig {
@@ -114,6 +114,7 @@ export function DynamicTable({
   const [bulkWorkflowTriggerMode, setBulkWorkflowTriggerMode] = useState<'selected' | 'all'>('selected');
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [showUpdateDialog, setShowUpdateDialog] = useState(false);
+  const [showPolicyDialog, setShowPolicyDialog] = useState(false);
   const [aiQueryFilters, setAiQueryFilters] = useState<Array<{ fieldId: string; operator: string; value: string }>>([]);
   const [aiQuerySort, setAiQuerySort] = useState<{ field: string | null; order: 'asc' | 'desc' }>({ field: null, order: 'asc' });
 
@@ -1086,21 +1087,7 @@ export function DynamicTable({
                     Update Records
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={async () => {
-                    try {
-                      toast.info('Generating policy document...');
-                      await generatePolicyDocument({
-                        formName: currentForm?.name || config.title || 'Form',
-                        formDescription: currentForm?.description || '',
-                        fields: formFields.map(f => ({ id: f.id, label: f.label, field_type: f.field_type })),
-                        submissions: filteredAndSortedData,
-                      });
-                      toast.success('Policy document downloaded successfully!');
-                    } catch (err) {
-                      console.error('Policy generation error:', err);
-                      toast.error('Failed to generate policy document');
-                    }
-                  }}>
+                  <DropdownMenuItem onClick={() => setShowPolicyDialog(true)}>
                     <ScrollText className="h-4 w-4 mr-2" />
                     Create Policy
                   </DropdownMenuItem>
@@ -1562,6 +1549,16 @@ export function DynamicTable({
         onOpenChange={setShowUpdateDialog}
         formId={config.formId}
         onUpdateComplete={loadData}
+      />
+
+      {/* Policy Generator Dialog */}
+      <PolicyGeneratorDialog
+        open={showPolicyDialog}
+        onOpenChange={setShowPolicyDialog}
+        formName={currentForm?.name || config.title || 'Form'}
+        formDescription={currentForm?.description || ''}
+        fields={formFields.map(f => ({ id: f.id, label: f.label, field_type: f.field_type }))}
+        submissions={filteredAndSortedData}
       />
     </div>;
 }
