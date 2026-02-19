@@ -238,7 +238,14 @@ export function CrossReferenceInlineExpand({
 }
 
 /** Fetches fields for a form and renders all linked records directly in a horizontal table */
-function MultiRecordTable({ linkedRecords, formId, formName }: { linkedRecords: any[]; formId: string; formName: string }) {
+const DEPTH_STYLES = [
+  { border: 'border-accent/30', bg: 'bg-accent/5', headerBg: 'bg-accent/10', headerBorder: 'border-accent/20', rowEven: 'bg-accent/5', rowOdd: 'bg-accent/10' },
+  { border: 'border-primary/25', bg: 'bg-primary/5', headerBg: 'bg-primary/10', headerBorder: 'border-primary/20', rowEven: 'bg-primary/5', rowOdd: 'bg-primary/10' },
+  { border: 'border-secondary/30', bg: 'bg-secondary/20', headerBg: 'bg-secondary/30', headerBorder: 'border-secondary/25', rowEven: 'bg-secondary/15', rowOdd: 'bg-secondary/25' },
+];
+
+function MultiRecordTable({ linkedRecords, formId, formName, depth = 0 }: { linkedRecords: any[]; formId: string; formName: string; depth?: number }) {
+  const ds = DEPTH_STYLES[depth % DEPTH_STYLES.length];
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [formFields, setFormFields] = useState<{ id: string; label: string; fieldType: string; options?: any }[]>([]);
@@ -311,10 +318,10 @@ function MultiRecordTable({ linkedRecords, formId, formName }: { linkedRecords: 
   });
 
   return (
-    <div className="border border-accent/30 rounded-md overflow-auto bg-accent/5 shadow-sm">
+    <div className={`border ${ds.border} rounded-md overflow-auto ${ds.bg} shadow-sm`}>
       <table className="w-full text-xs">
         <thead>
-          <tr className="bg-accent/10 border-b border-accent/20">
+          <tr className={`${ds.headerBg} border-b ${ds.headerBorder}`}>
             <th className="px-3 py-1.5 text-left font-semibold text-muted-foreground whitespace-nowrap">ID</th>
             {formFields.map((f) => (
               <th key={f.id} className="px-3 py-1.5 text-left font-semibold text-muted-foreground whitespace-nowrap max-w-[160px] truncate" title={f.label}>{f.label}</th>
@@ -339,7 +346,7 @@ function MultiRecordTable({ linkedRecords, formId, formName }: { linkedRecords: 
 
             return (
               <React.Fragment key={rec.id}>
-                <tr className={idx % 2 === 0 ? 'bg-accent/5' : 'bg-accent/10'}>
+                <tr className={idx % 2 === 0 ? ds.rowEven : ds.rowOdd}>
                   <td className="px-3 py-1.5 whitespace-nowrap">
                     <div className="flex items-center gap-1">
                       <SubmissionRefDisplay submissionRefId={rec.submission_ref_id} submissionId={rec.id} formName={formName} variant="compact" />
@@ -380,7 +387,7 @@ function MultiRecordTable({ linkedRecords, formId, formName }: { linkedRecords: 
                         <span className="text-[11px] font-semibold">{cr.label}</span>
                         <Badge variant="outline" className="text-[9px] px-1 py-0">{data!.targetFormName} · {data!.linkedRefIds.length}</Badge>
                       </div>
-                      <LazyMultiRecordTable linkedRefIds={data!.linkedRefIds} formId={data!.targetFormId} formName={data!.targetFormName} />
+                      <LazyMultiRecordTable linkedRefIds={data!.linkedRefIds} formId={data!.targetFormId} formName={data!.targetFormName} depth={depth + 1} />
                     </td>
                   </tr>
                 ))}
@@ -394,7 +401,7 @@ function MultiRecordTable({ linkedRecords, formId, formName }: { linkedRecords: 
 }
 
 /** Fetches linked records by ref IDs then renders MultiRecordTable */
-function LazyMultiRecordTable({ linkedRefIds, formId, formName }: { linkedRefIds: string[]; formId: string; formName: string }) {
+function LazyMultiRecordTable({ linkedRefIds, formId, formName, depth = 0 }: { linkedRefIds: string[]; formId: string; formName: string; depth?: number }) {
   const [loading, setLoading] = useState(true);
   const [linkedRecords, setLinkedRecords] = useState<any[]>([]);
 
@@ -430,7 +437,7 @@ function LazyMultiRecordTable({ linkedRefIds, formId, formName }: { linkedRefIds
     return <div className="text-xs text-muted-foreground italic py-1">No linked records found</div>;
   }
 
-  return <MultiRecordTable linkedRecords={linkedRecords} formId={formId} formName={formName} />;
+  return <MultiRecordTable linkedRecords={linkedRecords} formId={formId} formName={formName} depth={depth} />;
 }
 function formatValue(field: FieldDisplay): string {
   const { value, fieldType, options } = field;
