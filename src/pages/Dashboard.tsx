@@ -85,7 +85,7 @@ const Dashboard = () => {
                     onClick={action.onClick}
                     disabled={action.disabled}
                   >
-                    <action.icon className="h-6 w-6 text-accent" />
+                    <action.icon className="h-6 w-6 text-primary" />
                     <div className="text-left">
                       <div className="text-xl">{action.title}</div>
                       <div className="text-xs text-muted-foreground">
@@ -130,7 +130,7 @@ const Dashboard = () => {
             <Card className="bg-primary-light border-primary/20">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Total Projects</CardTitle>
-                <Settings className="h-4 w-4 text-accent" />
+                <Settings className="h-4 w-4 text-primary" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{projects.length}</div>
@@ -143,7 +143,7 @@ const Dashboard = () => {
             <Card className="bg-primary-light border-primary/20">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Current Role</CardTitle>
-                <Users className="h-4 w-4 text-accent" />
+                <Users className="h-4 w-4 text-primary" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold capitalize">{userProfile?.role || 'User'}</div>
@@ -156,7 +156,7 @@ const Dashboard = () => {
             <Card className="bg-primary-light border-primary/20">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Active Project</CardTitle>
-                <FileText className="h-4 w-4 text-accent" />
+                <FileText className="h-4 w-4 text-primary" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
