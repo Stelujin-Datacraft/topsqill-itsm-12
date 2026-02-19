@@ -103,7 +103,7 @@ export function CrossReferenceInlineExpand({
 
   if (loading) {
     return (
-      <div className="absolute top-full left-0 mt-1 z-[100] flex items-center gap-2 py-3 px-3 border border-border rounded-md bg-background shadow-lg">
+      <div className="flex items-center gap-2 py-3 px-3">
         <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
         <span className="text-xs text-muted-foreground">Loading linked records...</span>
       </div>
@@ -112,14 +112,13 @@ export function CrossReferenceInlineExpand({
 
   if (recordDetails.length === 0) {
     return (
-      <div className="absolute top-full left-0 mt-1 z-[100] text-xs text-muted-foreground italic py-2 px-3 border border-border rounded-md bg-background shadow-lg">
+      <div className="text-xs text-muted-foreground italic py-2 px-3">
         No linked records found
       </div>
     );
   }
 
   const allFields = recordDetails.length > 0 ? recordDetails[0].fields : [];
-  // Collect unique cross-ref field definitions across all records
   const allCrossRefColumns: { fieldId: string; label: string }[] = [];
   const seenCrFields = new Set<string>();
   for (const rec of recordDetails) {
@@ -132,7 +131,7 @@ export function CrossReferenceInlineExpand({
   }
 
   return (
-    <div className="absolute top-full left-0 mt-1 z-[100] min-w-[600px] w-max max-w-[1100px]">
+    <div className="min-w-[600px] w-max max-w-[1100px]">
       <div className="border border-border rounded-md overflow-auto bg-background shadow-lg">
         <table className="w-full text-xs">
           <thead>
