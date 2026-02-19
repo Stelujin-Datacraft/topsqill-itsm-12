@@ -181,15 +181,15 @@ const Forms = () => {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem onClick={() => navigate('/my-submissions')}>
-            <FileText className="h-4 w-4 mr-2 text-blue-500" />
+            <FileText className="h-4 w-4 mr-2 text-primary" />
             My Submissions
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => navigate('/form-audit-logs')}>
-            <History className="h-4 w-4 mr-2 text-amber-500" />
+            <History className="h-4 w-4 mr-2 text-primary" />
             Form History
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => navigate('/sla-management')} disabled={!currentProject}>
-            <Timer className="h-4 w-4 mr-2 text-rose-500" />
+            <Timer className="h-4 w-4 mr-2 text-primary" />
             SLA Management
           </DropdownMenuItem>
         </DropdownMenuContent>

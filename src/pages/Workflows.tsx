@@ -88,7 +88,7 @@ const Workflows = () => {
             Workflows
           </TabsTrigger>
           <TabsTrigger value="queue" className="flex items-center gap-2">
-            <Inbox className="h-4 w-4 text-orange-600" />
+            <Inbox className="h-4 w-4 text-primary" />
             Queue Monitor
           </TabsTrigger>
        </TabsList>

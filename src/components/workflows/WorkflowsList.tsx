@@ -172,7 +172,7 @@ export function WorkflowsList({ workflows, onEdit, onDelete, onView, getPermissi
                         onClick={() => handleCopyId(workflow.id)}
                         title="Copy Workflow ID"
                       >
-                        <Copy className="h-4 w-4 text-blue-600" />
+                        <Copy className="h-4 w-4 text-primary" />
                       </Button>
                       <ShareLinkButton 
                         assetType="workflow" 
@@ -185,7 +185,7 @@ export function WorkflowsList({ workflows, onEdit, onDelete, onView, getPermissi
                         onClick={() => onView(workflow)}
                         title="View Workflow"
                       >
-                        <Eye className="h-4 w-4 text-emerald-600" />
+                        <Eye className="h-4 w-4 text-primary" />
                       </Button>
                       <TooltipProvider>
                         <Tooltip>
@@ -196,7 +196,7 @@ export function WorkflowsList({ workflows, onEdit, onDelete, onView, getPermissi
                               onClick={() => handleEditClick(workflow)}
                               disabled={editButtonState.disabled}
                             >
-                              <Edit className="h-4 w-4 text-orange-600" />
+                              <Edit className="h-4 w-4 text-primary" />
                             </Button>
                           </TooltipTrigger>
                           <TooltipContent>
@@ -213,7 +213,7 @@ export function WorkflowsList({ workflows, onEdit, onDelete, onView, getPermissi
                               onClick={() => handleDeleteClick(workflow)}
                               disabled={deleteButtonState.disabled}
                             >
-                              <Trash2 className="h-4 w-4 text-red-600" />
+                              <Trash2 className="h-4 w-4 text-destructive" />
                             </Button>
                           </TooltipTrigger>
                           <TooltipContent>
@@ -243,7 +243,7 @@ export function WorkflowsList({ workflows, onEdit, onDelete, onView, getPermissi
                       className="w-full"
                       onClick={() => handleActivateWorkflow(workflow)}
                     >
-                      <Play className="h-4 w-4 mr-2 text-emerald-600" />
+                      <Play className="h-4 w-4 mr-2 text-primary" />
                       Activate Workflow
                     </Button>
                   )}
