@@ -64,9 +64,9 @@ export function CrossReferenceInlineExpand({
             let customConfig: any = null;
             try { customConfig = typeof field.custom_config === 'string' ? JSON.parse(field.custom_config) : field.custom_config; } catch { /* */ }
 
-            if (field.field_type === 'cross-reference' || field.field_type === 'child-cross-reference') {
+            if (field.field_type === 'cross-reference') {
               const linkedRefIds = extractRefIds(value);
-              const tFormId = field.field_type === 'child-cross-reference' ? customConfig?.parentFormId : customConfig?.targetFormId;
+              const tFormId = customConfig?.targetFormId;
               if (tFormId && linkedRefIds.length > 0) {
                 crossRefs.push({ fieldId: field.id, label: field.label, targetFormId: tFormId, targetFormName: customConfig?.targetFormName || 'Linked Form', linkedRefIds, linkedRecords: [] });
               }
@@ -263,10 +263,9 @@ function MultiRecordTable({ linkedRecords, formId, formName }: { linkedRecords: 
           let customConfig: any = null;
           try { customConfig = typeof field.custom_config === 'string' ? JSON.parse(field.custom_config) : field.custom_config; } catch { /* */ }
 
-          if (field.field_type === 'cross-reference' || field.field_type === 'child-cross-reference') {
-            const tFormId = field.field_type === 'child-cross-reference' ? customConfig?.parentFormId : customConfig?.targetFormId;
+          if (field.field_type === 'cross-reference') {
+            const tFormId = customConfig?.targetFormId;
             if (tFormId) {
-              // Get target form name
               const { data: tf } = await supabase.from('forms').select('name').eq('id', tFormId).single();
               crCols.push({ fieldId: field.id, label: field.label, targetFormId: tFormId, targetFormName: tf?.name || customConfig?.targetFormName || 'Linked Form' });
             }
@@ -313,10 +312,10 @@ function MultiRecordTable({ linkedRecords, formId, formName }: { linkedRecords: 
   });
 
   return (
-    <div className="border border-border/60 rounded-md overflow-auto bg-background shadow-sm">
+    <div className="border border-accent/30 rounded-md overflow-auto bg-accent/5 shadow-sm">
       <table className="w-full text-xs">
         <thead>
-          <tr className="bg-muted/60 border-b border-border/40">
+          <tr className="bg-accent/10 border-b border-accent/20">
             <th className="px-3 py-1.5 text-left font-semibold text-muted-foreground whitespace-nowrap">ID</th>
             {formFields.map((f) => (
               <th key={f.id} className="px-3 py-1.5 text-left font-semibold text-muted-foreground whitespace-nowrap max-w-[160px] truncate" title={f.label}>{f.label}</th>
@@ -341,7 +340,7 @@ function MultiRecordTable({ linkedRecords, formId, formName }: { linkedRecords: 
 
             return (
               <React.Fragment key={rec.id}>
-                <tr className={idx % 2 === 0 ? 'bg-background' : 'bg-muted/20'}>
+                <tr className={idx % 2 === 0 ? 'bg-accent/5' : 'bg-accent/10'}>
                   <td className="px-3 py-1.5 whitespace-nowrap">
                     <div className="flex items-center gap-1">
                       <SubmissionRefDisplay submissionRefId={rec.submission_ref_id} submissionId={rec.id} formName={formName} variant="compact" />
