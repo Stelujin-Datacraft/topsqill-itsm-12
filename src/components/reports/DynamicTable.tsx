@@ -46,7 +46,6 @@ import { CrossReferenceDialog } from './CrossReferenceDialog';
 import { ColumnOrderManager } from './ColumnOrderManager';
 import { CopyRecordsDialog } from './CopyRecordsDialog';
 import { ImportDialog } from '@/components/ImportDialog';
-import { InlineCrossReferenceExpand } from './InlineCrossReferenceExpand';
 import { SubmissionUpdateDialog } from '@/components/submissions/SubmissionUpdateDialog';
 import { RecordHistoryDialog } from '@/components/RecordHistoryDialog';
 import { ManualWorkflowTrigger } from '@/components/ManualWorkflowTrigger';
@@ -105,8 +104,6 @@ export function DynamicTable({
   const [crossReferenceFieldName, setCrossReferenceFieldName] = useState<string>('Cross Reference');
   const [crossReferenceTargetFormId, setCrossReferenceTargetFormId] = useState<string>();
   const [crossReferenceDisplayFields, setCrossReferenceDisplayFields] = useState<string[]>([]);
-  // Inline expand state for cross-reference fields: key = `${rowId}_${fieldId}`
-  const [expandedCrossRefs, setExpandedCrossRefs] = useState<Set<string>>(new Set());
   const [highlightedSubmissionRef, setHighlightedSubmissionRef] = useState<string | null>(null);
   const [selectedSubmissionForView, setSelectedSubmissionForView] = useState<{ id: string; refId: string } | null>(null);
   const [showRecordHistory, setShowRecordHistory] = useState(false);
@@ -1317,8 +1314,8 @@ export function DynamicTable({
                           ) : 'No records found'}
                         </div>
                       </TableCell>
-                    </TableRow> : paginatedData.map(row => <React.Fragment key={row.id}>
-                    <TableRow
+                    </TableRow> : paginatedData.map(row => <TableRow
+                      key={row.id}
                       data-submission-ref={row.submission_ref_id}
                       className={`border-b border-gray-200 transition-all duration-300 ${
                         selectedRows.has(row.id) ? 'bg-emerald-50' : 
@@ -1363,34 +1360,11 @@ export function DynamicTable({
                        {/* Status column hidden */}
                        
                        {/* Form Fields */}
-                      {displayFields.map(field => {
-                        const isCrossRef = field.field_type === 'cross-reference' || field.field_type === 'child-cross-reference' || field.type === 'cross-reference' || field.type === 'child-cross-reference';
-                        const expandKey = `${row.id}_${field.id}`;
-                        return (
-                          <TableCell key={field.id} className="py-2 max-w-58 bg-white">
-                            <div className="min-w-0">
-                              <FormDataCell 
-                                value={row.submission_data?.[field.id]} 
-                                fieldType={field.field_type || field.type} 
-                                field={field} 
-                                submissionId={row.id}
-                                isExpanded={isCrossRef ? expandedCrossRefs.has(expandKey) : undefined}
-                                onToggleExpand={isCrossRef ? () => {
-                                  setExpandedCrossRefs(prev => {
-                                    const next = new Set(prev);
-                                    if (next.has(expandKey)) {
-                                      next.delete(expandKey);
-                                    } else {
-                                      next.add(expandKey);
-                                    }
-                                    return next;
-                                  });
-                                } : undefined}
-                              />
-                            </div>
-                          </TableCell>
-                        );
-                      })}
+                      {displayFields.map(field => <TableCell key={field.id} className="py-2 max-w-58 bg-white">
+                           <div className="min-w-0">
+                             <FormDataCell value={row.submission_data?.[field.id]} fieldType={field.field_type || field.type} field={field} submissionId={row.id} />
+                           </div>
+                         </TableCell>)}
                        
                         <TableCell className="py-2 bg-white">
                           <div className="flex items-center justify-center gap-1">
@@ -1422,40 +1396,7 @@ export function DynamicTable({
                              )}
                           </div>
                         </TableCell>
-                    </TableRow>
-                    {/* Render expanded cross-reference sub-rows */}
-                    {displayFields.filter(field => {
-                      const isCrossRef = field.field_type === 'cross-reference' || field.field_type === 'child-cross-reference' || field.type === 'cross-reference' || field.type === 'child-cross-reference';
-                      return isCrossRef && expandedCrossRefs.has(`${row.id}_${field.id}`);
-                    }).map(field => {
-                      let customConfig: any = field.customConfig || field.custom_config;
-                      if (typeof customConfig === 'string') {
-                        try { customConfig = JSON.parse(customConfig); } catch { customConfig = {}; }
-                      }
-                      const targetFormId = field.field_type === 'child-cross-reference' || field.type === 'child-cross-reference'
-                        ? customConfig?.parentFormId
-                        : customConfig?.targetFormId;
-                      const value = row.submission_data?.[field.id];
-                      let linkedRefIds: string[] = [];
-                      if (typeof value === 'string') {
-                        linkedRefIds = value.split(',').map((s: string) => s.trim()).filter(Boolean);
-                      } else if (Array.isArray(value)) {
-                        linkedRefIds = value.map((v: any) => typeof v === 'string' ? v : v?.submission_ref_id || v?.id || '').filter(Boolean);
-                      }
-                      const tableDisplayFields = customConfig?.tableDisplayFields || [];
-                      const totalCols = displayFields.length + 5; // checkbox + submission ID + user + date + actions
-                      
-                      return targetFormId && linkedRefIds.length > 0 ? (
-                        <InlineCrossReferenceExpand
-                          key={`expand_${row.id}_${field.id}`}
-                          targetFormId={targetFormId}
-                          linkedRefIds={linkedRefIds}
-                          tableDisplayFields={tableDisplayFields}
-                          colSpan={totalCols}
-                        />
-                      ) : null;
-                    })}
-                    </React.Fragment>)}
+                    </TableRow>)}
 
 
                 </TableBody>
