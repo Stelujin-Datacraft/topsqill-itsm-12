@@ -395,8 +395,8 @@ const COUNTRIES = [
   }
 
 
-  // Handle cross-reference and child-cross-reference fields  
-  if (fieldType === 'cross-reference' || fieldType === 'child-cross-reference') {
+  // Handle cross-reference fields (child-cross-reference is excluded from table columns)
+  if (fieldType === 'cross-reference') {
     let submissionRefIds: string[] = [];
     
     if (typeof value === 'string') {

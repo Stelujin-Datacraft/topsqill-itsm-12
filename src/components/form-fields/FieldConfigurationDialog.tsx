@@ -202,10 +202,13 @@ export function FieldConfigurationDialog({ field, open, onClose, onSave }: Field
 
           {targetForm && (
             <>
-              {/* Display Columns */}
-              <div className="space-y-2">
-                <Label>Display Columns (in form table)</Label>
-                <div className="grid grid-cols-2 gap-2">
+              {/* Display Columns - what shows in the form's cross-reference selection table */}
+              <div className="space-y-2 p-4 border rounded-lg bg-muted/30">
+                <Label className="text-base font-semibold">🔍 Display Columns (Form Selection Table)</Label>
+                <p className="text-sm text-muted-foreground mb-2">
+                  Choose which columns to show in the cross-reference selection popup when filling the form. These help users identify the right record to link.
+                </p>
+                <div className="grid grid-cols-2 gap-2 mt-2 p-3 bg-background rounded border">
                   {targetFormFields.map((field) => (
                     <div key={field.id} className="flex items-center space-x-2">
                       <Checkbox
@@ -224,13 +227,18 @@ export function FieldConfigurationDialog({ field, open, onClose, onSave }: Field
                     </div>
                   ))}
                 </div>
+                {config.displayColumns && config.displayColumns.length > 0 && (
+                  <p className="text-xs text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                    ✓ Showing in selection: {config.displayColumns.map((fId: string) => targetFormFields.find(f => f.id === fId)?.label).filter(Boolean).join(', ')}
+                  </p>
+                )}
               </div>
 
-              {/* Table Display Fields - Fields to save with cross-reference */}
+              {/* Table Display Fields - what gets saved and shown in reports/dynamic tables */}
               <div className="space-y-2 p-4 border-2 border-primary/20 rounded-lg bg-primary/5">
-                <Label className="text-base font-semibold">📊 Table Display Fields (Multiple Selection)</Label>
+                <Label className="text-base font-semibold">📊 Table Display Fields (Reports & Dynamic Table)</Label>
                 <p className="text-sm text-muted-foreground mb-2">
-                  Select which fields from the linked form to save with the cross-reference. These fields will be included in query results and shown in the table view.
+                  Select which fields from the linked form to save with the cross-reference. These fields will appear as extra data in reports, dynamic tables, and CSV exports.
                 </p>
                 <div className="grid grid-cols-2 gap-2 mt-2 p-3 bg-background rounded border">
                   {targetFormFields.map((field) => (
