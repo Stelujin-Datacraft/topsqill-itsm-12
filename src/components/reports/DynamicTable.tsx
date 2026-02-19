@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
-import { ChevronUp, ChevronDown, Search, Filter, Settings, Eye, Maximize2, Minimize2, Trash2, Edit3, FileText, User, Calendar, CheckCircle, ExternalLink, Move, History, PlayCircle, ChevronDown as ChevronDownIcon, Database, Zap, Download, Upload, RefreshCw, Columns } from 'lucide-react';
+import { ChevronUp, ChevronDown, Search, Filter, Settings, Eye, Maximize2, Minimize2, Trash2, Edit3, FileText, User, Calendar, CheckCircle, ExternalLink, Move, History, PlayCircle, ChevronDown as ChevronDownIcon, Database, Zap, Download, Upload, RefreshCw, Columns, ScrollText } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -52,6 +52,8 @@ import { ManualWorkflowTrigger } from '@/components/ManualWorkflowTrigger';
 import { SubmissionRefDisplay } from '@/components/SubmissionRefDisplay';
 import { useBulkWorkflowTrigger } from '@/hooks/useBulkWorkflowTrigger';
 import { BulkWorkflowTriggerDialog } from './BulkWorkflowTriggerDialog';
+import { generatePolicyDocument } from '@/utils/policyDocumentGenerator';
+import { toast } from 'sonner';
 import { AIQueryInput } from './AIQueryInput';
 interface TableConfig {
   title: string;
@@ -1082,6 +1084,25 @@ export function DynamicTable({
                   <DropdownMenuItem onClick={() => setShowUpdateDialog(true)}>
                     <RefreshCw className="h-4 w-4 mr-2" />
                     Update Records
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={async () => {
+                    try {
+                      toast.info('Generating policy document...');
+                      await generatePolicyDocument({
+                        formName: currentForm?.name || config.title || 'Form',
+                        formDescription: currentForm?.description || '',
+                        fields: formFields.map(f => ({ id: f.id, label: f.label, field_type: f.field_type })),
+                        submissions: filteredAndSortedData,
+                      });
+                      toast.success('Policy document downloaded successfully!');
+                    } catch (err) {
+                      console.error('Policy generation error:', err);
+                      toast.error('Failed to generate policy document');
+                    }
+                  }}>
+                    <ScrollText className="h-4 w-4 mr-2" />
+                    Create Policy
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
