@@ -54,6 +54,11 @@ export function CrossReferenceCell({ submissionRefIds, field }: CrossReferenceCe
     tableDisplayFields = customConfig.tableDisplayFields;
   }
 
+  let displayColumns: string[] = [];
+  if (customConfig?.displayColumns && Array.isArray(customConfig.displayColumns)) {
+    displayColumns = customConfig.displayColumns;
+  }
+
   // Normalize submissionRefIds
   let normalizedSubmissionRefIds: string[] = [];
   if (typeof submissionRefIds === 'string') {
@@ -139,6 +144,7 @@ export function CrossReferenceCell({ submissionRefIds, field }: CrossReferenceCe
                 targetFormId={targetFormId}
                 targetFormName={targetFormName || undefined}
                 tableDisplayFields={tableDisplayFields}
+                displayColumns={displayColumns}
               />
             </PopoverContent>
           </Popover>
@@ -228,6 +234,7 @@ export function CrossReferenceCell({ submissionRefIds, field }: CrossReferenceCe
               targetFormId={targetFormId}
               targetFormName={targetFormName || undefined}
               tableDisplayFields={tableDisplayFields}
+              displayColumns={displayColumns}
             />
           </PopoverContent>
         </Popover>
