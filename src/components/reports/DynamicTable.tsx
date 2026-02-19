@@ -1360,8 +1360,8 @@ export function DynamicTable({
                        {/* Status column hidden */}
                        
                        {/* Form Fields */}
-                      {displayFields.map(field => <TableCell key={field.id} className="py-2 max-w-58 bg-white">
-                           <div className="min-w-0">
+                      {displayFields.map(field => <TableCell key={field.id} className="py-2 max-w-58 bg-white align-top">
+                           <div className="min-w-0 overflow-visible">
                              <FormDataCell value={row.submission_data?.[field.id]} fieldType={field.field_type || field.type} field={field} submissionId={row.id} />
                            </div>
                          </TableCell>)}
