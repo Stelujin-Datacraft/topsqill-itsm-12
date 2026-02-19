@@ -7,7 +7,7 @@ import DashboardLayout from '@/components/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { CreateProjectDialog } from '@/components/projects/CreateProjectDialog';
-import { ProjectInvitationsCard } from '@/components/projects/ProjectInvitationsCard';
+
 import { RecentActivityList } from '@/components/RecentActivityList';
 import { Plus, BarChart3, Users, FileText, Settings, Workflow } from 'lucide-react';
 
@@ -22,9 +22,6 @@ const Dashboard = () => {
     console.log('New project created on dashboard:', projectId);
   };
 
-  const handleInvitationAccepted = (projectId: string) => {
-    console.log('Invitation accepted on dashboard:', projectId);
-  };
 
   const quickActions = [
     {
@@ -71,11 +68,7 @@ const Dashboard = () => {
       >
         <div className="space-y-6">
 
-          {/* Project Invitations */}
-          <ProjectInvitationsCard 
-            maxItems={3} 
-            onInvitationAccepted={handleInvitationAccepted}
-          />
+          {/* Project Invitations - removed, available in Project section */}
 
           {/* Quick Actions */}
           <Card>
