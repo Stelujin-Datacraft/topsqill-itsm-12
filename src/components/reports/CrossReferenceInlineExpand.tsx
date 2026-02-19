@@ -37,12 +37,7 @@ export function CrossReferenceInlineExpand({
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [recordDetails, setRecordDetails] = useState<
-    {
-      id: string;
-      submissionRefId: string;
-      fields: FieldDisplay[];
-      crossRefFields: CrossRefFieldInfo[];
-    }[]
+    { id: string; submissionRefId: string; fields: FieldDisplay[]; crossRefFields: CrossRefFieldInfo[] }[]
   >([]);
   const [expandedCrossRefs, setExpandedCrossRefs] = useState<Record<string, boolean>>({});
 
@@ -123,68 +118,136 @@ export function CrossReferenceInlineExpand({
     );
   }
 
-  // Collect all unique field labels across records for column headers
   const allFields = recordDetails.length > 0 ? recordDetails[0].fields : [];
+  // Collect unique cross-ref field definitions across all records
+  const allCrossRefColumns: { fieldId: string; label: string }[] = [];
+  const seenCrFields = new Set<string>();
+  for (const rec of recordDetails) {
+    for (const cr of rec.crossRefFields) {
+      if (!seenCrFields.has(cr.fieldId)) {
+        seenCrFields.add(cr.fieldId);
+        allCrossRefColumns.push({ fieldId: cr.fieldId, label: cr.label });
+      }
+    }
+  }
 
   return (
     <div className="mt-1 relative z-50 min-w-[600px] w-full max-w-[1100px]">
-      {/* Main records table */}
       <div className="border border-border rounded-md overflow-auto bg-background shadow-lg">
         <table className="w-full text-xs">
           <thead>
             <tr className="bg-muted border-b border-border">
               <th className="px-3 py-2 text-left font-semibold text-muted-foreground whitespace-nowrap sticky left-0 bg-muted">ID</th>
               {allFields.map((f) => (
-                <th key={f.id} className="px-3 py-2 text-left font-semibold text-muted-foreground whitespace-nowrap max-w-[180px] truncate" title={f.label}>
-                  {f.label}
+                <th key={f.id} className="px-3 py-2 text-left font-semibold text-muted-foreground whitespace-nowrap max-w-[180px] truncate" title={f.label}>{f.label}</th>
+              ))}
+              {allCrossRefColumns.map((cr) => (
+                <th key={cr.fieldId} className="px-3 py-2 text-left font-semibold text-accent whitespace-nowrap" title={cr.label}>
+                  <div className="flex items-center gap-1">
+                    <Link2 className="h-3 w-3" />
+                    {cr.label}
+                  </div>
                 </th>
               ))}
-              <th className="px-3 py-2 text-left font-semibold text-muted-foreground whitespace-nowrap w-[40px]"></th>
+              <th className="px-1 py-2 w-[30px]"></th>
             </tr>
           </thead>
           <tbody>
-            {recordDetails.map((rec, rowIdx) => (
-              <React.Fragment key={rec.id}>
-                <tr className={`border-b border-border/40 ${rowIdx % 2 === 0 ? 'bg-background' : 'bg-muted/20'}`}>
-                  <td className="px-3 py-2 whitespace-nowrap sticky left-0 bg-inherit">
-                    <div className="flex items-center gap-1.5">
-                      <SubmissionRefDisplay submissionRefId={rec.submissionRefId} submissionId={rec.id} formName={targetFormName || undefined} variant="compact" />
-                      <Button variant="ghost" size="sm" className="h-5 px-1 text-xs" onClick={() => navigate(`/submission/${rec.id}`)}>
-                        <ExternalLink className="h-3 w-3 text-info" />
-                      </Button>
-                    </div>
-                  </td>
-                  {allFields.map((f) => {
-                    const recField = rec.fields.find((rf) => rf.id === f.id);
-                    return (
-                      <td key={f.id} className="px-3 py-2 max-w-[180px] truncate" title={recField ? formatValue(recField) : '—'}>
-                        {recField ? formatValue(recField) : '—'}
-                      </td>
-                    );
-                  })}
-                  <td className="px-1 py-2"></td>
-                </tr>
+            {recordDetails.map((rec, rowIdx) => {
+              // Find which cross-ref columns are expanded for this row
+              const expandedCrForRow = allCrossRefColumns
+                .map((col) => {
+                  const crKey = `${rec.id}-${col.fieldId}`;
+                  const crData = rec.crossRefFields.find((c) => c.fieldId === col.fieldId);
+                  return { col, crKey, crData, isExpanded: !!expandedCrossRefs[crKey] };
+                })
+                .filter((x) => x.isExpanded && x.crData && x.crData.linkedRecords.length > 0);
 
-                {/* Linked cross-ref sections */}
-                {rec.crossRefFields.length > 0 && (
-                  <tr>
-                    <td colSpan={allFields.length + 2} className="px-3 py-2 bg-muted/10">
-                      <div className="space-y-2">
-                        {rec.crossRefFields.map((cr) => (
-                          <LinkedRecordsTable
-                            key={cr.fieldId}
-                            crossRef={cr}
-                            parentId={rec.id}
-                            expandedCrossRefs={expandedCrossRefs}
-                            toggleCrossRef={toggleCrossRef}
-                          />
-                        ))}
+              return (
+                <React.Fragment key={rec.id}>
+                  <tr className={`border-b border-border/40 ${rowIdx % 2 === 0 ? 'bg-background' : 'bg-muted/20'}`}>
+                    <td className="px-3 py-2 whitespace-nowrap sticky left-0 bg-inherit">
+                      <div className="flex items-center gap-1.5">
+                        <SubmissionRefDisplay submissionRefId={rec.submissionRefId} submissionId={rec.id} formName={targetFormName || undefined} variant="compact" />
+                        <Button variant="ghost" size="sm" className="h-5 px-1 text-xs" onClick={() => navigate(`/submission/${rec.id}`)}>
+                          <ExternalLink className="h-3 w-3 text-info" />
+                        </Button>
                       </div>
                     </td>
+                    {allFields.map((f) => {
+                      const recField = rec.fields.find((rf) => rf.id === f.id);
+                      return (
+                        <td key={f.id} className="px-3 py-2 max-w-[180px] truncate" title={recField ? formatValue(recField) : '—'}>
+                          {recField ? formatValue(recField) : '—'}
+                        </td>
+                      );
+                    })}
+                    {allCrossRefColumns.map((col) => {
+                      const crData = rec.crossRefFields.find((c) => c.fieldId === col.fieldId);
+                      const crKey = `${rec.id}-${col.fieldId}`;
+                      const isExpanded = !!expandedCrossRefs[crKey];
+                      const count = crData?.linkedRecords.length || 0;
+
+                      if (!crData || count === 0) {
+                        return <td key={col.fieldId} className="px-3 py-2 text-muted-foreground italic">—</td>;
+                      }
+
+                      return (
+                        <td key={col.fieldId} className="px-3 py-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-6 px-2 gap-1 border-border bg-background hover:bg-muted text-xs font-medium"
+                            onClick={() => toggleCrossRef(crKey)}
+                          >
+                            {isExpanded ? <Minus className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
+                            <span>{count}</span>
+                          </Button>
+                        </td>
+                      );
+                    })}
+                    <td className="px-1 py-2"></td>
                   </tr>
-                )}
-              </React.Fragment>
-            ))}
+
+                  {/* Expanded cross-ref sections */}
+                  {expandedCrForRow.map(({ crData, crKey }) => (
+                    <tr key={crKey}>
+                      <td colSpan={allFields.length + allCrossRefColumns.length + 2} className="px-4 py-2 bg-muted/10 border-b border-border/40">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Link2 className="h-3 w-3 text-accent" />
+                          <span className="text-xs font-semibold">{crData!.label}</span>
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                            {crData!.targetFormName} · {crData!.linkedRecords.length}
+                          </Badge>
+                        </div>
+                        {crData!.linkedRecords.map((linked: any) => {
+                          const nestedKey = `${crKey}-nested-${linked.id}`;
+                          const isNestedExpanded = !!expandedCrossRefs[nestedKey];
+                          return (
+                            <div key={linked.id} className="mb-1">
+                              <div className="flex items-center gap-1 py-0.5">
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  className="h-5 w-5 flex-shrink-0 border-border bg-background hover:bg-muted"
+                                  onClick={() => toggleCrossRef(nestedKey)}
+                                >
+                                  {isNestedExpanded ? <Minus className="h-2.5 w-2.5" /> : <Plus className="h-2.5 w-2.5" />}
+                                </Button>
+                                <SubmissionRefDisplay submissionRefId={linked.submission_ref_id} submissionId={linked.id} formName={crData!.targetFormName} variant="compact" />
+                              </div>
+                              {isNestedExpanded && (
+                                <NestedRecordExpand submissionId={linked.id} formId={crData!.targetFormId} formName={crData!.targetFormName} />
+                              )}
+                            </div>
+                          );
+                        })}
+                      </td>
+                    </tr>
+                  ))}
+                </React.Fragment>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -192,54 +255,6 @@ export function CrossReferenceInlineExpand({
   );
 }
 
-/** Linked records shown as a horizontal table */
-function LinkedRecordsTable({
-  crossRef,
-  parentId,
-  expandedCrossRefs,
-  toggleCrossRef,
-}: {
-  crossRef: CrossRefFieldInfo;
-  parentId: string;
-  expandedCrossRefs: Record<string, boolean>;
-  toggleCrossRef: (key: string) => void;
-}) {
-  return (
-    <div className="space-y-1">
-      <div className="flex items-center gap-2">
-        <Link2 className="h-3 w-3 text-accent" />
-        <span className="text-xs font-medium">{crossRef.label}</span>
-        <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-          {crossRef.targetFormName} · {crossRef.linkedRecords.length}
-        </Badge>
-      </div>
-      {crossRef.linkedRecords.map((linked: any) => {
-        const crKey = `${parentId}-${crossRef.fieldId}-${linked.id}`;
-        const isExpanded = expandedCrossRefs[crKey];
-        return (
-          <div key={linked.id}>
-            <div className="flex items-center gap-1 py-0.5">
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-5 w-5 flex-shrink-0 border-border bg-background hover:bg-muted"
-                onClick={() => toggleCrossRef(crKey)}
-              >
-                {isExpanded ? <Minus className="h-2.5 w-2.5" /> : <Plus className="h-2.5 w-2.5" />}
-              </Button>
-              <SubmissionRefDisplay submissionRefId={linked.submission_ref_id} submissionId={linked.id} formName={crossRef.targetFormName} variant="compact" />
-            </div>
-            {isExpanded && (
-              <NestedRecordExpand submissionId={linked.id} formId={crossRef.targetFormId} formName={crossRef.targetFormName} />
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-/** Recursively expandable nested record — horizontal table layout */
 function NestedRecordExpand({ submissionId, formId, formName }: { submissionId: string; formId: string; formName: string }) {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -312,20 +327,22 @@ function NestedRecordExpand({ submissionId, formId, formName }: { submissionId: 
   }
 
   const visibleFields = fields.filter((f) => f.value !== null && f.value !== undefined && f.value !== '');
+  const crColumns = crossRefFields.filter((cr) => cr.linkedRecords.length > 0);
 
   return (
     <div className="ml-6 my-1 border border-border/60 rounded-md overflow-auto bg-background shadow-sm">
-      {/* Horizontal table: ID + fields as columns */}
       <table className="w-full text-xs">
         <thead>
           <tr className="bg-muted/60 border-b border-border/40">
             <th className="px-3 py-1.5 text-left font-semibold text-muted-foreground whitespace-nowrap">ID</th>
             {visibleFields.map((f) => (
-              <th key={f.id} className="px-3 py-1.5 text-left font-semibold text-muted-foreground whitespace-nowrap max-w-[160px] truncate" title={f.label}>
-                {f.label}
+              <th key={f.id} className="px-3 py-1.5 text-left font-semibold text-muted-foreground whitespace-nowrap max-w-[160px] truncate" title={f.label}>{f.label}</th>
+            ))}
+            {crColumns.map((cr) => (
+              <th key={cr.fieldId} className="px-3 py-1.5 text-left font-semibold text-accent whitespace-nowrap">
+                <div className="flex items-center gap-1"><Link2 className="h-2.5 w-2.5" />{cr.label}</div>
               </th>
             ))}
-            <th className="px-1 py-1.5 w-[30px]"></th>
           </tr>
         </thead>
         <tbody>
@@ -339,44 +356,53 @@ function NestedRecordExpand({ submissionId, formId, formName }: { submissionId: 
               </div>
             </td>
             {visibleFields.map((f) => (
-              <td key={f.id} className="px-3 py-1.5 max-w-[160px] truncate" title={formatValue(f)}>
-                {formatValue(f)}
-              </td>
+              <td key={f.id} className="px-3 py-1.5 max-w-[160px] truncate" title={formatValue(f)}>{formatValue(f)}</td>
             ))}
-            <td className="px-1 py-1.5"></td>
+            {crColumns.map((cr) => {
+              const crKey = `nested-${submissionId}-${cr.fieldId}`;
+              const isExpanded = !!expandedCrossRefs[crKey];
+              return (
+                <td key={cr.fieldId} className="px-3 py-1.5">
+                  <Button variant="outline" size="sm" className="h-5 px-1.5 gap-1 border-border bg-background hover:bg-muted text-xs" onClick={() => toggleCrossRef(crKey)}>
+                    {isExpanded ? <Minus className="h-2.5 w-2.5" /> : <Plus className="h-2.5 w-2.5" />}
+                    <span>{cr.linkedRecords.length}</span>
+                  </Button>
+                </td>
+              );
+            })}
           </tr>
         </tbody>
       </table>
 
-      {/* Nested linked records */}
-      {crossRefFields.length > 0 && (
-        <div className="border-t border-border/40 px-3 py-2 space-y-1">
-          {crossRefFields.map((cr) => (
-            <div key={cr.fieldId} className="space-y-1">
-              <div className="flex items-center gap-1">
-                <Link2 className="h-2.5 w-2.5 text-accent" />
-                <span className="text-[11px] font-medium">{cr.label}</span>
-                <Badge variant="outline" className="text-[9px] px-1 py-0">{cr.targetFormName} · {cr.linkedRecords.length}</Badge>
-              </div>
-              {cr.linkedRecords.map((linked: any) => {
-                const crKey = `${submissionId}-${cr.fieldId}-${linked.id}`;
-                const isExpanded = expandedCrossRefs[crKey];
-                return (
-                  <div key={linked.id}>
-                    <div className="flex items-center gap-1 py-0.5">
-                      <Button variant="outline" size="icon" className="h-4 w-4 flex-shrink-0 border-border bg-background hover:bg-muted" onClick={() => toggleCrossRef(crKey)}>
-                        {isExpanded ? <Minus className="h-2 w-2" /> : <Plus className="h-2 w-2" />}
-                      </Button>
-                      <SubmissionRefDisplay submissionRefId={linked.submission_ref_id} submissionId={linked.id} formName={cr.targetFormName} variant="compact" />
-                    </div>
-                    {isExpanded && <NestedRecordExpand submissionId={linked.id} formId={cr.targetFormId} formName={cr.targetFormName} />}
-                  </div>
-                );
-              })}
+      {/* Expanded nested cross-refs */}
+      {crColumns.map((cr) => {
+        const crKey = `nested-${submissionId}-${cr.fieldId}`;
+        if (!expandedCrossRefs[crKey]) return null;
+        return (
+          <div key={crKey} className="border-t border-border/40 px-3 py-2">
+            <div className="flex items-center gap-2 mb-1">
+              <Link2 className="h-2.5 w-2.5 text-accent" />
+              <span className="text-[11px] font-semibold">{cr.label}</span>
+              <Badge variant="outline" className="text-[9px] px-1 py-0">{cr.targetFormName} · {cr.linkedRecords.length}</Badge>
             </div>
-          ))}
-        </div>
-      )}
+            {cr.linkedRecords.map((linked: any) => {
+              const deepKey = `${crKey}-deep-${linked.id}`;
+              const isDeepExpanded = !!expandedCrossRefs[deepKey];
+              return (
+                <div key={linked.id} className="mb-1">
+                  <div className="flex items-center gap-1 py-0.5">
+                    <Button variant="outline" size="icon" className="h-4 w-4 flex-shrink-0 border-border bg-background hover:bg-muted" onClick={() => toggleCrossRef(deepKey)}>
+                      {isDeepExpanded ? <Minus className="h-2 w-2" /> : <Plus className="h-2 w-2" />}
+                    </Button>
+                    <SubmissionRefDisplay submissionRefId={linked.submission_ref_id} submissionId={linked.id} formName={cr.targetFormName} variant="compact" />
+                  </div>
+                  {isDeepExpanded && <NestedRecordExpand submissionId={linked.id} formId={cr.targetFormId} formName={cr.targetFormName} />}
+                </div>
+              );
+            })}
+          </div>
+        );
+      })}
     </div>
   );
 }
