@@ -91,9 +91,9 @@ export function ProjectsTable({
 
   const getStatusIcon = (status: string) => {
     return status === 'active' ? (
-      <CheckCircle className="h-4 w-4 text-green-600" />
+      <CheckCircle className="h-4 w-4 text-success" />
     ) : (
-      <AlertCircle className="h-4 w-4 text-orange-600" />
+      <AlertCircle className="h-4 w-4 text-warning" />
     );
   };
 
@@ -215,12 +215,12 @@ export function ProjectsTable({
                         variant={userRole.includes('Admin') ? 'default' : 'outline'}
                         className={
         userRole.includes('Admin')
-          ? 'bg-blue-100 text-blue-800 hover:bg-blue-200 hover:text-blue-900'
+          ? 'bg-primary/10 text-foreground hover:bg-primary/20'
           : userRole.includes('Editor')
-          ? 'bg-green-100 text-green-800 hover:bg-green-200 hover:text-green-900'
+          ? 'bg-success/10 text-foreground hover:bg-success/20'
           : userRole.includes('Viewer')
-          ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200 hover:text-yellow-900'
-          : 'bg-gray-100 text-gray-800 hover:bg-gray-200 hover:text-gray-900'
+          ? 'bg-warning/10 text-foreground hover:bg-warning/20'
+          : 'bg-muted text-foreground hover:bg-muted/80'
       }
                       >
                         {userRole}
