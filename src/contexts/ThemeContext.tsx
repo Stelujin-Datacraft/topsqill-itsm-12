@@ -220,7 +220,10 @@ interface ThemeContextType {
   setTheme: (themeId: string) => void;
 }
 
-const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
+const ThemeContext = createContext<ThemeContextType>({
+  currentTheme: themes[0],
+  setTheme: () => {},
+});
 
 const THEME_STORAGE_KEY = 'app-theme-id';
 
@@ -277,9 +280,5 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 }
 
 export function useTheme() {
-  const context = useContext(ThemeContext);
-  if (!context) {
-    throw new Error('useTheme must be used within a ThemeProvider');
-  }
-  return context;
+  return useContext(ThemeContext);
 }
