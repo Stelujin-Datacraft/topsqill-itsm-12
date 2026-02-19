@@ -27,12 +27,14 @@ interface CrossReferenceInlineExpandProps {
   records: { id: string; submission_ref_id: string; displayData?: string }[];
   targetFormId: string;
   targetFormName?: string;
+  tableDisplayFields?: string[];
 }
 
 export function CrossReferenceInlineExpand({
   records,
   targetFormId,
   targetFormName,
+  tableDisplayFields,
 }: CrossReferenceInlineExpandProps) {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -65,12 +67,16 @@ export function CrossReferenceInlineExpand({
             try { customConfig = typeof field.custom_config === 'string' ? JSON.parse(field.custom_config) : field.custom_config; } catch { /* */ }
 
             if (field.field_type === 'cross-reference') {
+              // Skip cross-reference fields if tableDisplayFields is set and this field is not in it
+              if (tableDisplayFields && tableDisplayFields.length > 0 && !tableDisplayFields.includes(field.id)) continue;
               const linkedRefIds = extractRefIds(value);
               const tFormId = customConfig?.targetFormId;
               if (tFormId && linkedRefIds.length > 0) {
                 crossRefs.push({ fieldId: field.id, label: field.label, targetFormId: tFormId, targetFormName: customConfig?.targetFormName || 'Linked Form', linkedRefIds, linkedRecords: [] });
               }
-            } else if (!['section', 'divider', 'description'].includes(field.field_type)) {
+            } else if (!['section', 'divider', 'description', 'child-cross-reference'].includes(field.field_type)) {
+              // Only include fields that are in tableDisplayFields (if configured)
+              if (tableDisplayFields && tableDisplayFields.length > 0 && !tableDisplayFields.includes(field.id)) continue;
               regularFields.push({ id: field.id, label: field.label, fieldType: field.field_type, value, options: field.options });
             }
           }
@@ -275,7 +281,7 @@ function MultiRecordTable({ linkedRecords, formId, formName, depth = 0 }: { link
               const { data: tf } = await supabase.from('forms').select('name').eq('id', tFormId).single();
               crCols.push({ fieldId: field.id, label: field.label, targetFormId: tFormId, targetFormName: tf?.name || customConfig?.targetFormName || 'Linked Form' });
             }
-          } else if (!['section', 'divider', 'description'].includes(field.field_type)) {
+          } else if (!['section', 'divider', 'description', 'child-cross-reference'].includes(field.field_type)) {
             regular.push({ id: field.id, label: field.label, fieldType: field.field_type, options: field.options });
           }
         }

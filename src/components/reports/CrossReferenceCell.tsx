@@ -138,6 +138,7 @@ export function CrossReferenceCell({ submissionRefIds, field }: CrossReferenceCe
                 records={records}
                 targetFormId={targetFormId}
                 targetFormName={targetFormName || undefined}
+                tableDisplayFields={tableDisplayFields}
               />
             </PopoverContent>
           </Popover>
@@ -226,6 +227,7 @@ export function CrossReferenceCell({ submissionRefIds, field }: CrossReferenceCe
               records={records}
               targetFormId={targetFormId}
               targetFormName={targetFormName || undefined}
+              tableDisplayFields={tableDisplayFields}
             />
           </PopoverContent>
         </Popover>
