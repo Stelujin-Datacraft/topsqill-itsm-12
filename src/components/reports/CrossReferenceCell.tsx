@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { ExternalLink, Loader2, ChevronDown, Layers } from 'lucide-react';
+import { ExternalLink, Loader2, ChevronDown, Layers, Plus, Minus } from 'lucide-react';
 import { useCrossReferenceData } from '@/hooks/useCrossReferenceData';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -21,9 +21,11 @@ import { CrossReferenceDrilldownModal } from './CrossReferenceDrilldownModal';
 interface CrossReferenceCellProps {
   submissionRefIds: string[] | string; // can be string (comma-separated) or array
   field: any;
+  isExpanded?: boolean;
+  onToggleExpand?: () => void;
 }
 
-export function CrossReferenceCell({ submissionRefIds, field }: CrossReferenceCellProps) {
+export function CrossReferenceCell({ submissionRefIds, field, isExpanded, onToggleExpand }: CrossReferenceCellProps) {
   const navigate = useNavigate();
   const [drilldownRecord, setDrilldownRecord] = useState<{ id: string; refId: string } | null>(null);
   
@@ -160,6 +162,20 @@ export function CrossReferenceCell({ submissionRefIds, field }: CrossReferenceCe
       <>
         <TooltipProvider>
           <div className="flex items-center gap-1">
+            {onToggleExpand && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleExpand();
+                }}
+                title={isExpanded ? 'Collapse linked records' : 'Expand linked records'}
+              >
+                {isExpanded ? <Minus className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
+              </Button>
+            )}
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -225,7 +241,22 @@ export function CrossReferenceCell({ submissionRefIds, field }: CrossReferenceCe
 
   // Multiple records - show dropdown with all linked records
   return (
-    <>
+      <>
+      <div className="flex items-center gap-1">
+        {onToggleExpand && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 text-muted-foreground hover:text-foreground"
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleExpand();
+            }}
+            title={isExpanded ? 'Collapse linked records' : 'Expand linked records'}
+          >
+            {isExpanded ? <Minus className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
+          </Button>
+        )}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
@@ -282,6 +313,7 @@ export function CrossReferenceCell({ submissionRefIds, field }: CrossReferenceCe
           })}
         </DropdownMenuContent>
       </DropdownMenu>
+      </div>
       {drilldownModal}
     </>
   );

@@ -16,9 +16,11 @@ interface FormDataCellProps {
   fieldType: string;
   field: any;
   submissionId?: string;
+  isExpanded?: boolean;
+  onToggleExpand?: () => void;
 }
 
-export function FormDataCell({ value, fieldType, field, submissionId }: FormDataCellProps) {
+export function FormDataCell({ value, fieldType, field, submissionId, isExpanded, onToggleExpand }: FormDataCellProps) {
   const isHyperlink = field?.custom_config?.isHyperlink || field?.customConfig?.isHyperlink;
   const { getUserDisplayName, getGroupDisplayName } = useUsersAndGroups();
 
@@ -445,6 +447,8 @@ const COUNTRIES = [
       <CrossReferenceCell 
         submissionRefIds={submissionRefIds}
         field={field}
+        isExpanded={isExpanded}
+        onToggleExpand={onToggleExpand}
       />
     );
   }
