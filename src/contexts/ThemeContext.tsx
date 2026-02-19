@@ -529,6 +529,10 @@ const THEME_STORAGE_KEY = 'app-theme-id';
 
 function applyTheme(theme: AppTheme) {
   const root = document.documentElement;
+  // Derive a light tint from the primary color (same hue/sat, 93% lightness)
+  const primaryParts = theme.primary.split(' ');
+  const primaryLight = `${primaryParts[0]} ${primaryParts[1]} 93%`;
+  root.style.setProperty('--primary-light', primaryLight);
   root.style.setProperty('--primary', theme.primary);
   root.style.setProperty('--primary-foreground', theme.primaryForeground);
   root.style.setProperty('--accent', theme.accent);
