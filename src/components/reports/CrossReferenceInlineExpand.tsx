@@ -28,6 +28,7 @@ interface CrossReferenceInlineExpandProps {
   targetFormId: string;
   targetFormName?: string;
   tableDisplayFields?: string[];
+  displayColumns?: string[];
 }
 
 export function CrossReferenceInlineExpand({
@@ -35,7 +36,14 @@ export function CrossReferenceInlineExpand({
   targetFormId,
   targetFormName,
   tableDisplayFields,
+  displayColumns,
 }: CrossReferenceInlineExpandProps) {
+  // tableDisplayFields takes priority; fall back to displayColumns
+  const allowedFields = (tableDisplayFields && tableDisplayFields.length > 0)
+    ? tableDisplayFields
+    : (displayColumns && displayColumns.length > 0)
+      ? displayColumns
+      : null; // null means show all
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [recordDetails, setRecordDetails] = useState<
@@ -67,16 +75,15 @@ export function CrossReferenceInlineExpand({
             try { customConfig = typeof field.custom_config === 'string' ? JSON.parse(field.custom_config) : field.custom_config; } catch { /* */ }
 
             if (field.field_type === 'cross-reference') {
-              // Skip cross-reference fields if tableDisplayFields is set and this field is not in it
-              if (tableDisplayFields && tableDisplayFields.length > 0 && !tableDisplayFields.includes(field.id)) continue;
+              if (allowedFields && !allowedFields.includes(field.id)) continue;
               const linkedRefIds = extractRefIds(value);
               const tFormId = customConfig?.targetFormId;
               if (tFormId && linkedRefIds.length > 0) {
                 crossRefs.push({ fieldId: field.id, label: field.label, targetFormId: tFormId, targetFormName: customConfig?.targetFormName || 'Linked Form', linkedRefIds, linkedRecords: [] });
               }
             } else if (!['section', 'divider', 'description', 'child-cross-reference'].includes(field.field_type)) {
-              // Only include fields that are in tableDisplayFields (if configured)
-              if (tableDisplayFields && tableDisplayFields.length > 0 && !tableDisplayFields.includes(field.id)) continue;
+              if (allowedFields && !allowedFields.includes(field.id)) continue;
+              regularFields.push({ id: field.id, label: field.label, fieldType: field.field_type, value, options: field.options });
               regularFields.push({ id: field.id, label: field.label, fieldType: field.field_type, value, options: field.options });
             }
           }
