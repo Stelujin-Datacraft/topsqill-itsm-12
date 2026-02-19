@@ -84,33 +84,24 @@ const Dashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-  {quickActions.map((action, index) => {
-    const bgColors = [
-    'bg-blue-50 border-blue-200 hover:bg-blue-100',
-      'bg-green-50 border-green-200 hover:bg-green-100',
-      'bg-purple-50 border-purple-200 hover:bg-purple-100',
-      'bg-orange-50 border-orange-200 hover:bg-orange-100'
-    ];
-    
-    return (
-      <Button
-        key={index}
-        variant="outline"
-        className={`h-auto p-4 flex flex-col items-start space-y-2 ${bgColors[index % bgColors.length]}`}
-        onClick={action.onClick}
-        disabled={action.disabled}
-      >
-        <action.icon className={`h-6 w-6 ${index === 0 ? 'text-blue-600' : index === 1 ? 'text-emerald-600' : index === 2 ? 'text-purple-600' : 'text-orange-600'}`} />
-        <div className="text-left">
-          <div className="text-xl">{action.title}</div>
-          <div className="text-xs text-muted-foreground">
-            {action.description}
-          </div>
-        </div>
-      </Button>
-    );
-  })}
-</div>
+                {quickActions.map((action, index) => (
+                  <Button
+                    key={index}
+                    variant="outline"
+                    className="h-auto p-4 flex flex-col items-start space-y-2 bg-primary/5 border-primary/15 hover:bg-primary/10"
+                    onClick={action.onClick}
+                    disabled={action.disabled}
+                  >
+                    <action.icon className="h-6 w-6 text-accent" />
+                    <div className="text-left">
+                      <div className="text-xl">{action.title}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {action.description}
+                      </div>
+                    </div>
+                  </Button>
+                ))}
+              </div>
             { /* <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {quickActions.map((action, index) => (
                   
@@ -132,8 +123,8 @@ const Dashboard = () => {
                 ))}
               </div>*/}
               {!currentProject && (
-                <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-                  <p className="text-sm text-blue-700">
+                <div className="mt-4 p-3 bg-primary/5 rounded-lg">
+                  <p className="text-sm text-primary">
                     💡 Tip: Select a project from the sidebar or create a new one to access forms, workflows, and reports.
                   </p>
                 </div>
@@ -143,10 +134,10 @@ const Dashboard = () => {
 
           {/* Stats Overview */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card>
+            <Card className="bg-primary/5 border-primary/15">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Total Projects</CardTitle>
-                <Settings className="h-4 w-4 text-primary" />
+                <Settings className="h-4 w-4 text-accent" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{projects.length}</div>
@@ -156,10 +147,10 @@ const Dashboard = () => {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="bg-primary/5 border-primary/15">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Current Role</CardTitle>
-                <Users className="h-4 w-4 text-emerald-600" />
+                <Users className="h-4 w-4 text-accent" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold capitalize">{userProfile?.role || 'User'}</div>
@@ -169,10 +160,10 @@ const Dashboard = () => {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="bg-primary/5 border-primary/15">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Active Project</CardTitle>
-                <FileText className="h-4 w-4 text-orange-600" />
+                <FileText className="h-4 w-4 text-accent" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
@@ -197,7 +188,7 @@ const Dashboard = () => {
         <div className="flex items-center justify-center min-h-[50vh]">
           <Card className="p-6 text-center">
             <CardHeader>
-              <CardTitle className="text-red-600">Dashboard Error</CardTitle>
+              <CardTitle className="text-destructive">Dashboard Error</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-muted-foreground mb-4">
