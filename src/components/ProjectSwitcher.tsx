@@ -44,9 +44,9 @@ export function ProjectSwitcher() {
               <Briefcase className="h-4 w-4 flex-shrink-0" />
               {!isCollapsed && (
                 <div className="text-left">
-                <div className="font-medium truncate max-w-[140px] text-foreground">
+                  <div className="font-medium truncate max-w-[140px]">
                     {currentProject?.name || 'No Project'}
-                </div>
+                  </div>
                 </div>
               )}
             </div>
