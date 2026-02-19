@@ -30,7 +30,7 @@ export function NavMain({
                 tooltip={item.title}
               >
                 <Link to={item.url}>
-                  {item.icon && <item.icon className={active ? 'text-accent' : 'text-primary'} />}
+                  {item.icon && <item.icon className={active ? 'text-accent' : 'text-sidebar-foreground'} />}
                   <span>{item.title}</span>
                 </Link>
               </SidebarMenuButton>
