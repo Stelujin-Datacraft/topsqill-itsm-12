@@ -84,7 +84,6 @@ export function CrossReferenceInlineExpand({
             } else if (!['section', 'divider', 'description', 'child-cross-reference'].includes(field.field_type)) {
               if (allowedFields && !allowedFields.includes(field.id)) continue;
               regularFields.push({ id: field.id, label: field.label, fieldType: field.field_type, value, options: field.options });
-              regularFields.push({ id: field.id, label: field.label, fieldType: field.field_type, value, options: field.options });
             }
           }
 
@@ -132,16 +131,9 @@ export function CrossReferenceInlineExpand({
   }
 
   const allFields = recordDetails.length > 0 ? recordDetails[0].fields : [];
-  const allCrossRefColumns: { fieldId: string; label: string }[] = [];
-  const seenCrFields = new Set<string>();
-  for (const rec of recordDetails) {
-    for (const cr of rec.crossRefFields) {
-      if (!seenCrFields.has(cr.fieldId)) {
-        seenCrFields.add(cr.fieldId);
-        allCrossRefColumns.push({ fieldId: cr.fieldId, label: cr.label });
-      }
-    }
-  }
+
+  // Check if any record has cross-ref fields with linked records
+  const hasAnyCrossRefs = recordDetails.some((rec) => rec.crossRefFields.some((cr) => cr.linkedRecords.length > 0));
 
   return (
     <div className="min-w-[600px] w-max max-w-[1100px]">
@@ -153,27 +145,19 @@ export function CrossReferenceInlineExpand({
               {allFields.map((f) => (
                 <th key={f.id} className="px-3 py-2 text-left font-semibold text-muted-foreground whitespace-nowrap max-w-[180px] truncate" title={f.label}>{f.label}</th>
               ))}
-              {allCrossRefColumns.map((cr) => (
-                <th key={cr.fieldId} className="px-3 py-2 text-left font-semibold text-accent whitespace-nowrap" title={cr.label}>
-                  <div className="flex items-center gap-1">
-                    <Link2 className="h-3 w-3" />
-                    {cr.label}
-                  </div>
+              {hasAnyCrossRefs && (
+                <th className="px-2 py-2 w-[40px]">
+                  <Link2 className="h-3 w-3 text-accent mx-auto" />
                 </th>
-              ))}
-              <th className="px-1 py-2 w-[30px]"></th>
+              )}
             </tr>
           </thead>
           <tbody>
             {recordDetails.map((rec, rowIdx) => {
-              // Find which cross-ref columns are expanded for this row
-              const expandedCrForRow = allCrossRefColumns
-                .map((col) => {
-                  const crKey = `${rec.id}-${col.fieldId}`;
-                  const crData = rec.crossRefFields.find((c) => c.fieldId === col.fieldId);
-                  return { col, crKey, crData, isExpanded: !!expandedCrossRefs[crKey] };
-                })
-                .filter((x) => x.isExpanded && x.crData && x.crData.linkedRecords.length > 0);
+              const rowKey = `row-${rec.id}`;
+              const isRowExpanded = !!expandedCrossRefs[rowKey];
+              const crossRefsWithData = rec.crossRefFields.filter((cr) => cr.linkedRecords.length > 0);
+              const totalLinked = crossRefsWithData.reduce((sum, cr) => sum + cr.linkedRecords.length, 0);
 
               return (
                 <React.Fragment key={rec.id}>
@@ -194,48 +178,39 @@ export function CrossReferenceInlineExpand({
                         </td>
                       );
                     })}
-                    {allCrossRefColumns.map((col) => {
-                      const crData = rec.crossRefFields.find((c) => c.fieldId === col.fieldId);
-                      const crKey = `${rec.id}-${col.fieldId}`;
-                      const isExpanded = !!expandedCrossRefs[crKey];
-                      const count = crData?.linkedRecords.length || 0;
-
-                      if (!crData || count === 0) {
-                        return <td key={col.fieldId} className="px-3 py-2 text-muted-foreground italic">—</td>;
-                      }
-
-                      return (
-                        <td key={col.fieldId} className="px-3 py-2">
+                    {hasAnyCrossRefs && (
+                      <td className="px-2 py-2 text-center">
+                        {totalLinked > 0 ? (
                           <Button
                             variant="outline"
                             size="sm"
-                            className="h-6 px-2 gap-1 border-border bg-background hover:bg-muted text-xs font-medium"
-                            onClick={() => toggleCrossRef(crKey)}
+                            className="h-6 w-6 p-0 border-border bg-background hover:bg-muted"
+                            onClick={() => toggleCrossRef(rowKey)}
                           >
-                            {isExpanded ? <Minus className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
-                            <span>{count}</span>
+                            {isRowExpanded ? <Minus className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
                           </Button>
-                        </td>
-                      );
-                    })}
-                    <td className="px-1 py-2"></td>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </td>
+                    )}
                   </tr>
 
-                  {/* Expanded cross-ref sections — directly show table */}
-                  {expandedCrForRow.map(({ crData, crKey }) => (
-                    <tr key={crKey}>
-                      <td colSpan={allFields.length + allCrossRefColumns.length + 2} className="px-4 py-2 bg-muted/10 border-b border-border/40">
+                  {/* Expanded cross-ref sections */}
+                  {isRowExpanded && crossRefsWithData.map((crData) => (
+                    <tr key={`${rec.id}-${crData.fieldId}`}>
+                      <td colSpan={allFields.length + (hasAnyCrossRefs ? 2 : 1)} className="px-4 py-2 bg-muted/10 border-b border-border/40">
                         <div className="flex items-center gap-2 mb-2">
                           <Link2 className="h-3 w-3 text-accent" />
-                          <span className="text-xs font-semibold">{crData!.label}</span>
+                          <span className="text-xs font-semibold">{crData.label}</span>
                           <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                            {crData!.targetFormName} · {crData!.linkedRecords.length}
+                            {crData.targetFormName} · {crData.linkedRecords.length}
                           </Badge>
                         </div>
                         <MultiRecordTable
-                          linkedRecords={crData!.linkedRecords}
-                          formId={crData!.targetFormId}
-                          formName={crData!.targetFormName}
+                          linkedRecords={crData.linkedRecords}
+                          formId={crData.targetFormId}
+                          formName={crData.targetFormName}
                         />
                       </td>
                     </tr>
