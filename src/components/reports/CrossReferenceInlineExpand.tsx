@@ -184,7 +184,7 @@ export function CrossReferenceInlineExpand({
                           <Button
                             variant="outline"
                             size="sm"
-                            className="h-6 w-6 p-0 border-primary/40 bg-primary/10 hover:bg-primary/20 text-primary"
+                            className="h-6 w-6 p-0 border-border bg-background hover:bg-muted"
                             onClick={() => toggleCrossRef(rowKey)}
                           >
                             {isRowExpanded ? <Minus className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
@@ -199,21 +199,19 @@ export function CrossReferenceInlineExpand({
                   {/* Expanded cross-ref sections */}
                   {isRowExpanded && crossRefsWithData.map((crData) => (
                     <tr key={`${rec.id}-${crData.fieldId}`}>
-                      <td colSpan={allFields.length + (hasAnyCrossRefs ? 2 : 1)} className="px-0 py-0 border-b border-primary/20">
-                        <div className="bg-primary/5 border-l-4 border-l-primary px-4 py-3">
-                          <div className="flex items-center gap-2 mb-2">
-                            <Link2 className="h-3 w-3 text-primary" />
-                            <span className="text-xs font-semibold text-primary">{crData.label}</span>
-                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-primary/30 text-primary bg-primary/10">
-                              {crData.targetFormName} · {crData.linkedRecords.length}
-                            </Badge>
-                          </div>
-                          <MultiRecordTable
-                            linkedRecords={crData.linkedRecords}
-                            formId={crData.targetFormId}
-                            formName={crData.targetFormName}
-                          />
+                      <td colSpan={allFields.length + (hasAnyCrossRefs ? 2 : 1)} className="px-4 py-2 bg-muted/10 border-b border-border/40">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Link2 className="h-3 w-3 text-accent" />
+                          <span className="text-xs font-semibold">{crData.label}</span>
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                            {crData.targetFormName} · {crData.linkedRecords.length}
+                          </Badge>
                         </div>
+                        <MultiRecordTable
+                          linkedRecords={crData.linkedRecords}
+                          formId={crData.targetFormId}
+                          formName={crData.targetFormName}
+                        />
                       </td>
                     </tr>
                   ))}
@@ -357,7 +355,7 @@ function MultiRecordTable({ linkedRecords, formId, formName, depth = 0 }: { link
                         <Button
                           variant="outline"
                           size="sm"
-                          className="h-5 w-5 p-0 border-primary/40 bg-primary/10 hover:bg-primary/20 text-primary"
+                          className="h-5 w-5 p-0 border-border bg-background hover:bg-muted"
                           onClick={() => toggleCrossRef(rowKey)}
                         >
                           {isRowExpanded ? <Minus className="h-2.5 w-2.5" /> : <Plus className="h-2.5 w-2.5" />}
@@ -375,15 +373,13 @@ function MultiRecordTable({ linkedRecords, formId, formName, depth = 0 }: { link
                   if (!data) return null;
                   return (
                     <tr key={`${rec.id}-${cr.fieldId}`}>
-                      <td colSpan={formFields.length + (hasAnyCrossRefs ? 2 : 1)} className="px-0 py-0 border-b border-primary/20">
-                        <div className="bg-primary/5 border-l-4 border-l-primary px-4 py-2">
-                          <div className="flex items-center gap-2 mb-1">
-                            <Link2 className="h-2.5 w-2.5 text-primary" />
-                            <span className="text-[11px] font-semibold text-primary">{cr.label}</span>
-                            <Badge variant="outline" className="text-[9px] px-1 py-0 border-primary/30 text-primary bg-primary/10">{data.targetFormName} · {data.linkedRefIds.length}</Badge>
+                      <td colSpan={formFields.length + (hasAnyCrossRefs ? 2 : 1)} className="px-4 py-2 bg-muted/10 border-b border-border/40">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Link2 className="h-2.5 w-2.5 text-accent" />
+                          <span className="text-[11px] font-semibold">{cr.label}</span>
+                          <Badge variant="outline" className="text-[9px] px-1 py-0">{data.targetFormName} · {data.linkedRefIds.length}</Badge>
                         </div>
-                          <LazyMultiRecordTable linkedRefIds={data.linkedRefIds} formId={data.targetFormId} formName={data.targetFormName} depth={depth + 1} />
-                        </div>
+                        <LazyMultiRecordTable linkedRefIds={data.linkedRefIds} formId={data.targetFormId} formName={data.targetFormName} depth={depth + 1} />
                       </td>
                     </tr>
                   );
