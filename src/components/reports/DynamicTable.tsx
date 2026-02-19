@@ -1315,7 +1315,7 @@ export function DynamicTable({
                         </div>
                       </TableCell>
                     </TableRow> : paginatedData.map(row => <TableRow
-                      key={row.id}
+                      key={row.id} 
                       data-submission-ref={row.submission_ref_id}
                       className={`border-b border-gray-200 transition-all duration-300 ${
                         selectedRows.has(row.id) ? 'bg-emerald-50' : 
@@ -1397,8 +1397,6 @@ export function DynamicTable({
                           </div>
                         </TableCell>
                     </TableRow>)}
-
-
                 </TableBody>
               </Table>
                 </div>
