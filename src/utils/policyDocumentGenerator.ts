@@ -114,7 +114,7 @@ export async function generatePolicyDocument(options: PolicyDocumentOptions) {
       alignment: AlignmentType.CENTER,
       spacing: { after: 200 },
       children: [
-        new TextRun({ text: `Total Records: ${submissions.length}`, size: 20, color: '888888', font: 'Calibri' }),
+        new TextRun({ text: `Total Policies: ${submissions.length}`, size: 20, color: '888888', font: 'Calibri' }),
       ],
     }),
   );
@@ -154,7 +154,7 @@ export async function generatePolicyDocument(options: PolicyDocumentOptions) {
   const summaryRows = [
     ['Form Name', formName],
     ['Description', formDescription || 'N/A'],
-    ['Total Records', String(submissions.length)],
+    ['Total Policies', String(submissions.length)],
     ['Total Fields', String(fields.length)],
     ['Generated On', formatDate(now.toISOString())],
   ];
@@ -194,7 +194,7 @@ export async function generatePolicyDocument(options: PolicyDocumentOptions) {
       heading: HeadingLevel.HEADING_1,
       spacing: { before: 600, after: 300 },
       children: [
-        new TextRun({ text: '3. Records', bold: true, size: 32, color: '1a1a2e', font: 'Calibri' }),
+        new TextRun({ text: '3. Policies', bold: true, size: 32, color: '1a1a2e', font: 'Calibri' }),
       ],
     }),
   );
@@ -336,7 +336,7 @@ export async function generatePolicyDocument(options: PolicyDocumentOptions) {
       spacing: { after: 200 },
       children: [
         new TextRun({
-          text: `This document contains all records submitted under "${formName}". Each record is presented with its complete field data for reference, compliance, and audit purposes.`,
+          text: `This document contains all policies submitted under "${formName}". Each policy is presented with its complete field data for reference, compliance, and audit purposes.`,
           size: 22, font: 'Calibri',
         }),
       ],
@@ -375,7 +375,7 @@ export async function generatePolicyDocument(options: PolicyDocumentOptions) {
         spacing: { before: 300, after: 100 },
         border: { bottom: { style: BorderStyle.SINGLE, size: 3, color: 'cccccc' } },
         children: [
-          new TextRun({ text: `Record ${index + 1}: `, bold: true, size: 26, color: '1a1a2e', font: 'Calibri' }),
+          new TextRun({ text: `Policy ${index + 1}: `, bold: true, size: 26, color: '1a1a2e', font: 'Calibri' }),
           new TextRun({ text: refId, size: 26, color: '555555', font: 'Calibri' }),
         ],
       }),
