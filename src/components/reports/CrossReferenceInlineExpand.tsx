@@ -305,6 +305,8 @@ function MultiRecordTable({ linkedRecords, formId, formName, depth = 0 }: { link
     return { ...rec, crData };
   });
 
+  const hasAnyCrossRefs = crossRefColumns.length > 0 && rowsWithCrData.some((rec) => Object.keys(rec.crData).length > 0);
+
   return (
     <div className={`border ${ds.border} rounded-md overflow-auto ${ds.bg} shadow-sm`}>
       <table className="w-full text-xs">
@@ -314,23 +316,20 @@ function MultiRecordTable({ linkedRecords, formId, formName, depth = 0 }: { link
             {formFields.map((f) => (
               <th key={f.id} className="px-3 py-1.5 text-left font-semibold text-muted-foreground whitespace-nowrap max-w-[160px] truncate" title={f.label}>{f.label}</th>
             ))}
-            {crossRefColumns.map((cr) => (
-              <th key={cr.fieldId} className="px-3 py-1.5 text-left font-semibold text-accent whitespace-nowrap">
-                <div className="flex items-center gap-1"><Link2 className="h-2.5 w-2.5" />{cr.label}</div>
+            {hasAnyCrossRefs && (
+              <th className="px-2 py-1.5 w-[36px]">
+                <Link2 className="h-2.5 w-2.5 text-accent mx-auto" />
               </th>
-            ))}
+            )}
           </tr>
         </thead>
         <tbody>
           {rowsWithCrData.map((rec, idx) => {
             const submissionData = (rec.submission_data as Record<string, any>) || {};
-            const expandedForRow = crossRefColumns
-              .map((cr) => {
-                const crKey = `multi-${rec.id}-${cr.fieldId}`;
-                const data = rec.crData[cr.fieldId];
-                return { cr, crKey, data, isExpanded: !!expandedCrossRefs[crKey] && !!data };
-              })
-              .filter((x) => x.isExpanded && x.data);
+            const rowKey = `multi-row-${rec.id}`;
+            const isRowExpanded = !!expandedCrossRefs[rowKey];
+            const crossRefsWithData = crossRefColumns.filter((cr) => rec.crData[cr.fieldId]);
+            const totalLinked = crossRefsWithData.reduce((sum, cr) => sum + (rec.crData[cr.fieldId]?.linkedRefIds.length || 0), 0);
 
             return (
               <React.Fragment key={rec.id}>
@@ -350,35 +349,41 @@ function MultiRecordTable({ linkedRecords, formId, formName, depth = 0 }: { link
                       <td key={f.id} className="px-3 py-1.5 max-w-[160px] truncate" title={display}>{display}</td>
                     );
                   })}
-                  {crossRefColumns.map((cr) => {
-                    const data = rec.crData[cr.fieldId];
-                    const crKey = `multi-${rec.id}-${cr.fieldId}`;
-                    const isExpanded = !!expandedCrossRefs[crKey];
-                    if (!data) return <td key={cr.fieldId} className="px-3 py-1.5 text-muted-foreground italic">—</td>;
-                    return (
-                      <td key={cr.fieldId} className="px-3 py-1.5">
-                        <Button variant="outline" size="sm" className="h-5 px-1.5 gap-1 border-border bg-background hover:bg-muted text-xs" onClick={() => toggleCrossRef(crKey)}>
-                          {isExpanded ? <Minus className="h-2.5 w-2.5" /> : <Plus className="h-2.5 w-2.5" />}
-                          <span>{data.linkedRefIds.length}</span>
+                  {hasAnyCrossRefs && (
+                    <td className="px-2 py-1.5 text-center">
+                      {totalLinked > 0 ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-5 w-5 p-0 border-border bg-background hover:bg-muted"
+                          onClick={() => toggleCrossRef(rowKey)}
+                        >
+                          {isRowExpanded ? <Minus className="h-2.5 w-2.5" /> : <Plus className="h-2.5 w-2.5" />}
                         </Button>
-                      </td>
-                    );
-                  })}
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </td>
+                  )}
                 </tr>
 
                 {/* Expanded cross-ref sub-tables */}
-                {expandedForRow.map(({ cr, crKey, data }) => (
-                  <tr key={crKey}>
-                    <td colSpan={formFields.length + crossRefColumns.length + 1} className="px-4 py-2 bg-muted/10 border-b border-border/40">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Link2 className="h-2.5 w-2.5 text-accent" />
-                        <span className="text-[11px] font-semibold">{cr.label}</span>
-                        <Badge variant="outline" className="text-[9px] px-1 py-0">{data!.targetFormName} · {data!.linkedRefIds.length}</Badge>
-                      </div>
-                      <LazyMultiRecordTable linkedRefIds={data!.linkedRefIds} formId={data!.targetFormId} formName={data!.targetFormName} depth={depth + 1} />
-                    </td>
-                  </tr>
-                ))}
+                {isRowExpanded && crossRefsWithData.map((cr) => {
+                  const data = rec.crData[cr.fieldId];
+                  if (!data) return null;
+                  return (
+                    <tr key={`${rec.id}-${cr.fieldId}`}>
+                      <td colSpan={formFields.length + (hasAnyCrossRefs ? 2 : 1)} className="px-4 py-2 bg-muted/10 border-b border-border/40">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Link2 className="h-2.5 w-2.5 text-accent" />
+                          <span className="text-[11px] font-semibold">{cr.label}</span>
+                          <Badge variant="outline" className="text-[9px] px-1 py-0">{data.targetFormName} · {data.linkedRefIds.length}</Badge>
+                        </div>
+                        <LazyMultiRecordTable linkedRefIds={data.linkedRefIds} formId={data.targetFormId} formName={data.targetFormName} depth={depth + 1} />
+                      </td>
+                    </tr>
+                  );
+                })}
               </React.Fragment>
             );
           })}
@@ -427,6 +432,7 @@ function LazyMultiRecordTable({ linkedRefIds, formId, formName, depth = 0 }: { l
 
   return <MultiRecordTable linkedRecords={linkedRecords} formId={formId} formName={formName} depth={depth} />;
 }
+
 function formatValue(field: FieldDisplay): string {
   const { value, fieldType, options } = field;
   if (value === null || value === undefined || value === '') return '—';
