@@ -94,11 +94,14 @@ export function FormFieldsRenderer({
   formDescription,
   showAIAutoFill = true,
 }: FormFieldsRendererProps) {
+  // Defensive: ensure fields is always an array
+  const safeFields = Array.isArray(fields) ? fields : [];
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Execute all Query Fields configured for "on submit"
-    const submitTriggers = fields
+    const submitTriggers = safeFields
       .filter(f => f.type === 'query-field' && f.customConfig?.executeOn === 'submit')
       .map(f => (window as any)[`queryField_${f.id}_submit`])
       .filter(Boolean);
@@ -1194,10 +1197,10 @@ case 'query-field':
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {showAIAutoFill && fields.length > 0 && (
+      {showAIAutoFill && safeFields.length > 0 && (
         <div className="flex items-center gap-2 pb-2 border-b">
           <AIAutoFillInput
-            formFields={fields}
+            formFields={safeFields}
             currentValues={formData}
             formName={formName}
             formDescription={formDescription}
@@ -1214,7 +1217,7 @@ case 'query-field':
         columns === 2 ? 'grid-cols-2' : 
         'grid-cols-3'
       }`}>
-        {fields.map((field) => (
+        {safeFields.map((field) => (
           <div 
             key={field.id} 
             id={`field-${field.id}`}
