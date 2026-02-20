@@ -173,20 +173,20 @@ export function FormsList() {
                   </div>
                 </div>
                 <div className="flex space-x-1">
-                  <Button variant="ghost" size="sm" onClick={() => handleCopyId(form.id)} title="Copy Form ID" className="text-primary hover:text-primary hover:bg-primary/10">
-                    <Copy className="h-4 w-4" />
+                  <Button variant="ghost" size="sm" onClick={() => handleCopyId(form.id)} title="Copy Form ID">
+                    <Copy className="h-4 w-4 text-primary" />
                   </Button>
-                  <Button variant="ghost" size="sm" onClick={() => handleViewForm(form.id)} title="Add Record" className="text-primary hover:text-primary hover:bg-primary/10">
-                    <Plus className="h-4 w-4" />
+                  <Button variant="ghost" size="sm" onClick={() => handleViewForm(form.id)} title="Add Record">
+                    <Plus className="h-4 w-4 text-primary" />
                   </Button>
-                  <Button variant="ghost" size="sm" onClick={() => handleViewRecords(form.id)} title="View Records" className="text-primary hover:text-primary hover:bg-primary/10">
-                    <Database className="h-4 w-4" />
+                  <Button variant="ghost" size="sm" onClick={() => handleViewRecords(form.id)} title="View Records">
+                    <Database className="h-4 w-4 text-primary" />
                   </Button>
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Button variant="ghost" size="sm" onClick={() => handleEditForm(form.id)} disabled={editButtonState.disabled} className="text-primary hover:text-primary hover:bg-primary/10">
-                          <Edit className="h-4 w-4" />
+                        <Button variant="ghost" size="sm" onClick={() => handleEditForm(form.id)} disabled={editButtonState.disabled}>
+                          <Edit className="h-4 w-4 text-primary" />
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>
@@ -198,8 +198,8 @@ export function FormsList() {
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Button variant="ghost" size="sm" onClick={() => handleDeleteForm(form.id)} disabled={deleteButtonState.disabled} className="text-primary hover:text-primary hover:bg-primary/10">
-                          <Trash2 className="h-4 w-4" />
+                        <Button variant="ghost" size="sm" onClick={() => handleDeleteForm(form.id)} disabled={deleteButtonState.disabled}>
+                          <Trash2 className="h-4 w-4 text-primary" />
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>
@@ -249,20 +249,20 @@ export function FormsList() {
                   </div>
                 </div>
                 <div className="flex items-center space-x-1">
-                  <Button variant="ghost" size="sm" onClick={() => handleCopyId(form.id)} title="Copy Form ID" className="text-primary hover:text-primary hover:bg-primary/10">
-                    <Copy className="h-4 w-4" />
+                  <Button variant="ghost" size="sm" onClick={() => handleCopyId(form.id)} title="Copy Form ID">
+                    <Copy className="h-4 w-4 text-primary" />
                   </Button>
-                  <Button variant="ghost" size="sm" onClick={() => handleViewForm(form.id)} title="Add Record" className="text-primary hover:text-primary hover:bg-primary/10">
-                    <Plus className="h-4 w-4" />
+                  <Button variant="ghost" size="sm" onClick={() => handleViewForm(form.id)} title="Add Record">
+                    <Plus className="h-4 w-4 text-primary" />
                   </Button>
-                  <Button variant="ghost" size="sm" onClick={() => handleViewRecords(form.id)} title="View Records" className="text-primary hover:text-primary hover:bg-primary/10">
-                    <Database className="h-4 w-4" />
+                  <Button variant="ghost" size="sm" onClick={() => handleViewRecords(form.id)} title="View Records">
+                    <Database className="h-4 w-4 text-primary" />
                   </Button>
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Button variant="ghost" size="sm" onClick={() => handleEditForm(form.id)} disabled={editButtonState.disabled} className="text-primary hover:text-primary hover:bg-primary/10">
-                          <Edit className="h-4 w-4" />
+                        <Button variant="ghost" size="sm" onClick={() => handleEditForm(form.id)} disabled={editButtonState.disabled}>
+                          <Edit className="h-4 w-4 text-primary" />
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>
@@ -274,8 +274,8 @@ export function FormsList() {
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Button variant="ghost" size="sm" onClick={() => handleDeleteForm(form.id)} disabled={deleteButtonState.disabled} className="text-primary hover:text-primary hover:bg-primary/10">
-                          <Trash2 className="h-4 w-4" />
+                        <Button variant="ghost" size="sm" onClick={() => handleDeleteForm(form.id)} disabled={deleteButtonState.disabled}>
+                          <Trash2 className="h-4 w-4 text-primary" />
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>
@@ -367,20 +367,20 @@ export function FormsList() {
                         </div>
                         <div className="flex justify-between gap-1">
                           <div className="flex gap-1">
-                            <Button variant="ghost" size="sm" onClick={() => handleCopyId(form.id)} title="Copy Form ID" className="h-8 w-8 p-0 text-primary hover:text-primary hover:bg-primary/10">
-                              <Copy className="h-3 w-3" />
+                            <Button variant="ghost" size="sm" onClick={() => handleCopyId(form.id)} title="Copy Form ID" className="h-8 w-8 p-0">
+                              <Copy className="h-3 w-3 text-primary" />
                             </Button>
-                            <Button variant="ghost" size="sm" onClick={() => handleViewForm(form.id)} title="Add Record" className="h-8 w-8 p-0 text-primary hover:text-primary hover:bg-primary/10">
-                              <Plus className="h-3 w-3" />
+                            <Button variant="ghost" size="sm" onClick={() => handleViewForm(form.id)} title="Add Record" className="h-8 w-8 p-0">
+                              <Plus className="h-3 w-3 text-primary" />
                             </Button>
-                            <Button variant="ghost" size="sm" onClick={() => handleViewRecords(form.id)} className="h-8 w-8 p-0 text-primary hover:text-primary hover:bg-primary/10">
-                              <Database className="h-3 w-3" />
+                            <Button variant="ghost" size="sm" onClick={() => handleViewRecords(form.id)} className="h-8 w-8 p-0">
+                              <Database className="h-3 w-3 text-primary" />
                             </Button>
                             <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <Button variant="ghost" size="sm" onClick={() => handleEditForm(form.id)} disabled={editButtonState.disabled} className="h-8 w-8 p-0 text-primary hover:text-primary hover:bg-primary/10">
-                                    <Edit className="h-3 w-3" />
+                                  <Button variant="ghost" size="sm" onClick={() => handleEditForm(form.id)} disabled={editButtonState.disabled} className="h-8 w-8 p-0">
+                                    <Edit className="h-3 w-3 text-primary" />
                                   </Button>
                                 </TooltipTrigger>
                                 <TooltipContent>
@@ -399,8 +399,8 @@ export function FormsList() {
                             <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <Button variant="ghost" size="sm" onClick={() => handleDeleteForm(form.id)} disabled={deleteButtonState.disabled} className="h-8 w-8 p-0 text-primary hover:text-primary hover:bg-primary/10">
-                                    <Trash2 className="h-3 w-3" />
+                                  <Button variant="ghost" size="sm" onClick={() => handleDeleteForm(form.id)} disabled={deleteButtonState.disabled} className="h-8 w-8 p-0">
+                                    <Trash2 className="h-3 w-3 text-primary" />
                                   </Button>
                                 </TooltipTrigger>
                                 <TooltipContent>
