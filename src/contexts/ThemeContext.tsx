@@ -35,8 +35,8 @@ export interface AppTheme {
 export const themes: AppTheme[] = [
   {
     id: 'no-theme',
-    name: 'No Theme',
-    description: 'Default system look',
+    name: 'No Theme (Default)',
+    description: 'No color customization',
     primary: '217 71% 30%',
     primaryForeground: '210 40% 98%',
     accent: '37 92% 50%',
@@ -60,68 +60,38 @@ export const themes: AppTheme[] = [
     sidebarAccentForeground: '0 0% 90%',
     sidebarBorder: '217 50% 25%',
     sidebarRing: '217 91.2% 59.8%',
-    previewPrimary: '#6B7280',
-    previewAccent: '#9CA3AF',
+    previewPrimary: '#1E3A5F',
+    previewAccent: '#E89B0C',
   },
   {
     id: 'black-white',
     name: 'Black & White',
-    description: 'Bold monochrome dark',
-    primary: '0 0% 0%',
+    description: 'Pure black and white',
+    primary: '0 0% 5%',
     primaryForeground: '0 0% 100%',
-    accent: '0 0% 20%',
+    accent: '0 0% 15%',
     accentForeground: '0 0% 100%',
-    background: '0 0% 100%',
-    foreground: '0 0% 0%',
-    card: '0 0% 100%',
-    cardForeground: '0 0% 0%',
-    secondary: '0 0% 95%',
-    secondaryForeground: '0 0% 0%',
-    muted: '0 0% 96%',
-    mutedForeground: '0 0% 40%',
-    border: '0 0% 88%',
-    input: '0 0% 88%',
-    ring: '0 0% 0%',
-    sidebarBackground: '0 0% 0%',
-    sidebarForeground: '0 0% 95%',
-    sidebarPrimary: '0 0% 100%',
-    sidebarPrimaryForeground: '0 0% 0%',
-    sidebarAccent: '0 0% 12%',
-    sidebarAccentForeground: '0 0% 95%',
-    sidebarBorder: '0 0% 15%',
-    sidebarRing: '0 0% 60%',
-    previewPrimary: '#000000',
-    previewAccent: '#FFFFFF',
-  },
-  {
-    id: 'white-black',
-    name: 'White & Black',
-    description: 'Clean monochrome light',
-    primary: '0 0% 98%',
-    primaryForeground: '0 0% 5%',
-    accent: '0 0% 80%',
-    accentForeground: '0 0% 10%',
     background: '0 0% 100%',
     foreground: '0 0% 5%',
     card: '0 0% 100%',
     cardForeground: '0 0% 5%',
-    secondary: '0 0% 95%',
-    secondaryForeground: '0 0% 10%',
+    secondary: '0 0% 96%',
+    secondaryForeground: '0 0% 5%',
     muted: '0 0% 96%',
-    mutedForeground: '0 0% 40%',
-    border: '0 0% 88%',
-    input: '0 0% 88%',
-    ring: '0 0% 30%',
-    sidebarBackground: '0 0% 98%',
-    sidebarForeground: '0 0% 15%',
-    sidebarPrimary: '0 0% 10%',
-    sidebarPrimaryForeground: '0 0% 98%',
-    sidebarAccent: '0 0% 92%',
-    sidebarAccentForeground: '0 0% 15%',
-    sidebarBorder: '0 0% 88%',
-    sidebarRing: '0 0% 40%',
-    previewPrimary: '#FFFFFF',
-    previewAccent: '#000000',
+    mutedForeground: '0 0% 45%',
+    border: '0 0% 85%',
+    input: '0 0% 85%',
+    ring: '0 0% 5%',
+    sidebarBackground: '0 0% 2%',
+    sidebarForeground: '0 0% 98%',
+    sidebarPrimary: '0 0% 98%',
+    sidebarPrimaryForeground: '0 0% 2%',
+    sidebarAccent: '0 0% 14%',
+    sidebarAccentForeground: '0 0% 98%',
+    sidebarBorder: '0 0% 18%',
+    sidebarRing: '0 0% 50%',
+    previewPrimary: '#000000',
+    previewAccent: '#FFFFFF',
   },
   {
     id: 'deep-blue-orange',
@@ -767,9 +737,23 @@ const ThemeContext = createContext<ThemeContextType>({
 
 const THEME_STORAGE_KEY = 'app-theme-id';
 
+const THEME_CSS_PROPS = [
+  '--primary-light', '--primary', '--primary-foreground', '--accent', '--accent-foreground',
+  '--background', '--foreground', '--card', '--card-foreground', '--secondary',
+  '--secondary-foreground', '--muted', '--muted-foreground', '--border', '--input', '--ring',
+  '--sidebar-background', '--sidebar-foreground', '--sidebar-primary', '--sidebar-primary-foreground',
+  '--sidebar-accent', '--sidebar-accent-foreground', '--sidebar-border', '--sidebar-ring',
+];
+
 function applyTheme(theme: AppTheme) {
   const root = document.documentElement;
-  // Derive a light tint from the primary color (same hue/sat, 93% lightness)
+
+  if (theme.id === 'no-theme') {
+    // Remove all inline overrides so CSS defaults from index.css apply
+    THEME_CSS_PROPS.forEach(prop => root.style.removeProperty(prop));
+    return;
+  }
+
   const primaryParts = theme.primary.split(' ');
   const primaryLight = `${primaryParts[0]} ${primaryParts[1]} 93%`;
   root.style.setProperty('--primary-light', primaryLight);
