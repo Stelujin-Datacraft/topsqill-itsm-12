@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
-import { ChevronUp, ChevronDown, Search, Filter, Settings, Eye, Maximize2, Minimize2, Trash2, Edit3, FileText, User, Calendar, CheckCircle, ExternalLink, Move, History, PlayCircle, ChevronDown as ChevronDownIcon, Database, Zap, Download, Upload, RefreshCw, Columns, ScrollText, Plus, Minus } from 'lucide-react';
+import { ChevronUp, ChevronDown, Search, Filter, Settings, Eye, Maximize2, Minimize2, Trash2, Edit3, FileText, User, Calendar, CheckCircle, ExternalLink, Move, History, PlayCircle, ChevronDown as ChevronDownIcon, Database, Zap, Download, Upload, RefreshCw, Columns, ScrollText } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -50,7 +50,6 @@ import { SubmissionUpdateDialog } from '@/components/submissions/SubmissionUpdat
 import { RecordHistoryDialog } from '@/components/RecordHistoryDialog';
 import { ManualWorkflowTrigger } from '@/components/ManualWorkflowTrigger';
 import { SubmissionRefDisplay } from '@/components/SubmissionRefDisplay';
-import { CrossReferenceInlineExpand } from './CrossReferenceInlineExpand';
 import { useBulkWorkflowTrigger } from '@/hooks/useBulkWorkflowTrigger';
 import { BulkWorkflowTriggerDialog } from './BulkWorkflowTriggerDialog';
 import { PolicyGeneratorDialog } from './PolicyGeneratorDialog';
@@ -118,7 +117,6 @@ export function DynamicTable({
   const [showPolicyDialog, setShowPolicyDialog] = useState(false);
   const [aiQueryFilters, setAiQueryFilters] = useState<Array<{ fieldId: string; operator: string; value: string }>>([]);
   const [aiQuerySort, setAiQuerySort] = useState<{ field: string | null; order: 'asc' | 'desc' }>({ field: null, order: 'asc' });
-  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
   // Custom hooks
   const {
@@ -511,39 +509,6 @@ export function DynamicTable({
       type: field.field_type || 'text'
     }));
   }, [formFields]);
-
-  // Detect cross-reference fields in formFields for row-level expand
-  const crossRefFields = useMemo(() => {
-    return formFields.filter(f => f.field_type === 'cross-reference');
-  }, [formFields]);
-
-  // Check if a row has any linked cross-reference records
-  const getRowCrossRefIds = useCallback((row: any) => {
-    const result: Array<{ field: any; refIds: string[] }> = [];
-    for (const crField of crossRefFields) {
-      const value = row.submission_data?.[crField.id];
-      if (!value) continue;
-      let refIds: string[] = [];
-      if (Array.isArray(value)) {
-        refIds = value.map((item: any) => item?.submission_ref_id || item?.id || String(item)).filter((id: string) => id && id !== '[object Object]' && id !== 'undefined' && id !== 'null');
-      } else if (typeof value === 'string') {
-        refIds = value.split(',').map(s => s.trim()).filter(Boolean);
-      }
-      if (refIds.length > 0) {
-        result.push({ field: crField, refIds });
-      }
-    }
-    return result;
-  }, [crossRefFields]);
-
-  const toggleRowExpand = useCallback((rowId: string) => {
-    setExpandedRows(prev => {
-      const next = new Set(prev);
-      if (next.has(rowId)) next.delete(rowId);
-      else next.add(rowId);
-      return next;
-    });
-  }, []);
 
   // useEffect hooks
   useEffect(() => {
@@ -1294,11 +1259,6 @@ export function DynamicTable({
                     <TableHead className="w-10 h-8 ">
                       <Checkbox checked={paginatedData.length > 0 && paginatedData.every(row => selectedRows.has(row.id))} onCheckedChange={handleSelectAll} aria-label="Select all rows" className="text-zinc-50 bg-transparent" />
                     </TableHead>
-                    {crossRefFields.length > 0 && (
-                      <TableHead className="w-8 h-8">
-                        <Plus className="h-3 w-3 text-white mx-auto" />
-                      </TableHead>
-                    )}
                     <TableHead className="text-xs font-medium h-8 text-white  min-w-[140px]">
                       <div className="flex items-center gap-1">
                         <FileText className="h-3 w-3" />
@@ -1347,7 +1307,7 @@ export function DynamicTable({
                 </TableHeader>
                 <TableBody>
                   {paginatedData.length === 0 ? <TableRow>
-                      <TableCell colSpan={displayFields.length + 5 + (crossRefFields.length > 0 ? 1 : 0)} className="text-center py-8">
+                      <TableCell colSpan={displayFields.length + 5} className="text-center py-8">
                         <div className="text-muted-foreground">
                           {data.length === 0 ? (
                             <div className="space-y-2">
@@ -1362,42 +1322,17 @@ export function DynamicTable({
                           ) : 'No records found'}
                         </div>
                       </TableCell>
-                    </TableRow> : paginatedData.map(row => {
-                      const rowCrossRefs = getRowCrossRefIds(row);
-                      const hasLinkedRecords = rowCrossRefs.length > 0;
-                      const isRowExpanded = expandedRows.has(row.id);
-
-                      return (
-                      <React.Fragment key={row.id}>
-                      <TableRow
-                       data-submission-ref={row.submission_ref_id}
-                       className={`border-b border-gray-200 transition-all duration-300 ${
-                         selectedRows.has(row.id) ? 'bg-emerald-50' : 
-                         row.submission_ref_id === highlightedSubmissionRef ? 'bg-yellow-100 border-yellow-300' : 
-                         'bg-white hover:bg-gradient-to-r hover:from-emerald-50/50 hover:to-cyan-50/50'
-                       }`}>
+                    </TableRow> : paginatedData.map(row => <TableRow
+                      key={row.id} 
+                      data-submission-ref={row.submission_ref_id}
+                      className={`border-b border-gray-200 transition-all duration-300 ${
+                        selectedRows.has(row.id) ? 'bg-emerald-50' : 
+                        row.submission_ref_id === highlightedSubmissionRef ? 'bg-yellow-100 border-yellow-300' : 
+                        'bg-white hover:bg-gradient-to-r hover:from-emerald-50/50 hover:to-cyan-50/50'
+                      }`}>
                         <TableCell className="py-2 bg-white">
                           <Checkbox checked={selectedRows.has(row.id)} onCheckedChange={checked => handleRowSelect(row.id, Boolean(checked))} aria-label={`Select row ${row.id}`} />
                         </TableCell>
-
-                        {/* Expand Button - before Submission ID */}
-                        {crossRefFields.length > 0 && (
-                          <TableCell className="py-2 bg-white w-8">
-                            {hasLinkedRecords ? (
-                              <Button
-                                variant="outline"
-                                size="icon"
-                                className="h-6 w-6 border-border bg-background hover:bg-muted"
-                                onClick={(e) => { e.stopPropagation(); toggleRowExpand(row.id); }}
-                                title={isRowExpanded ? 'Collapse linked records' : 'Expand linked records'}
-                              >
-                                {isRowExpanded ? <Minus className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
-                              </Button>
-                            ) : (
-                              <span className="text-muted-foreground text-xs">—</span>
-                            )}
-                          </TableCell>
-                        )}
                         
                         {/* Submission ID */}
                         <TableCell className="py-2 bg-white">
@@ -1469,41 +1404,7 @@ export function DynamicTable({
                              )}
                           </div>
                         </TableCell>
-                    </TableRow>
-
-                    {/* Expanded cross-reference inline content */}
-                    {isRowExpanded && rowCrossRefs.map(({ field: crField, refIds }) => {
-                      const customConfig = crField.customConfig || crField.custom_config;
-                      const parsedConfig = typeof customConfig === 'string' ? (() => { try { return JSON.parse(customConfig); } catch { return {}; } })() : (customConfig || {});
-                      const targetFormId = parsedConfig?.targetFormId;
-                      const tableDisplayFields = parsedConfig?.tableDisplayFields || [];
-                      const displayColumns = parsedConfig?.displayColumns || [];
-                      
-                      if (!targetFormId) return null;
-
-                      const records = refIds.map(refId => ({ id: refId, submission_ref_id: refId }));
-
-                      return (
-                        <TableRow key={`${row.id}-expand-${crField.id}`} className="bg-muted/20">
-                          <TableCell colSpan={displayFields.length + (crossRefFields.length > 0 ? 6 : 5)} className="p-2">
-                            <div className="flex items-center gap-2 mb-1">
-                              <Badge variant="outline" className="text-[10px]">{crField.label}</Badge>
-                              <span className="text-xs text-muted-foreground">{refIds.length} linked record{refIds.length !== 1 ? 's' : ''}</span>
-                            </div>
-                            <CrossReferenceInlineExpand
-                              records={records}
-                              targetFormId={targetFormId}
-                              targetFormName={parsedConfig?.targetFormName}
-                              tableDisplayFields={tableDisplayFields}
-                              displayColumns={displayColumns}
-                            />
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                    </React.Fragment>
-                      );
-                    })}
+                    </TableRow>)}
                 </TableBody>
               </Table>
                 </div>
