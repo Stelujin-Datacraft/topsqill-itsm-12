@@ -376,23 +376,38 @@ function MultiRecordTable({ linkedRecords, formId, formName, depth = 0 }: { link
              return (
                <React.Fragment key={rec.id}>
                  <tr className={idx % 2 === 0 ? ds.rowEven : ds.rowOdd}>
-                   {hasAnyCrossRefs && (
-                     <td className="px-2 py-1.5 text-center">
-                       {totalLinked > 0 ? (
-                         <Button
-                           variant="outline"
-                           size="sm"
-                           className="h-5 w-5 p-0 border-border bg-background hover:bg-muted"
-                           onClick={() => toggleCrossRef(rowKey)}
-                         >
-                           {isRowExpanded ? <Minus className="h-2.5 w-2.5" /> : <Plus className="h-2.5 w-2.5" />}
-                         </Button>
-                       ) : (
-                         <span className="text-muted-foreground">—</span>
-                       )}
-                     </td>
-                   )}
-                </tr>
+                    {hasAnyCrossRefs && (
+                      <td className="px-2 py-1.5 text-center">
+                        {totalLinked > 0 ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-5 w-5 p-0 border-border bg-background hover:bg-muted"
+                            onClick={() => toggleCrossRef(rowKey)}
+                          >
+                            {isRowExpanded ? <Minus className="h-2.5 w-2.5" /> : <Plus className="h-2.5 w-2.5" />}
+                          </Button>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </td>
+                    )}
+                    <td className="px-3 py-1.5 whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <SubmissionRefDisplay submissionRefId={rec.submission_ref_id || rec.id?.slice(0, 8)} submissionId={rec.id} formName={formName} variant="compact" />
+                        <Button variant="ghost" size="sm" className="h-5 px-1 text-xs" onClick={() => navigate(`/submission/${rec.id}`)}>
+                          <ExternalLink className="h-3 w-3 text-info" />
+                        </Button>
+                      </div>
+                    </td>
+                    {formFields.map((f) => {
+                      const val = submissionData[f.id];
+                      const display = formatValue({ id: f.id, label: f.label, fieldType: f.fieldType, value: val, options: f.options });
+                      return (
+                        <td key={f.id} className="px-3 py-1.5 max-w-[160px] truncate" title={display}>{display}</td>
+                      );
+                    })}
+                  </tr>
 
                 {/* Expanded cross-ref sub-tables */}
                 {isRowExpanded && crossRefsWithData.map((cr) => {
