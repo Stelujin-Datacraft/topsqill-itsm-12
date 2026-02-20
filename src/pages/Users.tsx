@@ -448,19 +448,19 @@ const Users = () => {
                             <Button 
                               variant="ghost" 
                               size="icon" 
-                              className="h-8 w-8 text-primary hover:text-primary hover:bg-primary/10 transition-colors"
+                              className="h-8 w-8"
                               onClick={() => {
                                 setSelectedUserForEdit(user);
                                 setEditDialogOpen(true);
                               }}
                               title="Edit User"
                             >
-                              <Pencil className="h-4 w-4" />
+                              <Pencil className="h-4 w-4 text-primary" />
                             </Button>
                             <Button 
                               variant="ghost" 
                               size="icon" 
-                              className="h-8 w-8 text-primary hover:text-primary hover:bg-primary/10 transition-colors"
+                              className="h-8 w-8"
                               onClick={() => {
                                 setSelectedUserForSecurity({
                                   id: user.id,
@@ -473,12 +473,12 @@ const Users = () => {
                               }}
                               title="Security Parameters"
                             >
-                              <Shield className="h-4 w-4" />
+                              <Shield className="h-4 w-4 text-primary" />
                             </Button>
                             <Button 
                               variant="ghost" 
                               size="icon" 
-                              className="h-8 w-8 text-primary hover:text-primary hover:bg-primary/10 transition-colors"
+                              className="h-8 w-8"
                               onClick={() => confirmDelete(
                                 user.id, 
                                 user.first_name && user.last_name 
@@ -486,7 +486,7 @@ const Users = () => {
                                   : user.email
                               )}
                             >
-                              <Trash2 className="h-4 w-4" />
+                              <Trash2 className="h-4 w-4 text-primary" />
                             </Button>
                           </div>
                         </TableCell>
