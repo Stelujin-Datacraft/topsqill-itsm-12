@@ -37,6 +37,7 @@ export interface PolicyDocumentOptions {
   formDescription?: string;
   fields: PolicyField[];
   submissions: PolicySubmission[];
+  returnBlob?: boolean;
 }
 
 export interface PolicyTemplateOptions extends PolicyDocumentOptions {
@@ -85,7 +86,7 @@ function buildPolicyRecordsContent(
         spacing: { before: 300, after: 100 },
         border: { bottom: { style: BorderStyle.SINGLE, size: 3, color: 'cccccc' } },
         children: [
-          new TextRun({ text: `Policy ${index + 1}: `, bold: true, size: 26, color: '1a1a2e', font: 'Calibri' }),
+          new TextRun({ text: `Record ${index + 1}: `, bold: true, size: 26, color: '1a1a2e', font: 'Calibri' }),
           new TextRun({ text: refId, size: 26, color: '555555', font: 'Calibri' }),
         ],
       }),
@@ -142,14 +143,14 @@ function buildPolicyRecordsContent(
 
 // ── Default policy document generator ──
 
-export async function generatePolicyDocument(options: PolicyDocumentOptions) {
-  const { formName, formDescription, fields, submissions } = options;
+export async function generatePolicyDocument(options: PolicyDocumentOptions): Promise<Blob> {
+  const { formName, formDescription, fields, submissions, returnBlob } = options;
   const now = new Date();
 
   const summaryRows = [
     ['Form Name', formName],
     ['Description', formDescription || 'N/A'],
-    ['Total Policies', String(submissions.length)],
+    ['Total Records', String(submissions.length)],
     ['Total Fields', String(fields.length)],
     ['Generated On', formatDate(now.toISOString())],
   ];
@@ -194,7 +195,7 @@ export async function generatePolicyDocument(options: PolicyDocumentOptions) {
     }),
     new Paragraph({
       alignment: AlignmentType.CENTER, spacing: { after: 200 },
-      children: [new TextRun({ text: 'Policy Document', size: 36, color: '444444', font: 'Calibri', italics: true })],
+      children: [new TextRun({ text: 'Document', size: 36, color: '444444', font: 'Calibri', italics: true })],
     }),
     new Paragraph({
       alignment: AlignmentType.CENTER, spacing: { before: 400, after: 400 },
@@ -219,7 +220,7 @@ export async function generatePolicyDocument(options: PolicyDocumentOptions) {
     }),
     new Paragraph({
       alignment: AlignmentType.CENTER, spacing: { after: 200 },
-      children: [new TextRun({ text: `Total Policies: ${submissions.length}`, size: 20, color: '888888', font: 'Calibri' })],
+      children: [new TextRun({ text: `Total Records: ${submissions.length}`, size: 20, color: '888888', font: 'Calibri' })],
     }),
   );
 
@@ -233,7 +234,7 @@ export async function generatePolicyDocument(options: PolicyDocumentOptions) {
     new Paragraph({
       spacing: { after: 200 },
       children: [new TextRun({
-        text: `This document contains all policies submitted under "${formName}". Each policy is presented with its complete field data for reference, compliance, and audit purposes.`,
+        text: `This document contains all records submitted under "${formName}". Each record is presented with its complete field data for reference, compliance, and audit purposes.`,
         size: 22, font: 'Calibri',
       })],
     }),
@@ -248,15 +249,15 @@ export async function generatePolicyDocument(options: PolicyDocumentOptions) {
     summaryTable,
   );
 
-  // Policies heading
+  // Records heading
   docChildren.push(
     new Paragraph({
       heading: HeadingLevel.HEADING_1, spacing: { before: 600, after: 300 },
-      children: [new TextRun({ text: '3. Policies', bold: true, size: 32, color: '1a1a2e', font: 'Calibri' })],
+      children: [new TextRun({ text: '3. Records', bold: true, size: 32, color: '1a1a2e', font: 'Calibri' })],
     }),
   );
 
-  // Policy records
+  // Records
   docChildren.push(...buildPolicyRecordsContent(fields, submissions));
 
   // Footer
@@ -274,35 +275,39 @@ export async function generatePolicyDocument(options: PolicyDocumentOptions) {
 
   const doc = new Document({
     creator: 'TopSqill BPM',
-    title: `${formName} - Policy Document`,
-    description: formDescription || `Policy document for ${formName}`,
+    title: `${formName} - Document`,
+    description: formDescription || `Document for ${formName}`,
     sections: [{ properties: { page: { margin: { top: 1440, right: 1440, bottom: 1440, left: 1440 } } }, children: docChildren }],
   });
 
   const blob = await Packer.toBlob(doc);
-  const filename = `${formName.replace(/[^a-zA-Z0-9]/g, '_')}_Policy_${new Date().toISOString().slice(0, 10)}.docx`;
+
+  if (returnBlob) {
+    return blob;
+  }
+
+  const filename = `${formName.replace(/[^a-zA-Z0-9]/g, '_')}_Doc_${new Date().toISOString().slice(0, 10)}.docx`;
   saveAs(blob, filename);
+  return blob;
 }
 
-// ── Template-based policy document generator ──
+// ── Template-based document generator ──
 
-export async function generatePolicyFromTemplate(options: PolicyTemplateOptions) {
-  const { templateBuffer, formName, formDescription, fields, submissions } = options;
+export async function generatePolicyFromTemplate(options: PolicyTemplateOptions): Promise<Blob> {
+  const { templateBuffer, formName, formDescription, fields, submissions, returnBlob } = options;
 
-  // 1. Generate the policy data section as a standalone doc
   const policyChildren: (Paragraph | Table)[] = [];
 
-  // Add a separator & heading
   policyChildren.push(
     new Paragraph({ children: [new PageBreak()] }),
     new Paragraph({
       heading: HeadingLevel.HEADING_1, spacing: { after: 300 },
-      children: [new TextRun({ text: 'Policies', bold: true, size: 32, color: '1a1a2e', font: 'Calibri' })],
+      children: [new TextRun({ text: 'Records', bold: true, size: 32, color: '1a1a2e', font: 'Calibri' })],
     }),
     new Paragraph({
       spacing: { after: 200 },
       children: [new TextRun({
-        text: `The following policies are submitted under "${formName}". Total: ${submissions.length} policies.`,
+        text: `The following records are submitted under "${formName}". Total: ${submissions.length} records.`,
         size: 22, font: 'Calibri',
       })],
     }),
@@ -310,7 +315,6 @@ export async function generatePolicyFromTemplate(options: PolicyTemplateOptions)
 
   policyChildren.push(...buildPolicyRecordsContent(fields, submissions));
 
-  // Footer
   policyChildren.push(
     new Paragraph({
       spacing: { before: 800 },
@@ -325,18 +329,16 @@ export async function generatePolicyFromTemplate(options: PolicyTemplateOptions)
 
   const policyDoc = new Document({
     creator: 'TopSqill BPM',
-    title: `${formName} - Policy Document`,
+    title: `${formName} - Document`,
     sections: [{ properties: { page: { margin: { top: 1440, right: 1440, bottom: 1440, left: 1440 } } }, children: policyChildren }],
   });
 
   const policyBlob = await Packer.toBlob(policyDoc);
 
-  // 2. Read both documents as zip
   const templateZip = await JSZip.loadAsync(templateBuffer);
   const policyBuffer = await policyBlob.arrayBuffer();
   const policyZip = await JSZip.loadAsync(policyBuffer);
 
-  // 3. Extract document.xml from both
   const templateDocXml = await templateZip.file('word/document.xml')?.async('string');
   const policyDocXml = await policyZip.file('word/document.xml')?.async('string');
 
@@ -344,35 +346,33 @@ export async function generatePolicyFromTemplate(options: PolicyTemplateOptions)
     throw new Error('Invalid document format');
   }
 
-  // 4. Extract body content from policy doc (between <w:body> and </w:body>)
   const policyBodyMatch = policyDocXml.match(/<w:body>([\s\S]*)<\/w:body>/);
-  if (!policyBodyMatch) throw new Error('Could not parse policy document body');
+  if (!policyBodyMatch) throw new Error('Could not parse document body');
 
   let policyBodyContent = policyBodyMatch[1];
-  // Remove the sectPr from policy content (section properties) as template has its own
   policyBodyContent = policyBodyContent.replace(/<w:sectPr[\s\S]*?<\/w:sectPr>/, '');
 
-  // 5. Insert policy content before the closing </w:body> of the template
-  // Find the last sectPr in template to preserve it
   const templateSectPrMatch = templateDocXml.match(/(<w:sectPr[\s\S]*?<\/w:sectPr>)\s*<\/w:body>/);
 
   let mergedDocXml: string;
   if (templateSectPrMatch) {
-    // Insert policy content before the sectPr
     mergedDocXml = templateDocXml.replace(
       templateSectPrMatch[0],
       policyBodyContent + templateSectPrMatch[0],
     );
   } else {
-    // No sectPr found, just insert before </w:body>
     mergedDocXml = templateDocXml.replace('</w:body>', policyBodyContent + '</w:body>');
   }
 
-  // 6. Update the template zip with merged content
   templateZip.file('word/document.xml', mergedDocXml);
 
-  // 7. Generate and save
   const mergedBlob = await templateZip.generateAsync({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
-  const filename = `${formName.replace(/[^a-zA-Z0-9]/g, '_')}_Policy_${new Date().toISOString().slice(0, 10)}.docx`;
+
+  if (returnBlob) {
+    return mergedBlob;
+  }
+
+  const filename = `${formName.replace(/[^a-zA-Z0-9]/g, '_')}_Doc_${new Date().toISOString().slice(0, 10)}.docx`;
   saveAs(mergedBlob, filename);
+  return mergedBlob;
 }

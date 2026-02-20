@@ -1089,7 +1089,7 @@ export function DynamicTable({
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => setShowPolicyDialog(true)}>
                     <ScrollText className="h-4 w-4 mr-2" />
-                    Create Policy
+                    Create Docs
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -1551,14 +1551,16 @@ export function DynamicTable({
         onUpdateComplete={loadData}
       />
 
-      {/* Policy Generator Dialog */}
+      {/* Document Generator Dialog */}
       <PolicyGeneratorDialog
         open={showPolicyDialog}
         onOpenChange={setShowPolicyDialog}
+        formId={config.formId}
         formName={currentForm?.name || config.title || 'Form'}
         formDescription={currentForm?.description || ''}
         fields={formFields.map(f => ({ id: f.id, label: f.label, field_type: f.field_type }))}
         submissions={filteredAndSortedData}
+        organizationId={(currentForm as any)?.organization_id || undefined}
       />
     </div>;
 }
