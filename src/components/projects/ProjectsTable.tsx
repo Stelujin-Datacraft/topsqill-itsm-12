@@ -253,7 +253,7 @@ export function ProjectsTable({
                             onClick={(e) => handleCopyId(e, project.id)}
                             title="Copy Project ID"
                           >
-                            <Copy className="h-4 w-4" />
+                            <Copy className="h-4 w-4 text-primary" />
                           </Button>
                           <Button
                             size="sm"
@@ -261,7 +261,7 @@ export function ProjectsTable({
                             onClick={(e) => handleManageAccess(e, project)}
                             title="Manage Access"
                           >
-                            <Shield className="h-4 w-4" />
+                            <Shield className="h-4 w-4 text-primary" />
                           </Button>
                           {/* <Button
                             size="sm"
