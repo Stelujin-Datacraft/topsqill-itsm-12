@@ -279,28 +279,28 @@ const Users = () => {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">
-                <Shield className="h-4 w-4 mr-2 text-violet-500" />
+                <Shield className="h-4 w-4 mr-2 text-primary" />
                 Administration
                 <ChevronDown className="h-4 w-4 ml-2" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-52 bg-background border border-border shadow-lg z-50">
               <DropdownMenuItem onClick={() => navigate('/investigate-access')} className="cursor-pointer">
-                <Eye className="h-4 w-4 mr-2 text-cyan-500" />
+                <Eye className="h-4 w-4 mr-2 text-primary" />
                 {effectiveRole === 'admin' ? 'Investigate Access' : 'My Access'}
               </DropdownMenuItem>
               {effectiveRole === 'admin' && (
                 <>
                   <DropdownMenuItem onClick={() => navigate('/roles-and-access')} className="cursor-pointer">
-                    <Shield className="h-4 w-4 mr-2 text-violet-500" />
+                    <Shield className="h-4 w-4 mr-2 text-primary" />
                     Roles & Access
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => navigate('/manage-sessions')} className="cursor-pointer">
-                    <Monitor className="h-4 w-4 mr-2 text-emerald-500" />
+                    <Monitor className="h-4 w-4 mr-2 text-primary" />
                     Manage Sessions
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => navigate('/audit-logs')} className="cursor-pointer">
-                    <ClipboardList className="h-4 w-4 mr-2 text-amber-500" />
+                    <ClipboardList className="h-4 w-4 mr-2 text-primary" />
                     Audit Logs
                   </DropdownMenuItem>
                 </>
