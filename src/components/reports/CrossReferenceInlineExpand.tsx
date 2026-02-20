@@ -138,16 +138,16 @@ export function CrossReferenceInlineExpand({
       <div className="border border-border rounded-md overflow-auto bg-background shadow-lg">
         <table className="w-full text-xs">
           <thead>
-            <tr className="bg-muted border-b border-border">
-              <th className="px-3 py-2 text-left font-semibold text-muted-foreground whitespace-nowrap sticky left-0 bg-muted">ID</th>
-              {allFields.map((f) => (
-                <th key={f.id} className="px-3 py-2 text-left font-semibold text-muted-foreground whitespace-nowrap max-w-[180px] truncate" title={f.label}>{f.label}</th>
-              ))}
-              {hasAnyCrossRefs && (
-                <th className="px-2 py-2 w-[40px]">
-                  <Link2 className="h-3 w-3 text-accent mx-auto" />
-                </th>
-              )}
+             <tr className="bg-muted border-b border-border">
+               {hasAnyCrossRefs && (
+                 <th className="px-2 py-2 w-[40px] sticky left-0 bg-muted">
+                   <Link2 className="h-3 w-3 text-accent mx-auto" />
+                 </th>
+               )}
+               <th className="px-3 py-2 text-left font-semibold text-muted-foreground whitespace-nowrap sticky left-0 bg-muted">ID</th>
+               {allFields.map((f) => (
+                 <th key={f.id} className="px-3 py-2 text-left font-semibold text-muted-foreground whitespace-nowrap max-w-[180px] truncate" title={f.label}>{f.label}</th>
+               ))}
             </tr>
           </thead>
           <tbody>
@@ -159,39 +159,39 @@ export function CrossReferenceInlineExpand({
 
               return (
                 <React.Fragment key={rec.id}>
-                  <tr className={`border-b border-border/40 ${rowIdx % 2 === 0 ? 'bg-background' : 'bg-muted/20'}`}>
-                    <td className="px-3 py-2 whitespace-nowrap sticky left-0 bg-inherit">
-                      <div className="flex items-center gap-1.5">
-                        <SubmissionRefDisplay submissionRefId={rec.submissionRefId} submissionId={rec.id} formName={targetFormName || undefined} variant="compact" />
-                        <Button variant="ghost" size="sm" className="h-5 px-1 text-xs" onClick={() => navigate(`/submission/${rec.id}`)}>
-                          <ExternalLink className="h-3 w-3 text-info" />
-                        </Button>
-                      </div>
-                    </td>
-                    {allFields.map((f) => {
-                      const recField = rec.fields.find((rf) => rf.id === f.id);
-                      return (
-                        <td key={f.id} className="px-3 py-2 max-w-[180px] truncate" title={recField ? formatValue(recField) : '—'}>
-                          {recField ? formatValue(recField) : '—'}
-                        </td>
-                      );
-                    })}
-                    {hasAnyCrossRefs && (
-                      <td className="px-2 py-2 text-center">
-                        {totalLinked > 0 ? (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-6 w-6 p-0 border-border bg-background hover:bg-muted"
-                            onClick={() => toggleCrossRef(rowKey)}
-                          >
-                            {isRowExpanded ? <Minus className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
-                          </Button>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
-                      </td>
-                    )}
+                   <tr className={`border-b border-border/40 ${rowIdx % 2 === 0 ? 'bg-background' : 'bg-muted/20'}`}>
+                     {hasAnyCrossRefs && (
+                       <td className="px-2 py-2 text-center">
+                         {totalLinked > 0 ? (
+                           <Button
+                             variant="outline"
+                             size="sm"
+                             className="h-6 w-6 p-0 border-border bg-background hover:bg-muted"
+                             onClick={() => toggleCrossRef(rowKey)}
+                           >
+                             {isRowExpanded ? <Minus className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
+                           </Button>
+                         ) : (
+                           <span className="text-muted-foreground">—</span>
+                         )}
+                       </td>
+                     )}
+                     <td className="px-3 py-2 whitespace-nowrap sticky left-0 bg-inherit">
+                       <div className="flex items-center gap-1.5">
+                         <SubmissionRefDisplay submissionRefId={rec.submissionRefId} submissionId={rec.id} formName={targetFormName || undefined} variant="compact" />
+                         <Button variant="ghost" size="sm" className="h-5 px-1 text-xs" onClick={() => navigate(`/submission/${rec.id}`)}>
+                           <ExternalLink className="h-3 w-3 text-info" />
+                         </Button>
+                       </div>
+                     </td>
+                     {allFields.map((f) => {
+                       const recField = rec.fields.find((rf) => rf.id === f.id);
+                       return (
+                         <td key={f.id} className="px-3 py-2 max-w-[180px] truncate" title={recField ? formatValue(recField) : '—'}>
+                           {recField ? formatValue(recField) : '—'}
+                         </td>
+                       );
+                     })}
                   </tr>
 
                   {/* Expanded cross-ref sections */}
@@ -309,60 +309,45 @@ function MultiRecordTable({ linkedRecords, formId, formName, depth = 0 }: { link
     <div className={`border ${ds.border} rounded-md overflow-auto ${ds.bg} shadow-sm`}>
       <table className="w-full text-xs">
         <thead>
-          <tr className={`${ds.headerBg} border-b ${ds.headerBorder}`}>
-            <th className="px-3 py-1.5 text-left font-semibold text-muted-foreground whitespace-nowrap">ID</th>
-            {formFields.map((f) => (
-              <th key={f.id} className="px-3 py-1.5 text-left font-semibold text-muted-foreground whitespace-nowrap max-w-[160px] truncate" title={f.label}>{f.label}</th>
-            ))}
-            {hasAnyCrossRefs && (
-              <th className="px-2 py-1.5 w-[36px]">
-                <Link2 className="h-2.5 w-2.5 text-accent mx-auto" />
-              </th>
-            )}
-          </tr>
-        </thead>
-        <tbody>
-          {rowsWithCrData.map((rec, idx) => {
-            const submissionData = (rec.submission_data as Record<string, any>) || {};
-            const rowKey = `multi-row-${rec.id}`;
-            const isRowExpanded = !!expandedCrossRefs[rowKey];
-            const crossRefsWithData = crossRefColumns.filter((cr) => rec.crData[cr.fieldId]);
-            const totalLinked = crossRefsWithData.reduce((sum, cr) => sum + (rec.crData[cr.fieldId]?.linkedRefIds.length || 0), 0);
+           <tr className={`${ds.headerBg} border-b ${ds.headerBorder}`}>
+             {hasAnyCrossRefs && (
+               <th className="px-2 py-1.5 w-[36px]">
+                 <Link2 className="h-2.5 w-2.5 text-accent mx-auto" />
+               </th>
+             )}
+             <th className="px-3 py-1.5 text-left font-semibold text-muted-foreground whitespace-nowrap">ID</th>
+             {formFields.map((f) => (
+               <th key={f.id} className="px-3 py-1.5 text-left font-semibold text-muted-foreground whitespace-nowrap max-w-[160px] truncate" title={f.label}>{f.label}</th>
+             ))}
+           </tr>
+         </thead>
+         <tbody>
+           {rowsWithCrData.map((rec, idx) => {
+             const submissionData = (rec.submission_data as Record<string, any>) || {};
+             const rowKey = `multi-row-${rec.id}`;
+             const isRowExpanded = !!expandedCrossRefs[rowKey];
+             const crossRefsWithData = crossRefColumns.filter((cr) => rec.crData[cr.fieldId]);
+             const totalLinked = crossRefsWithData.reduce((sum, cr) => sum + (rec.crData[cr.fieldId]?.linkedRefIds.length || 0), 0);
 
-            return (
-              <React.Fragment key={rec.id}>
-                <tr className={idx % 2 === 0 ? ds.rowEven : ds.rowOdd}>
-                  <td className="px-3 py-1.5 whitespace-nowrap">
-                    <div className="flex items-center gap-1">
-                      <SubmissionRefDisplay submissionRefId={rec.submission_ref_id} submissionId={rec.id} formName={formName} variant="compact" />
-                      <Button variant="ghost" size="sm" className="h-4 px-1 text-xs" onClick={() => navigate(`/submission/${rec.id}`)}>
-                        <ExternalLink className="h-2.5 w-2.5 text-info" />
-                      </Button>
-                    </div>
-                  </td>
-                  {formFields.map((f) => {
-                    const val = submissionData[f.id];
-                    const display = formatValue({ id: f.id, label: f.label, fieldType: f.fieldType, value: val, options: f.options });
-                    return (
-                      <td key={f.id} className="px-3 py-1.5 max-w-[160px] truncate" title={display}>{display}</td>
-                    );
-                  })}
-                  {hasAnyCrossRefs && (
-                    <td className="px-2 py-1.5 text-center">
-                      {totalLinked > 0 ? (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-5 w-5 p-0 border-border bg-background hover:bg-muted"
-                          onClick={() => toggleCrossRef(rowKey)}
-                        >
-                          {isRowExpanded ? <Minus className="h-2.5 w-2.5" /> : <Plus className="h-2.5 w-2.5" />}
-                        </Button>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </td>
-                  )}
+             return (
+               <React.Fragment key={rec.id}>
+                 <tr className={idx % 2 === 0 ? ds.rowEven : ds.rowOdd}>
+                   {hasAnyCrossRefs && (
+                     <td className="px-2 py-1.5 text-center">
+                       {totalLinked > 0 ? (
+                         <Button
+                           variant="outline"
+                           size="sm"
+                           className="h-5 w-5 p-0 border-border bg-background hover:bg-muted"
+                           onClick={() => toggleCrossRef(rowKey)}
+                         >
+                           {isRowExpanded ? <Minus className="h-2.5 w-2.5" /> : <Plus className="h-2.5 w-2.5" />}
+                         </Button>
+                       ) : (
+                         <span className="text-muted-foreground">—</span>
+                       )}
+                     </td>
+                   )}
                 </tr>
 
                 {/* Expanded cross-ref sub-tables */}

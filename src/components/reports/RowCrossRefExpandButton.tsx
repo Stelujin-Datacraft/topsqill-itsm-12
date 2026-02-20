@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { Plus, Minus } from 'lucide-react';
+import { Plus, Minus, Download } from 'lucide-react';
 import {
   Popover,
   PopoverContent,
@@ -14,6 +14,8 @@ import {
 } from '@/components/ui/tooltip';
 import { CrossReferenceInlineExpand } from './CrossReferenceInlineExpand';
 import { useCrossReferenceData } from '@/hooks/useCrossReferenceData';
+import { exportCrossRefHierarchyToExcel } from '@/utils/crossRefExcelExport';
+import { useToast } from '@/hooks/use-toast';
 
 interface CrossRefFieldInfo {
   fieldId: string;
@@ -29,12 +31,33 @@ interface RowCrossRefExpandButtonProps {
   crossRefFields: any[];
 }
 
-function CrossRefPopoverContent({ fieldInfo }: { fieldInfo: CrossRefFieldInfo }) {
+function CrossRefPopoverContent({ fieldInfo, row }: { fieldInfo: CrossRefFieldInfo; row: any }) {
   const { records, targetFormName, loading } = useCrossReferenceData(
     fieldInfo.targetFormId,
     fieldInfo.submissionRefIds,
     fieldInfo.tableDisplayFields
   );
+  const { toast } = useToast();
+  const [exporting, setExporting] = useState(false);
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      // Build parent-like submissions from the linked records for hierarchical export
+      const parentSubs = records.map(r => ({
+        id: r.id,
+        submission_ref_id: r.submission_ref_id,
+        submission_data: (r as any).submission_data || {},
+      }));
+      await exportCrossRefHierarchyToExcel(parentSubs, fieldInfo.targetFormId, targetFormName || fieldInfo.label);
+      toast({ title: 'Exported', description: `Hierarchical Excel exported successfully` });
+    } catch (err) {
+      console.error('Export error:', err);
+      toast({ title: 'Export failed', description: 'Could not export data', variant: 'destructive' });
+    } finally {
+      setExporting(false);
+    }
+  };
 
   if (loading) {
     return <div className="p-4 text-xs text-muted-foreground">Loading linked records...</div>;
@@ -46,7 +69,19 @@ function CrossRefPopoverContent({ fieldInfo }: { fieldInfo: CrossRefFieldInfo })
 
   return (
     <div className="space-y-2">
-      <div className="px-3 pt-2 text-xs font-semibold text-muted-foreground">{fieldInfo.label}</div>
+      <div className="px-3 pt-2 flex items-center justify-between">
+        <span className="text-xs font-semibold text-muted-foreground">{fieldInfo.label}</span>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-6 px-2 text-[10px] gap-1"
+          onClick={handleExport}
+          disabled={exporting}
+        >
+          <Download className="h-3 w-3" />
+          {exporting ? 'Exporting...' : 'Export Excel'}
+        </Button>
+      </div>
       <CrossReferenceInlineExpand
         records={records}
         targetFormId={fieldInfo.targetFormId}
@@ -129,7 +164,7 @@ export function RowCrossRefExpandButton({ row, crossRefFields }: RowCrossRefExpa
           >
             <div className="max-h-[400px] overflow-y-auto">
               {crossRefFieldInfos.map((info) => (
-                <CrossRefPopoverContent key={info.fieldId} fieldInfo={info} />
+                <CrossRefPopoverContent key={info.fieldId} fieldInfo={info} row={row} />
               ))}
             </div>
           </PopoverContent>
