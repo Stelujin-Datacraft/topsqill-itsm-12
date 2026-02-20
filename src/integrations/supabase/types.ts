@@ -605,6 +605,75 @@ export type Database = {
           },
         ]
       }
+      document_history: {
+        Row: {
+          document_type: string
+          file_name: string
+          file_path: string
+          file_size_bytes: number | null
+          form_id: string
+          form_name: string
+          generated_at: string
+          generated_by: string
+          generated_by_email: string | null
+          id: string
+          notes: string | null
+          organization_id: string | null
+          selected_fields: Json
+          submission_count: number
+          version: number
+        }
+        Insert: {
+          document_type?: string
+          file_name: string
+          file_path: string
+          file_size_bytes?: number | null
+          form_id: string
+          form_name: string
+          generated_at?: string
+          generated_by: string
+          generated_by_email?: string | null
+          id?: string
+          notes?: string | null
+          organization_id?: string | null
+          selected_fields?: Json
+          submission_count?: number
+          version?: number
+        }
+        Update: {
+          document_type?: string
+          file_name?: string
+          file_path?: string
+          file_size_bytes?: number | null
+          form_id?: string
+          form_name?: string
+          generated_at?: string
+          generated_by?: string
+          generated_by_email?: string | null
+          id?: string
+          notes?: string | null
+          organization_id?: string | null
+          selected_fields?: Json
+          submission_count?: number
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_history_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "forms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "document_history_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_logs: {
         Row: {
           content: string | null
