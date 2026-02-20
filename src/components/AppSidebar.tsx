@@ -46,7 +46,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     ],
     navMain: [
       {
-        title: "Dashboard",
+        title: "Overview",
         url: "/dashboard",
         icon: LayoutDashboard,
         isActive: true,
@@ -55,6 +55,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         title: "Projects",
         url: "/projects",
         icon: FolderKanban,
+      },
+      {
+        title: "Members",
+        url: "/users",
+        icon: User2,
       },
       {
         title: "SQL Builder",

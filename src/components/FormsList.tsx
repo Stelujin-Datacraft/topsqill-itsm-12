@@ -198,7 +198,7 @@ export function FormsList() {
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Button variant="ghost" size="sm" onClick={() => handleDeleteForm(form.id)} disabled={deleteButtonState.disabled} className="text-destructive hover:text-destructive hover:bg-destructive/10">
+                        <Button variant="ghost" size="sm" onClick={() => handleDeleteForm(form.id)} disabled={deleteButtonState.disabled} className="text-primary hover:text-primary hover:bg-primary/10">
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </TooltipTrigger>
@@ -274,7 +274,7 @@ export function FormsList() {
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Button variant="ghost" size="sm" onClick={() => handleDeleteForm(form.id)} disabled={deleteButtonState.disabled} className="text-destructive hover:text-destructive hover:bg-destructive/10">
+                        <Button variant="ghost" size="sm" onClick={() => handleDeleteForm(form.id)} disabled={deleteButtonState.disabled} className="text-primary hover:text-primary hover:bg-primary/10">
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </TooltipTrigger>
@@ -399,7 +399,7 @@ export function FormsList() {
                             <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <Button variant="ghost" size="sm" onClick={() => handleDeleteForm(form.id)} disabled={deleteButtonState.disabled} className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10">
+                                  <Button variant="ghost" size="sm" onClick={() => handleDeleteForm(form.id)} disabled={deleteButtonState.disabled} className="h-8 w-8 p-0 text-primary hover:text-primary hover:bg-primary/10">
                                     <Trash2 className="h-3 w-3" />
                                   </Button>
                                 </TooltipTrigger>
