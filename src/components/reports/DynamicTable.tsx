@@ -1382,10 +1382,7 @@ export function DynamicTable({
                        
                         <TableCell className="py-2 bg-white">
                            <div className="flex items-center justify-center gap-1">
-                              {crossRefFields.length > 0 && (
-                                <RowCrossRefExpandButton row={row} crossRefFields={crossRefFields} />
-                              )}
-                              <Button variant="ghost" size="sm" onClick={() => handleViewSubmission(row.id)} className="h-6 w-6 p-0 hover:bg-blue-100" title="View submission">
+                               <Button variant="ghost" size="sm" onClick={() => handleViewSubmission(row.id)} className="h-6 w-6 p-0 hover:bg-blue-100" title="View submission">
                                 <Eye className="h-3 w-3 text-blue-800" />
                               </Button>
                               <Button variant="ghost" size="sm" onClick={e => {
