@@ -38,12 +38,10 @@ export function CrossReferenceInlineExpand({
   tableDisplayFields,
   displayColumns,
 }: CrossReferenceInlineExpandProps) {
-  // tableDisplayFields takes priority; fall back to displayColumns
+  // Only use tableDisplayFields for report/table display; displayColumns is for selection UI only
   const allowedFields = (tableDisplayFields && tableDisplayFields.length > 0)
     ? tableDisplayFields
-    : (displayColumns && displayColumns.length > 0)
-      ? displayColumns
-      : null; // null means show all
+    : null; // null means show all available fields
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [recordDetails, setRecordDetails] = useState<
