@@ -53,11 +53,18 @@ export function CrossReferenceInlineExpand({
   >([]);
   const [expandedCrossRefs, setExpandedCrossRefs] = useState<Record<string, boolean>>({});
 
+  const recordIds = records.map(r => r.id).join(',');
+
   useEffect(() => {
     const fetchAll = async () => {
       setLoading(true);
       try {
         const subIds = records.map((r) => r.id);
+        if (subIds.length === 0) {
+          setRecordDetails([]);
+          setLoading(false);
+          return;
+        }
         const [subsRes, fieldsRes] = await Promise.all([
           supabase.from('form_submissions').select('id, submission_ref_id, submission_data').eq('form_id', targetFormId).in('id', subIds),
           supabase.from('form_fields').select('id, label, field_type, options, custom_config').eq('form_id', targetFormId).order('field_order'),
@@ -109,7 +116,7 @@ export function CrossReferenceInlineExpand({
       }
     };
     fetchAll();
-  }, [targetFormId, records]);
+  }, [targetFormId, recordIds]);
 
   const toggleCrossRef = (key: string) => {
     setExpandedCrossRefs((prev) => ({ ...prev, [key]: !prev[key] }));
