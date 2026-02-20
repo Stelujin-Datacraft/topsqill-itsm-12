@@ -45,6 +45,7 @@ import { BulkDeleteDialog } from './BulkDeleteDialog';
 import { CrossReferenceDialog } from './CrossReferenceDialog';
 import { ColumnOrderManager } from './ColumnOrderManager';
 import { CopyRecordsDialog } from './CopyRecordsDialog';
+import { RowCrossRefExpandButton } from './RowCrossRefExpandButton';
 import { ImportDialog } from '@/components/ImportDialog';
 import { SubmissionUpdateDialog } from '@/components/submissions/SubmissionUpdateDialog';
 import { RecordHistoryDialog } from '@/components/RecordHistoryDialog';
@@ -191,7 +192,12 @@ export function DynamicTable({
     return fields;
   }, [formFields, selectedColumns, config.selectedColumns, hasUserInteractedWithColumns, columnOrder]);
   
-  const filteredAndSortedData = useMemo(() => {
+  // Cross-reference fields (always computed from all formFields, not just displayFields)
+  const crossRefFields = useMemo(() => {
+    return formFields.filter(f => f.field_type === 'cross-reference');
+  }, [formFields]);
+
+   const filteredAndSortedData = useMemo(() => {
     console.log('🔍 Filtering data - Input count:', data.length);
     console.log('🔍 Search term:', searchTerm);
     console.log('🔍 Column filters:', columnFilters);
@@ -1375,7 +1381,10 @@ export function DynamicTable({
                          </TableCell>)}
                        
                         <TableCell className="py-2 bg-white">
-                          <div className="flex items-center justify-center gap-1">
+                           <div className="flex items-center justify-center gap-1">
+                              {crossRefFields.length > 0 && (
+                                <RowCrossRefExpandButton row={row} crossRefFields={crossRefFields} />
+                              )}
                               <Button variant="ghost" size="sm" onClick={() => handleViewSubmission(row.id)} className="h-6 w-6 p-0 hover:bg-blue-100" title="View submission">
                                 <Eye className="h-3 w-3 text-blue-800" />
                               </Button>
