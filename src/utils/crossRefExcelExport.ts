@@ -59,67 +59,88 @@ async function getFormName(formId: string): Promise<string> {
   return data?.name || 'Unknown Form';
 }
 
-interface ExcelRow {
-  [key: string]: string;
+// Cache for form fields to avoid re-fetching
+const fieldCache = new Map<string, FieldMeta[]>();
+const nameCache = new Map<string, string>();
+
+async function getCachedFields(formId: string): Promise<FieldMeta[]> {
+  if (!fieldCache.has(formId)) {
+    fieldCache.set(formId, await getFormFields(formId));
+  }
+  return fieldCache.get(formId)!;
+}
+
+async function getCachedFormName(formId: string): Promise<string> {
+  if (!nameCache.has(formId)) {
+    nameCache.set(formId, await getFormName(formId));
+  }
+  return nameCache.get(formId)!;
 }
 
 /**
- * Recursively builds hierarchical rows for Excel export.
- * Each depth level is indented with a prefix in the first column.
+ * Flat row for the worksheet — every row uses the same columns.
+ * We use fixed structural columns + dynamic field columns prefixed with form name for clarity.
  */
-async function buildHierarchicalRows(
+interface SheetRow {
+  hierarchy: string;       // visual tree indicator
+  formName: string;        // which form this record belongs to
+  refId: string;           // submission_ref_id
+  linkedVia: string;       // which cross-ref field linked to this
+  fieldValues: Record<string, string>; // "FormName > FieldLabel" → value
+}
+
+async function collectRows(
   submissions: any[],
   formId: string,
   depth: number,
-  parentLabel: string,
-  allRows: ExcelRow[],
-  maxDepth: number = 3
+  linkedVia: string,
+  rows: SheetRow[],
+  allFieldKeys: string[],
+  maxDepth: number = 3,
 ): Promise<void> {
-  if (depth > maxDepth) return;
+  if (depth > maxDepth || submissions.length === 0) return;
 
-  const fields = await getFormFields(formId);
-  const regularFields = fields.filter(f => !['section', 'divider', 'description', 'child-cross-reference'].includes(f.fieldType));
+  const fields = await getCachedFields(formId);
+  const formName = await getCachedFormName(formId);
+  const regularFields = fields.filter(f => !['section', 'divider', 'description', 'child-cross-reference', 'cross-reference'].includes(f.fieldType));
   const crossRefFields = fields.filter(f => f.fieldType === 'cross-reference');
 
-  const indent = '    '.repeat(depth);
-  const levelPrefix = depth === 0 ? '' : `${'→'.repeat(depth)} `;
+  // Register field keys
+  for (const f of regularFields) {
+    const key = `${formName} > ${f.label}`;
+    if (!allFieldKeys.includes(key)) allFieldKeys.push(key);
+  }
 
-  for (const sub of submissions) {
+  const depthArrow = depth === 0 ? '' : '│  '.repeat(depth - 1) + '├─ ';
+
+  for (let i = 0; i < submissions.length; i++) {
+    const sub = submissions[i];
     const submissionData = (sub.submission_data as Record<string, any>) || {};
-    const row: ExcelRow = {};
+    const isLast = i === submissions.length - 1;
+    const prefix = depth === 0 ? '' : '│  '.repeat(depth - 1) + (isLast ? '└─ ' : '├─ ');
 
-    // Level indicator
-    row['Level'] = `${indent}${levelPrefix}${depth === 0 ? 'Parent' : `Linked (Level ${depth})`}`;
-    row['Reference ID'] = sub.submission_ref_id || sub.id?.slice(0, 8) || '';
-    if (parentLabel && depth > 0) {
-      row['Linked From'] = parentLabel;
+    const fieldValues: Record<string, string> = {};
+    for (const f of regularFields) {
+      const key = `${formName} > ${f.label}`;
+      fieldValues[key] = formatCellValue(submissionData[f.id], f.fieldType, f.options);
     }
 
-    // Add all regular field values
-    for (const field of regularFields) {
-      const colName = depth > 0 ? `${indent}${field.label}` : field.label;
-      row[colName] = formatCellValue(submissionData[field.id], field.fieldType, field.options);
-    }
+    rows.push({
+      hierarchy: `${prefix}${formName}`,
+      formName,
+      refId: sub.submission_ref_id || sub.id?.slice(0, 8) || '',
+      linkedVia: linkedVia || (depth === 0 ? 'Parent Record' : ''),
+      fieldValues,
+    });
 
-    allRows.push(row);
-
-    // Process cross-reference fields recursively
+    // Process nested cross-refs
     for (const crField of crossRefFields) {
-      const value = submissionData[crField.id];
-      const refIds = extractRefIds(value);
+      const refIds = extractRefIds(submissionData[crField.id]);
       if (refIds.length === 0) continue;
 
       const targetFormId = crField.customConfig?.targetFormId;
       if (!targetFormId) continue;
 
-      const targetFormName = await getFormName(targetFormId);
-
-      // Add a separator row for the linked section
-      const sepRow: ExcelRow = {};
-      sepRow['Level'] = `${'    '.repeat(depth + 1)}┌─ ${crField.label} → ${targetFormName} (${refIds.length} records)`;
-      allRows.push(sepRow);
-
-      // Fetch linked submissions
       const { data: linkedSubs } = await supabase
         .from('form_submissions')
         .select('id, submission_ref_id, submission_data')
@@ -127,13 +148,8 @@ async function buildHierarchicalRows(
         .in('submission_ref_id', refIds);
 
       if (linkedSubs && linkedSubs.length > 0) {
-        await buildHierarchicalRows(linkedSubs, targetFormId, depth + 1, crField.label, allRows, maxDepth);
+        await collectRows(linkedSubs, targetFormId, depth + 1, crField.label, rows, allFieldKeys, maxDepth);
       }
-
-      // End separator
-      const endRow: ExcelRow = {};
-      endRow['Level'] = `${'    '.repeat(depth + 1)}└─ End ${crField.label}`;
-      allRows.push(endRow);
     }
   }
 }
@@ -143,31 +159,53 @@ export async function exportCrossRefHierarchyToExcel(
   parentFormId: string,
   parentFormName: string,
 ): Promise<void> {
-  const allRows: ExcelRow[] = [];
+  // Clear caches
+  fieldCache.clear();
+  nameCache.clear();
 
-  await buildHierarchicalRows(parentSubmissions, parentFormId, 0, '', allRows);
+  const rows: SheetRow[] = [];
+  const allFieldKeys: string[] = [];
 
-  if (allRows.length === 0) {
-    allRows.push({ Level: 'No data found' });
+  await collectRows(parentSubmissions, parentFormId, 0, '', rows, allFieldKeys);
+
+  if (rows.length === 0) {
+    const ws = XLSX.utils.aoa_to_sheet([['No data found']]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Export');
+    XLSX.writeFile(wb, `${parentFormName}-hierarchy.xlsx`);
+    return;
   }
 
-  // Collect all unique column names preserving order
-  const colSet = new Set<string>();
-  for (const row of allRows) {
-    for (const key of Object.keys(row)) {
-      colSet.add(key);
+  // Build header row
+  const fixedHeaders = ['Hierarchy', 'Form', 'Reference ID', 'Linked Via'];
+  const allHeaders = [...fixedHeaders, ...allFieldKeys];
+
+  // Build data rows
+  const dataRows = rows.map(r => {
+    const arr: string[] = [
+      r.hierarchy,
+      r.formName,
+      r.refId,
+      r.linkedVia,
+    ];
+    for (const key of allFieldKeys) {
+      arr.push(r.fieldValues[key] || '');
     }
-  }
-  const columns = Array.from(colSet);
+    return arr;
+  });
 
-  // Build worksheet data
-  const wsData = [columns, ...allRows.map(row => columns.map(col => row[col] || ''))];
+  const wsData = [allHeaders, ...dataRows];
   const ws = XLSX.utils.aoa_to_sheet(wsData);
 
-  // Auto-size columns
-  ws['!cols'] = columns.map(col => ({
-    wch: Math.min(Math.max(col.length, 12), 40),
-  }));
+  // Auto-size columns based on content
+  ws['!cols'] = allHeaders.map((header, colIdx) => {
+    let maxLen = header.length;
+    for (const row of dataRows) {
+      const cellLen = (row[colIdx] || '').length;
+      if (cellLen > maxLen) maxLen = cellLen;
+    }
+    return { wch: Math.min(Math.max(maxLen + 2, 12), 50) };
+  });
 
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, parentFormName.slice(0, 31));
