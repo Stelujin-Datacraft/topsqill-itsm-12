@@ -1031,12 +1031,11 @@ export function DynamicTable({
             <div className="flex items-center gap-2">
               {/* Reorder Columns Button - standalone */}
               <Button 
+                variant="outline" 
                 size="sm" 
                 onClick={() => setShowColumnOrderManager(true)}
                 disabled={selectedColumns.length === 0}
                 title="Reorder Columns"
-                className="text-white border-0"
-                style={{ background: 'hsl(var(--sidebar-background) / 0.8)' }}
               >
                 <Move className="h-4 w-4 mr-1" />
                 Reorder
@@ -1049,7 +1048,7 @@ export function DynamicTable({
               {hasWorkflows && filteredAndSortedData.length > 0 && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button size="sm" className="text-white border-0" style={{ background: 'hsl(var(--sidebar-background) / 0.8)' }}>
+                    <Button variant="outline" size="sm">
                       <Zap className="h-4 w-4 mr-1" />
                       Workflows
                       <ChevronDown className="h-3 w-3 ml-1" />
@@ -1069,7 +1068,7 @@ export function DynamicTable({
               {/* Data Dropdown */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button size="sm" className="text-white border-0" style={{ background: 'hsl(var(--sidebar-background) / 0.8)' }}>
+                  <Button variant="outline" size="sm">
                     <Database className="h-4 w-4 mr-1" />
                     Data
                     <ChevronDown className="h-3 w-3 ml-1" />
@@ -1099,24 +1098,23 @@ export function DynamicTable({
               {/* Expand/Collapse Button */}
               {/* Configure Button */}
               {onEdit && (
-                <Button size="sm" onClick={onEdit} title="Configure" className="text-white border-0" style={{ background: 'hsl(var(--sidebar-background) / 0.8)' }}>
+                <Button variant="outline" size="sm" onClick={onEdit} title="Configure">
                   <Settings className="h-4 w-4" />
                 </Button>
               )}
 
               {/* Primary Action - Create Record */}
-              <Button size="sm" onClick={() => navigate(`/form/${config.formId}`)} className="text-white border-0" style={{ background: 'hsl(var(--sidebar-background))' }}>
+              <Button variant="default" size="sm" onClick={() => navigate(`/form/${config.formId}`)}>
                 <FileText className="h-4 w-4 mr-1" />
                 Create Record
               </Button>
 
               {/* Expand/Collapse Button (right of Create Record) */}
               <Button 
+                variant="outline" 
                 size="sm" 
                 onClick={() => setIsExpanded(!isExpanded)}
                 title={isExpanded ? 'Normal View' : 'Expand View'}
-                className="text-white border-0"
-                style={{ background: 'hsl(var(--sidebar-background) / 0.8)' }}
               >
                 {isExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
               </Button>
@@ -1232,7 +1230,7 @@ export function DynamicTable({
           )}
         </CardHeader>
       
-        <CardContent className="p-0 flex flex-col h-full" style={{ background: 'linear-gradient(135deg, hsl(var(--sidebar-background) / 0.05), hsl(var(--sidebar-background) / 0.1))' }}>
+        <CardContent className="p-0 flex flex-col h-full bg-gradient-to-br from-emerald-50/30 to-cyan-50/30">
           <div className={`${isExpanded ? 'h-[85vh]' : 'flex-1 min-h-0'} flex flex-col`}>
             <div className="flex flex-col h-full space-y-2 p-2">
               {/* Compact Page Size Selector */}
@@ -1257,8 +1255,8 @@ export function DynamicTable({
   <div className="h-full w-full overflow-auto">
     <Table className="min-w-full">
 
-                <TableHeader className="sticky top-0 z-[5] border-b-2" style={{ background: 'linear-gradient(to right, hsl(var(--sidebar-background)), hsl(var(--sidebar-background) / 0.85))' }}>
-                  <TableRow className="border-b" style={{ borderColor: 'hsl(var(--sidebar-background) / 0.6)' }}>
+                <TableHeader className="sticky top-0 z-[5] bg-gradient-to-r from-emerald-600 to-cyan-600 border-b-2 border-emerald-700">
+                  <TableRow className="border-b border-emerald-500">
                     <TableHead className="w-10 h-8 ">
                       <Checkbox checked={paginatedData.length > 0 && paginatedData.every(row => selectedRows.has(row.id))} onCheckedChange={handleSelectAll} aria-label="Select all rows" className="text-zinc-50 bg-transparent" />
                     </TableHead>
@@ -1288,7 +1286,7 @@ export function DynamicTable({
                           <span className="font-medium">{field.label}</span>
                           {config.enableFiltering && <Popover>
                               <PopoverTrigger asChild>
-                                <Button variant="ghost" size="icon" className={`${columnFilters[field.id] ? 'text-white' : 'text-white/70'} h-5 w-5 p-0 hover:bg-white/20`} aria-label={`Filter ${field.label}`}>
+                                <Button variant="ghost" size="icon" className={`${columnFilters[field.id] ? 'text-white' : 'text-emerald-100'} h-5 w-5 p-0 hover:bg-emerald-700`} aria-label={`Filter ${field.label}`}>
                                   <Filter className="h-2.5 w-2.5" />
                                 </Button>
                               </PopoverTrigger>
@@ -1305,7 +1303,7 @@ export function DynamicTable({
                             </Popover>}
                         </div>
                       </TableHead>)}
-                    <TableHead className="text-xs font-medium text-center h-8 text-white min-w-[110px]" style={{ background: 'hsl(var(--sidebar-background))' }}>Actions</TableHead>
+                    <TableHead className="text-xs font-medium text-center h-8 bg-gradient-to-r from-cyan-600 to-emerald-600 text-white min-w-[110px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1329,9 +1327,9 @@ export function DynamicTable({
                       key={row.id} 
                       data-submission-ref={row.submission_ref_id}
                       className={`border-b border-gray-200 transition-all duration-300 ${
-                        selectedRows.has(row.id) ? 'bg-primary/5' : 
+                        selectedRows.has(row.id) ? 'bg-emerald-50' : 
                         row.submission_ref_id === highlightedSubmissionRef ? 'bg-yellow-100 border-yellow-300' : 
-                        'bg-white hover:bg-primary/5'
+                        'bg-white hover:bg-gradient-to-r hover:from-emerald-50/50 hover:to-cyan-50/50'
                       }`}>
                         <TableCell className="py-2 bg-white">
                           <Checkbox checked={selectedRows.has(row.id)} onCheckedChange={checked => handleRowSelect(row.id, Boolean(checked))} aria-label={`Select row ${row.id}`} />
@@ -1414,7 +1412,7 @@ export function DynamicTable({
               </div>
 
               {/* Compact Pagination */}
-              <div className="flex items-center justify-between px-2 py-1 border-t" style={{ background: 'linear-gradient(to right, hsl(var(--sidebar-background) / 0.05), hsl(var(--sidebar-background) / 0.1))' }}>
+              <div className="flex items-center justify-between px-2 py-1 border-t bg-gradient-to-r from-emerald-50/50 to-cyan-50/50">
                 <div className="text-xs text-muted-foreground">
                   {Math.min((currentPage - 1) * pageSize + 1, filteredAndSortedData.length)}-{Math.min(currentPage * pageSize, filteredAndSortedData.length)} of {filteredAndSortedData.length}
                 </div>

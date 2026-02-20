@@ -34,8 +34,8 @@ export function TeamSwitcher({
           <div className={`flex aspect-square size-8 items-center justify-center rounded-lg overflow-hidden flex-shrink-0 ${
             currentOrganization?.logo_url 
               ? 'bg-background border border-border' 
-              : ''
-          }`} style={{ color: 'white', ...(!currentOrganization?.logo_url ? { background: 'hsl(var(--sidebar-background))' } : {}) }}>
+              : 'bg-primary'
+          }`} style={{ color: 'white' }}>
             {currentOrganization?.logo_url ? (
               <img 
                 src={currentOrganization.logo_url} 

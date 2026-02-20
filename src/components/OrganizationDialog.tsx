@@ -197,7 +197,7 @@ export function OrganizationDialog({
             <div>
               <Label>Organization Logo</Label>
               <div className="mt-2 flex items-center gap-4">
-                <div className="relative w-20 h-20 border-2 border-dashed rounded-lg flex items-center justify-center overflow-hidden" style={!logoPreview ? { background: 'hsl(var(--sidebar-background))' } : { background: 'hsl(var(--muted) / 0.5)' }}>
+                <div className="relative w-20 h-20 border-2 border-dashed rounded-lg flex items-center justify-center bg-muted/50 overflow-hidden">
                   {logoPreview ? (
                     <>
                       <img 
@@ -214,7 +214,7 @@ export function OrganizationDialog({
                       </button>
                     </>
                   ) : (
-                    <Building2 className="h-8 w-8 text-white" />
+                    <Building2 className="h-8 w-8 text-muted-foreground" />
                   )}
                 </div>
                 <div className="flex-1">
