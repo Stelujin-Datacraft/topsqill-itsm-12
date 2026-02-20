@@ -45,7 +45,7 @@ import { BulkDeleteDialog } from './BulkDeleteDialog';
 import { CrossReferenceDialog } from './CrossReferenceDialog';
 import { ColumnOrderManager } from './ColumnOrderManager';
 import { CopyRecordsDialog } from './CopyRecordsDialog';
-import { RowCrossRefExpandButton } from './RowCrossRefExpandButton';
+
 import { ImportDialog } from '@/components/ImportDialog';
 import { SubmissionUpdateDialog } from '@/components/submissions/SubmissionUpdateDialog';
 import { RecordHistoryDialog } from '@/components/RecordHistoryDialog';
@@ -191,11 +191,6 @@ export function DynamicTable({
     
     return fields;
   }, [formFields, selectedColumns, config.selectedColumns, hasUserInteractedWithColumns, columnOrder]);
-  
-  // Cross-reference fields (always computed from all formFields, not just displayFields)
-  const crossRefFields = useMemo(() => {
-    return formFields.filter(f => f.field_type === 'cross-reference');
-  }, [formFields]);
 
    const filteredAndSortedData = useMemo(() => {
     console.log('🔍 Filtering data - Input count:', data.length);
