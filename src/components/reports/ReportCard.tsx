@@ -45,7 +45,7 @@ export const ReportCard = memo(function ReportCard({
               onClick={() => onCopyId(report.id, report.name)} 
               title="Copy Report ID"
             >
-              <Copy className="h-4 w-4" />
+              <Copy className="h-4 w-4 text-primary" />
             </Button>
             <ShareLinkButton 
               assetType="report" 
@@ -53,7 +53,7 @@ export const ReportCard = memo(function ReportCard({
               assetName={report.name} 
             />
             <Button variant="ghost" size="sm" onClick={() => onView(report)} title="View Report">
-              <Eye className="h-4 w-4" />
+              <Eye className="h-4 w-4 text-primary" />
             </Button>
             <TooltipProvider>
               <Tooltip>
@@ -64,7 +64,7 @@ export const ReportCard = memo(function ReportCard({
                     onClick={() => onEdit(report)} 
                     disabled={editButtonState.disabled}
                   >
-                    <Edit className="h-4 w-4" />
+                    <Edit className="h-4 w-4 text-primary" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
@@ -81,7 +81,7 @@ export const ReportCard = memo(function ReportCard({
                     onClick={() => onDelete(report)} 
                     disabled={deleteButtonState.disabled || loading}
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
@@ -95,7 +95,7 @@ export const ReportCard = memo(function ReportCard({
       <CardContent>
         <div className="flex items-center justify-between text-sm text-muted-foreground">
           <div className="flex items-center space-x-1">
-            <Calendar className="h-3 w-3" />
+            <Calendar className="h-3 w-3 text-primary" />
             <span>{format(new Date(report.created_at), 'MMM d, yyyy')}</span>
           </div>
           {report.is_public && <Badge variant="secondary">Public</Badge>}
