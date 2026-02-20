@@ -89,7 +89,7 @@ const Organizations = () => {
           <CardHeader>
             <div className="flex items-start gap-4">
               {/* Organization Logo */}
-              <div className="w-20 h-20 rounded-xl border-2 border-border bg-muted/50 flex items-center justify-center overflow-hidden flex-shrink-0">
+              <div className="w-20 h-20 rounded-xl border-2 border-border flex items-center justify-center overflow-hidden flex-shrink-0" style={!currentOrganization.logo_url ? { background: 'hsl(var(--sidebar-background))' } : { background: 'hsl(var(--muted) / 0.5)' }}>
                 {currentOrganization.logo_url ? (
                   <img 
                     src={currentOrganization.logo_url} 
@@ -97,7 +97,7 @@ const Organizations = () => {
                     className="w-full h-full object-cover"
                   />
                 ) : (
-                  <Building2 className="h-10 w-10 text-muted-foreground" />
+                  <Building2 className="h-10 w-10 text-white" />
                 )}
               </div>
               <div className="space-y-1">
