@@ -213,7 +213,7 @@ export function WorkflowsList({ workflows, onEdit, onDelete, onView, getPermissi
                               onClick={() => handleDeleteClick(workflow)}
                               disabled={deleteButtonState.disabled}
                             >
-                              <Trash2 className="h-4 w-4 text-destructive" />
+                              <Trash2 className="h-4 w-4 text-primary" />
                             </Button>
                           </TooltipTrigger>
                           <TooltipContent>
