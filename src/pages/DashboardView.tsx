@@ -264,7 +264,7 @@ const DashboardView = () => {
                                 onClick={() => handleDeleteReport(report.id, report.name)} 
                                 disabled={deleteButtonState.disabled || isDeleting}
                               >
-                                <Trash2 className="h-4 w-4 text-destructive" />
+                                <Trash2 className="h-4 w-4 text-primary" />
                               </Button>
                             </TooltipTrigger>
                             <TooltipContent>

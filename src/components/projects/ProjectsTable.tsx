@@ -276,7 +276,7 @@ export function ProjectsTable({
                             variant="outline"
                             onClick={(e) => handleDeleteProject(e, project)}
                             title="Delete Project"
-                            className="text-destructive hover:text-destructive"
+                            className="text-primary hover:text-primary"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>

@@ -175,7 +175,7 @@ export function DashboardsList({
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <Button variant="ghost" size="sm" onClick={() => handleDeleteClick(dashboard)} disabled={deleteButtonState.disabled || loading}>
-                              <Trash2 className="h-4 w-4 text-destructive" />
+                              <Trash2 className="h-4 w-4 text-primary" />
                             </Button>
                           </TooltipTrigger>
                           <TooltipContent>
