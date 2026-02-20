@@ -73,10 +73,13 @@ export function CrossReferenceCell({ submissionRefIds, field }: CrossReferenceCe
 
   const shouldFetch = targetFormId && normalizedSubmissionRefIds.length > 0;
 
+  // Fallback to displayColumns when tableDisplayFields is empty
+  const effectiveDisplayFields = tableDisplayFields.length > 0 ? tableDisplayFields : displayColumns;
+
   const { records, targetFormName, loading } = useCrossReferenceData(
     shouldFetch ? targetFormId : undefined,
     shouldFetch ? normalizedSubmissionRefIds : undefined,
-    tableDisplayFields
+    effectiveDisplayFields
   );
 
   const handleViewRecord = (recordId: string) => {
