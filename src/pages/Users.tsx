@@ -448,7 +448,7 @@ const Users = () => {
                             <Button 
                               variant="ghost" 
                               size="icon" 
-                              className="h-8 w-8 text-muted-foreground hover:text-blue-600 hover:bg-blue-500/10 transition-colors"
+                              className="h-8 w-8 text-primary hover:text-primary hover:bg-primary/10 transition-colors"
                               onClick={() => {
                                 setSelectedUserForEdit(user);
                                 setEditDialogOpen(true);
@@ -460,7 +460,7 @@ const Users = () => {
                             <Button 
                               variant="ghost" 
                               size="icon" 
-                              className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                              className="h-8 w-8 text-primary hover:text-primary hover:bg-primary/10 transition-colors"
                               onClick={() => {
                                 setSelectedUserForSecurity({
                                   id: user.id,
@@ -478,7 +478,7 @@ const Users = () => {
                             <Button 
                               variant="ghost" 
                               size="icon" 
-                              className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                              className="h-8 w-8 text-primary hover:text-primary hover:bg-primary/10 transition-colors"
                               onClick={() => confirmDelete(
                                 user.id, 
                                 user.first_name && user.last_name 
