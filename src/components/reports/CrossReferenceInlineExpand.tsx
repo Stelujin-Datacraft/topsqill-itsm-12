@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, ExternalLink, Link2, Plus, Minus } from 'lucide-react';
+import { Loader2, ExternalLink, Link2, Plus, Minus, Download } from 'lucide-react';
 import { SubmissionRefDisplay } from '@/components/SubmissionRefDisplay';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
+import { exportCrossRefHierarchyToExcel } from '@/utils/crossRefExcelExport';
+import { useToast } from '@/hooks/use-toast';
 
 interface FieldDisplay {
   id: string;
@@ -43,7 +45,9 @@ export function CrossReferenceInlineExpand({
     ? tableDisplayFields
     : null; // null means show all available fields
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
   const [recordDetails, setRecordDetails] = useState<
     { id: string; submissionRefId: string; fields: FieldDisplay[]; crossRefFields: CrossRefFieldInfo[] }[]
   >([]);
@@ -133,9 +137,42 @@ export function CrossReferenceInlineExpand({
   // Check if any record has cross-ref fields with linked records
   const hasAnyCrossRefs = recordDetails.some((rec) => rec.crossRefFields.some((cr) => cr.linkedRecords.length > 0));
 
+  const handleExportExcel = async () => {
+    setExporting(true);
+    try {
+      const parentSubs = records.map(r => ({
+        id: r.id,
+        submission_ref_id: r.submission_ref_id,
+        submission_data: (r as any).submission_data || {},
+      }));
+      await exportCrossRefHierarchyToExcel(parentSubs, targetFormId, targetFormName || 'Linked Records');
+      toast({ title: 'Exported', description: 'Hierarchical Excel exported successfully' });
+    } catch (err) {
+      console.error('Export error:', err);
+      toast({ title: 'Export failed', description: 'Could not export data', variant: 'destructive' });
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div className="min-w-[600px] w-max max-w-[1100px]">
-      <div className="border border-border rounded-md overflow-auto bg-background shadow-lg">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-muted/50">
+        <span className="text-xs font-semibold text-muted-foreground">
+          {targetFormName || 'Linked Records'} · {recordDetails.length} records
+        </span>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-6 px-2 text-[10px] gap-1"
+          onClick={handleExportExcel}
+          disabled={exporting}
+        >
+          <Download className="h-3 w-3" />
+          {exporting ? 'Exporting...' : 'Export Excel'}
+        </Button>
+      </div>
+      <div className="border border-border rounded-b-md overflow-auto bg-background shadow-lg">
         <table className="w-full text-xs">
           <thead>
              <tr className="bg-muted border-b border-border">
