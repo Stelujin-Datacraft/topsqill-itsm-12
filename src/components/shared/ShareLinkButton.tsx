@@ -57,7 +57,7 @@ export function ShareLinkButton({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant={variant} size={size} title={`Share ${assetName}`} className="text-primary hover:text-primary hover:bg-primary/10">
+        <Button variant={variant} size={size} title={`Share ${assetName}`} className="text-primary hover:text-accent hover:bg-accent/10">
           <Share2 className="h-4 w-4" />
         </Button>
       </DropdownMenuTrigger>
