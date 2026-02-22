@@ -41,7 +41,7 @@ export function ProjectSwitcher() {
             }`}
           >
             <div className={`flex items-center ${isCollapsed ? '' : 'space-x-2'}`}>
-              <Briefcase className="h-4 w-4 flex-shrink-0" />
+              <Briefcase className="h-4 w-4 flex-shrink-0 text-foreground" />
               {!isCollapsed && (
                 <div className="text-left">
                 <div className="font-medium truncate max-w-[140px] text-foreground">
