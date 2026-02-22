@@ -193,55 +193,7 @@
  
    return (
      <div className="space-y-4">
-       {/* Stats Cards */}
-       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-         <Card>
-           <CardContent className="pt-4">
-             <div className="flex items-center justify-between">
-               <div>
-                 <p className="text-sm text-muted-foreground">Pending</p>
-                 <p className="text-2xl font-bold">{stats.pending}</p>
-               </div>
-               <Clock className="h-8 w-8 text-amber-600 opacity-50" />
-             </div>
-           </CardContent>
-         </Card>
-         <Card>
-           <CardContent className="pt-4">
-             <div className="flex items-center justify-between">
-               <div>
-                 <p className="text-sm text-muted-foreground">Processing</p>
-                 <p className="text-2xl font-bold">{stats.processing}</p>
-               </div>
-               <Activity className="h-8 w-8 text-primary opacity-50" />
-             </div>
-           </CardContent>
-         </Card>
-         <Card>
-           <CardContent className="pt-4">
-             <div className="flex items-center justify-between">
-               <div>
-                 <p className="text-sm text-muted-foreground">Completed</p>
-                 <p className="text-2xl font-bold">{stats.completed}</p>
-               </div>
-               <CheckCircle className="h-8 w-8 text-emerald-600 opacity-50" />
-             </div>
-           </CardContent>
-         </Card>
-         <Card>
-           <CardContent className="pt-4">
-             <div className="flex items-center justify-between">
-               <div>
-                 <p className="text-sm text-muted-foreground">Failed</p>
-                 <p className="text-2xl font-bold">{stats.failed}</p>
-               </div>
-               <XCircle className="h-8 w-8 text-destructive opacity-50" />
-             </div>
-           </CardContent>
-         </Card>
-       </div>
- 
-       {/* Queue Table */}
+      {/* Queue Table */}
        <Card>
          <CardHeader className="flex flex-row items-center justify-between">
            <div>
