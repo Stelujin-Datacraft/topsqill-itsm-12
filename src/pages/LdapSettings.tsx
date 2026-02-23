@@ -530,45 +530,21 @@ const [showCreateDialog, setShowCreateDialog] = useState(false);
     </Tabs>
   );
 
-  // Create dialog component for reuse
-  const CreateConfigDialog = () => (
-    <Dialog open={showCreateDialog} onOpenChange={(open) => {
-      if (open) {
-        setFormData(prev => ({ ...prev, name: getDefaultConfigName() }));
-      }
-      setShowCreateDialog(open);
+  const createDialogButton = (
+    <Button onClick={() => {
+      setFormData(prev => ({ ...prev, name: getDefaultConfigName() }));
+      setShowCreateDialog(true);
     }}>
-      <DialogTrigger asChild>
-        <Button>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Configuration
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Add LDAP Configuration</DialogTitle>
-          <DialogDescription>
-            Configure your LDAP/Active Directory server connection
-          </DialogDescription>
-        </DialogHeader>
-        {configurationFormContent}
-        <DialogFooter>
-          <Button variant="outline" onClick={() => { setShowCreateDialog(false); resetForm(); }}>
-            Cancel
-          </Button>
-          <Button onClick={handleCreateConfig} disabled={!formData.server_url || !formData.base_dn}>
-            Create Configuration
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      <Plus className="h-4 w-4 mr-2" />
+      Add Configuration
+    </Button>
   );
 
   return (
     <DashboardLayout 
       title="LDAP / Active Directory" 
       description="Configure enterprise authentication and user synchronization"
-      actions={<CreateConfigDialog />}
+      actions={createDialogButton}
     >
       <div className="space-y-6">
 
@@ -926,6 +902,30 @@ const [showCreateDialog, setShowCreateDialog] = useState(false);
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Create LDAP Dialog */}
+      <Dialog open={showCreateDialog} onOpenChange={(open) => {
+        if (!open) resetForm();
+        setShowCreateDialog(open);
+      }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Add LDAP Configuration</DialogTitle>
+            <DialogDescription>
+              Configure your LDAP/Active Directory server connection
+            </DialogDescription>
+          </DialogHeader>
+          {configurationFormContent}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setShowCreateDialog(false); resetForm(); }}>
+              Cancel
+            </Button>
+            <Button onClick={handleCreateConfig} disabled={!formData.server_url || !formData.base_dn}>
+              Create Configuration
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }
