@@ -1230,7 +1230,7 @@ export function DynamicTable({
           )}
         </CardHeader>
       
-        <CardContent className="p-0 flex flex-col h-full bg-gradient-to-br from-emerald-50/30 to-cyan-50/30">
+        <CardContent className="p-0 flex flex-col h-full bg-muted/30">
           <div className={`${isExpanded ? 'h-[85vh]' : 'flex-1 min-h-0'} flex flex-col`}>
             <div className="flex flex-col h-full space-y-2 p-2">
               {/* Compact Page Size Selector */}
@@ -1255,8 +1255,8 @@ export function DynamicTable({
   <div className="h-full w-full overflow-auto">
     <Table className="min-w-full">
 
-                <TableHeader className="sticky top-0 z-[5] bg-gradient-to-r from-emerald-600 to-cyan-600 border-b-2 border-emerald-700">
-                  <TableRow className="border-b border-emerald-500">
+                <TableHeader className="sticky top-0 z-[5] bg-primary border-b-2 border-primary/80">
+                  <TableRow className="border-b border-primary/60">
                     <TableHead className="w-10 h-8 ">
                       <Checkbox checked={paginatedData.length > 0 && paginatedData.every(row => selectedRows.has(row.id))} onCheckedChange={handleSelectAll} aria-label="Select all rows" className="text-zinc-50 bg-transparent" />
                     </TableHead>
@@ -1286,7 +1286,7 @@ export function DynamicTable({
                           <span className="font-medium">{field.label}</span>
                           {config.enableFiltering && <Popover>
                               <PopoverTrigger asChild>
-                                <Button variant="ghost" size="icon" className={`${columnFilters[field.id] ? 'text-white' : 'text-emerald-100'} h-5 w-5 p-0 hover:bg-emerald-700`} aria-label={`Filter ${field.label}`}>
+                                <Button variant="ghost" size="icon" className={`${columnFilters[field.id] ? 'text-white' : 'text-primary-foreground/70'} h-5 w-5 p-0 hover:bg-primary/80`} aria-label={`Filter ${field.label}`}>
                                   <Filter className="h-2.5 w-2.5" />
                                 </Button>
                               </PopoverTrigger>
@@ -1303,7 +1303,7 @@ export function DynamicTable({
                             </Popover>}
                         </div>
                       </TableHead>)}
-                    <TableHead className="text-xs font-medium text-center h-8 bg-gradient-to-r from-cyan-600 to-emerald-600 text-white min-w-[110px]">Actions</TableHead>
+                    <TableHead className="text-xs font-medium text-center h-8 bg-primary text-primary-foreground min-w-[110px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1327,9 +1327,9 @@ export function DynamicTable({
                       key={row.id} 
                       data-submission-ref={row.submission_ref_id}
                       className={`border-b border-gray-200 transition-all duration-300 ${
-                        selectedRows.has(row.id) ? 'bg-emerald-50' : 
+                        selectedRows.has(row.id) ? 'bg-primary/5' : 
                         row.submission_ref_id === highlightedSubmissionRef ? 'bg-yellow-100 border-yellow-300' : 
-                        'bg-white hover:bg-gradient-to-r hover:from-emerald-50/50 hover:to-cyan-50/50'
+                        'bg-white hover:bg-primary/5'
                       }`}>
                         <TableCell className="py-2 bg-white">
                           <Checkbox checked={selectedRows.has(row.id)} onCheckedChange={checked => handleRowSelect(row.id, Boolean(checked))} aria-label={`Select row ${row.id}`} />
@@ -1377,21 +1377,21 @@ export function DynamicTable({
                        
                         <TableCell className="py-2 bg-white">
                            <div className="flex items-center justify-center gap-1">
-                               <Button variant="ghost" size="sm" onClick={() => handleViewSubmission(row.id)} className="h-6 w-6 p-0 hover:bg-blue-100" title="View submission">
-                                <Eye className="h-3 w-3 text-blue-800" />
-                              </Button>
+                               <Button variant="ghost" size="sm" onClick={() => handleViewSubmission(row.id)} className="h-6 w-6 p-0 hover:bg-primary/10" title="View submission">
+                                 <Eye className="h-3 w-3 text-primary" />
+                               </Button>
                               <Button variant="ghost" size="sm" onClick={e => {
-                                e.stopPropagation();
-                                handleEditSubmission(row);
-                              }} className="h-6 w-6 p-0 hover:bg-amber-100" title="Edit submission">
-                                <Edit3 className="h-3 w-3 text-amber-800" />
-                              </Button>
+                                 e.stopPropagation();
+                                 handleEditSubmission(row);
+                               }} className="h-6 w-6 p-0 hover:bg-primary/10" title="Edit submission">
+                                 <Edit3 className="h-3 w-3 text-primary" />
+                               </Button>
                               <Button variant="ghost" size="sm" onClick={e => {
-                                e.stopPropagation();
-                                setRecordHistorySubmission({ id: row.id, refId: row.submission_ref_id || row.id.slice(0, 8) });
-                                setShowRecordHistory(true);
-                              }} className="h-6 w-6 p-0 hover:bg-purple-100" title="View record history">
-                                <History className="h-3 w-3 text-purple-800" />
+                                 e.stopPropagation();
+                                 setRecordHistorySubmission({ id: row.id, refId: row.submission_ref_id || row.id.slice(0, 8) });
+                                 setShowRecordHistory(true);
+                               }} className="h-6 w-6 p-0 hover:bg-primary/10" title="View record history">
+                                 <History className="h-3 w-3 text-primary" />
                               </Button>
                              <ManualWorkflowTrigger
                                formId={config.formId}
@@ -1412,7 +1412,7 @@ export function DynamicTable({
               </div>
 
               {/* Compact Pagination */}
-              <div className="flex items-center justify-between px-2 py-1 border-t bg-gradient-to-r from-emerald-50/50 to-cyan-50/50">
+              <div className="flex items-center justify-between px-2 py-1 border-t bg-muted/30">
                 <div className="text-xs text-muted-foreground">
                   {Math.min((currentPage - 1) * pageSize + 1, filteredAndSortedData.length)}-{Math.min(currentPage * pageSize, filteredAndSortedData.length)} of {filteredAndSortedData.length}
                 </div>
