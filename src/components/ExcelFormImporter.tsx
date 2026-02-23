@@ -161,41 +161,42 @@ function generateTemplate() {
   XLSX.utils.book_append_sheet(wb, wsInstructions, 'Instructions');
 
   // Form Fields sheet - every supported field type with realistic examples
+  // Every row has a label so the importer picks it up correctly
   const formFieldsData = [
     ['Form Name:', 'Employee Onboarding Form', '', 'Form Description:', 'Complete onboarding form demonstrating every supported field type'],
     ['Field Label', 'Field Type', 'Required', 'Placeholder', 'Options (comma or pipe separated)', 'Default Value', 'Tooltip'],
-    // --- Layout / Display Fields ---
+    // --- Layout / Display ---
     ['Personal Information', 'header', 'no', '', '', '', ''],
     ['Please fill all mandatory fields marked with *', 'description', 'no', '', '', '', ''],
-    ['', 'section-break', 'no', '', '', '', ''],
-    // --- Basic Input Fields ---
+    ['Section 1', 'section-break', 'no', '', '', '', ''],
+    // --- Basic Input ---
     ['Full Name', 'text', 'yes', 'Enter your full name', '', '', 'Your legal full name as per ID'],
     ['Bio / Summary', 'textarea', 'yes', 'Write a short bio...', '', '', 'Max 500 characters'],
     ['Age', 'number', 'yes', '25', '', '', 'Must be 18 or older'],
     ['Email Address', 'email', 'yes', 'user@example.com', '', '', 'Company email preferred'],
     ['Phone Number', 'phone', 'no', '+1 (555) 000-0000', '', '', 'Include country code'],
     ['Website / Portfolio', 'url', 'no', 'https://yoursite.com', '', '', ''],
-    ['', 'horizontal-line', 'no', '', '', '', ''],
-    // --- Date & Time Fields ---
-    ['Date Inputs', 'header', 'no', '', '', '', ''],
+    ['Divider 1', 'horizontal-line', 'no', '', '', '', ''],
+    // --- Date & Time ---
+    ['Date & Time Inputs', 'header', 'no', '', '', '', ''],
     ['Date of Birth', 'date', 'yes', '', '', '', ''],
     ['Preferred Interview Time', 'time', 'no', '', '', '09:00', ''],
     ['Start Date & Time', 'datetime', 'no', '', '', '', 'When you will officially join'],
-    ['', 'horizontal-line', 'no', '', '', '', ''],
-    // --- Selection Fields ---
+    ['Divider 2', 'horizontal-line', 'no', '', '', '', ''],
+    // --- Selection ---
     ['Selection Inputs', 'header', 'no', '', '', '', ''],
     ['Department', 'select', 'yes', 'Select department', 'HR, Engineering, Marketing, Sales, Finance, Legal, Operations', '', 'Your primary department'],
     ['Technical Skills', 'multi-select', 'no', '', 'JavaScript, Python, SQL, Excel, Design, Docker, AWS', '', 'Select all that apply'],
     ['Gender', 'radio', 'no', '', 'Male, Female, Non-binary, Prefer not to say', '', ''],
     ['Accept Company Policy', 'checkbox', 'yes', '', 'I agree to company policy, I agree to NDA, I agree to code of conduct', '', 'You must agree to continue'],
     ['Available for Night Shift?', 'toggle-switch', 'no', '', '', 'no', 'Toggle on if available'],
-    ['', 'horizontal-line', 'no', '', '', '', ''],
-    // --- Numeric / Rating Fields ---
+    ['Divider 3', 'horizontal-line', 'no', '', '', '', ''],
+    // --- Numeric / Rating ---
     ['Rating & Range', 'header', 'no', '', '', '', ''],
     ['Experience Level (years)', 'slider', 'no', '', '', '3', 'Drag to select 0-10 years'],
     ['Self Assessment', 'rating', 'no', '', '', '', 'Rate yourself from 1 to 5 stars'],
-    ['', 'horizontal-line', 'no', '', '', '', ''],
-    // --- Special Input Fields ---
+    ['Divider 4', 'horizontal-line', 'no', '', '', '', ''],
+    // --- Special Input ---
     ['Special Inputs', 'header', 'no', '', '', '', ''],
     ['Profile Color', 'color', 'no', '', '', '#3B82F6', 'Pick your badge color'],
     ['Expected Salary', 'currency', 'no', '', '', '', 'Annual salary in USD'],
@@ -205,15 +206,15 @@ function generateTemplate() {
     ['Employee Barcode', 'barcode', 'no', '', '', '', 'Scan or enter barcode'],
     ['Office Location', 'geo-location', 'no', '', '', '', 'Pin your office on the map'],
     ['Skill Tags', 'tags', 'no', '', '', '', 'Type and press Enter to add tags'],
-    ['', 'horizontal-line', 'no', '', '', '', ''],
-    // --- File & Media Fields ---
+    ['Divider 5', 'horizontal-line', 'no', '', '', '', ''],
+    // --- File & Media ---
     ['Uploads', 'header', 'no', '', '', '', ''],
     ['Upload Resume', 'file', 'no', '', '', '', 'PDF or DOCX only, max 10MB'],
     ['Profile Photo', 'image', 'no', '', '', '', 'JPEG or PNG, max 5MB'],
     ['Digital Signature', 'signature', 'no', '', '', '', 'Draw your signature here'],
     ['Rich Text Notes', 'rich-text', 'no', '', '', '', 'Supports bold, italic, lists'],
-    ['', 'horizontal-line', 'no', '', '', '', ''],
-    // --- People & Workflow Fields ---
+    ['Divider 6', 'horizontal-line', 'no', '', '', '', ''],
+    // --- People & Workflow ---
     ['People & Workflow', 'header', 'no', '', '', '', ''],
     ['Assign Manager', 'user-picker', 'no', '', '', '', 'Select the reporting manager'],
     ['Assign Team', 'group-picker', 'no', '', '', '', 'Select the team/group'],
@@ -348,7 +349,15 @@ export function ExcelFormImporter({ onImport }: ExcelFormImporterProps) {
         return;
       }
 
-      const dataRows = rows.slice(fieldStartRow + 1).filter(row => row && row[colMap['label']]);
+      const LAYOUT_TYPES = new Set(['header', 'description', 'section-break', 'horizontal-line', 'full-width-container']);
+      const dataRows = rows.slice(fieldStartRow + 1).filter(row => {
+        if (!row) return false;
+        const hasLabel = row[colMap['label']] && String(row[colMap['label']]).trim();
+        const rawType = colMap['type'] !== undefined ? String(row[colMap['type']] || '').trim().toLowerCase() : '';
+        const resolvedType = rawType ? resolveFieldType(rawType) : '';
+        // Keep row if it has a label OR if it's a layout type (which may not need a label)
+        return hasLabel || LAYOUT_TYPES.has(resolvedType);
+      });
 
       const fields: ParsedField[] = dataRows.map((row) => {
         const errors: string[] = [];
