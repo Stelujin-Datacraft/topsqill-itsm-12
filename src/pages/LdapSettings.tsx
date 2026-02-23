@@ -226,7 +226,7 @@ const [showCreateDialog, setShowCreateDialog] = useState(false);
   const lastSyncConfig = configurations.find(c => c.last_sync_at);
   const hasFailedSync = configurations.some(c => c.last_sync_status === 'failed');
 
-  const ConfigurationForm = () => (
+  const configurationFormContent = (
     <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
       <TabsList className="grid w-full grid-cols-4 mb-6">
         <TabsTrigger value="connection" className="gap-2">
@@ -551,7 +551,7 @@ const [showCreateDialog, setShowCreateDialog] = useState(false);
             Configure your LDAP/Active Directory server connection
           </DialogDescription>
         </DialogHeader>
-        <ConfigurationForm />
+        {configurationFormContent}
         <DialogFooter>
           <Button variant="outline" onClick={() => { setShowCreateDialog(false); resetForm(); }}>
             Cancel
@@ -891,7 +891,7 @@ const [showCreateDialog, setShowCreateDialog] = useState(false);
               Update your LDAP/Active Directory server settings
             </DialogDescription>
           </DialogHeader>
-          <ConfigurationForm />
+          {configurationFormContent}
           <DialogFooter>
             <Button variant="outline" onClick={() => { setEditingConfig(null); resetForm(); }}>
               Cancel
