@@ -53,3 +53,6 @@ verify_jwt = false
  
  [functions.ai-copilot-action]
  verify_jwt = false
+
+[functions.admin-change-password]
+verify_jwt = false

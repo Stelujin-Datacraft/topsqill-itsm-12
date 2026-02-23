@@ -1019,62 +1019,64 @@ export function DynamicTable({
           width: isExpanded ? '100vw' : 'calc(100vw - 280px)',
         }}
       >
-        <CardHeader className="pb-2">
+        <CardHeader className="pb-2 space-y-3">
+          {/* Row 1: Title + Primary Actions */}
           <div className="flex items-center justify-between">
-            <div className="space-y-1">
+            <div className="space-y-0.5">
               <CardTitle className="text-lg font-semibold">{config.title}</CardTitle>
               <p className="text-xs text-muted-foreground">
                 {filteredAndSortedData.length} record{filteredAndSortedData.length !== 1 ? 's' : ''}
               </p>
             </div>
 
-            <div className="flex items-center gap-2">
-              {/* Reorder Columns Button - standalone */}
+            <div className="flex items-center gap-1.5">
+              {/* Primary Action - Create Record */}
+              <Button variant="default" size="sm" onClick={() => navigate(`/form/${config.formId}`)}>
+                <FileText className="h-4 w-4 mr-1" />
+                Create Record
+              </Button>
+
+              {/* Expand/Collapse */}
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setIsExpanded(!isExpanded)}
+                title={isExpanded ? 'Normal View' : 'Expand View'}
+                className="px-2"
+              >
+                {isExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+              </Button>
+            </div>
+          </div>
+
+          {/* Row 2: Toolbar - Table Controls | Data Operations | Search */}
+          <div className="flex items-center justify-between gap-3 border-t border-b py-2">
+            {/* Left Group: Table structure controls */}
+            <div className="flex items-center gap-1.5">
               <Button 
                 variant="outline" 
                 size="sm" 
                 onClick={() => setShowColumnOrderManager(true)}
                 disabled={selectedColumns.length === 0}
                 title="Reorder Columns"
+                className="h-8"
               >
-                <Move className="h-4 w-4 mr-1" />
+                <Move className="h-3.5 w-3.5 mr-1" />
                 Reorder
               </Button>
 
-              {/* Column Selector */}
               <DynamicTableColumnSelector formFields={formFields} selectedColumns={selectedColumns} onColumnToggle={handleColumnToggle} />
-
-              {/* Workflows Dropdown */}
-              {hasWorkflows && filteredAndSortedData.length > 0 && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm">
-                      <Zap className="h-4 w-4 mr-1" />
-                      Workflows
-                      <ChevronDown className="h-3 w-3 ml-1" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56 bg-popover">
-                    <DropdownMenuLabel>Workflow Actions</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={handleRunAllWorkflows}>
-                      <PlayCircle className="h-4 w-4 mr-2" />
-                      Run All Workflows ({filteredAndSortedData.length})
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              )}
 
               {/* Data Dropdown */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm">
-                    <Database className="h-4 w-4 mr-1" />
+                  <Button variant="outline" size="sm" className="h-8">
+                    <Database className="h-3.5 w-3.5 mr-1" />
                     Data
                     <ChevronDown className="h-3 w-3 ml-1" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48 bg-popover">
+                <DropdownMenuContent align="start" className="w-48 bg-popover">
                   <DropdownMenuLabel>Data Operations</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <ExportDropdown data={exportData} formId={config.formId} formName={currentForm?.name} asSubMenu />
@@ -1095,35 +1097,119 @@ export function DynamicTable({
                 </DropdownMenuContent>
               </DropdownMenu>
 
-              {/* Expand/Collapse Button */}
-              {/* Configure Button */}
-              {onEdit && (
-                <Button variant="outline" size="sm" onClick={onEdit} title="Configure">
-                  <Settings className="h-4 w-4" />
-                </Button>
+              {/* Workflows Dropdown */}
+              {hasWorkflows && filteredAndSortedData.length > 0 && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-8">
+                      <Zap className="h-3.5 w-3.5 mr-1" />
+                      Workflows
+                      <ChevronDown className="h-3 w-3 ml-1" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-56 bg-popover">
+                    <DropdownMenuLabel>Workflow Actions</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleRunAllWorkflows}>
+                      <PlayCircle className="h-4 w-4 mr-2" />
+                      Run All Workflows ({filteredAndSortedData.length})
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               )}
 
-              {/* Primary Action - Create Record */}
-              <Button variant="default" size="sm" onClick={() => navigate(`/form/${config.formId}`)}>
-                <FileText className="h-4 w-4 mr-1" />
-                Create Record
-              </Button>
+              {/* Configure Button */}
+              {onEdit && (
+                <Button variant="outline" size="sm" onClick={onEdit} title="Configure" className="h-8 px-2">
+                  <Settings className="h-3.5 w-3.5" />
+                </Button>
+              )}
+            </div>
 
-              {/* Expand/Collapse Button (right of Create Record) */}
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => setIsExpanded(!isExpanded)}
-                title={isExpanded ? 'Normal View' : 'Expand View'}
-              >
-                {isExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-              </Button>
+            {/* Right Group: Search + AI + Auto Refresh */}
+            <div className="flex items-center gap-1.5">
+              {config.enableSearch && currentForm && (
+                <AIQueryInput
+                  formFields={currentForm.fields}
+                  onApplyQuery={(result) => {
+                    setAiQueryFilters(result.filters);
+                    setAiQuerySort({ field: result.sortBy, order: result.sortOrder });
+                  }}
+                  onClearQuery={() => {
+                    setAiQueryFilters([]);
+                    setAiQuerySort({ field: null, order: 'asc' });
+                  }}
+                />
+              )}
+
+              {config.enableSearch && (
+                <div className="relative w-56">
+                  <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+                  <Input 
+                    placeholder="Search records..." 
+                    value={searchTerm} 
+                    onChange={e => setSearchTerm(e.target.value)} 
+                    className="pl-7 pr-8 h-8 text-xs" 
+                  />
+                  {searchTerm && (
+                    <button
+                      onClick={() => setSearchTerm('')}
+                      className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground hover:text-foreground"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* Auto Refresh */}
+              <div className="flex items-center space-x-1 bg-muted/30 rounded-md px-2 py-1 h-8">
+                <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
+                <span className="text-xs text-muted-foreground">Auto</span>
+                <Button variant="ghost" size="sm" onClick={loadData} className="h-5 w-5 p-0">
+                  <svg className="h-2.5 w-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                </Button>
+              </div>
             </div>
           </div>
 
-          {/* Applied Filters */}
+          {/* Row 3: Filters + Sort */}
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Filters</span>
+              <SavedFiltersManager formId={config.formId} onApplyFilter={setAppliedFilters} currentFilters={appliedFilters} />
+
+              {config.enableFiltering && (
+                <ComplexFilter 
+                  filters={complexFilters} 
+                  onFiltersChange={setComplexFilters} 
+                  availableFields={availableFields} 
+                  formId={config.formId} 
+                  onApplyFilters={handleApplyFilters} 
+                  onClearFilters={handleClearFilters} 
+                />
+              )}
+
+              {config.enableSorting && (
+                <>
+                  <div className="w-px h-5 bg-border mx-1" />
+                  <SortingControls 
+                    availableFields={displayFields.map(f => ({ id: f.id, label: f.label }))} 
+                    sortConfigs={sortConfigs} 
+                    onAddSort={handleAddSort} 
+                    onRemoveSort={handleRemoveSort} 
+                    onToggleDirection={handleToggleDirection} 
+                  />
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Applied Filters Badges */}
           {(Object.keys(columnFilters).length > 0 || appliedFilters.length > 0) && (
-            <div className="flex flex-wrap gap-1 mb-2 mt-2">
+            <div className="flex flex-wrap gap-1">
               {Object.entries(columnFilters).map(([fieldId, value]) => {
                 if (!value) return null;
                 const field = displayFields.find(f => f.id === fieldId);
@@ -1144,88 +1230,6 @@ export function DynamicTable({
                   </button>
                 </Badge>
               ))}
-            </div>
-          )}
-
-          {/* Controls Row 1 - Filters and Search */}
-          <div className="flex items-center justify-between gap-2 mt-2">
-            {/* Left Side - Filter Controls */}
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-sm font-bold text-foreground">Filter by:</span>
-              <SavedFiltersManager formId={config.formId} onApplyFilter={setAppliedFilters} currentFilters={appliedFilters} />
-
-              {config.enableFiltering && (
-                <ComplexFilter 
-                  filters={complexFilters} 
-                  onFiltersChange={setComplexFilters} 
-                  availableFields={availableFields} 
-                  formId={config.formId} 
-                  onApplyFilters={handleApplyFilters} 
-                  onClearFilters={handleClearFilters} 
-                />
-              )}
-            </div>
-
-            {/* Right Side - Search and AI Query */}
-            <div className="flex items-center gap-2">
-              {/* AI Natural Language Query */}
-              {config.enableSearch && currentForm && (
-                <AIQueryInput
-                  formFields={currentForm.fields}
-                  onApplyQuery={(result) => {
-                    setAiQueryFilters(result.filters);
-                    setAiQuerySort({ field: result.sortBy, order: result.sortOrder });
-                  }}
-                  onClearQuery={() => {
-                    setAiQueryFilters([]);
-                    setAiQuerySort({ field: null, order: 'asc' });
-                  }}
-                />
-              )}
-
-              {config.enableSearch && (
-                <div className="relative w-64">
-                  <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3 w-3 text-muted-foreground" />
-                  <Input 
-                    placeholder="Search records..." 
-                    value={searchTerm} 
-                    onChange={e => setSearchTerm(e.target.value)} 
-                    className="pl-7 pr-8 h-8 text-xs" 
-                  />
-                  {searchTerm && (
-                    <button
-                      onClick={() => setSearchTerm('')}
-                      className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground hover:text-foreground"
-                    >
-                      ×
-                    </button>
-                  )}
-                </div>
-              )}
-
-              {/* Auto Refresh Toggle */}
-              <div className="flex items-center space-x-1 bg-muted/30 rounded-md px-2 py-1">
-                <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
-                <span className="text-xs text-muted-foreground">Auto</span>
-                <Button variant="ghost" size="sm" onClick={loadData} className="h-5 w-5 p-0">
-                  <svg className="h-2.5 w-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          {/* Controls Row 2 - Sort Controls */}
-          {config.enableSorting && (
-            <div className="flex items-center gap-2 mt-2">
-              <SortingControls 
-                availableFields={displayFields.map(f => ({ id: f.id, label: f.label }))} 
-                sortConfigs={sortConfigs} 
-                onAddSort={handleAddSort} 
-                onRemoveSort={handleRemoveSort} 
-                onToggleDirection={handleToggleDirection} 
-              />
             </div>
           )}
         </CardHeader>
