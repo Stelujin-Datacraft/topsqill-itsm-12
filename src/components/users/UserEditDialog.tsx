@@ -14,6 +14,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { Eye, EyeOff, KeyRound, Loader2 } from 'lucide-react';
+import { validatePassword, getPasswordStrength } from '@/utils/passwordValidation';
 
 interface UserData {
   id: string;
@@ -201,6 +203,12 @@ interface UserEditDialogProps {
 export function UserEditDialog({ open, onOpenChange, user, onUserUpdated }: UserEditDialogProps) {
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
+  const [showPasswordSection, setShowPasswordSection] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
   const [form, setForm] = useState({
     first_name: '',
     last_name: '',
@@ -226,6 +234,9 @@ export function UserEditDialog({ open, onOpenChange, user, onUserUpdated }: User
         timezone: user.timezone || '',
         status: user.status || 'active',
       });
+      setShowPasswordSection(false);
+      setNewPassword('');
+      setConfirmPassword('');
     }
   }, [user]);
 
@@ -259,11 +270,52 @@ export function UserEditDialog({ open, onOpenChange, user, onUserUpdated }: User
     }
   };
 
+  const handleChangePassword = async () => {
+    if (!user) return;
+    
+    if (!newPassword) {
+      toast({ title: 'Error', description: 'Please enter a new password', variant: 'destructive' });
+      return;
+    }
+    
+    const validation = validatePassword(newPassword);
+    if (!validation.isValid) {
+      toast({ title: 'Invalid Password', description: validation.errors[0], variant: 'destructive' });
+      return;
+    }
+    
+    if (newPassword !== confirmPassword) {
+      toast({ title: 'Error', description: 'Passwords do not match', variant: 'destructive' });
+      return;
+    }
+
+    setChangingPassword(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('admin-change-password', {
+        body: { userId: user.id, newPassword }
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      toast({ title: 'Success', description: 'Password changed successfully' });
+      setNewPassword('');
+      setConfirmPassword('');
+      setShowPasswordSection(false);
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message || 'Failed to change password', variant: 'destructive' });
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+
   if (!user) return null;
+
+  const passwordStrength = getPasswordStrength(newPassword);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit User</DialogTitle>
           <DialogDescription>Update user profile information for {user.email}</DialogDescription>
@@ -358,6 +410,111 @@ export function UserEditDialog({ open, onOpenChange, user, onUserUpdated }: User
                 <SelectItem value="suspended">Suspended</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+
+          {/* Password Change Section */}
+          <div className="border-t pt-4 mt-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="w-full justify-start gap-2"
+              onClick={() => setShowPasswordSection(!showPasswordSection)}
+            >
+              <KeyRound className="h-4 w-4 text-primary" />
+              {showPasswordSection ? 'Hide Password Change' : 'Change Password'}
+            </Button>
+
+            {showPasswordSection && (
+              <div className="mt-3 space-y-3 p-3 rounded-md border bg-muted/30">
+                <p className="text-xs text-muted-foreground">
+                  Set a new password for this user. They will need to use the new password on their next login.
+                </p>
+                <div className="space-y-2">
+                  <Label htmlFor="new_password">New Password</Label>
+                  <div className="relative">
+                    <Input
+                      id="new_password"
+                      type={showNewPassword ? 'text' : 'password'}
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="Enter new password"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 p-0"
+                      onClick={() => setShowNewPassword(!showNewPassword)}
+                    >
+                      {showNewPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                    </Button>
+                  </div>
+                  {newPassword && (
+                    <div className="space-y-1">
+                      <div className="flex gap-1">
+                        {[...Array(5)].map((_, i) => (
+                          <div
+                            key={i}
+                            className={`h-1 flex-1 rounded ${
+                              i < passwordStrength.score
+                                ? passwordStrength.label === 'Weak' ? 'bg-destructive'
+                                : passwordStrength.label === 'Fair' ? 'bg-amber-500'
+                                : passwordStrength.label === 'Good' ? 'bg-blue-500'
+                                : 'bg-emerald-500'
+                                : 'bg-muted'
+                            }`}
+                          />
+                        ))}
+                      </div>
+                      <p className={`text-xs ${passwordStrength.color}`}>
+                        Strength: {passwordStrength.label}
+                      </p>
+                    </div>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="confirm_password">Confirm Password</Label>
+                  <div className="relative">
+                    <Input
+                      id="confirm_password"
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="Confirm new password"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 p-0"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    >
+                      {showConfirmPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                    </Button>
+                  </div>
+                  {confirmPassword && newPassword !== confirmPassword && (
+                    <p className="text-xs text-destructive">Passwords do not match</p>
+                  )}
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleChangePassword}
+                  disabled={changingPassword || !newPassword || !confirmPassword || newPassword !== confirmPassword}
+                  className="w-full"
+                >
+                  {changingPassword ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
+                      Changing...
+                    </>
+                  ) : (
+                    'Update Password'
+                  )}
+                </Button>
+              </div>
+            )}
           </div>
         </div>
         <DialogFooter>
