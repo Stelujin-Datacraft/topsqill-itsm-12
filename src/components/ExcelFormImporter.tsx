@@ -160,21 +160,39 @@ function generateTemplate() {
   wsInstructions['!cols'] = [{ wch: 20 }, { wch: 55 }, { wch: 25 }, { wch: 30 }];
   XLSX.utils.book_append_sheet(wb, wsInstructions, 'Instructions');
 
-  // Form Fields sheet
+  // Form Fields sheet - comprehensive examples for every common type
   const formFieldsData = [
-    ['Form Name:', 'My New Form', '', 'Form Description:', 'Describe your form here'],
+    ['Form Name:', 'Employee Onboarding Form', '', 'Form Description:', 'Complete onboarding form with all field types'],
     ['Field Label', 'Field Type', 'Required', 'Placeholder', 'Options (comma or pipe separated)', 'Default Value', 'Tooltip'],
+    ['Personal Info', 'header', 'no', '', '', '', ''],
     ['Full Name', 'text', 'yes', 'Enter full name', '', '', 'Your legal full name'],
-    ['Email Address', 'email', 'yes', 'user@example.com', '', '', ''],
+    ['Email Address', 'email', 'yes', 'user@example.com', '', '', 'Company email preferred'],
     ['Phone Number', 'phone', 'no', '+1 (555) 000-0000', '', '', ''],
+    ['Age', 'number', 'no', '25', '', '', 'Must be 18 or older'],
     ['Date of Birth', 'date', 'yes', '', '', '', ''],
+    ['Interview Time', 'time', 'no', '', '', '09:00', ''],
+    ['Start Date & Time', 'datetime', 'no', '', '', '', 'When you will join'],
+    ['', 'horizontal-line', 'no', '', '', '', ''],
+    ['Work Details', 'header', 'no', '', '', '', ''],
     ['Department', 'select', 'yes', 'Select department', 'HR, Engineering, Marketing, Sales, Finance', '', ''],
     ['Skills', 'multi-select', 'no', '', 'JavaScript, Python, SQL, Excel, Design', '', 'Select all that apply'],
     ['Gender', 'radio', 'no', '', 'Male, Female, Other, Prefer not to say', '', ''],
-    ['Accept Terms', 'checkbox', 'yes', '', '', '', 'You must agree to continue'],
-    ['Comments', 'textarea', 'no', 'Any additional comments...', '', '', ''],
-    ['Rating', 'rating', 'no', '', '', '', 'Rate from 1 to 5'],
+    ['Work Shift', 'toggle-switch', 'no', '', '', '', 'Toggle for night shift'],
+    ['Experience Level', 'slider', 'no', '', '', '3', 'Years of experience (0-10)'],
+    ['Manager Rating', 'rating', 'no', '', '', '', 'Rate from 1 to 5'],
+    ['Accept Terms', 'checkbox', 'yes', '', 'I agree to company policy, I agree to NDA', '', 'You must agree to continue'],
+    ['Profile Color', 'color', 'no', '', '', '#3B82F6', 'Pick your profile color'],
+    ['Website / Portfolio', 'url', 'no', 'https://yoursite.com', '', '', ''],
+    ['Expected Salary', 'currency', 'no', '', '', '', 'Annual salary in USD'],
+    ['Country', 'country', 'no', '', '', '', ''],
+    ['Home Address', 'address', 'no', 'Enter your full address', '', '', ''],
+    ['Office Location', 'geo-location', 'no', '', '', '', 'Pin your office on map'],
+    ['Tags / Labels', 'tags', 'no', '', '', '', 'Add relevant tags'],
     ['Upload Resume', 'file', 'no', '', '', '', 'PDF or DOCX only'],
+    ['Profile Photo', 'image', 'no', '', '', '', 'JPEG or PNG'],
+    ['Digital Signature', 'signature', 'no', '', '', '', 'Sign here'],
+    ['Comments', 'textarea', 'no', 'Any additional comments...', '', '', ''],
+    ['Additional Notes', 'description', 'no', '', '', '', ''],
   ];
   const wsFields = XLSX.utils.aoa_to_sheet(formFieldsData);
   wsFields['!cols'] = [
@@ -236,6 +254,7 @@ export function ExcelFormImporter({ onImport }: ExcelFormImporterProps) {
   const [formDescription, setFormDescription] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [fileName, setFileName] = useState('');
+  const [showGuide, setShowGuide] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -401,10 +420,14 @@ export function ExcelFormImporter({ onImport }: ExcelFormImporterProps) {
 
         <div className="space-y-4">
           {/* Actions row */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
+            <Button variant="outline" size="sm" onClick={() => setShowGuide(v => !v)} className="gap-2">
+              {showGuide ? <AlertCircle className="h-4 w-4" /> : <FileSpreadsheet className="h-4 w-4" />}
+              {showGuide ? 'Hide Guide' : 'View Template Guide'}
+            </Button>
             <Button variant="outline" size="sm" onClick={generateTemplate} className="gap-2">
               <Download className="h-4 w-4" />
-              Download Template
+              Download Sample Excel
             </Button>
 
             <div className="flex-1">
@@ -434,6 +457,119 @@ export function ExcelFormImporter({ onImport }: ExcelFormImporterProps) {
               )}
             </div>
           </div>
+
+          {/* Inline Template Guide */}
+          {showGuide && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">Excel Template Guide</CardTitle>
+                <p className="text-xs text-muted-foreground">Your Excel file should have these columns. Row 1 can optionally contain "Form Name:" and "Form Description:".</p>
+              </CardHeader>
+              <CardContent className="p-0">
+                <ScrollArea className="h-[320px]">
+                  {/* Column descriptions */}
+                  <div className="px-4 pb-3">
+                    <p className="text-xs font-semibold mb-1.5">Required Columns</p>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="text-xs py-1">Column</TableHead>
+                          <TableHead className="text-xs py-1">Description</TableHead>
+                          <TableHead className="text-xs py-1">Required?</TableHead>
+                          <TableHead className="text-xs py-1">Example</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {[
+                          ['Field Label', 'Display name of the field', 'Yes', 'Full Name'],
+                          ['Field Type', 'Type of input (see below)', 'Yes', 'text'],
+                          ['Required', 'yes / no', 'No (default: no)', 'yes'],
+                          ['Placeholder', 'Hint text inside the field', 'No', 'Enter name'],
+                          ['Options', 'Comma or pipe separated values', 'For select/radio/multi-select', 'HR, Eng, Sales'],
+                          ['Default Value', 'Pre-filled value', 'No', 'N/A'],
+                          ['Tooltip', 'Help text on hover', 'No', 'Enter legal name'],
+                        ].map(([col, desc, req, ex], i) => (
+                          <TableRow key={i}>
+                            <TableCell className="text-xs py-1 font-medium">{col}</TableCell>
+                            <TableCell className="text-xs py-1 text-muted-foreground">{desc}</TableCell>
+                            <TableCell className="text-xs py-1">{req}</TableCell>
+                            <TableCell className="text-xs py-1 font-mono">{ex}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+
+                  {/* Sample rows */}
+                  <div className="px-4 pb-3">
+                    <p className="text-xs font-semibold mb-1.5">Sample Rows (one per field type)</p>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="text-xs py-1">Label</TableHead>
+                          <TableHead className="text-xs py-1">Type</TableHead>
+                          <TableHead className="text-xs py-1">Required</TableHead>
+                          <TableHead className="text-xs py-1">Placeholder</TableHead>
+                          <TableHead className="text-xs py-1">Options</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {[
+                          ['Full Name', 'text', 'yes', 'Enter full name', ''],
+                          ['Email', 'email', 'yes', 'user@example.com', ''],
+                          ['Phone', 'phone', 'no', '+1 (555) 000-0000', ''],
+                          ['Age', 'number', 'no', '25', ''],
+                          ['Date of Birth', 'date', 'yes', '', ''],
+                          ['Interview Time', 'time', 'no', '', ''],
+                          ['Department', 'select', 'yes', 'Select...', 'HR, Eng, Sales'],
+                          ['Skills', 'multi-select', 'no', '', 'JS, Python, SQL'],
+                          ['Gender', 'radio', 'no', '', 'Male, Female, Other'],
+                          ['Agree to Terms', 'checkbox', 'yes', '', ''],
+                          ['Night Shift?', 'toggle-switch', 'no', '', ''],
+                          ['Experience', 'slider', 'no', '', ''],
+                          ['Rating', 'rating', 'no', '', ''],
+                          ['Resume', 'file', 'no', '', ''],
+                          ['Photo', 'image', 'no', '', ''],
+                          ['Salary', 'currency', 'no', '', ''],
+                          ['Country', 'country', 'no', '', ''],
+                          ['Address', 'address', 'no', '', ''],
+                          ['Location', 'geo-location', 'no', '', ''],
+                          ['Website', 'url', 'no', 'https://...', ''],
+                          ['Color', 'color', 'no', '', ''],
+                          ['Tags', 'tags', 'no', '', ''],
+                          ['Signature', 'signature', 'no', '', ''],
+                          ['Comments', 'textarea', 'no', 'Write here...', ''],
+                          ['Section Title', 'header', 'no', '', ''],
+                          ['Divider', 'horizontal-line', 'no', '', ''],
+                        ].map(([label, type, req, ph, opts], i) => (
+                          <TableRow key={i}>
+                            <TableCell className="text-xs py-1 font-medium">{label}</TableCell>
+                            <TableCell className="text-xs py-1"><Badge variant="outline" className="text-[10px] px-1 py-0">{type}</Badge></TableCell>
+                            <TableCell className="text-xs py-1">{req}</TableCell>
+                            <TableCell className="text-xs py-1 text-muted-foreground">{ph || '—'}</TableCell>
+                            <TableCell className="text-xs py-1 text-muted-foreground">{opts || '—'}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+
+                  {/* Aliases */}
+                  <div className="px-4 pb-3">
+                    <p className="text-xs font-semibold mb-1.5">Friendly Aliases (you can use these instead)</p>
+                    <div className="flex flex-wrap gap-1">
+                      {Object.entries(TYPE_ALIASES).slice(0, 20).map(([alias, target]) => (
+                        <Badge key={alias} variant="secondary" className="text-[10px] px-1.5 py-0">
+                          {alias} → {target}
+                        </Badge>
+                      ))}
+                      <span className="text-[10px] text-muted-foreground ml-1">...and more</span>
+                    </div>
+                  </div>
+                </ScrollArea>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Preview */}
           {parsedFields.length > 0 && (
