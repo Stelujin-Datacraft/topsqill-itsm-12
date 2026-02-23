@@ -63,10 +63,10 @@ export function DeleteSubmissionButton({ submissionId, onDelete, checkPermission
         <Button
           variant="ghost"
           size="sm"
-          className="h-8 w-8 p-0 hover:bg-destructive/10 hover:text-destructive"
+          className="h-6 w-6 p-0 hover:bg-primary/10"
           title="Delete submission"
         >
-          <Trash2 className="h-4 w-4" />
+          <Trash2 className="h-3 w-3 text-primary" />
         </Button>
       </AlertDialogTrigger>
       <AlertDialogContent>
