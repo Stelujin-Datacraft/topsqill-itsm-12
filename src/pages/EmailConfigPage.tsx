@@ -238,10 +238,10 @@ export default function EmailConfigPage() {
                 </div>
                 <div className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-muted/50">
                   <div className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-emerald-500" />
+                    <CheckCircle className="h-4 w-4 text-primary" />
                     <span className="text-sm">Active</span>
                   </div>
-                  <Badge variant="secondary" className="font-semibold bg-emerald-500/10 text-emerald-600">{activeConfigs}</Badge>
+                  <Badge variant="secondary" className="font-semibold bg-primary/10 text-primary">{activeConfigs}</Badge>
                 </div>
                 <div className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-muted/50">
                   <div className="flex items-center gap-2">

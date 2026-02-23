@@ -134,10 +134,10 @@ export default function SettingsPage() {
                 </div>
                 <div className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-muted/50">
                   <div className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                    <CheckCircle2 className="h-4 w-4 text-primary" />
                     <span className="text-sm">Active Configs</span>
                   </div>
-                  <Badge variant="secondary" className="font-semibold bg-emerald-500/10 text-emerald-600">{stats.activeConfigs}</Badge>
+                  <Badge variant="secondary" className="font-semibold bg-primary/10 text-primary">{stats.activeConfigs}</Badge>
                 </div>
                 <div className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-muted/50">
                   <div className="flex items-center gap-2">
@@ -148,10 +148,10 @@ export default function SettingsPage() {
                 </div>
                 <div className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-muted/50">
                   <div className="flex items-center gap-2">
-                    <Zap className="h-4 w-4 text-emerald-500" />
+                    <Zap className="h-4 w-4 text-primary" />
                     <span className="text-sm">Active Templates</span>
                   </div>
-                  <Badge variant="secondary" className="font-semibold bg-emerald-500/10 text-emerald-600">{stats.activeTemplates}</Badge>
+                  <Badge variant="secondary" className="font-semibold bg-primary/10 text-primary">{stats.activeTemplates}</Badge>
                 </div>
                 <div className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-muted/50">
                   <div className="flex items-center gap-2">
