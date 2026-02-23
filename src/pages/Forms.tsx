@@ -17,6 +17,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { BarChart3, History, FileText, Timer, MoreVertical } from 'lucide-react';
 import NoProjectSelected from '@/components/NoProjectSelected';
 import { AIFormGenerator } from '@/components/ai/AIFormGenerator';
+import { ExcelFormImporter } from '@/components/ExcelFormImporter';
 import { useFormsData } from '@/hooks/useFormsData';
 
 const Forms = () => {
@@ -173,6 +174,9 @@ const Forms = () => {
         />
       )}
       {canCreateForm && !permissionLoading && <CreateFormDialog />}
+      {canCreateForm && !permissionLoading && (
+        <ExcelFormImporter onImport={handleAIFormApply} />
+      )}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="outline" size="sm">
