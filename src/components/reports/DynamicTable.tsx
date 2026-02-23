@@ -1143,13 +1143,13 @@ export function DynamicTable({
               )}
 
               {config.enableSearch && (
-                <div className="relative w-56">
-                  <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+                <div className="relative w-80">
+                  <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                   <Input 
                     placeholder="Search records..." 
                     value={searchTerm} 
                     onChange={e => setSearchTerm(e.target.value)} 
-                    className="pl-7 pr-8 h-8 text-xs" 
+                    className="pl-8 pr-8 h-8 text-xs" 
                   />
                   {searchTerm && (
                     <button
@@ -1379,7 +1379,7 @@ export function DynamicTable({
                            </div>
                          </TableCell>)}
                        
-                        <TableCell className="py-2 bg-white">
+                        <TableCell className="py-2 bg-background">
                            <div className="flex items-center justify-center gap-1">
                                <Button variant="ghost" size="sm" onClick={() => handleViewSubmission(row.id)} className="h-6 w-6 p-0 hover:bg-primary/10" title="View submission">
                                  <Eye className="h-3 w-3 text-primary" />
