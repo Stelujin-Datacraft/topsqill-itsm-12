@@ -23,9 +23,9 @@ import {
   Calendar,
   Activity,
   UserMinus,
-  Filter
 } from 'lucide-react';
 import { format } from 'date-fns';
+import { useRoles } from '@/hooks/useRoles';
 
 interface ProjectUsersTableProps {
   users: EnhancedProjectUser[];
@@ -42,7 +42,7 @@ export function ProjectUsersTable({
 }: ProjectUsersTableProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
-  const [permissionFilter, setPermissionFilter] = useState<string>('all');
+  const { roles } = useRoles();
 
   const filteredUsers = useMemo(() => {
     return users.filter(user => {
@@ -51,16 +51,10 @@ export function ProjectUsersTable({
         `${user.first_name} ${user.last_name}`.toLowerCase().includes(searchTerm.toLowerCase());
       
       const matchesRole = roleFilter === 'all' || user.role === roleFilter;
-      
-      const matchesPermission = 
-        permissionFilter === 'all' ||
-        (permissionFilter === 'admin' && (user.effective_permissions.is_project_admin || user.effective_permissions.is_org_admin)) ||
-        (permissionFilter === 'manager' && user.effective_permissions.can_manage_users) ||
-        (permissionFilter === 'regular' && !user.effective_permissions.is_project_admin && !user.effective_permissions.is_org_admin);
 
-      return matchesSearch && matchesRole && matchesPermission;
+      return matchesSearch && matchesRole;
     });
-  }, [users, searchTerm, roleFilter, permissionFilter]);
+  }, [users, searchTerm, roleFilter]);
 
   const getRoleBadge = (user: EnhancedProjectUser) => {
     if (user.effective_permissions.is_org_admin) {
@@ -136,23 +130,11 @@ export function ProjectUsersTable({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Roles</SelectItem>
-              <SelectItem value="admin">Admin</SelectItem>
-              <SelectItem value="editor">Editor</SelectItem>
-              <SelectItem value="viewer">Viewer</SelectItem>
-              <SelectItem value="member">Member</SelectItem>
-            </SelectContent>
-          </Select>
-          
-          <Select value={permissionFilter} onValueChange={setPermissionFilter}>
-            <SelectTrigger className="w-40">
-              <Filter className="h-4 w-4 mr-2" />
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Permissions</SelectItem>
-              <SelectItem value="admin">Administrators</SelectItem>
-              <SelectItem value="manager">Managers</SelectItem>
-              <SelectItem value="regular">Regular Users</SelectItem>
+              {roles.map((role) => (
+                <SelectItem key={role.id} value={role.name.toLowerCase()}>
+                  {role.name}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -162,7 +144,7 @@ export function ProjectUsersTable({
         {filteredUsers.length === 0 ? (
           <div className="text-center py-8">
             <div className="text-muted-foreground">
-              {searchTerm || roleFilter !== 'all' || permissionFilter !== 'all' 
+              {searchTerm || roleFilter !== 'all'
                 ? 'No team members match your filters' 
                 : 'No team members found'
               }
@@ -174,7 +156,6 @@ export function ProjectUsersTable({
               <TableRow>
                 <TableHead>Member</TableHead>
                 <TableHead>Role</TableHead>
-                <TableHead>Permissions</TableHead>
                 <TableHead>Joined</TableHead>
                 <TableHead>Last Activity</TableHead>
                 <TableHead>Actions</TableHead>
@@ -197,10 +178,6 @@ export function ProjectUsersTable({
                   
                   <TableCell>
                     {getRoleBadge(user)}
-                  </TableCell>
-                  
-                  <TableCell>
-                    <div className="text-sm">{getPermissionSummary(user)}</div>
                   </TableCell>
                   
                   <TableCell>
