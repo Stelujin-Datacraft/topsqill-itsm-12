@@ -106,6 +106,54 @@ const TYPE_ALIASES: Record<string, string> = {
 
 const OPTION_FIELDS = new Set(['select', 'multi-select', 'radio', 'checkbox']);
 
+const SAMPLE_ROWS_FOR_GUIDE = [
+  ['Personal Information', 'header', '', '', '', '', '', '', ''],
+  ['Complete all details', 'description', '', '', '', '', '', '', ''],
+  ['Section - Identity', 'section-break', '', '', '', '', '', '', ''],
+  ['Full Name', 'text', 'yes', 'Enter your full name', '', '', 'Legal name', 'yes', '10'],
+  ['Email Address', 'email', 'yes', 'employee@company.com', '', '', 'Work email', 'yes', '10'],
+  ['Phone Number', 'phone', 'no', '+1 555 000 0000', '', '', 'With country code', '', '5'],
+  ['Age', 'number', 'no', 'e.g. 29', '', '', '', '', '3'],
+  ['Bio', 'textarea', 'no', 'Tell us about yourself', '', '', '', '', '2'],
+  ['Date of Birth', 'date', 'yes', '', '', '', '', '', '4'],
+  ['Shift Start', 'time', 'no', '', '', '09:00', '', '', '2'],
+  ['Join Date Time', 'datetime', 'no', '', '', '', '', '', '2'],
+  ['Department', 'select', 'yes', 'Select dept', 'HR,Engineering,Sales', '', 'Choose one', 'yes', '8'],
+  ['Skills', 'multi-select', 'no', '', 'Excel,SQL,Leadership', '', 'Choose multiple', '', '6'],
+  ['Employment Type', 'radio', 'yes', '', 'Full Time,Part Time,Contract', '', '', '', '5'],
+  ['Policy Agreement', 'checkbox', 'yes', '', 'NDA,Code of Conduct', '', 'Tick applicable', '', '4'],
+  ['Night Shift', 'toggle-switch', 'no', '', '', 'no', '', '', '2'],
+  ['Experience', 'slider', 'no', '', '', '3', '0-10 range', '', '3'],
+  ['Self Rating', 'rating', 'no', '', '', '', '1-5 stars', '', '2'],
+  ['Resume', 'file', 'no', '', '', '', 'PDF or DOCX', '', '1'],
+  ['Profile Photo', 'image', 'no', '', '', '', 'JPEG/PNG', '', '1'],
+  ['Address', 'address', 'no', 'Full address', '', '', '', '', '3'],
+  ['Country', 'country', 'no', '', '', '', '', '', '2'],
+  ['Portfolio URL', 'url', 'no', 'https://example.com', '', '', '', '', '2'],
+  ['Salary', 'currency', 'no', '', '', '', 'Annual USD', '', '4'],
+  ['Theme Color', 'color', 'no', '', '', '#2563EB', '', '', '1'],
+  ['Skill Tags', 'tags', 'no', '', '', '', 'Enter to add', '', '2'],
+  ['Office Location', 'geo-location', 'no', '', '', '', 'Pin on map', '', '2'],
+  ['Device IP', 'ip-address', 'no', '192.168.1.10', '', '', '', '', '1'],
+  ['Barcode', 'barcode', 'no', '', '', '', '', '', '1'],
+  ['Signature', 'signature', 'yes', '', '', '', 'Sign here', '', '1'],
+  ['Manager', 'user-picker', 'no', '', '', '', 'Select manager', '', '3'],
+  ['Team Group', 'group-picker', 'no', '', '', '', 'Select group', '', '3'],
+  ['Approval', 'approval', 'no', '', '', '', '', '', '3'],
+  ['Rich Notes', 'rich-text', 'no', 'Formatted notes', '', '', '', '', '1'],
+  ['Dynamic City', 'dynamic-dropdown', 'no', '', '', '', 'From data source', '', '1'],
+  ['Related Record', 'cross-reference', 'no', '', '', '', '', '', '1'],
+  ['Child Records', 'child-cross-reference', 'no', '', '', '', '', '', '1'],
+  ['Calc Score', 'calculated', 'no', '', '', '', 'Computed', '', '1'],
+  ['Cond. Panel', 'conditional-section', 'no', '', '', '', '', '', '1'],
+  ['Workflow', 'workflow-trigger', 'no', '', '', '', '', '', '1'],
+  ['Access', 'submission-access', 'no', '', '', '', '', '', '1'],
+  ['Query', 'query-field', 'no', '', '', '', '', '', '1'],
+  ['Record Table', 'record-table', 'no', '', '', '', '', '', '1'],
+  ['Matrix Grid', 'matrix-grid', 'no', '', '', '', '', '', '1'],
+  ['Divider', 'horizontal-line', '', '', '', '', '', '', ''],
+];
+
 const HEADER_ALIASES: Record<string, string[]> = {
   label: ['field label', 'label', 'field name', 'name', 'title'],
   type: ['field type', 'type', 'input type'],
@@ -178,6 +226,7 @@ function generateTemplate() {
   const acceptedHeaders = [
     'Field Label',
     'Field Type',
+    'Required',
     'Placeholder',
     'Options',
     'Default Value',
@@ -203,54 +252,63 @@ function generateTemplate() {
   wsInstructions['!cols'] = [{ wch: 120 }];
   XLSX.utils.book_append_sheet(wb, wsInstructions, 'Instructions');
 
-  // Form Fields sheet - exact replica of accepted upload headers
+  const SAMPLE_ROWS = [
+    ['Personal Information', 'header', '', '', '', '', '', '', ''],
+    ['Please complete all onboarding details', 'description', '', '', '', '', '', '', ''],
+    ['Section - Identity', 'section-break', '', '', '', '', '', '', ''],
+    ['Full Name', 'text', 'yes', 'Enter your full name', '', '', 'Legal name as per ID', 'yes', '10'],
+    ['Email Address', 'email', 'yes', 'employee@company.com', '', '', 'Company email preferred', 'yes', '10'],
+    ['Phone Number', 'phone', 'no', '+1 555 000 0000', '', '', 'Include country code', '', '5'],
+    ['Age', 'number', 'no', 'e.g. 29', '', '', 'Numbers only', '', '3'],
+    ['Bio', 'textarea', 'no', 'Tell us about yourself', '', '', '', '', '2'],
+    ['Date of Birth', 'date', 'yes', '', '', '', 'Use date picker', '', '4'],
+    ['Preferred Shift Start', 'time', 'no', '', '', '09:00', '', '', '2'],
+    ['Join Date Time', 'datetime', 'no', '', '', '', '', '', '2'],
+    ['Department', 'select', 'yes', 'Select department', 'HR,Engineering,Sales,Support', '', 'Choose one', 'yes', '8'],
+    ['Skills', 'multi-select', 'no', '', 'Excel,Communication,Leadership,SQL', '', 'Choose multiple', '', '6'],
+    ['Employment Type', 'radio', 'yes', '', 'Full Time,Part Time,Contract', '', '', '', '5'],
+    ['Policy Agreement', 'checkbox', 'yes', '', 'Code of Conduct,NDA,Security Policy', '', 'Tick applicable', '', '4'],
+    ['Night Shift Available', 'toggle-switch', 'no', '', '', 'no', '', '', '2'],
+    ['Experience Level', 'slider', 'no', '', '', '3', '0-10 range', '', '3'],
+    ['Self Rating', 'rating', 'no', '', '', '', '1-5 stars', '', '2'],
+    ['Resume Upload', 'file', 'no', '', '', '', 'PDF or DOCX', '', '1'],
+    ['Profile Photo', 'image', 'no', '', '', '', 'JPEG/PNG', '', '1'],
+    ['Address', 'address', 'no', 'Enter complete address', '', '', '', '', '3'],
+    ['Country', 'country', 'no', '', '', '', '', '', '2'],
+    ['Portfolio URL', 'url', 'no', 'https://example.com', '', '', '', '', '2'],
+    ['Expected Salary', 'currency', 'no', '', '', '', 'Annual in USD', '', '4'],
+    ['Theme Color', 'color', 'no', '', '', '#2563EB', '', '', '1'],
+    ['Skill Tags', 'tags', 'no', '', '', '', 'Press enter after each', '', '2'],
+    ['Office Geo Location', 'geo-location', 'no', '', '', '', 'Pin on map', '', '2'],
+    ['Device IP', 'ip-address', 'no', '192.168.1.10', '', '', '', '', '1'],
+    ['Employee Barcode', 'barcode', 'no', '', '', '', '', '', '1'],
+    ['Digital Signature', 'signature', 'yes', '', '', '', 'Sign here', '', '1'],
+    ['Manager', 'user-picker', 'no', '', '', '', 'Select manager', '', '3'],
+    ['Team Group', 'group-picker', 'no', '', '', '', 'Select team group', '', '3'],
+    ['Manager Approval', 'approval', 'no', '', '', '', '', '', '3'],
+    ['Rich Notes', 'rich-text', 'no', 'Add formatted notes', '', '', '', '', '1'],
+    ['Dynamic City', 'dynamic-dropdown', 'no', '', '', '', 'From data source', '', '1'],
+    ['Related Employee', 'cross-reference', 'no', '', '', '', '', '', '1'],
+    ['Child Records', 'child-cross-reference', 'no', '', '', '', '', '', '1'],
+    ['Calculated Score', 'calculated', 'no', '', '', '', 'Computed field', '', '1'],
+    ['Conditional Panel', 'conditional-section', 'no', '', '', '', '', '', '1'],
+    ['Start Workflow', 'workflow-trigger', 'no', '', '', '', '', '', '1'],
+    ['Submission Access', 'submission-access', 'no', '', '', '', '', '', '1'],
+    ['Query Field', 'query-field', 'no', '', '', '', '', '', '1'],
+    ['Record Table', 'record-table', 'no', '', '', '', '', '', '1'],
+    ['Matrix Grid', 'matrix-grid', 'no', '', '', '', '', '', '1'],
+    ['Divider', 'horizontal-line', '', '', '', '', '', '', ''],
+  ];
+
   const formFieldsData = [
-    ['Form Name:', 'Employee Onboarding Form', '', 'Form Description:', 'Import-ready sample covering all major data types'],
+    ['Form Name:', 'Employee Onboarding Form', '', '', 'Form Description:', 'Import-ready sample covering all field types', '', '', ''],
     acceptedHeaders,
-    ['Personal Information', 'header', '', '', '', '', '', ''],
-    ['Please complete all onboarding details', 'description', '', '', '', '', '', ''],
-    ['Section - Identity', 'section-break', '', '', '', '', '', ''],
-    ['Full Name', 'text', 'Enter your full name', '', '', 'Legal name as per ID', 'yes', '10'],
-    ['Email Address', 'email', 'employee@company.com', '', '', 'Company email preferred', 'yes', '10'],
-    ['Phone Number', 'phone', '+1 555 000 0000', '', '', 'Include country code', '', '5'],
-    ['Age', 'number', 'e.g. 29', '', '', 'Numbers only', '', '3'],
-    ['Date of Birth', 'date', '', '', '', 'Use date picker format', '', '4'],
-    ['Preferred Shift Start', 'time', '', '', '09:00', '', '', '2'],
-    ['Join Date Time', 'datetime', '', '', '', '', '', '2'],
-    ['Department', 'select', 'Select department', 'HR,Engineering,Sales,Support', '', 'Choose one department', 'yes', '8'],
-    ['Skills', 'multi-select', '', 'Excel,Communication,Leadership,SQL', '', 'Can choose multiple', '', '6'],
-    ['Employment Type', 'radio', '', 'Full Time,Part Time,Contract', '', '', '', '5'],
-    ['Policy Agreement', 'checkbox', '', 'Code of Conduct,NDA,Security Policy', '', 'Tick applicable options', '', '4'],
-    ['Night Shift Available', 'toggle-switch', '', '', 'no', '', '', '2'],
-    ['Experience Level', 'slider', '', '', '3', '0-10 range', '', '3'],
-    ['Self Rating', 'rating', '', '', '', '1-5 stars', '', '2'],
-    ['Resume Upload', 'file', '', '', '', 'PDF or DOCX', '', '1'],
-    ['Profile Photo', 'image', '', '', '', 'JPEG/PNG', '', '1'],
-    ['Address', 'address', 'Enter complete address', '', '', '', '', '3'],
-    ['Country', 'country', '', '', '', '', '', '2'],
-    ['Portfolio URL', 'url', 'https://example.com', '', '', '', '', '2'],
-    ['Expected Salary', 'currency', '', '', '', 'Annual in USD', '', '4'],
-    ['Theme Color', 'color', '', '', '#2563EB', '', '', '1'],
-    ['Skill Tags', 'tags', '', '', '', 'Press enter after each tag', '', '2'],
-    ['Office Geo Location', 'geo-location', '', '', '', 'Pin location on map', '', '2'],
-    ['Device IP', 'ip-address', '192.168.1.10', '', '', '', '', '1'],
-    ['Employee Barcode', 'barcode', '', '', '', '', '', '1'],
-    ['Digital Signature', 'signature', '', '', '', 'Sign here', '', '1'],
-    ['Manager', 'user-picker', '', '', '', 'Select manager user', '', '3'],
-    ['Team Group', 'group-picker', '', '', '', 'Select team group', '', '3'],
-    ['Manager Approval', 'approval', '', '', '', '', '', '3'],
-    ['Rich Notes', 'rich-text', 'Add formatted notes', '', '', '', '', '1'],
-    ['Dynamic City', 'dynamic-dropdown', '', '', '', 'Loaded from data source', '', '1'],
-    ['Related Employee', 'cross-reference', '', '', '', '', '', '1'],
-    ['Calculated Score', 'calculated', '', '', '', 'Computed from other fields', '', '1'],
-    ['Conditional Panel', 'conditional-section', '', '', '', '', '', '1'],
-    ['Start Workflow', 'workflow-trigger', '', '', '', '', '', '1'],
-    ['Divider', 'horizontal-line', '', '', '', '', '', ''],
+    ...SAMPLE_ROWS,
   ];
 
   const wsFields = XLSX.utils.aoa_to_sheet(formFieldsData);
   wsFields['!cols'] = [
-    { wch: 28 }, { wch: 20 }, { wch: 28 }, { wch: 42 },
+    { wch: 28 }, { wch: 22 }, { wch: 10 }, { wch: 28 }, { wch: 42 },
     { wch: 18 }, { wch: 35 }, { wch: 18 }, { wch: 16 },
   ];
   XLSX.utils.book_append_sheet(wb, wsFields, 'Form Fields');
@@ -528,50 +586,44 @@ export function ExcelFormImporter({ onImport }: ExcelFormImporterProps) {
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm">Excel Template Guide</CardTitle>
                 <p className="text-xs text-muted-foreground">
-                  Exact upload-ready format. Copy this header row as-is (same order recommended):
+                  Exact upload-ready format. Use this header row as-is:
                 </p>
                 <code className="text-[11px] rounded bg-muted px-2 py-1 block break-words">
-                  Field Label | Field Type | Placeholder | Options | Default Value | Tooltip | Make Field Unique | Field Weightage
+                  Field Label | Field Type | Required | Placeholder | Options | Default Value | Tooltip | Make Field Unique | Field Weightage
                 </code>
               </CardHeader>
               <CardContent className="p-0">
-                <ScrollArea className="h-[320px]">
-                  <div className="px-4 pb-3">
-                    <p className="text-xs font-semibold mb-1.5">Sample Rows (exact accepted headers)</p>
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="text-xs py-1">Field Label</TableHead>
-                          <TableHead className="text-xs py-1">Field Type</TableHead>
-                          <TableHead className="text-xs py-1">Placeholder</TableHead>
-                          <TableHead className="text-xs py-1">Options</TableHead>
-                          <TableHead className="text-xs py-1">Default Value</TableHead>
-                          <TableHead className="text-xs py-1">Tooltip</TableHead>
-                          <TableHead className="text-xs py-1">Make Field Unique</TableHead>
-                          <TableHead className="text-xs py-1">Field Weightage</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {[
-                          ['Full Name', 'text', 'Enter your full name', '', '', 'Legal full name', 'yes', '10'],
-                          ['Email Address', 'email', 'employee@company.com', '', '', 'Work email', 'yes', '10'],
-                          ['Department', 'select', 'Select department', 'HR,Engineering,Sales', '', '', '', '8'],
-                          ['Skills', 'multi-select', '', 'Excel,SQL,Leadership', '', '', '', '6'],
-                          ['Employment Type', 'radio', '', 'Full Time,Part Time,Contract', '', '', '', '5'],
-                          ['Policy Agreement', 'checkbox', '', 'NDA,Code of Conduct', '', '', '', '4'],
-                          ['Digital Signature', 'signature', '', '', '', 'Sign here', '', '1'],
-                          ['Office Geo Location', 'geo-location', '', '', '', 'Pin office on map', '', '2'],
-                        ].map((row, i) => (
-                          <TableRow key={i}>
-                            {row.map((cell, j) => (
-                              <TableCell key={j} className="text-xs py-1 text-muted-foreground">
-                                {cell || '—'}
-                              </TableCell>
-                            ))}
+                <ScrollArea className="h-[360px]">
+                  <div className="px-4 pb-3 overflow-x-auto">
+                    <p className="text-xs font-semibold mb-1.5">Sample Rows (all supported field types)</p>
+                    <div className="min-w-[900px]">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="text-xs py-1 whitespace-nowrap">Field Label</TableHead>
+                            <TableHead className="text-xs py-1 whitespace-nowrap">Field Type</TableHead>
+                            <TableHead className="text-xs py-1 whitespace-nowrap">Required</TableHead>
+                            <TableHead className="text-xs py-1 whitespace-nowrap">Placeholder</TableHead>
+                            <TableHead className="text-xs py-1 whitespace-nowrap">Options</TableHead>
+                            <TableHead className="text-xs py-1 whitespace-nowrap">Default Value</TableHead>
+                            <TableHead className="text-xs py-1 whitespace-nowrap">Tooltip</TableHead>
+                            <TableHead className="text-xs py-1 whitespace-nowrap">Make Field Unique</TableHead>
+                            <TableHead className="text-xs py-1 whitespace-nowrap">Field Weightage</TableHead>
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                        </TableHeader>
+                        <TableBody>
+                          {SAMPLE_ROWS_FOR_GUIDE.map((row, i) => (
+                            <TableRow key={i}>
+                              {row.map((cell, j) => (
+                                <TableCell key={j} className="text-xs py-1 text-muted-foreground whitespace-nowrap">
+                                  {cell || '—'}
+                                </TableCell>
+                              ))}
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
                   </div>
 
                   <div className="px-4 pb-3">
@@ -609,44 +661,60 @@ export function ExcelFormImporter({ onImport }: ExcelFormImporterProps) {
               </CardHeader>
               <CardContent className="p-0">
                 <ScrollArea className="h-[350px]">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-8">#</TableHead>
-                        <TableHead>Label</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Required</TableHead>
-                        <TableHead>Options</TableHead>
-                        <TableHead className="w-10">Status</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {parsedFields.map((field, idx) => (
-                        <TableRow key={idx} className={!field.isValid ? 'bg-destructive/5' : ''}>
-                          <TableCell className="text-xs text-muted-foreground">{idx + 1}</TableCell>
-                          <TableCell className="font-medium text-sm">{field.label}</TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className="text-xs">{field.type}</Badge>
-                          </TableCell>
-                          <TableCell className="text-xs">
-                            {field.required ? <Badge variant="secondary" className="text-xs">Yes</Badge> : 'No'}
-                          </TableCell>
-                          <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">
-                            {field.options?.map(o => o.label).join(', ') || '—'}
-                          </TableCell>
-                          <TableCell>
-                            {field.isValid ? (
-                              <Check className="h-4 w-4 text-primary" />
-                            ) : (
-                              <span title={field.errors.join(', ')}>
-                                <AlertCircle className="h-4 w-4 text-destructive" />
-                              </span>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                  <div className="overflow-x-auto">
+                    <div className="min-w-[800px]">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-8 whitespace-nowrap">#</TableHead>
+                            <TableHead className="whitespace-nowrap">Label</TableHead>
+                            <TableHead className="whitespace-nowrap">Type</TableHead>
+                            <TableHead className="whitespace-nowrap">Required</TableHead>
+                            <TableHead className="whitespace-nowrap">Placeholder</TableHead>
+                            <TableHead className="whitespace-nowrap">Options</TableHead>
+                            <TableHead className="whitespace-nowrap">Default</TableHead>
+                            <TableHead className="whitespace-nowrap">Tooltip</TableHead>
+                            <TableHead className="w-10 whitespace-nowrap">Status</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {parsedFields.map((field, idx) => (
+                            <TableRow key={idx} className={!field.isValid ? 'bg-destructive/5' : ''}>
+                              <TableCell className="text-xs text-muted-foreground">{idx + 1}</TableCell>
+                              <TableCell className="font-medium text-sm whitespace-nowrap">{field.label}</TableCell>
+                              <TableCell>
+                                <Badge variant="outline" className="text-xs whitespace-nowrap">{field.type}</Badge>
+                              </TableCell>
+                              <TableCell className="text-xs">
+                                {field.required ? <Badge variant="secondary" className="text-xs">Yes</Badge> : 'No'}
+                              </TableCell>
+                              <TableCell className="text-xs text-muted-foreground max-w-[150px] truncate">
+                                {field.placeholder || '—'}
+                              </TableCell>
+                              <TableCell className="text-xs text-muted-foreground max-w-[180px] truncate">
+                                {field.options?.map(o => o.label).join(', ') || '—'}
+                              </TableCell>
+                              <TableCell className="text-xs text-muted-foreground">
+                                {field.defaultValue || '—'}
+                              </TableCell>
+                              <TableCell className="text-xs text-muted-foreground max-w-[150px] truncate">
+                                {field.tooltip || '—'}
+                              </TableCell>
+                              <TableCell>
+                                {field.isValid ? (
+                                  <Check className="h-4 w-4 text-primary" />
+                                ) : (
+                                  <span title={field.errors.join(', ')}>
+                                    <AlertCircle className="h-4 w-4 text-destructive" />
+                                  </span>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
                 </ScrollArea>
               </CardContent>
             </Card>
