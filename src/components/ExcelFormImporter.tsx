@@ -106,6 +106,49 @@ const TYPE_ALIASES: Record<string, string> = {
 
 const OPTION_FIELDS = new Set(['select', 'multi-select', 'radio', 'checkbox']);
 
+const HEADER_ALIASES: Record<string, string[]> = {
+  label: ['field label', 'label', 'field name', 'name', 'title'],
+  type: ['field type', 'type', 'input type'],
+  required: ['required', 'mandatory', 'is required'],
+  placeholder: ['placeholder', 'hint', 'help text placeholder'],
+  options: ['options', 'choices', 'values', 'option list'],
+  default: ['default value', 'default', 'initial value'],
+  tooltip: ['tooltip', 'help text', 'description'],
+  unique: ['make field unique', 'field unique', 'is unique', 'unique'],
+  weightage: ['field weightage', 'weightage', 'weight', 'field weight'],
+};
+
+const normalizeColumnName = (value: any): string =>
+  String(value ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9]+/g, ' ')
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, ' ');
+
+const findColumnIndex = (headerRow: any[], aliases: string[]): number => {
+  const normalizedHeaders = headerRow.map((cell) => normalizeColumnName(cell));
+  const normalizedAliases = aliases.map((a) => normalizeColumnName(a));
+
+  for (const alias of normalizedAliases) {
+    const exactIdx = normalizedHeaders.findIndex((h) => h === alias);
+    if (exactIdx >= 0) return exactIdx;
+  }
+
+  for (const alias of normalizedAliases) {
+    const startsWithIdx = normalizedHeaders.findIndex((h) => h.startsWith(alias));
+    if (startsWithIdx >= 0) return startsWithIdx;
+  }
+
+  for (const alias of normalizedAliases) {
+    const containsIdx = normalizedHeaders.findIndex((h) => h.includes(alias) || alias.includes(h));
+    if (containsIdx >= 0) return containsIdx;
+  }
+
+  return -1;
+};
+
 function resolveFieldType(raw: string): string {
   const normalized = raw.toLowerCase().trim();
   if (VALID_FIELD_TYPES.has(normalized)) return normalized;
@@ -132,109 +175,88 @@ function parseBoolean(val: any): boolean {
 function generateTemplate() {
   const wb = XLSX.utils.book_new();
 
+  const acceptedHeaders = [
+    'Field Label',
+    'Field Type',
+    'Placeholder',
+    'Options',
+    'Default Value',
+    'Tooltip',
+    'Make Field Unique',
+    'Field Weightage',
+  ];
+
   // Instructions sheet
   const instructionsData = [
-    ['Excel Form Import Template - Instructions'],
+    ['Excel Form Import Template - Exact Upload Format'],
     [''],
-    ['How to use this template:'],
-    ['1. Go to the "Form Fields" sheet'],
-    ['2. Fill in your field details starting from Row 2'],
-    ['3. Save the file and upload it in the app'],
+    ['Use this exact header row in your file (same order recommended):'],
+    [acceptedHeaders.join(' | ')],
     [''],
-    ['Column Descriptions:'],
-    ['Column', 'Description', 'Required?', 'Example'],
-    ['Field Label', 'Display name of the field', 'Yes', 'Full Name'],
-    ['Field Type', 'Type of input (see "Valid Types" sheet)', 'Yes', 'text'],
-    ['Required', 'Whether field is mandatory (yes/no)', 'No (default: no)', 'yes'],
-    ['Placeholder', 'Hint text shown inside the field', 'No', 'Enter your full name'],
-    ['Options', 'Comma or pipe separated values for dropdowns/radio/etc.', 'Required for select/radio/multi-select', 'Option A, Option B, Option C'],
-    ['Default Value', 'Pre-filled value', 'No', 'N/A'],
-    ['Tooltip', 'Help text shown on hover', 'No', 'Please enter your legal name'],
-    [''],
-    ['Tips:'],
-    ['- You can use friendly type names like "dropdown" instead of "select"'],
-    ['- Options can use pipe "|" or comma "," as delimiter'],
-    ['- The first two rows in "Form Fields" are the form name & description'],
+    ['Notes:'],
+    ['- Row 1 can optionally contain: Form Name: <name> and Form Description: <description>'],
+    ['- Field Label and Field Type are required for each field row'],
+    ['- Options are required only for select/multi-select/radio/checkbox types'],
+    ['- Make Field Unique and Field Weightage are accepted template columns'],
   ];
   const wsInstructions = XLSX.utils.aoa_to_sheet(instructionsData);
-  wsInstructions['!cols'] = [{ wch: 20 }, { wch: 55 }, { wch: 25 }, { wch: 30 }];
+  wsInstructions['!cols'] = [{ wch: 120 }];
   XLSX.utils.book_append_sheet(wb, wsInstructions, 'Instructions');
 
-  // Form Fields sheet - every supported field type with realistic examples
-  // Every row has a label so the importer picks it up correctly
+  // Form Fields sheet - exact replica of accepted upload headers
   const formFieldsData = [
-    ['Form Name:', 'Employee Onboarding Form', '', 'Form Description:', 'Complete onboarding form demonstrating every supported field type'],
-    ['Field Label', 'Field Type', 'Required', 'Placeholder', 'Options (comma or pipe separated)', 'Default Value', 'Tooltip'],
-    // --- Layout / Display ---
-    ['Personal Information', 'header', 'no', '', '', '', ''],
-    ['Please fill all mandatory fields marked with *', 'description', 'no', '', '', '', ''],
-    ['Section 1', 'section-break', 'no', '', '', '', ''],
-    // --- Basic Input ---
-    ['Full Name', 'text', 'yes', 'Enter your full name', '', '', 'Your legal full name as per ID'],
-    ['Bio / Summary', 'textarea', 'yes', 'Write a short bio...', '', '', 'Max 500 characters'],
-    ['Age', 'number', 'yes', '25', '', '', 'Must be 18 or older'],
-    ['Email Address', 'email', 'yes', 'user@example.com', '', '', 'Company email preferred'],
-    ['Phone Number', 'phone', 'no', '+1 (555) 000-0000', '', '', 'Include country code'],
-    ['Website / Portfolio', 'url', 'no', 'https://yoursite.com', '', '', ''],
-    ['Divider 1', 'horizontal-line', 'no', '', '', '', ''],
-    // --- Date & Time ---
-    ['Date & Time Inputs', 'header', 'no', '', '', '', ''],
-    ['Date of Birth', 'date', 'yes', '', '', '', ''],
-    ['Preferred Interview Time', 'time', 'no', '', '', '09:00', ''],
-    ['Start Date & Time', 'datetime', 'no', '', '', '', 'When you will officially join'],
-    ['Divider 2', 'horizontal-line', 'no', '', '', '', ''],
-    // --- Selection ---
-    ['Selection Inputs', 'header', 'no', '', '', '', ''],
-    ['Department', 'select', 'yes', 'Select department', 'HR, Engineering, Marketing, Sales, Finance, Legal, Operations', '', 'Your primary department'],
-    ['Technical Skills', 'multi-select', 'no', '', 'JavaScript, Python, SQL, Excel, Design, Docker, AWS', '', 'Select all that apply'],
-    ['Gender', 'radio', 'no', '', 'Male, Female, Non-binary, Prefer not to say', '', ''],
-    ['Accept Company Policy', 'checkbox', 'yes', '', 'I agree to company policy, I agree to NDA, I agree to code of conduct', '', 'You must agree to continue'],
-    ['Available for Night Shift?', 'toggle-switch', 'no', '', '', 'no', 'Toggle on if available'],
-    ['Divider 3', 'horizontal-line', 'no', '', '', '', ''],
-    // --- Numeric / Rating ---
-    ['Rating & Range', 'header', 'no', '', '', '', ''],
-    ['Experience Level (years)', 'slider', 'no', '', '', '3', 'Drag to select 0-10 years'],
-    ['Self Assessment', 'rating', 'no', '', '', '', 'Rate yourself from 1 to 5 stars'],
-    ['Divider 4', 'horizontal-line', 'no', '', '', '', ''],
-    // --- Special Input ---
-    ['Special Inputs', 'header', 'no', '', '', '', ''],
-    ['Profile Color', 'color', 'no', '', '', '#3B82F6', 'Pick your badge color'],
-    ['Expected Salary', 'currency', 'no', '', '', '', 'Annual salary in USD'],
-    ['Country of Origin', 'country', 'no', '', '', '', 'Select your country'],
-    ['Home Address', 'address', 'no', 'Enter your full address', '', '', 'Street, City, State, ZIP'],
-    ['IP Address', 'ip-address', 'no', '192.168.1.1', '', '', 'Your network IP'],
-    ['Employee Barcode', 'barcode', 'no', '', '', '', 'Scan or enter barcode'],
-    ['Office Location', 'geo-location', 'no', '', '', '', 'Pin your office on the map'],
-    ['Skill Tags', 'tags', 'no', '', '', '', 'Type and press Enter to add tags'],
-    ['Divider 5', 'horizontal-line', 'no', '', '', '', ''],
-    // --- File & Media ---
-    ['Uploads', 'header', 'no', '', '', '', ''],
-    ['Upload Resume', 'file', 'no', '', '', '', 'PDF or DOCX only, max 10MB'],
-    ['Profile Photo', 'image', 'no', '', '', '', 'JPEG or PNG, max 5MB'],
-    ['Digital Signature', 'signature', 'no', '', '', '', 'Draw your signature here'],
-    ['Rich Text Notes', 'rich-text', 'no', '', '', '', 'Supports bold, italic, lists'],
-    ['Divider 6', 'horizontal-line', 'no', '', '', '', ''],
-    // --- People & Workflow ---
-    ['People & Workflow', 'header', 'no', '', '', '', ''],
-    ['Assign Manager', 'user-picker', 'no', '', '', '', 'Select the reporting manager'],
-    ['Assign Team', 'group-picker', 'no', '', '', '', 'Select the team/group'],
-    ['Manager Approval', 'approval', 'no', '', '', '', 'Requires manager sign-off'],
-    ['Dynamic City List', 'dynamic-dropdown', 'no', '', '', '', 'Options loaded dynamically'],
-    ['Related Employee', 'cross-reference', 'no', '', '', '', 'Link to another record'],
-    ['Calculated Score', 'calculated', 'no', '', '', '', 'Auto-calculated from other fields'],
-    ['Show If Senior', 'conditional-section', 'no', '', '', '', 'Visible based on conditions'],
-    ['Trigger Onboarding', 'workflow-trigger', 'no', '', '', '', 'Starts the onboarding workflow'],
+    ['Form Name:', 'Employee Onboarding Form', '', 'Form Description:', 'Import-ready sample covering all major data types'],
+    acceptedHeaders,
+    ['Personal Information', 'header', '', '', '', '', '', ''],
+    ['Please complete all onboarding details', 'description', '', '', '', '', '', ''],
+    ['Section - Identity', 'section-break', '', '', '', '', '', ''],
+    ['Full Name', 'text', 'Enter your full name', '', '', 'Legal name as per ID', 'yes', '10'],
+    ['Email Address', 'email', 'employee@company.com', '', '', 'Company email preferred', 'yes', '10'],
+    ['Phone Number', 'phone', '+1 555 000 0000', '', '', 'Include country code', '', '5'],
+    ['Age', 'number', 'e.g. 29', '', '', 'Numbers only', '', '3'],
+    ['Date of Birth', 'date', '', '', '', 'Use date picker format', '', '4'],
+    ['Preferred Shift Start', 'time', '', '', '09:00', '', '', '2'],
+    ['Join Date Time', 'datetime', '', '', '', '', '', '2'],
+    ['Department', 'select', 'Select department', 'HR,Engineering,Sales,Support', '', 'Choose one department', 'yes', '8'],
+    ['Skills', 'multi-select', '', 'Excel,Communication,Leadership,SQL', '', 'Can choose multiple', '', '6'],
+    ['Employment Type', 'radio', '', 'Full Time,Part Time,Contract', '', '', '', '5'],
+    ['Policy Agreement', 'checkbox', '', 'Code of Conduct,NDA,Security Policy', '', 'Tick applicable options', '', '4'],
+    ['Night Shift Available', 'toggle-switch', '', '', 'no', '', '', '2'],
+    ['Experience Level', 'slider', '', '', '3', '0-10 range', '', '3'],
+    ['Self Rating', 'rating', '', '', '', '1-5 stars', '', '2'],
+    ['Resume Upload', 'file', '', '', '', 'PDF or DOCX', '', '1'],
+    ['Profile Photo', 'image', '', '', '', 'JPEG/PNG', '', '1'],
+    ['Address', 'address', 'Enter complete address', '', '', '', '', '3'],
+    ['Country', 'country', '', '', '', '', '', '2'],
+    ['Portfolio URL', 'url', 'https://example.com', '', '', '', '', '2'],
+    ['Expected Salary', 'currency', '', '', '', 'Annual in USD', '', '4'],
+    ['Theme Color', 'color', '', '', '#2563EB', '', '', '1'],
+    ['Skill Tags', 'tags', '', '', '', 'Press enter after each tag', '', '2'],
+    ['Office Geo Location', 'geo-location', '', '', '', 'Pin location on map', '', '2'],
+    ['Device IP', 'ip-address', '192.168.1.10', '', '', '', '', '1'],
+    ['Employee Barcode', 'barcode', '', '', '', '', '', '1'],
+    ['Digital Signature', 'signature', '', '', '', 'Sign here', '', '1'],
+    ['Manager', 'user-picker', '', '', '', 'Select manager user', '', '3'],
+    ['Team Group', 'group-picker', '', '', '', 'Select team group', '', '3'],
+    ['Manager Approval', 'approval', '', '', '', '', '', '3'],
+    ['Rich Notes', 'rich-text', 'Add formatted notes', '', '', '', '', '1'],
+    ['Dynamic City', 'dynamic-dropdown', '', '', '', 'Loaded from data source', '', '1'],
+    ['Related Employee', 'cross-reference', '', '', '', '', '', '1'],
+    ['Calculated Score', 'calculated', '', '', '', 'Computed from other fields', '', '1'],
+    ['Conditional Panel', 'conditional-section', '', '', '', '', '', '1'],
+    ['Start Workflow', 'workflow-trigger', '', '', '', '', '', '1'],
+    ['Divider', 'horizontal-line', '', '', '', '', '', ''],
   ];
+
   const wsFields = XLSX.utils.aoa_to_sheet(formFieldsData);
   wsFields['!cols'] = [
-    { wch: 20 }, { wch: 15 }, { wch: 10 }, { wch: 25 },
-    { wch: 45 }, { wch: 15 }, { wch: 30 },
+    { wch: 28 }, { wch: 20 }, { wch: 28 }, { wch: 42 },
+    { wch: 18 }, { wch: 35 }, { wch: 18 }, { wch: 16 },
   ];
   XLSX.utils.book_append_sheet(wb, wsFields, 'Form Fields');
 
-  // Valid Types sheet
   const typesData = [
-    ['Valid Field Types', 'Aliases (you can also use these)'],
+    ['Valid Field Types', 'Aliases'],
     ['text', 'string, textbox, input'],
     ['textarea', 'text-area, multiline'],
     ['number', 'int, integer, float, decimal, numeric'],
@@ -261,7 +283,7 @@ function generateTemplate() {
     ['address', ''],
     ['geo-location', 'location, gps, map'],
     ['header', 'heading, title'],
-    ['description', 'paragraph, label'],
+    ['description', 'paragraph'],
     ['section-break', ''],
     ['horizontal-line', 'divider, separator'],
     ['barcode', ''],
@@ -271,11 +293,11 @@ function generateTemplate() {
     ['rich-text', ''],
   ];
   const wsTypes = XLSX.utils.aoa_to_sheet(typesData);
-  wsTypes['!cols'] = [{ wch: 20 }, { wch: 45 }];
+  wsTypes['!cols'] = [{ wch: 22 }, { wch: 45 }];
   XLSX.utils.book_append_sheet(wb, wsTypes, 'Valid Types');
 
-  XLSX.writeFile(wb, 'Form_Import_Template.xlsx');
-  toast.success('Template downloaded!');
+  XLSX.writeFile(wb, `Form_Import_Template_${Date.now()}.xlsx`);
+  toast.success('New sample template downloaded');
 }
 
 export function ExcelFormImporter({ onImport }: ExcelFormImporterProps) {
@@ -332,19 +354,22 @@ export function ExcelFormImporter({ onImport }: ExcelFormImporterProps) {
       }
 
       const colMap: Record<string, number> = {};
-      headerRow.forEach((cell: any, idx: number) => {
-        const key = String(cell).toLowerCase().trim();
-        if (key.includes('label') || key.includes('field name') || key === 'name') colMap['label'] = idx;
-        if (key.includes('type') || key.includes('field type')) colMap['type'] = idx;
-        if (key.includes('required') || key.includes('mandatory')) colMap['required'] = idx;
-        if (key.includes('placeholder') || key.includes('hint')) colMap['placeholder'] = idx;
-        if (key.includes('option')) colMap['options'] = idx;
-        if (key.includes('default')) colMap['default'] = idx;
-        if (key.includes('tooltip') || key.includes('help')) colMap['tooltip'] = idx;
+      (Object.keys(HEADER_ALIASES) as Array<keyof typeof HEADER_ALIASES>).forEach((fieldKey) => {
+        const idx = findColumnIndex(headerRow, HEADER_ALIASES[fieldKey]);
+        if (idx >= 0) {
+          colMap[fieldKey] = idx;
+        }
       });
 
       if (colMap['label'] === undefined) {
-        toast.error('Could not find "Field Label" column. Please check your Excel headers.');
+        const visibleHeaders = headerRow
+          .map((cell: any) => String(cell ?? '').trim())
+          .filter(Boolean)
+          .join(', ');
+
+        toast.error(
+          `Could not find \"Field Label\" column. Use headers like: Field Label, Field Type, Placeholder, Options, Default Value, Tooltip, Make Field Unique, Field Weightage. Found: ${visibleHeaders || 'no headers'}`
+        );
         setIsProcessing(false);
         return;
       }
@@ -502,100 +527,55 @@ export function ExcelFormImporter({ onImport }: ExcelFormImporterProps) {
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm">Excel Template Guide</CardTitle>
-                <p className="text-xs text-muted-foreground">Your Excel file should have these columns. Row 1 can optionally contain "Form Name:" and "Form Description:".</p>
+                <p className="text-xs text-muted-foreground">
+                  Exact upload-ready format. Copy this header row as-is (same order recommended):
+                </p>
+                <code className="text-[11px] rounded bg-muted px-2 py-1 block break-words">
+                  Field Label | Field Type | Placeholder | Options | Default Value | Tooltip | Make Field Unique | Field Weightage
+                </code>
               </CardHeader>
               <CardContent className="p-0">
                 <ScrollArea className="h-[320px]">
-                  {/* Column descriptions */}
                   <div className="px-4 pb-3">
-                    <p className="text-xs font-semibold mb-1.5">Required Columns</p>
+                    <p className="text-xs font-semibold mb-1.5">Sample Rows (exact accepted headers)</p>
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="text-xs py-1">Column</TableHead>
-                          <TableHead className="text-xs py-1">Description</TableHead>
-                          <TableHead className="text-xs py-1">Required?</TableHead>
-                          <TableHead className="text-xs py-1">Example</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {[
-                          ['Field Label', 'Display name of the field', 'Yes', 'Full Name'],
-                          ['Field Type', 'Type of input (see below)', 'Yes', 'text'],
-                          ['Required', 'yes / no', 'No (default: no)', 'yes'],
-                          ['Placeholder', 'Hint text inside the field', 'No', 'Enter name'],
-                          ['Options', 'Comma or pipe separated values', 'For select/radio/multi-select', 'HR, Eng, Sales'],
-                          ['Default Value', 'Pre-filled value', 'No', 'N/A'],
-                          ['Tooltip', 'Help text on hover', 'No', 'Enter legal name'],
-                        ].map(([col, desc, req, ex], i) => (
-                          <TableRow key={i}>
-                            <TableCell className="text-xs py-1 font-medium">{col}</TableCell>
-                            <TableCell className="text-xs py-1 text-muted-foreground">{desc}</TableCell>
-                            <TableCell className="text-xs py-1">{req}</TableCell>
-                            <TableCell className="text-xs py-1 font-mono">{ex}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-
-                  {/* Sample rows */}
-                  <div className="px-4 pb-3">
-                    <p className="text-xs font-semibold mb-1.5">Sample Rows (one per field type)</p>
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="text-xs py-1">Label</TableHead>
-                          <TableHead className="text-xs py-1">Type</TableHead>
-                          <TableHead className="text-xs py-1">Required</TableHead>
+                          <TableHead className="text-xs py-1">Field Label</TableHead>
+                          <TableHead className="text-xs py-1">Field Type</TableHead>
                           <TableHead className="text-xs py-1">Placeholder</TableHead>
                           <TableHead className="text-xs py-1">Options</TableHead>
+                          <TableHead className="text-xs py-1">Default Value</TableHead>
+                          <TableHead className="text-xs py-1">Tooltip</TableHead>
+                          <TableHead className="text-xs py-1">Make Field Unique</TableHead>
+                          <TableHead className="text-xs py-1">Field Weightage</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {[
-                          ['Full Name', 'text', 'yes', 'Enter full name', ''],
-                          ['Email', 'email', 'yes', 'user@example.com', ''],
-                          ['Phone', 'phone', 'no', '+1 (555) 000-0000', ''],
-                          ['Age', 'number', 'no', '25', ''],
-                          ['Date of Birth', 'date', 'yes', '', ''],
-                          ['Interview Time', 'time', 'no', '', ''],
-                          ['Department', 'select', 'yes', 'Select...', 'HR, Eng, Sales'],
-                          ['Skills', 'multi-select', 'no', '', 'JS, Python, SQL'],
-                          ['Gender', 'radio', 'no', '', 'Male, Female, Other'],
-                          ['Agree to Terms', 'checkbox', 'yes', '', ''],
-                          ['Night Shift?', 'toggle-switch', 'no', '', ''],
-                          ['Experience', 'slider', 'no', '', ''],
-                          ['Rating', 'rating', 'no', '', ''],
-                          ['Resume', 'file', 'no', '', ''],
-                          ['Photo', 'image', 'no', '', ''],
-                          ['Salary', 'currency', 'no', '', ''],
-                          ['Country', 'country', 'no', '', ''],
-                          ['Address', 'address', 'no', '', ''],
-                          ['Location', 'geo-location', 'no', '', ''],
-                          ['Website', 'url', 'no', 'https://...', ''],
-                          ['Color', 'color', 'no', '', ''],
-                          ['Tags', 'tags', 'no', '', ''],
-                          ['Signature', 'signature', 'no', '', ''],
-                          ['Comments', 'textarea', 'no', 'Write here...', ''],
-                          ['Section Title', 'header', 'no', '', ''],
-                          ['Divider', 'horizontal-line', 'no', '', ''],
-                        ].map(([label, type, req, ph, opts], i) => (
+                          ['Full Name', 'text', 'Enter your full name', '', '', 'Legal full name', 'yes', '10'],
+                          ['Email Address', 'email', 'employee@company.com', '', '', 'Work email', 'yes', '10'],
+                          ['Department', 'select', 'Select department', 'HR,Engineering,Sales', '', '', '', '8'],
+                          ['Skills', 'multi-select', '', 'Excel,SQL,Leadership', '', '', '', '6'],
+                          ['Employment Type', 'radio', '', 'Full Time,Part Time,Contract', '', '', '', '5'],
+                          ['Policy Agreement', 'checkbox', '', 'NDA,Code of Conduct', '', '', '', '4'],
+                          ['Digital Signature', 'signature', '', '', '', 'Sign here', '', '1'],
+                          ['Office Geo Location', 'geo-location', '', '', '', 'Pin office on map', '', '2'],
+                        ].map((row, i) => (
                           <TableRow key={i}>
-                            <TableCell className="text-xs py-1 font-medium">{label}</TableCell>
-                            <TableCell className="text-xs py-1"><Badge variant="outline" className="text-[10px] px-1 py-0">{type}</Badge></TableCell>
-                            <TableCell className="text-xs py-1">{req}</TableCell>
-                            <TableCell className="text-xs py-1 text-muted-foreground">{ph || '—'}</TableCell>
-                            <TableCell className="text-xs py-1 text-muted-foreground">{opts || '—'}</TableCell>
+                            {row.map((cell, j) => (
+                              <TableCell key={j} className="text-xs py-1 text-muted-foreground">
+                                {cell || '—'}
+                              </TableCell>
+                            ))}
                           </TableRow>
                         ))}
                       </TableBody>
                     </Table>
                   </div>
 
-                  {/* Aliases */}
                   <div className="px-4 pb-3">
-                    <p className="text-xs font-semibold mb-1.5">Friendly Aliases (you can use these instead)</p>
+                    <p className="text-xs font-semibold mb-1.5">Friendly Aliases</p>
                     <div className="flex flex-wrap gap-1">
                       {Object.entries(TYPE_ALIASES).slice(0, 20).map(([alias, target]) => (
                         <Badge key={alias} variant="secondary" className="text-[10px] px-1.5 py-0">
