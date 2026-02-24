@@ -17,6 +17,8 @@ interface ParsedField {
   options?: Array<{ label: string; value: string }>;
   defaultValue?: string;
   tooltip?: string;
+  makeUnique?: boolean;
+  weightage?: number;
   validation?: Record<string, any>;
   isValid: boolean;
   errors: string[];
@@ -131,26 +133,14 @@ const SAMPLE_ROWS_FOR_GUIDE = [
   ['Country', 'country', 'no', '', '', '', '', '', '2'],
   ['Portfolio URL', 'url', 'no', 'https://example.com', '', '', '', '', '2'],
   ['Salary', 'currency', 'no', '', '', '', 'Annual USD', '', '4'],
-  ['Theme Color', 'color', 'no', '', '', '#2563EB', '', '', '1'],
   ['Skill Tags', 'tags', 'no', '', '', '', 'Enter to add', '', '2'],
   ['Office Location', 'geo-location', 'no', '', '', '', 'Pin on map', '', '2'],
   ['Device IP', 'ip-address', 'no', '192.168.1.10', '', '', '', '', '1'],
   ['Barcode', 'barcode', 'no', '', '', '', '', '', '1'],
   ['Signature', 'signature', 'yes', '', '', '', 'Sign here', '', '1'],
-  ['Manager', 'user-picker', 'no', '', '', '', 'Select manager', '', '3'],
-  ['Team Group', 'group-picker', 'no', '', '', '', 'Select group', '', '3'],
-  ['Approval', 'approval', 'no', '', '', '', '', '', '3'],
-  ['Rich Notes', 'rich-text', 'no', 'Formatted notes', '', '', '', '', '1'],
-  ['Dynamic City', 'dynamic-dropdown', 'no', '', '', '', 'From data source', '', '1'],
   ['Related Record', 'cross-reference', 'no', '', '', '', '', '', '1'],
-  ['Child Records', 'child-cross-reference', 'no', '', '', '', '', '', '1'],
-  ['Calc Score', 'calculated', 'no', '', '', '', 'Computed', '', '1'],
-  ['Cond. Panel', 'conditional-section', 'no', '', '', '', '', '', '1'],
-  ['Workflow', 'workflow-trigger', 'no', '', '', '', '', '', '1'],
   ['Access', 'submission-access', 'no', '', '', '', '', '', '1'],
   ['Query', 'query-field', 'no', '', '', '', '', '', '1'],
-  ['Record Table', 'record-table', 'no', '', '', '', '', '', '1'],
-  ['Matrix Grid', 'matrix-grid', 'no', '', '', '', '', '', '1'],
   ['Divider', 'horizontal-line', '', '', '', '', '', '', ''],
 ];
 
@@ -235,73 +225,42 @@ function generateTemplate() {
     'Field Weightage',
   ];
 
-  // Instructions sheet
-  const instructionsData = [
-    ['Excel Form Import Template - Exact Upload Format'],
-    [''],
-    ['Use this exact header row in your file (same order recommended):'],
-    [acceptedHeaders.join(' | ')],
-    [''],
-    ['Notes:'],
-    ['- Row 1 can optionally contain: Form Name: <name> and Form Description: <description>'],
-    ['- Field Label and Field Type are required for each field row'],
-    ['- Options are required only for select/multi-select/radio/checkbox types'],
-    ['- Make Field Unique and Field Weightage are accepted template columns'],
-  ];
-  const wsInstructions = XLSX.utils.aoa_to_sheet(instructionsData);
-  wsInstructions['!cols'] = [{ wch: 120 }];
-  XLSX.utils.book_append_sheet(wb, wsInstructions, 'Instructions');
-
   const SAMPLE_ROWS = [
-    ['Personal Information', 'header', '', '', '', '', '', '', ''],
-    ['Please complete all onboarding details', 'description', '', '', '', '', '', '', ''],
-    ['Section - Identity', 'section-break', '', '', '', '', '', '', ''],
-    ['Full Name', 'text', 'yes', 'Enter your full name', '', '', 'Legal name as per ID', 'yes', '10'],
-    ['Email Address', 'email', 'yes', 'employee@company.com', '', '', 'Company email preferred', 'yes', '10'],
-    ['Phone Number', 'phone', 'no', '+1 555 000 0000', '', '', 'Include country code', '', '5'],
-    ['Age', 'number', 'no', 'e.g. 29', '', '', 'Numbers only', '', '3'],
-    ['Bio', 'textarea', 'no', 'Tell us about yourself', '', '', '', '', '2'],
-    ['Date of Birth', 'date', 'yes', '', '', '', 'Use date picker', '', '4'],
-    ['Preferred Shift Start', 'time', 'no', '', '', '09:00', '', '', '2'],
-    ['Join Date Time', 'datetime', 'no', '', '', '', '', '', '2'],
-    ['Department', 'select', 'yes', 'Select department', 'HR,Engineering,Sales,Support', '', 'Choose one', 'yes', '8'],
-    ['Skills', 'multi-select', 'no', '', 'Excel,Communication,Leadership,SQL', '', 'Choose multiple', '', '6'],
-    ['Employment Type', 'radio', 'yes', '', 'Full Time,Part Time,Contract', '', '', '', '5'],
-    ['Policy Agreement', 'checkbox', 'yes', '', 'Code of Conduct,NDA,Security Policy', '', 'Tick applicable', '', '4'],
-    ['Night Shift Available', 'toggle-switch', 'no', '', '', 'no', '', '', '2'],
-    ['Experience Level', 'slider', 'no', '', '', '3', '0-10 range', '', '3'],
-    ['Self Rating', 'rating', 'no', '', '', '', '1-5 stars', '', '2'],
-    ['Resume Upload', 'file', 'no', '', '', '', 'PDF or DOCX', '', '1'],
-    ['Profile Photo', 'image', 'no', '', '', '', 'JPEG/PNG', '', '1'],
-    ['Address', 'address', 'no', 'Enter complete address', '', '', '', '', '3'],
-    ['Country', 'country', 'no', '', '', '', '', '', '2'],
-    ['Portfolio URL', 'url', 'no', 'https://example.com', '', '', '', '', '2'],
-    ['Expected Salary', 'currency', 'no', '', '', '', 'Annual in USD', '', '4'],
-    ['Theme Color', 'color', 'no', '', '', '#2563EB', '', '', '1'],
-    ['Skill Tags', 'tags', 'no', '', '', '', 'Press enter after each', '', '2'],
-    ['Office Geo Location', 'geo-location', 'no', '', '', '', 'Pin on map', '', '2'],
-    ['Device IP', 'ip-address', 'no', '192.168.1.10', '', '', '', '', '1'],
-    ['Employee Barcode', 'barcode', 'no', '', '', '', '', '', '1'],
-    ['Digital Signature', 'signature', 'yes', '', '', '', 'Sign here', '', '1'],
-    ['Manager', 'user-picker', 'no', '', '', '', 'Select manager', '', '3'],
-    ['Team Group', 'group-picker', 'no', '', '', '', 'Select team group', '', '3'],
-    ['Manager Approval', 'approval', 'no', '', '', '', '', '', '3'],
-    ['Rich Notes', 'rich-text', 'no', 'Add formatted notes', '', '', '', '', '1'],
-    ['Dynamic City', 'dynamic-dropdown', 'no', '', '', '', 'From data source', '', '1'],
-    ['Related Employee', 'cross-reference', 'no', '', '', '', '', '', '1'],
-    ['Child Records', 'child-cross-reference', 'no', '', '', '', '', '', '1'],
-    ['Calculated Score', 'calculated', 'no', '', '', '', 'Computed field', '', '1'],
-    ['Conditional Panel', 'conditional-section', 'no', '', '', '', '', '', '1'],
-    ['Start Workflow', 'workflow-trigger', 'no', '', '', '', '', '', '1'],
-    ['Submission Access', 'submission-access', 'no', '', '', '', '', '', '1'],
-    ['Query Field', 'query-field', 'no', '', '', '', '', '', '1'],
-    ['Record Table', 'record-table', 'no', '', '', '', '', '', '1'],
-    ['Matrix Grid', 'matrix-grid', 'no', '', '', '', '', '', '1'],
-    ['Divider', 'horizontal-line', '', '', '', '', '', '', ''],
+    ['Personal Information', 'header', '—', '—', '—', '—', '—', '—', '—'],
+    ['Complete all details', 'description', '—', '—', '—', '—', '—', '—', '—'],
+    ['Section - Identity', 'section-break', '—', '—', '—', '—', '—', '—', '—'],
+    ['Full Name', 'text', 'yes', 'Enter your full name', '—', '—', 'Legal name', 'yes', '10'],
+    ['Email Address', 'email', 'yes', 'employee@company.com', '—', '—', 'Work email', 'yes', '10'],
+    ['Phone Number', 'phone', 'no', '+1 555 000 0000', '—', '—', 'With country code', '—', '5'],
+    ['Age', 'number', 'no', 'e.g. 29', '—', '—', '—', '—', '3'],
+    ['Bio', 'textarea', 'no', 'Tell us about yourself', '—', '—', '—', '—', '2'],
+    ['Date of Birth', 'date', 'yes', '—', '—', '—', '—', '—', '4'],
+    ['Shift Start', 'time', 'no', '—', '—', '09:00', '—', '—', '2'],
+    ['Join Date Time', 'datetime', 'no', '—', '—', '—', '—', '—', '2'],
+    ['Department', 'select', 'yes', 'Select dept', 'HR,Engineering,Sales', '—', 'Choose one', 'yes', '8'],
+    ['Skills', 'multi-select', 'no', '—', 'Excel,SQL,Leadership', '—', 'Choose multiple', '—', '6'],
+    ['Employment Type', 'radio', 'yes', '—', 'Full Time,Part Time,Contract', '—', '—', '—', '5'],
+    ['Policy Agreement', 'checkbox', 'yes', '—', 'NDA,Code of Conduct', '—', 'Tick applicable', '—', '4'],
+    ['Night Shift', 'toggle-switch', 'no', '—', '—', 'no', '—', '—', '2'],
+    ['Experience', 'slider', 'no', '—', '—', '3', '0-10 range', '—', '3'],
+    ['Self Rating', 'rating', 'no', '—', '—', '—', '1-5 stars', '—', '2'],
+    ['Resume', 'file', 'no', '—', '—', '—', 'PDF or DOCX', '—', '1'],
+    ['Profile Photo', 'image', 'no', '—', '—', '—', 'JPEG/PNG', '—', '1'],
+    ['Address', 'address', 'no', 'Full address', '—', '—', '—', '—', '3'],
+    ['Country', 'country', 'no', '—', '—', '—', '—', '—', '2'],
+    ['Portfolio URL', 'url', 'no', 'https://example.com', '—', '—', '—', '—', '2'],
+    ['Salary', 'currency', 'no', '—', '—', '—', 'Annual USD', '—', '4'],
+    ['Skill Tags', 'tags', 'no', '—', '—', '—', 'Enter to add', '—', '2'],
+    ['Office Location', 'geo-location', 'no', '—', '—', '—', 'Pin on map', '—', '2'],
+    ['Device IP', 'ip-address', 'no', '192.168.1.10', '—', '—', '—', '—', '1'],
+    ['Barcode', 'barcode', 'no', '—', '—', '—', '—', '—', '1'],
+    ['Signature', 'signature', 'yes', '—', '—', '—', 'Sign here', '—', '1'],
+    ['Related Record', 'cross-reference', 'no', '—', '—', '—', '—', '—', '1'],
+    ['Access', 'submission-access', 'no', '—', '—', '—', '—', '—', '1'],
+    ['Query', 'query-field', 'no', '—', '—', '—', '—', '—', '1'],
+    ['Divider', 'horizontal-line', '—', '—', '—', '—', '—', '—', '—'],
   ];
-
   const formFieldsData = [
-    ['Form Name:', 'Employee Onboarding Form', '', '', 'Form Description:', 'Import-ready sample covering all field types', '', '', ''],
     acceptedHeaders,
     ...SAMPLE_ROWS,
   ];
@@ -334,7 +293,6 @@ function generateTemplate() {
     ['image', 'picture, photo'],
     ['signature', 'sign'],
     ['tags', 'tag'],
-    ['color', ''],
     ['url', 'link, website'],
     ['currency', 'money'],
     ['country', ''],
@@ -345,14 +303,7 @@ function generateTemplate() {
     ['section-break', ''],
     ['horizontal-line', 'divider, separator'],
     ['barcode', ''],
-    ['user-picker', ''],
-    ['group-picker', ''],
-    ['approval', ''],
-    ['rich-text', ''],
   ];
-  const wsTypes = XLSX.utils.aoa_to_sheet(typesData);
-  wsTypes['!cols'] = [{ wch: 22 }, { wch: 45 }];
-  XLSX.utils.book_append_sheet(wb, wsTypes, 'Valid Types');
 
   XLSX.writeFile(wb, `Form_Import_Template_${Date.now()}.xlsx`);
   toast.success('New sample template downloaded');
@@ -529,16 +480,15 @@ export function ExcelFormImporter({ onImport }: ExcelFormImporterProps) {
           Import from Excel
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-4xl max-h-[90vh]">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <FileSpreadsheet className="h-5 w-5 text-primary" />
-            Import Form from Excel
-          </DialogTitle>
-          <DialogDescription>
-            Upload an Excel file to create a form with all fields automatically.
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent className="max-w-4xl h-[90vh] flex flex-col overflow-hidden">        <DialogHeader>
+        <DialogTitle className="flex items-center gap-2">
+          <FileSpreadsheet className="h-5 w-5 text-primary" />
+          Import Form from Excel
+        </DialogTitle>
+        <DialogDescription>
+          Upload an Excel file to create a form with all fields automatically.
+        </DialogDescription>
+      </DialogHeader>
 
         <div className="space-y-4">
           {/* Actions row */}
@@ -593,7 +543,7 @@ export function ExcelFormImporter({ onImport }: ExcelFormImporterProps) {
                 </code>
               </CardHeader>
               <CardContent className="p-0">
-                <ScrollArea className="h-[360px]">
+                <ScrollArea className="h-[600px]">
                   <div className="px-4 pb-3 overflow-x-auto">
                     <p className="text-xs font-semibold mb-1.5">Sample Rows (all supported field types)</p>
                     <div className="min-w-[900px]">
@@ -660,20 +610,22 @@ export function ExcelFormImporter({ onImport }: ExcelFormImporterProps) {
                 )}
               </CardHeader>
               <CardContent className="p-0">
-                <ScrollArea className="h-[350px]">
+                <ScrollArea className="h-[600px]">
                   <div className="overflow-x-auto">
                     <div className="min-w-[800px]">
                       <Table>
                         <TableHeader>
                           <TableRow>
                             <TableHead className="w-8 whitespace-nowrap">#</TableHead>
-                            <TableHead className="whitespace-nowrap">Label</TableHead>
-                            <TableHead className="whitespace-nowrap">Type</TableHead>
+                            <TableHead className="whitespace-nowrap">Field Label</TableHead>
+                            <TableHead className="whitespace-nowrap">Field Type</TableHead>
                             <TableHead className="whitespace-nowrap">Required</TableHead>
                             <TableHead className="whitespace-nowrap">Placeholder</TableHead>
                             <TableHead className="whitespace-nowrap">Options</TableHead>
                             <TableHead className="whitespace-nowrap">Default</TableHead>
                             <TableHead className="whitespace-nowrap">Tooltip</TableHead>
+                            <TableHead className="whitespace-nowrap">Make Field Unique</TableHead>
+                            <TableHead className="whitespace-nowrap">Field Weightage</TableHead>
                             <TableHead className="w-10 whitespace-nowrap">Status</TableHead>
                           </TableRow>
                         </TableHeader>
@@ -699,6 +651,12 @@ export function ExcelFormImporter({ onImport }: ExcelFormImporterProps) {
                               </TableCell>
                               <TableCell className="text-xs text-muted-foreground max-w-[150px] truncate">
                                 {field.tooltip || '—'}
+                              </TableCell>
+                              <TableCell className="text-xs text-muted-foreground max-w-[150px] truncate">
+                                {field.makeUnique || '—'}
+                              </TableCell>
+                              <TableCell className="text-xs text-muted-foreground max-w-[150px] truncate">
+                                {field.weightage || '—'}
                               </TableCell>
                               <TableCell>
                                 {field.isValid ? (
@@ -734,10 +692,13 @@ export function ExcelFormImporter({ onImport }: ExcelFormImporterProps) {
           )}
 
           {/* Help text when no file uploaded */}
-          {parsedFields.length === 0 && !isProcessing && (
+          {/* Help text when no file uploaded */}
+          {parsedFields.length === 0 && !isProcessing && !showGuide && (
             <div className="border-2 border-dashed rounded-lg p-8 text-center text-muted-foreground">
               <FileSpreadsheet className="h-10 w-10 mx-auto mb-3 opacity-40" />
-              <p className="font-medium mb-1">Upload an Excel file or download the template first</p>
+              <p className="font-medium mb-1">
+                Upload an Excel file or download the template first
+              </p>
               <p className="text-xs">
                 The template includes instructions, example fields, and a complete list of valid field types.
               </p>
