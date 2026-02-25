@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
-import { ChevronUp, ChevronDown, Search, Filter, Settings, Eye, Maximize2, Minimize2, Trash2, Edit3, FileText, User, Calendar, CheckCircle, ExternalLink, Move, History, PlayCircle, ChevronDown as ChevronDownIcon, Database, Zap, Download, Upload, RefreshCw, Columns, ScrollText } from 'lucide-react';
+import { ChevronUp, ChevronDown, Search, Filter, Settings, Eye, Maximize2, Minimize2, Trash2, Edit3, FileText, User, Calendar, CheckCircle, ExternalLink, Move, History, PlayCircle, ChevronDown as ChevronDownIcon, Database, Zap, Download, Upload, RefreshCw, Columns, ScrollText, GitBranch } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -54,6 +54,7 @@ import { SubmissionRefDisplay } from '@/components/SubmissionRefDisplay';
 import { useBulkWorkflowTrigger } from '@/hooks/useBulkWorkflowTrigger';
 import { BulkWorkflowTriggerDialog } from './BulkWorkflowTriggerDialog';
 import { PolicyGeneratorDialog } from './PolicyGeneratorDialog';
+import { RecordLinkageMap } from './RecordLinkageMap';
 import { toast } from 'sonner';
 import { AIQueryInput } from './AIQueryInput';
 interface TableConfig {
@@ -116,6 +117,7 @@ export function DynamicTable({
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [showUpdateDialog, setShowUpdateDialog] = useState(false);
   const [showPolicyDialog, setShowPolicyDialog] = useState(false);
+  const [showLinkageMap, setShowLinkageMap] = useState(false);
   const [aiQueryFilters, setAiQueryFilters] = useState<Array<{ fieldId: string; operator: string; value: string }>>([]);
   const [aiQuerySort, setAiQuerySort] = useState<{ field: string | null; order: 'asc' | 'desc' }>({ field: null, order: 'asc' });
 
@@ -1094,6 +1096,11 @@ export function DynamicTable({
                     <ScrollText className="h-4 w-4 mr-2" />
                     Create Docs
                   </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => setShowLinkageMap(true)}>
+                    <GitBranch className="h-4 w-4 mr-2" />
+                    Record Linkage Map
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
 
@@ -1566,6 +1573,16 @@ export function DynamicTable({
         fields={formFields.map(f => ({ id: f.id, label: f.label, field_type: f.field_type }))}
         submissions={filteredAndSortedData}
         organizationId={(currentForm as any)?.organization_id || undefined}
+      />
+
+      {/* Record Linkage Map */}
+      <RecordLinkageMap
+        open={showLinkageMap}
+        onOpenChange={setShowLinkageMap}
+        formId={config.formId}
+        submissions={filteredAndSortedData}
+        formFields={formFields}
+        formName={currentForm?.name || config.title || 'Records'}
       />
     </div>;
 }
