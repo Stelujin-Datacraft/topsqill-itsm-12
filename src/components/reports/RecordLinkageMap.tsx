@@ -12,6 +12,7 @@ interface TreeNode {
   formName: string;
   formId: string;
   children: TreeNode[];
+  submissionData?: Record<string, any>;
 }
 
 interface RecordLinkageMapProps {
@@ -23,26 +24,31 @@ interface RecordLinkageMapProps {
   formName: string;
 }
 
-// Cache for cross-ref fields per form
+/* ===================== CACHE ===================== */
+
 const crFieldsCache: Record<string, Array<{ id: string; label: string; targetFormId: string }>> = {};
-// Cache for form names
 const formNameCache: Record<string, string> = {};
+
+/* ===================== HELPERS ===================== */
 
 async function getCrossRefFields(formId: string) {
   if (crFieldsCache[formId]) return crFieldsCache[formId];
-  const { data: fields } = await supabase
-    .from('form_fields')
-    .select('id, label, field_type, custom_config')
-    .eq('form_id', formId)
-    .in('field_type', ['cross-reference']);
 
-  const result = (fields || []).map(f => {
-    let config: any = f.custom_config;
-    if (typeof config === 'string') {
-      try { config = JSON.parse(config); } catch { config = {}; }
-    }
-    return { id: f.id, label: f.label, targetFormId: config?.targetFormId || '' };
-  }).filter(f => f.targetFormId);
+  const { data: fields } = await supabase
+    .from("form_fields")
+    .select("id, label, field_type, custom_config")
+    .eq("form_id", formId)
+    .in("field_type", ["cross-reference"]);
+
+  const result = (fields || [])
+    .map((f) => {
+      let config: any = f.custom_config;
+      if (typeof config === "string") {
+        try { config = JSON.parse(config); } catch { config = {}; }
+      }
+      return { id: f.id, label: f.label, targetFormId: config?.targetFormId || "" };
+    })
+    .filter((f) => f.targetFormId);
 
   crFieldsCache[formId] = result;
   return result;
@@ -50,13 +56,32 @@ async function getCrossRefFields(formId: string) {
 
 async function getFormName(formId: string): Promise<string> {
   if (formNameCache[formId]) return formNameCache[formId];
-  const { data } = await supabase.from('forms').select('name').eq('id', formId).single();
-  const name = data?.name || 'Unknown';
+
+  const { data } = await supabase
+    .from("forms")
+    .select("name")
+    .eq("id", formId)
+    .single();
+
+  const name = data?.name || "Unknown";
   formNameCache[formId] = name;
   return name;
 }
 
-// Recursively build tree up to maxDepth
+function parseSubmissionData(data: any): Record<string, any> {
+  if (!data) return {};
+  if (typeof data === "string") {
+    try {
+      return JSON.parse(data);
+    } catch {
+      return {};
+    }
+  }
+  return data as Record<string, any>;
+}
+
+/* ===================== BUILD TREE ===================== */
+
 async function buildTreeNode(
   submission: any,
   formId: string,
@@ -71,46 +96,50 @@ async function buildTreeNode(
     formName,
     formId,
     children: [],
+    submissionData: parseSubmissionData(submission.submission_data),
   };
 
   if (depth >= maxDepth || visited.has(submission.id)) return node;
   visited.add(submission.id);
 
   const crFields = await getCrossRefFields(formId);
-  if (crFields.length === 0) return node;
+  if (!crFields.length) return node;
 
   for (const crField of crFields) {
-    const value = submission.submission_data?.[crField.id];
+    const value = node.submissionData?.[crField.id];
     if (!value) continue;
 
     let refIds: string[] = [];
+
     if (Array.isArray(value)) {
-      refIds = value.map((item: any) => item?.submission_ref_id || (typeof item === 'string' ? item : null)).filter(Boolean);
-    } else if (typeof value === 'string') {
-      refIds = value.split(',').map((s: string) => s.trim()).filter(Boolean);
+      refIds = value
+        .map((item: any) =>
+          item?.submission_ref_id || (typeof item === "string" ? item : null)
+        )
+        .filter(Boolean);
+    } else if (typeof value === "string") {
+      refIds = value.split(",").map((s: string) => s.trim()).filter(Boolean);
     }
-    if (refIds.length === 0) continue;
+
+    if (!refIds.length) continue;
 
     const { data: linkedSubs } = await supabase
-      .from('form_submissions')
-      .select('id, submission_ref_id, form_id, submission_data')
-      .eq('form_id', crField.targetFormId)
-      .in('submission_ref_id', refIds);
+      .from("form_submissions")
+      .select("id, submission_ref_id, form_id, submission_data")
+      .eq("form_id", crField.targetFormId)
+      .in("submission_ref_id", refIds);
 
     const targetName = await getFormName(crField.targetFormId);
 
     for (const ls of linkedSubs || []) {
-      if (visited.has(ls.id)) {
-        node.children.push({
-          id: ls.id,
-          submissionRefId: ls.submission_ref_id || ls.id.slice(0, 8),
-          formName: targetName,
-          formId: ls.form_id,
-          children: [],
-        });
-        continue;
-      }
-      const childNode = await buildTreeNode(ls, ls.form_id, targetName, depth + 1, maxDepth, visited);
+      const childNode = await buildTreeNode(
+        ls,
+        ls.form_id,
+        targetName,
+        depth + 1,
+        maxDepth,
+        visited
+      );
       node.children.push(childNode);
     }
   }
@@ -118,79 +147,144 @@ async function buildTreeNode(
   return node;
 }
 
-/* ── Horizontal Tree Rendering (Left → Right) ── */
+/* ===================== NODE CARD ===================== */
 
-function NodeCard({ node, onNavigate }: { node: TreeNode; onNavigate: (id: string) => void }) {
+function NodeCard({
+  node,
+  onNavigate,
+  selectedFieldIds,
+}: {
+  node: TreeNode;
+  onNavigate: (id: string) => void;
+  selectedFieldIds?: string[];
+}) {
+  const combinedValues: string[] = [];
+
+  selectedFieldIds?.forEach((fieldId) => {
+    const value = node.submissionData?.[fieldId];
+    if (!value) return;
+
+    if (Array.isArray(value)) {
+      value.forEach((v) => {
+        if (typeof v === "object") {
+          combinedValues.push(
+            v?.submission_ref_id?.toString() || JSON.stringify(v)
+          );
+        } else {
+          combinedValues.push(v.toString());
+        }
+      });
+    } else if (typeof value === "object") {
+      combinedValues.push(
+        value?.submission_ref_id?.toString() || JSON.stringify(value)
+      );
+    } else {
+      combinedValues.push(value.toString());
+    }
+  });
+
+  const [valueOpen, setValueOpen] = useState(false);
+  const valueRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        valueRef.current &&
+        !valueRef.current.contains(event.target as Node)
+      ) {
+        setValueOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
   return (
-    <div
-      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-border bg-card hover:shadow-md transition-shadow whitespace-nowrap text-xs"
-    >
-      <div className="min-w-0">
-        <span className="font-mono font-semibold text-foreground">{node.submissionRefId}</span>
-        <span className="ml-1.5 text-muted-foreground text-[10px]">({node.formName})</span>
+    <div className="flex items-center gap-2 px-3 py-2 rounded-md border border-border bg-card text-xs relative">
+      <div>
+        <span className="font-mono font-semibold">{node.submissionRefId}</span>
+        <span className="ml-2 text-muted-foreground text-[10px]">
+          ({node.formName})
+        </span>
       </div>
+
+      {/* Navigate Button */}
       <Button
         variant="ghost"
         size="icon"
-        className="h-4 w-4 flex-shrink-0 ml-1"
-        onClick={(e) => { e.stopPropagation(); onNavigate(node.id); }}
-        title="View record"
+        className="h-4 w-4"
+        onClick={(e) => {
+          e.stopPropagation();
+          onNavigate(node.id);
+        }}
       >
-        <ExternalLink className="h-3 w-3" />
+        <ExternalLink className="h-3 w-3 text-gray-800" />
       </Button>
+
+      {/* VALUE DROPDOWN BUTTON */}
+      {combinedValues.length > 0 && (
+        <div className="relative" ref={valueRef}>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-6 text-xs px-2"
+            onClick={(e) => {
+              e.stopPropagation();
+              setValueOpen((prev) => !prev);
+            }}
+          >
+            Values ({combinedValues.length})
+          </Button>
+
+          {valueOpen && (
+            <div className="absolute right-0 mt-1 w-48 bg-card border rounded shadow-lg z-50 max-h-40 overflow-auto p-2">
+              {combinedValues.map((val, i) => (
+                <div
+                  key={i}
+                  className="text-xs p-1 hover:bg-muted rounded break-words"
+                >
+                  {val}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
 
-function HorizontalTree({ node, onNavigate }: { node: TreeNode; onNavigate: (id: string) => void }) {
-  const hasChildren = node.children.length > 0;
+/* ===================== TREE ===================== */
 
+function HorizontalTree({
+  node,
+  onNavigate,
+  selectedFieldIds,
+}: any) {
   return (
     <div className="flex items-center">
-      {/* The node itself */}
-      <NodeCard node={node} onNavigate={onNavigate} />
+      <NodeCard
+        node={node}
+        onNavigate={onNavigate}
+        selectedFieldIds={selectedFieldIds}
+      />
 
-      {/* Connector + children */}
-      {hasChildren && (
+      {node.children.length > 0 && (
         <>
-          {/* Horizontal line from node to vertical branch */}
-          <div className="w-6 h-px bg-border flex-shrink-0" />
+          <div className="w-5 h-px bg-gray-800" />
 
-          {/* Vertical branch with children */}
-          <div className="flex flex-col relative">
-            {/* Vertical line spanning all children */}
-            {node.children.length > 1 && (
-              <div
-                className="absolute left-0 bg-border"
-                style={{
-                  width: '1px',
-                  top: '50%',
-                  // Compute from first child center to last child center
-                  // Each child row is roughly equal height, so we span from first to last
-                }}
-              />
-            )}
-            {node.children.map((child, idx) => (
-              <div key={child.id} className="flex items-center relative">
-                {/* Vertical connector segment */}
-                <div className="flex flex-col items-center flex-shrink-0" style={{ width: '1px' }}>
-                  {/* Top half */}
-                  <div
-                    className={idx === 0 ? 'bg-transparent' : 'bg-border'}
-                    style={{ width: '1px', height: '12px' }}
-                  />
-                  {/* Bottom half */}
-                  <div
-                    className={idx === node.children.length - 1 ? 'bg-transparent' : 'bg-border'}
-                    style={{ width: '1px', height: '12px' }}
-                  />
-                </div>
-                {/* Horizontal connector to child */}
-                <div className="w-5 h-px bg-border flex-shrink-0" />
-                {/* Child subtree */}
-                <div className="py-[3px]">
-                  <HorizontalTree node={child} onNavigate={onNavigate} />
-                </div>
+          <div className="flex flex-col">
+            {node.children.map((child: TreeNode) => (
+              <div key={child.id} className="flex items-center">
+                <div className="w-5 h-px bg-gray-800" />
+                <HorizontalTree
+                  node={child}
+                  onNavigate={onNavigate}
+                  selectedFieldIds={selectedFieldIds}
+                />
               </div>
             ))}
           </div>
@@ -199,6 +293,8 @@ function HorizontalTree({ node, onNavigate }: { node: TreeNode; onNavigate: (id:
     </div>
   );
 }
+
+/* ===================== MAIN COMPONENT ===================== */
 
 export function RecordLinkageMap({
   open,
@@ -210,81 +306,137 @@ export function RecordLinkageMap({
 }: RecordLinkageMapProps) {
   const [treeNodes, setTreeNodes] = useState<TreeNode[]>([]);
   const [loading, setLoading] = useState(false);
+  const [selectedFieldIds, setSelectedFieldIds] = useState<string[]>([]);
   const navigate = useNavigate();
-  const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Auto-expand all nodes recursively when dialog opens
   useEffect(() => {
-    if (!open || submissions.length === 0) {
-      setTreeNodes([]);
-      return;
-    }
+    if (!open || !submissions.length) return;
 
-    let cancelled = false;
     const buildAll = async () => {
       setLoading(true);
       const visited = new Set<string>();
       const nodes: TreeNode[] = [];
 
       for (const sub of submissions) {
-        if (cancelled) break;
-        const node = await buildTreeNode(sub, formId, formName, 0, 3, visited);
+        const node = await buildTreeNode(
+          sub,
+          formId,
+          formName,
+          0,
+          3,
+          visited
+        );
         nodes.push(node);
       }
 
-      if (!cancelled) {
-        setTreeNodes(nodes);
-        setLoading(false);
-      }
+      setTreeNodes(nodes);
+      setLoading(false);
     };
 
     buildAll();
-    return () => { cancelled = true; };
   }, [open, submissions, formId, formName]);
 
-  const handleNavigate = useCallback((submissionId: string) => {
-    navigate(`/submission/${submissionId}`);
-  }, [navigate]);
+  const toggleField = (id: string) => {
+    setSelectedFieldIds((prev) =>
+      prev.includes(id)
+        ? prev.filter((f) => f !== id)
+        : [...prev, id]
+    );
+  };
+
+  const handleNavigate = useCallback(
+    (id: string) => navigate(`/submission/${id}`),
+    [navigate]
+  );
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setDropdownOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[95vw] w-fit max-h-[90vh] flex flex-col overflow-hidden">
+      <DialogContent className="max-w-[65vw] max-h-[90vh] overflow-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <GitBranch className="h-5 w-5 text-primary" />
-            Record Linkage Map
-            <Badge variant="outline" className="ml-2">
-              {submissions.length} records
-            </Badge>
+            Relationship Map
+            <Badge variant="outline">{submissions.length}</Badge>
           </DialogTitle>
-          <p className="text-xs text-muted-foreground">
-            Left-to-right tree showing all cross-reference linked records. Click the arrow to view a record.
-          </p>
+
+          {/* MULTI FIELD DROPDOWN */}
+          <div className="relative mt-3">
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium">
+                Display Fields:
+              </label>
+
+              <div className="relative" ref={dropdownRef}>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setDropdownOpen((prev) => !prev);
+                  }}
+                  className="border rounded px-3 py-1 text-sm bg-background hover:bg-muted min-w-[200px] text-left"
+                >
+                  {selectedFieldIds.length > 0
+                    ? `${selectedFieldIds.length} field(s) selected`
+                    : "Select fields"}
+                </button>
+
+                {dropdownOpen && (
+                  <div className="absolute z-50 mt-1 w-64 bg-card border rounded shadow-lg max-h-60 overflow-auto p-2">
+                    {formFields.map((field) => (
+                      <label
+                        key={field.id}
+                        className="flex items-center gap-2 text-sm p-1 hover:bg-muted rounded cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedFieldIds.includes(field.id)}
+                          onChange={() => toggleField(field.id)}
+                        />
+                        {field.label}
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         </DialogHeader>
 
-        <div className="flex-1 overflow-auto" ref={scrollRef}>
-          <div className="p-4">
-            {loading ? (
-              <div className="flex items-center justify-center gap-2 h-40 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Building linkage map...
-              </div>
-            ) : treeNodes.length === 0 ? (
-              <div className="flex items-center justify-center h-40 text-sm text-muted-foreground">
-                No records to display
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {treeNodes.map(node => (
-                  <HorizontalTree
-                    key={node.id}
-                    node={node}
-                    onNavigate={handleNavigate}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
+        <div className="mt-4 space-y-3">
+          {loading ? (
+            <div className="flex items-center gap-2">
+              <Loader2 className="animate-spin h-4 w-4" />
+              Building linkage map...
+            </div>
+          ) : (
+            treeNodes.map((node) => (
+              <HorizontalTree
+                key={node.id}
+                node={node}
+                onNavigate={handleNavigate}
+                selectedFieldIds={selectedFieldIds}
+              />
+            ))
+          )}
         </div>
       </DialogContent>
     </Dialog>
