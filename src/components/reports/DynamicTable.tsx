@@ -1099,7 +1099,7 @@ export function DynamicTable({
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => setShowLinkageMap(true)}>
                     <GitBranch className="h-4 w-4 mr-2" />
-                    Record Linkage Map
+                    Relationship Map
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
