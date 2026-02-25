@@ -415,6 +415,8 @@ export function ExcelFormImporter({ onImport }: ExcelFormImporterProps) {
           options: options,
           defaultValue: colMap['default'] !== undefined ? String(row[colMap['default']] || '') : undefined,
           tooltip: colMap['tooltip'] !== undefined ? String(row[colMap['tooltip']] || '') : undefined,
+          makeUnique: colMap['unique'] !== undefined ? parseBoolean(row[colMap['unique']]) : false,
+          weightage: colMap['weightage'] !== undefined ? (Number(row[colMap['weightage']]) || 0) : 0,
           isValid: errors.length === 0,
           errors,
         };
@@ -652,11 +654,11 @@ export function ExcelFormImporter({ onImport }: ExcelFormImporterProps) {
                               <TableCell className="text-xs text-muted-foreground max-w-[150px] truncate">
                                 {field.tooltip || '—'}
                               </TableCell>
-                              <TableCell className="text-xs text-muted-foreground max-w-[150px] truncate">
-                                {field.makeUnique || '—'}
+                              <TableCell className="text-xs text-muted-foreground">
+                                {field.makeUnique ? <Badge variant="secondary" className="text-xs">Yes</Badge> : '—'}
                               </TableCell>
-                              <TableCell className="text-xs text-muted-foreground max-w-[150px] truncate">
-                                {field.weightage || '—'}
+                              <TableCell className="text-xs text-muted-foreground">
+                                {field.weightage ? field.weightage : '—'}
                               </TableCell>
                               <TableCell>
                                 {field.isValid ? (
