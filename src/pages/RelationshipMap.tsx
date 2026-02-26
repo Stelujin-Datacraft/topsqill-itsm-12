@@ -288,7 +288,7 @@ function HorizontalTreeView({ node, onNavigate }: { node: TreeNode; onNavigate: 
           <div className="flex flex-col gap-3 relative">
             {node.children.length > 1 && (
               <div
-                className="absolute left-0 w-px bg-border"
+                className="absolute left-0 w-px bg-black"
                 style={{
                   top: '50%',
                   height: `calc(100% - 20px)`,
@@ -297,9 +297,9 @@ function HorizontalTreeView({ node, onNavigate }: { node: TreeNode; onNavigate: 
               />
             )}
             {node.children.map((child, idx) => (
-              <div key={child.id} className="flex items-center relative">
+              <div key={child.id} className="flex items-center relative ">
                 {node.children.length > 1 && (
-                  <div className="w-4 h-px bg-border flex-shrink-0" />
+                  <div className="w-4 h-px bg-border flex-shrink-0 bg-black" />
                 )}
                 <HorizontalTreeView node={child} onNavigate={onNavigate} />
               </div>
