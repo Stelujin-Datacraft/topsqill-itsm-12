@@ -248,21 +248,22 @@ function MapNodeCard({ node, onNavigate }: { node: TreeNode; onNavigate: (id: st
         : 'border-border bg-card hover:border-muted-foreground/40'
     }`}>
       <div className="flex items-center justify-between gap-2">
-        <span className="font-mono font-bold text-sm">{node.submissionRefId}</span>
+        <span className="font-mono font-bold text-xs">{node.submissionRefId}</span>
         <Button variant="ghost" size="icon" className="h-5 w-5 flex-shrink-0" onClick={() => onNavigate(node.id)}>
           <ExternalLink className="h-3 w-3" />
         </Button>
       </div>
       <Badge variant="secondary" className="text-[10px] w-fit">{node.formName}</Badge>
-      {mapValues.length > 0 && (
-        <div className="mt-1 space-y-0.5 border-t border-border/50 pt-1">
-          {mapValues.map((mv, i) => (
-            <div key={i} className="text-[10px] text-muted-foreground truncate">
-              <span className="font-medium">{mv.label}:</span> {mv.value}
-            </div>
-          ))}
-        </div>
-      )}
+     {mapValues.map((mv, i) => (
+  <div key={i} className="text-sm min-w-0">
+    <div className="text-muted-foreground text-sm font-semibold">
+      {mv.label}:
+    </div>
+    <div className="font-mono break-words whitespace-pre-wrap">
+      {mv.value}
+    </div>
+  </div>
+))}
     </div>
   );
 }
