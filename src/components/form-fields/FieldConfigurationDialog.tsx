@@ -380,6 +380,38 @@ export function FieldConfigurationDialog({ field, open, onClose, onSave }: Field
                   <Label>Enable Search</Label>
                 </div>
               </div>
+
+              {/* Relationship Map Display Fields */}
+              <div className="space-y-2 p-4 border border-purple-200 rounded-lg bg-purple-50 dark:bg-purple-950/20 dark:border-purple-800">
+                <Label className="text-base font-semibold">🗺️ Relationship Map Display Fields</Label>
+                <p className="text-sm text-muted-foreground mb-2">
+                  Select fields to display on each node in the Relationship Map page. These values will appear alongside the record ID in the visual map.
+                </p>
+                <div className="grid grid-cols-2 gap-2 mt-2 p-3 bg-background rounded border">
+                  {targetFormFields.map((field) => (
+                    <div key={field.id} className="flex items-center space-x-2">
+                      <Checkbox
+                        checked={(config.mapDisplayFields || []).includes(field.id)}
+                        onCheckedChange={(checked) => {
+                          const current = config.mapDisplayFields || [];
+                          setConfig({
+                            ...config,
+                            mapDisplayFields: checked
+                              ? [...current, field.id]
+                              : current.filter((id: string) => id !== field.id)
+                          });
+                        }}
+                      />
+                      <span className="text-sm">{field.label}</span>
+                    </div>
+                  ))}
+                </div>
+                {config.mapDisplayFields && config.mapDisplayFields.length > 0 && (
+                  <p className="text-xs text-purple-600 dark:text-purple-400 flex items-center gap-1">
+                    ✓ Map display: {config.mapDisplayFields.map((fId: string) => targetFormFields.find(f => f.id === fId)?.label).filter(Boolean).join(', ')}
+                  </p>
+                )}
+              </div>
             </>
           )}
 

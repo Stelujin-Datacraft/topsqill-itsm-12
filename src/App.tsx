@@ -57,6 +57,7 @@ const ReportEditor = lazy(() => import("./pages/ReportEditor"));
 const ReportViewerPage = lazy(() => import("./pages/ReportViewer"));
 const ReportAccessManagement = lazy(() => import("./pages/ReportAccessManagement"));
 const DashboardView = lazy(() => import("./pages/DashboardView"));
+const RelationshipMap = lazy(() => import("./pages/RelationshipMap"));
 
 // Admin & Settings
 const Users = lazy(() => import("./pages/Users"));
@@ -182,6 +183,7 @@ const App = () => (
                         <Route path="/report-editor/:id" element={<ReportEditor />} />
                         <Route path="/report-view/:id" element={<ReportViewerPage />} />
                         <Route path="/report/:id/access" element={<ReportAccessManagement />} />
+                        <Route path="/relationship-map" element={<RelationshipMap />} />
                         
                         {/* Admin */}
                         <Route path="/users" element={<Users />} />
