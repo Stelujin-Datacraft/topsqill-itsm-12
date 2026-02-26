@@ -24,8 +24,13 @@ import {
   Copy,
   Edit,
   Eye,
-  Activity
+  Activity,
+  Download,
+  Image,
+  FileImage,
 } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { exportAsPng, exportAsSvg } from '@/utils/diagramExport';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { Workflow, WorkflowNode, WorkflowConnection } from '@/types/workflow';
@@ -63,8 +68,8 @@ const WorkflowViewerPage = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
 
-  // Empty ref for read-only mode (nodes won't be selectable)
   const emptySelectRef = useRef(() => {});
+  const diagramRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (id) {
@@ -150,8 +155,38 @@ const WorkflowViewerPage = () => {
     }
   };
 
+  const handleExportPng = async () => {
+    if (!diagramRef.current) return;
+    await exportAsPng(diagramRef.current, `${workflow?.name || 'workflow'}-diagram`);
+    toast({ title: "Exported", description: "Diagram downloaded as PNG" });
+  };
+
+  const handleExportSvg = async () => {
+    if (!diagramRef.current) return;
+    await exportAsSvg(diagramRef.current, `${workflow?.name || 'workflow'}-diagram`);
+    toast({ title: "Exported", description: "Diagram downloaded as SVG (Visio-compatible)" });
+  };
+
   const headerActions = (
     <div className="flex items-center gap-2">
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="outline" size="sm">
+            <Download className="h-4 w-4 mr-2" />
+            Export Diagram
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={handleExportPng}>
+            <Image className="h-4 w-4 mr-2" />
+            Download as PNG
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={handleExportSvg}>
+            <FileImage className="h-4 w-4 mr-2" />
+            Download as SVG (Visio)
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
       <Button variant="outline" size="sm" onClick={handleCopyLink}>
         <Copy className="h-4 w-4 mr-2" />
         Copy Link
@@ -264,7 +299,7 @@ const WorkflowViewerPage = () => {
                     No nodes configured in this workflow
                   </div>
                 ) : (
-                  <div className="h-[500px] w-full border-t">
+                  <div className="h-[500px] w-full border-t" ref={diagramRef}>
                     <ReactFlowProvider>
                       <ReactFlow
                         nodes={reactFlowNodes}

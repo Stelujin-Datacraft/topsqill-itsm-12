@@ -2,9 +2,12 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, ExternalLink, GitBranch } from 'lucide-react';
+import { Loader2, ExternalLink, GitBranch, Download, Image, FileImage } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
+import { exportAsPng, exportAsSvg } from '@/utils/diagramExport';
+import { useToast } from '@/hooks/use-toast';
 
 interface TreeNode {
   id: string;
@@ -308,6 +311,8 @@ export function RecordLinkageMap({
   const [loading, setLoading] = useState(false);
   const [selectedFieldIds, setSelectedFieldIds] = useState<string[]>([]);
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const treeContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open || !submissions.length) return;
@@ -376,6 +381,34 @@ export function RecordLinkageMap({
             <GitBranch className="h-5 w-5 text-primary" />
             Relationship Map
             <Badge variant="outline">{submissions.length}</Badge>
+            <div className="ml-auto">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <Download className="h-4 w-4 mr-2" />
+                    Export
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={async () => {
+                    if (!treeContainerRef.current) return;
+                    await exportAsPng(treeContainerRef.current, `${formName}-relationship-map`);
+                    toast({ title: "Exported", description: "Map downloaded as PNG" });
+                  }}>
+                    <Image className="h-4 w-4 mr-2" />
+                    Download as PNG
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={async () => {
+                    if (!treeContainerRef.current) return;
+                    await exportAsSvg(treeContainerRef.current, `${formName}-relationship-map`);
+                    toast({ title: "Exported", description: "Map downloaded as SVG (Visio)" });
+                  }}>
+                    <FileImage className="h-4 w-4 mr-2" />
+                    Download as SVG (Visio)
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </DialogTitle>
 
           {/* MULTI FIELD DROPDOWN */}
@@ -421,7 +454,7 @@ export function RecordLinkageMap({
           </div>
         </DialogHeader>
 
-        <div className="mt-4 space-y-3">
+        <div className="mt-4 space-y-3" ref={treeContainerRef}>
           {loading ? (
             <div className="flex items-center gap-2">
               <Loader2 className="animate-spin h-4 w-4" />
