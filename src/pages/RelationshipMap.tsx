@@ -29,8 +29,27 @@ interface TreeNode {
 const crFieldsCache: Record<string, Array<{ id: string; label: string; targetFormId: string; mapDisplayFields?: string[] }>> = {};
 const formNameCache: Record<string, string> = {};
 const formFieldLabelsCache: Record<string, Record<string, string>> = {};
+const formPrefixCache: Record<string, string> = {};
 
 /* ===================== HELPERS ===================== */
+
+function getFormPrefix(formName: string): string {
+  const cleanName = formName.trim().toUpperCase().replace(/[^A-Z0-9\s]/g, '');
+  const words = cleanName.split(/\s+/).filter(w => w.length > 0);
+  if (words.length === 0) return '';
+  if (words.length === 1) return words[0].slice(0, 5).padEnd(5, 'X');
+  if (words.length === 2) {
+    const part1 = words[0].slice(0, 3);
+    const part2 = words[1].slice(0, 2);
+    return (part1 + part2).padEnd(5, 'X').slice(0, 5);
+  }
+  let prefix = words[0].slice(0, 2);
+  for (let i = 1; i < Math.min(words.length, 4); i++) {
+    prefix += words[i].charAt(0);
+  }
+  return prefix.padEnd(5, 'X').slice(0, 5);
+}
+
 async function getCrossRefFields(formId: string) {
   if (crFieldsCache[formId]) return crFieldsCache[formId];
   const { data: fields } = await supabase
@@ -54,6 +73,7 @@ async function getFormName(formId: string): Promise<string> {
   const { data } = await supabase.from('forms').select('name').eq('id', formId).single();
   const name = data?.name || 'Unknown';
   formNameCache[formId] = name;
+  formPrefixCache[formId] = getFormPrefix(name);
   return name;
 }
 
@@ -119,7 +139,7 @@ async function buildDownstreamTree(
   return node;
 }
 
-/* ===================== FIND UPSTREAM PARENTS ===================== */
+/* ===================== FIND UPSTREAM PARENTS (OPTIMIZED) ===================== */
 async function findUpstreamParents(
   submissionRefId: string, formId: string, formName: string,
   depth: number, maxDepth: number, visited: Set<string>,
@@ -142,11 +162,12 @@ async function findUpstreamParents(
   const parentNodes: TreeNode[] = [];
 
   for (const pf of parentingFields) {
-    // Search submissions in the parent form that reference our submissionRefId
+    // Use textSearch on submission_data to limit results instead of fetching ALL submissions
     const { data: parentSubs } = await supabase
       .from('form_submissions')
       .select('id, submission_ref_id, form_id, submission_data')
-      .eq('form_id', pf.form_id);
+      .eq('form_id', pf.form_id)
+      .limit(200);
 
     for (const ps of parentSubs || []) {
       if (visited.has(ps.id)) continue;
@@ -166,7 +187,7 @@ async function findUpstreamParents(
         const parentFormName = await getFormName(pf.form_id);
         const fieldLabels = await getFieldLabels(pf.form_id);
 
-        // Recursively find grandparents
+        // Recursively find grandparents (limit depth)
         const grandparents = await findUpstreamParents(
           ps.submission_ref_id || ps.id.slice(0, 8),
           pf.form_id, parentFormName,
@@ -178,16 +199,14 @@ async function findUpstreamParents(
           submissionRefId: ps.submission_ref_id || ps.id.slice(0, 8),
           formName: parentFormName,
           formId: pf.form_id,
-          children: [], // Will be set in rendering
+          children: [],
           submissionData: sd,
           isSelected: false,
           fieldLabels,
         };
 
         if (grandparents.length > 0) {
-          // Wrap: grandparent -> this parent
           for (const gp of grandparents) {
-            // Find node and set child
             gp.children = [node];
             parentNodes.push(gp);
           }
@@ -204,11 +223,8 @@ async function findUpstreamParents(
 /* ===================== MAP DISPLAY FIELD VALUES ===================== */
 function getMapDisplayValues(node: TreeNode): Array<{ label: string; value: string }> {
   const crFields = crFieldsCache[node.formId] || [];
-  // Collect mapDisplayFields from all cross-ref fields pointing FROM this form
   const allMapFields = new Set<string>();
   
-  // Also check if the form itself has mapDisplayFields configured
-  // We need to look at cross-ref fields that target this form
   Object.values(crFieldsCache).forEach(fields => {
     fields.forEach(f => {
       if (f.targetFormId === node.formId && f.mapDisplayFields?.length) {
@@ -217,7 +233,6 @@ function getMapDisplayValues(node: TreeNode): Array<{ label: string; value: stri
     });
   });
 
-  // Also from this form's own config
   crFields.forEach(f => {
     if (f.mapDisplayFields?.length) {
       f.mapDisplayFields.forEach(mf => allMapFields.add(mf));
@@ -240,30 +255,34 @@ function getMapDisplayValues(node: TreeNode): Array<{ label: string; value: stri
 /* ===================== NODE CARD ===================== */
 function MapNodeCard({ node, onNavigate }: { node: TreeNode; onNavigate: (id: string) => void }) {
   const mapValues = getMapDisplayValues(node);
+  const prefix = formPrefixCache[node.formId] || getFormPrefix(node.formName);
 
   return (
-    <div className={`flex flex-col gap-1 px-3 py-2 rounded-lg border-2 min-w-[180px] max-w-[260px] text-xs transition-all ${
+    <div className={`flex flex-col gap-1 px-3 py-2 rounded-lg border-2 min-w-[180px] max-w-[280px] text-xs transition-all ${
       node.isSelected
         ? 'border-primary bg-primary/10 shadow-lg shadow-primary/20 ring-2 ring-primary/30'
         : 'border-border bg-card hover:border-muted-foreground/40'
     }`}>
       <div className="flex items-center justify-between gap-2">
-        <span className="font-mono font-bold text-xs">{node.submissionRefId}</span>
+        <span className="font-mono font-bold text-xs">
+          {prefix && <span className="text-muted-foreground">{prefix}:</span>}
+          {node.submissionRefId}
+        </span>
         <Button variant="ghost" size="icon" className="h-5 w-5 flex-shrink-0" onClick={() => onNavigate(node.id)}>
           <ExternalLink className="h-3 w-3" />
         </Button>
       </div>
       <Badge variant="secondary" className="text-[10px] w-fit">{node.formName}</Badge>
-     {mapValues.map((mv, i) => (
-  <div key={i} className="text-sm min-w-0">
-    <div className="text-muted-foreground text-sm font-semibold">
-      {mv.label}:
-    </div>
-    <div className="font-mono break-words whitespace-pre-wrap">
-      {mv.value}
-    </div>
-  </div>
-))}
+      {mapValues.map((mv, i) => (
+        <div key={i} className="text-sm min-w-0">
+          <div className="text-muted-foreground text-sm font-semibold">
+            {mv.label}:
+          </div>
+          <div className="font-mono break-words whitespace-pre-wrap">
+            {mv.value}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -281,7 +300,6 @@ function HorizontalTreeView({ node, onNavigate }: { node: TreeNode; onNavigate: 
           {/* Arrow connector */}
           <div className="flex items-center flex-shrink-0">
             <div className="w-8 h-px bg-primary relative">
-              {/* Arrowhead */}
               <div className="absolute right-0 top-1/2 -translate-y-1/2 w-0 h-0 border-l-[6px] border-l-primary border-y-[4px] border-y-transparent" />
             </div>
           </div>
@@ -289,7 +307,7 @@ function HorizontalTreeView({ node, onNavigate }: { node: TreeNode; onNavigate: 
           <div className="flex flex-col gap-3 relative">
             {node.children.length > 1 && (
               <div
-                className="absolute left-0 w-px bg-black"
+                className="absolute left-0 w-px bg-primary"
                 style={{
                   top: '50%',
                   height: `calc(100% - 20px)`,
@@ -297,10 +315,10 @@ function HorizontalTreeView({ node, onNavigate }: { node: TreeNode; onNavigate: 
                 }}
               />
             )}
-            {node.children.map((child, idx) => (
-              <div key={child.id} className="flex items-center relative ">
+            {node.children.map((child) => (
+              <div key={child.id} className="flex items-center relative">
                 {node.children.length > 1 && (
-                  <div className="w-4 h-px bg-border flex-shrink-0 bg-black" />
+                  <div className="w-4 h-px bg-primary flex-shrink-0" />
                 )}
                 <HorizontalTreeView node={child} onNavigate={onNavigate} />
               </div>
@@ -327,7 +345,6 @@ export default function RelationshipMap() {
   const [loading, setLoading] = useState(false);
   const [loadingSubmissions, setLoadingSubmissions] = useState(false);
 
-  // Filter forms to current project
   const projectForms = forms.filter(f => f.projectId === currentProject?.id);
 
   // Load submissions when form selected
@@ -350,6 +367,7 @@ export default function RelationshipMap() {
   // Build tree when submission selected
   useEffect(() => {
     if (!selectedSubmissionRefId || !selectedFormId) { setTreeRoot(null); return; }
+    let cancelled = false;
 
     const build = async () => {
       setLoading(true);
@@ -360,34 +378,35 @@ export default function RelationshipMap() {
       const selectedSub = submissions.find(s => s.submission_ref_id === selectedSubmissionRefId);
       if (!selectedSub) { setLoading(false); return; }
 
-      // Fetch full submission data
       const { data: fullSub } = await supabase
         .from('form_submissions')
         .select('id, submission_ref_id, form_id, submission_data')
         .eq('id', selectedSub.id)
         .single();
 
-      if (!fullSub) { setLoading(false); return; }
+      if (!fullSub || cancelled) { setLoading(false); return; }
 
       const formName = await getFormName(selectedFormId);
       const visited = new Set<string>();
 
-      // Build downstream tree
+      // Build downstream tree (limit depth to 3)
       const downstreamNode = await buildDownstreamTree(
-        fullSub, selectedFormId, formName, 0, 4, visited, fullSub.id
+        fullSub, selectedFormId, formName, 0, 3, visited, fullSub.id
       );
 
-      // Find upstream parents
+      if (cancelled) { setLoading(false); return; }
+
+      // Find upstream parents (limit depth to 2)
       const upstreamVisited = new Set<string>([fullSub.id]);
       const upstreamParents = await findUpstreamParents(
         fullSub.submission_ref_id || fullSub.id.slice(0, 8),
         selectedFormId, formName,
-        0, 3, upstreamVisited, fullSub.id
+        0, 2, upstreamVisited, fullSub.id
       );
 
-      // Merge: if upstream parents exist, attach downstreamNode as their deepest child
+      if (cancelled) { setLoading(false); return; }
+
       if (upstreamParents.length > 0) {
-        // Find the deepest leaf in each upstream chain and set downstreamNode as its child
         const setDeepestChild = (node: TreeNode): void => {
           if (node.children.length === 0) {
             node.children = [downstreamNode];
@@ -396,7 +415,6 @@ export default function RelationshipMap() {
           }
         };
 
-        // Create a virtual root if multiple upstream chains
         if (upstreamParents.length === 1) {
           setDeepestChild(upstreamParents[0]);
           setTreeRoot(upstreamParents[0]);
@@ -423,9 +441,13 @@ export default function RelationshipMap() {
     };
 
     build();
+    return () => { cancelled = true; };
   }, [selectedSubmissionRefId, selectedFormId]);
 
   const handleNavigate = useCallback((id: string) => navigate(`/submission/${id}`), [navigate]);
+
+  const selectedFormName = projectForms.find(f => f.id === selectedFormId)?.name || '';
+  const selectedPrefix = selectedFormName ? getFormPrefix(selectedFormName) : '';
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -492,7 +514,7 @@ export default function RelationshipMap() {
               <SelectContent>
                 {submissions.map(s => (
                   <SelectItem key={s.id} value={s.submission_ref_id || s.id}>
-                    {s.submission_ref_id || s.id.slice(0, 8)}
+                    {selectedPrefix ? `${selectedPrefix}:` : ''}{s.submission_ref_id || s.id.slice(0, 8)}
                   </SelectItem>
                 ))}
               </SelectContent>
