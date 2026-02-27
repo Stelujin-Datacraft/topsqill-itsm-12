@@ -34,6 +34,23 @@ const formNameCache: Record<string, string> = {};
 
 /* ===================== HELPERS ===================== */
 
+function getFormPrefix(formName: string): string {
+  const cleanName = formName.trim().toUpperCase().replace(/[^A-Z0-9\s]/g, '');
+  const words = cleanName.split(/\s+/).filter(w => w.length > 0);
+  if (words.length === 0) return '';
+  if (words.length === 1) return words[0].slice(0, 5).padEnd(5, 'X');
+  if (words.length === 2) {
+    const part1 = words[0].slice(0, 3);
+    const part2 = words[1].slice(0, 2);
+    return (part1 + part2).padEnd(5, 'X').slice(0, 5);
+  }
+  let prefix = words[0].slice(0, 2);
+  for (let i = 1; i < Math.min(words.length, 4); i++) {
+    prefix += words[i].charAt(0);
+  }
+  return prefix.padEnd(5, 'X').slice(0, 5);
+}
+
 async function getCrossRefFields(formId: string) {
   if (crFieldsCache[formId]) return crFieldsCache[formId];
 
@@ -155,66 +172,24 @@ async function buildTreeNode(
 function NodeCard({
   node,
   onNavigate,
-  selectedFieldIds,
 }: {
   node: TreeNode;
   onNavigate: (id: string) => void;
-  selectedFieldIds?: string[];
 }) {
-  const combinedValues: string[] = [];
-
-  selectedFieldIds?.forEach((fieldId) => {
-    const value = node.submissionData?.[fieldId];
-    if (!value) return;
-
-    if (Array.isArray(value)) {
-      value.forEach((v) => {
-        if (typeof v === "object") {
-          combinedValues.push(
-            v?.submission_ref_id?.toString() || JSON.stringify(v)
-          );
-        } else {
-          combinedValues.push(v.toString());
-        }
-      });
-    } else if (typeof value === "object") {
-      combinedValues.push(
-        value?.submission_ref_id?.toString() || JSON.stringify(value)
-      );
-    } else {
-      combinedValues.push(value.toString());
-    }
-  });
-
-  const [valueOpen, setValueOpen] = useState(false);
-  const valueRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (
-        valueRef.current &&
-        !valueRef.current.contains(event.target as Node)
-      ) {
-        setValueOpen(false);
-      }
-    }
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
+  const prefix = getFormPrefix(node.formName);
 
   return (
-    <div className="flex items-center gap-2 px-3 py-2 rounded-md border border-border bg-card text-xs relative">
+    <div className="flex items-center gap-2 px-3 py-2 rounded-md border border-border bg-card text-xs">
       <div>
-        <span className="font-mono font-semibold">{node.submissionRefId}</span>
+        <span className="font-mono font-semibold">
+          {prefix && <span className="text-muted-foreground">{prefix}:</span>}
+          {node.submissionRefId}
+        </span>
         <span className="ml-2 text-muted-foreground text-[10px]">
           ({node.formName})
         </span>
       </div>
 
-      {/* Navigate Button */}
       <Button
         variant="ghost"
         size="icon"
@@ -224,38 +199,8 @@ function NodeCard({
           onNavigate(node.id);
         }}
       >
-        <ExternalLink className="h-3 w-3 text-gray-800" />
+        <ExternalLink className="h-3 w-3 text-primary" />
       </Button>
-
-      {/* VALUE DROPDOWN BUTTON */}
-      {combinedValues.length > 0 && (
-        <div className="relative" ref={valueRef}>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-6 text-xs px-2"
-            onClick={(e) => {
-              e.stopPropagation();
-              setValueOpen((prev) => !prev);
-            }}
-          >
-            Values ({combinedValues.length})
-          </Button>
-
-          {valueOpen && (
-            <div className="absolute right-0 mt-1 w-48 bg-card border rounded shadow-lg z-50 max-h-40 overflow-auto p-2">
-              {combinedValues.map((val, i) => (
-                <div
-                  key={i}
-                  className="text-xs p-1 hover:bg-muted rounded break-words"
-                >
-                  {val}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }
@@ -265,29 +210,44 @@ function NodeCard({
 function HorizontalTree({
   node,
   onNavigate,
-  selectedFieldIds,
-}: any) {
+}: {
+  node: TreeNode;
+  onNavigate: (id: string) => void;
+}) {
+  const hasChildren = node.children.length > 0;
+
   return (
     <div className="flex items-center">
-      <NodeCard
-        node={node}
-        onNavigate={onNavigate}
-        selectedFieldIds={selectedFieldIds}
-      />
+      <NodeCard node={node} onNavigate={onNavigate} />
 
-      {node.children.length > 0 && (
+      {hasChildren && (
         <>
-          <div className="w-5 h-px bg-gray-800" />
+          {/* Arrow connector from parent to branch point */}
+          <div className="flex items-center flex-shrink-0">
+            <div className="w-6 h-px bg-primary relative">
+              <div className="absolute right-0 top-1/2 -translate-y-1/2 w-0 h-0 border-l-[5px] border-l-primary border-y-[3px] border-y-transparent" />
+            </div>
+          </div>
 
-          <div className="flex flex-col">
-            {node.children.map((child: TreeNode) => (
-              <div key={child.id} className="flex items-center">
-                <div className="w-5 h-px bg-gray-800" />
-                <HorizontalTree
-                  node={child}
-                  onNavigate={onNavigate}
-                  selectedFieldIds={selectedFieldIds}
-                />
+          <div className="flex flex-col gap-2 relative">
+            {/* Vertical connector line for multiple children */}
+            {node.children.length > 1 && (
+              <div
+                className="absolute left-0 w-px bg-primary"
+                style={{
+                  top: '50%',
+                  height: `calc(100% - 16px)`,
+                  transform: 'translateY(-50%)',
+                }}
+              />
+            )}
+            {node.children.map((child) => (
+              <div key={child.id} className="flex items-center relative">
+                {/* Horizontal branch line to child */}
+                {node.children.length > 1 && (
+                  <div className="w-4 h-px bg-primary flex-shrink-0" />
+                )}
+                <HorizontalTree node={child} onNavigate={onNavigate} />
               </div>
             ))}
           </div>
@@ -309,7 +269,6 @@ export function RecordLinkageMap({
 }: RecordLinkageMapProps) {
   const [treeNodes, setTreeNodes] = useState<TreeNode[]>([]);
   const [loading, setLoading] = useState(false);
-  const [selectedFieldIds, setSelectedFieldIds] = useState<string[]>([]);
   const navigate = useNavigate();
   const { toast } = useToast();
   const treeContainerRef = useRef<HTMLDivElement>(null);
@@ -341,37 +300,10 @@ export function RecordLinkageMap({
     buildAll();
   }, [open, submissions, formId, formName]);
 
-  const toggleField = (id: string) => {
-    setSelectedFieldIds((prev) =>
-      prev.includes(id)
-        ? prev.filter((f) => f !== id)
-        : [...prev, id]
-    );
-  };
-
   const handleNavigate = useCallback(
     (id: string) => navigate(`/submission/${id}`),
     [navigate]
   );
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
-        setDropdownOpen(false);
-      }
-    }
-
-    document.addEventListener("mousedown", handleClickOutside);
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -410,48 +342,6 @@ export function RecordLinkageMap({
               </DropdownMenu>
             </div>
           </DialogTitle>
-
-          {/* MULTI FIELD DROPDOWN */}
-          <div className="relative mt-3">
-            <div className="flex items-center gap-2">
-              <label className="text-sm font-medium">
-                Display Fields:
-              </label>
-
-              <div className="relative" ref={dropdownRef}>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setDropdownOpen((prev) => !prev);
-                  }}
-                  className="border rounded px-3 py-1 text-sm bg-background hover:bg-muted min-w-[200px] text-left"
-                >
-                  {selectedFieldIds.length > 0
-                    ? `${selectedFieldIds.length} field(s) selected`
-                    : "Select fields"}
-                </button>
-
-                {dropdownOpen && (
-                  <div className="absolute z-50 mt-1 w-64 bg-card border rounded shadow-lg max-h-60 overflow-auto p-2">
-                    {formFields.map((field) => (
-                      <label
-                        key={field.id}
-                        className="flex items-center gap-2 text-sm p-1 hover:bg-muted rounded cursor-pointer"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selectedFieldIds.includes(field.id)}
-                          onChange={() => toggleField(field.id)}
-                        />
-                        {field.label}
-                      </label>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
         </DialogHeader>
 
         <div className="mt-4 space-y-3" ref={treeContainerRef}>
@@ -466,7 +356,6 @@ export function RecordLinkageMap({
                 key={node.id}
                 node={node}
                 onNavigate={handleNavigate}
-                selectedFieldIds={selectedFieldIds}
               />
             ))
           )}
