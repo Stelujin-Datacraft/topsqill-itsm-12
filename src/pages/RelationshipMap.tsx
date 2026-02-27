@@ -113,6 +113,9 @@ async function buildDownstreamTree(
   visited.add(submission.id);
 
   const crFields = await getCrossRefFields(formId);
+  
+  // Collect all ref IDs and their target forms first
+  const linkQueries: Array<{ crField: typeof crFields[0]; refIds: string[] }> = [];
   for (const crField of crFields) {
     const value = node.submissionData?.[crField.id];
     if (!value) continue;
@@ -122,24 +125,54 @@ async function buildDownstreamTree(
     } else if (typeof value === 'string') {
       refIds = value.split(',').map((s: string) => s.trim()).filter(Boolean);
     }
-    if (!refIds.length) continue;
+    if (refIds.length) linkQueries.push({ crField, refIds });
+  }
 
-    const { data: linkedSubs } = await supabase
-      .from('form_submissions')
-      .select('id, submission_ref_id, form_id, submission_data')
-      .eq('form_id', crField.targetFormId)
-      .in('submission_ref_id', refIds);
+  // Execute all link queries in parallel
+  const linkResults = await Promise.all(
+    linkQueries.map(async ({ crField, refIds }) => {
+      const [{ data: linkedSubs }, targetName] = await Promise.all([
+        supabase
+          .from('form_submissions')
+          .select('id, submission_ref_id, form_id, submission_data')
+          .eq('form_id', crField.targetFormId)
+          .in('submission_ref_id', refIds),
+        getFormName(crField.targetFormId),
+      ]);
+      return { linkedSubs: linkedSubs || [], targetName, targetFormId: crField.targetFormId };
+    })
+  );
 
-    const targetName = await getFormName(crField.targetFormId);
-    for (const ls of linkedSubs || []) {
-      const childNode = await buildDownstreamTree(ls, ls.form_id, targetName, depth + 1, maxDepth, visited, selectedSubmissionId);
-      node.children.push(childNode);
+  // Build child nodes (parallel per batch)
+  const childPromises: Promise<TreeNode>[] = [];
+  for (const { linkedSubs, targetName } of linkResults) {
+    for (const ls of linkedSubs) {
+      childPromises.push(
+        buildDownstreamTree(ls, ls.form_id, targetName, depth + 1, maxDepth, visited, selectedSubmissionId)
+      );
     }
   }
+  node.children = await Promise.all(childPromises);
+
   return node;
 }
 
 /* ===================== FIND UPSTREAM PARENTS (OPTIMIZED) ===================== */
+const upstreamCrFieldsCache: Array<{ id: string; form_id: string; targetFormId: string }> | null = null;
+
+async function getAllCrossRefFields(): Promise<Array<{ id: string; form_id: string; targetFormId: string }>> {
+  const { data: allCrFields } = await supabase
+    .from('form_fields')
+    .select('id, form_id, custom_config')
+    .eq('field_type', 'cross-reference');
+
+  return (allCrFields || []).map(f => {
+    let config: any = f.custom_config;
+    if (typeof config === 'string') { try { config = JSON.parse(config); } catch { config = {}; } }
+    return { id: f.id, form_id: f.form_id as string, targetFormId: config?.targetFormId || '' };
+  }).filter(f => f.targetFormId);
+}
+
 async function findUpstreamParents(
   submissionRefId: string, formId: string, formName: string,
   depth: number, maxDepth: number, visited: Set<string>,
@@ -147,72 +180,103 @@ async function findUpstreamParents(
 ): Promise<TreeNode[]> {
   if (depth >= maxDepth) return [];
 
-  // Find all forms that have cross-reference fields pointing to this form
-  const { data: allCrFields } = await supabase
-    .from('form_fields')
-    .select('id, form_id, custom_config')
-    .eq('field_type', 'cross-reference');
+  const allCrFields = await getAllCrossRefFields();
+  const parentingFields = allCrFields.filter(f => f.targetFormId === formId);
 
-  const parentingFields = (allCrFields || []).filter(f => {
-    let config: any = f.custom_config;
-    if (typeof config === 'string') { try { config = JSON.parse(config); } catch { config = {}; } }
-    return config?.targetFormId === formId;
-  });
+  if (parentingFields.length === 0) return [];
 
   const parentNodes: TreeNode[] = [];
 
+  // Group by form_id to batch queries
+  const fieldsByForm = new Map<string, typeof parentingFields>();
   for (const pf of parentingFields) {
-    // Use textSearch on submission_data to limit results instead of fetching ALL submissions
-    const { data: parentSubs } = await supabase
-      .from('form_submissions')
-      .select('id, submission_ref_id, form_id, submission_data')
-      .eq('form_id', pf.form_id)
-      .limit(200);
+    const existing = fieldsByForm.get(pf.form_id) || [];
+    existing.push(pf);
+    fieldsByForm.set(pf.form_id, existing);
+  }
 
+  // Fetch all parent form submissions in parallel, using textSearch to filter
+  const formEntries = Array.from(fieldsByForm.entries());
+  const results = await Promise.all(
+    formEntries.map(([fId]) =>
+      supabase
+        .from('form_submissions')
+        .select('id, submission_ref_id, form_id, submission_data')
+        .eq('form_id', fId)
+        .textSearch('submission_data', submissionRefId, { type: 'plain' })
+        .limit(50)
+        .then(res => ({ formId: fId, data: res.data }))
+        // Fallback: if textSearch returns nothing, try a broader but still limited query
+        .then(async (res) => {
+          if (res.data && res.data.length > 0) return res;
+          const fallback = await supabase
+            .from('form_submissions')
+            .select('id, submission_ref_id, form_id, submission_data')
+            .eq('form_id', res.formId)
+            .limit(100);
+          return { formId: res.formId, data: fallback.data };
+        })
+    )
+  );
+
+  for (const { formId: fId, data: parentSubs } of results) {
+    const fields = fieldsByForm.get(fId) || [];
+    
     for (const ps of parentSubs || []) {
       if (visited.has(ps.id)) continue;
       const sd = parseSubmissionData(ps.submission_data);
-      const val = sd[pf.id];
-      if (!val) continue;
+      
+      let matched = false;
+      for (const pf of fields) {
+        const val = sd[pf.id];
+        if (!val) continue;
 
-      let refs: string[] = [];
-      if (Array.isArray(val)) {
-        refs = val.map((v: any) => v?.submission_ref_id || (typeof v === 'string' ? v : null)).filter(Boolean);
-      } else if (typeof val === 'string') {
-        refs = val.split(',').map((s: string) => s.trim()).filter(Boolean);
+        let refs: string[] = [];
+        if (Array.isArray(val)) {
+          refs = val.map((v: any) => v?.submission_ref_id || (typeof v === 'string' ? v : null)).filter(Boolean);
+        } else if (typeof val === 'string') {
+          refs = val.split(',').map((s: string) => s.trim()).filter(Boolean);
+        }
+
+        if (refs.includes(submissionRefId)) {
+          matched = true;
+          break;
+        }
       }
 
-      if (refs.includes(submissionRefId)) {
-        visited.add(ps.id);
-        const parentFormName = await getFormName(pf.form_id);
-        const fieldLabels = await getFieldLabels(pf.form_id);
+      if (!matched) continue;
+      
+      visited.add(ps.id);
+      const [parentFormName, fieldLabels] = await Promise.all([
+        getFormName(fId),
+        getFieldLabels(fId),
+      ]);
 
-        // Recursively find grandparents (limit depth)
-        const grandparents = await findUpstreamParents(
-          ps.submission_ref_id || ps.id.slice(0, 8),
-          pf.form_id, parentFormName,
-          depth + 1, maxDepth, visited, selectedSubmissionId
-        );
+      // Recursively find grandparents (limit depth)
+      const grandparents = await findUpstreamParents(
+        ps.submission_ref_id || ps.id.slice(0, 8),
+        fId, parentFormName,
+        depth + 1, maxDepth, visited, selectedSubmissionId
+      );
 
-        const node: TreeNode = {
-          id: ps.id,
-          submissionRefId: ps.submission_ref_id || ps.id.slice(0, 8),
-          formName: parentFormName,
-          formId: pf.form_id,
-          children: [],
-          submissionData: sd,
-          isSelected: false,
-          fieldLabels,
-        };
+      const node: TreeNode = {
+        id: ps.id,
+        submissionRefId: ps.submission_ref_id || ps.id.slice(0, 8),
+        formName: parentFormName,
+        formId: fId,
+        children: [],
+        submissionData: sd,
+        isSelected: false,
+        fieldLabels,
+      };
 
-        if (grandparents.length > 0) {
-          for (const gp of grandparents) {
-            gp.children = [node];
-            parentNodes.push(gp);
-          }
-        } else {
-          parentNodes.push(node);
+      if (grandparents.length > 0) {
+        for (const gp of grandparents) {
+          gp.children = [node];
+          parentNodes.push(gp);
         }
+      } else {
+        parentNodes.push(node);
       }
     }
   }
