@@ -16,6 +16,7 @@ import { TiptapEditor } from '@/components/ui/tiptap-editor';
 import { Select as SelectUI, SelectContent as SelectContentUI, SelectItem as SelectItemUI, SelectTrigger as SelectTriggerUI, SelectValue as SelectValueUI } from '@/components/ui/select';
 import { usePolicies } from '@/hooks/usePolicies';
 import { useProject } from '@/contexts/ProjectContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { POLICY_CATEGORIES, POLICY_STATUSES, POLICY_PRIORITIES } from '@/types/policy';
 import { PolicyDashboard } from '@/components/policies/PolicyDashboard';
 import type { PolicyTemplate } from '@/types/policy';
@@ -24,7 +25,9 @@ import { format, isPast } from 'date-fns';
 const Policies = () => {
   const navigate = useNavigate();
   const { currentProject } = useProject();
+  const { userProfile } = useAuth();
   const { policies, isLoading, templates, templatesLoading, deleteTemplate, updateTemplate } = usePolicies();
+  const isAdmin = userProfile?.role === 'admin';
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
@@ -80,16 +83,18 @@ const Policies = () => {
           <h1 className="text-2xl font-bold text-foreground">Policies</h1>
           <p className="text-sm text-muted-foreground">Manage organizational policies, compliance, and governance</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => navigate('/policies/create-template')} className="gap-2">
-            <LayoutTemplate className="h-4 w-4" />
-            Create Template
-          </Button>
-          <Button onClick={() => navigate('/policies/create')} className="gap-2">
-            <Plus className="h-4 w-4" />
-            Create Policy
-          </Button>
-        </div>
+        {isAdmin && (
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => navigate('/policies/create-template')} className="gap-2">
+              <LayoutTemplate className="h-4 w-4" />
+              Create Template
+            </Button>
+            <Button onClick={() => navigate('/policies/create')} className="gap-2">
+              <Plus className="h-4 w-4" />
+              Create Policy
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Tabs */}

@@ -386,8 +386,9 @@ export function usePolicyDetail(policyId?: string) {
         } as any)
         .eq('id', approvalId)
         .select()
-        .single();
+        .maybeSingle();
       if (error) throw error;
+      if (!data) throw new Error('Approval record not found. You may not have permission to respond to this approval.');
       return data;
     },
     onSuccess: () => {
@@ -408,8 +409,9 @@ export function usePolicyDetail(policyId?: string) {
         } as any)
         .eq('id', exceptionId)
         .select()
-        .single();
+        .maybeSingle();
       if (error) throw error;
+      if (!data) throw new Error('Exception record not found.');
       return data;
     },
     onSuccess: () => {
