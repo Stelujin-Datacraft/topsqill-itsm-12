@@ -8,9 +8,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { FileText, Upload, Sparkles } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { FileText, Sparkles } from 'lucide-react';
 import { usePolicies } from '@/hooks/usePolicies';
-import { POLICY_CATEGORIES } from '@/types/policy';
+import { POLICY_CATEGORIES, POLICY_PRIORITIES, REVIEW_CYCLE_OPTIONS } from '@/types/policy';
 import type { PolicyTemplate } from '@/types/policy';
 
 interface CreatePolicyDialogProps {
@@ -30,6 +31,12 @@ export function CreatePolicyDialog({ open, onOpenChange }: CreatePolicyDialogPro
     compliance_standard: '',
     compliance_reference: '',
     owner_type: 'user' as const,
+    priority: 'medium',
+    effective_date: '',
+    expiry_date: '',
+    review_cycle_days: 365,
+    acknowledgment_required: false,
+    exception_allowed: true,
   });
 
   const handleTemplateSelect = (template: PolicyTemplate) => {
@@ -44,6 +51,14 @@ export function CreatePolicyDialog({ open, onOpenChange }: CreatePolicyDialogPro
 
   const handleSubmit = async () => {
     if (!form.name.trim()) return;
+
+    // Calculate next_review_date from effective_date + review_cycle_days
+    let next_review_date: string | undefined;
+    if (form.effective_date && form.review_cycle_days) {
+      const d = new Date(form.effective_date);
+      d.setDate(d.getDate() + form.review_cycle_days);
+      next_review_date = d.toISOString().split('T')[0];
+    }
     
     await createPolicy.mutateAsync({
       name: form.name,
@@ -53,6 +68,13 @@ export function CreatePolicyDialog({ open, onOpenChange }: CreatePolicyDialogPro
       compliance_standard: form.compliance_standard || undefined,
       compliance_reference: form.compliance_reference || undefined,
       owner_type: form.owner_type,
+      priority: form.priority as any,
+      effective_date: form.effective_date || undefined,
+      expiry_date: form.expiry_date || undefined,
+      review_cycle_days: form.review_cycle_days,
+      next_review_date,
+      acknowledgment_required: form.acknowledgment_required,
+      exception_allowed: form.exception_allowed,
       content: selectedTemplate?.content_structure || {},
       template_id: selectedTemplate?.id,
       status: 'draft',
@@ -61,7 +83,12 @@ export function CreatePolicyDialog({ open, onOpenChange }: CreatePolicyDialogPro
     });
 
     // Reset
-    setForm({ name: '', description: '', category: 'General', department: '', compliance_standard: '', compliance_reference: '', owner_type: 'user' });
+    setForm({
+      name: '', description: '', category: 'General', department: '',
+      compliance_standard: '', compliance_reference: '', owner_type: 'user',
+      priority: 'medium', effective_date: '', expiry_date: '',
+      review_cycle_days: 365, acknowledgment_required: false, exception_allowed: true,
+    });
     setSelectedTemplate(null);
     setMode('blank');
     onOpenChange(false);
@@ -91,7 +118,7 @@ export function CreatePolicyDialog({ open, onOpenChange }: CreatePolicyDialogPro
               {templatesLoading ? (
                 <p className="text-sm text-muted-foreground text-center py-4">Loading templates...</p>
               ) : templates.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-4">No templates available. Create policies and save them as templates.</p>
+                <p className="text-sm text-muted-foreground text-center py-4">No templates available.</p>
               ) : (
                 <div className="space-y-2">
                   {templates.map(t => (
@@ -124,6 +151,7 @@ export function CreatePolicyDialog({ open, onOpenChange }: CreatePolicyDialogPro
         <ScrollArea className="max-h-[400px] pr-4">
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
+              {/* Core fields */}
               <div className="col-span-2">
                 <Label>Policy Name *</Label>
                 <Input
@@ -153,6 +181,17 @@ export function CreatePolicyDialog({ open, onOpenChange }: CreatePolicyDialogPro
                 </Select>
               </div>
               <div>
+                <Label>Priority</Label>
+                <Select value={form.priority} onValueChange={v => setForm(prev => ({ ...prev, priority: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {POLICY_PRIORITIES.map(p => (
+                      <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
                 <Label>Department</Label>
                 <Input
                   value={form.department}
@@ -160,6 +199,18 @@ export function CreatePolicyDialog({ open, onOpenChange }: CreatePolicyDialogPro
                   placeholder="e.g., Engineering, HR"
                 />
               </div>
+              <div>
+                <Label>Owner Type</Label>
+                <Select value={form.owner_type} onValueChange={v => setForm(prev => ({ ...prev, owner_type: v as any }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="user">User</SelectItem>
+                    <SelectItem value="group">Group</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Compliance */}
               <div>
                 <Label>Compliance Standard</Label>
                 <Input
@@ -176,15 +227,55 @@ export function CreatePolicyDialog({ open, onOpenChange }: CreatePolicyDialogPro
                   placeholder="e.g., Section 4.2"
                 />
               </div>
+
+              {/* Dates & Review */}
               <div>
-                <Label>Owner Type</Label>
-                <Select value={form.owner_type} onValueChange={v => setForm(prev => ({ ...prev, owner_type: v as any }))}>
+                <Label>Effective Date</Label>
+                <Input
+                  type="date"
+                  value={form.effective_date}
+                  onChange={e => setForm(prev => ({ ...prev, effective_date: e.target.value }))}
+                />
+              </div>
+              <div>
+                <Label>Expiry Date</Label>
+                <Input
+                  type="date"
+                  value={form.expiry_date}
+                  onChange={e => setForm(prev => ({ ...prev, expiry_date: e.target.value }))}
+                />
+              </div>
+              <div>
+                <Label>Review Cycle</Label>
+                <Select
+                  value={String(form.review_cycle_days)}
+                  onValueChange={v => setForm(prev => ({ ...prev, review_cycle_days: Number(v) }))}
+                >
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="user">User</SelectItem>
-                    <SelectItem value="group">Group</SelectItem>
+                    {REVIEW_CYCLE_OPTIONS.map(o => (
+                      <SelectItem key={o.value} value={String(o.value)}>{o.label}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
+              </div>
+
+              {/* Toggles */}
+              <div className="col-span-2 flex items-center gap-6 pt-2">
+                <div className="flex items-center gap-2">
+                  <Switch
+                    checked={form.acknowledgment_required}
+                    onCheckedChange={v => setForm(prev => ({ ...prev, acknowledgment_required: v }))}
+                  />
+                  <Label className="text-sm cursor-pointer">Require Acknowledgment</Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Switch
+                    checked={form.exception_allowed}
+                    onCheckedChange={v => setForm(prev => ({ ...prev, exception_allowed: v }))}
+                  />
+                  <Label className="text-sm cursor-pointer">Allow Exceptions</Label>
+                </div>
               </div>
             </div>
           </div>

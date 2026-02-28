@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, FileText, Filter, Download, BarChart3 } from 'lucide-react';
+import { Plus, Search, FileText, BarChart3, CalendarClock, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -9,34 +9,42 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { usePolicies } from '@/hooks/usePolicies';
 import { useProject } from '@/contexts/ProjectContext';
-import { POLICY_CATEGORIES, POLICY_STATUSES } from '@/types/policy';
+import { POLICY_CATEGORIES, POLICY_STATUSES, POLICY_PRIORITIES } from '@/types/policy';
 import { CreatePolicyDialog } from '@/components/policies/CreatePolicyDialog';
 import { PolicyDashboard } from '@/components/policies/PolicyDashboard';
-import { format } from 'date-fns';
+import { format, isPast } from 'date-fns';
 
 const Policies = () => {
   const navigate = useNavigate();
   const { currentProject } = useProject();
-  const { policies, isLoading, deletePolicy } = usePolicies();
+  const { policies, isLoading } = usePolicies();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const [showCreate, setShowCreate] = useState(false);
   const [activeTab, setActiveTab] = useState('list');
 
   const filtered = useMemo(() => {
     return policies.filter(p => {
       const matchSearch = !search || p.name.toLowerCase().includes(search.toLowerCase()) ||
-        p.description?.toLowerCase().includes(search.toLowerCase());
+        p.description?.toLowerCase().includes(search.toLowerCase()) ||
+        p.policy_number?.toLowerCase().includes(search.toLowerCase());
       const matchStatus = statusFilter === 'all' || p.status === statusFilter;
       const matchCategory = categoryFilter === 'all' || p.category === categoryFilter;
-      return matchSearch && matchStatus && matchCategory;
+      const matchPriority = priorityFilter === 'all' || (p.priority || 'medium') === priorityFilter;
+      return matchSearch && matchStatus && matchCategory && matchPriority;
     });
-  }, [policies, search, statusFilter, categoryFilter]);
+  }, [policies, search, statusFilter, categoryFilter, priorityFilter]);
 
   const getStatusBadge = (status: string) => {
     const s = POLICY_STATUSES.find(st => st.value === status);
     return <Badge className={s?.color || ''}>{s?.label || status}</Badge>;
+  };
+
+  const getPriorityBadge = (priority: string) => {
+    const p = POLICY_PRIORITIES.find(pr => pr.value === priority);
+    return <Badge className={p?.color || ''} variant="outline">{p?.label || priority}</Badge>;
   };
 
   if (!currentProject) {
@@ -84,7 +92,7 @@ const Policies = () => {
             <div className="relative flex-1 min-w-[280px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search policies..."
+                placeholder="Search by name, description, or policy number..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 className="pl-10"
@@ -109,6 +117,17 @@ const Policies = () => {
                 <SelectItem value="all">All Categories</SelectItem>
                 {POLICY_CATEGORIES.map(c => (
                   <SelectItem key={c} value={c}>{c}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+              <SelectTrigger className="w-[140px]">
+                <SelectValue placeholder="Priority" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Priorities</SelectItem>
+                {POLICY_PRIORITIES.map(p => (
+                  <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -141,35 +160,56 @@ const Policies = () => {
             </Card>
           ) : (
             <div className="space-y-2">
-              {filtered.map(policy => (
-                <Card
-                  key={policy.id}
-                  className="cursor-pointer hover:border-primary/50 transition-colors"
-                  onClick={() => navigate(`/policy/${policy.id}`)}
-                >
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-3 mb-1">
-                          <h3 className="font-medium text-foreground truncate">{policy.name}</h3>
-                          {getStatusBadge(policy.status)}
-                          <Badge variant="outline">{policy.category}</Badge>
-                          {policy.department && (
-                            <Badge variant="secondary">{policy.department}</Badge>
+              {filtered.map(policy => {
+                const isOverdueReview = policy.next_review_date && isPast(new Date(policy.next_review_date));
+                return (
+                  <Card
+                    key={policy.id}
+                    className={`cursor-pointer hover:border-primary/50 transition-colors ${isOverdueReview ? 'border-destructive/30' : ''}`}
+                    onClick={() => navigate(`/policy/${policy.id}`)}
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
+                            {policy.policy_number && (
+                              <span className="text-xs font-mono text-muted-foreground">{policy.policy_number}</span>
+                            )}
+                            <h3 className="font-medium text-foreground truncate">{policy.name}</h3>
+                            {getStatusBadge(policy.status)}
+                            <Badge variant="outline">{policy.category}</Badge>
+                            {getPriorityBadge(policy.priority || 'medium')}
+                            {policy.department && (
+                              <Badge variant="secondary">{policy.department}</Badge>
+                            )}
+                            {isOverdueReview && (
+                              <Badge variant="destructive" className="gap-1 text-xs">
+                                <CalendarClock className="h-3 w-3" />
+                                Review Overdue
+                              </Badge>
+                            )}
+                            {policy.acknowledgment_required && (
+                              <Badge variant="outline" className="text-xs border-blue-300 text-blue-700 dark:text-blue-300">
+                                ACK Required
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-sm text-muted-foreground line-clamp-1">
+                            {policy.description || 'No description'}
+                          </p>
+                        </div>
+                        <div className="text-right text-xs text-muted-foreground ml-4 shrink-0 space-y-0.5">
+                          <div>v{policy.current_version}</div>
+                          <div>{format(new Date(policy.updated_at), 'MMM d, yyyy')}</div>
+                          {policy.compliance_standard && (
+                            <div className="text-primary">{policy.compliance_standard}</div>
                           )}
                         </div>
-                        <p className="text-sm text-muted-foreground line-clamp-1">
-                          {policy.description || 'No description'}
-                        </p>
                       </div>
-                      <div className="text-right text-xs text-muted-foreground ml-4 shrink-0">
-                        <div>v{policy.current_version}</div>
-                        <div>{format(new Date(policy.updated_at), 'MMM d, yyyy')}</div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           )}
         </TabsContent>

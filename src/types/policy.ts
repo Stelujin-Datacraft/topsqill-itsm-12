@@ -24,6 +24,15 @@ export interface Policy {
   published_at?: string;
   retired_at?: string;
   reference_id?: string;
+  // ServiceNow-style fields
+  policy_number?: string;
+  effective_date?: string;
+  expiry_date?: string;
+  next_review_date?: string;
+  review_cycle_days?: number;
+  priority?: 'low' | 'medium' | 'high' | 'critical';
+  acknowledgment_required?: boolean;
+  exception_allowed?: boolean;
 }
 
 export interface PolicyAttachment {
@@ -85,6 +94,45 @@ export interface PolicyTemplate {
   updated_at: string;
 }
 
+export interface PolicyAcknowledgment {
+  id: string;
+  policy_id: string;
+  user_id: string;
+  version_acknowledged: number;
+  acknowledged_at: string;
+  ip_address?: string;
+  comments?: string;
+}
+
+export interface PolicyException {
+  id: string;
+  policy_id: string;
+  requested_by: string;
+  approved_by?: string;
+  status: 'pending' | 'approved' | 'rejected' | 'expired';
+  reason: string;
+  justification?: string;
+  risk_assessment?: string;
+  compensating_controls?: string;
+  start_date: string;
+  end_date: string;
+  approved_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PolicyReviewCycle {
+  id: string;
+  policy_id: string;
+  review_date: string;
+  reviewer_id?: string;
+  status: 'scheduled' | 'in_progress' | 'completed' | 'overdue';
+  findings?: string;
+  outcome?: 'no_change' | 'minor_update' | 'major_revision' | 'retire';
+  completed_at?: string;
+  created_at: string;
+}
+
 export const POLICY_CATEGORIES = [
   'Security', 'IT', 'HR', 'Compliance', 'Finance',
   'Operations', 'Legal', 'Privacy', 'Risk Management', 'General'
@@ -95,4 +143,18 @@ export const POLICY_STATUSES = [
   { value: 'pending_approval', label: 'Pending Approval', color: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' },
   { value: 'published', label: 'Published', color: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' },
   { value: 'retired', label: 'Retired', color: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' },
+] as const;
+
+export const POLICY_PRIORITIES = [
+  { value: 'low', label: 'Low', color: 'bg-muted text-muted-foreground' },
+  { value: 'medium', label: 'Medium', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' },
+  { value: 'high', label: 'High', color: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200' },
+  { value: 'critical', label: 'Critical', color: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' },
+] as const;
+
+export const REVIEW_CYCLE_OPTIONS = [
+  { value: 90, label: 'Quarterly (90 days)' },
+  { value: 180, label: 'Semi-Annual (180 days)' },
+  { value: 365, label: 'Annual (365 days)' },
+  { value: 730, label: 'Biennial (2 years)' },
 ] as const;
