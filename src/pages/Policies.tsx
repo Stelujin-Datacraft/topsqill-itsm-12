@@ -228,6 +228,7 @@ const Policies = () => {
       </Tabs>
 
       <CreatePolicyDialog open={showCreate} onOpenChange={setShowCreate} />
+      <CreateTemplateDialog open={showCreateTemplate} onOpenChange={setShowCreateTemplate} />
     </div>
   );
 };
