@@ -2,12 +2,13 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFormsData } from '@/hooks/useFormsData';
 import { useProject } from '@/contexts/ProjectContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useUnifiedAccessControl } from '@/hooks/useUnifiedAccessControl';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { FileText, Eye, Edit, Trash2, Share, Settings, Calendar, User, Grid, List, Columns, Lock, Globe, Database, Table, Plus, Copy } from 'lucide-react';
+import { FileText, Eye, Edit, Trash2, Share, Settings, Calendar, User, Grid, List, Columns, Lock, Globe, Database, Table, Plus, Copy, Files } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { LoadingScreen } from '@/components/LoadingScreen';
@@ -18,8 +19,11 @@ export function FormsList() {
   const {
     forms,
     loading,
-    deleteForm
+    deleteForm,
+    createForm,
+    addField
   } = useFormsData();
+  const { userProfile } = useAuth();
   const {
     currentProject
   } = useProject();
@@ -30,6 +34,7 @@ export function FormsList() {
     getVisibleResources
   } = useUnifiedAccessControl();
   const [viewMode, setViewMode] = useState<'grid' | 'list' | 'kanban'>('list');
+  const [copyingFormId, setCopyingFormId] = useState<string | null>(null);
   console.log('📋 FormsList - Current project:', currentProject?.id);
   console.log('📋 FormsList - Forms data:', forms);
   console.log('📋 FormsList - Loading state:', loading);
@@ -87,6 +92,60 @@ export function FormsList() {
   const handleCopyId = (formId: string) => {
     navigator.clipboard.writeText(formId);
     toast.success('Form ID copied to clipboard');
+  };
+
+  
+
+  const handleCopyForm = async (form: typeof forms[0]) => {
+    if (!checkPermissionWithAlert('forms', 'create')) return;
+    if (!userProfile?.id || !userProfile?.organization_id || !currentProject?.id) return;
+
+    setCopyingFormId(form.id);
+    try {
+      const newForm = await createForm({
+        name: `Copy of ${form.name}`,
+        description: form.description,
+        projectId: currentProject.id,
+        organizationId: userProfile.organization_id,
+        createdBy: userProfile.id,
+        status: 'draft',
+        isPublic: form.isPublic,
+        layout: form.layout,
+        pages: form.pages,
+        fieldRules: form.fieldRules,
+        formRules: form.formRules,
+        permissions: form.permissions,
+        shareSettings: form.shareSettings,
+      });
+
+      if (newForm && form.fields.length > 0) {
+        for (const field of form.fields) {
+          await addField(newForm.id, {
+            label: field.label,
+            type: field.type,
+            required: field.required,
+            placeholder: field.placeholder,
+            options: field.options,
+            validation: field.validation,
+            defaultValue: field.defaultValue,
+            permissions: field.permissions,
+            triggers: field.triggers,
+            tooltip: field.tooltip,
+            customConfig: field.customConfig,
+            pageId: field.pageId,
+          });
+        }
+      }
+
+      if (newForm) {
+        toast.success(`Form "${newForm.name}" created successfully`);
+      }
+    } catch (error) {
+      console.error('Error copying form:', error);
+      toast.error('Failed to copy form');
+    } finally {
+      setCopyingFormId(null);
+    }
   };
   const getStatusBadgeProps = (status: string) => {
     switch (status) {
@@ -176,6 +235,9 @@ export function FormsList() {
                   <Button variant="ghost" size="sm" onClick={() => handleCopyId(form.id)} title="Copy Form ID">
                     <Copy className="h-4 w-4 text-primary" />
                   </Button>
+                  <Button variant="ghost" size="sm" onClick={() => handleCopyForm(form)} disabled={copyingFormId === form.id} title="Duplicate Form">
+                    <Files className="h-4 w-4 text-primary" />
+                  </Button>
                   <Button variant="ghost" size="sm" onClick={() => handleViewForm(form.id)} title="Add Record">
                     <Plus className="h-4 w-4 text-primary" />
                   </Button>
@@ -251,6 +313,9 @@ export function FormsList() {
                 <div className="flex items-center space-x-1">
                   <Button variant="ghost" size="sm" onClick={() => handleCopyId(form.id)} title="Copy Form ID">
                     <Copy className="h-4 w-4 text-primary" />
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => handleCopyForm(form)} disabled={copyingFormId === form.id} title="Duplicate Form">
+                    <Files className="h-4 w-4 text-primary" />
                   </Button>
                   <Button variant="ghost" size="sm" onClick={() => handleViewForm(form.id)} title="Add Record">
                     <Plus className="h-4 w-4 text-primary" />
@@ -369,6 +434,9 @@ export function FormsList() {
                           <div className="flex gap-1">
                             <Button variant="ghost" size="sm" onClick={() => handleCopyId(form.id)} title="Copy Form ID" className="h-8 w-8 p-0">
                               <Copy className="h-3 w-3 text-primary" />
+                            </Button>
+                            <Button variant="ghost" size="sm" onClick={() => handleCopyForm(form)} disabled={copyingFormId === form.id} title="Duplicate Form" className="h-8 w-8 p-0">
+                              <Files className="h-3 w-3 text-primary" />
                             </Button>
                             <Button variant="ghost" size="sm" onClick={() => handleViewForm(form.id)} title="Add Record" className="h-8 w-8 p-0">
                               <Plus className="h-3 w-3 text-primary" />
