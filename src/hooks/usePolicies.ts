@@ -134,6 +134,21 @@ export function usePolicies() {
     onError: (err: any) => toast.error(err.message),
   });
 
+  const createReviewCycle = useMutation({
+    mutationFn: async (cycle: Partial<PolicyReviewCycle>) => {
+      const { data, error } = await supabase
+        .from('policy_review_cycles')
+        .insert([cycle as any])
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (_, vars) => {
+      queryClient.invalidateQueries({ queryKey: ['policy_review_cycles', vars.policy_id] });
+    },
+  });
+
   return {
     policies: policiesQuery.data || [],
     isLoading: policiesQuery.isLoading,
@@ -144,6 +159,7 @@ export function usePolicies() {
     deletePolicy,
     createVersion,
     createTemplate,
+    createReviewCycle,
   };
 }
 

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Edit, Trash2, Save, Send, Archive, History, Link2, CheckCircle, Clock, FileText, Download, Plus, UserCheck, AlertOctagon, CalendarClock, Shield } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, Save, Send, Archive, History, Link2, CheckCircle, Clock, FileText, Download, Plus, UserCheck, AlertOctagon, CalendarClock, Shield, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,12 +20,13 @@ import { format, isPast } from 'date-fns';
 import { toast } from 'sonner';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { TiptapEditor } from '@/components/ui/tiptap-editor';
 
 const PolicyDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { policies, updatePolicy, deletePolicy, createVersion, createTemplate } = usePolicies();
+  const { policies, updatePolicy, deletePolicy, createVersion, createTemplate, createReviewCycle } = usePolicies();
   const { versions, linkages, approvals, acknowledgments, exceptions, reviewCycles, isLoading, acknowledgePolicy, requestException, createLinkage, submitApproval, respondApproval, respondException } = usePolicyDetail(id);
   
   const policy = policies.find(p => p.id === id);
@@ -66,6 +67,7 @@ const PolicyDetail = () => {
       review_cycle_days: policy.review_cycle_days || 365,
       acknowledgment_required: policy.acknowledgment_required || false,
       exception_allowed: policy.exception_allowed !== false,
+      content_html: policy.content?.html || '',
     });
     setIsEditing(true);
   };
@@ -90,9 +92,11 @@ const PolicyDetail = () => {
       next_review_date = d.toISOString().split('T')[0];
     }
 
+    const { content_html, ...restEditForm } = editForm;
     await updatePolicy.mutateAsync({
       id: policy.id,
-      ...editForm,
+      ...restEditForm,
+      content: content_html ? { html: content_html } : policy.content,
       next_review_date,
       current_version: policy.current_version + 1,
     });
@@ -109,10 +113,20 @@ const PolicyDetail = () => {
   const handleApprovalResponse = async (approvalId: string, status: 'approved' | 'rejected') => {
     await respondApproval.mutateAsync({ approvalId, status, comments: approvalComment || undefined });
     if (status === 'approved') {
-      // Check if all approvals for this version are approved
       const pendingApprovals = approvals.filter(a => a.status === 'pending' && a.id !== approvalId);
       if (pendingApprovals.length === 0) {
-        await updatePolicy.mutateAsync({ id: policy.id, status: 'published', published_at: new Date().toISOString() });
+        const publishedAt = new Date().toISOString();
+        await updatePolicy.mutateAsync({ id: policy.id, status: 'published', published_at: publishedAt });
+        // Auto-schedule review cycle
+        if (policy.review_cycle_days && policy.review_cycle_days > 0) {
+          const reviewDate = new Date();
+          reviewDate.setDate(reviewDate.getDate() + policy.review_cycle_days);
+          await createReviewCycle.mutateAsync({
+            policy_id: policy.id,
+            review_date: reviewDate.toISOString().split('T')[0],
+            status: 'scheduled',
+          });
+        }
       }
     } else {
       await updatePolicy.mutateAsync({ id: policy.id, status: 'draft' });
@@ -375,6 +389,15 @@ const PolicyDetail = () => {
                 </div>
               </div>
               <div className="col-span-2">
+                <Label>Policy Content</Label>
+                <TiptapEditor
+                  content={editForm.content_html || ''}
+                  onChange={(html) => setEditForm((p: any) => ({ ...p, content_html: html }))}
+                  placeholder="Write the full policy content..."
+                  className="min-h-[150px]"
+                />
+              </div>
+              <div className="col-span-2">
                 <Label>Change Summary</Label>
                 <Input value={changeSummary} onChange={e => setChangeSummary(e.target.value)} placeholder="What changed?" />
               </div>
@@ -391,6 +414,9 @@ const PolicyDetail = () => {
       <Tabs defaultValue="details">
         <TabsList className="flex-wrap">
           <TabsTrigger value="details">Details</TabsTrigger>
+          <TabsTrigger value="content" className="gap-1">
+            <BookOpen className="h-3.5 w-3.5" /> Content
+          </TabsTrigger>
           <TabsTrigger value="versions" className="gap-1">
             <History className="h-3.5 w-3.5" /> Versions ({versions.length})
           </TabsTrigger>
@@ -466,6 +492,27 @@ const PolicyDetail = () => {
                     </div>
                   ))}
                 </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Content Tab */}
+        <TabsContent value="content" className="mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">Policy Content</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {policy.content?.html ? (
+                <div
+                  className="prose prose-sm dark:prose-invert max-w-none"
+                  dangerouslySetInnerHTML={{ __html: policy.content.html }}
+                />
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-6">
+                  No content has been added yet. Click "Edit" to add policy content.
+                </p>
               )}
             </CardContent>
           </Card>
