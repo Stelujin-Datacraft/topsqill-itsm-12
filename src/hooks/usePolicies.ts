@@ -377,6 +377,16 @@ export function usePolicyDetail(policyId?: string) {
 
   const respondApproval = useMutation({
     mutationFn: async ({ approvalId, status, comments }: { approvalId: string; status: 'approved' | 'rejected'; comments?: string }) => {
+      // First verify the current user is the designated approver
+      const { data: existing, error: fetchError } = await supabase
+        .from('policy_approvals')
+        .select('id, approver_id, status')
+        .eq('id', approvalId)
+        .maybeSingle();
+      if (fetchError) throw fetchError;
+      if (!existing) throw new Error('This approval request could not be found.');
+      if (existing.status !== 'pending') throw new Error('This approval has already been processed.');
+
       const { data, error } = await supabase
         .from('policy_approvals')
         .update({
@@ -388,7 +398,7 @@ export function usePolicyDetail(policyId?: string) {
         .select()
         .maybeSingle();
       if (error) throw error;
-      if (!data) throw new Error('Approval record not found. You may not have permission to respond to this approval.');
+      if (!data) throw new Error('You are not the designated approver for this request. Only the assigned approver can approve or reject.');
       return data;
     },
     onSuccess: () => {
