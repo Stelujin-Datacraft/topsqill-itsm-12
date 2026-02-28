@@ -60,6 +60,7 @@ interface OptimizedFormDataTableProps {
   autoSelectedRecords?: SelectedRecord[];
   isAutoSelectionLoading?: boolean;
   onCreateRecord?: () => void;
+  createRecordLabel?: string;
   canCreateRecord?: boolean;
   createRecordDisabled?: boolean;
   // Current form's submission data for resolving dynamic field mappings
@@ -81,6 +82,7 @@ export function OptimizedFormDataTable({
   autoSelectedRecords = [],
   isAutoSelectionLoading = false,
   onCreateRecord,
+  createRecordLabel = 'Create Record',
   canCreateRecord = false,
   createRecordDisabled = false,
   currentFormData = {},
@@ -693,7 +695,7 @@ export function OptimizedFormDataTable({
                 disabled={createRecordDisabled}
               >
                 <Plus className="h-4 w-4 mr-2" />
-                Create Record
+                {createRecordLabel}
               </Button>
             )}
             {isCrossReference && <Dialog open={isSelectionModalOpen} onOpenChange={setIsSelectionModalOpen}>

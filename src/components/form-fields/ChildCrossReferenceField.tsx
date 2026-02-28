@@ -5,12 +5,14 @@ import { Button } from '@/components/ui/button';
 import { Settings, ArrowUp, Link, Plus } from 'lucide-react';
 import { FieldConfigurationDialog } from './FieldConfigurationDialog';
 import { OptimizedFormDataTable } from './OptimizedFormDataTable';
+import { CreateRecordDialog } from './CreateRecordDialog';
 import { useForm } from '@/contexts/FormContext';
 import { Badge } from '@/components/ui/badge';
 import { useChildCrossReferenceAutoSelection } from '@/hooks/useChildCrossReferenceAutoSelection';
 import { useUnifiedAccessControl } from '@/hooks/useUnifiedAccessControl';
 import { useProject } from '@/contexts/ProjectContext';
 import { useFormAccess } from '@/components/FormBuilder/FieldPropertiesDialog/hooks/useFormAccess';
+import { supabase } from '@/integrations/supabase/client';
 interface ChildCrossReferenceFieldProps {
   field: FormField;
   value?: any;
@@ -40,6 +42,7 @@ export function ChildCrossReferenceField({
   const { hasPermission } = useUnifiedAccessControl(currentProject?.id);
   const [configOpen, setConfigOpen] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
   
   // Use accessible forms for finding target form
   const formsToUse = accessibleForms.length > 0 ? accessibleForms : forms;
@@ -76,8 +79,29 @@ export function ChildCrossReferenceField({
   const canCreateRecord = !isPreview && targetForm && hasPermission('forms', 'read', targetForm.id);
 
   const handleCreateRecord = () => {
+    setCreateDialogOpen(true);
+  };
+
+  const handleRecordCreated = async () => {
     if (targetForm) {
-      navigate(`/form/${targetForm.id}`);
+      const { data } = await supabase
+        .from('form_submissions')
+        .select('id, submission_ref_id, form_id')
+        .eq('form_id', targetForm.id)
+        .order('submitted_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (data && onChange) {
+        const currentValue = Array.isArray(value) ? value : [];
+        const newRecord = {
+          id: data.id,
+          submission_ref_id: data.submission_ref_id,
+          form_id: data.form_id,
+        };
+        onChange([...currentValue, newRecord]);
+      }
+      setRefreshTrigger(prev => prev + 1);
     }
   };
 
@@ -136,10 +160,19 @@ export function ChildCrossReferenceField({
 
   // Show the optimized data table with auto-generated configuration
   return <div className="w-full space-y-2">
-      <OptimizedFormDataTable config={tableConfig} fieldType="child-cross-reference" value={value} onChange={handleSelectionChange} autoSelectedRecords={autoSelectedRecords} isAutoSelectionLoading={autoSelectionLoading} key={refreshTrigger} canCreateRecord={canCreateRecord} onCreateRecord={handleCreateRecord} createRecordDisabled={disabled} />
+      <OptimizedFormDataTable config={tableConfig} fieldType="child-cross-reference" value={value} onChange={handleSelectionChange} autoSelectedRecords={autoSelectedRecords} isAutoSelectionLoading={autoSelectionLoading} key={refreshTrigger} canCreateRecord={canCreateRecord} onCreateRecord={handleCreateRecord} createRecordLabel="Create & Link" createRecordDisabled={disabled} />
       
       {error && <p className="text-sm text-red-500">{error}</p>}
 
       {!isPreview && <FieldConfigurationDialog field={field} open={configOpen} onClose={() => setConfigOpen(false)} onSave={handleConfigSave} />}
+
+      {targetForm && (
+        <CreateRecordDialog
+          open={createDialogOpen}
+          onClose={() => setCreateDialogOpen(false)}
+          targetForm={targetForm as any}
+          onRecordCreated={handleRecordCreated}
+        />
+      )}
     </div>;
 }
