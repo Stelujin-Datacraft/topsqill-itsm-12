@@ -87,6 +87,8 @@ const SLAManagementPage = lazy(() => import("./pages/SLAManagementPage"));
 // Policies feature
 const Policies = lazy(() => import("./pages/Policies"));
 const PolicyDetail = lazy(() => import("./pages/PolicyDetail"));
+const CreatePolicy = lazy(() => import("./pages/CreatePolicy"));
+const CreateTemplate = lazy(() => import("./pages/CreateTemplate"));
 
 // Performance-optimized React Query configuration
 const queryClient = new QueryClient({
@@ -191,6 +193,8 @@ const App = () => (
                         
                         {/* Policies */}
                         <Route path="/policies" element={<Policies />} />
+                        <Route path="/policies/create" element={<CreatePolicy />} />
+                        <Route path="/policies/create-template" element={<CreateTemplate />} />
                         <Route path="/policy/:id" element={<PolicyDetail />} />
                         
                         {/* Admin */}
