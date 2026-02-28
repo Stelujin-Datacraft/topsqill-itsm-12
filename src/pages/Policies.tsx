@@ -1,12 +1,13 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, FileText, BarChart3, CalendarClock, AlertTriangle, LayoutTemplate } from 'lucide-react';
+import { Plus, Search, FileText, BarChart3, CalendarClock, AlertTriangle, LayoutTemplate, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { usePolicies } from '@/hooks/usePolicies';
 import { useProject } from '@/contexts/ProjectContext';
 import { POLICY_CATEGORIES, POLICY_STATUSES, POLICY_PRIORITIES } from '@/types/policy';
@@ -16,12 +17,13 @@ import { format, isPast } from 'date-fns';
 const Policies = () => {
   const navigate = useNavigate();
   const { currentProject } = useProject();
-  const { policies, isLoading } = usePolicies();
+  const { policies, isLoading, templates, templatesLoading, deleteTemplate } = usePolicies();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const [activeTab, setActiveTab] = useState('list');
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     return policies.filter(p => {
@@ -83,6 +85,10 @@ const Policies = () => {
           <TabsTrigger value="list" className="gap-2">
             <FileText className="h-4 w-4" />
             All Policies
+          </TabsTrigger>
+          <TabsTrigger value="templates" className="gap-2">
+            <LayoutTemplate className="h-4 w-4" />
+            Templates
           </TabsTrigger>
           <TabsTrigger value="dashboard" className="gap-2">
             <BarChart3 className="h-4 w-4" />
@@ -218,10 +224,89 @@ const Policies = () => {
           )}
         </TabsContent>
 
+        <TabsContent value="templates" className="space-y-4">
+          {templatesLoading ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map(i => (
+                <Card key={i} className="animate-pulse">
+                  <CardContent className="p-4 h-16" />
+                </Card>
+              ))}
+            </div>
+          ) : templates.length === 0 ? (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+                <LayoutTemplate className="h-12 w-12 text-muted-foreground mb-3" />
+                <h3 className="text-lg font-medium">No templates yet</h3>
+                <p className="text-sm text-muted-foreground mt-1">Create your first policy template.</p>
+                <Button onClick={() => navigate('/policies/create-template')} className="mt-4 gap-2">
+                  <Plus className="h-4 w-4" /> Create Template
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-2">
+              {templates.map(t => (
+                <Card key={t.id} className="hover:border-primary/30 transition-colors">
+                  <CardContent className="p-4 flex items-center justify-between">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <h3 className="font-medium text-foreground">{t.name}</h3>
+                        <Badge variant="outline">{t.category}</Badge>
+                        {t.is_system_template && <Badge variant="secondary" className="text-xs">System</Badge>}
+                      </div>
+                      {t.description && (
+                        <p className="text-sm text-muted-foreground line-clamp-1">{t.description}</p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 ml-4">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => setDeleteConfirmId(t.id)}
+                        disabled={t.is_system_template}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
         <TabsContent value="dashboard">
           <PolicyDashboard policies={policies} />
         </TabsContent>
       </Tabs>
+
+      {/* Delete template confirmation */}
+      <AlertDialog open={!!deleteConfirmId} onOpenChange={open => !open && setDeleteConfirmId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Template</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this template? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (deleteConfirmId) {
+                  deleteTemplate.mutate(deleteConfirmId);
+                  setDeleteConfirmId(null);
+                }
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
     </div>
   );

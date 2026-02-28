@@ -134,6 +134,21 @@ export function usePolicies() {
     onError: (err: any) => toast.error(err.message),
   });
 
+  const deleteTemplate = useMutation({
+    mutationFn: async (templateId: string) => {
+      const { error } = await supabase
+        .from('policy_templates')
+        .delete()
+        .eq('id', templateId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['policy_templates', orgId] });
+      toast.success('Template deleted');
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+
   const createReviewCycle = useMutation({
     mutationFn: async (cycle: Partial<PolicyReviewCycle>) => {
       const { data, error } = await supabase
@@ -159,6 +174,7 @@ export function usePolicies() {
     deletePolicy,
     createVersion,
     createTemplate,
+    deleteTemplate,
     createReviewCycle,
   };
 }
