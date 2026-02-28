@@ -52,6 +52,7 @@ interface AuthContextType {
   passwordExpired: boolean;
   signUp: (email: string, password: string, userData: { first_name: string; last_name: string; organization_id: string }) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any; requiresMfa?: boolean; passwordExpired?: boolean }>;
+  signInWithGoogle: () => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   registerOrganization: (orgData: { name: string; domain: string; description?: string; admin_email: string; admin_password: string; admin_first_name: string; admin_last_name: string }) => Promise<{ error: any }>;
   requestToJoinOrganization: (orgId: string, userData: { email: string; first_name: string; last_name: string; message?: string }) => Promise<{ error: any }>;
@@ -91,6 +92,51 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (!profile) {
+        // Auto-create profile for OAuth users (e.g., Google SSO)
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        if (authUser?.app_metadata?.provider && authUser.app_metadata.provider !== 'email') {
+          const email = authUser.email || '';
+          const metadata = authUser.user_metadata || {};
+          const domain = email.split('@')[1];
+
+          // Try to find org by email domain
+          let orgId: string | null = null;
+          if (domain) {
+            const { data: org } = await supabase
+              .from('organizations')
+              .select('id')
+              .eq('domain', domain)
+              .maybeSingle();
+            if (org) orgId = org.id;
+          }
+
+          const { data: newProfile, error: insertError } = await supabase
+            .from('user_profiles')
+            .insert({
+              id: userId,
+              email,
+              first_name: metadata.full_name?.split(' ')[0] || metadata.given_name || '',
+              last_name: metadata.full_name?.split(' ').slice(1).join(' ') || metadata.family_name || '',
+              organization_id: orgId,
+              role: 'user',
+              status: 'active',
+            })
+            .select()
+            .single();
+
+          if (!insertError && newProfile) {
+            setUserProfile(newProfile as UserProfile);
+            if (orgId) {
+              const { data: org } = await supabase
+                .from('organizations')
+                .select('*')
+                .eq('id', orgId)
+                .maybeSingle();
+              setOrganization(org as Organization || null);
+            }
+            return;
+          }
+        }
         setUserProfile(null);
         setOrganization(null);
         return;
@@ -503,6 +549,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const signInWithGoogle = async () => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/dashboard`,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
+        },
+      });
+      if (error) return { error };
+      return { error: null };
+    } catch (error) {
+      return { error };
+    }
+  };
+
   const completeMfaVerification = async () => {
     if (pendingMfa && user) {
       // MFA verified - record successful login and create session
@@ -544,6 +609,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       passwordExpired,
       signUp,
       signIn,
+      signInWithGoogle,
       signOut,
       registerOrganization,
       requestToJoinOrganization,
@@ -569,6 +635,7 @@ export const useAuth = () => {
       passwordExpired: false,
       signUp: async () => ({ error: new Error('AuthProvider not mounted') }),
       signIn: async () => ({ error: new Error('AuthProvider not mounted') }),
+      signInWithGoogle: async () => ({ error: new Error('AuthProvider not mounted') }),
       signOut: async () => {},
       registerOrganization: async () => ({ error: new Error('AuthProvider not mounted') }),
       requestToJoinOrganization: async () => ({ error: new Error('AuthProvider not mounted') }),
