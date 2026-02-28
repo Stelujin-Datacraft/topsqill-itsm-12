@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Edit, Trash2, Save, Send, Archive, History, Link2, CheckCircle, Clock, FileText, Download, Plus, UserCheck, AlertOctagon, CalendarClock, Shield, BookOpen, Upload, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -21,6 +22,7 @@ import { toast } from 'sonner';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { TiptapEditor } from '@/components/ui/tiptap-editor';
+import { PolicyRenderedContent } from '@/components/policies/PolicyRenderedContent';
 
 const PolicyDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -207,12 +209,12 @@ const PolicyDetail = () => {
     setIsUploadingAttachment(true);
     try {
       const filePath = `policies/${policy.id}/${Date.now()}_${file.name}`;
-      const { error: uploadError } = await (await import('@/integrations/supabase/client')).supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from('policy-attachments')
         .upload(filePath, file);
       if (uploadError) throw uploadError;
 
-      const { data: urlData } = (await import('@/integrations/supabase/client')).supabase.storage
+      const { data: urlData } = supabase.storage
         .from('policy-attachments')
         .getPublicUrl(filePath);
 
@@ -268,29 +270,74 @@ const PolicyDetail = () => {
       yPos += descLines.length * 5 + 4;
     }
 
-    // Policy content body - strip HTML and render as text
-    if (policy.content?.html) {
-      yPos += 4;
-      doc.setFontSize(12);
-      doc.text('Policy Content', 14, yPos);
-      yPos += 6;
-      doc.setFontSize(10);
+    const pageHeight = doc.internal.pageSize.getHeight();
 
-      // Parse HTML to plain text
+    const renderContentBlock = (html: string, yStart: number): number => {
       const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = policy.content.html;
+      tempDiv.innerHTML = html;
       const plainText = tempDiv.innerText || tempDiv.textContent || '';
       const contentLines = doc.splitTextToSize(plainText, 180);
-      
-      // Handle multi-page content
-      const pageHeight = doc.internal.pageSize.getHeight();
+      let y = yStart;
       for (const line of contentLines) {
-        if (yPos > pageHeight - 20) {
-          doc.addPage();
-          yPos = 20;
+        if (y > pageHeight - 20) { doc.addPage(); y = 20; }
+        doc.text(line, 14, y);
+        y += 5;
+      }
+      return y;
+    };
+
+    // Policy content body - resolve dynamic fields if form is linked
+    if (policy.content?.html) {
+      const contentHtml = policy.content.html;
+      const hasPlaceholders = /\{\{.+?\}\}/.test(contentHtml);
+
+      if (hasPlaceholders && policy.form_id) {
+        // Fetch fields and submissions for PDF resolution
+        const fieldsRes = await supabase.from('form_fields').select('id, label, field_type, options').eq('form_id', policy.form_id!).order('field_order');
+        const subsRes = await supabase.from('form_submissions').select('id, submission_ref_id, submission_data, submitted_at').eq('form_id', policy.form_id!).order('submitted_at', { ascending: true });
+        const fields = fieldsRes.data || [];
+        const submissions = subsRes.data || [];
+        const labelMap = new Map(fields.map(f => [f.label, { id: f.id, type: f.field_type, options: f.options }]));
+
+        const resolveForPdf = (html: string, data: Record<string, any>): string => {
+          return html.replace(/\{\{(.+?)\}\}/g, (_, label) => {
+            const info = labelMap.get(label.trim());
+            if (!info) return `[${label.trim()}: N/A]`;
+            const val = data?.[info.id];
+            if (val === null || val === undefined || val === '') return `[${label.trim()}: empty]`;
+            if (typeof val === 'object') return Array.isArray(val) ? val.join(', ') : JSON.stringify(val);
+            return String(val);
+          });
+        };
+
+        yPos += 4;
+        doc.setFontSize(12);
+        doc.text('Policy Content', 14, yPos);
+        yPos += 6;
+
+        if (submissions.length === 0) {
+          doc.setFontSize(10);
+          yPos = renderContentBlock(contentHtml, yPos);
+        } else {
+          submissions.forEach((sub, idx) => {
+            if (yPos > pageHeight - 40) { doc.addPage(); yPos = 20; }
+            doc.setFontSize(11);
+            doc.text(`Record: ${sub.submission_ref_id || `#${idx + 1}`}`, 14, yPos);
+            yPos += 6;
+            doc.setFontSize(10);
+            const data = typeof sub.submission_data === 'string' ? JSON.parse(sub.submission_data) : sub.submission_data || {};
+            const resolved = resolveForPdf(contentHtml, data);
+            yPos = renderContentBlock(resolved, yPos);
+            yPos += 6;
+          });
         }
-        doc.text(line, 14, yPos);
-        yPos += 5;
+      } else {
+        yPos += 4;
+        doc.setFontSize(12);
+        doc.text('Policy Content', 14, yPos);
+        yPos += 6;
+        doc.setFontSize(10);
+        yPos = renderContentBlock(contentHtml, yPos);
       }
     }
 
@@ -636,9 +683,9 @@ const PolicyDetail = () => {
             </CardHeader>
             <CardContent>
               {policy.content?.html ? (
-                <div
-                  className="prose prose-sm dark:prose-invert max-w-none"
-                  dangerouslySetInnerHTML={{ __html: policy.content.html }}
+                <PolicyRenderedContent
+                  contentHtml={policy.content.html}
+                  formId={policy.form_id}
                 />
               ) : (
                 <p className="text-sm text-muted-foreground text-center py-6">
