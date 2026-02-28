@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Edit, Trash2, Save, Send, Archive, History, Link2, CheckCircle, Clock, FileText, Download, Plus, UserCheck, AlertOctagon, CalendarClock, Shield, BookOpen, Upload, Loader2 } from 'lucide-react';
 import { PolicyDynamicFieldsRenderer } from '@/components/policies/PolicyDynamicFieldsRenderer';
@@ -242,6 +243,11 @@ const PolicyDetail = () => {
   const exportToPDF = async () => {
     const doc = new jsPDF();
     let yPos = 22;
+    const pageHeight = doc.internal.pageSize.getHeight();
+
+    const ensureSpace = (needed: number) => {
+      if (yPos > pageHeight - needed) { doc.addPage(); yPos = 20; }
+    };
 
     // Title
     doc.setFontSize(18);
@@ -269,38 +275,106 @@ const PolicyDetail = () => {
       yPos += descLines.length * 5 + 4;
     }
 
-    // Policy content body - strip HTML and render as text
+    // Policy content body
     if (policy.content?.html) {
       yPos += 4;
       doc.setFontSize(12);
       doc.text('Policy Content', 14, yPos);
       yPos += 6;
       doc.setFontSize(10);
-
-      // Parse HTML to plain text
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = policy.content.html;
       const plainText = tempDiv.innerText || tempDiv.textContent || '';
       const contentLines = doc.splitTextToSize(plainText, 180);
-      
-      // Handle multi-page content
-      const pageHeight = doc.internal.pageSize.getHeight();
       for (const line of contentLines) {
-        if (yPos > pageHeight - 20) {
-          doc.addPage();
-          yPos = 20;
-        }
+        ensureSpace(20);
         doc.text(line, 14, yPos);
         yPos += 5;
       }
     }
 
+    // Dynamic Fields from linked form
+    if (policy.form_id) {
+      try {
+        const displayFormat = (policy.content?.dynamic_fields_display as string) || 'table';
+
+        // Fetch form info, fields, and submissions in parallel
+        const [formRes, fieldsRes, subsRes] = await Promise.all([
+          supabase.from('forms').select('name').eq('id', policy.form_id).single(),
+          supabase.from('form_fields').select('id, label, field_type, options, field_order').eq('form_id', policy.form_id).order('field_order'),
+          supabase.from('form_submissions').select('id, submission_ref_id, submission_data').eq('form_id', policy.form_id).order('submitted_at', { ascending: true }),
+        ]);
+
+        const formName = formRes.data?.name || 'Linked Form';
+        const fields = (fieldsRes.data || []).filter(f =>
+          !['section', 'divider', 'heading', 'paragraph', 'spacer', 'page-break'].includes(f.field_type)
+        );
+        const submissions = subsRes.data || [];
+
+        if (submissions.length > 0) {
+          yPos += 8;
+          ensureSpace(30);
+          doc.setFontSize(13);
+          doc.text(`Dynamic Data — ${formName}`, 14, yPos);
+          yPos += 8;
+
+          submissions.forEach((sub: any, idx: number) => {
+            const refId = sub.submission_ref_id || sub.id.slice(0, 8);
+            const sectionTitle = `Policy ${idx + 1} — ${refId}`;
+            ensureSpace(25);
+            doc.setFontSize(11);
+            doc.setFont('helvetica', 'bold');
+            doc.text(sectionTitle, 14, yPos);
+            doc.setFont('helvetica', 'normal');
+            yPos += 6;
+
+            const data = sub.submission_data || {};
+
+            if (displayFormat === 'table') {
+              // Table format using autoTable
+              const tableRows = fields.map((f: any) => [
+                f.label,
+                pdfFormatValue(data[f.id], f.field_type, f.options),
+              ]);
+              autoTable(doc, {
+                head: [['Field', 'Value']],
+                body: tableRows,
+                startY: yPos,
+                margin: { left: 14 },
+                styles: { fontSize: 9 },
+                headStyles: { fillColor: [60, 60, 60] },
+              });
+              yPos = (doc as any).lastAutoTable?.finalY + 6 || yPos + 10;
+            } else {
+              // Field-value (row) format
+              doc.setFontSize(10);
+              fields.forEach((f: any) => {
+                ensureSpace(16);
+                doc.setFont('helvetica', 'bold');
+                doc.text(f.label, 14, yPos);
+                yPos += 5;
+                doc.setFont('helvetica', 'normal');
+                const val = pdfFormatValue(data[f.id], f.field_type, f.options);
+                const valLines = doc.splitTextToSize(val, 180);
+                for (const vl of valLines) {
+                  ensureSpace(12);
+                  doc.text(vl, 14, yPos);
+                  yPos += 5;
+                }
+                yPos += 2;
+              });
+            }
+            yPos += 4;
+          });
+        }
+      } catch (err) {
+        console.error('Failed to fetch dynamic fields for PDF:', err);
+      }
+    }
+
     // Version history table
     if (versions.length > 0) {
-      if (yPos > doc.internal.pageSize.getHeight() - 40) {
-        doc.addPage();
-        yPos = 20;
-      }
+      ensureSpace(40);
       yPos += 6;
       doc.setFontSize(12);
       doc.text('Version History', 14, yPos);
@@ -321,19 +395,13 @@ const PolicyDetail = () => {
     if (policy.attachments && policy.attachments.length > 0) {
       const lastY = (doc as any).lastAutoTable?.finalY || yPos + 10;
       let attY = lastY + 10;
-      if (attY > doc.internal.pageSize.getHeight() - 30) {
-        doc.addPage();
-        attY = 20;
-      }
+      if (attY > pageHeight - 30) { doc.addPage(); attY = 20; }
       doc.setFontSize(12);
       doc.text('Attachments', 14, attY);
       attY += 6;
       doc.setFontSize(10);
       policy.attachments.forEach((att: any) => {
-        if (attY > doc.internal.pageSize.getHeight() - 15) {
-          doc.addPage();
-          attY = 20;
-        }
+        if (attY > pageHeight - 15) { doc.addPage(); attY = 20; }
         doc.text(`• ${att.name}${att.url ? ' (' + att.url + ')' : ''}`, 14, attY);
         attY += 5;
       });
@@ -341,6 +409,27 @@ const PolicyDetail = () => {
 
     doc.save(`${policy.policy_number || policy.name.replace(/[^a-zA-Z0-9]/g, '_')}_v${policy.current_version}.pdf`);
     toast.success('PDF exported');
+  };
+
+  // Helper for PDF value formatting
+  const pdfFormatValue = (value: any, fieldType: string, options?: any): string => {
+    if (value === null || value === undefined || value === '') return '—';
+    if (['select', 'radio', 'checkbox', 'dropdown'].includes(fieldType) && options) {
+      const arr = Array.isArray(options) ? options : [];
+      if (Array.isArray(value)) {
+        return value.map(v => { const o = arr.find((x: any) => x.value === v || x.id === v || x.label === v); return o?.label || v; }).join(', ') || '—';
+      }
+      const o = arr.find((x: any) => x.value === value || x.id === value || x.label === value);
+      if (o?.label) return o.label;
+    }
+    if (typeof value === 'object' && !Array.isArray(value)) {
+      if (fieldType === 'currency' && value.amount) return `${value.currency || ''} ${value.amount}`;
+      if (fieldType === 'address') return [value.street, value.city, value.state, value.postal, value.country].filter(Boolean).join(', ');
+      return JSON.stringify(value);
+    }
+    if (Array.isArray(value)) return value.join(', ');
+    if (fieldType === 'date' || fieldType === 'datetime') { try { return new Date(value).toLocaleDateString(); } catch { return String(value); } }
+    return String(value);
   };
 
   const statusDef = POLICY_STATUSES.find(s => s.value === policy.status);
