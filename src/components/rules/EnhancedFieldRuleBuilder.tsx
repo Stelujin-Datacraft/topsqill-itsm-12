@@ -14,6 +14,8 @@ import { RuleDynamicValueInput } from './RuleDynamicValueInput';
 import { ActionValueInput } from './ActionValueInput';
 import { ExpressionEvaluator } from '@/utils/expressionEvaluator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { RuleUserScope } from './RuleUserScope';
+
 
 interface EnhancedFieldRuleBuilderProps {
   fields: FormField[];
@@ -116,6 +118,8 @@ export function EnhancedFieldRuleBuilder({ fields, rules, onRulesChange }: Enhan
     logicExpression: '1',
     action: 'show',
     isActive: true,
+    appliesTo: 'all',
+    appliesToUserIds: [],
   });
 
   const addRule = () => {
@@ -542,6 +546,15 @@ export function EnhancedFieldRuleBuilder({ fields, rules, onRulesChange }: Enhan
               />
               <Label>Rule is active</Label>
             </div>
+                  <RuleUserScope
+                          appliesTo={editingRule.appliesTo || 'all'}
+                          appliesToUserIds={editingRule.appliesToUserIds || []}
+                          onChange={(appliesTo, userIds) => setEditingRule({
+                            ...editingRule,
+                            appliesTo,
+                            appliesToUserIds: userIds,
+                          })}
+                        />
 
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => {
