@@ -298,6 +298,15 @@ const PolicyDetail = () => {
   };
 
   const generatePDF = async (mode: 'download' | 'preview' = 'download') => {
+    // Open window synchronously to avoid popup blocker (must be in user gesture context)
+    let previewWindow: Window | null = null;
+    if (mode === 'preview') {
+      previewWindow = window.open('', '_blank');
+      if (previewWindow) {
+        previewWindow.document.write('<html><head><title>Loading PDF...</title></head><body><p>Generating PDF, please wait...</p></body></html>');
+      }
+    }
+
     const doc = new jsPDF();
     let yPos = 22;
     const pageHeight = doc.internal.pageSize.getHeight();
@@ -451,7 +460,12 @@ const PolicyDetail = () => {
     if (mode === 'preview') {
       const pdfBlob = doc.output('blob');
       const pdfUrl = URL.createObjectURL(pdfBlob);
-      window.open(pdfUrl, '_blank');
+      if (previewWindow) {
+        previewWindow.location.href = pdfUrl;
+      } else {
+        // Fallback if popup was blocked
+        window.open(pdfUrl, '_blank');
+      }
       toast.success('PDF preview opened in new tab');
     } else {
       doc.save(`${policy.policy_number || policy.name.replace(/[^a-zA-Z0-9]/g, '_')}_v${policy.current_version}.pdf`);
