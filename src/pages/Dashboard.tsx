@@ -7,7 +7,7 @@ import DashboardLayout from '@/components/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { CreateProjectDialog } from '@/components/projects/CreateProjectDialog';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+
 import { RecentActivityList } from '@/components/RecentActivityList';
 import { Plus, BarChart3, Users, FileText, Settings, Workflow } from 'lucide-react';
 
@@ -71,37 +71,59 @@ const Dashboard = () => {
           {/* Project Invitations - removed, available in Project section */}
 
           {/* Quick Actions */}
-          <div className="flex items-center gap-3">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="gap-2">
-                  <Plus className="h-4 w-4" />
-                  Quick Actions
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-56">
+          <Card>
+            <CardHeader>
+              <CardTitle>Quick Actions</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {quickActions.map((action, index) => (
-                  <DropdownMenuItem
+                  <Button
                     key={index}
+                    variant="outline"
+                    className="h-auto p-4 flex flex-col items-start space-y-2 bg-primary-light border-primary/20 hover:bg-primary/10"
                     onClick={action.onClick}
                     disabled={action.disabled}
-                    className="gap-2 cursor-pointer"
                   >
-                    <action.icon className="h-4 w-4 text-primary" />
-                    <div>
-                      <div className="font-medium">{action.title}</div>
-                      <div className="text-xs text-muted-foreground">{action.description}</div>
+                    <action.icon className="h-6 w-6 text-primary" />
+                    <div className="text-left">
+                      <div className="text-xl">{action.title}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {action.description}
+                      </div>
                     </div>
-                  </DropdownMenuItem>
+                  </Button>
                 ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-            {!currentProject && (
-              <p className="text-sm text-muted-foreground">
-                💡 Select a project to get started
-              </p>
-            )}
-          </div>
+              </div>
+            { /* <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {quickActions.map((action, index) => (
+                  
+                  <Button
+                    key={index}
+                    variant="outline"
+                    className="h-auto p-4 flex flex-col items-start space-y-2 bg-blue-50 border-blue-200"
+                    onClick={action.onClick}
+                    disabled={action.disabled}
+                  >
+                    <action.icon className="h-6 w-6" />
+                    <div className="text-left">
+                      <div className="text-xl">{action.title}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {action.description}
+                      </div>
+                    </div>
+                  </Button>
+                ))}
+              </div>*/}
+              {!currentProject && (
+                <div className="mt-4 p-3 bg-primary-light rounded-lg">
+                  <p className="text-sm text-primary">
+                    💡 Tip: Select a project from the sidebar or create a new one to access forms, workflows, and reports.
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
           {/* Stats Overview */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
