@@ -104,7 +104,7 @@ export function CreateRecordDialog({
             <FormViewLayoutRenderer 
               form={formToRender}
               onSubmit={handleSubmit}
-              showNavigation={false}
+              showNavigation={true}
               showPublicHeader={false}
             />
           </div>
