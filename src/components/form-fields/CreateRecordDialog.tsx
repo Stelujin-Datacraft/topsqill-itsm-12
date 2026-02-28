@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
 import { useFormLoader } from '@/hooks/useFormLoader';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface CreateRecordDialogProps {
   open: boolean;
@@ -21,6 +22,7 @@ export function CreateRecordDialog({
   onRecordCreated 
 }: CreateRecordDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { user } = useAuth();
   
   // Load the full form with all fields when dialog opens
   const { form: loadedForm, loading: formLoading } = useFormLoader(open ? targetForm.id : undefined);
@@ -40,7 +42,7 @@ export function CreateRecordDialog({
         form_id: targetForm.id,
         submission_ref_id,
         submission_data: formData,
-        status: 'submitted',
+        submitted_by: user?.id || null,
         submitted_at: new Date().toISOString(),
       };
 
