@@ -7,6 +7,7 @@ import { Settings, Plus } from 'lucide-react';
 import { FieldConfigurationDialog } from './FieldConfigurationDialog';
 import { OptimizedFormDataTable } from './OptimizedFormDataTable';
 import { CrossReferenceEmbeddedChart } from './CrossReferenceEmbeddedChart';
+import { CreateRecordDialog } from './CreateRecordDialog';
 import { useForm } from '@/contexts/FormContext';
 import { useCrossReferenceSync } from '@/hooks/useCrossReferenceSync';
 import { useUnifiedAccessControl } from '@/hooks/useUnifiedAccessControl';
@@ -37,6 +38,7 @@ export function CrossReferenceField({ field, value, onChange, onFieldUpdate, isP
   const { hasPermission } = useUnifiedAccessControl(currentProject?.id);
   const [configOpen, setConfigOpen] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [targetFormFields, setTargetFormFields] = useState<Array<{ id: string; label: string; field_type: string; options?: any }>>([]);
   
   // Fetch target form fields for embedded chart
@@ -121,8 +123,30 @@ export function CrossReferenceField({ field, value, onChange, onFieldUpdate, isP
   const canCreateRecord = !isPreview && targetForm && hasPermission('forms', 'read', targetForm.id);
 
   const handleCreateRecord = () => {
+    setCreateDialogOpen(true);
+  };
+
+  const handleRecordCreated = async () => {
+    // Fetch the latest record from the target form to auto-link it
     if (targetForm) {
-      navigate(`/form/${targetForm.id}`);
+      const { data } = await supabase
+        .from('form_submissions')
+        .select('id, submission_ref_id, form_id')
+        .eq('form_id', targetForm.id)
+        .order('submitted_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (data && onChange) {
+        const currentValue = Array.isArray(value) ? value : [];
+        const newRecord = {
+          id: data.id,
+          submission_ref_id: data.submission_ref_id,
+          form_id: data.form_id,
+        };
+        onChange([...currentValue, newRecord]);
+      }
+      setRefreshTrigger(prev => prev + 1);
     }
   };
 
@@ -194,6 +218,7 @@ export function CrossReferenceField({ field, value, onChange, onFieldUpdate, isP
         key={refreshTrigger}
         canCreateRecord={canCreateRecord}
         onCreateRecord={handleCreateRecord}
+        createRecordLabel="Create & Link"
         createRecordDisabled={disabled}
         currentFormData={formData}
         isEditing={isEditing}
@@ -207,6 +232,15 @@ export function CrossReferenceField({ field, value, onChange, onFieldUpdate, isP
           open={configOpen}
           onClose={() => setConfigOpen(false)}
           onSave={handleConfigSave}
+        />
+      )}
+
+      {targetForm && (
+        <CreateRecordDialog
+          open={createDialogOpen}
+          onClose={() => setCreateDialogOpen(false)}
+          targetForm={targetForm as any}
+          onRecordCreated={handleRecordCreated}
         />
       )}
     </div>
