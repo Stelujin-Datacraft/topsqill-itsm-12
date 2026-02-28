@@ -49,7 +49,16 @@ export function PolicyContentSource({
     setIsUploading(true);
     try {
       const arrayBuffer = await file.arrayBuffer();
-      const result = await mammoth.convertToHtml({ arrayBuffer });
+      const result = await mammoth.convertToHtml(
+        { arrayBuffer },
+        {
+          convertImage: mammoth.images.imgElement(function(image: any) {
+            return image.read("base64").then(function(imageBuffer: string) {
+              return { src: `data:${image.contentType};base64,${imageBuffer}` };
+            });
+          }),
+        }
+      );
       if (result.value) {
         onContentChange(result.value);
         toast.success(`Imported content from "${file.name}"`);
