@@ -10,9 +10,10 @@ import { Separator } from '@/components/ui/separator';
 interface PolicyDynamicFieldsRendererProps {
   formId: string;
   displayFormat: 'table' | 'field-value';
+  selectedFieldIds?: string[];
 }
 
-export function PolicyDynamicFieldsRenderer({ formId, displayFormat }: PolicyDynamicFieldsRendererProps) {
+export function PolicyDynamicFieldsRenderer({ formId, displayFormat, selectedFieldIds }: PolicyDynamicFieldsRendererProps) {
   // Fetch form info
   const formQuery = useQuery({
     queryKey: ['policy-form-info', formId],
@@ -76,9 +77,11 @@ export function PolicyDynamicFieldsRenderer({ formId, displayFormat }: PolicyDyn
   const formName = formQuery.data?.name || 'Linked Form';
 
   // Filter out layout/section fields that don't hold data
-  const dataFields = fields.filter(f =>
+  const allDataFields = fields.filter(f =>
     !['section', 'divider', 'heading', 'paragraph', 'spacer', 'page-break'].includes(f.field_type)
   );
+  // If selectedFieldIds is provided and non-empty, only show those fields
+  const dataFields = selectedFieldIds?.length ? allDataFields.filter(f => selectedFieldIds.includes(f.id)) : allDataFields;
 
   if (submissions.length === 0) {
     return (

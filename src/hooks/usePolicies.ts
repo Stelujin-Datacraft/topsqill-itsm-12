@@ -336,14 +336,15 @@ export function usePolicyDetail(policyId?: string) {
   });
 
   const submitApproval = useMutation({
-    mutationFn: async ({ policyId, versionNumber }: { policyId: string; versionNumber: number }) => {
+    mutationFn: async ({ policyId, versionNumber, approverId, comments }: { policyId: string; versionNumber: number; approverId?: string; comments?: string }) => {
       const { data, error } = await supabase
         .from('policy_approvals')
         .insert([{
           policy_id: policyId,
           version_number: versionNumber,
-          approver_id: user?.id,
+          approver_id: approverId || user?.id,
           status: 'pending',
+          comments,
         } as any])
         .select()
         .single();

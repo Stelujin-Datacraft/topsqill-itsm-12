@@ -17,6 +17,9 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { usePolicies, usePolicyDetail } from '@/hooks/usePolicies';
 import { useAuth } from '@/contexts/AuthContext';
+import { useOrganization } from '@/contexts/OrganizationContext';
+import { useProject } from '@/contexts/ProjectContext';
+import { useQuery } from '@tanstack/react-query';
 import { POLICY_CATEGORIES, POLICY_STATUSES, POLICY_PRIORITIES, REVIEW_CYCLE_OPTIONS } from '@/types/policy';
 import { format, isPast } from 'date-fns';
 import { toast } from 'sonner';
@@ -28,17 +31,15 @@ const PolicyDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { policies, updatePolicy, deletePolicy, createVersion, createTemplate, createReviewCycle } = usePolicies();
-  const { versions, linkages, approvals, acknowledgments, exceptions, reviewCycles, isLoading, acknowledgePolicy, requestException, createLinkage, submitApproval, respondApproval, respondException } = usePolicyDetail(id);
+  const { currentOrganization } = useOrganization();
+  const { currentProject } = useProject();
+  const { policies, updatePolicy, deletePolicy, createVersion, createReviewCycle } = usePolicies();
+  const { versions, linkages, approvals, isLoading, createLinkage, submitApproval, respondApproval } = usePolicyDetail(id);
   
   const policy = policies.find(p => p.id === id);
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<any>({});
   const [changeSummary, setChangeSummary] = useState('');
-  const [showAckDialog, setShowAckDialog] = useState(false);
-  const [ackComment, setAckComment] = useState('');
-  const [showExceptionDialog, setShowExceptionDialog] = useState(false);
-  const [exceptionForm, setExceptionForm] = useState({ reason: '', justification: '', risk_assessment: '', compensating_controls: '', start_date: '', end_date: '' });
   const [showLinkDialog, setShowLinkDialog] = useState(false);
   const [linkForm, setLinkForm] = useState({ linked_entity_type: 'form' as const, linked_entity_id: '', link_description: '' });
   const [approvalComment, setApprovalComment] = useState('');
@@ -47,6 +48,60 @@ const PolicyDetail = () => {
   const [dynamicFieldsFormat, setDynamicFieldsFormat] = useState<'table' | 'field-value'>(
     (policies.find(p => p.id === id)?.content?.dynamic_fields_display as 'table' | 'field-value') || 'table'
   );
+
+  // Approval dialog state
+  const [showApprovalDialog, setShowApprovalDialog] = useState(false);
+  const [selectedApproverIds, setSelectedApproverIds] = useState<string[]>([]);
+  const [approvalSubmitComment, setApprovalSubmitComment] = useState('');
+
+  // Fetch users for approver selection
+  const usersQuery = useQuery({
+    queryKey: ['users-for-approval', currentOrganization?.id],
+    queryFn: async () => {
+      if (!currentOrganization?.id) return [];
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('id, first_name, last_name, email, role')
+        .eq('organization_id', currentOrganization.id)
+        .eq('status', 'active')
+        .order('first_name');
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!currentOrganization?.id,
+  });
+
+  // Fetch linkable entities based on type
+  const formsQuery = useQuery({
+    queryKey: ['linkable-forms', currentProject?.id],
+    queryFn: async () => {
+      if (!currentProject?.id) return [];
+      const { data, error } = await supabase
+        .from('forms')
+        .select('id, name, reference_id')
+        .eq('project_id', currentProject.id)
+        .order('name');
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!currentProject?.id && showLinkDialog,
+  });
+
+  const policiesForLink = useQuery({
+    queryKey: ['linkable-policies', currentProject?.id, id],
+    queryFn: async () => {
+      if (!currentProject?.id) return [];
+      const { data, error } = await supabase
+        .from('policies')
+        .select('id, name, policy_number')
+        .eq('project_id', currentProject.id)
+        .neq('id', id!)
+        .order('name');
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!currentProject?.id && showLinkDialog,
+  });
 
   if (!policy) {
     return (
@@ -72,8 +127,6 @@ const PolicyDetail = () => {
       effective_date: policy.effective_date || '',
       expiry_date: policy.expiry_date || '',
       review_cycle_days: policy.review_cycle_days || 365,
-      acknowledgment_required: policy.acknowledgment_required || false,
-      exception_allowed: policy.exception_allowed !== false,
       content_html: policy.content?.html || '',
     });
     setIsEditing(true);
@@ -112,9 +165,25 @@ const PolicyDetail = () => {
     setChangeSummary('');
   };
 
-  const submitForApproval = async () => {
-    await submitApproval.mutateAsync({ policyId: policy.id, versionNumber: policy.current_version });
+  const handleSubmitForApproval = async () => {
+    if (selectedApproverIds.length === 0) {
+      toast.error('Please select at least one approver');
+      return;
+    }
+    // Create one approval record per selected approver
+    for (const approverId of selectedApproverIds) {
+      await submitApproval.mutateAsync({
+        policyId: policy.id,
+        versionNumber: policy.current_version,
+        approverId,
+        comments: approvalSubmitComment || undefined,
+      });
+    }
     await updatePolicy.mutateAsync({ id: policy.id, status: 'pending_approval' });
+    setShowApprovalDialog(false);
+    setSelectedApproverIds([]);
+    setApprovalSubmitComment('');
+    toast.success(`Submitted for approval to ${selectedApproverIds.length} approver(s)`);
   };
 
   const handleApprovalResponse = async (approvalId: string, status: 'approved' | 'rejected') => {
@@ -124,7 +193,6 @@ const PolicyDetail = () => {
       if (pendingApprovals.length === 0) {
         const publishedAt = new Date().toISOString();
         await updatePolicy.mutateAsync({ id: policy.id, status: 'published', published_at: publishedAt });
-        // Auto-schedule review cycle
         if (policy.review_cycle_days && policy.review_cycle_days > 0) {
           const reviewDate = new Date();
           reviewDate.setDate(reviewDate.getDate() + policy.review_cycle_days);
@@ -141,19 +209,6 @@ const PolicyDetail = () => {
     setApprovalComment('');
   };
 
-  const handleExceptionResponse = async (exceptionId: string, status: 'approved' | 'rejected') => {
-    if (!user?.id) return;
-    await respondException.mutateAsync({ exceptionId, status, approved_by: user.id });
-  };
-
-  const publishPolicy = async () => {
-    await updatePolicy.mutateAsync({
-      id: policy.id,
-      status: 'published',
-      published_at: new Date().toISOString(),
-    });
-  };
-
   const retirePolicy = async () => {
     await updatePolicy.mutateAsync({
       id: policy.id,
@@ -165,45 +220,6 @@ const PolicyDetail = () => {
   const handleDelete = async () => {
     await deletePolicy.mutateAsync(policy.id);
     navigate('/policies');
-  };
-
-  const saveAsTemplate = async () => {
-    await createTemplate.mutateAsync({
-      name: policy.name,
-      description: policy.description,
-      category: policy.category,
-      content_structure: policy.content,
-    });
-  };
-
-  const handleAcknowledge = async () => {
-    await acknowledgePolicy.mutateAsync({
-      policyId: policy.id,
-      versionNumber: policy.current_version,
-      comments: ackComment || undefined,
-    });
-    setShowAckDialog(false);
-    setAckComment('');
-  };
-
-  const handleRequestException = async () => {
-    if (!exceptionForm.reason || !exceptionForm.start_date || !exceptionForm.end_date) return;
-    await requestException.mutateAsync({
-      policy_id: policy.id,
-      ...exceptionForm,
-    });
-    setShowExceptionDialog(false);
-    setExceptionForm({ reason: '', justification: '', risk_assessment: '', compensating_controls: '', start_date: '', end_date: '' });
-  };
-
-  const handleCreateLinkage = async () => {
-    if (!linkForm.linked_entity_id) return;
-    await createLinkage.mutateAsync({
-      policy_id: policy.id,
-      ...linkForm,
-    });
-    setShowLinkDialog(false);
-    setLinkForm({ linked_entity_type: 'form', linked_entity_id: '', link_description: '' });
   };
 
   const handleAttachmentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -243,6 +259,27 @@ const PolicyDetail = () => {
     }
   };
 
+  const handleCreateLinkage = async () => {
+    if (!linkForm.linked_entity_id) return;
+    await createLinkage.mutateAsync({
+      policy_id: policy.id,
+      ...linkForm,
+    });
+    setShowLinkDialog(false);
+    setLinkForm({ linked_entity_type: 'form', linked_entity_id: '', link_description: '' });
+  };
+
+  // Get linkable entities for current type
+  const getLinkableEntities = () => {
+    if (linkForm.linked_entity_type === 'form') {
+      return (formsQuery.data || []).map(f => ({ id: f.id, label: f.name, badge: f.reference_id }));
+    }
+    if (linkForm.linked_entity_type === 'policy') {
+      return (policiesForLink.data || []).map(p => ({ id: p.id, label: p.name, badge: p.policy_number }));
+    }
+    return [];
+  };
+
   const exportToPDF = async () => {
     const doc = new jsPDF();
     let yPos = 22;
@@ -252,12 +289,10 @@ const PolicyDetail = () => {
       if (yPos > pageHeight - needed) { doc.addPage(); yPos = 20; }
     };
 
-    // Title
     doc.setFontSize(18);
     doc.text(policy.name, 14, yPos);
     yPos += 10;
 
-    // Metadata line
     doc.setFontSize(10);
     doc.text(`${policy.policy_number || ''} | Status: ${policy.status} | Category: ${policy.category} | Priority: ${policy.priority || 'medium'} | Version: ${policy.current_version}`, 14, yPos);
     yPos += 6;
@@ -266,7 +301,6 @@ const PolicyDetail = () => {
     if (policy.effective_date) { doc.text(`Effective: ${policy.effective_date}`, 14, yPos); yPos += 6; }
     if (policy.compliance_standard) { doc.text(`Compliance: ${policy.compliance_standard} ${policy.compliance_reference || ''}`, 14, yPos); yPos += 6; }
 
-    // Description
     if (policy.description) {
       yPos += 4;
       doc.setFontSize(12);
@@ -278,7 +312,6 @@ const PolicyDetail = () => {
       yPos += descLines.length * 5 + 4;
     }
 
-    // Policy content body
     if (policy.content?.html) {
       yPos += 4;
       doc.setFontSize(12);
@@ -300,8 +333,6 @@ const PolicyDetail = () => {
     if (policy.form_id) {
       try {
         const displayFormat = dynamicFieldsFormat;
-
-        // Fetch form info, fields, and submissions in parallel
         const [formRes, fieldsRes, subsRes] = await Promise.all([
           supabase.from('forms').select('name').eq('id', policy.form_id).single(),
           supabase.from('form_fields').select('id, label, field_type, options, field_order').eq('form_id', policy.form_id).order('field_order'),
@@ -309,9 +340,12 @@ const PolicyDetail = () => {
         ]);
 
         const formName = formRes.data?.name || 'Linked Form';
-        const fields = (fieldsRes.data || []).filter(f =>
+        const allFields = (fieldsRes.data || []).filter(f =>
           !['section', 'divider', 'heading', 'paragraph', 'spacer', 'page-break'].includes(f.field_type)
         );
+        // Only use selected fields if specified
+        const selectedFieldIds = policy.content?.selected_field_ids as string[] | undefined;
+        const fields = selectedFieldIds?.length ? allFields.filter(f => selectedFieldIds.includes(f.id)) : allFields;
         const submissions = subsRes.data || [];
 
         if (submissions.length > 0) {
@@ -334,7 +368,6 @@ const PolicyDetail = () => {
             const data = sub.submission_data || {};
 
             if (displayFormat === 'table') {
-              // Table format using autoTable
               const tableRows = fields.map((f: any) => [
                 f.label,
                 pdfFormatValue(data[f.id], f.field_type, f.options),
@@ -349,7 +382,6 @@ const PolicyDetail = () => {
               });
               yPos = (doc as any).lastAutoTable?.finalY + 6 || yPos + 10;
             } else {
-              // Field-value (row) format
               doc.setFontSize(10);
               fields.forEach((f: any) => {
                 ensureSpace(16);
@@ -375,25 +407,6 @@ const PolicyDetail = () => {
       }
     }
 
-    // Version history table
-    if (versions.length > 0) {
-      ensureSpace(40);
-      yPos += 6;
-      doc.setFontSize(12);
-      doc.text('Version History', 14, yPos);
-      yPos += 4;
-      const tableData = versions.map(v => [
-        `v${v.version_number}`,
-        v.change_summary || '—',
-        format(new Date(v.changed_at), 'MMM d, yyyy'),
-      ]);
-      autoTable(doc, {
-        head: [['Version', 'Change Summary', 'Date']],
-        body: tableData,
-        startY: yPos,
-      });
-    }
-
     // Attachments list
     if (policy.attachments && policy.attachments.length > 0) {
       const lastY = (doc as any).lastAutoTable?.finalY || yPos + 10;
@@ -414,7 +427,6 @@ const PolicyDetail = () => {
     toast.success('PDF exported');
   };
 
-  // Helper for PDF value formatting
   const pdfFormatValue = (value: any, fieldType: string, options?: any): string => {
     if (value === null || value === undefined || value === '') return '—';
     if (['select', 'radio', 'checkbox', 'dropdown'].includes(fieldType) && options) {
@@ -438,7 +450,12 @@ const PolicyDetail = () => {
   const statusDef = POLICY_STATUSES.find(s => s.value === policy.status);
   const priorityDef = POLICY_PRIORITIES.find(p => p.value === (policy.priority || 'medium'));
   const isOverdueReview = policy.next_review_date && isPast(new Date(policy.next_review_date));
-  const userHasAcked = acknowledgments.some(a => a.user_id === user?.id && a.version_acknowledged === policy.current_version);
+
+  const getUserName = (userId: string) => {
+    const u = usersQuery.data?.find(u => u.id === userId);
+    if (u) return [u.first_name, u.last_name].filter(Boolean).join(' ') || u.email;
+    return userId.slice(0, 8) + '...';
+  };
 
   return (
     <div className="flex-1 overflow-auto space-y-6 p-6">
@@ -473,25 +490,12 @@ const PolicyDetail = () => {
           <Button variant="outline" size="sm" onClick={exportToPDF}>
             <Download className="h-4 w-4 mr-1" /> Export PDF
           </Button>
-          <Button variant="outline" size="sm" onClick={saveAsTemplate}>
-            <Save className="h-4 w-4 mr-1" /> Save as Template
-          </Button>
-          {policy.acknowledgment_required && policy.status === 'published' && !userHasAcked && (
-            <Button size="sm" variant="outline" onClick={() => setShowAckDialog(true)} className="border-blue-300 text-blue-700 dark:text-blue-300">
-              <UserCheck className="h-4 w-4 mr-1" /> Acknowledge
-            </Button>
-          )}
-          {policy.exception_allowed && policy.status === 'published' && (
-            <Button size="sm" variant="outline" onClick={() => setShowExceptionDialog(true)}>
-              <AlertOctagon className="h-4 w-4 mr-1" /> Request Exception
-            </Button>
-          )}
           {policy.status === 'draft' && (
             <>
               <Button variant="outline" size="sm" onClick={startEditing}>
                 <Edit className="h-4 w-4 mr-1" /> Edit
               </Button>
-              <Button size="sm" onClick={submitForApproval}>
+              <Button size="sm" onClick={() => setShowApprovalDialog(true)}>
                 <Send className="h-4 w-4 mr-1" /> Submit for Approval
               </Button>
             </>
@@ -579,16 +583,6 @@ const PolicyDetail = () => {
                   <SelectContent>{REVIEW_CYCLE_OPTIONS.map(o => <SelectItem key={o.value} value={String(o.value)}>{o.label}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2">
-                  <Switch checked={editForm.acknowledgment_required} onCheckedChange={v => setEditForm((p: any) => ({ ...p, acknowledgment_required: v }))} />
-                  <Label className="text-sm">Require ACK</Label>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Switch checked={editForm.exception_allowed} onCheckedChange={v => setEditForm((p: any) => ({ ...p, exception_allowed: v }))} />
-                  <Label className="text-sm">Allow Exceptions</Label>
-                </div>
-              </div>
               <div className="col-span-2">
                 <Label>Policy Content</Label>
                 <TiptapEditor
@@ -618,17 +612,8 @@ const PolicyDetail = () => {
           <TabsTrigger value="content" className="gap-1">
             <BookOpen className="h-3.5 w-3.5" /> Content
           </TabsTrigger>
-          <TabsTrigger value="versions" className="gap-1">
-            <History className="h-3.5 w-3.5" /> Versions ({versions.length})
-          </TabsTrigger>
           <TabsTrigger value="approvals" className="gap-1">
             <CheckCircle className="h-3.5 w-3.5" /> Approvals ({approvals.length})
-          </TabsTrigger>
-          <TabsTrigger value="acknowledgments" className="gap-1">
-            <UserCheck className="h-3.5 w-3.5" /> Acknowledgments ({acknowledgments.length})
-          </TabsTrigger>
-          <TabsTrigger value="exceptions" className="gap-1">
-            <AlertOctagon className="h-3.5 w-3.5" /> Exceptions ({exceptions.length})
           </TabsTrigger>
           <TabsTrigger value="linkages" className="gap-1">
             <Link2 className="h-3.5 w-3.5" /> Linkages ({linkages.length})
@@ -647,8 +632,6 @@ const PolicyDetail = () => {
                 <DetailRow label="Priority" value={<Badge className={priorityDef?.color}>{priorityDef?.label}</Badge>} />
                 <DetailRow label="Owner Type" value={<span className="capitalize">{policy.owner_type}</span>} />
                 <DetailRow label="Version" value={`v${policy.current_version}`} />
-                <DetailRow label="Acknowledgment Required" value={policy.acknowledgment_required ? 'Yes' : 'No'} />
-                <DetailRow label="Exceptions Allowed" value={policy.exception_allowed !== false ? 'Yes' : 'No'} />
               </CardContent>
             </Card>
             <Card>
@@ -762,33 +745,10 @@ const PolicyDetail = () => {
               <PolicyDynamicFieldsRenderer
                 formId={policy.form_id}
                 displayFormat={dynamicFieldsFormat}
+                selectedFieldIds={policy.content?.selected_field_ids as string[] | undefined}
               />
             </div>
           )}
-        </TabsContent>
-
-        {/* Versions Tab */}
-        <TabsContent value="versions" className="mt-4">
-          <Card>
-            <CardContent className="pt-4">
-              {versions.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-6">No version history yet</p>
-              ) : (
-                <div className="space-y-3">
-                  {versions.map(v => (
-                    <div key={v.id} className="flex items-start gap-3 p-3 rounded-md border">
-                      <Badge variant="outline">v{v.version_number}</Badge>
-                      <div className="flex-1">
-                        <div className="font-medium text-sm">{v.name}</div>
-                        <div className="text-xs text-muted-foreground mt-0.5">{v.change_summary || 'No change summary'}</div>
-                      </div>
-                      <div className="text-xs text-muted-foreground">{format(new Date(v.changed_at), 'MMM d, yyyy HH:mm')}</div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
         </TabsContent>
 
         {/* Approvals Tab */}
@@ -810,117 +770,34 @@ const PolicyDetail = () => {
                             <span className="text-sm capitalize font-medium">{a.status}</span>
                             <Badge variant="outline">v{a.version_number}</Badge>
                           </div>
-                          {a.comments && <div className="text-xs text-muted-foreground mt-1">{a.comments}</div>}
-                          <div className="text-xs text-muted-foreground mt-0.5">Approver: {a.approver_id.slice(0, 8)}...</div>
+                          <div className="text-xs text-muted-foreground mt-0.5">
+                            Approver: <span className="font-medium text-foreground">{getUserName(a.approver_id)}</span>
+                          </div>
+                          {a.comments && <div className="text-xs text-muted-foreground mt-1 italic">"{a.comments}"</div>}
                         </div>
                         <div className="text-xs text-muted-foreground">{format(new Date(a.created_at), 'MMM d, yyyy HH:mm')}</div>
                       </div>
                       {a.status === 'pending' && (
                         <div className="flex items-center gap-2 pt-2 border-t">
-                          <Input
-                            placeholder="Add comment (optional)"
+                          <Textarea
+                            placeholder="Add comment (required for rejection, optional for approval)"
                             value={approvalComment}
                             onChange={e => setApprovalComment(e.target.value)}
-                            className="flex-1 h-8 text-sm"
+                            className="flex-1 text-sm min-h-[60px]"
+                            rows={2}
                           />
-                          <Button size="sm" variant="default" onClick={() => handleApprovalResponse(a.id, 'approved')} disabled={respondApproval.isPending}>
-                            <CheckCircle className="h-3.5 w-3.5 mr-1" /> Approve
-                          </Button>
-                          <Button size="sm" variant="destructive" onClick={() => handleApprovalResponse(a.id, 'rejected')} disabled={respondApproval.isPending}>
-                            <AlertOctagon className="h-3.5 w-3.5 mr-1" /> Reject
-                          </Button>
+                          <div className="flex flex-col gap-1">
+                            <Button size="sm" variant="default" onClick={() => handleApprovalResponse(a.id, 'approved')} disabled={respondApproval.isPending}>
+                              <CheckCircle className="h-3.5 w-3.5 mr-1" /> Approve
+                            </Button>
+                            <Button size="sm" variant="destructive" onClick={() => handleApprovalResponse(a.id, 'rejected')} disabled={respondApproval.isPending || !approvalComment.trim()}>
+                              <AlertOctagon className="h-3.5 w-3.5 mr-1" /> Reject
+                            </Button>
+                          </div>
                         </div>
                       )}
                     </div>
                   ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Acknowledgments Tab */}
-        <TabsContent value="acknowledgments" className="mt-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-sm">Policy Acknowledgments</CardTitle>
-              {policy.acknowledgment_required && policy.status === 'published' && !userHasAcked && (
-                <Button size="sm" onClick={() => setShowAckDialog(true)}>
-                  <UserCheck className="h-4 w-4 mr-1" /> Acknowledge
-                </Button>
-              )}
-            </CardHeader>
-            <CardContent>
-              {acknowledgments.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-6">No acknowledgments recorded</p>
-              ) : (
-                <div className="space-y-3">
-                  {acknowledgments.map(a => (
-                    <div key={a.id} className="flex items-start gap-3 p-3 rounded-md border">
-                      <UserCheck className="h-5 w-5 text-primary mt-0.5" />
-                      <div className="flex-1">
-                        <div className="text-sm font-medium">Version {a.version_acknowledged} acknowledged</div>
-                        {a.comments && <div className="text-xs text-muted-foreground">{a.comments}</div>}
-                        <div className="text-xs text-muted-foreground mt-0.5">User: {a.user_id.slice(0, 8)}...</div>
-                      </div>
-                      <div className="text-xs text-muted-foreground">{format(new Date(a.acknowledged_at), 'MMM d, yyyy HH:mm')}</div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Exceptions Tab */}
-        <TabsContent value="exceptions" className="mt-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-sm">Policy Exceptions</CardTitle>
-              {policy.exception_allowed && policy.status === 'published' && (
-                <Button size="sm" variant="outline" onClick={() => setShowExceptionDialog(true)}>
-                  <Plus className="h-4 w-4 mr-1" /> Request Exception
-                </Button>
-              )}
-            </CardHeader>
-            <CardContent>
-              {exceptions.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-6">No exceptions requested</p>
-              ) : (
-                <div className="space-y-3">
-                  {exceptions.map(e => {
-                    const statusColors: Record<string, string> = {
-                      pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-                      approved: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-                      rejected: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-                      expired: 'bg-muted text-muted-foreground',
-                    };
-                    return (
-                      <div key={e.id} className="p-3 rounded-md border space-y-2">
-                        <div className="flex items-center justify-between">
-                          <Badge className={statusColors[e.status]}>{e.status}</Badge>
-                          <span className="text-xs text-muted-foreground">{format(new Date(e.created_at), 'MMM d, yyyy')}</span>
-                        </div>
-                        <div className="text-sm"><strong>Reason:</strong> {e.reason}</div>
-                        {e.justification && <div className="text-xs text-muted-foreground"><strong>Justification:</strong> {e.justification}</div>}
-                        {e.risk_assessment && <div className="text-xs text-muted-foreground"><strong>Risk:</strong> {e.risk_assessment}</div>}
-                        {e.compensating_controls && <div className="text-xs text-muted-foreground"><strong>Controls:</strong> {e.compensating_controls}</div>}
-                        <div className="text-xs text-muted-foreground">
-                          Period: {e.start_date} to {e.end_date}
-                        </div>
-                        {e.status === 'pending' && (
-                          <div className="flex items-center gap-2 pt-2 border-t">
-                            <Button size="sm" variant="default" onClick={() => handleExceptionResponse(e.id, 'approved')} disabled={respondException.isPending}>
-                              <CheckCircle className="h-3.5 w-3.5 mr-1" /> Approve
-                            </Button>
-                            <Button size="sm" variant="destructive" onClick={() => handleExceptionResponse(e.id, 'rejected')} disabled={respondException.isPending}>
-                              <AlertOctagon className="h-3.5 w-3.5 mr-1" /> Reject
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
                 </div>
               )}
             </CardContent>
@@ -933,12 +810,12 @@ const PolicyDetail = () => {
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-sm">Linked Modules</CardTitle>
               <Button size="sm" variant="outline" onClick={() => setShowLinkDialog(true)}>
-                <Plus className="h-4 w-4 mr-1" /> Add Link
+                <Plus className="h-4 w-4 mr-1" /> Link
               </Button>
             </CardHeader>
             <CardContent>
               {linkages.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-6">No linked modules</p>
+                <p className="text-sm text-muted-foreground text-center py-6">No linked modules. Link forms, policies, or other entities to this policy.</p>
               ) : (
                 <div className="space-y-3">
                   {linkages.map(l => (
@@ -958,104 +835,117 @@ const PolicyDetail = () => {
         </TabsContent>
       </Tabs>
 
-      {/* Acknowledge Dialog */}
-      <Dialog open={showAckDialog} onOpenChange={setShowAckDialog}>
-        <DialogContent>
+      {/* Submit for Approval Dialog */}
+      <Dialog open={showApprovalDialog} onOpenChange={setShowApprovalDialog}>
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Acknowledge Policy</DialogTitle>
+            <DialogTitle>Submit for Approval</DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            By acknowledging, you confirm that you have read and understood <strong>{policy.name}</strong> (v{policy.current_version}).
-          </p>
-          <div>
-            <Label>Comments (optional)</Label>
-            <Textarea value={ackComment} onChange={e => setAckComment(e.target.value)} placeholder="Any comments..." rows={3} />
+          <div className="space-y-4">
+            <div>
+              <Label>Select Approver(s) *</Label>
+              <p className="text-xs text-muted-foreground mb-2">Choose who should approve this policy before it can be published.</p>
+              <div className="border rounded-md max-h-[200px] overflow-y-auto">
+                {(usersQuery.data || []).filter(u => u.id !== user?.id).map(u => {
+                  const name = [u.first_name, u.last_name].filter(Boolean).join(' ') || u.email;
+                  const isSelected = selectedApproverIds.includes(u.id);
+                  return (
+                    <div
+                      key={u.id}
+                      className={`flex items-center gap-3 p-2.5 cursor-pointer hover:bg-muted/50 border-b last:border-b-0 transition-colors ${isSelected ? 'bg-primary/5' : ''}`}
+                      onClick={() => {
+                        setSelectedApproverIds(prev =>
+                          isSelected ? prev.filter(id => id !== u.id) : [...prev, u.id]
+                        );
+                      }}
+                    >
+                      <div className={`w-4 h-4 rounded border flex items-center justify-center ${isSelected ? 'bg-primary border-primary' : 'border-muted-foreground/30'}`}>
+                        {isSelected && <CheckCircle className="h-3 w-3 text-primary-foreground" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium truncate">{name}</div>
+                        <div className="text-xs text-muted-foreground truncate">{u.email}</div>
+                      </div>
+                      <Badge variant="outline" className="text-[10px] shrink-0">{u.role}</Badge>
+                    </div>
+                  );
+                })}
+                {(usersQuery.data || []).filter(u => u.id !== user?.id).length === 0 && (
+                  <p className="text-sm text-muted-foreground text-center py-4">No other users available</p>
+                )}
+              </div>
+              {selectedApproverIds.length > 0 && (
+                <p className="text-xs text-muted-foreground mt-1">{selectedApproverIds.length} approver(s) selected</p>
+              )}
+            </div>
+            <div>
+              <Label>Comment (optional)</Label>
+              <Textarea
+                value={approvalSubmitComment}
+                onChange={e => setApprovalSubmitComment(e.target.value)}
+                placeholder="Add a note for the approver(s)..."
+                rows={2}
+              />
+            </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAckDialog(false)}>Cancel</Button>
-            <Button onClick={handleAcknowledge} disabled={acknowledgePolicy.isPending}>
-              {acknowledgePolicy.isPending ? 'Acknowledging...' : 'Acknowledge'}
+            <Button variant="outline" onClick={() => setShowApprovalDialog(false)}>Cancel</Button>
+            <Button onClick={handleSubmitForApproval} disabled={selectedApproverIds.length === 0 || submitApproval.isPending}>
+              {submitApproval.isPending ? 'Submitting...' : `Submit to ${selectedApproverIds.length} Approver(s)`}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Exception Request Dialog */}
-      <Dialog open={showExceptionDialog} onOpenChange={setShowExceptionDialog}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Request Policy Exception</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div>
-              <Label>Reason *</Label>
-              <Textarea value={exceptionForm.reason} onChange={e => setExceptionForm(p => ({ ...p, reason: e.target.value }))} placeholder="Why is an exception needed?" rows={2} />
-            </div>
-            <div>
-              <Label>Business Justification</Label>
-              <Textarea value={exceptionForm.justification} onChange={e => setExceptionForm(p => ({ ...p, justification: e.target.value }))} placeholder="Business justification..." rows={2} />
-            </div>
-            <div>
-              <Label>Risk Assessment</Label>
-              <Textarea value={exceptionForm.risk_assessment} onChange={e => setExceptionForm(p => ({ ...p, risk_assessment: e.target.value }))} placeholder="What are the risks?" rows={2} />
-            </div>
-            <div>
-              <Label>Compensating Controls</Label>
-              <Textarea value={exceptionForm.compensating_controls} onChange={e => setExceptionForm(p => ({ ...p, compensating_controls: e.target.value }))} placeholder="What controls will compensate?" rows={2} />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Start Date *</Label>
-                <Input type="date" value={exceptionForm.start_date} onChange={e => setExceptionForm(p => ({ ...p, start_date: e.target.value }))} />
-              </div>
-              <div>
-                <Label>End Date *</Label>
-                <Input type="date" value={exceptionForm.end_date} onChange={e => setExceptionForm(p => ({ ...p, end_date: e.target.value }))} />
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowExceptionDialog(false)}>Cancel</Button>
-            <Button onClick={handleRequestException} disabled={!exceptionForm.reason || !exceptionForm.start_date || !exceptionForm.end_date || requestException.isPending}>
-              {requestException.isPending ? 'Submitting...' : 'Submit Request'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Add Linkage Dialog */}
+      {/* Add Linkage Dialog - Simplified */}
       <Dialog open={showLinkDialog} onOpenChange={setShowLinkDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Link Module</DialogTitle>
+            <DialogTitle>Link to Module</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
+          <div className="space-y-4">
             <div>
-              <Label>Entity Type</Label>
-              <Select value={linkForm.linked_entity_type} onValueChange={v => setLinkForm(p => ({ ...p, linked_entity_type: v as any }))}>
+              <Label>What do you want to link?</Label>
+              <Select
+                value={linkForm.linked_entity_type}
+                onValueChange={v => setLinkForm(p => ({ ...p, linked_entity_type: v as any, linked_entity_id: '' }))}
+              >
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="form">Form</SelectItem>
-                  <SelectItem value="workflow">Workflow</SelectItem>
-                  <SelectItem value="report">Report</SelectItem>
-                  <SelectItem value="dashboard">Dashboard</SelectItem>
-                  <SelectItem value="policy">Policy</SelectItem>
+                  <SelectItem value="policy">Another Policy</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div>
-              <Label>Entity ID</Label>
-              <Input value={linkForm.linked_entity_id} onChange={e => setLinkForm(p => ({ ...p, linked_entity_id: e.target.value }))} placeholder="Paste entity ID" />
+              <Label>Select {linkForm.linked_entity_type === 'form' ? 'Form' : 'Policy'}</Label>
+              {getLinkableEntities().length === 0 ? (
+                <p className="text-sm text-muted-foreground py-2">No {linkForm.linked_entity_type === 'form' ? 'forms' : 'policies'} available</p>
+              ) : (
+                <Select value={linkForm.linked_entity_id} onValueChange={v => setLinkForm(p => ({ ...p, linked_entity_id: v }))}>
+                  <SelectTrigger><SelectValue placeholder={`Choose a ${linkForm.linked_entity_type}...`} /></SelectTrigger>
+                  <SelectContent>
+                    {getLinkableEntities().map(e => (
+                      <SelectItem key={e.id} value={e.id}>
+                        <span className="flex items-center gap-2">
+                          {e.label}
+                          {e.badge && <Badge variant="outline" className="text-[10px] py-0">{e.badge}</Badge>}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
             <div>
-              <Label>Description</Label>
-              <Input value={linkForm.link_description} onChange={e => setLinkForm(p => ({ ...p, link_description: e.target.value }))} placeholder="Describe the relationship" />
+              <Label>Description (optional)</Label>
+              <Input value={linkForm.link_description} onChange={e => setLinkForm(p => ({ ...p, link_description: e.target.value }))} placeholder="e.g., Related compliance form" />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowLinkDialog(false)}>Cancel</Button>
             <Button onClick={handleCreateLinkage} disabled={!linkForm.linked_entity_id || createLinkage.isPending}>
-              {createLinkage.isPending ? 'Linking...' : 'Create Link'}
+              {createLinkage.isPending ? 'Linking...' : 'Link'}
             </Button>
           </DialogFooter>
         </DialogContent>

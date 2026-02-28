@@ -6,13 +6,13 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { usePolicies } from '@/hooks/usePolicies';
 import { POLICY_CATEGORIES, POLICY_PRIORITIES, REVIEW_CYCLE_OPTIONS } from '@/types/policy';
 import type { PolicyTemplate } from '@/types/policy';
 import { PolicyContentSource } from './PolicyContentSource';
 import { PolicyFormLink } from './PolicyFormLink';
+import { PolicyFieldSelector } from './PolicyFieldSelector';
 
 interface CreatePolicyDialogProps {
   open: boolean;
@@ -31,10 +31,10 @@ const INITIAL_FORM = {
   effective_date: '',
   expiry_date: '',
   review_cycle_days: 365,
-  acknowledgment_required: false,
-  exception_allowed: true,
   content_html: '',
   form_id: '',
+  selected_field_ids: [] as string[],
+  dynamic_fields_display: 'table' as 'table' | 'field-value',
 };
 
 export function CreatePolicyDialog({ open, onOpenChange }: CreatePolicyDialogProps) {
@@ -78,9 +78,11 @@ export function CreatePolicyDialog({ open, onOpenChange }: CreatePolicyDialogPro
       expiry_date: form.expiry_date || undefined,
       review_cycle_days: form.review_cycle_days,
       next_review_date,
-      acknowledgment_required: form.acknowledgment_required,
-      exception_allowed: form.exception_allowed,
-      content: form.content_html ? { html: form.content_html } : (selectedTemplate?.content_structure || {}),
+      content: {
+        ...(form.content_html ? { html: form.content_html } : (selectedTemplate?.content_structure || {})),
+        dynamic_fields_display: form.form_id ? form.dynamic_fields_display : undefined,
+        selected_field_ids: form.form_id && form.selected_field_ids.length > 0 ? form.selected_field_ids : undefined,
+      },
       template_id: selectedTemplate?.id,
       form_id: form.form_id || undefined,
       status: 'draft',
@@ -130,6 +132,42 @@ export function CreatePolicyDialog({ open, onOpenChange }: CreatePolicyDialogPro
 
             <Separator />
 
+            {/* Dynamic Fields - Above Content */}
+            <div>
+              <Label className="text-sm font-semibold mb-2 block">Dynamic Fields</Label>
+              <PolicyFormLink
+                formId={form.form_id}
+                onFormIdChange={id => {
+                  updateField('form_id', id);
+                  if (!id) updateField('selected_field_ids', []);
+                }}
+              />
+              {form.form_id && (
+                <div className="mt-3 space-y-3">
+                  <PolicyFieldSelector
+                    formId={form.form_id}
+                    selectedFieldIds={form.selected_field_ids}
+                    onSelectedFieldsChange={ids => updateField('selected_field_ids', ids)}
+                  />
+                  <div>
+                    <Label>Display Format</Label>
+                    <Select
+                      value={form.dynamic_fields_display}
+                      onValueChange={v => updateField('dynamic_fields_display', v as 'table' | 'field-value')}
+                    >
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="table">Table Format</SelectItem>
+                        <SelectItem value="field-value">Field Name (Bold) + Value</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <Separator />
+
             {/* Policy Content Source */}
             <div>
               <Label className="text-sm font-semibold mb-2 block">Policy Content</Label>
@@ -144,14 +182,6 @@ export function CreatePolicyDialog({ open, onOpenChange }: CreatePolicyDialogPro
                 onModeChange={setContentMode}
               />
             </div>
-
-            <Separator />
-
-            {/* Form Link for Dynamic Fields */}
-            <PolicyFormLink
-              formId={form.form_id}
-              onFormIdChange={id => updateField('form_id', id)}
-            />
 
             <Separator />
 
@@ -242,24 +272,6 @@ export function CreatePolicyDialog({ open, onOpenChange }: CreatePolicyDialogPro
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
-
-              {/* Toggles */}
-              <div className="col-span-2 flex items-center gap-6 pt-2">
-                <div className="flex items-center gap-2">
-                  <Switch
-                    checked={form.acknowledgment_required}
-                    onCheckedChange={v => updateField('acknowledgment_required', v)}
-                  />
-                  <Label className="text-sm cursor-pointer">Require Acknowledgment</Label>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Switch
-                    checked={form.exception_allowed}
-                    onCheckedChange={v => updateField('exception_allowed', v)}
-                  />
-                  <Label className="text-sm cursor-pointer">Allow Exceptions</Label>
-                </div>
               </div>
             </div>
           </div>
