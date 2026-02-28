@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Link from '@tiptap/extension-link';
@@ -33,6 +33,8 @@ export function TiptapEditor({
   disabled = false,
   className = ''
 }: TiptapEditorProps) {
+  const isExternalUpdate = useRef(false);
+
   const editor = useEditor({
     extensions: [
       StarterKit,
@@ -51,10 +53,21 @@ export function TiptapEditor({
     ],
     content,
     onUpdate: ({ editor }) => {
-      onChange(editor.getHTML());
+      if (!isExternalUpdate.current) {
+        onChange(editor.getHTML());
+      }
     },
     editable: !disabled,
   });
+
+  // Sync external content changes into the editor
+  useEffect(() => {
+    if (editor && content !== editor.getHTML()) {
+      isExternalUpdate.current = true;
+      editor.commands.setContent(content, false);
+      isExternalUpdate.current = false;
+    }
+  }, [content, editor]);
 
   if (!editor) {
     return null;
