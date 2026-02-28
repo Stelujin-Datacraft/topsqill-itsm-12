@@ -85,7 +85,7 @@ export const fieldTypes: FieldTypeConfig[] = [
     description: 'A repeatable row/column structure for tabular data entry',
     category: 'full-width',
     isFullWidth: true,
-    isHidden: true,
+    isHidden: false,
   },
 
   // Standard Components
