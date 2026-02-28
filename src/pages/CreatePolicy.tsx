@@ -14,7 +14,7 @@ import { POLICY_CATEGORIES, POLICY_PRIORITIES, REVIEW_CYCLE_OPTIONS } from '@/ty
 import type { PolicyTemplate } from '@/types/policy';
 import { PolicyContentSource } from '@/components/policies/PolicyContentSource';
 import { PolicyFormLink } from '@/components/policies/PolicyFormLink';
-import { PolicyDynamicFieldInserter } from '@/components/policies/PolicyDynamicFieldInserter';
+import { PolicyFieldSelector } from '@/components/policies/PolicyFieldSelector';
 import PageContent from '@/components/PageContent';
 
 const INITIAL_FORM = {
@@ -34,6 +34,7 @@ const INITIAL_FORM = {
   content_html: '',
   form_id: '',
   dynamic_fields_display: 'table' as 'table' | 'field-value',
+  selected_field_ids: [] as string[],
 };
 
 const CreatePolicy = () => {
@@ -83,6 +84,7 @@ const CreatePolicy = () => {
       content: {
         ...(form.content_html ? { html: form.content_html } : (selectedTemplate?.content_structure || {})),
         dynamic_fields_display: form.form_id ? form.dynamic_fields_display : undefined,
+        selected_field_ids: form.form_id && form.selected_field_ids.length > 0 ? form.selected_field_ids : undefined,
       },
       template_id: selectedTemplate?.id,
       form_id: form.form_id || undefined,
@@ -142,21 +144,53 @@ const CreatePolicy = () => {
           </CardContent>
         </Card>
 
+        {/* Dynamic Fields - MOVED ABOVE Policy Content */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Dynamic Fields</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <PolicyFormLink
+              formId={form.form_id}
+              onFormIdChange={id => {
+                updateField('form_id', id);
+                if (!id) updateField('selected_field_ids', []);
+              }}
+            />
+            {form.form_id && (
+              <>
+                <PolicyFieldSelector
+                  formId={form.form_id}
+                  selectedFieldIds={form.selected_field_ids}
+                  onSelectedFieldsChange={ids => updateField('selected_field_ids', ids)}
+                />
+                <div>
+                  <Label>Display Format</Label>
+                  <Select
+                    value={form.dynamic_fields_display}
+                    onValueChange={v => updateField('dynamic_fields_display', v as 'table' | 'field-value')}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="table">Table Format</SelectItem>
+                      <SelectItem value="field-value">Field Name (Bold) + Value</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Selected fields will appear as dynamic data sections in the policy view and PDF export.
+                  </p>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Policy Content Source */}
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Policy Content</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {form.form_id && (
-              <PolicyDynamicFieldInserter
-                formId={form.form_id}
-                onInsert={(placeholder) => {
-                  const event = new CustomEvent('tiptap-insert-text', { detail: placeholder });
-                  window.dispatchEvent(event);
-                }}
-              />
-            )}
             <PolicyContentSource
               contentHtml={form.content_html}
               onContentChange={html => updateField('content_html', html)}
@@ -167,37 +201,6 @@ const CreatePolicy = () => {
               mode={contentMode}
               onModeChange={setContentMode}
             />
-          </CardContent>
-        </Card>
-
-        {/* Form Link & Display Format */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Dynamic Fields</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <PolicyFormLink
-              formId={form.form_id}
-              onFormIdChange={id => updateField('form_id', id)}
-            />
-            {form.form_id && (
-              <div>
-                <Label>Display Format</Label>
-                <Select
-                  value={form.dynamic_fields_display}
-                  onValueChange={v => updateField('dynamic_fields_display', v as 'table' | 'field-value')}
-                >
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="table">Table Format</SelectItem>
-                    <SelectItem value="field-value">Field Name (Bold) + Value</SelectItem>
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Each form record will appear as a separate section titled "Policy # — Ref ID"
-                </p>
-              </div>
-            )}
           </CardContent>
         </Card>
 
@@ -304,25 +307,6 @@ const CreatePolicy = () => {
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
-            </div>
-
-            <Separator className="my-4" />
-
-            <div className="flex flex-wrap items-center gap-6">
-              <div className="flex items-center gap-2">
-                <Switch
-                  checked={form.acknowledgment_required}
-                  onCheckedChange={v => updateField('acknowledgment_required', v)}
-                />
-                <Label className="text-sm cursor-pointer">Require Acknowledgment</Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <Switch
-                  checked={form.exception_allowed}
-                  onCheckedChange={v => updateField('exception_allowed', v)}
-                />
-                <Label className="text-sm cursor-pointer">Allow Exceptions</Label>
               </div>
             </div>
           </CardContent>
