@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Edit, Trash2, Save, Send, Archive, History, Link2, CheckCircle, Clock, FileText, Download, Plus, UserCheck, AlertOctagon, CalendarClock, Shield, BookOpen, Upload, Loader2 } from 'lucide-react';
+import { PolicyDynamicFieldsRenderer } from '@/components/policies/PolicyDynamicFieldsRenderer';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -629,7 +630,7 @@ const PolicyDetail = () => {
         </TabsContent>
 
         {/* Content Tab */}
-        <TabsContent value="content" className="mt-4">
+        <TabsContent value="content" className="mt-4 space-y-4">
           <Card>
             <CardHeader>
               <CardTitle className="text-sm">Policy Content</CardTitle>
@@ -647,6 +648,14 @@ const PolicyDetail = () => {
               )}
             </CardContent>
           </Card>
+
+          {/* Dynamic Fields from Linked Form */}
+          {policy.form_id && (
+            <PolicyDynamicFieldsRenderer
+              formId={policy.form_id}
+              displayFormat={(policy.content?.dynamic_fields_display as 'table' | 'field-value') || 'table'}
+            />
+          )}
         </TabsContent>
 
         {/* Versions Tab */}

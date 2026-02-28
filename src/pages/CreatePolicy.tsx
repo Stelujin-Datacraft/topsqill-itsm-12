@@ -33,6 +33,7 @@ const INITIAL_FORM = {
   exception_allowed: true,
   content_html: '',
   form_id: '',
+  dynamic_fields_display: 'table' as 'table' | 'field-value',
 };
 
 const CreatePolicy = () => {
@@ -79,7 +80,10 @@ const CreatePolicy = () => {
       next_review_date,
       acknowledgment_required: form.acknowledgment_required,
       exception_allowed: form.exception_allowed,
-      content: form.content_html ? { html: form.content_html } : (selectedTemplate?.content_structure || {}),
+      content: {
+        ...(form.content_html ? { html: form.content_html } : (selectedTemplate?.content_structure || {})),
+        dynamic_fields_display: form.form_id ? form.dynamic_fields_display : undefined,
+      },
       template_id: selectedTemplate?.id,
       form_id: form.form_id || undefined,
       status: 'draft',
@@ -166,16 +170,34 @@ const CreatePolicy = () => {
           </CardContent>
         </Card>
 
-        {/* Form Link */}
+        {/* Form Link & Display Format */}
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Dynamic Fields</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             <PolicyFormLink
               formId={form.form_id}
               onFormIdChange={id => updateField('form_id', id)}
             />
+            {form.form_id && (
+              <div>
+                <Label>Display Format</Label>
+                <Select
+                  value={form.dynamic_fields_display}
+                  onValueChange={v => updateField('dynamic_fields_display', v as 'table' | 'field-value')}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="table">Table Format</SelectItem>
+                    <SelectItem value="field-value">Field Name (Bold) + Value</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Each form record will appear as a separate section titled "Policy # — Ref ID"
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
 
