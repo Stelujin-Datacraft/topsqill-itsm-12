@@ -259,6 +259,7 @@ const PolicyDetail = () => {
         type: 'file' as const,
         size: file.size,
         uploaded_at: new Date().toISOString(),
+        show_in_pdf: true,
       };
       const updatedAttachments = [...(policy.attachments || []), newAttachment];
       await updatePolicy.mutateAsync({
@@ -424,7 +425,8 @@ const PolicyDetail = () => {
     }
 
     // Attachments list with clickable links
-    if (policy.attachments && policy.attachments.length > 0) {
+    const pdfAttachments = (policy.attachments || []).filter((att: any) => att.show_in_pdf !== false);
+    if (pdfAttachments.length > 0) {
       const lastY = (doc as any).lastAutoTable?.finalY || yPos + 10;
       let attY = lastY + 10;
       if (attY > pageHeight - 30) { doc.addPage(); attY = 20; }
@@ -432,7 +434,7 @@ const PolicyDetail = () => {
       doc.text('Attachments', 14, attY);
       attY += 6;
       doc.setFontSize(10);
-      policy.attachments.forEach((att: any) => {
+      pdfAttachments.forEach((att: any) => {
         if (attY > pageHeight - 15) { doc.addPage(); attY = 20; }
         const label = `• ${att.name}`;
         doc.text(label, 14, attY);
@@ -710,8 +712,23 @@ const PolicyDetail = () => {
                   {policy.attachments.map((att: any, i: number) => (
                     <div key={i} className="flex items-center gap-2 text-sm p-2 rounded-md border">
                       <FileText className="h-4 w-4 text-muted-foreground" />
-                      <span className="flex-1">{att.name}</span>
-                      {att.size && <span className="text-xs text-muted-foreground">{(att.size / 1024).toFixed(1)} KB</span>}
+                      <span className="flex-1 truncate">{att.name}</span>
+                      {att.size && <span className="text-xs text-muted-foreground shrink-0">{(att.size / 1024).toFixed(1)} KB</span>}
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <label className="flex items-center gap-1 text-xs text-muted-foreground cursor-pointer" title="Include in PDF export">
+                          <span className="hidden sm:inline">PDF</span>
+                          <input
+                            type="checkbox"
+                            checked={att.show_in_pdf !== false}
+                            onChange={async () => {
+                              const updated = [...policy.attachments];
+                              updated[i] = { ...updated[i], show_in_pdf: !(att.show_in_pdf !== false) };
+                              await updatePolicy.mutateAsync({ id: policy.id, attachments: updated as any });
+                            }}
+                            className="h-3.5 w-3.5 rounded border-muted-foreground accent-primary cursor-pointer"
+                          />
+                        </label>
+                      </div>
                       {att.url && (
                         <a href={att.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-xs">
                           <Download className="h-3.5 w-3.5" />
