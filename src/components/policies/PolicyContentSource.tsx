@@ -5,9 +5,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { TiptapEditor } from '@/components/ui/tiptap-editor';
-import { FileText, Sparkles, Upload, ClipboardPaste, Loader2, Eye, Edit } from 'lucide-react';
+import { FileText, Sparkles, Upload, ClipboardPaste, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { PolicyTemplate } from '@/types/policy';
 import mammoth from 'mammoth';
@@ -36,9 +35,6 @@ export function PolicyContentSource({
   const [pasteText, setPasteText] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [previewTemplate, setPreviewTemplate] = useState<PolicyTemplate | null>(null);
-  const [showPreviewDialog, setShowPreviewDialog] = useState(false);
-
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -97,18 +93,6 @@ export function PolicyContentSource({
     setPasteText('');
   };
 
-  const handleTemplateClick = (template: PolicyTemplate) => {
-    setPreviewTemplate(template);
-    setShowPreviewDialog(true);
-  };
-
-  const handleUseTemplate = () => {
-    if (previewTemplate) {
-      onTemplateSelect(previewTemplate);
-      setShowPreviewDialog(false);
-    }
-  };
-
   return (
     <div className="space-y-4">
       <Tabs value={mode} onValueChange={onModeChange}>
@@ -153,17 +137,14 @@ export function PolicyContentSource({
                 {templates.map(t => (
                   <div
                     key={t.id}
-                    onClick={() => handleTemplateClick(t)}
+                    onClick={() => onTemplateSelect(t)}
                     className={`p-3 rounded-md border cursor-pointer transition-colors ${
                       selectedTemplate?.id === t.id ? 'border-primary bg-primary/5' : 'hover:border-primary/50'
                     }`}
                   >
                     <div className="flex items-center justify-between">
                       <span className="font-medium text-sm">{t.name}</span>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline">{t.category}</Badge>
-                        <Eye className="h-3.5 w-3.5 text-muted-foreground" />
-                      </div>
+                      <Badge variant="outline">{t.category}</Badge>
                     </div>
                     {t.description && (
                       <p className="text-xs text-muted-foreground mt-1">{t.description}</p>
@@ -266,37 +247,6 @@ export function PolicyContentSource({
           </div>
         </TabsContent>
       </Tabs>
-
-      {/* Template Preview Dialog */}
-      <Dialog open={showPreviewDialog} onOpenChange={setShowPreviewDialog}>
-        <DialogContent className="max-w-2xl max-h-[80vh]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              {previewTemplate?.name}
-              <Badge variant="outline">{previewTemplate?.category}</Badge>
-            </DialogTitle>
-          </DialogHeader>
-          {previewTemplate?.description && (
-            <p className="text-sm text-muted-foreground">{previewTemplate.description}</p>
-          )}
-          <ScrollArea className="max-h-[400px] border rounded-md p-4">
-            {previewTemplate?.content_structure?.html ? (
-              <div
-                className="prose prose-sm dark:prose-invert max-w-none"
-                dangerouslySetInnerHTML={{ __html: previewTemplate.content_structure.html }}
-              />
-            ) : (
-              <p className="text-sm text-muted-foreground text-center py-6">No content in this template.</p>
-            )}
-          </ScrollArea>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowPreviewDialog(false)}>Close</Button>
-            <Button onClick={handleUseTemplate}>
-              <Edit className="h-4 w-4 mr-1" /> Use & Edit Template
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
