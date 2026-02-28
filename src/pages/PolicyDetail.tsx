@@ -30,7 +30,7 @@ import { TiptapEditor } from '@/components/ui/tiptap-editor';
 const PolicyDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
   const { currentOrganization } = useOrganization();
   const { currentProject } = useProject();
   const { policies, updatePolicy, deletePolicy, createVersion, createReviewCycle } = usePolicies();
@@ -476,6 +476,14 @@ const PolicyDetail = () => {
   const priorityDef = POLICY_PRIORITIES.find(p => p.value === (policy.priority || 'medium'));
   const isOverdueReview = policy.next_review_date && isPast(new Date(policy.next_review_date));
 
+  // Role-based access
+  const isAdmin = userProfile?.role === 'admin';
+  const isDesignatedApprover = (approvalId: string) => {
+    const approval = approvals.find(a => a.id === approvalId);
+    return approval?.approver_id === user?.id;
+  };
+  const hasAnyPendingApprovalForMe = approvals.some(a => a.status === 'pending' && a.approver_id === user?.id);
+
   const getUserName = (userId: string) => {
     const u = usersQuery.data?.find(u => u.id === userId);
     if (u) return [u.first_name, u.last_name].filter(Boolean).join(' ') || u.email;
@@ -515,7 +523,7 @@ const PolicyDetail = () => {
           <Button variant="outline" size="sm" onClick={exportToPDF}>
             <Download className="h-4 w-4 mr-1" /> Export PDF
           </Button>
-          {policy.status === 'draft' && (
+          {isAdmin && policy.status === 'draft' && (
             <>
               <Button variant="outline" size="sm" onClick={startEditing}>
                 <Edit className="h-4 w-4 mr-1" /> Edit
@@ -530,28 +538,30 @@ const PolicyDetail = () => {
               <Clock className="h-3.5 w-3.5" /> Awaiting Approval
             </Badge>
           )}
-          {policy.status === 'published' && (
+          {isAdmin && policy.status === 'published' && (
             <Button variant="outline" size="sm" onClick={retirePolicy}>
               <Archive className="h-4 w-4 mr-1" /> Retire
             </Button>
           )}
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="destructive" size="sm"><Trash2 className="h-4 w-4" /></Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Delete Policy</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This will permanently delete this policy and all its versions. This cannot be undone.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+          {isAdmin && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" size="sm"><Trash2 className="h-4 w-4" /></Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete Policy</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently delete this policy and all its versions. This cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
         </div>
       </div>
 
@@ -683,30 +693,32 @@ const PolicyDetail = () => {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-sm">Attachments</CardTitle>
-              <div>
-                <input
-                  ref={attachmentInputRef}
-                  type="file"
-                  className="hidden"
-                  onChange={handleAttachmentUpload}
-                />
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => attachmentInputRef.current?.click()}
-                  disabled={isUploadingAttachment}
-                >
-                  {isUploadingAttachment ? (
-                    <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Uploading...</>
-                  ) : (
-                    <><Upload className="h-4 w-4 mr-1" /> Upload Attachment</>
-                  )}
-                </Button>
-              </div>
+              {isAdmin && (
+                <div>
+                  <input
+                    ref={attachmentInputRef}
+                    type="file"
+                    className="hidden"
+                    onChange={handleAttachmentUpload}
+                  />
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => attachmentInputRef.current?.click()}
+                    disabled={isUploadingAttachment}
+                  >
+                    {isUploadingAttachment ? (
+                      <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Uploading...</>
+                    ) : (
+                      <><Upload className="h-4 w-4 mr-1" /> Upload Attachment</>
+                    )}
+                  </Button>
+                </div>
+              )}
             </CardHeader>
             <CardContent>
               {(!policy.attachments || policy.attachments.length === 0) ? (
-                <p className="text-sm text-muted-foreground">No attachments. Click "Upload Attachment" to add files.</p>
+                <p className="text-sm text-muted-foreground">No attachments.{isAdmin ? ' Click "Upload Attachment" to add files.' : ''}</p>
               ) : (
                 <div className="space-y-2">
                   {policy.attachments.map((att: any, i: number) => (
@@ -714,21 +726,23 @@ const PolicyDetail = () => {
                       <FileText className="h-4 w-4 text-muted-foreground" />
                       <span className="flex-1 truncate">{att.name}</span>
                       {att.size && <span className="text-xs text-muted-foreground shrink-0">{(att.size / 1024).toFixed(1)} KB</span>}
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <label className="flex items-center gap-1 text-xs text-muted-foreground cursor-pointer" title="Include in PDF export">
-                          <span className="hidden sm:inline">PDF</span>
-                          <input
-                            type="checkbox"
-                            checked={att.show_in_pdf !== false}
-                            onChange={async () => {
-                              const updated = [...policy.attachments];
-                              updated[i] = { ...updated[i], show_in_pdf: !(att.show_in_pdf !== false) };
-                              await updatePolicy.mutateAsync({ id: policy.id, attachments: updated as any });
-                            }}
-                            className="h-3.5 w-3.5 rounded border-muted-foreground accent-primary cursor-pointer"
-                          />
-                        </label>
-                      </div>
+                      {isAdmin && (
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <label className="flex items-center gap-1 text-xs text-muted-foreground cursor-pointer" title="Include in PDF export">
+                            <span className="hidden sm:inline">PDF</span>
+                            <input
+                              type="checkbox"
+                              checked={att.show_in_pdf !== false}
+                              onChange={async () => {
+                                const updated = [...policy.attachments];
+                                updated[i] = { ...updated[i], show_in_pdf: !(att.show_in_pdf !== false) };
+                                await updatePolicy.mutateAsync({ id: policy.id, attachments: updated as any });
+                              }}
+                              className="h-3.5 w-3.5 rounded border-muted-foreground accent-primary cursor-pointer"
+                            />
+                          </label>
+                        </div>
+                      )}
                       {att.url && (
                         <a href={att.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-xs">
                           <Download className="h-3.5 w-3.5" />
@@ -815,7 +829,7 @@ const PolicyDetail = () => {
                         </div>
                         <div className="text-xs text-muted-foreground">{format(new Date(a.created_at), 'MMM d, yyyy HH:mm')}</div>
                       </div>
-                      {a.status === 'pending' && (
+                      {a.status === 'pending' && a.approver_id === user?.id ? (
                         <div className="flex items-center gap-2 pt-2 border-t">
                           <Textarea
                             placeholder="Add comment (required for rejection, optional for approval)"
@@ -833,7 +847,11 @@ const PolicyDetail = () => {
                             </Button>
                           </div>
                         </div>
-                      )}
+                      ) : a.status === 'pending' ? (
+                        <div className="pt-2 border-t">
+                          <p className="text-xs text-muted-foreground italic">Awaiting response from designated approver</p>
+                        </div>
+                      ) : null}
                     </div>
                   ))}
                 </div>
