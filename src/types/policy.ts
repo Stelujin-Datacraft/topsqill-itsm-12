@@ -41,6 +41,7 @@ export interface PolicyAttachment {
   type: 'document' | 'url' | 'file';
   size?: number;
   uploaded_at?: string;
+  show_in_pdf?: boolean;
 }
 
 export interface PolicyVersion {
