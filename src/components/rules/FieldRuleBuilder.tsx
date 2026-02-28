@@ -6,10 +6,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Trash2, Plus } from 'lucide-react';
+import { Trash2, Plus, Users } from 'lucide-react';
 import { FormField } from '@/types/form';
 import { FieldRule, FieldRuleAction, FieldOperator } from '@/types/rules';
-
+import { RuleUserScope } from './RuleUserScope';
 interface FieldRuleBuilderProps {
   fields: FormField[];
   rules: FieldRule[];
@@ -122,6 +122,12 @@ export function FieldRuleBuilder({ fields, rules, onRulesChange }: FieldRuleBuil
                   {rule.isActive ? 'Active' : 'Inactive'}
                 </Badge>
                 <span className="font-medium">{rule.name || 'Unnamed Rule'}</span>
+                {rule.appliesTo === 'specific' && rule.appliesToUserIds && rule.appliesToUserIds.length > 0 && (
+                  <Badge variant="outline" className="text-xs">
+                    <Users className="h-3 w-3 mr-1" />
+                    {rule.appliesToUserIds.length} user(s)
+                  </Badge>
+                )}
               </div>
               <div className="flex gap-2">
                 <Button
@@ -308,6 +314,17 @@ export function FieldRuleBuilder({ fields, rules, onRulesChange }: FieldRuleBuil
                 />
               </div>
             )}
+
+            {/* Applies To - User Scoping */}
+            <RuleUserScope
+              appliesTo={editingRule.appliesTo || 'all'}
+              appliesToUserIds={editingRule.appliesToUserIds || []}
+              onChange={(appliesTo, userIds) => setEditingRule({
+                ...editingRule,
+                appliesTo,
+                appliesToUserIds: userIds,
+              })}
+            />
 
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setEditingRule(null)}>

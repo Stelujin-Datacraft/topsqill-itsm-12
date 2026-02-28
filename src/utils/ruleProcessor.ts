@@ -21,6 +21,7 @@ export interface RuleProcessingContext {
   setFormData: (updater: (prev: Record<string, any>) => Record<string, any>) => void;
   setFieldStates: (states: Record<string, any>) => void;
   onFormAction?: (action: string, value?: any) => void;
+  currentUserId?: string;
 }
 
 export interface ProcessedFieldState {
@@ -156,6 +157,12 @@ export class RuleProcessor {
     // Process active rules
     fieldRules.forEach(rule => {
       if (!rule.isActive) return;
+
+      // Check user-scoping: skip rule if it only applies to specific users and current user isn't one
+      if (rule.appliesTo === 'specific' && rule.appliesToUserIds && rule.appliesToUserIds.length > 0) {
+        const currentUserId = context?.currentUserId;
+        if (!currentUserId || !rule.appliesToUserIds.includes(currentUserId)) return;
+      }
 
       let conditionMet = false;
 

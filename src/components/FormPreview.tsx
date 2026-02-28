@@ -125,6 +125,9 @@ export function FormPreview({ form, showNavigation = false }: FormPreviewProps) 
     form.fieldRules.forEach((rule) => {
       if (!rule.isActive) return;
 
+      // Check user-scoping - in preview mode, apply all rules
+      // (user scoping is enforced in live form via ruleProcessor)
+
       const targetField = Array.isArray(form.fields) ? form.fields.find(f => f.id === rule.targetFieldId) : null;
       if (!targetField) return;
 
