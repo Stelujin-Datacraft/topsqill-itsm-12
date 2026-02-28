@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Form, FormField } from '@/types/form';
@@ -29,6 +30,7 @@ export function FormViewLayoutRenderer({
   showNavigation = true,
   showPublicHeader = false 
 }: FormViewLayoutRendererProps) {
+  const { user } = useAuth();
   // Initialize with draft from localStorage if available
   const [formData, setFormData] = useState<Record<string, any>>(() => {
     try {
@@ -137,6 +139,7 @@ export function FormViewLayoutRenderer({
       formFields,
       setFormData,
       setFieldStates,
+      currentUserId: user?.id,
       onFormAction: async (action: string, value?: any) => {
         // Field rules can trigger these instant form-level actions
         switch (action) {
@@ -205,7 +208,7 @@ export function FormViewLayoutRenderer({
 
     // NOTE: Form rules are NO LONGER processed here - they trigger on submit only
     // See FormRuleWorkflowTrigger.evaluateAndTriggerWorkflows
-  }, [formData, form.fieldRules, form.fields]);
+  }, [formData, form.fieldRules, form.fields, user?.id]);
 
   const handleFieldChange = (fieldId: string, value: any) => {
     setFormData(prev => ({
