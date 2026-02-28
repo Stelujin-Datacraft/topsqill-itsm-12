@@ -80,27 +80,27 @@ export function CreateRecordDialog({
         onClose();
       }
     }}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Create New {targetForm.name} Record</DialogTitle>
+      <DialogContent className="max-w-[95vw] w-full max-h-[95vh] h-[95vh] flex flex-col p-0 gap-0">
+        <DialogHeader className="px-6 py-4 border-b border-border shrink-0">
+          <DialogTitle className="text-lg">Create & Link — {targetForm.name}</DialogTitle>
         </DialogHeader>
         
         {formLoading ? (
-          <div className="flex items-center justify-center py-12">
+          <div className="flex-1 flex items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
             <span className="ml-3 text-muted-foreground">Loading form...</span>
           </div>
         ) : !hasValidForm ? (
-          <div className="py-8 text-center text-muted-foreground">
+          <div className="flex-1 flex items-center justify-center text-muted-foreground">
             Unable to load form fields. Please try again.
           </div>
         ) : isSubmitting ? (
-          <div className="flex items-center justify-center py-12">
+          <div className="flex-1 flex items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
             <span className="ml-3 text-muted-foreground">Creating record...</span>
           </div>
         ) : (
-          <div className="py-4">
+          <div className="flex-1 overflow-y-auto px-6 py-4">
             <FormViewLayoutRenderer 
               form={formToRender}
               onSubmit={handleSubmit}
