@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, FileText, BarChart3, CalendarClock, AlertTriangle } from 'lucide-react';
+import { Plus, Search, FileText, BarChart3, CalendarClock, AlertTriangle, LayoutTemplate } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +11,7 @@ import { usePolicies } from '@/hooks/usePolicies';
 import { useProject } from '@/contexts/ProjectContext';
 import { POLICY_CATEGORIES, POLICY_STATUSES, POLICY_PRIORITIES } from '@/types/policy';
 import { CreatePolicyDialog } from '@/components/policies/CreatePolicyDialog';
+import { CreateTemplateDialog } from '@/components/policies/CreateTemplateDialog';
 import { PolicyDashboard } from '@/components/policies/PolicyDashboard';
 import { format, isPast } from 'date-fns';
 
