@@ -78,7 +78,7 @@ const CreateTemplate = () => {
         </div>
       }
     >
-      <div className="max-w-3xl mx-auto space-y-6 pb-12">
+      <div className="space-y-6 pb-12">
         {/* Basic Info */}
         <Card>
           <CardHeader>

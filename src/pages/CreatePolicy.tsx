@@ -110,7 +110,7 @@ const CreatePolicy = () => {
         </div>
       }
     >
-      <div className="max-w-4xl mx-auto space-y-6 pb-12">
+      <div className="space-y-6 pb-12">
         {/* Core Info */}
         <Card>
           <CardHeader>
