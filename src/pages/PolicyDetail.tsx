@@ -84,7 +84,7 @@ const PolicyDetail = () => {
       if (error) throw error;
       return data || [];
     },
-    enabled: !!currentProject?.id && showLinkDialog,
+    enabled: !!currentProject?.id,
   });
 
   const policiesForLink = useQuery({
@@ -177,6 +177,22 @@ const PolicyDetail = () => {
         versionNumber: policy.current_version,
         approverId,
         comments: approvalSubmitComment || undefined,
+      });
+
+      // Notify the approver
+      await supabase.from('notifications').insert({
+        user_id: approverId,
+        type: 'policy_approval_request',
+        title: 'Policy Approval Required',
+        message: `You have been requested to approve policy "${policy.name}" (${policy.policy_number || 'Draft'}) v${policy.current_version}.`,
+        data: {
+          policy_id: policy.id,
+          policy_name: policy.name,
+          policy_number: policy.policy_number,
+          version: policy.current_version,
+          submitted_by: user?.id,
+          link: `/policy/${policy.id}`,
+        },
       });
     }
     await updatePolicy.mutateAsync({ id: policy.id, status: 'pending_approval' });
@@ -407,7 +423,7 @@ const PolicyDetail = () => {
       }
     }
 
-    // Attachments list
+    // Attachments list with clickable links
     if (policy.attachments && policy.attachments.length > 0) {
       const lastY = (doc as any).lastAutoTable?.finalY || yPos + 10;
       let attY = lastY + 10;
@@ -418,7 +434,14 @@ const PolicyDetail = () => {
       doc.setFontSize(10);
       policy.attachments.forEach((att: any) => {
         if (attY > pageHeight - 15) { doc.addPage(); attY = 20; }
-        doc.text(`• ${att.name}${att.url ? ' (' + att.url + ')' : ''}`, 14, attY);
+        const label = `• ${att.name}`;
+        doc.text(label, 14, attY);
+        if (att.url) {
+          const labelWidth = doc.getTextWidth(label);
+          doc.setTextColor(37, 99, 235);
+          doc.textWithLink(' [Open / Download]', 14 + labelWidth, attY, { url: att.url });
+          doc.setTextColor(0, 0, 0);
+        }
         attY += 5;
       });
     }
@@ -808,26 +831,68 @@ const PolicyDetail = () => {
         <TabsContent value="linkages" className="mt-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-sm">Linked Modules</CardTitle>
+              <div>
+                <CardTitle className="text-sm">Linked Modules</CardTitle>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Connect related forms and policies to establish traceability and cross-references for compliance.
+                </p>
+              </div>
               <Button size="sm" variant="outline" onClick={() => setShowLinkDialog(true)}>
                 <Plus className="h-4 w-4 mr-1" /> Link
               </Button>
             </CardHeader>
             <CardContent>
               {linkages.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-6">No linked modules. Link forms, policies, or other entities to this policy.</p>
+                <div className="text-center py-8 space-y-2">
+                  <Link2 className="h-8 w-8 text-muted-foreground mx-auto" />
+                  <p className="text-sm font-medium text-muted-foreground">No linked modules yet</p>
+                  <p className="text-xs text-muted-foreground max-w-md mx-auto">
+                    Link related forms or other policies to create a traceability map. For example, link a compliance checklist form or a parent security policy.
+                  </p>
+                </div>
               ) : (
                 <div className="space-y-3">
-                  {linkages.map(l => (
-                    <div key={l.id} className="flex items-center gap-3 p-3 rounded-md border">
-                      <Link2 className="h-4 w-4 text-muted-foreground" />
-                      <div className="flex-1">
-                        <Badge variant="outline" className="capitalize">{l.linked_entity_type}</Badge>
-                        {l.link_description && <span className="text-sm ml-2">{l.link_description}</span>}
+                  {linkages.map(l => {
+                    const linkedForm = formsQuery.data?.find(f => f.id === l.linked_entity_id);
+                    const linkedPolicy = policiesForLink.data?.find(p => p.id === l.linked_entity_id);
+                    const entityName = l.linked_entity_type === 'form'
+                      ? linkedForm?.name || l.linked_entity_id.slice(0, 8)
+                      : linkedPolicy?.name || l.linked_entity_id.slice(0, 8);
+                    const entityBadge = l.linked_entity_type === 'form'
+                      ? linkedForm?.reference_id
+                      : (linkedPolicy as any)?.policy_number;
+
+                    return (
+                      <div key={l.id} className="flex items-center gap-3 p-3 rounded-md border hover:bg-muted/30 transition-colors">
+                        {l.linked_entity_type === 'form' ? (
+                          <FileText className="h-4 w-4 text-primary shrink-0" />
+                        ) : (
+                          <Shield className="h-4 w-4 text-primary shrink-0" />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Badge variant="outline" className="capitalize text-[10px]">{l.linked_entity_type}</Badge>
+                            <span className="text-sm font-medium truncate">{entityName}</span>
+                            {entityBadge && <Badge variant="secondary" className="text-[10px] py-0">{entityBadge}</Badge>}
+                          </div>
+                          {l.link_description && (
+                            <p className="text-xs text-muted-foreground mt-0.5">{l.link_description}</p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="text-xs text-muted-foreground">{format(new Date(l.created_at), 'MMM d, yyyy')}</span>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 text-xs"
+                            onClick={() => navigate(l.linked_entity_type === 'form' ? `/form/${l.linked_entity_id}` : `/policy/${l.linked_entity_id}`)}
+                          >
+                            Open
+                          </Button>
+                        </div>
                       </div>
-                      <div className="text-xs text-muted-foreground">{format(new Date(l.created_at), 'MMM d, yyyy')}</div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </CardContent>
