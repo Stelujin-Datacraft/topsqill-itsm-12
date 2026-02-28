@@ -69,10 +69,16 @@ const Policies = () => {
           <h1 className="text-2xl font-bold text-foreground">Policies</h1>
           <p className="text-sm text-muted-foreground">Manage organizational policies, compliance, and governance</p>
         </div>
-        <Button onClick={() => setShowCreate(true)} className="gap-2">
-          <Plus className="h-4 w-4" />
-          Create Policy
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => setShowCreateTemplate(true)} className="gap-2">
+            <LayoutTemplate className="h-4 w-4" />
+            Create Template
+          </Button>
+          <Button onClick={() => setShowCreate(true)} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Create Policy
+          </Button>
+        </div>
       </div>
 
       {/* Tabs */}
