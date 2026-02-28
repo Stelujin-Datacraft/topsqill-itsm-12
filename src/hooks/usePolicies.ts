@@ -386,9 +386,8 @@ export function usePolicyDetail(policyId?: string) {
         } as any)
         .eq('id', approvalId)
         .select()
-        .maybeSingle();
+        .single();
       if (error) throw error;
-      if (!data) throw new Error('You are not authorized to respond to this approval, or it has already been processed.');
       return data;
     },
     onSuccess: () => {
