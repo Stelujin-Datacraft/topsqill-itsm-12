@@ -32,15 +32,9 @@ export function CreateRecordDialog({
 
     setIsSubmitting(true);
     try {
-      // Generate submission reference ID
-      const timestamp = Date.now();
-      const randomSuffix = Math.random().toString(36).substring(2, 8).toUpperCase();
-      const submission_ref_id = `${targetForm.reference_id || targetForm.name.substring(0, 3).toUpperCase()}-${timestamp}-${randomSuffix}`;
-
-      // Prepare submission data
+      // Prepare submission data - let the database trigger auto-generate submission_ref_id
       const submissionData = {
         form_id: targetForm.id,
-        submission_ref_id,
         submission_data: formData,
         submitted_by: user?.id || null,
         submitted_at: new Date().toISOString(),
