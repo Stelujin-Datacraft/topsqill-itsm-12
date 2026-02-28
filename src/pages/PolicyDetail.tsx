@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Edit, Trash2, Save, Send, Archive, History, Link2, CheckCircle, Clock, FileText, Download, Plus, UserCheck, AlertOctagon, CalendarClock, Shield, BookOpen } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, Save, Send, Archive, History, Link2, CheckCircle, Clock, FileText, Download, Plus, UserCheck, AlertOctagon, CalendarClock, Shield, BookOpen, Upload, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -40,6 +40,8 @@ const PolicyDetail = () => {
   const [showLinkDialog, setShowLinkDialog] = useState(false);
   const [linkForm, setLinkForm] = useState({ linked_entity_type: 'form' as const, linked_entity_id: '', link_description: '' });
   const [approvalComment, setApprovalComment] = useState('');
+  const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
+  const attachmentInputRef = useRef<HTMLInputElement>(null);
 
   if (!policy) {
     return (
@@ -199,25 +201,109 @@ const PolicyDetail = () => {
     setLinkForm({ linked_entity_type: 'form', linked_entity_id: '', link_description: '' });
   };
 
-  const exportToPDF = () => {
+  const handleAttachmentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !policy) return;
+    setIsUploadingAttachment(true);
+    try {
+      const filePath = `policies/${policy.id}/${Date.now()}_${file.name}`;
+      const { error: uploadError } = await (await import('@/integrations/supabase/client')).supabase.storage
+        .from('policy-attachments')
+        .upload(filePath, file);
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = (await import('@/integrations/supabase/client')).supabase.storage
+        .from('policy-attachments')
+        .getPublicUrl(filePath);
+
+      const newAttachment = {
+        name: file.name,
+        url: urlData.publicUrl,
+        type: 'file' as const,
+        size: file.size,
+        uploaded_at: new Date().toISOString(),
+      };
+      const updatedAttachments = [...(policy.attachments || []), newAttachment];
+      await updatePolicy.mutateAsync({
+        id: policy.id,
+        attachments: updatedAttachments as any,
+      });
+      toast.success(`Attachment "${file.name}" uploaded`);
+    } catch (err: any) {
+      console.error('Attachment upload error:', err);
+      toast.error('Failed to upload: ' + (err.message || 'Unknown error'));
+    } finally {
+      setIsUploadingAttachment(false);
+      if (attachmentInputRef.current) attachmentInputRef.current.value = '';
+    }
+  };
+
+  const exportToPDF = async () => {
     const doc = new jsPDF();
+    let yPos = 22;
+
+    // Title
     doc.setFontSize(18);
-    doc.text(policy.name, 14, 22);
+    doc.text(policy.name, 14, yPos);
+    yPos += 10;
+
+    // Metadata line
     doc.setFontSize(10);
-    doc.text(`${policy.policy_number || ''} | Status: ${policy.status} | Category: ${policy.category} | Priority: ${policy.priority || 'medium'} | Version: ${policy.current_version}`, 14, 32);
-    doc.text(`Last Updated: ${format(new Date(policy.updated_at), 'PPpp')}`, 14, 38);
-    if (policy.effective_date) doc.text(`Effective: ${policy.effective_date}`, 14, 44);
-    if (policy.compliance_standard) doc.text(`Compliance: ${policy.compliance_standard} ${policy.compliance_reference || ''}`, 14, 50);
-    
+    doc.text(`${policy.policy_number || ''} | Status: ${policy.status} | Category: ${policy.category} | Priority: ${policy.priority || 'medium'} | Version: ${policy.current_version}`, 14, yPos);
+    yPos += 6;
+    doc.text(`Last Updated: ${format(new Date(policy.updated_at), 'PPpp')}`, 14, yPos);
+    yPos += 6;
+    if (policy.effective_date) { doc.text(`Effective: ${policy.effective_date}`, 14, yPos); yPos += 6; }
+    if (policy.compliance_standard) { doc.text(`Compliance: ${policy.compliance_standard} ${policy.compliance_reference || ''}`, 14, yPos); yPos += 6; }
+
+    // Description
     if (policy.description) {
+      yPos += 4;
       doc.setFontSize(12);
-      doc.text('Description', 14, 62);
+      doc.text('Description', 14, yPos);
+      yPos += 6;
       doc.setFontSize(10);
-      const lines = doc.splitTextToSize(policy.description, 180);
-      doc.text(lines, 14, 70);
+      const descLines = doc.splitTextToSize(policy.description, 180);
+      doc.text(descLines, 14, yPos);
+      yPos += descLines.length * 5 + 4;
     }
 
+    // Policy content body - strip HTML and render as text
+    if (policy.content?.html) {
+      yPos += 4;
+      doc.setFontSize(12);
+      doc.text('Policy Content', 14, yPos);
+      yPos += 6;
+      doc.setFontSize(10);
+
+      // Parse HTML to plain text
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = policy.content.html;
+      const plainText = tempDiv.innerText || tempDiv.textContent || '';
+      const contentLines = doc.splitTextToSize(plainText, 180);
+      
+      // Handle multi-page content
+      const pageHeight = doc.internal.pageSize.getHeight();
+      for (const line of contentLines) {
+        if (yPos > pageHeight - 20) {
+          doc.addPage();
+          yPos = 20;
+        }
+        doc.text(line, 14, yPos);
+        yPos += 5;
+      }
+    }
+
+    // Version history table
     if (versions.length > 0) {
+      if (yPos > doc.internal.pageSize.getHeight() - 40) {
+        doc.addPage();
+        yPos = 20;
+      }
+      yPos += 6;
+      doc.setFontSize(12);
+      doc.text('Version History', 14, yPos);
+      yPos += 4;
       const tableData = versions.map(v => [
         `v${v.version_number}`,
         v.change_summary || '—',
@@ -226,7 +312,29 @@ const PolicyDetail = () => {
       autoTable(doc, {
         head: [['Version', 'Change Summary', 'Date']],
         body: tableData,
-        startY: 90,
+        startY: yPos,
+      });
+    }
+
+    // Attachments list
+    if (policy.attachments && policy.attachments.length > 0) {
+      const lastY = (doc as any).lastAutoTable?.finalY || yPos + 10;
+      let attY = lastY + 10;
+      if (attY > doc.internal.pageSize.getHeight() - 30) {
+        doc.addPage();
+        attY = 20;
+      }
+      doc.setFontSize(12);
+      doc.text('Attachments', 14, attY);
+      attY += 6;
+      doc.setFontSize(10);
+      policy.attachments.forEach((att: any) => {
+        if (attY > doc.internal.pageSize.getHeight() - 15) {
+          doc.addPage();
+          attY = 20;
+        }
+        doc.text(`• ${att.name}${att.url ? ' (' + att.url + ')' : ''}`, 14, attY);
+        attY += 5;
       });
     }
 
@@ -474,20 +582,43 @@ const PolicyDetail = () => {
 
           {/* Attachments */}
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-sm">Attachments</CardTitle>
+              <div>
+                <input
+                  ref={attachmentInputRef}
+                  type="file"
+                  className="hidden"
+                  onChange={handleAttachmentUpload}
+                />
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => attachmentInputRef.current?.click()}
+                  disabled={isUploadingAttachment}
+                >
+                  {isUploadingAttachment ? (
+                    <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Uploading...</>
+                  ) : (
+                    <><Upload className="h-4 w-4 mr-1" /> Upload Attachment</>
+                  )}
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               {(!policy.attachments || policy.attachments.length === 0) ? (
-                <p className="text-sm text-muted-foreground">No attachments</p>
+                <p className="text-sm text-muted-foreground">No attachments. Click "Upload Attachment" to add files.</p>
               ) : (
                 <div className="space-y-2">
                   {policy.attachments.map((att: any, i: number) => (
-                    <div key={i} className="flex items-center gap-2 text-sm">
+                    <div key={i} className="flex items-center gap-2 text-sm p-2 rounded-md border">
                       <FileText className="h-4 w-4 text-muted-foreground" />
-                      <span>{att.name}</span>
+                      <span className="flex-1">{att.name}</span>
+                      {att.size && <span className="text-xs text-muted-foreground">{(att.size / 1024).toFixed(1)} KB</span>}
                       {att.url && (
-                        <a href={att.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-xs">Open</a>
+                        <a href={att.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-xs">
+                          <Download className="h-3.5 w-3.5" />
+                        </a>
                       )}
                     </div>
                   ))}
