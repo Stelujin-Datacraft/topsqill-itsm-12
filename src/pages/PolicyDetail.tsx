@@ -297,7 +297,7 @@ const PolicyDetail = () => {
     return [];
   };
 
-  const exportToPDF = async () => {
+  const generatePDF = async (mode: 'download' | 'preview' = 'download') => {
     const doc = new jsPDF();
     let yPos = 22;
     const pageHeight = doc.internal.pageSize.getHeight();
@@ -448,9 +448,18 @@ const PolicyDetail = () => {
       });
     }
 
-    doc.save(`${policy.policy_number || policy.name.replace(/[^a-zA-Z0-9]/g, '_')}_v${policy.current_version}.pdf`);
-    toast.success('PDF exported');
+    if (mode === 'preview') {
+      const pdfBlob = doc.output('blob');
+      const pdfUrl = URL.createObjectURL(pdfBlob);
+      window.open(pdfUrl, '_blank');
+      toast.success('PDF preview opened in new tab');
+    } else {
+      doc.save(`${policy.policy_number || policy.name.replace(/[^a-zA-Z0-9]/g, '_')}_v${policy.current_version}.pdf`);
+      toast.success('PDF exported');
+    }
   };
+
+  const exportToPDF = () => generatePDF('download');
 
   const pdfFormatValue = (value: any, fieldType: string, options?: any): string => {
     if (value === null || value === undefined || value === '') return '—';
@@ -807,6 +816,12 @@ const PolicyDetail = () => {
         <TabsContent value="approvals" className="mt-4">
           <Card>
             <CardContent className="pt-4">
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-sm font-medium">Approval History</p>
+                <Button variant="outline" size="sm" onClick={() => generatePDF('preview')}>
+                  <FileText className="h-4 w-4 mr-1" /> Preview Policy PDF
+                </Button>
+              </div>
               {approvals.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-6">No approval history</p>
               ) : (
