@@ -148,10 +148,8 @@ const CreatePolicy = () => {
               <PolicyDynamicFieldInserter
                 formId={form.form_id}
                 onInsert={(placeholder) => {
-                  const updated = form.content_html
-                    ? form.content_html + `<p>${placeholder}</p>`
-                    : `<p>${placeholder}</p>`;
-                  updateField('content_html', updated);
+                  const event = new CustomEvent('tiptap-insert-text', { detail: placeholder });
+                  window.dispatchEvent(event);
                 }}
               />
             )}

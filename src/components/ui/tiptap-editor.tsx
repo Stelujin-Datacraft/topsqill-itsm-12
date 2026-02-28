@@ -69,6 +69,17 @@ export function TiptapEditor({
     }
   }, [content, editor]);
 
+  // Listen for insert-at-cursor events
+  useEffect(() => {
+    if (!editor) return;
+    const handler = (e: Event) => {
+      const text = (e as CustomEvent).detail as string;
+      editor.chain().focus().insertContent(text).run();
+    };
+    window.addEventListener('tiptap-insert-text', handler);
+    return () => window.removeEventListener('tiptap-insert-text', handler);
+  }, [editor]);
+
   if (!editor) {
     return null;
   }
