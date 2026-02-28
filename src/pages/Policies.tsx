@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, FileText, BarChart3, CalendarClock, AlertTriangle } from 'lucide-react';
+import { Plus, Search, FileText, BarChart3, CalendarClock, AlertTriangle, LayoutTemplate } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +11,7 @@ import { usePolicies } from '@/hooks/usePolicies';
 import { useProject } from '@/contexts/ProjectContext';
 import { POLICY_CATEGORIES, POLICY_STATUSES, POLICY_PRIORITIES } from '@/types/policy';
 import { CreatePolicyDialog } from '@/components/policies/CreatePolicyDialog';
+import { CreateTemplateDialog } from '@/components/policies/CreateTemplateDialog';
 import { PolicyDashboard } from '@/components/policies/PolicyDashboard';
 import { format, isPast } from 'date-fns';
 
@@ -23,6 +24,7 @@ const Policies = () => {
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const [showCreate, setShowCreate] = useState(false);
+  const [showCreateTemplate, setShowCreateTemplate] = useState(false);
   const [activeTab, setActiveTab] = useState('list');
 
   const filtered = useMemo(() => {
@@ -67,10 +69,16 @@ const Policies = () => {
           <h1 className="text-2xl font-bold text-foreground">Policies</h1>
           <p className="text-sm text-muted-foreground">Manage organizational policies, compliance, and governance</p>
         </div>
-        <Button onClick={() => setShowCreate(true)} className="gap-2">
-          <Plus className="h-4 w-4" />
-          Create Policy
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => setShowCreateTemplate(true)} className="gap-2">
+            <LayoutTemplate className="h-4 w-4" />
+            Create Template
+          </Button>
+          <Button onClick={() => setShowCreate(true)} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Create Policy
+          </Button>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -220,6 +228,7 @@ const Policies = () => {
       </Tabs>
 
       <CreatePolicyDialog open={showCreate} onOpenChange={setShowCreate} />
+      <CreateTemplateDialog open={showCreateTemplate} onOpenChange={setShowCreateTemplate} />
     </div>
   );
 };
