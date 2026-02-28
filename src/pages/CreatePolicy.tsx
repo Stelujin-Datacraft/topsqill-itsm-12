@@ -14,6 +14,7 @@ import { POLICY_CATEGORIES, POLICY_PRIORITIES, REVIEW_CYCLE_OPTIONS } from '@/ty
 import type { PolicyTemplate } from '@/types/policy';
 import { PolicyContentSource } from '@/components/policies/PolicyContentSource';
 import { PolicyFormLink } from '@/components/policies/PolicyFormLink';
+import { PolicyDynamicFieldInserter } from '@/components/policies/PolicyDynamicFieldInserter';
 import PageContent from '@/components/PageContent';
 
 const INITIAL_FORM = {
@@ -142,7 +143,18 @@ const CreatePolicy = () => {
           <CardHeader>
             <CardTitle className="text-lg">Policy Content</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
+            {form.form_id && (
+              <PolicyDynamicFieldInserter
+                formId={form.form_id}
+                onInsert={(placeholder) => {
+                  const updated = form.content_html
+                    ? form.content_html + `<p>${placeholder}</p>`
+                    : `<p>${placeholder}</p>`;
+                  updateField('content_html', updated);
+                }}
+              />
+            )}
             <PolicyContentSource
               contentHtml={form.content_html}
               onContentChange={html => updateField('content_html', html)}
