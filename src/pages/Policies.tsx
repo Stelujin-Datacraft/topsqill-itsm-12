@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, FileText, BarChart3, CalendarClock, AlertTriangle, LayoutTemplate, Trash2 } from 'lucide-react';
+import { Plus, Search, FileText, BarChart3, CalendarClock, AlertTriangle, LayoutTemplate, Trash2, Eye, Edit } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -8,22 +8,35 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { TiptapEditor } from '@/components/ui/tiptap-editor';
+import { Select as SelectUI, SelectContent as SelectContentUI, SelectItem as SelectItemUI, SelectTrigger as SelectTriggerUI, SelectValue as SelectValueUI } from '@/components/ui/select';
 import { usePolicies } from '@/hooks/usePolicies';
 import { useProject } from '@/contexts/ProjectContext';
 import { POLICY_CATEGORIES, POLICY_STATUSES, POLICY_PRIORITIES } from '@/types/policy';
 import { PolicyDashboard } from '@/components/policies/PolicyDashboard';
+import type { PolicyTemplate } from '@/types/policy';
 import { format, isPast } from 'date-fns';
 
 const Policies = () => {
   const navigate = useNavigate();
   const { currentProject } = useProject();
-  const { policies, isLoading, templates, templatesLoading, deleteTemplate } = usePolicies();
+  const { policies, isLoading, templates, templatesLoading, deleteTemplate, updateTemplate } = usePolicies();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const [activeTab, setActiveTab] = useState('list');
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [viewTemplate, setViewTemplate] = useState<PolicyTemplate | null>(null);
+  const [editTemplate, setEditTemplate] = useState<PolicyTemplate | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editCategory, setEditCategory] = useState('');
+  const [editContentHtml, setEditContentHtml] = useState('');
 
   const filtered = useMemo(() => {
     return policies.filter(p => {
@@ -259,13 +272,39 @@ const Policies = () => {
                         <p className="text-sm text-muted-foreground line-clamp-1">{t.description}</p>
                       )}
                     </div>
-                    <div className="flex items-center gap-2 ml-4">
+                    <div className="flex items-center gap-1 ml-4">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => setViewTemplate(t)}
+                        title="View"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => {
+                          setEditTemplate(t);
+                          setEditName(t.name);
+                          setEditDescription(t.description || '');
+                          setEditCategory(t.category);
+                          setEditContentHtml(t.content_structure?.html || '');
+                        }}
+                        disabled={t.is_system_template}
+                        title="Edit"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
                       <Button
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
                         onClick={() => setDeleteConfirmId(t.id)}
                         disabled={t.is_system_template}
+                        title="Delete"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -307,6 +346,93 @@ const Policies = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* View Template Dialog */}
+      <Dialog open={!!viewTemplate} onOpenChange={open => !open && setViewTemplate(null)}>
+        <DialogContent className="max-w-2xl max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {viewTemplate?.name}
+              <Badge variant="outline">{viewTemplate?.category}</Badge>
+            </DialogTitle>
+          </DialogHeader>
+          {viewTemplate?.description && (
+            <p className="text-sm text-muted-foreground">{viewTemplate.description}</p>
+          )}
+          <ScrollArea className="max-h-[400px] border rounded-md p-4">
+            {viewTemplate?.content_structure?.html ? (
+              <div
+                className="prose prose-sm dark:prose-invert max-w-none"
+                dangerouslySetInnerHTML={{ __html: viewTemplate.content_structure.html }}
+              />
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-6">No content in this template.</p>
+            )}
+          </ScrollArea>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setViewTemplate(null)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Template Dialog */}
+      <Dialog open={!!editTemplate} onOpenChange={open => !open && setEditTemplate(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Template</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Template Name *</Label>
+              <Input value={editName} onChange={e => setEditName(e.target.value)} />
+            </div>
+            <div>
+              <Label>Description</Label>
+              <Textarea value={editDescription} onChange={e => setEditDescription(e.target.value)} rows={2} />
+            </div>
+            <div>
+              <Label>Category</Label>
+              <Select value={editCategory} onValueChange={setEditCategory}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {POLICY_CATEGORIES.map(c => (
+                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Content</Label>
+              <TiptapEditor
+                content={editContentHtml}
+                onChange={setEditContentHtml}
+                placeholder="Template content..."
+                className="min-h-[200px] mt-1"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditTemplate(null)}>Cancel</Button>
+            <Button
+              disabled={!editName.trim() || updateTemplate.isPending}
+              onClick={() => {
+                if (editTemplate) {
+                  updateTemplate.mutate({
+                    id: editTemplate.id,
+                    name: editName,
+                    description: editDescription || undefined,
+                    category: editCategory,
+                    content_structure: editContentHtml ? { html: editContentHtml } : {},
+                  } as any);
+                  setEditTemplate(null);
+                }
+              }}
+            >
+              {updateTemplate.isPending ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
     </div>
   );
