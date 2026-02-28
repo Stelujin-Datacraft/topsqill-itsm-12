@@ -26,7 +26,7 @@ const PolicyDetail = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { policies, updatePolicy, deletePolicy, createVersion, createTemplate } = usePolicies();
-  const { versions, linkages, approvals, acknowledgments, exceptions, reviewCycles, isLoading, acknowledgePolicy, requestException, createLinkage } = usePolicyDetail(id);
+  const { versions, linkages, approvals, acknowledgments, exceptions, reviewCycles, isLoading, acknowledgePolicy, requestException, createLinkage, submitApproval, respondApproval, respondException } = usePolicyDetail(id);
   
   const policy = policies.find(p => p.id === id);
   const [isEditing, setIsEditing] = useState(false);
@@ -38,6 +38,7 @@ const PolicyDetail = () => {
   const [exceptionForm, setExceptionForm] = useState({ reason: '', justification: '', risk_assessment: '', compensating_controls: '', start_date: '', end_date: '' });
   const [showLinkDialog, setShowLinkDialog] = useState(false);
   const [linkForm, setLinkForm] = useState({ linked_entity_type: 'form' as const, linked_entity_id: '', link_description: '' });
+  const [approvalComment, setApprovalComment] = useState('');
 
   if (!policy) {
     return (
@@ -101,7 +102,27 @@ const PolicyDetail = () => {
   };
 
   const submitForApproval = async () => {
+    await submitApproval.mutateAsync({ policyId: policy.id, versionNumber: policy.current_version });
     await updatePolicy.mutateAsync({ id: policy.id, status: 'pending_approval' });
+  };
+
+  const handleApprovalResponse = async (approvalId: string, status: 'approved' | 'rejected') => {
+    await respondApproval.mutateAsync({ approvalId, status, comments: approvalComment || undefined });
+    if (status === 'approved') {
+      // Check if all approvals for this version are approved
+      const pendingApprovals = approvals.filter(a => a.status === 'pending' && a.id !== approvalId);
+      if (pendingApprovals.length === 0) {
+        await updatePolicy.mutateAsync({ id: policy.id, status: 'published', published_at: new Date().toISOString() });
+      }
+    } else {
+      await updatePolicy.mutateAsync({ id: policy.id, status: 'draft' });
+    }
+    setApprovalComment('');
+  };
+
+  const handleExceptionResponse = async (exceptionId: string, status: 'approved' | 'rejected') => {
+    if (!user?.id) return;
+    await respondException.mutateAsync({ exceptionId, status, approved_by: user.id });
   };
 
   const publishPolicy = async () => {
@@ -261,9 +282,9 @@ const PolicyDetail = () => {
             </>
           )}
           {policy.status === 'pending_approval' && (
-            <Button size="sm" onClick={publishPolicy}>
-              <CheckCircle className="h-4 w-4 mr-1" /> Publish
-            </Button>
+            <Badge variant="outline" className="gap-1 text-sm py-1 px-3">
+              <Clock className="h-3.5 w-3.5" /> Awaiting Approval
+            </Badge>
           )}
           {policy.status === 'published' && (
             <Button variant="outline" size="sm" onClick={retirePolicy}>
@@ -483,15 +504,37 @@ const PolicyDetail = () => {
               ) : (
                 <div className="space-y-3">
                   {approvals.map(a => (
-                    <div key={a.id} className="flex items-start gap-3 p-3 rounded-md border">
-                      {a.status === 'approved' && <CheckCircle className="h-5 w-5 text-primary mt-0.5" />}
-                      {a.status === 'pending' && <Clock className="h-5 w-5 text-muted-foreground mt-0.5" />}
-                      {a.status === 'rejected' && <AlertOctagon className="h-5 w-5 text-destructive mt-0.5" />}
-                      <div className="flex-1">
-                        <div className="text-sm capitalize font-medium">{a.status}</div>
-                        {a.comments && <div className="text-xs text-muted-foreground">{a.comments}</div>}
+                    <div key={a.id} className="p-3 rounded-md border space-y-2">
+                      <div className="flex items-start gap-3">
+                        {a.status === 'approved' && <CheckCircle className="h-5 w-5 text-primary mt-0.5" />}
+                        {a.status === 'pending' && <Clock className="h-5 w-5 text-muted-foreground mt-0.5" />}
+                        {a.status === 'rejected' && <AlertOctagon className="h-5 w-5 text-destructive mt-0.5" />}
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm capitalize font-medium">{a.status}</span>
+                            <Badge variant="outline">v{a.version_number}</Badge>
+                          </div>
+                          {a.comments && <div className="text-xs text-muted-foreground mt-1">{a.comments}</div>}
+                          <div className="text-xs text-muted-foreground mt-0.5">Approver: {a.approver_id.slice(0, 8)}...</div>
+                        </div>
+                        <div className="text-xs text-muted-foreground">{format(new Date(a.created_at), 'MMM d, yyyy HH:mm')}</div>
                       </div>
-                      <div className="text-xs text-muted-foreground">{format(new Date(a.created_at), 'MMM d, yyyy HH:mm')}</div>
+                      {a.status === 'pending' && (
+                        <div className="flex items-center gap-2 pt-2 border-t">
+                          <Input
+                            placeholder="Add comment (optional)"
+                            value={approvalComment}
+                            onChange={e => setApprovalComment(e.target.value)}
+                            className="flex-1 h-8 text-sm"
+                          />
+                          <Button size="sm" variant="default" onClick={() => handleApprovalResponse(a.id, 'approved')} disabled={respondApproval.isPending}>
+                            <CheckCircle className="h-3.5 w-3.5 mr-1" /> Approve
+                          </Button>
+                          <Button size="sm" variant="destructive" onClick={() => handleApprovalResponse(a.id, 'rejected')} disabled={respondApproval.isPending}>
+                            <AlertOctagon className="h-3.5 w-3.5 mr-1" /> Reject
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -565,9 +608,20 @@ const PolicyDetail = () => {
                         <div className="text-sm"><strong>Reason:</strong> {e.reason}</div>
                         {e.justification && <div className="text-xs text-muted-foreground"><strong>Justification:</strong> {e.justification}</div>}
                         {e.risk_assessment && <div className="text-xs text-muted-foreground"><strong>Risk:</strong> {e.risk_assessment}</div>}
+                        {e.compensating_controls && <div className="text-xs text-muted-foreground"><strong>Controls:</strong> {e.compensating_controls}</div>}
                         <div className="text-xs text-muted-foreground">
                           Period: {e.start_date} to {e.end_date}
                         </div>
+                        {e.status === 'pending' && (
+                          <div className="flex items-center gap-2 pt-2 border-t">
+                            <Button size="sm" variant="default" onClick={() => handleExceptionResponse(e.id, 'approved')} disabled={respondException.isPending}>
+                              <CheckCircle className="h-3.5 w-3.5 mr-1" /> Approve
+                            </Button>
+                            <Button size="sm" variant="destructive" onClick={() => handleExceptionResponse(e.id, 'rejected')} disabled={respondException.isPending}>
+                              <AlertOctagon className="h-3.5 w-3.5 mr-1" /> Reject
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     );
                   })}

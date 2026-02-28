@@ -303,6 +303,70 @@ export function usePolicyDetail(policyId?: string) {
     onError: (err: any) => toast.error(err.message),
   });
 
+  const submitApproval = useMutation({
+    mutationFn: async ({ policyId, versionNumber }: { policyId: string; versionNumber: number }) => {
+      const { data, error } = await supabase
+        .from('policy_approvals')
+        .insert([{
+          policy_id: policyId,
+          version_number: versionNumber,
+          approver_id: user?.id,
+          status: 'pending',
+        } as any])
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['policy_approvals', policyId] });
+    },
+  });
+
+  const respondApproval = useMutation({
+    mutationFn: async ({ approvalId, status, comments }: { approvalId: string; status: 'approved' | 'rejected'; comments?: string }) => {
+      const { data, error } = await supabase
+        .from('policy_approvals')
+        .update({
+          status,
+          comments,
+          approved_at: status === 'approved' ? new Date().toISOString() : null,
+        } as any)
+        .eq('id', approvalId)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['policy_approvals', policyId] });
+      toast.success('Approval response recorded');
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+
+  const respondException = useMutation({
+    mutationFn: async ({ exceptionId, status, approved_by }: { exceptionId: string; status: 'approved' | 'rejected'; approved_by: string }) => {
+      const { data, error } = await supabase
+        .from('policy_exceptions')
+        .update({
+          status,
+          approved_by,
+          approved_at: new Date().toISOString(),
+        } as any)
+        .eq('id', exceptionId)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['policy_exceptions', policyId] });
+      toast.success('Exception response recorded');
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+
   return {
     versions: versionsQuery.data || [],
     linkages: linkagesQuery.data || [],
@@ -314,5 +378,8 @@ export function usePolicyDetail(policyId?: string) {
     acknowledgePolicy,
     requestException,
     createLinkage,
+    submitApproval,
+    respondApproval,
+    respondException,
   };
 }
