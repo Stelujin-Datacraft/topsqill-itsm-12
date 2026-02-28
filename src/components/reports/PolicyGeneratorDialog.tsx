@@ -12,9 +12,10 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { ScrollText, Upload, FileText, X, Loader2, History, Download, Trash2, Wand2, Copy, Check, Info } from 'lucide-react';
+import { ScrollText, Upload, FileText, X, Loader2, History, Download, Trash2, Wand2, Copy, Check, Info, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { generatePolicyDocument, generatePolicyFromTemplate } from '@/utils/policyDocumentGenerator';
 import { generateFromSmartTemplate, getAvailableTags } from '@/utils/smartTemplateGenerator';
@@ -420,51 +421,61 @@ export function PolicyGeneratorDialog({
                   </Button>
                 )}
 
-                {/* Tag Guide */}
-                <div className="rounded-lg border bg-muted/30 p-3 space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Info className="h-4 w-4 text-primary" />
-                    <span className="text-sm font-medium">Available Placeholder Tags</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Use these tags in your Word template. Click a tag to copy it. For multiple records, wrap repeating content in{' '}
-                    <code className="bg-muted px-1 rounded text-[11px]">{'{#records}'}...{'{/records}'}</code>.
-                  </p>
-
-                  {/* Metadata Tags */}
-                  <div className="space-y-1.5">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Document Info</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {metaTags.map(t => (
-                        <CopyableTag key={t.tag} tag={t.tag} label={t.label} />
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Field Tags */}
-                  <div className="space-y-1.5">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Form Fields</p>
-                    <ScrollArea className="max-h-[140px]">
-                      <div className="flex flex-wrap gap-1.5">
-                        {fieldTags.map(t => (
-                          <CopyableTag key={t.tag} tag={t.tag} label={t.label} />
-                        ))}
+                {/* Tag Guide as Dropdown */}
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className="w-full justify-between">
+                      <div className="flex items-center gap-2">
+                        <Info className="h-4 w-4 text-primary" />
+                        <span>Available Placeholder Tags</span>
                       </div>
-                    </ScrollArea>
-                  </div>
+                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[380px] p-0" align="start" sideOffset={4}>
+                    <div className="p-3 border-b">
+                      <p className="text-xs text-muted-foreground">
+                        Click a tag to copy it. For multiple records, wrap content in{' '}
+                        <code className="bg-muted px-1 rounded text-[11px]">{'{#records}'}...{'{/records}'}</code>.
+                      </p>
+                    </div>
+                    <ScrollArea className="max-h-[300px]">
+                      <div className="p-3 space-y-3">
+                        {/* Metadata Tags */}
+                        <div className="space-y-1.5">
+                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Document Info</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {metaTags.map(t => (
+                              <CopyableTag key={t.tag} tag={t.tag} label={t.label} />
+                            ))}
+                          </div>
+                        </div>
 
-                  {/* Loop Example */}
-                  <div className="rounded-md border bg-background p-2.5 space-y-1">
-                    <p className="text-xs font-medium">Template Example (multiple records):</p>
-                    <pre className="text-[11px] text-muted-foreground font-mono whitespace-pre-wrap leading-relaxed">
+                        {/* Field Tags */}
+                        <div className="space-y-1.5">
+                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Form Fields ({fieldTags.length})</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {fieldTags.map(t => (
+                              <CopyableTag key={t.tag} tag={t.tag} label={t.label} />
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Loop Example */}
+                        <div className="rounded-md border bg-muted/30 p-2.5 space-y-1">
+                          <p className="text-xs font-medium">Template Example:</p>
+                          <pre className="text-[11px] text-muted-foreground font-mono whitespace-pre-wrap leading-relaxed">
 {`{#records}
 Record: {Record_ID}
 ${fieldTags.length > 0 ? `${fieldTags[0].label.replace(/\s+/g, '_')}: {${fieldTags[0].label.replace(/\s+/g, '_')}}` : 'Field_Name: {Field_Name}'}
 ${fieldTags.length > 1 ? `${fieldTags[1].label.replace(/\s+/g, '_')}: {${fieldTags[1].label.replace(/\s+/g, '_')}}` : ''}
 {/records}`}
-                    </pre>
-                  </div>
-                </div>
+                          </pre>
+                        </div>
+                      </div>
+                    </ScrollArea>
+                  </PopoverContent>
+                </Popover>
               </div>
             )}
 
