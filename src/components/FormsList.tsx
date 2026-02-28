@@ -231,10 +231,10 @@ export function FormsList() {
 </Badge>
                   </div>
                 </div>
-                <div className="flex space-x-1">
-                  <Button variant="ghost" size="sm" onClick={() => handleCopyId(form.id)} title="Copy Form ID">
+                <div className="flex space-x-0">
+                  {/* <Button variant="ghost" size="sm" onClick={() => handleCopyId(form.id)} title="Copy Form ID">
                     <Copy className="h-4 w-4 text-primary" />
-                  </Button>
+                  </Button> */}
                   <Button variant="ghost" size="sm" onClick={() => handleCopyForm(form)} disabled={copyingFormId === form.id} title="Duplicate Form">
                     <Files className="h-4 w-4 text-primary" />
                   </Button>
@@ -310,10 +310,10 @@ export function FormsList() {
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center space-x-1">
-                  <Button variant="ghost" size="sm" onClick={() => handleCopyId(form.id)} title="Copy Form ID">
+                <div className="flex items-center space-x-0">
+                  {/* <Button variant="ghost" size="sm" onClick={() => handleCopyId(form.id)} title="Copy Form ID">
                     <Copy className="h-4 w-4 text-primary" />
-                  </Button>
+                  </Button> */}
                   <Button variant="ghost" size="sm" onClick={() => handleCopyForm(form)} disabled={copyingFormId === form.id} title="Duplicate Form">
                     <Files className="h-4 w-4 text-primary" />
                   </Button>
