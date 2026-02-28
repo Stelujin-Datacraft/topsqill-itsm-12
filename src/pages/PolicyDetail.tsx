@@ -240,7 +240,7 @@ const PolicyDetail = () => {
   const userHasAcked = acknowledgments.some(a => a.user_id === user?.id && a.version_acknowledged === policy.current_version);
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="flex-1 overflow-auto space-y-6 p-6">
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
