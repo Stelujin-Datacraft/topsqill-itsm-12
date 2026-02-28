@@ -2294,6 +2294,318 @@ export type Database = {
           },
         ]
       }
+      policies: {
+        Row: {
+          attachments: Json | null
+          category: string
+          compliance_reference: string | null
+          compliance_standard: string | null
+          content: Json
+          created_at: string
+          created_by: string
+          current_version: number
+          department: string | null
+          description: string | null
+          form_id: string | null
+          id: string
+          name: string
+          organization_id: string | null
+          owner_id: string
+          owner_type: string
+          project_id: string
+          published_at: string | null
+          reference_id: string | null
+          retired_at: string | null
+          status: string
+          tags: string[] | null
+          template_id: string | null
+          updated_at: string
+          workflow_id: string | null
+        }
+        Insert: {
+          attachments?: Json | null
+          category?: string
+          compliance_reference?: string | null
+          compliance_standard?: string | null
+          content?: Json
+          created_at?: string
+          created_by: string
+          current_version?: number
+          department?: string | null
+          description?: string | null
+          form_id?: string | null
+          id?: string
+          name: string
+          organization_id?: string | null
+          owner_id: string
+          owner_type?: string
+          project_id: string
+          published_at?: string | null
+          reference_id?: string | null
+          retired_at?: string | null
+          status?: string
+          tags?: string[] | null
+          template_id?: string | null
+          updated_at?: string
+          workflow_id?: string | null
+        }
+        Update: {
+          attachments?: Json | null
+          category?: string
+          compliance_reference?: string | null
+          compliance_standard?: string | null
+          content?: Json
+          created_at?: string
+          created_by?: string
+          current_version?: number
+          department?: string | null
+          description?: string | null
+          form_id?: string | null
+          id?: string
+          name?: string
+          organization_id?: string | null
+          owner_id?: string
+          owner_type?: string
+          project_id?: string
+          published_at?: string | null
+          reference_id?: string | null
+          retired_at?: string | null
+          status?: string
+          tags?: string[] | null
+          template_id?: string | null
+          updated_at?: string
+          workflow_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "policies_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "forms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "policies_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "policies_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "policies_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "policy_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "policies_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "workflows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      policy_approvals: {
+        Row: {
+          approved_at: string | null
+          approver_id: string
+          comments: string | null
+          created_at: string
+          id: string
+          policy_id: string
+          status: string
+          version_number: number
+        }
+        Insert: {
+          approved_at?: string | null
+          approver_id: string
+          comments?: string | null
+          created_at?: string
+          id?: string
+          policy_id: string
+          status?: string
+          version_number?: number
+        }
+        Update: {
+          approved_at?: string | null
+          approver_id?: string
+          comments?: string | null
+          created_at?: string
+          id?: string
+          policy_id?: string
+          status?: string
+          version_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "policy_approvals_policy_id_fkey"
+            columns: ["policy_id"]
+            isOneToOne: false
+            referencedRelation: "policies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      policy_linkages: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          link_description: string | null
+          linked_entity_id: string
+          linked_entity_type: string
+          policy_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          link_description?: string | null
+          linked_entity_id: string
+          linked_entity_type: string
+          policy_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          link_description?: string | null
+          linked_entity_id?: string
+          linked_entity_type?: string
+          policy_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "policy_linkages_policy_id_fkey"
+            columns: ["policy_id"]
+            isOneToOne: false
+            referencedRelation: "policies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      policy_templates: {
+        Row: {
+          category: string
+          content_structure: Json
+          created_at: string
+          created_by: string
+          description: string | null
+          id: string
+          is_system_template: boolean
+          name: string
+          organization_id: string | null
+          project_id: string | null
+          template_file_path: string | null
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          content_structure?: Json
+          created_at?: string
+          created_by: string
+          description?: string | null
+          id?: string
+          is_system_template?: boolean
+          name: string
+          organization_id?: string | null
+          project_id?: string | null
+          template_file_path?: string | null
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          content_structure?: Json
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          id?: string
+          is_system_template?: boolean
+          name?: string
+          organization_id?: string | null
+          project_id?: string | null
+          template_file_path?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "policy_templates_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "policy_templates_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      policy_versions: {
+        Row: {
+          attachments: Json | null
+          category: string | null
+          change_summary: string | null
+          changed_at: string
+          changed_by: string
+          content: Json
+          department: string | null
+          description: string | null
+          id: string
+          name: string
+          policy_id: string
+          version_number: number
+        }
+        Insert: {
+          attachments?: Json | null
+          category?: string | null
+          change_summary?: string | null
+          changed_at?: string
+          changed_by: string
+          content?: Json
+          department?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          policy_id: string
+          version_number: number
+        }
+        Update: {
+          attachments?: Json | null
+          category?: string | null
+          change_summary?: string | null
+          changed_at?: string
+          changed_by?: string
+          content?: Json
+          department?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          policy_id?: string
+          version_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "policy_versions_policy_id_fkey"
+            columns: ["policy_id"]
+            isOneToOne: false
+            referencedRelation: "policies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_invitations: {
         Row: {
           accepted_at: string | null

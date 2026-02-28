@@ -84,6 +84,10 @@ const InvestigateAccess = lazy(() => import("./pages/InvestigateAccess"));
 const LdapSettings = lazy(() => import("./pages/LdapSettings"));
 const SLAManagementPage = lazy(() => import("./pages/SLAManagementPage"));
 
+// Policies feature
+const Policies = lazy(() => import("./pages/Policies"));
+const PolicyDetail = lazy(() => import("./pages/PolicyDetail"));
+
 // Performance-optimized React Query configuration
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -184,6 +188,10 @@ const App = () => (
                         <Route path="/report-view/:id" element={<ReportViewerPage />} />
                         <Route path="/report/:id/access" element={<ReportAccessManagement />} />
                         <Route path="/relationship-map" element={<RelationshipMap />} />
+                        
+                        {/* Policies */}
+                        <Route path="/policies" element={<Policies />} />
+                        <Route path="/policy/:id" element={<PolicyDetail />} />
                         
                         {/* Admin */}
                         <Route path="/users" element={<Users />} />
