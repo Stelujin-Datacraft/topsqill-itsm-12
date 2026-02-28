@@ -638,9 +638,7 @@ const PolicyDetail = () => {
           <TabsTrigger value="approvals" className="gap-1">
             <CheckCircle className="h-3.5 w-3.5" /> Approvals ({approvals.length})
           </TabsTrigger>
-          <TabsTrigger value="linkages" className="gap-1">
-            <Link2 className="h-3.5 w-3.5" /> Linkages ({linkages.length})
-          </TabsTrigger>
+          {/* Linkages tab hidden for now */}
         </TabsList>
 
         {/* Details Tab */}
@@ -827,77 +825,7 @@ const PolicyDetail = () => {
           </Card>
         </TabsContent>
 
-        {/* Linkages Tab */}
-        <TabsContent value="linkages" className="mt-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle className="text-sm">Linked Modules</CardTitle>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Connect related forms and policies to establish traceability and cross-references for compliance.
-                </p>
-              </div>
-              <Button size="sm" variant="outline" onClick={() => setShowLinkDialog(true)}>
-                <Plus className="h-4 w-4 mr-1" /> Link
-              </Button>
-            </CardHeader>
-            <CardContent>
-              {linkages.length === 0 ? (
-                <div className="text-center py-8 space-y-2">
-                  <Link2 className="h-8 w-8 text-muted-foreground mx-auto" />
-                  <p className="text-sm font-medium text-muted-foreground">No linked modules yet</p>
-                  <p className="text-xs text-muted-foreground max-w-md mx-auto">
-                    Link related forms or other policies to create a traceability map. For example, link a compliance checklist form or a parent security policy.
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {linkages.map(l => {
-                    const linkedForm = formsQuery.data?.find(f => f.id === l.linked_entity_id);
-                    const linkedPolicy = policiesForLink.data?.find(p => p.id === l.linked_entity_id);
-                    const entityName = l.linked_entity_type === 'form'
-                      ? linkedForm?.name || l.linked_entity_id.slice(0, 8)
-                      : linkedPolicy?.name || l.linked_entity_id.slice(0, 8);
-                    const entityBadge = l.linked_entity_type === 'form'
-                      ? linkedForm?.reference_id
-                      : (linkedPolicy as any)?.policy_number;
-
-                    return (
-                      <div key={l.id} className="flex items-center gap-3 p-3 rounded-md border hover:bg-muted/30 transition-colors">
-                        {l.linked_entity_type === 'form' ? (
-                          <FileText className="h-4 w-4 text-primary shrink-0" />
-                        ) : (
-                          <Shield className="h-4 w-4 text-primary shrink-0" />
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <Badge variant="outline" className="capitalize text-[10px]">{l.linked_entity_type}</Badge>
-                            <span className="text-sm font-medium truncate">{entityName}</span>
-                            {entityBadge && <Badge variant="secondary" className="text-[10px] py-0">{entityBadge}</Badge>}
-                          </div>
-                          {l.link_description && (
-                            <p className="text-xs text-muted-foreground mt-0.5">{l.link_description}</p>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <span className="text-xs text-muted-foreground">{format(new Date(l.created_at), 'MMM d, yyyy')}</span>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-7 text-xs"
-                            onClick={() => navigate(l.linked_entity_type === 'form' ? `/form/${l.linked_entity_id}` : `/policy/${l.linked_entity_id}`)}
-                          >
-                            Open
-                          </Button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+        {/* Linkages Tab - hidden for now */}
       </Tabs>
 
       {/* Submit for Approval Dialog */}
