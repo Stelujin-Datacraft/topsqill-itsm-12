@@ -87,6 +87,8 @@ export interface FieldRule {
   action: FieldAction;
   actionValue?: string | string[] | number | boolean;
   isActive: boolean;
+  appliesTo?: 'all' | 'specific'; // Whether rule applies to all users or specific ones
+  appliesToUserIds?: string[]; // User IDs the rule is scoped to (when appliesTo === 'specific')
 }
 
 export interface FormRuleCondition {
