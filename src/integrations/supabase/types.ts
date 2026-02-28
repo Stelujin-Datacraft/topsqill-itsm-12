@@ -2296,6 +2296,7 @@ export type Database = {
       }
       policies: {
         Row: {
+          acknowledgment_required: boolean | null
           attachments: Json | null
           category: string
           compliance_reference: string | null
@@ -2306,16 +2307,23 @@ export type Database = {
           current_version: number
           department: string | null
           description: string | null
+          effective_date: string | null
+          exception_allowed: boolean | null
+          expiry_date: string | null
           form_id: string | null
           id: string
           name: string
+          next_review_date: string | null
           organization_id: string | null
           owner_id: string
           owner_type: string
+          policy_number: string | null
+          priority: string | null
           project_id: string
           published_at: string | null
           reference_id: string | null
           retired_at: string | null
+          review_cycle_days: number | null
           status: string
           tags: string[] | null
           template_id: string | null
@@ -2323,6 +2331,7 @@ export type Database = {
           workflow_id: string | null
         }
         Insert: {
+          acknowledgment_required?: boolean | null
           attachments?: Json | null
           category?: string
           compliance_reference?: string | null
@@ -2333,16 +2342,23 @@ export type Database = {
           current_version?: number
           department?: string | null
           description?: string | null
+          effective_date?: string | null
+          exception_allowed?: boolean | null
+          expiry_date?: string | null
           form_id?: string | null
           id?: string
           name: string
+          next_review_date?: string | null
           organization_id?: string | null
           owner_id: string
           owner_type?: string
+          policy_number?: string | null
+          priority?: string | null
           project_id: string
           published_at?: string | null
           reference_id?: string | null
           retired_at?: string | null
+          review_cycle_days?: number | null
           status?: string
           tags?: string[] | null
           template_id?: string | null
@@ -2350,6 +2366,7 @@ export type Database = {
           workflow_id?: string | null
         }
         Update: {
+          acknowledgment_required?: boolean | null
           attachments?: Json | null
           category?: string
           compliance_reference?: string | null
@@ -2360,16 +2377,23 @@ export type Database = {
           current_version?: number
           department?: string | null
           description?: string | null
+          effective_date?: string | null
+          exception_allowed?: boolean | null
+          expiry_date?: string | null
           form_id?: string | null
           id?: string
           name?: string
+          next_review_date?: string | null
           organization_id?: string | null
           owner_id?: string
           owner_type?: string
+          policy_number?: string | null
+          priority?: string | null
           project_id?: string
           published_at?: string | null
           reference_id?: string | null
           retired_at?: string | null
+          review_cycle_days?: number | null
           status?: string
           tags?: string[] | null
           template_id?: string | null
@@ -2410,6 +2434,44 @@ export type Database = {
             columns: ["workflow_id"]
             isOneToOne: false
             referencedRelation: "workflows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      policy_acknowledgments: {
+        Row: {
+          acknowledged_at: string
+          comments: string | null
+          id: string
+          ip_address: string | null
+          policy_id: string
+          user_id: string
+          version_acknowledged: number
+        }
+        Insert: {
+          acknowledged_at?: string
+          comments?: string | null
+          id?: string
+          ip_address?: string | null
+          policy_id: string
+          user_id: string
+          version_acknowledged?: number
+        }
+        Update: {
+          acknowledged_at?: string
+          comments?: string | null
+          id?: string
+          ip_address?: string | null
+          policy_id?: string
+          user_id?: string
+          version_acknowledged?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "policy_acknowledgments_policy_id_fkey"
+            columns: ["policy_id"]
+            isOneToOne: false
+            referencedRelation: "policies"
             referencedColumns: ["id"]
           },
         ]
@@ -2455,6 +2517,65 @@ export type Database = {
           },
         ]
       }
+      policy_exceptions: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          compensating_controls: string | null
+          created_at: string
+          end_date: string
+          id: string
+          justification: string | null
+          policy_id: string
+          reason: string
+          requested_by: string
+          risk_assessment: string | null
+          start_date: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          compensating_controls?: string | null
+          created_at?: string
+          end_date: string
+          id?: string
+          justification?: string | null
+          policy_id: string
+          reason: string
+          requested_by: string
+          risk_assessment?: string | null
+          start_date: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          compensating_controls?: string | null
+          created_at?: string
+          end_date?: string
+          id?: string
+          justification?: string | null
+          policy_id?: string
+          reason?: string
+          requested_by?: string
+          risk_assessment?: string | null
+          start_date?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "policy_exceptions_policy_id_fkey"
+            columns: ["policy_id"]
+            isOneToOne: false
+            referencedRelation: "policies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       policy_linkages: {
         Row: {
           created_at: string
@@ -2486,6 +2607,50 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "policy_linkages_policy_id_fkey"
+            columns: ["policy_id"]
+            isOneToOne: false
+            referencedRelation: "policies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      policy_review_cycles: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          findings: string | null
+          id: string
+          outcome: string | null
+          policy_id: string
+          review_date: string
+          reviewer_id: string | null
+          status: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          findings?: string | null
+          id?: string
+          outcome?: string | null
+          policy_id: string
+          review_date: string
+          reviewer_id?: string | null
+          status?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          findings?: string | null
+          id?: string
+          outcome?: string | null
+          policy_id?: string
+          review_date?: string
+          reviewer_id?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "policy_review_cycles_policy_id_fkey"
             columns: ["policy_id"]
             isOneToOne: false
             referencedRelation: "policies"

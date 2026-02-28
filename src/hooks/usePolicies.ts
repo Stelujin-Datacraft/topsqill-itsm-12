@@ -4,7 +4,7 @@ import { useProject } from '@/contexts/ProjectContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import type { Policy, PolicyVersion, PolicyLinkage, PolicyApproval, PolicyTemplate } from '@/types/policy';
+import type { Policy, PolicyVersion, PolicyLinkage, PolicyApproval, PolicyTemplate, PolicyAcknowledgment, PolicyException, PolicyReviewCycle } from '@/types/policy';
 
 export function usePolicies() {
   const { currentProject } = useProject();
@@ -148,6 +148,9 @@ export function usePolicies() {
 }
 
 export function usePolicyDetail(policyId?: string) {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
   const versionsQuery = useQuery({
     queryKey: ['policy_versions', policyId],
     queryFn: async () => {
@@ -193,10 +196,123 @@ export function usePolicyDetail(policyId?: string) {
     enabled: !!policyId,
   });
 
+  const acknowledgementsQuery = useQuery({
+    queryKey: ['policy_acknowledgments', policyId],
+    queryFn: async () => {
+      if (!policyId) return [];
+      const { data, error } = await supabase
+        .from('policy_acknowledgments')
+        .select('*')
+        .eq('policy_id', policyId)
+        .order('acknowledged_at', { ascending: false });
+      if (error) throw error;
+      return (data || []) as unknown as PolicyAcknowledgment[];
+    },
+    enabled: !!policyId,
+  });
+
+  const exceptionsQuery = useQuery({
+    queryKey: ['policy_exceptions', policyId],
+    queryFn: async () => {
+      if (!policyId) return [];
+      const { data, error } = await supabase
+        .from('policy_exceptions')
+        .select('*')
+        .eq('policy_id', policyId)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return (data || []) as unknown as PolicyException[];
+    },
+    enabled: !!policyId,
+  });
+
+  const reviewCyclesQuery = useQuery({
+    queryKey: ['policy_review_cycles', policyId],
+    queryFn: async () => {
+      if (!policyId) return [];
+      const { data, error } = await supabase
+        .from('policy_review_cycles')
+        .select('*')
+        .eq('policy_id', policyId)
+        .order('review_date', { ascending: false });
+      if (error) throw error;
+      return (data || []) as unknown as PolicyReviewCycle[];
+    },
+    enabled: !!policyId,
+  });
+
+  const acknowledgePolicy = useMutation({
+    mutationFn: async ({ policyId, versionNumber, comments }: { policyId: string; versionNumber: number; comments?: string }) => {
+      const { data, error } = await supabase
+        .from('policy_acknowledgments')
+        .insert([{
+          policy_id: policyId,
+          user_id: user?.id,
+          version_acknowledged: versionNumber,
+          comments,
+        } as any])
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['policy_acknowledgments', policyId] });
+      toast.success('Policy acknowledged successfully');
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+
+  const requestException = useMutation({
+    mutationFn: async (exception: Partial<PolicyException>) => {
+      const { data, error } = await supabase
+        .from('policy_exceptions')
+        .insert([{
+          ...exception,
+          requested_by: user?.id,
+        } as any])
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['policy_exceptions', policyId] });
+      toast.success('Exception request submitted');
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+
+  const createLinkage = useMutation({
+    mutationFn: async (linkage: Partial<PolicyLinkage>) => {
+      const { data, error } = await supabase
+        .from('policy_linkages')
+        .insert([{
+          ...linkage,
+          created_by: user?.id,
+        } as any])
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['policy_linkages', policyId] });
+      toast.success('Linkage created');
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+
   return {
     versions: versionsQuery.data || [],
     linkages: linkagesQuery.data || [],
     approvals: approvalsQuery.data || [],
+    acknowledgments: acknowledgementsQuery.data || [],
+    exceptions: exceptionsQuery.data || [],
+    reviewCycles: reviewCyclesQuery.data || [],
     isLoading: versionsQuery.isLoading || linkagesQuery.isLoading || approvalsQuery.isLoading,
+    acknowledgePolicy,
+    requestException,
+    createLinkage,
   };
 }
