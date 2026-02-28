@@ -13,9 +13,11 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { ScrollText, Upload, FileText, X, Loader2, History, Download, Trash2 } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { ScrollText, Upload, FileText, X, Loader2, History, Download, Trash2, Wand2, Copy, Check, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import { generatePolicyDocument, generatePolicyFromTemplate } from '@/utils/policyDocumentGenerator';
+import { generateFromSmartTemplate, getAvailableTags } from '@/utils/smartTemplateGenerator';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 
@@ -57,6 +59,41 @@ interface PolicyGeneratorDialogProps {
   organizationId?: string;
 }
 
+// Copyable tag chip component
+function CopyableTag({ tag, label }: { tag: string; label: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(tag);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
+  return (
+    <TooltipProvider delayDuration={200}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            onClick={handleCopy}
+            className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-muted border border-border text-xs font-mono hover:bg-accent hover:border-primary/30 transition-colors cursor-pointer group"
+          >
+            <span className="text-primary/80">{tag}</span>
+            {copied ? (
+              <Check className="h-3 w-3 text-green-500" />
+            ) : (
+              <Copy className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+            )}
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="text-xs">
+          <p>{label}</p>
+          <p className="text-muted-foreground">Click to copy</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
 export function PolicyGeneratorDialog({
   open,
   onOpenChange,
@@ -67,7 +104,7 @@ export function PolicyGeneratorDialog({
   submissions,
   organizationId,
 }: PolicyGeneratorDialogProps) {
-  const [mode, setMode] = useState<'default' | 'template'>('default');
+  const [mode, setMode] = useState<'default' | 'template' | 'smart'>('default');
   const [templateFile, setTemplateFile] = useState<File | null>(null);
   const [generating, setGenerating] = useState(false);
   const [selectedFields, setSelectedFields] = useState<string[]>([]);
@@ -75,6 +112,7 @@ export function PolicyGeneratorDialog({
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [activeTab, setActiveTab] = useState('generate');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const smartFileInputRef = useRef<HTMLInputElement>(null);
 
   // Initialize all fields as selected
   useEffect(() => {
@@ -136,11 +174,11 @@ export function PolicyGeneratorDialog({
   };
 
   const handleGenerate = async () => {
-    if (mode === 'template' && !templateFile) {
+    if ((mode === 'template' || mode === 'smart') && !templateFile) {
       toast.error('Please upload a template file');
       return;
     }
-    if (selectedFields.length === 0) {
+    if (mode !== 'smart' && selectedFields.length === 0) {
       toast.error('Please select at least one field');
       return;
     }
@@ -152,7 +190,16 @@ export function PolicyGeneratorDialog({
       const filteredFields = fields.filter(f => selectedFields.includes(f.id));
       let blob: Blob;
 
-      if (mode === 'template' && templateFile) {
+      if (mode === 'smart' && templateFile) {
+        const buffer = await templateFile.arrayBuffer();
+        blob = await generateFromSmartTemplate({
+          templateBuffer: buffer,
+          formName,
+          fields, // Use all fields for smart template (placeholders determine what's included)
+          submissions,
+          returnBlob: true,
+        });
+      } else if (mode === 'template' && templateFile) {
         const buffer = await templateFile.arrayBuffer();
         blob = await generatePolicyFromTemplate({
           templateBuffer: buffer,
@@ -172,7 +219,8 @@ export function PolicyGeneratorDialog({
         });
       }
 
-      const filename = `${formName.replace(/[^a-zA-Z0-9]/g, '_')}_Doc_${new Date().toISOString().slice(0, 10)}.docx`;
+      const modeSuffix = mode === 'smart' ? 'Smart' : 'Doc';
+      const filename = `${formName.replace(/[^a-zA-Z0-9]/g, '_')}_${modeSuffix}_${new Date().toISOString().slice(0, 10)}.docx`;
 
       // Save to Supabase Storage
       const { data: userData } = await supabase.auth.getUser();
@@ -207,7 +255,7 @@ export function PolicyGeneratorDialog({
           generated_by: userId,
           generated_by_email: userEmail,
           document_type: mode,
-          selected_fields: selectedFields,
+          selected_fields: mode === 'smart' ? fields.map(f => f.id) : selectedFields,
           submission_count: submissions.length,
           file_path: filePath,
           file_name: filename,
@@ -272,9 +320,13 @@ export function PolicyGeneratorDialog({
     }
   };
 
+  const availableTags = getAvailableTags(fields);
+  const metaTags = availableTags.filter(t => t.category === 'meta');
+  const fieldTags = availableTags.filter(t => t.category === 'field');
+
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-lg max-h-[85vh] flex flex-col">
+      <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <ScrollText className="h-5 w-5 text-primary" />
@@ -299,7 +351,7 @@ export function PolicyGeneratorDialog({
 
           <TabsContent value="generate" className="flex-1 min-h-0 overflow-auto space-y-4 py-2">
             {/* Template mode selection */}
-            <RadioGroup value={mode} onValueChange={(v) => setMode(v as 'default' | 'template')}>
+            <RadioGroup value={mode} onValueChange={(v) => setMode(v as 'default' | 'template' | 'smart')}>
               <div
                 className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
                   mode === 'default' ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/50'
@@ -327,8 +379,96 @@ export function PolicyGeneratorDialog({
                 </div>
                 <Upload className="h-5 w-5 text-muted-foreground" />
               </div>
+
+              <div
+                className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                  mode === 'smart' ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/50'
+                }`}
+                onClick={() => setMode('smart')}
+              >
+                <RadioGroupItem value="smart" id="smart" className="mt-0.5" />
+                <div className="flex-1">
+                  <Label htmlFor="smart" className="font-medium cursor-pointer flex items-center gap-1.5">
+                    Smart Template
+                    <span className="text-[10px] font-normal px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">New</span>
+                  </Label>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Upload a .docx with <code className="text-[11px] bg-muted px-1 rounded">{'{Field_Name}'}</code> placeholders. Values are dynamically replaced per record.
+                  </p>
+                </div>
+                <Wand2 className="h-5 w-5 text-muted-foreground" />
+              </div>
             </RadioGroup>
 
+            {/* Smart Template: Upload + Tag Guide */}
+            {mode === 'smart' && (
+              <div className="space-y-3">
+                {/* File Upload */}
+                <input ref={smartFileInputRef} type="file" accept=".docx" onChange={handleFileChange} className="hidden" />
+                {templateFile ? (
+                  <div className="flex items-center gap-2 p-2 rounded-md bg-muted border">
+                    <FileText className="h-4 w-4 text-primary shrink-0" />
+                    <span className="text-sm truncate flex-1">{templateFile.name}</span>
+                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setTemplateFile(null); if (smartFileInputRef.current) smartFileInputRef.current.value = ''; }}>
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ) : (
+                  <Button variant="outline" size="sm" className="w-full" onClick={() => smartFileInputRef.current?.click()}>
+                    <Upload className="h-4 w-4 mr-2" />
+                    Upload Smart .docx Template
+                  </Button>
+                )}
+
+                {/* Tag Guide */}
+                <div className="rounded-lg border bg-muted/30 p-3 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Info className="h-4 w-4 text-primary" />
+                    <span className="text-sm font-medium">Available Placeholder Tags</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Use these tags in your Word template. Click a tag to copy it. For multiple records, wrap repeating content in{' '}
+                    <code className="bg-muted px-1 rounded text-[11px]">{'{#records}'}...{'{/records}'}</code>.
+                  </p>
+
+                  {/* Metadata Tags */}
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Document Info</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {metaTags.map(t => (
+                        <CopyableTag key={t.tag} tag={t.tag} label={t.label} />
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Field Tags */}
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Form Fields</p>
+                    <ScrollArea className="max-h-[140px]">
+                      <div className="flex flex-wrap gap-1.5">
+                        {fieldTags.map(t => (
+                          <CopyableTag key={t.tag} tag={t.tag} label={t.label} />
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  </div>
+
+                  {/* Loop Example */}
+                  <div className="rounded-md border bg-background p-2.5 space-y-1">
+                    <p className="text-xs font-medium">Template Example (multiple records):</p>
+                    <pre className="text-[11px] text-muted-foreground font-mono whitespace-pre-wrap leading-relaxed">
+{`{#records}
+Record: {Record_ID}
+${fieldTags.length > 0 ? `${fieldTags[0].label.replace(/\s+/g, '_')}: {${fieldTags[0].label.replace(/\s+/g, '_')}}` : 'Field_Name: {Field_Name}'}
+${fieldTags.length > 1 ? `${fieldTags[1].label.replace(/\s+/g, '_')}: {${fieldTags[1].label.replace(/\s+/g, '_')}}` : ''}
+{/records}`}
+                    </pre>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Custom Template: File Upload */}
             {mode === 'template' && (
               <div className="space-y-2">
                 <input ref={fileInputRef} type="file" accept=".docx" onChange={handleFileChange} className="hidden" />
@@ -349,33 +489,35 @@ export function PolicyGeneratorDialog({
               </div>
             )}
 
-            {/* Field Selection */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label className="text-sm font-medium">Select Fields to Include</Label>
-                <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={handleSelectAll}>
-                  {selectedFields.length === fields.length ? 'Deselect All' : 'Select All'}
-                </Button>
-              </div>
-              <ScrollArea className="h-[180px] border rounded-lg p-2">
-                <div className="space-y-1">
-                  {fields.map(field => (
-                    <label
-                      key={field.id}
-                      className="flex items-center gap-2 p-1.5 rounded hover:bg-muted/50 cursor-pointer"
-                    >
-                      <Checkbox
-                        checked={selectedFields.includes(field.id)}
-                        onCheckedChange={() => handleFieldToggle(field.id)}
-                      />
-                      <span className="text-sm">{field.label}</span>
-                      <span className="text-xs text-muted-foreground ml-auto">{field.field_type}</span>
-                    </label>
-                  ))}
+            {/* Field Selection (not shown for smart mode — placeholders handle field selection) */}
+            {mode !== 'smart' && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-medium">Select Fields to Include</Label>
+                  <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={handleSelectAll}>
+                    {selectedFields.length === fields.length ? 'Deselect All' : 'Select All'}
+                  </Button>
                 </div>
-              </ScrollArea>
-              <p className="text-xs text-muted-foreground">{selectedFields.length} of {fields.length} fields selected</p>
-            </div>
+                <ScrollArea className="h-[180px] border rounded-lg p-2">
+                  <div className="space-y-1">
+                    {fields.map(field => (
+                      <label
+                        key={field.id}
+                        className="flex items-center gap-2 p-1.5 rounded hover:bg-muted/50 cursor-pointer"
+                      >
+                        <Checkbox
+                          checked={selectedFields.includes(field.id)}
+                          onCheckedChange={() => handleFieldToggle(field.id)}
+                        />
+                        <span className="text-sm">{field.label}</span>
+                        <span className="text-xs text-muted-foreground ml-auto">{field.field_type}</span>
+                      </label>
+                    ))}
+                  </div>
+                </ScrollArea>
+                <p className="text-xs text-muted-foreground">{selectedFields.length} of {fields.length} fields selected</p>
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="history" className="flex-1 min-h-0 overflow-auto py-2">
@@ -396,6 +538,8 @@ export function PolicyGeneratorDialog({
                       <p className="text-sm font-medium truncate">{entry.file_name}</p>
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
                         <span>v{entry.version}</span>
+                        <span>•</span>
+                        <span>{entry.document_type === 'smart' ? 'Smart' : entry.document_type === 'template' ? 'Template' : 'Default'}</span>
                         <span>•</span>
                         <span>{format(new Date(entry.generated_at), 'MMM d, yyyy h:mm a')}</span>
                         <span>•</span>
@@ -423,7 +567,14 @@ export function PolicyGeneratorDialog({
         {activeTab === 'generate' && (
           <DialogFooter>
             <Button variant="outline" onClick={handleClose} disabled={generating}>Cancel</Button>
-            <Button onClick={handleGenerate} disabled={generating || selectedFields.length === 0 || (mode === 'template' && !templateFile)}>
+            <Button
+              onClick={handleGenerate}
+              disabled={
+                generating ||
+                (mode !== 'smart' && selectedFields.length === 0) ||
+                ((mode === 'template' || mode === 'smart') && !templateFile)
+              }
+            >
               {generating ? (
                 <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Generating...</>
               ) : (
