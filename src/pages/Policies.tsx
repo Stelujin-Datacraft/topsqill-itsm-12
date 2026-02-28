@@ -24,6 +24,7 @@ const Policies = () => {
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const [showCreate, setShowCreate] = useState(false);
+  const [showCreateTemplate, setShowCreateTemplate] = useState(false);
   const [activeTab, setActiveTab] = useState('list');
 
   const filtered = useMemo(() => {
