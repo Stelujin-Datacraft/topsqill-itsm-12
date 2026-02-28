@@ -299,7 +299,7 @@ const PolicyDetail = () => {
     // Dynamic Fields from linked form
     if (policy.form_id) {
       try {
-        const displayFormat = (policy.content?.dynamic_fields_display as string) || 'table';
+        const displayFormat = dynamicFieldsFormat;
 
         // Fetch form info, fields, and submissions in parallel
         const [formRes, fieldsRes, subsRes] = await Promise.all([
