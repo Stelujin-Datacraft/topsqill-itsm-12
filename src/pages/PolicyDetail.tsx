@@ -44,6 +44,9 @@ const PolicyDetail = () => {
   const [approvalComment, setApprovalComment] = useState('');
   const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
   const attachmentInputRef = useRef<HTMLInputElement>(null);
+  const [dynamicFieldsFormat, setDynamicFieldsFormat] = useState<'table' | 'field-value'>(
+    (policies.find(p => p.id === id)?.content?.dynamic_fields_display as 'table' | 'field-value') || 'table'
+  );
 
   if (!policy) {
     return (
@@ -740,10 +743,27 @@ const PolicyDetail = () => {
 
           {/* Dynamic Fields from Linked Form */}
           {policy.form_id && (
-            <PolicyDynamicFieldsRenderer
-              formId={policy.form_id}
-              displayFormat={(policy.content?.dynamic_fields_display as 'table' | 'field-value') || 'table'}
-            />
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-foreground">Dynamic Fields Display</span>
+                <Select
+                  value={dynamicFieldsFormat}
+                  onValueChange={v => setDynamicFieldsFormat(v as 'table' | 'field-value')}
+                >
+                  <SelectTrigger className="w-[200px] h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="table">Tabular Format</SelectItem>
+                    <SelectItem value="field-value">Field & Value</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <PolicyDynamicFieldsRenderer
+                formId={policy.form_id}
+                displayFormat={dynamicFieldsFormat}
+              />
+            </div>
           )}
         </TabsContent>
 
