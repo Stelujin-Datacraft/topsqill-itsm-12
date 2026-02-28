@@ -13,6 +13,7 @@ import { FileText, Sparkles } from 'lucide-react';
 import { usePolicies } from '@/hooks/usePolicies';
 import { POLICY_CATEGORIES, POLICY_PRIORITIES, REVIEW_CYCLE_OPTIONS } from '@/types/policy';
 import type { PolicyTemplate } from '@/types/policy';
+import { TiptapEditor } from '@/components/ui/tiptap-editor';
 
 interface CreatePolicyDialogProps {
   open: boolean;
@@ -37,6 +38,7 @@ export function CreatePolicyDialog({ open, onOpenChange }: CreatePolicyDialogPro
     review_cycle_days: 365,
     acknowledgment_required: false,
     exception_allowed: true,
+    content_html: '',
   });
 
   const handleTemplateSelect = (template: PolicyTemplate) => {
@@ -75,7 +77,7 @@ export function CreatePolicyDialog({ open, onOpenChange }: CreatePolicyDialogPro
       next_review_date,
       acknowledgment_required: form.acknowledgment_required,
       exception_allowed: form.exception_allowed,
-      content: selectedTemplate?.content_structure || {},
+      content: form.content_html ? { html: form.content_html } : (selectedTemplate?.content_structure || {}),
       template_id: selectedTemplate?.id,
       status: 'draft',
       tags: [],
@@ -88,6 +90,7 @@ export function CreatePolicyDialog({ open, onOpenChange }: CreatePolicyDialogPro
       compliance_standard: '', compliance_reference: '', owner_type: 'user',
       priority: 'medium', effective_date: '', expiry_date: '',
       review_cycle_days: 365, acknowledgment_required: false, exception_allowed: true,
+      content_html: '',
     });
     setSelectedTemplate(null);
     setMode('blank');
@@ -166,7 +169,16 @@ export function CreatePolicyDialog({ open, onOpenChange }: CreatePolicyDialogPro
                   value={form.description}
                   onChange={e => setForm(prev => ({ ...prev, description: e.target.value }))}
                   placeholder="Brief description of the policy..."
-                  rows={3}
+                  rows={2}
+                />
+              </div>
+              <div className="col-span-2">
+                <Label>Policy Content</Label>
+                <TiptapEditor
+                  content={form.content_html}
+                  onChange={(html) => setForm(prev => ({ ...prev, content_html: html }))}
+                  placeholder="Write the full policy content here..."
+                  className="min-h-[150px]"
                 />
               </div>
               <div>
