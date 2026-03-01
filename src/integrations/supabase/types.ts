@@ -1536,6 +1536,44 @@ export type Database = {
           },
         ]
       }
+      knowledge_base_folder_access: {
+        Row: {
+          access_type: string
+          created_at: string
+          folder_id: string
+          granted_by: string | null
+          grantee_id: string
+          id: string
+          permission: string
+        }
+        Insert: {
+          access_type?: string
+          created_at?: string
+          folder_id: string
+          granted_by?: string | null
+          grantee_id: string
+          id?: string
+          permission?: string
+        }
+        Update: {
+          access_type?: string
+          created_at?: string
+          folder_id?: string
+          granted_by?: string | null
+          grantee_id?: string
+          id?: string
+          permission?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "knowledge_base_folder_access_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "knowledge_base_folders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       knowledge_base_folders: {
         Row: {
           created_at: string
@@ -2668,6 +2706,44 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "policy_linkages_policy_id_fkey"
+            columns: ["policy_id"]
+            isOneToOne: false
+            referencedRelation: "policies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      policy_ratings: {
+        Row: {
+          created_at: string
+          feedback: string | null
+          id: string
+          policy_id: string
+          rating: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          feedback?: string | null
+          id?: string
+          policy_id: string
+          rating: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          feedback?: string | null
+          id?: string
+          policy_id?: string
+          rating?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "policy_ratings_policy_id_fkey"
             columns: ["policy_id"]
             isOneToOne: false
             referencedRelation: "policies"

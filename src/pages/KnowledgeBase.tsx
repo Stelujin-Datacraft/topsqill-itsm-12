@@ -35,6 +35,18 @@ const KnowledgeBase = () => {
     f.description?.toLowerCase().includes(search.toLowerCase())
   );
 
+  // Search across all policies/audits
+  const matchingPolicies = search.trim()
+    ? policies.filter((p: any) =>
+        p.name?.toLowerCase().includes(search.toLowerCase()) ||
+        p.description?.toLowerCase().includes(search.toLowerCase()) ||
+        p.policy_number?.toLowerCase().includes(search.toLowerCase()) ||
+        p.category?.toLowerCase().includes(search.toLowerCase()) ||
+        p.department?.toLowerCase().includes(search.toLowerCase()) ||
+        p.compliance_standard?.toLowerCase().includes(search.toLowerCase())
+      )
+    : [];
+
   // Count items per folder
   const getItemCount = (folderId: string) => {
     return policies.filter((p: any) => p.folder_id === folderId).length;
@@ -73,12 +85,46 @@ const KnowledgeBase = () => {
       <div className="relative max-w-md">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
-          placeholder="Search folders..."
+          placeholder="Search folders, policies, audits..."
           value={search}
           onChange={e => setSearch(e.target.value)}
           className="pl-10"
         />
       </div>
+
+      {/* KB-wide search results */}
+      {matchingPolicies.length > 0 && (
+        <div className="space-y-2">
+          <h3 className="text-sm font-medium text-muted-foreground">
+            {matchingPolicies.length} matching item{matchingPolicies.length !== 1 ? 's' : ''}
+          </h3>
+          <div className="space-y-1">
+            {matchingPolicies.map((p: any) => (
+              <Card
+                key={p.id}
+                className="cursor-pointer hover:border-primary/50 transition-colors"
+                onClick={() => navigate(`/policy/${p.id}`)}
+              >
+                <CardContent className="p-3 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <FileText className="h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <div className="flex items-center gap-2">
+                        {p.policy_number && <span className="text-xs font-mono text-muted-foreground">{p.policy_number}</span>}
+                        <span className="text-sm font-medium">{p.name}</span>
+                        <Badge variant="outline" className="text-[10px]">{p.item_type || 'policy'}</Badge>
+                        <Badge variant="secondary" className="text-[10px]">{p.status}</Badge>
+                      </div>
+                      {p.description && <p className="text-xs text-muted-foreground line-clamp-1">{p.description}</p>}
+                    </div>
+                  </div>
+                  <span className="text-xs text-muted-foreground shrink-0">{p.category}</span>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
 
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

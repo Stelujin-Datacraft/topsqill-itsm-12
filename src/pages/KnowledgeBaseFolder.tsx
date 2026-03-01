@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Plus, Search, FileText, Shield, BarChart3, LayoutTemplate, CalendarClock, FolderOpen } from 'lucide-react';
+import { ArrowLeft, Plus, Search, FileText, Shield, BarChart3, LayoutTemplate, CalendarClock, FolderOpen, Users, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -14,6 +14,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { POLICY_CATEGORIES, POLICY_STATUSES, POLICY_PRIORITIES } from '@/types/policy';
 import { PolicyDashboard } from '@/components/policies/PolicyDashboard';
 import { format, isPast } from 'date-fns';
+import { FolderAccessControls } from '@/components/policies/FolderAccessControls';
 
 // Reuse templates tab from original Policies page
 import type { PolicyTemplate } from '@/types/policy';
@@ -122,6 +123,12 @@ const KnowledgeBaseFolder = () => {
             <BarChart3 className="h-4 w-4" />
             Dashboard
           </TabsTrigger>
+          {isAdmin && !isUnassigned && (
+            <TabsTrigger value="access" className="gap-2">
+              <Lock className="h-4 w-4" />
+              Access Controls
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="list" className="space-y-4">
@@ -281,6 +288,12 @@ const KnowledgeBaseFolder = () => {
         <TabsContent value="dashboard">
           <PolicyDashboard policies={folderPolicies} />
         </TabsContent>
+
+        {isAdmin && !isUnassigned && folderId && (
+          <TabsContent value="access">
+            <FolderAccessControls folderId={folderId} />
+          </TabsContent>
+        )}
       </Tabs>
 
       {/* Template dialogs - same as original Policies page */}
