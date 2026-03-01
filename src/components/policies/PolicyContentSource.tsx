@@ -14,6 +14,7 @@ import mammoth from 'mammoth';
 interface PolicyContentSourceProps {
   contentHtml: string;
   onContentChange: (html: string) => void;
+  onOriginalFileChange?: (file: File | null) => void;
   templates: PolicyTemplate[];
   templatesLoading: boolean;
   selectedTemplate: PolicyTemplate | null;
@@ -50,6 +51,7 @@ const PREVIEW_STYLES = `
 export function PolicyContentSource({
   contentHtml,
   onContentChange,
+  onOriginalFileChange,
   templates,
   templatesLoading,
   selectedTemplate,
@@ -114,6 +116,7 @@ export function PolicyContentSource({
       );
       if (result.value) {
         onContentChange(result.value);
+        onOriginalFileChange?.(file);
         toast.success(`Imported content from "${file.name}"`);
         if (result.messages.length > 0) {
           console.warn('Mammoth warnings:', result.messages);
@@ -317,18 +320,8 @@ export function PolicyContentSource({
   );
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4" style={{ minHeight: '420px' }}>
-      {/* Left: Source/Editor */}
-      <div className="flex flex-col">
-        <Label className="text-xs text-muted-foreground mb-2">Edit Content</Label>
-        {sourceEditor}
-      </div>
-
-      {/* Right: Live Preview */}
-      <div className="flex flex-col">
-        <Label className="text-xs text-muted-foreground mb-2">Live Preview</Label>
-        {previewIframe}
-      </div>
+    <div className="space-y-4">
+      {sourceEditor}
     </div>
   );
 }
