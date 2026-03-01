@@ -2,8 +2,9 @@ import React, { useState, useRef } from 'react';
 import html2canvas from 'html2canvas';
 import { supabase } from '@/integrations/supabase/client';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Edit, Trash2, Save, Send, Archive, History, Link2, CheckCircle, Clock, FileText, Download, Plus, UserCheck, AlertOctagon, CalendarClock, Shield, BookOpen, Upload, Loader2 } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, Save, Send, Archive, History, Link2, CheckCircle, Clock, FileText, Download, Plus, UserCheck, AlertOctagon, CalendarClock, Shield, BookOpen, Upload, Loader2, Star } from 'lucide-react';
 import { PolicyDynamicFieldsRenderer } from '@/components/policies/PolicyDynamicFieldsRenderer';
+import { PolicyRatingsTab } from '@/components/policies/PolicyRatingsTab';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -35,7 +36,7 @@ const PolicyDetail = () => {
   const { currentOrganization } = useOrganization();
   const { currentProject } = useProject();
   const { policies, updatePolicy, deletePolicy, createVersion, createReviewCycle } = usePolicies();
-  const { versions, linkages, approvals, isLoading, createLinkage, submitApproval, respondApproval } = usePolicyDetail(id);
+  const { versions, linkages, approvals, acknowledgments, exceptions, reviewCycles, isLoading, createLinkage, submitApproval, respondApproval, acknowledgePolicy, requestException, respondException } = usePolicyDetail(id);
   
   const policy = policies.find(p => p.id === id);
   const [isEditing, setIsEditing] = useState(false);
@@ -752,7 +753,21 @@ const PolicyDetail = () => {
           <TabsTrigger value="approvals" className="gap-1">
             <CheckCircle className="h-3.5 w-3.5" /> Approvals ({approvals.length})
           </TabsTrigger>
-          {/* Linkages tab hidden for now */}
+          <TabsTrigger value="versions" className="gap-1">
+            <History className="h-3.5 w-3.5" /> Versions ({versions.length})
+          </TabsTrigger>
+          <TabsTrigger value="acknowledgments" className="gap-1">
+            <UserCheck className="h-3.5 w-3.5" /> Acknowledgments ({acknowledgments.length})
+          </TabsTrigger>
+          <TabsTrigger value="exceptions" className="gap-1">
+            <AlertOctagon className="h-3.5 w-3.5" /> Exceptions ({exceptions.length})
+          </TabsTrigger>
+          <TabsTrigger value="linkages" className="gap-1">
+            <Link2 className="h-3.5 w-3.5" /> Linkages ({linkages.length})
+          </TabsTrigger>
+          <TabsTrigger value="ratings" className="gap-1">
+            <Star className="h-3.5 w-3.5" /> Ratings
+          </TabsTrigger>
         </TabsList>
 
         {/* Details Tab */}
@@ -1015,7 +1030,157 @@ const PolicyDetail = () => {
           </Card>
         </TabsContent>
 
-        {/* Linkages Tab - hidden for now */}
+        {/* Versions Tab */}
+        <TabsContent value="versions" className="mt-4">
+          <Card>
+            <CardContent className="pt-4">
+              <p className="text-sm font-medium mb-4">Version History</p>
+              {versions.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-6">No versions yet. Versions are created when you edit and save changes.</p>
+              ) : (
+                <div className="space-y-3">
+                  {versions.map(v => (
+                    <div key={v.id} className="p-3 rounded-md border space-y-1">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline">v{v.version_number}</Badge>
+                          <span className="text-sm font-medium">{v.name}</span>
+                        </div>
+                        <span className="text-xs text-muted-foreground">{format(new Date(v.changed_at), 'MMM d, yyyy HH:mm')}</span>
+                      </div>
+                      {v.change_summary && <p className="text-xs text-muted-foreground">{v.change_summary}</p>}
+                      <p className="text-xs text-muted-foreground">Changed by: {getUserName(v.changed_by)}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Acknowledgments Tab */}
+        <TabsContent value="acknowledgments" className="mt-4">
+          <Card>
+            <CardContent className="pt-4">
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-sm font-medium">Acknowledgment Tracking</p>
+                {policy.status === 'published' && !acknowledgments.some(a => a.user_id === user?.id) && (
+                  <Button size="sm" onClick={() => acknowledgePolicy.mutate({ policyId: policy.id, versionNumber: policy.current_version })}>
+                    <UserCheck className="h-4 w-4 mr-1" /> Acknowledge
+                  </Button>
+                )}
+              </div>
+              {acknowledgments.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-6">No acknowledgments yet.</p>
+              ) : (
+                <div className="space-y-2">
+                  {acknowledgments.map(a => (
+                    <div key={a.id} className="flex items-center justify-between p-3 rounded-md border">
+                      <div className="flex items-center gap-2">
+                        <UserCheck className="h-4 w-4 text-primary" />
+                        <span className="text-sm font-medium">{getUserName(a.user_id)}</span>
+                        <Badge variant="outline" className="text-[10px]">v{a.version_acknowledged}</Badge>
+                      </div>
+                      <span className="text-xs text-muted-foreground">{format(new Date(a.acknowledged_at), 'MMM d, yyyy HH:mm')}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Exceptions Tab */}
+        <TabsContent value="exceptions" className="mt-4">
+          <Card>
+            <CardContent className="pt-4">
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-sm font-medium">Exception Requests</p>
+                {policy.status === 'published' && (
+                  <Button size="sm" variant="outline" onClick={() => {
+                    const reason = prompt('Reason for exception request:');
+                    if (reason) {
+                      requestException.mutate({
+                        policy_id: policy.id,
+                        reason,
+                        status: 'pending',
+                      });
+                    }
+                  }}>
+                    <AlertOctagon className="h-4 w-4 mr-1" /> Request Exception
+                  </Button>
+                )}
+              </div>
+              {exceptions.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-6">No exception requests.</p>
+              ) : (
+                <div className="space-y-3">
+                  {exceptions.map(ex => (
+                    <div key={ex.id} className="p-3 rounded-md border space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Badge variant={ex.status === 'approved' ? 'default' : ex.status === 'rejected' ? 'destructive' : 'secondary'}>
+                            {ex.status}
+                          </Badge>
+                          <span className="text-sm">{ex.reason}</span>
+                        </div>
+                        <span className="text-xs text-muted-foreground">{format(new Date(ex.created_at), 'MMM d, yyyy')}</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">Requested by: {getUserName(ex.requested_by)}</p>
+                      {ex.status === 'pending' && isAdmin && (
+                        <div className="flex gap-2 pt-2 border-t">
+                          <Button size="sm" onClick={() => respondException.mutate({ exceptionId: ex.id, status: 'approved', approved_by: user?.id! })}>
+                            Approve
+                          </Button>
+                          <Button size="sm" variant="destructive" onClick={() => respondException.mutate({ exceptionId: ex.id, status: 'rejected', approved_by: user?.id! })}>
+                            Reject
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Linkages Tab */}
+        <TabsContent value="linkages" className="mt-4">
+          <Card>
+            <CardContent className="pt-4">
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-sm font-medium">Policy Linkages</p>
+                {isAdmin && (
+                  <Button size="sm" variant="outline" onClick={() => setShowLinkDialog(true)}>
+                    <Plus className="h-4 w-4 mr-1" /> Add Link
+                  </Button>
+                )}
+              </div>
+              {linkages.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-6">No linkages. Link this policy to forms, incidents, or other policies.</p>
+              ) : (
+                <div className="space-y-2">
+                  {linkages.map(l => (
+                    <div key={l.id} className="flex items-center justify-between p-3 rounded-md border">
+                      <div className="flex items-center gap-2">
+                        <Link2 className="h-4 w-4 text-muted-foreground" />
+                        <Badge variant="outline" className="capitalize">{l.linked_entity_type}</Badge>
+                        <span className="text-sm">{l.link_description || l.linked_entity_id.slice(0, 8)}</span>
+                      </div>
+                      <span className="text-xs text-muted-foreground">{format(new Date(l.created_at), 'MMM d, yyyy')}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Ratings Tab */}
+        <TabsContent value="ratings" className="mt-4">
+          <PolicyRatingsTab policyId={policy.id} getUserName={getUserName} />
+        </TabsContent>
       </Tabs>
 
       {/* Submit for Approval Dialog */}
