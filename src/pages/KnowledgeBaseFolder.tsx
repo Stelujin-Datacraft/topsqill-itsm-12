@@ -104,10 +104,6 @@ const KnowledgeBaseFolder = () => {
               <FileText className="h-4 w-4" />
               Create Policy
             </Button>
-            <Button onClick={() => navigate(`/policies/create?folder=${folderId}&type=audit`)} variant="outline" className="gap-2">
-              <Shield className="h-4 w-4" />
-              Create Audit
-            </Button>
           </div>
         )}
       </div>
@@ -183,9 +179,6 @@ const KnowledgeBaseFolder = () => {
                   <div className="flex gap-2 mt-4">
                     <Button onClick={() => navigate(`/policies/create?folder=${folderId}&type=policy`)} className="gap-2">
                       <FileText className="h-4 w-4" /> Create Policy
-                    </Button>
-                    <Button onClick={() => navigate(`/policies/create?folder=${folderId}&type=audit`)} variant="outline" className="gap-2">
-                      <Shield className="h-4 w-4" /> Create Audit
                     </Button>
                   </div>
                 )}
