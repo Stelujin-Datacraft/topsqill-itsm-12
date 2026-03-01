@@ -195,47 +195,55 @@ function FieldValueFormatView({
   );
 }
 
+function safeStringify(val: any): string {
+  if (val === null || val === undefined || val === '') return '';
+  if (typeof val !== 'object') return String(val);
+  if (Array.isArray(val)) return val.map(safeStringify).filter(Boolean).join(', ');
+  // Extract meaningful string from object
+  if (val.submission_ref_id) return val.submission_ref_id;
+  if (val.label) return val.label;
+  if (val.name) return val.name;
+  if (val.title) return val.title;
+  // Last resort: extract primitive values
+  const primitives = Object.values(val).filter(v => v !== null && v !== undefined && typeof v !== 'object');
+  if (primitives.length > 0) return primitives.slice(0, 3).map(String).join(', ');
+  return JSON.stringify(val);
+}
+
+function extractRecordDisplay(v: any): string {
+  if (!v || typeof v !== 'object') return v ? String(v) : '';
+  const refId = v.submission_ref_id || v.id?.slice(0, 8) || '';
+  const displayParts: string[] = [];
+  if (refId) displayParts.push(refId);
+
+  if (v.displayData) {
+    displayParts.push(safeStringify(v.displayData));
+  } else if (v.submission_data && typeof v.submission_data === 'object') {
+    const dataVals = Object.values(v.submission_data)
+      .filter((val: any) => val !== null && val !== undefined && val !== '')
+      .slice(0, 3)
+      .map(safeStringify)
+      .filter(Boolean);
+    if (dataVals.length > 0) displayParts.push(...dataVals);
+  } else {
+    if (v.name) displayParts.push(String(v.name));
+    else if (v.label) displayParts.push(String(v.label));
+    else if (v.title) displayParts.push(String(v.title));
+  }
+  return displayParts.length > 0 ? displayParts.join(' — ') : safeStringify(v);
+}
+
 function formatValue(value: any, fieldType: string, options?: any): string {
   if (value === null || value === undefined || value === '') return '—';
 
   // Handle cross-reference and child-cross-reference fields
   if (['cross-reference', 'child-cross-reference', 'dynamic-table'].includes(fieldType)) {
     if (Array.isArray(value)) {
-      return value.map(v => {
-        if (typeof v === 'object' && v !== null) {
-          // Extract ID
-          const refId = v.submission_ref_id || v.id?.slice(0, 8) || '';
-          // Extract display field values from submission_data or top-level fields
-          const displayParts: string[] = [];
-          if (refId) displayParts.push(refId);
-          // Check for display fields in the object
-          if (v.displayData) {
-            displayParts.push(String(v.displayData));
-          } else if (v.submission_data && typeof v.submission_data === 'object') {
-            // Extract key field values from submission_data
-            const dataVals = Object.values(v.submission_data).filter(
-              (val: any) => val !== null && val !== undefined && val !== '' && typeof val !== 'object'
-            ).slice(0, 3);
-            if (dataVals.length > 0) displayParts.push(...dataVals.map(String));
-          } else {
-            // Try common display properties
-            if (v.name) displayParts.push(v.name);
-            if (v.label) displayParts.push(v.label);
-            if (v.title) displayParts.push(v.title);
-          }
-          return displayParts.length > 0 ? displayParts.join(' — ') : JSON.stringify(v);
-        }
-        return String(v);
-      }).filter(Boolean).join(', ') || '—';
+      return value.map(v => typeof v === 'object' && v !== null ? extractRecordDisplay(v) : String(v))
+        .filter(Boolean).join(', ') || '—';
     }
     if (typeof value === 'object' && value !== null) {
-      const refId = value.submission_ref_id || value.id?.slice(0, 8) || '';
-      const parts: string[] = [];
-      if (refId) parts.push(refId);
-      if (value.displayData) parts.push(String(value.displayData));
-      else if (value.name) parts.push(value.name);
-      else if (value.label) parts.push(value.label);
-      return parts.length > 0 ? parts.join(' — ') : JSON.stringify(value);
+      return extractRecordDisplay(value) || '—';
     }
     return String(value);
   }
