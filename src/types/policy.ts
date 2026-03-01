@@ -33,6 +33,8 @@ export interface Policy {
   priority?: 'low' | 'medium' | 'high' | 'critical';
   acknowledgment_required?: boolean;
   exception_allowed?: boolean;
+  folder_id?: string;
+  item_type?: string;
 }
 
 export interface PolicyAttachment {
