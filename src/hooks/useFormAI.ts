@@ -450,6 +450,63 @@ export function useFormAI() {
     });
   }, [callAI]);
 
+  // NEW: Generate field metadata (tooltips, placeholders, help text)
+  const generateFieldMetadata = useCallback(async (
+    formFields: FormField[],
+    options?: {
+      formName?: string;
+      formDescription?: string;
+    }
+  ) => {
+    return callAI('generate-field-metadata', {
+      formFields: formFields.map(f => ({
+        id: f.id,
+        type: f.type,
+        label: f.label,
+        placeholder: f.placeholder,
+        tooltip: f.tooltip,
+        options: f.options?.map(o => ({ label: o.label, value: o.value })),
+        required: f.required
+      })),
+      formName: options?.formName,
+      formDescription: options?.formDescription
+    });
+  }, [callAI]);
+
+  // NEW: Summarize submission data
+  const summarizeData = useCallback(async (
+    formFields: FormField[],
+    formName: string,
+    sampleData: Array<Record<string, any>>,
+    dataSummary: Record<string, any>,
+    totalRecords: number
+  ) => {
+    return callAI('summarize-data', {
+      formFields: formFields.map(f => ({ id: f.id, label: f.label, type: f.type })),
+      formName,
+      sampleData,
+      dataSummary,
+      totalRecords
+    });
+  }, [callAI]);
+
+  // NEW: Detect anomalies in data
+  const detectAnomalies = useCallback(async (
+    formFields: FormField[],
+    formName: string,
+    sampleData: Array<Record<string, any>>,
+    dataSummary: Record<string, any>,
+    totalRecords: number
+  ) => {
+    return callAI('detect-anomalies', {
+      formFields: formFields.map(f => ({ id: f.id, label: f.label, type: f.type })),
+      formName,
+      sampleData,
+      dataSummary,
+      totalRecords
+    });
+  }, [callAI]);
+
   return {
     isLoading,
     error,
@@ -467,6 +524,9 @@ export function useFormAI() {
     suggestFieldMappings,
     suggestCharts,
     suggestFieldRules,
-    suggestFormRules
+    suggestFormRules,
+    generateFieldMetadata,
+    summarizeData,
+    detectAnomalies
   };
 }

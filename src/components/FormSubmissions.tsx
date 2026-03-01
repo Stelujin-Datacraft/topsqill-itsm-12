@@ -10,6 +10,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Form } from '@/types/form';
 import { supabase } from '@/integrations/supabase/client';
 import { Search, Filter, Download, Eye, Trash2, Calendar, User, FileText, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { AIDataSummary } from './ai/AIDataSummary';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubmissionAccessFilter } from '@/hooks/useSubmissionAccessFilter';
@@ -333,6 +334,16 @@ export function FormSubmissions({
           </div>
         </CardContent>
       </Card>
+
+      {/* AI Data Summary */}
+      {submissions.length > 0 && (
+        <AIDataSummary
+          formFields={allFields}
+          formName={form.name}
+          submissions={submissions.map(s => s.submissionData)}
+          totalRecords={submissions.length}
+        />
+      )}
 
       {/* Submissions Table */}
       <Card>
