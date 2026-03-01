@@ -814,6 +814,177 @@ const PolicyDetail = () => {
     toast.success('DOCX exported successfully');
   };
 
+  // Shared helper: build OpenXML content paragraphs from policy data
+  const buildOriginalDocxContentBlocks = async (): Promise<string[]> => {
+    const cps: string[] = [];
+    const esc = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+    // Separator
+    cps.push('<w:p><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="6" w:space="1" w:color="auto"/></w:pBdr></w:pPr></w:p>');
+
+    // Inject HTML content
+    const cHtml = liveContentHtml ?? policy.content?.html;
+    if (cHtml) {
+      const td = document.createElement('div');
+      td.innerHTML = cHtml;
+
+      const extractBlocks = (node: Node): string[] => {
+        const b: string[] = [];
+        if (node.nodeType === Node.TEXT_NODE) {
+          const t = node.textContent?.trim();
+          if (t) b.push('<w:p><w:r><w:t xml:space="preserve">' + esc(t) + '</w:t></w:r></w:p>');
+        } else if (node.nodeType === Node.ELEMENT_NODE) {
+          const el = node as HTMLElement;
+          const tag = el.tagName.toLowerCase();
+          if (['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].includes(tag)) {
+            const sz = tag === 'h1' ? '32' : tag === 'h2' ? '28' : '24';
+            b.push('<w:p><w:r><w:rPr><w:b/><w:sz w:val="' + sz + '"/></w:rPr><w:t xml:space="preserve">' + esc(el.textContent || '') + '</w:t></w:r></w:p>');
+          } else if (tag === 'li') {
+            b.push('<w:p><w:r><w:t xml:space="preserve">\u2022 ' + esc(el.textContent || '') + '</w:t></w:r></w:p>');
+          } else if (['p', 'div'].includes(tag)) {
+            const t = el.textContent?.trim();
+            if (t) b.push('<w:p><w:r><w:t xml:space="preserve">' + esc(t) + '</w:t></w:r></w:p>');
+          } else if (tag === 'table') {
+            const rows = el.querySelectorAll('tr');
+            if (rows.length > 0) {
+              let tx = '<w:tbl><w:tblPr><w:tblW w:w="5000" w:type="pct"/><w:tblBorders>' +
+                '<w:top w:val="single" w:sz="4" w:space="0" w:color="auto"/>' +
+                '<w:left w:val="single" w:sz="4" w:space="0" w:color="auto"/>' +
+                '<w:bottom w:val="single" w:sz="4" w:space="0" w:color="auto"/>' +
+                '<w:right w:val="single" w:sz="4" w:space="0" w:color="auto"/>' +
+                '<w:insideH w:val="single" w:sz="4" w:space="0" w:color="auto"/>' +
+                '<w:insideV w:val="single" w:sz="4" w:space="0" w:color="auto"/>' +
+                '</w:tblBorders></w:tblPr>';
+              rows.forEach(tr => {
+                tx += '<w:tr>';
+                tr.querySelectorAll('td,th').forEach(c => {
+                  const isBold = c.tagName.toLowerCase() === 'th';
+                  tx += '<w:tc><w:p><w:r>' + (isBold ? '<w:rPr><w:b/></w:rPr>' : '') +
+                    '<w:t xml:space="preserve">' + esc(c.textContent || '') + '</w:t></w:r></w:p></w:tc>';
+                });
+                tx += '</w:tr>';
+              });
+              tx += '</w:tbl>';
+              b.push(tx);
+            }
+          } else if (tag === 'blockquote') {
+            b.push('<w:p><w:pPr><w:ind w:left="720"/></w:pPr><w:r><w:rPr><w:i/></w:rPr><w:t xml:space="preserve">' + esc(el.textContent || '') + '</w:t></w:r></w:p>');
+          } else if (tag === 'ul' || tag === 'ol') {
+            el.childNodes.forEach(ch => b.push(...extractBlocks(ch)));
+          } else {
+            el.childNodes.forEach(ch => b.push(...extractBlocks(ch)));
+          }
+        }
+        return b;
+      };
+      td.childNodes.forEach(ch => cps.push(...extractBlocks(ch)));
+    }
+
+    // Inject dynamic form fields
+    if (policy.form_id) {
+      const [fR, sR] = await Promise.all([
+        supabase.from('form_fields').select('id,label,field_type,options,field_order,custom_config').eq('form_id', policy.form_id).order('field_order'),
+        supabase.from('form_submissions').select('id,submission_ref_id,submission_data').eq('form_id', policy.form_id).order('submitted_at', { ascending: true }),
+      ]);
+      const allFields = (fR.data || []).filter(f => !['section', 'divider', 'heading', 'paragraph', 'spacer', 'page-break'].includes(f.field_type));
+      const selectedIds = policy.content?.selected_field_ids as string[] | undefined;
+      const fields = selectedIds?.length ? allFields.filter(f => selectedIds.includes(f.id)) : allFields;
+      const subs = sR.data || [];
+
+      // Resolve cross-ref linked records
+      const crFields = allFields.filter(f => ['cross-reference', 'child-cross-reference'].includes(f.field_type));
+      const linkedIds = new Set<string>();
+      for (const s of subs) {
+        const d = (s as any).submission_data || {};
+        for (const cf of crFields) {
+          const v = d[cf.id];
+          if (Array.isArray(v)) v.forEach((x: any) => { if (x?.id) linkedIds.add(x.id); });
+          else if (v?.id) linkedIds.add(v.id);
+        }
+      }
+      const linkedRecords: Record<string, any> = {};
+      const linkedFieldLabels: Record<string, Record<string, string>> = {};
+      if (linkedIds.size > 0) {
+        const ids = Array.from(linkedIds);
+        for (let i = 0; i < ids.length; i += 50) {
+          const { data } = await supabase.from('form_submissions').select('id,submission_ref_id,submission_data,form_id').in('id', ids.slice(i, i + 50));
+          if (data) data.forEach(r => { linkedRecords[r.id] = r; });
+        }
+        const formIds = [...new Set(Object.values(linkedRecords).map((r: any) => r.form_id))];
+        for (const fid of formIds) {
+          const { data: ff } = await supabase.from('form_fields').select('id,label,field_type').eq('form_id', fid).order('field_order');
+          if (ff) {
+            linkedFieldLabels[fid] = {};
+            ff.filter(f => !['section', 'divider', 'heading', 'paragraph', 'spacer', 'page-break', 'child-cross-reference'].includes(f.field_type))
+              .forEach(f => { linkedFieldLabels[fid][f.id] = f.label; });
+          }
+        }
+      }
+
+      const resolveCrossRef = (v: any): string => {
+        if (!v) return '\u2014';
+        const resolveOne = (x: any): string => {
+          if (typeof x !== 'object' || !x) return String(x);
+          const rec = linkedRecords[x.id];
+          if (!rec) return x.submission_ref_id || x.id?.slice(0, 8) || JSON.stringify(x);
+          const refId = rec.submission_ref_id || rec.id.slice(0, 8);
+          const labels = linkedFieldLabels[rec.form_id] || {};
+          const sd = rec.submission_data || {};
+          const parts: string[] = [];
+          for (const [fi, la] of Object.entries(labels).slice(0, 4)) {
+            const fv = sd[fi];
+            if (fv !== null && fv !== undefined && fv !== '' && typeof fv !== 'object') parts.push(la + ': ' + fv);
+            if (parts.length >= 3) break;
+          }
+          return parts.length > 0 ? refId + ' \u2014 ' + parts.join(' | ') : refId;
+        };
+        if (Array.isArray(v)) return v.map(resolveOne).filter(Boolean).join('; ') || '\u2014';
+        return resolveOne(v);
+      };
+
+      const formatVal = (val: any, fType: string, opts?: any) =>
+        ['cross-reference', 'child-cross-reference', 'dynamic-table'].includes(fType) ? resolveCrossRef(val) : pdfFormatValue(val, fType, opts);
+
+      if (subs.length > 0) {
+        cps.push('<w:p><w:r><w:rPr><w:b/><w:sz w:val="28"/></w:rPr><w:t xml:space="preserve">Dynamic Data</w:t></w:r></w:p>');
+        subs.forEach((s: any, i: number) => {
+          const refId = s.submission_ref_id || s.id.slice(0, 8);
+          cps.push('<w:p><w:r><w:rPr><w:b/><w:sz w:val="24"/></w:rPr><w:t xml:space="preserve">' + esc('Record ' + (i + 1) + ' \u2014 ' + refId) + '</w:t></w:r></w:p>');
+          const d = s.submission_data || {};
+
+          let tx = '<w:tbl><w:tblPr><w:tblW w:w="5000" w:type="pct"/><w:tblBorders>' +
+            '<w:top w:val="single" w:sz="4" w:space="0" w:color="auto"/>' +
+            '<w:left w:val="single" w:sz="4" w:space="0" w:color="auto"/>' +
+            '<w:bottom w:val="single" w:sz="4" w:space="0" w:color="auto"/>' +
+            '<w:right w:val="single" w:sz="4" w:space="0" w:color="auto"/>' +
+            '<w:insideH w:val="single" w:sz="4" w:space="0" w:color="auto"/>' +
+            '<w:insideV w:val="single" w:sz="4" w:space="0" w:color="auto"/>' +
+            '</w:tblBorders></w:tblPr>';
+          tx += '<w:tr><w:tc><w:tcPr><w:shd w:val="clear" w:color="auto" w:fill="E0E0E0"/></w:tcPr><w:p><w:r><w:rPr><w:b/></w:rPr><w:t>Field</w:t></w:r></w:p></w:tc>' +
+            '<w:tc><w:tcPr><w:shd w:val="clear" w:color="auto" w:fill="E0E0E0"/></w:tcPr><w:p><w:r><w:rPr><w:b/></w:rPr><w:t>Value</w:t></w:r></w:p></w:tc></w:tr>';
+          fields.forEach((f: any) => {
+            tx += '<w:tr><w:tc><w:p><w:r><w:rPr><w:b/></w:rPr><w:t xml:space="preserve">' + esc(f.label || '') + '</w:t></w:r></w:p></w:tc>' +
+              '<w:tc><w:p><w:r><w:t xml:space="preserve">' + esc(formatVal(d[f.id], f.field_type, f.options)) + '</w:t></w:r></w:p></w:tc></w:tr>';
+          });
+          tx += '</w:tbl>';
+          cps.push(tx);
+          cps.push('<w:p/>');
+        });
+      }
+    }
+
+    // Attachments
+    const visibleAttachments = (policy.attachments || []).filter((att: any) => att.show_in_pdf !== false);
+    if (visibleAttachments.length > 0) {
+      cps.push('<w:p><w:r><w:rPr><w:b/><w:sz w:val="24"/></w:rPr><w:t xml:space="preserve">Attachments</w:t></w:r></w:p>');
+      visibleAttachments.forEach((att: any) => {
+        cps.push('<w:p><w:r><w:t xml:space="preserve">\u2022 ' + esc(att.name) + (att.url ? ' \u2014 ' + esc(att.url) : '') + '</w:t></w:r></w:p>');
+      });
+    }
+
+    return cps;
+  };
+
   const downloadOriginalDocxWithContent = async () => {
     if (!policy.content?.original_docx_url) return;
     try {
@@ -825,65 +996,45 @@ const PolicyDetail = () => {
       const docXmlFile = zipDoc.file('word/document.xml');
       if (!docXmlFile) throw new Error('Invalid DOCX structure');
       let xmlContent = docXmlFile.asText();
-      const cps: string[] = [];
-      cps.push('<w:p><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="6" w:space="1" w:color="auto"/></w:pBdr></w:pPr></w:p>');
-      const esc = (t: string) => t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-      const cHtml = liveContentHtml ?? policy.content?.html;
-      if (cHtml) {
-        const td = document.createElement('div'); td.innerHTML = cHtml;
-        const extractBlocks = (node: Node): string[] => {
-          const b: string[] = [];
-          if (node.nodeType === Node.TEXT_NODE) { const t = node.textContent?.trim(); if (t) b.push('<w:p><w:r><w:t xml:space="preserve">' + esc(t) + '</w:t></w:r></w:p>'); }
-          else if (node.nodeType === Node.ELEMENT_NODE) {
-            const el = node as HTMLElement, tag = el.tagName.toLowerCase();
-            if (['h1','h2','h3','h4','h5','h6'].includes(tag)) { const sz = tag==='h1'?'32':tag==='h2'?'28':'24'; b.push('<w:p><w:r><w:rPr><w:b/><w:sz w:val="'+sz+'"/></w:rPr><w:t xml:space="preserve">'+esc(el.textContent||'')+'</w:t></w:r></w:p>'); }
-            else if (tag==='li') b.push('<w:p><w:r><w:t xml:space="preserve">\u2022 '+esc(el.textContent||'')+'</w:t></w:r></w:p>');
-            else if (['p','div'].includes(tag)) { const t=el.textContent?.trim(); if(t) b.push('<w:p><w:r><w:t xml:space="preserve">'+esc(t)+'</w:t></w:r></w:p>'); }
-            else if (tag==='table') {
-              const rows=el.querySelectorAll('tr');
-              if(rows.length>0){ let tx='<w:tbl><w:tblPr><w:tblW w:w="5000" w:type="pct"/><w:tblBorders><w:top w:val="single" w:sz="4" w:space="0" w:color="auto"/><w:left w:val="single" w:sz="4" w:space="0" w:color="auto"/><w:bottom w:val="single" w:sz="4" w:space="0" w:color="auto"/><w:right w:val="single" w:sz="4" w:space="0" w:color="auto"/><w:insideH w:val="single" w:sz="4" w:space="0" w:color="auto"/><w:insideV w:val="single" w:sz="4" w:space="0" w:color="auto"/></w:tblBorders></w:tblPr>';
-                rows.forEach(tr=>{tx+='<w:tr>';tr.querySelectorAll('td,th').forEach(c=>{const bd=c.tagName.toLowerCase()==='th';tx+='<w:tc><w:p><w:r>'+(bd?'<w:rPr><w:b/></w:rPr>':'')+'<w:t xml:space="preserve">'+esc(c.textContent||'')+'</w:t></w:r></w:p></w:tc>'});tx+='</w:tr>'});
-                tx+='</w:tbl>';b.push(tx); }
-            } else el.childNodes.forEach(ch=>b.push(...extractBlocks(ch)));
+
+      const cps = await buildOriginalDocxContentBlocks();
+
+      if (cps.length > 0) {
+        // Try multiple patterns to find insertion point
+        const bodyClosePattern = /<\/w:body>/i;
+        if (bodyClosePattern.test(xmlContent)) {
+          xmlContent = xmlContent.replace(bodyClosePattern, cps.join('') + '</w:body>');
+        } else {
+          // Fallback: try sectPr before body close
+          const sectPrPattern = /(<w:sectPr[^>]*>)/;
+          if (sectPrPattern.test(xmlContent)) {
+            xmlContent = xmlContent.replace(sectPrPattern, cps.join('') + '$1');
           }
-          return b;
-        };
-        td.childNodes.forEach(ch=>cps.push(...extractBlocks(ch)));
-      }
-      if (policy.form_id) {
-        const [fR,sR] = await Promise.all([
-          supabase.from('form_fields').select('id,label,field_type,options,field_order,custom_config').eq('form_id',policy.form_id).order('field_order'),
-          supabase.from('form_submissions').select('id,submission_ref_id,submission_data').eq('form_id',policy.form_id).order('submitted_at',{ascending:true}),
-        ]);
-        const aF=(fR.data||[]).filter(f=>!['section','divider','heading','paragraph','spacer','page-break'].includes(f.field_type));
-        const sIds=policy.content?.selected_field_ids as string[]|undefined;
-        const flds=sIds?.length?aF.filter(f=>sIds.includes(f.id)):aF;
-        const subs=sR.data||[];
-        const crF=aF.filter(f=>['cross-reference','child-cross-reference'].includes(f.field_type));
-        const lIds=new Set<string>();
-        for(const s of subs){const d=(s as any).submission_data||{};for(const cf of crF){const v=d[cf.id];if(Array.isArray(v))v.forEach((x:any)=>{if(x?.id)lIds.add(x.id)});else if(v?.id)lIds.add(v.id)}}
-        const lR:Record<string,any>={},lFL:Record<string,Record<string,string>>={};
-        if(lIds.size>0){const ids=Array.from(lIds);for(let i=0;i<ids.length;i+=50){const{data}=await supabase.from('form_submissions').select('id,submission_ref_id,submission_data,form_id').in('id',ids.slice(i,i+50));if(data)data.forEach(r=>{lR[r.id]=r})}
-          const fmIds=[...new Set(Object.values(lR).map((r:any)=>r.form_id))];
-          for(const fi of fmIds){const{data:ff}=await supabase.from('form_fields').select('id,label,field_type').eq('form_id',fi).order('field_order');if(ff){lFL[fi]={};ff.filter(f=>!['section','divider','heading','paragraph','spacer','page-break','child-cross-reference'].includes(f.field_type)).forEach(f=>{lFL[fi][f.id]=f.label})}}}
-        const rCR=(v:any):string=>{if(!v)return'\u2014';const r1=(x:any):string=>{if(typeof x!=='object'||!x)return String(x);const rc=lR[x.id];if(!rc)return x.submission_ref_id||x.id?.slice(0,8)||JSON.stringify(x);const ri=rc.submission_ref_id||rc.id.slice(0,8);const lb=lFL[rc.form_id]||{};const sd=rc.submission_data||{};const ps:string[]=[];for(const[fi,la]of Object.entries(lb).slice(0,4)){const fv=sd[fi];if(fv!==null&&fv!==undefined&&fv!==''&&typeof fv!=='object')ps.push(la+': '+fv);if(ps.length>=3)break}return ps.length>0?ri+' \u2014 '+ps.join(' | '):ri};if(Array.isArray(v))return v.map(r1).filter(Boolean).join('; ')||'\u2014';return r1(v)};
-        const fV=(v:any,ft:string,o?:any)=>['cross-reference','child-cross-reference','dynamic-table'].includes(ft)?rCR(v):pdfFormatValue(v,ft,o);
-        if(subs.length>0){
-          cps.push('<w:p><w:r><w:rPr><w:b/><w:sz w:val="28"/></w:rPr><w:t xml:space="preserve">Dynamic Data</w:t></w:r></w:p>');
-          subs.forEach((s:any,i:number)=>{const ri=s.submission_ref_id||s.id.slice(0,8);cps.push('<w:p><w:r><w:rPr><w:b/><w:sz w:val="24"/></w:rPr><w:t xml:space="preserve">'+esc('Record '+(i+1)+' \u2014 '+ri)+'</w:t></w:r></w:p>');const d=s.submission_data||{};
-            let tx='<w:tbl><w:tblPr><w:tblW w:w="5000" w:type="pct"/><w:tblBorders><w:top w:val="single" w:sz="4" w:space="0" w:color="auto"/><w:left w:val="single" w:sz="4" w:space="0" w:color="auto"/><w:bottom w:val="single" w:sz="4" w:space="0" w:color="auto"/><w:right w:val="single" w:sz="4" w:space="0" w:color="auto"/><w:insideH w:val="single" w:sz="4" w:space="0" w:color="auto"/><w:insideV w:val="single" w:sz="4" w:space="0" w:color="auto"/></w:tblBorders></w:tblPr>';
-            tx+='<w:tr><w:tc><w:tcPr><w:shd w:val="clear" w:color="auto" w:fill="E0E0E0"/></w:tcPr><w:p><w:r><w:rPr><w:b/></w:rPr><w:t>Field</w:t></w:r></w:p></w:tc><w:tc><w:tcPr><w:shd w:val="clear" w:color="auto" w:fill="E0E0E0"/></w:tcPr><w:p><w:r><w:rPr><w:b/></w:rPr><w:t>Value</w:t></w:r></w:p></w:tc></w:tr>';
-            flds.forEach((f:any)=>{tx+='<w:tr><w:tc><w:p><w:r><w:rPr><w:b/></w:rPr><w:t xml:space="preserve">'+esc(f.label||'')+'</w:t></w:r></w:p></w:tc><w:tc><w:p><w:r><w:t xml:space="preserve">'+esc(fV(d[f.id],f.field_type,f.options))+'</w:t></w:r></w:p></w:tc></w:tr>'});
-            tx+='</w:tbl>';cps.push(tx);cps.push('<w:p/>');});
         }
+        zipDoc.file('word/document.xml', xmlContent);
       }
-      if(cps.length>0){xmlContent=xmlContent.replace('</w:body>',cps.join('')+'</w:body>');zipDoc.file('word/document.xml',xmlContent)}
-      const oBlob=zipDoc.generate({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
-      const u=URL.createObjectURL(oBlob);const a=document.createElement('a');a.href=u;
-      a.download=policy.content.original_docx_name||`${policy.policy_number||policy.name.replace(/[^a-zA-Z0-9]/g,'_')}_original.docx`;
-      document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(u);
+
+      const oBlob = zipDoc.generate({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+      const url = URL.createObjectURL(oBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = policy.content.original_docx_name || `${policy.policy_number || policy.name.replace(/[^a-zA-Z0-9]/g, '_')}_original.docx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
       toast.success('Original DOCX with content downloaded');
-    } catch(err:any){console.error('Failed to generate original DOCX with content:',err);toast.error('Failed: '+(err.message||'Unknown error'));}
+    } catch (err: any) {
+      console.error('Failed to generate original DOCX with content:', err);
+      toast.error('Failed: ' + (err.message || 'Unknown error'));
+    }
+  };
+
+  const downloadOriginalPdfWithContent = async () => {
+    if (!policy.content?.original_docx_url) return;
+    toast.info('Preparing Original PDF with content...');
+    // Use the same generatePDF which renders template HTML + dynamic fields
+    await generatePDF('download');
   };
 
   const pdfFormatValue = (value: any, fieldType: string, options?: any): string => {
@@ -999,16 +1150,16 @@ const PolicyDetail = () => {
             <DropdownMenuContent align="end" className="bg-popover">
               {policy.content?.original_docx_url && (
                 <DropdownMenuItem onClick={downloadOriginalDocxWithContent}>
-                  <FileDown className="h-4 w-4 mr-2" /> Download Original DOCX
+                  <FileDown className="h-4 w-4 mr-2" /> Download Original DOCX (with Content)
                 </DropdownMenuItem>
               )}
               {policy.content?.original_docx_url && (
-                <DropdownMenuItem onClick={() => generatePDF('download')}>
-                  <FileDown className="h-4 w-4 mr-2" /> Download Original PDF
+                <DropdownMenuItem onClick={downloadOriginalPdfWithContent}>
+                  <FileDown className="h-4 w-4 mr-2" /> Download Original PDF (with Content)
                 </DropdownMenuItem>
               )}
               <DropdownMenuItem onClick={exportToPDF}>
-                <FileDown className="h-4 w-4 mr-2" /> Download PDF
+                <FileDown className="h-4 w-4 mr-2" /> Export as PDF
               </DropdownMenuItem>
               <DropdownMenuItem onClick={exportToDocx}>
                 <FileDown className="h-4 w-4 mr-2" /> Export as DOCX
