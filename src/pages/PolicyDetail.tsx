@@ -55,6 +55,7 @@ const PolicyDetail = () => {
   );
   const [liveContentHtml, setLiveContentHtml] = useState<string | null>(null);
   const [contentDirty, setContentDirty] = useState(false);
+  const [showSaveConfirmDialog, setShowSaveConfirmDialog] = useState(false);
 
   // Approval dialog state
   const [showApprovalDialog, setShowApprovalDialog] = useState(false);
@@ -116,7 +117,7 @@ const PolicyDetail = () => {
         <div className="text-center space-y-2">
           <FileText className="h-12 w-12 text-muted-foreground mx-auto" />
           <h3 className="text-lg font-medium">Policy not found</h3>
-          <Button variant="outline" onClick={() => navigate('/knowledge-base')}>Back to Knowledge Base</Button>
+          <Button variant="outline" onClick={() => navigate(-1)}>Back to Knowledge Base</Button>
         </div>
       </div>
     );
@@ -138,6 +139,7 @@ const PolicyDetail = () => {
   };
 
   const saveChanges = async () => {
+    // Snapshot current version before update
     await createVersion.mutateAsync({
       policy_id: policy.id,
       version_number: policy.current_version,
@@ -158,16 +160,23 @@ const PolicyDetail = () => {
     }
 
     const { content_html, ...restEditForm } = editForm;
+    // Merge content_html into existing content to preserve original_docx_url, selected_field_ids, etc.
+    const updatedContent = {
+      ...(policy.content || {}),
+      ...(content_html ? { html: content_html } : {}),
+    };
+
     await updatePolicy.mutateAsync({
       id: policy.id,
       ...restEditForm,
-      content: content_html ? { html: content_html } : policy.content,
+      content: updatedContent,
       next_review_date,
       current_version: policy.current_version + 1,
     });
 
     setIsEditing(false);
     setChangeSummary('');
+    setShowSaveConfirmDialog(false);
   };
 
   const handleSubmitForApproval = async () => {
@@ -646,6 +655,127 @@ const PolicyDetail = () => {
 
   const exportToPDF = () => generatePDF('download');
 
+  const generateVersionPDF = async (version: any, mode: 'download' | 'preview') => {
+    const doc = new jsPDF();
+    let yPos = 22;
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const ensureSpace = (needed: number) => { if (yPos > pageHeight - needed) { doc.addPage(); yPos = 20; } };
+
+    doc.setFontSize(18);
+    doc.text(version.name, 14, yPos);
+    yPos += 10;
+
+    doc.setFontSize(10);
+    doc.text(`Version: v${version.version_number} | Category: ${version.category || policy.category}`, 14, yPos);
+    yPos += 6;
+    doc.text(`Changed: ${format(new Date(version.changed_at), 'PPpp')}`, 14, yPos);
+    yPos += 6;
+    if (version.change_summary) {
+      doc.text(`Change Summary: ${version.change_summary}`, 14, yPos);
+      yPos += 6;
+    }
+    doc.text(`Changed by: ${getUserName(version.changed_by)}`, 14, yPos);
+    yPos += 8;
+
+    if (version.description) {
+      ensureSpace(20);
+      doc.setFontSize(12);
+      doc.text('Description', 14, yPos);
+      yPos += 6;
+      doc.setFontSize(10);
+      const descLines = doc.splitTextToSize(version.description, 180);
+      doc.text(descLines, 14, yPos);
+      yPos += descLines.length * 5 + 4;
+    }
+
+    const versionHtml = version.content?.html;
+    if (versionHtml) {
+      ensureSpace(20);
+      doc.setFontSize(12);
+      doc.text('Policy Content', 14, yPos);
+      yPos += 8;
+      doc.setFontSize(10);
+
+      const renderDiv = document.createElement('div');
+      renderDiv.innerHTML = versionHtml;
+      Object.assign(renderDiv.style, {
+        position: 'absolute', left: '-9999px', top: '0', width: '720px',
+        padding: '24px 32px', background: 'white',
+        fontFamily: "'Segoe UI', Arial, Helvetica, sans-serif",
+        fontSize: '12px', lineHeight: '1.7', color: '#000',
+      });
+      document.body.appendChild(renderDiv);
+      renderDiv.querySelectorAll('table').forEach(t => { t.style.borderCollapse = 'collapse'; t.style.width = '100%'; });
+      renderDiv.querySelectorAll('td, th').forEach(c => { (c as HTMLElement).style.border = '1px solid #ccc'; (c as HTMLElement).style.padding = '6px 10px'; });
+      renderDiv.querySelectorAll('th').forEach(th => { (th as HTMLElement).style.backgroundColor = '#f3f4f6'; (th as HTMLElement).style.fontWeight = '600'; });
+
+      try {
+        const canvas = await html2canvas(renderDiv, { scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#ffffff' });
+        document.body.removeChild(renderDiv);
+        const imgData = canvas.toDataURL('image/png');
+        const pageWidth = doc.internal.pageSize.getWidth() - 28;
+        const imgHeight = (canvas.height * pageWidth) / canvas.width;
+        if (yPos + imgHeight <= pageHeight - 30) {
+          doc.addImage(imgData, 'PNG', 14, yPos, pageWidth, imgHeight);
+          yPos += imgHeight + 6;
+        } else {
+          let srcY = 0;
+          while (srcY < canvas.height) {
+            const availH = (srcY === 0 ? pageHeight - 30 - yPos : pageHeight - 50);
+            const sliceH = Math.min((availH / pageWidth) * canvas.width, canvas.height - srcY);
+            const sliceCanvas = document.createElement('canvas');
+            sliceCanvas.width = canvas.width;
+            sliceCanvas.height = sliceH;
+            const ctx = sliceCanvas.getContext('2d');
+            if (ctx) {
+              ctx.drawImage(canvas, 0, srcY, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
+              const sliceImg = sliceCanvas.toDataURL('image/png');
+              const sliceImgH = (sliceH * pageWidth) / canvas.width;
+              doc.addImage(sliceImg, 'PNG', 14, srcY === 0 ? yPos : 20, pageWidth, sliceImgH);
+              yPos = (srcY === 0 ? yPos : 20) + sliceImgH + 6;
+            }
+            srcY += sliceH;
+            if (srcY < canvas.height) { doc.addPage(); yPos = 20; }
+          }
+        }
+      } catch {
+        document.body.removeChild(renderDiv);
+        const td2 = document.createElement('div');
+        td2.innerHTML = versionHtml;
+        const plain = td2.innerText || td2.textContent || '';
+        const lines = doc.splitTextToSize(plain, 180);
+        for (const line of lines) { ensureSpace(12); doc.text(line, 14, yPos); yPos += 5; }
+      }
+    }
+
+    // Attachments
+    const vAttachments = (version.attachments || []).filter((a: any) => a.show_in_pdf !== false);
+    if (vAttachments.length > 0) {
+      ensureSpace(20);
+      doc.setFontSize(12);
+      doc.text('Attachments', 14, yPos);
+      yPos += 6;
+      doc.setFontSize(10);
+      vAttachments.forEach((att: any) => {
+        ensureSpace(10);
+        doc.text(`• ${att.name}`, 14, yPos);
+        yPos += 5;
+      });
+    }
+
+    const fileName = `${policy.policy_number || policy.name.replace(/[^a-zA-Z0-9]/g, '_')}_v${version.version_number}.pdf`;
+    if (mode === 'preview') {
+      const blob = doc.output('blob');
+      const url = URL.createObjectURL(blob);
+      const tab = window.open(url, '_blank');
+      if (!tab) { const a = document.createElement('a'); a.href = url; a.target = '_blank'; document.body.appendChild(a); a.click(); document.body.removeChild(a); }
+      toast.success('Version PDF preview opened');
+    } else {
+      doc.save(fileName);
+      toast.success('Version PDF downloaded');
+    }
+  };
+
   const exportToDocx = async () => {
     const sections: any[] = [];
 
@@ -1116,7 +1246,7 @@ const PolicyDetail = () => {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/knowledge-base')}>
+          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
@@ -1305,8 +1435,31 @@ const PolicyDetail = () => {
             </div>
             <div className="flex gap-2 justify-end">
               <Button variant="outline" onClick={() => setIsEditing(false)}>Cancel</Button>
-              <Button onClick={saveChanges} disabled={updatePolicy.isPending}>Save Changes</Button>
+              <Button onClick={() => setShowSaveConfirmDialog(true)} disabled={updatePolicy.isPending}>
+                <Save className="h-4 w-4 mr-1" /> Save Changes
+              </Button>
             </div>
+
+            {/* Save Confirmation Dialog */}
+            <AlertDialog open={showSaveConfirmDialog} onOpenChange={setShowSaveConfirmDialog}>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Save Policy Changes?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will create a new version (v{(policy.current_version || 0) + 1}) of this policy. The current version will be saved to version history.
+                    {changeSummary && (
+                      <span className="block mt-2 text-foreground font-medium">Change summary: "{changeSummary}"</span>
+                    )}
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={saveChanges} disabled={updatePolicy.isPending}>
+                    {updatePolicy.isPending ? 'Saving...' : 'Confirm & Save'}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </CardContent>
         </Card>
       )}
@@ -1596,7 +1749,24 @@ const PolicyDetail = () => {
                           <Badge variant="outline">v{v.version_number}</Badge>
                           <span className="text-sm font-medium">{v.name}</span>
                         </div>
-                        <span className="text-xs text-muted-foreground">{format(new Date(v.changed_at), 'MMM d, yyyy HH:mm')}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground">{format(new Date(v.changed_at), 'MMM d, yyyy HH:mm')}</span>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-7 w-7">
+                                <Download className="h-3.5 w-3.5" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="bg-popover">
+                              <DropdownMenuItem onClick={() => generateVersionPDF(v, 'preview')}>
+                                <FileText className="h-4 w-4 mr-2" /> Preview PDF
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => generateVersionPDF(v, 'download')}>
+                                <FileDown className="h-4 w-4 mr-2" /> Download PDF
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
                       </div>
                       {v.change_summary && <p className="text-xs text-muted-foreground">{v.change_summary}</p>}
                       <p className="text-xs text-muted-foreground">Changed by: {getUserName(v.changed_by)}</p>
