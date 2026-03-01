@@ -83,13 +83,20 @@ serve(async (req) => {
 
     switch (action) {
       case 'auto-fill':
-        systemPrompt = `You are an intelligent form assistant. Based on the user's input and the form fields available, suggest appropriate values for form fields.
+        systemPrompt = `You are an intelligent form assistant. Based on the user's input and the form fields available, fill ALL form fields with appropriate values.
         
 Rules:
-- Only suggest values for fields that are relevant to the user's input
-- For select/radio fields, only choose from available options
-- Return a JSON object with field IDs as keys and suggested values
-- Be conservative - only fill fields you're confident about
+- You MUST provide a value for EVERY field in the form, not just the ones explicitly mentioned in the user's input
+- For fields directly mentioned or implied by the user's input, use the exact information provided
+- For fields NOT mentioned, intelligently infer reasonable values based on the form context (name, description), the user's input, and common sense
+- For select/radio/dropdown fields, ALWAYS choose from the available options - pick the most contextually appropriate one
+- For date fields, use ISO format (YYYY-MM-DD) and pick reasonable dates (e.g., today for submission dates, future dates for deadlines)
+- For email fields, generate a plausible email if not provided
+- For number fields, provide reasonable numeric values
+- For text/textarea fields, generate helpful, contextually appropriate content
+- For checkbox/toggle fields, set true or false based on context
+- For rating fields, provide a numeric value within the expected range
+- Return a JSON object with ALL field IDs as keys and their suggested values
 - Consider the context of the form (name, description) when making suggestions`;
 
         userPrompt = `Form: ${context.formName || 'Unknown Form'}
@@ -109,7 +116,7 @@ ${JSON.stringify(context.currentValues || {}, null, 2)}
 
 User Input: "${context.userInput}"
 
-Based on the user's input, suggest appropriate values for the form fields. Return ONLY a valid JSON object with field IDs as keys and suggested values. For select fields, use the exact option value.`;
+Based on the user's input, fill ALL form fields with appropriate values. You MUST return a value for every single field listed above - do not skip any. Return ONLY a valid JSON object with ALL field IDs as keys and suggested values. For select fields, use the exact option value.`;
         break;
 
       case 'suggest-routing':
