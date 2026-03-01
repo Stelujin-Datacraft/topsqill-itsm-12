@@ -159,7 +159,7 @@ const PolicyDetail = () => {
       next_review_date = d.toISOString().split('T')[0];
     }
 
-    const { content_html, ...restEditForm } = editForm;
+    const { content_html, effective_date, expiry_date, ...restEditForm } = editForm;
     // Merge content_html into existing content to preserve original_docx_url, selected_field_ids, etc.
     const updatedContent = {
       ...(policy.content || {}),
@@ -169,8 +169,10 @@ const PolicyDetail = () => {
     await updatePolicy.mutateAsync({
       id: policy.id,
       ...restEditForm,
+      effective_date: effective_date || null,
+      expiry_date: expiry_date || null,
       content: updatedContent,
-      next_review_date,
+      next_review_date: next_review_date || null,
       current_version: policy.current_version + 1,
     });
 
