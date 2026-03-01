@@ -1147,56 +1147,18 @@ const PolicyDetail = () => {
           </Card>
         </TabsContent>
 
-        {/* Content Tab — Split View: Editor (left) + Live Preview (right) */}
+        {/* Content Tab */}
         <TabsContent value="content" className="mt-4 space-y-4">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardHeader>
               <CardTitle className="text-sm">Policy Content</CardTitle>
-              <div className="flex items-center gap-2">
-                {contentDirty && (
-                  <Button
-                    size="sm"
-                    onClick={async () => {
-                      const html = liveContentHtml ?? policy.content?.html ?? '';
-                      await updatePolicy.mutateAsync({
-                        id: policy.id,
-                        content: { ...policy.content, html },
-                      });
-                      setContentDirty(false);
-                      toast.success('Content saved');
-                    }}
-                    disabled={updatePolicy.isPending}
-                  >
-                    <Save className="h-4 w-4 mr-1" /> Save Content
-                  </Button>
-                )}
-              </div>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4" style={{ minHeight: '500px' }}>
-                {/* Left: Editor */}
-                <div className="flex flex-col">
-                  <Label className="text-xs text-muted-foreground mb-2">Edit Content</Label>
-                  <div className="flex-1 border rounded-lg overflow-auto">
-                    <TiptapEditor
-                      content={liveContentHtml ?? policy.content?.html ?? ''}
-                      onChange={(html) => {
-                        setLiveContentHtml(html);
-                        setContentDirty(true);
-                      }}
-                      placeholder="Write or import your policy content here..."
-                      className="min-h-[460px]"
-                    />
-                  </div>
-                </div>
-
-                {/* Right: Live Preview */}
-                <div className="flex flex-col">
-                  <Label className="text-xs text-muted-foreground mb-2">Live Preview</Label>
-                  <div className="flex-1 border rounded-lg overflow-hidden bg-white">
-                    <iframe
-                      title="Policy Content Preview"
-                      srcDoc={`<!DOCTYPE html>
+              {(liveContentHtml ?? policy.content?.html) ? (
+                <div className="border rounded-lg overflow-hidden bg-white">
+                  <iframe
+                    title="Policy Content Preview"
+                    srcDoc={`<!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8" />
@@ -1204,7 +1166,7 @@ const PolicyDetail = () => {
   body {
     font-family: 'Segoe UI', 'Calibri', Arial, Helvetica, sans-serif;
     font-size: 13px; line-height: 1.7; color: #1a1a1a;
-    padding: 24px 28px; margin: 0; background: #fff;
+    padding: 32px 40px; margin: 0; background: #fff;
   }
   h1, h2, h3, h4, h5, h6 { color: #111; margin-top: 1.2em; margin-bottom: 0.4em; }
   h1 { font-size: 1.8em; border-bottom: 2px solid #e5e7eb; padding-bottom: 0.3em; }
@@ -1225,14 +1187,24 @@ const PolicyDetail = () => {
   strong { font-weight: 600; }
 </style>
 </head>
-<body>${(liveContentHtml ?? policy.content?.html ?? '<p style="color:#999;text-align:center;padding-top:40px;">No content yet. Start typing on the left to see a live preview here.</p>').replace(/\x60/g, '&#96;')}</body>
+<body>${(liveContentHtml ?? policy.content?.html ?? '').replace(/\x60/g, '&#96;')}</body>
 </html>`}
-                      className="w-full border-0"
-                      style={{ minHeight: '460px', height: '100%' }}
-                    />
-                  </div>
+                    className="w-full border-0"
+                    style={{ minHeight: '500px', height: '70vh' }}
+                    onLoad={(e) => {
+                      const iframe = e.target as HTMLIFrameElement;
+                      if (iframe.contentDocument?.body) {
+                        const h = iframe.contentDocument.body.scrollHeight + 40;
+                        iframe.style.height = Math.max(400, Math.min(h, 2000)) + 'px';
+                      }
+                    }}
+                  />
                 </div>
-              </div>
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-6">
+                  No content has been added yet. Click "Edit" to add policy content.
+                </p>
+              )}
             </CardContent>
           </Card>
 
