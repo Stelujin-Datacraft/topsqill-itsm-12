@@ -23,8 +23,6 @@ const INITIAL_FORM = {
   description: '',
   category: 'General',
   department: '',
-  compliance_standard: '',
-  compliance_reference: '',
   owner_type: 'user' as const,
   priority: 'medium',
   effective_date: '',
@@ -92,8 +90,6 @@ const CreatePolicy = () => {
       description: form.description || undefined,
       category: form.category,
       department: form.department || undefined,
-      compliance_standard: form.compliance_standard || undefined,
-      compliance_reference: form.compliance_reference || undefined,
       owner_type: form.owner_type,
       priority: form.priority as any,
       effective_date: form.effective_date || undefined,
@@ -269,32 +265,6 @@ const CreatePolicy = () => {
                   value={form.department}
                   onChange={e => updateField('department', e.target.value)}
                   placeholder="e.g., Engineering, HR"
-                />
-              </div>
-              <div>
-                <Label>Owner Type</Label>
-                <Select value={form.owner_type} onValueChange={v => updateField('owner_type', v as any)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="user">User</SelectItem>
-                    <SelectItem value="group">Group</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Compliance Standard</Label>
-                <Input
-                  value={form.compliance_standard}
-                  onChange={e => updateField('compliance_standard', e.target.value)}
-                  placeholder="e.g., ISO 27001, GDPR"
-                />
-              </div>
-              <div>
-                <Label>Compliance Reference</Label>
-                <Input
-                  value={form.compliance_reference}
-                  onChange={e => updateField('compliance_reference', e.target.value)}
-                  placeholder="e.g., Section 4.2"
                 />
               </div>
             </div>

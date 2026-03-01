@@ -14,7 +14,6 @@ interface PolicyDynamicFieldsRendererProps {
 }
 
 export function PolicyDynamicFieldsRenderer({ formId, displayFormat, selectedFieldIds }: PolicyDynamicFieldsRendererProps) {
-  // Fetch form info
   const formQuery = useQuery({
     queryKey: ['policy-form-info', formId],
     queryFn: async () => {
@@ -29,13 +28,12 @@ export function PolicyDynamicFieldsRenderer({ formId, displayFormat, selectedFie
     enabled: !!formId,
   });
 
-  // Fetch form fields for labels and ordering
   const fieldsQuery = useQuery({
     queryKey: ['policy-form-fields', formId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('form_fields')
-        .select('id, label, field_type, options, field_order')
+        .select('id, label, field_type, options, field_order, custom_config')
         .eq('form_id', formId)
         .order('field_order');
       if (error) throw error;
@@ -44,7 +42,6 @@ export function PolicyDynamicFieldsRenderer({ formId, displayFormat, selectedFie
     enabled: !!formId,
   });
 
-  // Fetch all submissions for this form
   const submissionsQuery = useQuery({
     queryKey: ['policy-form-submissions', formId],
     queryFn: async () => {
@@ -57,6 +54,70 @@ export function PolicyDynamicFieldsRenderer({ formId, displayFormat, selectedFie
       return data || [];
     },
     enabled: !!formId,
+  });
+
+  // Resolve cross-reference linked records
+  const crossRefFields = (fieldsQuery.data || []).filter(f =>
+    ['cross-reference', 'child-cross-reference'].includes(f.field_type)
+  );
+
+  const crossRefSubmissionIds = React.useMemo(() => {
+    if (!submissionsQuery.data || crossRefFields.length === 0) return [];
+    const ids = new Set<string>();
+    for (const sub of submissionsQuery.data) {
+      const data = sub.submission_data as Record<string, any>;
+      for (const field of crossRefFields) {
+        const val = data?.[field.id];
+        if (Array.isArray(val)) {
+          val.forEach((v: any) => {
+            if (v?.id) ids.add(v.id);
+          });
+        } else if (val?.id) {
+          ids.add(val.id);
+        }
+      }
+    }
+    return Array.from(ids);
+  }, [submissionsQuery.data, crossRefFields]);
+
+  const linkedRecordsQuery = useQuery({
+    queryKey: ['policy-cross-ref-records', crossRefSubmissionIds],
+    queryFn: async () => {
+      if (crossRefSubmissionIds.length === 0) return {};
+      // Fetch in batches of 50
+      const results: Record<string, any> = {};
+      for (let i = 0; i < crossRefSubmissionIds.length; i += 50) {
+        const batch = crossRefSubmissionIds.slice(i, i + 50);
+        const { data } = await supabase
+          .from('form_submissions')
+          .select('id, submission_ref_id, submission_data, form_id')
+          .in('id', batch);
+        if (data) {
+          for (const rec of data) {
+            results[rec.id] = rec;
+          }
+        }
+      }
+
+      // Also fetch field labels for each unique target form
+      const formIds = [...new Set(Object.values(results).map((r: any) => r.form_id))];
+      const fieldLabels: Record<string, Record<string, string>> = {};
+      for (const fid of formIds) {
+        const { data: fields } = await supabase
+          .from('form_fields')
+          .select('id, label, field_type')
+          .eq('form_id', fid)
+          .order('field_order');
+        if (fields) {
+          fieldLabels[fid] = {};
+          fields.filter(f => !['section', 'divider', 'heading', 'paragraph', 'spacer', 'page-break', 'child-cross-reference'].includes(f.field_type))
+            .forEach(f => { fieldLabels[fid][f.id] = f.label; });
+        }
+      }
+
+      return { records: results, fieldLabels };
+    },
+    enabled: crossRefSubmissionIds.length > 0,
   });
 
   if (!formId) return null;
@@ -75,12 +136,11 @@ export function PolicyDynamicFieldsRenderer({ formId, displayFormat, selectedFie
   const fields = fieldsQuery.data || [];
   const submissions = submissionsQuery.data || [];
   const formName = formQuery.data?.name || 'Linked Form';
+  const linkedData = linkedRecordsQuery.data || { records: {}, fieldLabels: {} };
 
-  // Filter out layout/section fields that don't hold data
   const allDataFields = fields.filter(f =>
     !['section', 'divider', 'heading', 'paragraph', 'spacer', 'page-break'].includes(f.field_type)
   );
-  // If selectedFieldIds is provided and non-empty, only show those fields
   const dataFields = selectedFieldIds?.length ? allDataFields.filter(f => selectedFieldIds.includes(f.id)) : allDataFields;
 
   if (submissions.length === 0) {
@@ -125,11 +185,13 @@ export function PolicyDynamicFieldsRenderer({ formId, displayFormat, selectedFie
                 <TableFormatView
                   fields={dataFields}
                   submissionData={submission.submission_data as Record<string, any>}
+                  linkedData={linkedData}
                 />
               ) : (
                 <FieldValueFormatView
                   fields={dataFields}
                   submissionData={submission.submission_data as Record<string, any>}
+                  linkedData={linkedData}
                 />
               )}
             </CardContent>
@@ -140,12 +202,101 @@ export function PolicyDynamicFieldsRenderer({ formId, displayFormat, selectedFie
   );
 }
 
+interface LinkedData {
+  records?: Record<string, any>;
+  fieldLabels?: Record<string, Record<string, string>>;
+}
+
+function resolveCrossRefValue(value: any, linkedData: LinkedData): string {
+  if (!value) return '—';
+
+  const resolveOne = (v: any): string => {
+    if (typeof v !== 'object' || !v) return String(v);
+    const recId = v.id;
+    const rec = linkedData.records?.[recId];
+    if (!rec) {
+      return v.submission_ref_id || v.id?.slice(0, 8) || JSON.stringify(v);
+    }
+
+    const refId = rec.submission_ref_id || rec.id.slice(0, 8);
+    const formFieldLabels = linkedData.fieldLabels?.[rec.form_id] || {};
+    const subData = rec.submission_data || {};
+
+    // Get first 3 meaningful field values with labels
+    const displayParts: string[] = [];
+    const labelEntries = Object.entries(formFieldLabels).slice(0, 4);
+    for (const [fieldId, label] of labelEntries) {
+      const val = subData[fieldId];
+      if (val !== null && val !== undefined && val !== '' && typeof val !== 'object') {
+        displayParts.push(`${label}: ${val}`);
+      } else if (val && typeof val === 'object' && !Array.isArray(val)) {
+        // Handle currency, address, etc.
+        if (val.amount) displayParts.push(`${label}: ${val.currency || ''} ${val.amount}`);
+        else if (val.street) displayParts.push(`${label}: ${[val.street, val.city].filter(Boolean).join(', ')}`);
+      }
+      if (displayParts.length >= 3) break;
+    }
+
+    return displayParts.length > 0
+      ? `${refId} — ${displayParts.join(' | ')}`
+      : refId;
+  };
+
+  if (Array.isArray(value)) {
+    const resolved = value.map(resolveOne).filter(Boolean);
+    return resolved.length > 0 ? resolved.join('; ') : '—';
+  }
+
+  return resolveOne(value);
+}
+
+function formatValue(value: any, fieldType: string, options?: any, linkedData?: LinkedData): string {
+  if (value === null || value === undefined || value === '') return '—';
+
+  if (['cross-reference', 'child-cross-reference', 'dynamic-table'].includes(fieldType)) {
+    return resolveCrossRefValue(value, linkedData || {});
+  }
+
+  if (['select', 'radio', 'checkbox', 'dropdown'].includes(fieldType) && options) {
+    const optionsArray = Array.isArray(options) ? options : [];
+    if (Array.isArray(value)) {
+      return value.map(v => {
+        const opt = optionsArray.find((o: any) => o.value === v || o.id === v || o.label === v);
+        return opt?.label || v;
+      }).join(', ') || '—';
+    }
+    const opt = optionsArray.find((o: any) => o.value === value || o.id === value || o.label === value);
+    if (opt?.label) return opt.label;
+  }
+
+  if (typeof value === 'object' && !Array.isArray(value)) {
+    if (fieldType === 'currency' && value.amount) return `${value.currency || ''} ${value.amount}`;
+    if (fieldType === 'address') {
+      return [value.street, value.city, value.state, value.postal, value.country].filter(Boolean).join(', ');
+    }
+    if (value.submission_ref_id) return value.submission_ref_id;
+    if (value.label) return value.label;
+    if (value.name) return value.name;
+    return JSON.stringify(value);
+  }
+
+  if (Array.isArray(value)) return value.map(v => typeof v === 'object' ? (v?.submission_ref_id || v?.label || JSON.stringify(v)) : String(v)).join(', ');
+
+  if (fieldType === 'date' || fieldType === 'datetime') {
+    try { return new Date(value).toLocaleDateString(); } catch { return String(value); }
+  }
+
+  return String(value);
+}
+
 function TableFormatView({
   fields,
   submissionData,
+  linkedData,
 }: {
   fields: Array<{ id: string; label: string; field_type: string; options: any }>;
   submissionData: Record<string, any>;
+  linkedData: LinkedData;
 }) {
   return (
     <Table>
@@ -158,7 +309,7 @@ function TableFormatView({
       <TableBody>
         {fields.map(field => {
           const rawValue = submissionData?.[field.id];
-          const displayValue = formatValue(rawValue, field.field_type, field.options);
+          const displayValue = formatValue(rawValue, field.field_type, field.options, linkedData);
           return (
             <TableRow key={field.id}>
               <TableCell className="font-medium text-sm">{field.label}</TableCell>
@@ -174,15 +325,17 @@ function TableFormatView({
 function FieldValueFormatView({
   fields,
   submissionData,
+  linkedData,
 }: {
   fields: Array<{ id: string; label: string; field_type: string; options: any }>;
   submissionData: Record<string, any>;
+  linkedData: LinkedData;
 }) {
   return (
     <div className="space-y-3">
       {fields.map((field, idx) => {
         const rawValue = submissionData?.[field.id];
-        const displayValue = formatValue(rawValue, field.field_type, field.options);
+        const displayValue = formatValue(rawValue, field.field_type, field.options, linkedData);
         return (
           <div key={field.id}>
             {idx > 0 && <Separator className="mb-3" />}
@@ -193,93 +346,4 @@ function FieldValueFormatView({
       })}
     </div>
   );
-}
-
-function safeStringify(val: any): string {
-  if (val === null || val === undefined || val === '') return '';
-  if (typeof val !== 'object') return String(val);
-  if (Array.isArray(val)) return val.map(safeStringify).filter(Boolean).join(', ');
-  // Extract meaningful string from object
-  if (val.submission_ref_id) return val.submission_ref_id;
-  if (val.label) return val.label;
-  if (val.name) return val.name;
-  if (val.title) return val.title;
-  // Last resort: extract primitive values
-  const primitives = Object.values(val).filter(v => v !== null && v !== undefined && typeof v !== 'object');
-  if (primitives.length > 0) return primitives.slice(0, 3).map(String).join(', ');
-  return JSON.stringify(val);
-}
-
-function extractRecordDisplay(v: any): string {
-  if (!v || typeof v !== 'object') return v ? String(v) : '';
-  const refId = v.submission_ref_id || v.id?.slice(0, 8) || '';
-  const displayParts: string[] = [];
-  if (refId) displayParts.push(refId);
-
-  if (v.displayData) {
-    displayParts.push(safeStringify(v.displayData));
-  } else if (v.submission_data && typeof v.submission_data === 'object') {
-    const dataVals = Object.values(v.submission_data)
-      .filter((val: any) => val !== null && val !== undefined && val !== '')
-      .slice(0, 3)
-      .map(safeStringify)
-      .filter(Boolean);
-    if (dataVals.length > 0) displayParts.push(...dataVals);
-  } else {
-    if (v.name) displayParts.push(String(v.name));
-    else if (v.label) displayParts.push(String(v.label));
-    else if (v.title) displayParts.push(String(v.title));
-  }
-  return displayParts.length > 0 ? displayParts.join(' — ') : safeStringify(v);
-}
-
-function formatValue(value: any, fieldType: string, options?: any): string {
-  if (value === null || value === undefined || value === '') return '—';
-
-  // Handle cross-reference and child-cross-reference fields
-  if (['cross-reference', 'child-cross-reference', 'dynamic-table'].includes(fieldType)) {
-    if (Array.isArray(value)) {
-      return value.map(v => typeof v === 'object' && v !== null ? extractRecordDisplay(v) : String(v))
-        .filter(Boolean).join(', ') || '—';
-    }
-    if (typeof value === 'object' && value !== null) {
-      return extractRecordDisplay(value) || '—';
-    }
-    return String(value);
-  }
-
-  // Handle select/radio/checkbox - resolve option labels
-  if (['select', 'radio', 'checkbox', 'dropdown'].includes(fieldType) && options) {
-    const optionsArray = Array.isArray(options) ? options : [];
-    if (Array.isArray(value)) {
-      return value.map(v => {
-        const opt = optionsArray.find((o: any) => o.value === v || o.id === v || o.label === v);
-        return opt?.label || v;
-      }).join(', ') || '—';
-    }
-    const opt = optionsArray.find((o: any) => o.value === value || o.id === value || o.label === value);
-    if (opt?.label) return opt.label;
-  }
-
-  // Handle objects
-  if (typeof value === 'object' && !Array.isArray(value)) {
-    if (fieldType === 'currency' && value.amount) return `${value.currency || ''} ${value.amount}`;
-    if (fieldType === 'address') {
-      return [value.street, value.city, value.state, value.postal, value.country].filter(Boolean).join(', ');
-    }
-    // Fallback: try to extract meaningful display from any object
-    if (value.submission_ref_id) return value.submission_ref_id;
-    if (value.label) return value.label;
-    if (value.name) return value.name;
-    return JSON.stringify(value);
-  }
-
-  if (Array.isArray(value)) return value.map(v => typeof v === 'object' ? (v?.submission_ref_id || v?.label || JSON.stringify(v)) : String(v)).join(', ');
-
-  // Date
-  if (fieldType === 'date' || fieldType === 'datetime') {
-    try { return new Date(value).toLocaleDateString(); } catch { return String(value); }
-  }
-
-  return String(value);
 }
