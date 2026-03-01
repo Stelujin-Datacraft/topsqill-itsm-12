@@ -1146,8 +1146,51 @@ const PolicyDetail = () => {
         {/* Content Tab */}
         <TabsContent value="content" className="mt-4 space-y-4">
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-sm">Policy Content</CardTitle>
+              {policy.content?.html && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>${policy.name}</title>
+<style>
+  @media print { body { margin: 0; padding: 20px 30px; } }
+  body {
+    font-family: 'Segoe UI', 'Calibri', Arial, Helvetica, sans-serif;
+    font-size: 13px; line-height: 1.7; color: #1a1a1a;
+    padding: 40px 50px; margin: 0 auto; max-width: 900px; background: #fff;
+  }
+  h1, h2, h3, h4, h5, h6 { color: #111; margin-top: 1.2em; margin-bottom: 0.4em; }
+  h1 { font-size: 1.8em; border-bottom: 2px solid #e5e7eb; padding-bottom: 0.3em; }
+  h2 { font-size: 1.4em; border-bottom: 1px solid #e5e7eb; padding-bottom: 0.2em; }
+  h3 { font-size: 1.2em; }
+  p { margin: 0.5em 0; }
+  ul, ol { padding-left: 1.8em; margin: 0.5em 0; }
+  li { margin: 0.2em 0; }
+  table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+  th, td { border: 1px solid #d1d5db; padding: 8px 12px; text-align: left; font-size: 12px; }
+  th { background: #f3f4f6; font-weight: 600; }
+  tr:nth-child(even) { background: #f9fafb; }
+  img { max-width: 100%; height: auto; margin: 0.5em 0; }
+  blockquote { border-left: 3px solid #6366f1; padding: 8px 16px; margin: 1em 0; background: #f5f3ff; color: #374151; }
+  a { color: #4f46e5; }
+</style>
+</head>
+<body>${policy.content.html}</body>
+</html>`;
+                    const blob = new Blob([html], { type: 'text/html' });
+                    const url = URL.createObjectURL(blob);
+                    window.open(url, '_blank');
+                  }}
+                >
+                  <FileText className="h-4 w-4 mr-1" /> Preview in New Tab
+                </Button>
+              )}
             </CardHeader>
             <CardContent>
               {policy.content?.html ? (
@@ -1160,7 +1203,7 @@ const PolicyDetail = () => {
 <meta charset="utf-8" />
 <style>
   body {
-    font-family: 'Segoe UI', Arial, Helvetica, sans-serif;
+    font-family: 'Segoe UI', 'Calibri', Arial, Helvetica, sans-serif;
     font-size: 13px;
     line-height: 1.7;
     color: #1a1a1a;
@@ -1179,7 +1222,7 @@ const PolicyDetail = () => {
   th, td { border: 1px solid #d1d5db; padding: 8px 12px; text-align: left; font-size: 12px; }
   th { background: #f3f4f6; font-weight: 600; }
   tr:nth-child(even) { background: #f9fafb; }
-  img { max-width: 100%; height: auto; margin: 0.5em 0; border-radius: 4px; }
+  img { max-width: 100%; height: auto; margin: 0.5em 0; }
   blockquote { border-left: 3px solid #6366f1; padding: 8px 16px; margin: 1em 0; background: #f5f3ff; color: #374151; }
   code { background: #f3f4f6; padding: 2px 5px; border-radius: 3px; font-size: 0.9em; }
   pre { background: #1e293b; color: #e2e8f0; padding: 16px; border-radius: 6px; overflow-x: auto; }
