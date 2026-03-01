@@ -84,8 +84,10 @@ const InvestigateAccess = lazy(() => import("./pages/InvestigateAccess"));
 const LdapSettings = lazy(() => import("./pages/LdapSettings"));
 const SLAManagementPage = lazy(() => import("./pages/SLAManagementPage"));
 
-// Policies feature
+// Policies / Knowledge Base feature
 const Policies = lazy(() => import("./pages/Policies"));
+const KnowledgeBase = lazy(() => import("./pages/KnowledgeBase"));
+const KnowledgeBaseFolder = lazy(() => import("./pages/KnowledgeBaseFolder"));
 const PolicyDetail = lazy(() => import("./pages/PolicyDetail"));
 const CreatePolicy = lazy(() => import("./pages/CreatePolicy"));
 const CreateTemplate = lazy(() => import("./pages/CreateTemplate"));
@@ -191,8 +193,10 @@ const App = () => (
                         <Route path="/report/:id/access" element={<ReportAccessManagement />} />
                         <Route path="/relationship-map" element={<RelationshipMap />} />
                         
-                        {/* Policies */}
-                        <Route path="/policies" element={<Policies />} />
+                        {/* Knowledge Base / Policies */}
+                        <Route path="/knowledge-base" element={<KnowledgeBase />} />
+                        <Route path="/knowledge-base/:folderId" element={<KnowledgeBaseFolder />} />
+                        <Route path="/policies" element={<Navigate to="/knowledge-base" replace />} />
                         <Route path="/policies/create" element={<CreatePolicy />} />
                         <Route path="/policies/create-template" element={<CreateTemplate />} />
                         <Route path="/policy/:id" element={<PolicyDetail />} />

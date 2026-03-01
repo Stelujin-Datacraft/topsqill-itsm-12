@@ -1536,6 +1536,54 @@ export type Database = {
           },
         ]
       }
+      knowledge_base_folders: {
+        Row: {
+          created_at: string
+          created_by: string
+          description: string | null
+          id: string
+          name: string
+          organization_id: string | null
+          project_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          description?: string | null
+          id?: string
+          name: string
+          organization_id?: string | null
+          project_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          id?: string
+          name?: string
+          organization_id?: string | null
+          project_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "knowledge_base_folders_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "knowledge_base_folders_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ldap_configurations: {
         Row: {
           allow_self_signed_certs: boolean | null
@@ -2310,8 +2358,10 @@ export type Database = {
           effective_date: string | null
           exception_allowed: boolean | null
           expiry_date: string | null
+          folder_id: string | null
           form_id: string | null
           id: string
+          item_type: string
           name: string
           next_review_date: string | null
           organization_id: string | null
@@ -2345,8 +2395,10 @@ export type Database = {
           effective_date?: string | null
           exception_allowed?: boolean | null
           expiry_date?: string | null
+          folder_id?: string | null
           form_id?: string | null
           id?: string
+          item_type?: string
           name: string
           next_review_date?: string | null
           organization_id?: string | null
@@ -2380,8 +2432,10 @@ export type Database = {
           effective_date?: string | null
           exception_allowed?: boolean | null
           expiry_date?: string | null
+          folder_id?: string | null
           form_id?: string | null
           id?: string
+          item_type?: string
           name?: string
           next_review_date?: string | null
           organization_id?: string | null
@@ -2401,6 +2455,13 @@ export type Database = {
           workflow_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "policies_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "knowledge_base_folders"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "policies_form_id_fkey"
             columns: ["form_id"]
