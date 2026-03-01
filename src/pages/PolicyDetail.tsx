@@ -127,8 +127,6 @@ const PolicyDetail = () => {
       description: policy.description || '',
       category: policy.category,
       department: policy.department || '',
-      compliance_standard: policy.compliance_standard || '',
-      compliance_reference: policy.compliance_reference || '',
       priority: policy.priority || 'medium',
       effective_date: policy.effective_date || '',
       expiry_date: policy.expiry_date || '',
@@ -323,7 +321,7 @@ const PolicyDetail = () => {
     doc.text(`Last Updated: ${format(new Date(policy.updated_at), 'PPpp')}`, 14, yPos);
     yPos += 6;
     if (policy.effective_date) { doc.text(`Effective: ${policy.effective_date}`, 14, yPos); yPos += 6; }
-    if (policy.compliance_standard) { doc.text(`Compliance: ${policy.compliance_standard} ${policy.compliance_reference || ''}`, 14, yPos); yPos += 6; }
+    
 
     if (policy.description) {
       yPos += 4;
@@ -468,7 +466,7 @@ const PolicyDetail = () => {
         const displayFormat = dynamicFieldsFormat;
         const [formRes, fieldsRes, subsRes] = await Promise.all([
           supabase.from('forms').select('name').eq('id', policy.form_id).single(),
-          supabase.from('form_fields').select('id, label, field_type, options, field_order').eq('form_id', policy.form_id).order('field_order'),
+          supabase.from('form_fields').select('id, label, field_type, options, field_order, custom_config').eq('form_id', policy.form_id).order('field_order'),
           supabase.from('form_submissions').select('id, submission_ref_id, submission_data').eq('form_id', policy.form_id).order('submitted_at', { ascending: true }),
         ]);
 
@@ -476,10 +474,69 @@ const PolicyDetail = () => {
         const allFields = (fieldsRes.data || []).filter(f =>
           !['section', 'divider', 'heading', 'paragraph', 'spacer', 'page-break'].includes(f.field_type)
         );
-        // Only use selected fields if specified
         const selectedFieldIds = policy.content?.selected_field_ids as string[] | undefined;
         const fields = selectedFieldIds?.length ? allFields.filter(f => selectedFieldIds.includes(f.id)) : allFields;
         const submissions = subsRes.data || [];
+
+        // Resolve cross-ref linked records for PDF
+        const crossRefFields = allFields.filter(f => ['cross-reference', 'child-cross-reference'].includes(f.field_type));
+        const linkedIds = new Set<string>();
+        for (const sub of submissions) {
+          const data = (sub as any).submission_data || {};
+          for (const cf of crossRefFields) {
+            const val = data[cf.id];
+            if (Array.isArray(val)) val.forEach((v: any) => { if (v?.id) linkedIds.add(v.id); });
+            else if (val?.id) linkedIds.add(val.id);
+          }
+        }
+        const linkedRecords: Record<string, any> = {};
+        const linkedFieldLabels: Record<string, Record<string, string>> = {};
+        if (linkedIds.size > 0) {
+          const ids = Array.from(linkedIds);
+          for (let i = 0; i < ids.length; i += 50) {
+            const { data } = await supabase.from('form_submissions').select('id, submission_ref_id, submission_data, form_id').in('id', ids.slice(i, i + 50));
+            if (data) data.forEach(r => { linkedRecords[r.id] = r; });
+          }
+          const formIds = [...new Set(Object.values(linkedRecords).map((r: any) => r.form_id))];
+          for (const fid of formIds) {
+            const { data: ff } = await supabase.from('form_fields').select('id, label, field_type').eq('form_id', fid).order('field_order');
+            if (ff) {
+              linkedFieldLabels[fid] = {};
+              ff.filter(f => !['section','divider','heading','paragraph','spacer','page-break','child-cross-reference'].includes(f.field_type))
+                .forEach(f => { linkedFieldLabels[fid][f.id] = f.label; });
+            }
+          }
+        }
+
+        const pdfResolveCrossRef = (value: any): string => {
+          if (!value) return '—';
+          const resolveOne = (v: any): string => {
+            if (typeof v !== 'object' || !v) return String(v);
+            const rec = linkedRecords[v.id];
+            if (!rec) return v.submission_ref_id || v.id?.slice(0, 8) || JSON.stringify(v);
+            const refId = rec.submission_ref_id || rec.id.slice(0, 8);
+            const labels = linkedFieldLabels[rec.form_id] || {};
+            const subData = rec.submission_data || {};
+            const parts: string[] = [];
+            for (const [fid, label] of Object.entries(labels).slice(0, 4)) {
+              const val = subData[fid];
+              if (val !== null && val !== undefined && val !== '' && typeof val !== 'object') {
+                parts.push(`${label}: ${val}`);
+              }
+              if (parts.length >= 3) break;
+            }
+            return parts.length > 0 ? `${refId} — ${parts.join(' | ')}` : refId;
+          };
+          if (Array.isArray(value)) return value.map(resolveOne).filter(Boolean).join('; ') || '—';
+          return resolveOne(value);
+        };
+
+        const pdfFmtVal = (val: any, fType: string, opts?: any) => {
+          if (['cross-reference', 'child-cross-reference', 'dynamic-table'].includes(fType)) {
+            return pdfResolveCrossRef(val);
+          }
+          return pdfFormatValue(val, fType, opts);
+        };
 
         if (submissions.length > 0) {
           yPos += 8;
@@ -503,7 +560,7 @@ const PolicyDetail = () => {
             if (displayFormat === 'table') {
               const tableRows = fields.map((f: any) => [
                 f.label,
-                pdfFormatValue(data[f.id], f.field_type, f.options),
+                pdfFmtVal(data[f.id], f.field_type, f.options),
               ]);
               autoTable(doc, {
                 head: [['Field', 'Value']],
@@ -522,7 +579,7 @@ const PolicyDetail = () => {
                 doc.text(f.label, 14, yPos);
                 yPos += 5;
                 doc.setFont('helvetica', 'normal');
-                const val = pdfFormatValue(data[f.id], f.field_type, f.options);
+                const val = pdfFmtVal(data[f.id], f.field_type, f.options);
                 const valLines = doc.splitTextToSize(val, 180);
                 for (const vl of valLines) {
                   ensureSpace(12);
@@ -994,10 +1051,6 @@ const PolicyDetail = () => {
                 <Input value={editForm.department} onChange={e => setEditForm((p: any) => ({ ...p, department: e.target.value }))} />
               </div>
               <div>
-                <Label>Compliance Standard</Label>
-                <Input value={editForm.compliance_standard} onChange={e => setEditForm((p: any) => ({ ...p, compliance_standard: e.target.value }))} />
-              </div>
-              <div>
                 <Label>Effective Date</Label>
                 <Input type="date" value={editForm.effective_date} onChange={e => setEditForm((p: any) => ({ ...p, effective_date: e.target.value }))} />
               </div>
@@ -1065,15 +1118,13 @@ const PolicyDetail = () => {
                 <DetailRow label="Category" value={policy.category} />
                 <DetailRow label="Department" value={policy.department || '—'} />
                 <DetailRow label="Priority" value={<Badge className={priorityDef?.color}>{priorityDef?.label}</Badge>} />
-                <DetailRow label="Owner Type" value={<span className="capitalize">{policy.owner_type}</span>} />
+                
                 <DetailRow label="Version" value={`v${policy.current_version}`} />
               </CardContent>
             </Card>
             <Card>
-              <CardHeader><CardTitle className="text-sm">Compliance & Dates</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="text-sm">Dates</CardTitle></CardHeader>
               <CardContent className="space-y-2 text-sm">
-                <DetailRow label="Compliance Standard" value={policy.compliance_standard || '—'} />
-                <DetailRow label="Reference" value={policy.compliance_reference || '—'} />
                 <DetailRow label="Effective Date" value={policy.effective_date || '—'} />
                 <DetailRow label="Expiry Date" value={policy.expiry_date || '—'} />
                 <DetailRow label="Review Cycle" value={REVIEW_CYCLE_OPTIONS.find(o => o.value === policy.review_cycle_days)?.label || `${policy.review_cycle_days || 365} days`} />
