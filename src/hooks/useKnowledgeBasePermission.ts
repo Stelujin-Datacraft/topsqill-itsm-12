@@ -6,21 +6,20 @@ type KBPermission = 'view' | 'edit' | 'admin';
 
 /**
  * Resolves the current user's effective permission level for a knowledge-base
- * policy/audit, taking into account:
- *  1. Org-level admin role → always "admin"
- *  2. Direct user grants on the folder
- *  3. Group-based grants on the folder (via group_memberships)
- *  4. Fallback: if no folder or no explicit access → "view" (org-wide visibility)
+ * folder, taking into account:
+ *  1. Explicit folder-level grants (direct user or group-based) — highest priority
+ *  2. Org-level admin role → "admin" only if no explicit folder grant exists
+ *  3. Fallback: "view" (org-wide read visibility)
  */
 export function useKnowledgeBasePermission(folderId: string | null | undefined) {
   const { user, userProfile } = useAuth();
 
   const isOrgAdmin = userProfile?.role === 'admin';
 
-  const { data: folderPermission, isLoading } = useQuery({
+  const { data: resolvedPermission, isLoading } = useQuery({
     queryKey: ['kb-folder-permission', folderId, user?.id],
-    queryFn: async (): Promise<KBPermission> => {
-      if (!folderId || !user?.id) return 'view';
+    queryFn: async (): Promise<{ permission: KBPermission; hasExplicit: boolean }> => {
+      if (!folderId || !user?.id) return { permission: 'view', hasExplicit: false };
 
       // 1. Check direct user access
       const { data: directAccess } = await supabase
@@ -55,22 +54,30 @@ export function useKnowledgeBasePermission(folderId: string | null | undefined) 
         ...groupAccess.map(a => a.permission),
       ];
 
-      if (allPerms.length === 0) return 'view'; // no explicit access → org-wide default
+      if (allPerms.length === 0) {
+        // No explicit folder access set for this user
+        return { permission: 'view', hasExplicit: false };
+      }
 
-      if (allPerms.includes('admin')) return 'admin';
-      if (allPerms.includes('edit')) return 'edit';
-      return 'view';
+      // Explicit permission found — this takes priority over org admin role
+      if (allPerms.includes('admin')) return { permission: 'admin', hasExplicit: true };
+      if (allPerms.includes('edit')) return { permission: 'edit', hasExplicit: true };
+      return { permission: 'view', hasExplicit: true };
     },
-    enabled: !!user?.id && !!folderId && !isOrgAdmin,
+    enabled: !!user?.id && !!folderId,
     staleTime: 2 * 60 * 1000,
   });
 
-  // Org admins always get full admin access
-  if (isOrgAdmin) {
-    return { permission: 'admin' as KBPermission, canEdit: true, canAdmin: true, isLoading: false };
+  // Determine effective permission:
+  // - If explicit folder permission exists → use it (overrides org admin)
+  // - If no explicit permission and user is org admin → admin
+  // - Otherwise → view
+  let effective: KBPermission = 'view';
+  if (resolvedPermission?.hasExplicit) {
+    effective = resolvedPermission.permission;
+  } else if (isOrgAdmin) {
+    effective = 'admin';
   }
-
-  const effective = folderPermission || 'view';
 
   return {
     permission: effective,
