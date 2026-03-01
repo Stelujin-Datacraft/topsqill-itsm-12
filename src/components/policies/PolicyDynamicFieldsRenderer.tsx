@@ -198,6 +198,22 @@ function FieldValueFormatView({
 function formatValue(value: any, fieldType: string, options?: any): string {
   if (value === null || value === undefined || value === '') return '—';
 
+  // Handle cross-reference and child-cross-reference fields
+  if (['cross-reference', 'child-cross-reference', 'dynamic-table'].includes(fieldType)) {
+    if (Array.isArray(value)) {
+      return value.map(v => {
+        if (typeof v === 'object' && v !== null) {
+          return v.submission_ref_id || v.id?.slice(0, 8) || JSON.stringify(v);
+        }
+        return String(v);
+      }).filter(Boolean).join(', ') || '—';
+    }
+    if (typeof value === 'object' && value !== null) {
+      return value.submission_ref_id || value.id?.slice(0, 8) || JSON.stringify(value);
+    }
+    return String(value);
+  }
+
   // Handle select/radio/checkbox - resolve option labels
   if (['select', 'radio', 'checkbox', 'dropdown'].includes(fieldType) && options) {
     const optionsArray = Array.isArray(options) ? options : [];
@@ -217,10 +233,14 @@ function formatValue(value: any, fieldType: string, options?: any): string {
     if (fieldType === 'address') {
       return [value.street, value.city, value.state, value.postal, value.country].filter(Boolean).join(', ');
     }
+    // Fallback: try to extract meaningful display from any object
+    if (value.submission_ref_id) return value.submission_ref_id;
+    if (value.label) return value.label;
+    if (value.name) return value.name;
     return JSON.stringify(value);
   }
 
-  if (Array.isArray(value)) return value.join(', ');
+  if (Array.isArray(value)) return value.map(v => typeof v === 'object' ? (v?.submission_ref_id || v?.label || JSON.stringify(v)) : String(v)).join(', ');
 
   // Date
   if (fieldType === 'date' || fieldType === 'datetime') {
