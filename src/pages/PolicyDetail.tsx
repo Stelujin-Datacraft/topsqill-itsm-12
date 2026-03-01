@@ -867,11 +867,21 @@ const PolicyDetail = () => {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="bg-popover">
+              {policy.content?.original_docx_url && (
+                <DropdownMenuItem onClick={() => {
+                  const a = document.createElement('a');
+                  a.href = policy.content.original_docx_url;
+                  a.download = policy.content.original_docx_name || 'policy.docx';
+                  a.click();
+                }}>
+                  <FileDown className="h-4 w-4 mr-2" /> Download Original DOCX
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem onClick={exportToPDF}>
                 <FileDown className="h-4 w-4 mr-2" /> Download PDF
               </DropdownMenuItem>
               <DropdownMenuItem onClick={exportToDocx}>
-                <FileDown className="h-4 w-4 mr-2" /> Export as DOCX (Google Docs)
+                <FileDown className="h-4 w-4 mr-2" /> Export as DOCX
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

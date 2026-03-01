@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
 import { ArrowLeft, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -47,6 +48,7 @@ const CreatePolicy = () => {
   const [contentMode, setContentMode] = useState('blank');
   const [selectedTemplate, setSelectedTemplate] = useState<PolicyTemplate | null>(null);
   const [form, setForm] = useState(INITIAL_FORM);
+  const [originalDocxFile, setOriginalDocxFile] = useState<File | null>(null);
 
   const handleTemplateSelect = (template: PolicyTemplate) => {
     setSelectedTemplate(template);
@@ -70,6 +72,21 @@ const CreatePolicy = () => {
       next_review_date = d.toISOString().split('T')[0];
     }
 
+    // Upload original DOCX if available
+    let originalDocxUrl: string | undefined;
+    if (originalDocxFile) {
+      const filePath = `policies/originals/${Date.now()}_${originalDocxFile.name}`;
+      const { error: uploadErr } = await supabase.storage
+        .from('policy-attachments')
+        .upload(filePath, originalDocxFile);
+      if (!uploadErr) {
+        const { data: urlData } = supabase.storage
+          .from('policy-attachments')
+          .getPublicUrl(filePath);
+        originalDocxUrl = urlData.publicUrl;
+      }
+    }
+
     await createPolicy.mutateAsync({
       name: form.name,
       description: form.description || undefined,
@@ -89,6 +106,8 @@ const CreatePolicy = () => {
         ...(form.content_html ? { html: form.content_html } : (selectedTemplate?.content_structure || {})),
         dynamic_fields_display: form.form_id ? form.dynamic_fields_display : undefined,
         selected_field_ids: form.form_id && form.selected_field_ids.length > 0 ? form.selected_field_ids : undefined,
+        original_docx_url: originalDocxUrl,
+        original_docx_name: originalDocxFile?.name,
       },
       template_id: selectedTemplate?.id,
       form_id: form.form_id || undefined,
@@ -204,6 +223,7 @@ const CreatePolicy = () => {
             <PolicyContentSource
               contentHtml={form.content_html}
               onContentChange={html => updateField('content_html', html)}
+              onOriginalFileChange={setOriginalDocxFile}
               templates={templates}
               templatesLoading={templatesLoading}
               selectedTemplate={selectedTemplate}
