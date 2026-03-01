@@ -346,27 +346,50 @@ const PolicyDetail = () => {
         left: '-9999px',
         top: '0',
         width: '720px',
-        padding: '20px',
+        padding: '24px 32px',
         background: 'white',
-        fontFamily: 'Arial, Helvetica, sans-serif',
+        fontFamily: "'Segoe UI', Arial, Helvetica, sans-serif",
         fontSize: '12px',
-        lineHeight: '1.6',
+        lineHeight: '1.7',
         color: '#000',
       });
-      // Style images to fit within the render width
       document.body.appendChild(renderDiv);
+
+      // Preserve images (logos, headers) with proper sizing
       renderDiv.querySelectorAll('img').forEach((img) => {
         img.style.maxWidth = '100%';
         img.style.height = 'auto';
+        img.style.display = 'inline-block';
+        img.setAttribute('crossorigin', 'anonymous');
       });
       // Style tables for better rendering
       renderDiv.querySelectorAll('table').forEach((table) => {
         table.style.borderCollapse = 'collapse';
         table.style.width = '100%';
+        table.style.marginTop = '8px';
+        table.style.marginBottom = '8px';
       });
       renderDiv.querySelectorAll('td, th').forEach((cell) => {
         (cell as HTMLElement).style.border = '1px solid #ccc';
-        (cell as HTMLElement).style.padding = '4px 8px';
+        (cell as HTMLElement).style.padding = '6px 10px';
+        (cell as HTMLElement).style.fontSize = '11px';
+      });
+      renderDiv.querySelectorAll('th').forEach((th) => {
+        (th as HTMLElement).style.backgroundColor = '#f3f4f6';
+        (th as HTMLElement).style.fontWeight = '600';
+      });
+      // Preserve heading styles
+      renderDiv.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach((h) => {
+        (h as HTMLElement).style.marginTop = '12px';
+        (h as HTMLElement).style.marginBottom = '6px';
+        (h as HTMLElement).style.color = '#111';
+      });
+      // Preserve blockquote styling
+      renderDiv.querySelectorAll('blockquote').forEach((bq) => {
+        (bq as HTMLElement).style.borderLeft = '3px solid #6366f1';
+        (bq as HTMLElement).style.paddingLeft = '12px';
+        (bq as HTMLElement).style.margin = '8px 0';
+        (bq as HTMLElement).style.color = '#374151';
       });
 
       try {
@@ -557,6 +580,17 @@ const PolicyDetail = () => {
 
   const pdfFormatValue = (value: any, fieldType: string, options?: any): string => {
     if (value === null || value === undefined || value === '') return '—';
+    // Handle cross-reference fields
+    if (['cross-reference', 'child-cross-reference', 'dynamic-table'].includes(fieldType)) {
+      if (Array.isArray(value)) {
+        return value.map(v => {
+          if (typeof v === 'object' && v !== null) return v.submission_ref_id || v.id?.slice(0, 8) || JSON.stringify(v);
+          return String(v);
+        }).filter(Boolean).join(', ') || '—';
+      }
+      if (typeof value === 'object' && value !== null) return value.submission_ref_id || value.id?.slice(0, 8) || JSON.stringify(value);
+      return String(value);
+    }
     if (['select', 'radio', 'checkbox', 'dropdown'].includes(fieldType) && options) {
       const arr = Array.isArray(options) ? options : [];
       if (Array.isArray(value)) {
@@ -568,9 +602,12 @@ const PolicyDetail = () => {
     if (typeof value === 'object' && !Array.isArray(value)) {
       if (fieldType === 'currency' && value.amount) return `${value.currency || ''} ${value.amount}`;
       if (fieldType === 'address') return [value.street, value.city, value.state, value.postal, value.country].filter(Boolean).join(', ');
+      if (value.submission_ref_id) return value.submission_ref_id;
+      if (value.label) return value.label;
+      if (value.name) return value.name;
       return JSON.stringify(value);
     }
-    if (Array.isArray(value)) return value.join(', ');
+    if (Array.isArray(value)) return value.map(v => typeof v === 'object' ? (v?.submission_ref_id || v?.label || JSON.stringify(v)) : String(v)).join(', ');
     if (fieldType === 'date' || fieldType === 'datetime') { try { return new Date(value).toLocaleDateString(); } catch { return String(value); } }
     return String(value);
   };
@@ -634,6 +671,25 @@ const PolicyDetail = () => {
               <Button size="sm" onClick={() => setShowApprovalDialog(true)}>
                 <Send className="h-4 w-4 mr-1" /> Submit for Approval
               </Button>
+              <Button size="sm" variant="default" onClick={async () => {
+                await updatePolicy.mutateAsync({
+                  id: policy.id,
+                  status: 'published',
+                  published_at: new Date().toISOString(),
+                });
+                if (policy.review_cycle_days && policy.review_cycle_days > 0) {
+                  const reviewDate = new Date();
+                  reviewDate.setDate(reviewDate.getDate() + policy.review_cycle_days);
+                  await createReviewCycle.mutateAsync({
+                    policy_id: policy.id,
+                    review_date: reviewDate.toISOString().split('T')[0],
+                    status: 'scheduled',
+                  });
+                }
+                toast.success('Policy published successfully');
+              }}>
+                <CheckCircle className="h-4 w-4 mr-1" /> Publish
+              </Button>
             </>
           )}
           {policy.status === 'pending_approval' && (
@@ -642,8 +698,21 @@ const PolicyDetail = () => {
             </Badge>
           )}
           {isAdmin && policy.status === 'published' && (
-            <Button variant="outline" size="sm" onClick={retirePolicy}>
-              <Archive className="h-4 w-4 mr-1" /> Retire
+            <>
+              <Button variant="outline" size="sm" onClick={startEditing}>
+                <Edit className="h-4 w-4 mr-1" /> Edit
+              </Button>
+              <Button variant="outline" size="sm" onClick={retirePolicy}>
+                <Archive className="h-4 w-4 mr-1" /> Retire
+              </Button>
+            </>
+          )}
+          {isAdmin && policy.status === 'retired' && (
+            <Button variant="outline" size="sm" onClick={async () => {
+              await updatePolicy.mutateAsync({ id: policy.id, status: 'draft' });
+              toast.success('Policy moved back to draft');
+            }}>
+              <Edit className="h-4 w-4 mr-1" /> Reopen as Draft
             </Button>
           )}
           {isAdmin && (
@@ -845,17 +914,16 @@ const PolicyDetail = () => {
                       {att.size && <span className="text-xs text-muted-foreground shrink-0">{(att.size / 1024).toFixed(1)} KB</span>}
                       {isAdmin && (
                         <div className="flex items-center gap-1.5 shrink-0">
-                          <label className="flex items-center gap-1 text-xs text-muted-foreground cursor-pointer" title="Include in PDF export">
-                            <span className="hidden sm:inline">PDF</span>
-                            <input
-                              type="checkbox"
+                          <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer" title="Include in PDF export">
+                            <span>PDF</span>
+                            <Switch
                               checked={att.show_in_pdf !== false}
-                              onChange={async () => {
+                              onCheckedChange={async (checked) => {
                                 const updated = [...policy.attachments];
-                                updated[i] = { ...updated[i], show_in_pdf: !(att.show_in_pdf !== false) };
+                                updated[i] = { ...updated[i], show_in_pdf: checked };
                                 await updatePolicy.mutateAsync({ id: policy.id, attachments: updated as any });
                               }}
-                              className="h-3.5 w-3.5 rounded border-muted-foreground accent-primary cursor-pointer"
+                              className="scale-75"
                             />
                           </label>
                         </div>
