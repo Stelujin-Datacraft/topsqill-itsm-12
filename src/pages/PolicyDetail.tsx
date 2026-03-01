@@ -22,6 +22,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { usePolicies, usePolicyDetail } from '@/hooks/usePolicies';
 import { useAuth } from '@/contexts/AuthContext';
+import { useKnowledgeBasePermission } from '@/hooks/useKnowledgeBasePermission';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { useProject } from '@/contexts/ProjectContext';
 import { useQuery } from '@tanstack/react-query';
@@ -1229,8 +1230,8 @@ const PolicyDetail = () => {
   const priorityDef = POLICY_PRIORITIES.find(p => p.value === (policy.priority || 'medium'));
   const isOverdueReview = policy.next_review_date && isPast(new Date(policy.next_review_date));
 
-  // Role-based access
-  const isAdmin = userProfile?.role === 'admin';
+  // Folder-level access control (view/edit/admin based on knowledge_base_folder_access)
+  const { canEdit, canAdmin, isLoading: permLoading } = useKnowledgeBasePermission(policy.folder_id);
   const isDesignatedApprover = (approvalId: string) => {
     const approval = approvals.find(a => a.id === approvalId);
     return approval?.approver_id === user?.id;
@@ -1298,7 +1299,7 @@ const PolicyDetail = () => {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          {isAdmin && policy.status === 'draft' && (
+          {canEdit && policy.status === 'draft' && (
             <>
               <Button variant="outline" size="sm" onClick={startEditing}>
                 <Edit className="h-4 w-4 mr-1" /> Edit
@@ -1332,7 +1333,7 @@ const PolicyDetail = () => {
               <Clock className="h-3.5 w-3.5" /> Awaiting Approval
             </Badge>
           )}
-          {isAdmin && policy.status === 'published' && (
+          {canEdit && policy.status === 'published' && (
             <>
               <Button variant="outline" size="sm" onClick={startEditing}>
                 <Edit className="h-4 w-4 mr-1" /> Edit
@@ -1342,7 +1343,7 @@ const PolicyDetail = () => {
               </Button>
             </>
           )}
-          {isAdmin && policy.status === 'retired' && (
+          {canEdit && policy.status === 'retired' && (
             <Button variant="outline" size="sm" onClick={async () => {
               await updatePolicy.mutateAsync({ id: policy.id, status: 'draft' });
               toast.success('Policy moved back to draft');
@@ -1350,7 +1351,7 @@ const PolicyDetail = () => {
               <Edit className="h-4 w-4 mr-1" /> Reopen as Draft
             </Button>
           )}
-          {isAdmin && (
+          {canAdmin && (
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button variant="destructive" size="sm"><Trash2 className="h-4 w-4" /></Button>
@@ -1525,7 +1526,7 @@ const PolicyDetail = () => {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-sm">Attachments</CardTitle>
-              {isAdmin && (
+              {canEdit && (
                 <div>
                   <input
                     ref={attachmentInputRef}
@@ -1550,7 +1551,7 @@ const PolicyDetail = () => {
             </CardHeader>
             <CardContent>
               {(!policy.attachments || policy.attachments.length === 0) ? (
-                <p className="text-sm text-muted-foreground">No attachments.{isAdmin ? ' Click "Upload Attachment" to add files.' : ''}</p>
+                <p className="text-sm text-muted-foreground">No attachments.{canEdit ? ' Click "Upload Attachment" to add files.' : ''}</p>
               ) : (
                 <div className="space-y-2">
                   {policy.attachments.map((att: any, i: number) => (
@@ -1558,7 +1559,7 @@ const PolicyDetail = () => {
                       <FileText className="h-4 w-4 text-muted-foreground" />
                       <span className="flex-1 truncate">{att.name}</span>
                       {att.size && <span className="text-xs text-muted-foreground shrink-0">{(att.size / 1024).toFixed(1)} KB</span>}
-                      {isAdmin && (
+                      {canEdit && (
                         <div className="flex items-center gap-1.5 shrink-0">
                           <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer" title="Include in PDF export">
                             <span>PDF</span>
@@ -1790,7 +1791,7 @@ const PolicyDetail = () => {
             <CardContent className="pt-4">
               <div className="flex items-center justify-between mb-4">
                 <p className="text-sm font-medium">Policy Linkages</p>
-                {isAdmin && (
+                {canEdit && (
                   <Button size="sm" variant="outline" onClick={() => setShowLinkDialog(true)}>
                     <Plus className="h-4 w-4 mr-1" /> Add Link
                   </Button>

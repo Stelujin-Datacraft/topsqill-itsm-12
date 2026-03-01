@@ -11,6 +11,7 @@ import { usePolicies } from '@/hooks/usePolicies';
 import { useKnowledgeBaseFolders } from '@/hooks/useKnowledgeBaseFolders';
 import { useProject } from '@/contexts/ProjectContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useKnowledgeBasePermission } from '@/hooks/useKnowledgeBasePermission';
 import { POLICY_CATEGORIES, POLICY_STATUSES, POLICY_PRIORITIES } from '@/types/policy';
 import { PolicyDashboard } from '@/components/policies/PolicyDashboard';
 import { format, isPast } from 'date-fns';
@@ -31,7 +32,8 @@ const KnowledgeBaseFolder = () => {
   const navigate = useNavigate();
   const { currentProject } = useProject();
   const { userProfile } = useAuth();
-  const isAdmin = userProfile?.role === 'admin';
+  const { canEdit, canAdmin } = useKnowledgeBasePermission(folderId === 'unassigned' ? null : folderId);
+  const isAdmin = canAdmin;
   const { policies, isLoading, templates, templatesLoading, deleteTemplate, updateTemplate } = usePolicies();
   const { folders } = useKnowledgeBaseFolders();
 
