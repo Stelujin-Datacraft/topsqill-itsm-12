@@ -15,7 +15,6 @@ import { FormUserAccess } from './FormUserAccess';
 import { EnhancedFieldRuleBuilder } from './rules/EnhancedFieldRuleBuilder';
 import { EnhancedFormRuleBuilder } from './rules/EnhancedFormRuleBuilder';
 import { AIRuleSuggester } from './ai/AIRuleSuggester';
-import { AIFieldMetadataGenerator } from './ai/AIFieldMetadataGenerator';
 import { FormNavigationPanel } from './FormNavigationPanel';
 import { Zap, Users, Database, Settings, Save, ArrowLeft, Undo2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
@@ -463,23 +462,8 @@ function FormBuilderContent({
               </div>
             </div>
             
-            {workingForm && <div className="flex items-center gap-3">
-                <AIFieldMetadataGenerator
-                  formFields={workingForm.fields.filter(f => !['header', 'description', 'section-break', 'horizontal-line', 'full-width-container'].includes(f.type))}
-                  formName={workingForm.name}
-                  formDescription={workingForm.description || ''}
-                  onApply={(updates) => {
-                    updates.forEach(({ fieldId, updates: fieldUpdates }) => {
-                      const field = workingForm.fields.find(f => f.id === fieldId);
-                      if (field) {
-                        handleSaveFieldConfiguration(fieldId, fieldUpdates);
-                      }
-                    });
-                  }}
-                />
-                <div className="text-sm text-muted-foreground">
-                  Last updated: {new Date(workingForm.updatedAt || Date.now()).toLocaleDateString()}
-                </div>
+            {workingForm && <div className="text-sm text-muted-foreground">
+                Last updated: {new Date(workingForm.updatedAt || Date.now()).toLocaleDateString()}
               </div>}
           </div>
         </div>

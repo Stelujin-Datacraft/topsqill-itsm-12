@@ -14,7 +14,7 @@ interface FormField {
 }
 
 interface AIRequest {
-   action: 'auto-fill' | 'suggest-routing' | 'analyze-content' | 'generate-summary' | 'natural-language-query' | 'generate-content' | 'chatbot-assist' | 'chatbot-copilot' | 'generate-formula' | 'generate-form' | 'suggest-workflow' | 'suggest-field-mappings' | 'suggest-chart' | 'generate-sla-template' | 'generate-escalation-chain' | 'suggest-field-rules' | 'suggest-form-rules' | 'generate-email-template' | 'generate-field-metadata' | 'summarize-data' | 'detect-anomalies';
+   action: 'auto-fill' | 'suggest-routing' | 'analyze-content' | 'generate-summary' | 'natural-language-query' | 'generate-content' | 'chatbot-assist' | 'chatbot-copilot' | 'generate-formula' | 'generate-form' | 'suggest-workflow' | 'suggest-field-mappings' | 'suggest-chart' | 'generate-sla-template' | 'generate-escalation-chain' | 'suggest-field-rules' | 'suggest-form-rules' | 'generate-email-template';
   context: {
     formFields?: FormField[];
     currentValues?: Record<string, any>;
@@ -83,20 +83,13 @@ serve(async (req) => {
 
     switch (action) {
       case 'auto-fill':
-        systemPrompt = `You are an intelligent form assistant. Based on the user's input and the form fields available, fill ALL form fields with appropriate values.
+        systemPrompt = `You are an intelligent form assistant. Based on the user's input and the form fields available, suggest appropriate values for form fields.
         
 Rules:
-- You MUST provide a value for EVERY field in the form, not just the ones explicitly mentioned in the user's input
-- For fields directly mentioned or implied by the user's input, use the exact information provided
-- For fields NOT mentioned, intelligently infer reasonable values based on the form context (name, description), the user's input, and common sense
-- For select/radio/dropdown fields, ALWAYS choose from the available options - pick the most contextually appropriate one
-- For date fields, use ISO format (YYYY-MM-DD) and pick reasonable dates (e.g., today for submission dates, future dates for deadlines)
-- For email fields, generate a plausible email if not provided
-- For number fields, provide reasonable numeric values
-- For text/textarea fields, generate helpful, contextually appropriate content
-- For checkbox/toggle fields, set true or false based on context
-- For rating fields, provide a numeric value within the expected range
-- Return a JSON object with ALL field IDs as keys and their suggested values
+- Only suggest values for fields that are relevant to the user's input
+- For select/radio fields, only choose from available options
+- Return a JSON object with field IDs as keys and suggested values
+- Be conservative - only fill fields you're confident about
 - Consider the context of the form (name, description) when making suggestions`;
 
         userPrompt = `Form: ${context.formName || 'Unknown Form'}
@@ -116,7 +109,7 @@ ${JSON.stringify(context.currentValues || {}, null, 2)}
 
 User Input: "${context.userInput}"
 
-Based on the user's input, fill ALL form fields with appropriate values. You MUST return a value for every single field listed above - do not skip any. Return ONLY a valid JSON object with ALL field IDs as keys and suggested values. For select fields, use the exact option value.`;
+Based on the user's input, suggest appropriate values for the form fields. Return ONLY a valid JSON object with field IDs as keys and suggested values. For select fields, use the exact option value.`;
         break;
 
       case 'suggest-routing':
@@ -1398,139 +1391,6 @@ IMPORTANT:
 - recipients.to should include any static emails mentioned in the prompt
 - If no specific emails mentioned, leave recipients.to as empty array
 - Make the HTML visually professional with proper formatting, colors, and spacing`;
-        break;
-
-      // NEW: Generate field metadata (tooltips, placeholders, help text)
-      case 'generate-field-metadata':
-        temperature = 0.4;
-        maxTokens = 1500;
-        
-        systemPrompt = `You are an expert UX writer for form fields. Generate helpful, concise metadata for form fields including tooltips, placeholders, and help text.
-
-Rules:
-- Placeholders should be short example values (e.g., "john@example.com" for email)
-- Tooltips should explain what the field is for in 1 sentence
-- Help text can be slightly longer, providing guidance on how to fill the field
-- Consider the form context (name, description) to make suggestions contextual
-- For select/radio fields, don't generate placeholders
-- Match the tone to a professional business application
-- Return suggestions for ALL fields provided`;
-
-        userPrompt = `Form: ${context.formName || 'Unknown Form'}
-Description: ${context.formDescription || 'No description'}
-
-Fields to generate metadata for:
-${JSON.stringify(context.formFields?.map(f => ({
-  id: f.id,
-  label: f.label,
-  type: f.type,
-  currentPlaceholder: f.placeholder || null,
-  currentTooltip: f.tooltip || null,
-  options: f.options?.map((o: any) => o.label),
-  required: f.required
-})), null, 2)}
-
-Generate metadata for each field. Return JSON:
-{
-  "fields": [
-    {
-      "fieldId": "field_id",
-      "placeholder": "suggested placeholder text or null",
-      "tooltip": "suggested tooltip/help text",
-      "helpText": "longer guidance text for complex fields or null"
-    }
-  ],
-  "formDescription": "suggested form description if current one is empty or could be improved"
-}`;
-        break;
-
-      // NEW: Summarize submission data
-      case 'summarize-data':
-        temperature = 0.5;
-        maxTokens = 2000;
-        
-        systemPrompt = `You are a data analyst assistant. Analyze form submission data and provide clear, actionable insights in natural language.
-
-Rules:
-- Identify key trends, patterns, and notable statistics
-- Highlight the most important findings first  
-- Use specific numbers and percentages
-- Keep the summary concise but comprehensive
-- Include recommendations when applicable
-- Format with markdown for readability`;
-
-        userPrompt = `Form: ${context.formName || 'Data'}
-Fields: ${JSON.stringify(context.formFields?.map(f => ({ label: f.label, type: f.type })), null, 2)}
-
-Data Summary Statistics:
-${JSON.stringify(context.dataSummary || {}, null, 2)}
-
-Sample Records (${context.totalRecords || 0} total):
-${JSON.stringify(context.sampleData?.slice(0, 20) || [], null, 2)}
-
-Provide a comprehensive natural language summary of this data including:
-1. Overview (total records, date range if applicable)
-2. Key distributions and breakdowns
-3. Notable patterns or trends
-4. Potential concerns or outliers
-5. Actionable recommendations
-
-Return JSON:
-{
-  "summary": "markdown formatted summary text",
-  "keyMetrics": [
-    { "label": "metric name", "value": "metric value", "trend": "up|down|stable|neutral" }
-  ],
-  "insights": ["insight 1", "insight 2"],
-  "recommendations": ["recommendation 1", "recommendation 2"],
-  "anomalies": [
-    { "description": "anomaly description", "severity": "low|medium|high", "fieldId": "optional field id" }
-  ]
-}`;
-        break;
-
-      // NEW: Detect anomalies in data
-      case 'detect-anomalies':
-        temperature = 0.3;
-        maxTokens = 1500;
-        
-        systemPrompt = `You are a data quality and anomaly detection specialist. Analyze submission data to find unusual patterns, outliers, and potential data quality issues.
-
-Rules:
-- Look for statistical outliers in numeric fields
-- Identify unusual distributions in categorical fields
-- Detect potential data entry errors
-- Flag missing data patterns
-- Consider temporal patterns if dates are available
-- Rate severity as low, medium, or high`;
-
-        userPrompt = `Form: ${context.formName || 'Data'}
-Fields: ${JSON.stringify(context.formFields?.map(f => ({ id: f.id, label: f.label, type: f.type })), null, 2)}
-
-Data Statistics:
-${JSON.stringify(context.dataSummary || {}, null, 2)}
-
-Sample Records:
-${JSON.stringify(context.sampleData?.slice(0, 30) || [], null, 2)}
-
-Total Records: ${context.totalRecords || 0}
-
-Analyze this data for anomalies and return JSON:
-{
-  "anomalies": [
-    {
-      "fieldId": "field_id or null",
-      "fieldLabel": "field label",
-      "type": "outlier|missing_pattern|distribution_skew|data_quality|temporal_anomaly",
-      "description": "clear description of the anomaly",
-      "severity": "low|medium|high",
-      "affectedRecords": 0,
-      "recommendation": "what to do about it"
-    }
-  ],
-  "dataQualityScore": 0-100,
-  "overallAssessment": "brief overall data quality assessment"
-}`;
         break;
 
       default:
