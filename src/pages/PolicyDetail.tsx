@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import html2canvas from 'html2canvas';
 import { supabase } from '@/integrations/supabase/client';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Edit, Trash2, Save, Send, Archive, History, Link2, CheckCircle, Clock, FileText, Download, Plus, UserCheck, AlertOctagon, CalendarClock, Shield, BookOpen, Upload, Loader2 } from 'lucide-react';
@@ -334,16 +335,101 @@ const PolicyDetail = () => {
       yPos += 4;
       doc.setFontSize(12);
       doc.text('Policy Content', 14, yPos);
-      yPos += 6;
-      doc.setFontSize(10);
-      const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = policy.content.html;
-      const plainText = tempDiv.innerText || tempDiv.textContent || '';
-      const contentLines = doc.splitTextToSize(plainText, 180);
-      for (const line of contentLines) {
-        ensureSpace(20);
-        doc.text(line, 14, yPos);
-        yPos += 5;
+      yPos += 8;
+
+      // Render styled HTML to canvas for design-preserving PDF
+      const renderDiv = document.createElement('div');
+      renderDiv.innerHTML = policy.content.html;
+      Object.assign(renderDiv.style, {
+        position: 'absolute',
+        left: '-9999px',
+        top: '0',
+        width: '720px',
+        padding: '20px',
+        background: 'white',
+        fontFamily: 'Arial, Helvetica, sans-serif',
+        fontSize: '12px',
+        lineHeight: '1.6',
+        color: '#000',
+      });
+      // Style images to fit within the render width
+      document.body.appendChild(renderDiv);
+      renderDiv.querySelectorAll('img').forEach((img) => {
+        img.style.maxWidth = '100%';
+        img.style.height = 'auto';
+      });
+      // Style tables for better rendering
+      renderDiv.querySelectorAll('table').forEach((table) => {
+        table.style.borderCollapse = 'collapse';
+        table.style.width = '100%';
+      });
+      renderDiv.querySelectorAll('td, th').forEach((cell) => {
+        (cell as HTMLElement).style.border = '1px solid #ccc';
+        (cell as HTMLElement).style.padding = '4px 8px';
+      });
+
+      try {
+        const canvas = await html2canvas(renderDiv, {
+          scale: 2,
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: '#ffffff',
+        });
+        document.body.removeChild(renderDiv);
+
+        const imgData = canvas.toDataURL('image/png');
+        const pageWidth = doc.internal.pageSize.getWidth() - 28; // 14px margin each side
+        const imgHeight = (canvas.height * pageWidth) / canvas.width;
+        const maxPageContent = pageHeight - 30;
+
+        // If the rendered content fits on remaining space, add it
+        if (yPos + imgHeight <= maxPageContent) {
+          doc.addImage(imgData, 'PNG', 14, yPos, pageWidth, imgHeight);
+          yPos += imgHeight + 6;
+        } else {
+          // Split across pages by slicing the canvas
+          let srcY = 0;
+          const srcWidth = canvas.width;
+          const srcHeight = canvas.height;
+
+          while (srcY < srcHeight) {
+            const availableHeight = (srcY === 0 ? maxPageContent - yPos : maxPageContent - 20);
+            const sliceCanvasHeight = (availableHeight / pageWidth) * srcWidth;
+            const actualSlice = Math.min(sliceCanvasHeight, srcHeight - srcY);
+
+            const sliceCanvas = document.createElement('canvas');
+            sliceCanvas.width = srcWidth;
+            sliceCanvas.height = actualSlice;
+            const sliceCtx = sliceCanvas.getContext('2d');
+            if (sliceCtx) {
+              sliceCtx.drawImage(canvas, 0, srcY, srcWidth, actualSlice, 0, 0, srcWidth, actualSlice);
+              const sliceImg = sliceCanvas.toDataURL('image/png');
+              const sliceImgHeight = (actualSlice * pageWidth) / srcWidth;
+              const startY = srcY === 0 ? yPos : 20;
+              doc.addImage(sliceImg, 'PNG', 14, startY, pageWidth, sliceImgHeight);
+              yPos = startY + sliceImgHeight + 6;
+            }
+
+            srcY += actualSlice;
+            if (srcY < srcHeight) {
+              doc.addPage();
+              yPos = 20;
+            }
+          }
+        }
+      } catch (err) {
+        console.error('html2canvas failed, falling back to plain text:', err);
+        document.body.removeChild(renderDiv);
+        doc.setFontSize(10);
+        const fallbackDiv = document.createElement('div');
+        fallbackDiv.innerHTML = policy.content.html;
+        const plainText = fallbackDiv.innerText || fallbackDiv.textContent || '';
+        const contentLines = doc.splitTextToSize(plainText, 180);
+        for (const line of contentLines) {
+          ensureSpace(20);
+          doc.text(line, 14, yPos);
+          yPos += 5;
+        }
       }
     }
 
