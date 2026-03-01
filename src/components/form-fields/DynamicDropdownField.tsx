@@ -33,7 +33,7 @@ export function DynamicDropdownField({
 
   useEffect(() => {
     loadOptions();
-  }, [config.sourceFormId, config.dependentFieldId, formData[config.dependentFieldId]]);
+  }, [config.sourceFormId, config.crossReferenceFieldId, config.dependentFieldId, formData[config.dependentFieldId]]);
 
   const loadOptions = async () => {
     if (!config.dataSource) return;
@@ -51,6 +51,9 @@ export function DynamicDropdownField({
           break;
         case 'dependent':
           fetchedOptions = await loadDependentOptions();
+          break;
+        case 'cross-reference':
+          fetchedOptions = await loadCrossReferenceOptions();
           break;
       }
 
@@ -124,8 +127,6 @@ export function DynamicDropdownField({
     const dependentValue = formData[config.dependentFieldId];
     if (!dependentValue) return [];
 
-    // In a real implementation, this would load options based on the dependent field value
-    // For now, return some mock options
     const mockOptions = [
       { value: `${dependentValue}_option1`, label: `${dependentValue} Option 1` },
       { value: `${dependentValue}_option2`, label: `${dependentValue} Option 2` },
@@ -133,6 +134,54 @@ export function DynamicDropdownField({
     ];
 
     return mockOptions;
+  };
+
+  const loadCrossReferenceOptions = async (): Promise<DropdownOption[]> => {
+    if (!config.crossReferenceFieldId) return [];
+
+    // Get the cross-reference field's config to find target form
+    const { data: crossRefField, error: fieldError } = await supabase
+      .from('form_fields')
+      .select('custom_config')
+      .eq('id', config.crossReferenceFieldId)
+      .single();
+
+    if (fieldError || !crossRefField) return [];
+
+    const crossRefConfig = crossRefField.custom_config as any;
+    const targetFormId = crossRefConfig?.targetFormId;
+    if (!targetFormId) return [];
+
+    // Get the display field from cross-ref config or use the configured one
+    const displayFieldId = config.displayField || crossRefConfig?.tableDisplayField;
+    const valueFieldId = config.valueField || 'id';
+
+    const { data: submissions, error } = await supabase
+      .from('form_submissions')
+      .select('id, submission_data, submission_ref_id')
+      .eq('form_id', targetFormId)
+      .limit(200);
+
+    if (error) throw error;
+
+    const options: DropdownOption[] = [];
+    const seen = new Set();
+
+    submissions?.forEach((submission) => {
+      const data = submission.submission_data as Record<string, any>;
+      const displayValue = displayFieldId ? data[displayFieldId] : submission.submission_ref_id;
+      const val = valueFieldId === 'id' ? submission.id : data[valueFieldId];
+
+      if (displayValue && val && !seen.has(val)) {
+        seen.add(val);
+        options.push({
+          value: String(val),
+          label: String(displayValue)
+        });
+      }
+    });
+
+    return options.sort((a, b) => a.label.localeCompare(b.label));
   };
 
   return (
@@ -172,14 +221,14 @@ export function DynamicDropdownField({
       </Select>
 
       {loading && (
-        <p className="text-sm text-blue-600 flex items-center">
+        <p className="text-sm text-primary flex items-center">
           <Loader2 className="h-3 w-3 animate-spin mr-1" />
           Loading options...
         </p>
       )}
 
       {error && (
-        <p className="text-sm text-red-500">{error}</p>
+        <p className="text-sm text-destructive">{error}</p>
       )}
     </div>
   );

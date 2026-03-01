@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { useFormsData } from '@/hooks/useFormsData';
 import { useCurrentFormFields } from '@/hooks/useCurrentFormFields';
+import { useFormSnapshotContext } from '@/components/FormBuilder/contexts/FormSnapshotContext';
 
 interface DynamicDropdownFieldConfigProps {
   config: any;
@@ -17,6 +18,11 @@ export function DynamicDropdownFieldConfig({ config, onUpdate, errors }: Dynamic
   const customConfig = config.customConfig || {};
   const { forms } = useFormsData();
   const { formFieldOptions } = useCurrentFormFields();
+  const { snapshot } = useFormSnapshotContext();
+
+  // Find cross-reference fields in the current form
+  const allFields = snapshot.form?.fields || [];
+  const crossReferenceFields = allFields.filter(field => field.type === 'cross-reference');
 
   const handleConfigChange = (key: string, value: any) => {
     onUpdate({
@@ -43,6 +49,7 @@ export function DynamicDropdownFieldConfig({ config, onUpdate, errors }: Dynamic
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="form">Form Submissions</SelectItem>
+              <SelectItem value="cross-reference">Cross-Reference Field</SelectItem>
               <SelectItem value="api">External API</SelectItem>
               <SelectItem value="field">Dependent Field</SelectItem>
             </SelectContent>
@@ -106,6 +113,60 @@ export function DynamicDropdownFieldConfig({ config, onUpdate, errors }: Dynamic
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+          </>
+        )}
+
+        {customConfig.dataSource === 'cross-reference' && (
+          <>
+            <div className="space-y-2">
+              <Label htmlFor="crossRefField">Cross-Reference Field</Label>
+              {crossReferenceFields.length > 0 ? (
+                <Select
+                  value={customConfig.crossReferenceFieldId || ''}
+                  onValueChange={(value) => handleConfigChange('crossReferenceFieldId', value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select cross-reference field" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {crossReferenceFields.map((field) => (
+                      <SelectItem key={field.id} value={field.id}>
+                        {field.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <p className="text-sm text-muted-foreground p-3 border border-dashed rounded-lg">
+                  No cross-reference fields found in this form. Add a cross-reference field first.
+                </p>
+              )}
+              <p className="text-sm text-muted-foreground">
+                Options will be populated from the cross-referenced form's records
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="crossRefDisplayField">Display Field (optional)</Label>
+              <Select
+                value={customConfig.displayField || ''}
+                onValueChange={(value) => handleConfigChange('displayField', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Use default display field" />
+                </SelectTrigger>
+                <SelectContent>
+                  {formFieldOptions.map((field) => (
+                    <SelectItem key={field.value} value={field.value}>
+                      {field.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-sm text-muted-foreground">
+                Override which field from the target form is shown as the option label
+              </p>
             </div>
           </>
         )}
