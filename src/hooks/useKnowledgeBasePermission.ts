@@ -6,15 +6,16 @@ type KBPermission = 'view' | 'edit' | 'admin';
 
 /**
  * Resolves the current user's effective permission level for a knowledge-base
- * folder, based on explicit folder access grants (direct user + group-based).
- * 
- * Folder-level permissions ALWAYS take priority — even org admins are subject
- * to folder access controls when explicit grants exist.
- * 
- * Fallback: if no folder or no explicit access → "view" (org-wide visibility).
+ * policy/audit, taking into account:
+ *  1. Org-level admin role → always "admin"
+ *  2. Direct user grants on the folder
+ *  3. Group-based grants on the folder (via group_memberships)
+ *  4. Fallback: if no folder or no explicit access → "view" (org-wide visibility)
  */
 export function useKnowledgeBasePermission(folderId: string | null | undefined) {
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
+
+  const isOrgAdmin = userProfile?.role === 'admin';
 
   const { data: folderPermission, isLoading } = useQuery({
     queryKey: ['kb-folder-permission', folderId, user?.id],
@@ -60,9 +61,14 @@ export function useKnowledgeBasePermission(folderId: string | null | undefined) 
       if (allPerms.includes('edit')) return 'edit';
       return 'view';
     },
-    enabled: !!user?.id && !!folderId,
+    enabled: !!user?.id && !!folderId && !isOrgAdmin,
     staleTime: 2 * 60 * 1000,
   });
+
+  // Org admins always get full admin access
+  if (isOrgAdmin) {
+    return { permission: 'admin' as KBPermission, canEdit: true, canAdmin: true, isLoading: false };
+  }
 
   const effective = folderPermission || 'view';
 
