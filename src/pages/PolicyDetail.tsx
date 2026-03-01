@@ -110,7 +110,7 @@ const PolicyDetail = () => {
         <div className="text-center space-y-2">
           <FileText className="h-12 w-12 text-muted-foreground mx-auto" />
           <h3 className="text-lg font-medium">Policy not found</h3>
-          <Button variant="outline" onClick={() => navigate('/policies')}>Back to Policies</Button>
+          <Button variant="outline" onClick={() => navigate('/knowledge-base')}>Back to Knowledge Base</Button>
         </div>
       </div>
     );
@@ -236,7 +236,7 @@ const PolicyDetail = () => {
 
   const handleDelete = async () => {
     await deletePolicy.mutateAsync(policy.id);
-    navigate('/policies');
+    navigate('/knowledge-base');
   };
 
   const handleAttachmentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -597,7 +597,7 @@ const PolicyDetail = () => {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/policies')}>
+          <Button variant="ghost" size="icon" onClick={() => navigate('/knowledge-base')}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>

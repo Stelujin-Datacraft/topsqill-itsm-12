@@ -97,8 +97,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         isDisabled: !currentProject,
       },
       {
-        title: "Policies",
-        url: "/policies",
+        title: "Knowledge Base",
+        url: "/knowledge-base",
         icon: ScrollText,
         isDisabled: !currentProject,
       },

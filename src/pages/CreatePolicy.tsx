@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -39,6 +39,10 @@ const INITIAL_FORM = {
 
 const CreatePolicy = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const folderParam = searchParams.get('folder') || '';
+  const typeParam = searchParams.get('type') || 'policy';
+  const isAudit = typeParam === 'audit';
   const { createPolicy, templates, templatesLoading } = usePolicies();
   const [contentMode, setContentMode] = useState('blank');
   const [selectedTemplate, setSelectedTemplate] = useState<PolicyTemplate | null>(null);
@@ -91,9 +95,15 @@ const CreatePolicy = () => {
       status: 'draft',
       tags: [],
       attachments: [] as any,
-    });
+      folder_id: folderParam && folderParam !== 'unassigned' ? folderParam : undefined,
+      item_type: typeParam,
+    } as any);
 
-    navigate('/policies');
+    if (folderParam) {
+      navigate(`/knowledge-base/${folderParam}`);
+    } else {
+      navigate('/knowledge-base');
+    }
   };
 
   const updateField = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) => {
@@ -102,17 +112,17 @@ const CreatePolicy = () => {
 
   return (
     <PageContent
-      title="Create New Policy"
-      description="Define a new organizational policy with content, metadata, and governance settings"
+      title={isAudit ? "Create New Audit" : "Create New Policy"}
+      description={isAudit ? "Define a new audit with content, metadata, and governance settings" : "Define a new organizational policy with content, metadata, and governance settings"}
       actions={
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => navigate('/policies')}>
+          <Button variant="outline" onClick={() => folderParam ? navigate(`/knowledge-base/${folderParam}`) : navigate('/knowledge-base')}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             Cancel
           </Button>
           <Button onClick={handleSubmit} disabled={!form.name.trim() || createPolicy.isPending}>
             <Save className="h-4 w-4 mr-2" />
-            {createPolicy.isPending ? 'Creating...' : 'Create Policy'}
+            {createPolicy.isPending ? 'Creating...' : isAudit ? 'Create Audit' : 'Create Policy'}
           </Button>
         </div>
       }
