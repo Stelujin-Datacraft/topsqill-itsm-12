@@ -863,6 +863,9 @@ const PolicyDetail = () => {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="bg-popover">
+              <DropdownMenuItem onClick={() => generatePDF('preview')}>
+                <FileText className="h-4 w-4 mr-2" /> Preview PDF (New Tab)
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={exportToPDF}>
                 <FileDown className="h-4 w-4 mr-2" /> Download PDF
               </DropdownMenuItem>
@@ -1243,6 +1246,9 @@ const PolicyDetail = () => {
             <CardContent className="pt-4">
               <div className="flex items-center justify-between mb-4">
                 <p className="text-sm font-medium">Approval History</p>
+                <Button variant="outline" size="sm" onClick={() => generatePDF('preview')}>
+                  <FileText className="h-4 w-4 mr-1" /> Preview Policy PDF
+                </Button>
               </div>
               {approvals.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-6">No approval history</p>
