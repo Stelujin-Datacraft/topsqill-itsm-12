@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -60,6 +60,23 @@ export function PolicyContentSource({
   const [pasteText, setPasteText] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const previewIframeRef = useRef<HTMLIFrameElement>(null);
+
+  // Write directly to iframe document for instant live preview updates
+  const updatePreview = useCallback((html: string) => {
+    const iframe = previewIframeRef.current;
+    if (!iframe) return;
+    const doc = iframe.contentDocument;
+    if (!doc) return;
+    doc.open();
+    doc.write(`<!DOCTYPE html><html><head><meta charset="utf-8"/><style>${PREVIEW_STYLES}</style></head><body>${html || '<p style="color:#999;text-align:center;padding-top:60px;">Import or write content on the left to see a live preview here.</p>'}</body></html>`);
+    doc.close();
+  }, []);
+
+  // Update preview whenever contentHtml changes
+  useEffect(() => {
+    updatePreview(contentHtml);
+  }, [contentHtml, updatePreview]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -134,14 +151,11 @@ export function PolicyContentSource({
   const previewIframe = (
     <div className="border rounded-lg overflow-hidden bg-white h-full">
       <iframe
+        ref={previewIframeRef}
         title="Live Preview"
-        srcDoc={`<!DOCTYPE html><html><head><meta charset="utf-8"/><style>${PREVIEW_STYLES}</style></head><body>${
-          contentHtml
-            ? contentHtml.replace(/`/g, '&#96;')
-            : '<p style="color:#999;text-align:center;padding-top:60px;">Import or write content on the left to see a live preview here.</p>'
-        }</body></html>`}
         className="w-full border-0"
         style={{ minHeight: '400px', height: '100%' }}
+        onLoad={() => updatePreview(contentHtml)}
       />
     </div>
   );
