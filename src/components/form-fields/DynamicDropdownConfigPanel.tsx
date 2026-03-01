@@ -81,6 +81,7 @@ export function DynamicDropdownConfigPanel({ field, onConfigChange }: DynamicDro
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="form">Form Records</SelectItem>
+            <SelectItem value="cross-reference">Cross-Reference Field</SelectItem>
             <SelectItem value="api">API Endpoint</SelectItem>
           </SelectContent>
         </Select>

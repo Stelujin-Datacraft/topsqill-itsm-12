@@ -277,7 +277,7 @@ export interface FormField {
     hyperlinkField?: string; // Field ID to render as a clickable hyperlink to the record
     
     // Dynamic Dropdown specific
-    dataSource?: 'form' | 'api';
+    dataSource?: 'form' | 'api' | 'cross-reference';
     sourceFormId?: string;
     displayField?: string;
     valueField?: string;
