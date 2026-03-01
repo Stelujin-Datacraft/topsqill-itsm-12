@@ -203,13 +203,39 @@ function formatValue(value: any, fieldType: string, options?: any): string {
     if (Array.isArray(value)) {
       return value.map(v => {
         if (typeof v === 'object' && v !== null) {
-          return v.submission_ref_id || v.id?.slice(0, 8) || JSON.stringify(v);
+          // Extract ID
+          const refId = v.submission_ref_id || v.id?.slice(0, 8) || '';
+          // Extract display field values from submission_data or top-level fields
+          const displayParts: string[] = [];
+          if (refId) displayParts.push(refId);
+          // Check for display fields in the object
+          if (v.displayData) {
+            displayParts.push(String(v.displayData));
+          } else if (v.submission_data && typeof v.submission_data === 'object') {
+            // Extract key field values from submission_data
+            const dataVals = Object.values(v.submission_data).filter(
+              (val: any) => val !== null && val !== undefined && val !== '' && typeof val !== 'object'
+            ).slice(0, 3);
+            if (dataVals.length > 0) displayParts.push(...dataVals.map(String));
+          } else {
+            // Try common display properties
+            if (v.name) displayParts.push(v.name);
+            if (v.label) displayParts.push(v.label);
+            if (v.title) displayParts.push(v.title);
+          }
+          return displayParts.length > 0 ? displayParts.join(' — ') : JSON.stringify(v);
         }
         return String(v);
       }).filter(Boolean).join(', ') || '—';
     }
     if (typeof value === 'object' && value !== null) {
-      return value.submission_ref_id || value.id?.slice(0, 8) || JSON.stringify(value);
+      const refId = value.submission_ref_id || value.id?.slice(0, 8) || '';
+      const parts: string[] = [];
+      if (refId) parts.push(refId);
+      if (value.displayData) parts.push(String(value.displayData));
+      else if (value.name) parts.push(value.name);
+      else if (value.label) parts.push(value.label);
+      return parts.length > 0 ? parts.join(' — ') : JSON.stringify(value);
     }
     return String(value);
   }

@@ -564,13 +564,18 @@ const PolicyDetail = () => {
     if (mode === 'preview') {
       const pdfBlob = doc.output('blob');
       const pdfUrl = URL.createObjectURL(pdfBlob);
-      const a = document.createElement('a');
-      a.href = pdfUrl;
-      a.target = '_blank';
-      a.rel = 'noopener noreferrer';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      // Use window.open for reliable new-tab opening
+      const newTab = window.open(pdfUrl, '_blank');
+      if (!newTab) {
+        // Fallback if popup blocked
+        const a = document.createElement('a');
+        a.href = pdfUrl;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }
       toast.success('PDF preview opened in new tab');
     } else {
       doc.save(`${policy.policy_number || policy.name.replace(/[^a-zA-Z0-9]/g, '_')}_v${policy.current_version}.pdf`);
@@ -753,11 +758,33 @@ const PolicyDetail = () => {
     if (['cross-reference', 'child-cross-reference', 'dynamic-table'].includes(fieldType)) {
       if (Array.isArray(value)) {
         return value.map(v => {
-          if (typeof v === 'object' && v !== null) return v.submission_ref_id || v.id?.slice(0, 8) || JSON.stringify(v);
+          if (typeof v === 'object' && v !== null) {
+            const refId = v.submission_ref_id || v.id?.slice(0, 8) || '';
+            const parts: string[] = [];
+            if (refId) parts.push(refId);
+            if (v.displayData) parts.push(String(v.displayData));
+            else if (v.name) parts.push(v.name);
+            else if (v.label) parts.push(v.label);
+            else if (v.submission_data && typeof v.submission_data === 'object') {
+              const vals = Object.values(v.submission_data).filter(
+                (x: any) => x !== null && x !== undefined && x !== '' && typeof x !== 'object'
+              ).slice(0, 3);
+              if (vals.length > 0) parts.push(...vals.map(String));
+            }
+            return parts.length > 0 ? parts.join(' — ') : JSON.stringify(v);
+          }
           return String(v);
         }).filter(Boolean).join(', ') || '—';
       }
-      if (typeof value === 'object' && value !== null) return value.submission_ref_id || value.id?.slice(0, 8) || JSON.stringify(value);
+      if (typeof value === 'object' && value !== null) {
+        const refId = value.submission_ref_id || value.id?.slice(0, 8) || '';
+        const parts: string[] = [];
+        if (refId) parts.push(refId);
+        if (value.displayData) parts.push(String(value.displayData));
+        else if (value.name) parts.push(value.name);
+        else if (value.label) parts.push(value.label);
+        return parts.length > 0 ? parts.join(' — ') : JSON.stringify(value);
+      }
       return String(value);
     }
     if (['select', 'radio', 'checkbox', 'dropdown'].includes(fieldType) && options) {
@@ -836,8 +863,11 @@ const PolicyDetail = () => {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="bg-popover">
+              <DropdownMenuItem onClick={() => generatePDF('preview')}>
+                <FileText className="h-4 w-4 mr-2" /> Preview PDF (New Tab)
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={exportToPDF}>
-                <FileText className="h-4 w-4 mr-2" /> Export as PDF
+                <FileDown className="h-4 w-4 mr-2" /> Download PDF
               </DropdownMenuItem>
               <DropdownMenuItem onClick={exportToDocx}>
                 <FileDown className="h-4 w-4 mr-2" /> Export as DOCX (Google Docs)
