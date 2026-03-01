@@ -2,7 +2,8 @@ import React, { useState, useRef } from 'react';
 import html2canvas from 'html2canvas';
 import { supabase } from '@/integrations/supabase/client';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Edit, Trash2, Save, Send, Archive, History, Link2, CheckCircle, Clock, FileText, Download, Plus, UserCheck, AlertOctagon, CalendarClock, Shield, BookOpen, Upload, Loader2, Star } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, Save, Send, Archive, History, Link2, CheckCircle, Clock, FileText, Download, Plus, UserCheck, AlertOctagon, CalendarClock, Shield, BookOpen, Upload, Loader2, Star, FileDown } from 'lucide-react';
+import { Document, Packer, Paragraph, TextRun, ImageRun, HeadingLevel, Table as DocxTable, TableRow as DocxTableRow, TableCell as DocxTableCell, WidthType, BorderStyle, AlignmentType } from 'docx';
 import { PolicyDynamicFieldsRenderer } from '@/components/policies/PolicyDynamicFieldsRenderer';
 import { PolicyRatingsTab } from '@/components/policies/PolicyRatingsTab';
 import { Button } from '@/components/ui/button';
@@ -17,6 +18,7 @@ import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { usePolicies, usePolicyDetail } from '@/hooks/usePolicies';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
@@ -578,6 +580,173 @@ const PolicyDetail = () => {
 
   const exportToPDF = () => generatePDF('download');
 
+  const exportToDocx = async () => {
+    const sections: any[] = [];
+
+    // Title
+    sections.push(
+      new Paragraph({
+        children: [new TextRun({ text: policy.name, bold: true, size: 36, font: 'Calibri' })],
+        heading: HeadingLevel.HEADING_1,
+        spacing: { after: 200 },
+      })
+    );
+
+    // Metadata line
+    sections.push(
+      new Paragraph({
+        children: [
+          new TextRun({ text: `${policy.policy_number || ''} | Status: ${policy.status} | Category: ${policy.category} | Version: v${policy.current_version}`, size: 20, color: '666666', font: 'Calibri' }),
+        ],
+        spacing: { after: 100 },
+      })
+    );
+    sections.push(
+      new Paragraph({
+        children: [
+          new TextRun({ text: `Last Updated: ${format(new Date(policy.updated_at), 'PPpp')}`, size: 20, color: '666666', font: 'Calibri' }),
+        ],
+        spacing: { after: 200 },
+      })
+    );
+
+    if (policy.description) {
+      sections.push(
+        new Paragraph({
+          children: [new TextRun({ text: 'Description', bold: true, size: 24, font: 'Calibri' })],
+          heading: HeadingLevel.HEADING_2,
+          spacing: { after: 100 },
+        })
+      );
+      sections.push(
+        new Paragraph({
+          children: [new TextRun({ text: policy.description, size: 22, font: 'Calibri' })],
+          spacing: { after: 200 },
+        })
+      );
+    }
+
+    // Content - convert HTML to simple paragraphs
+    if (policy.content?.html) {
+      sections.push(
+        new Paragraph({
+          children: [new TextRun({ text: 'Policy Content', bold: true, size: 24, font: 'Calibri' })],
+          heading: HeadingLevel.HEADING_2,
+          spacing: { after: 100 },
+        })
+      );
+
+      // Parse HTML to extract text blocks
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = policy.content.html;
+
+      const processNode = (node: Node) => {
+        if (node.nodeType === Node.TEXT_NODE) {
+          const text = node.textContent?.trim();
+          if (text) {
+            sections.push(new Paragraph({
+              children: [new TextRun({ text, size: 22, font: 'Calibri' })],
+              spacing: { after: 80 },
+            }));
+          }
+        } else if (node.nodeType === Node.ELEMENT_NODE) {
+          const el = node as HTMLElement;
+          const tag = el.tagName.toLowerCase();
+
+          if (['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].includes(tag)) {
+            const level = tag === 'h1' ? HeadingLevel.HEADING_1 : tag === 'h2' ? HeadingLevel.HEADING_2 : HeadingLevel.HEADING_3;
+            sections.push(new Paragraph({
+              children: [new TextRun({ text: el.textContent || '', bold: true, size: tag === 'h1' ? 32 : tag === 'h2' ? 28 : 24, font: 'Calibri' })],
+              heading: level,
+              spacing: { after: 120 },
+            }));
+          } else if (tag === 'p' || tag === 'div') {
+            const text = el.textContent?.trim();
+            if (text) {
+              sections.push(new Paragraph({
+                children: [new TextRun({ text, size: 22, font: 'Calibri' })],
+                spacing: { after: 80 },
+              }));
+            }
+          } else if (tag === 'ul' || tag === 'ol') {
+            el.querySelectorAll('li').forEach((li, idx) => {
+              const bullet = tag === 'ul' ? '• ' : `${idx + 1}. `;
+              sections.push(new Paragraph({
+                children: [new TextRun({ text: bullet + (li.textContent || ''), size: 22, font: 'Calibri' })],
+                spacing: { after: 40 },
+                indent: { left: 400 },
+              }));
+            });
+          } else if (tag === 'table') {
+            const rows = el.querySelectorAll('tr');
+            if (rows.length > 0) {
+              const docxRows = Array.from(rows).map((tr, rIdx) => {
+                const cells = tr.querySelectorAll('td, th');
+                return new DocxTableRow({
+                  children: Array.from(cells).map(cell => new DocxTableCell({
+                    children: [new Paragraph({
+                      children: [new TextRun({
+                        text: cell.textContent || '',
+                        bold: cell.tagName.toLowerCase() === 'th' || rIdx === 0,
+                        size: 20,
+                        font: 'Calibri',
+                      })],
+                    })],
+                    width: { size: 100 / cells.length, type: WidthType.PERCENTAGE },
+                  })),
+                });
+              });
+              sections.push(new DocxTable({ rows: docxRows, width: { size: 100, type: WidthType.PERCENTAGE } }));
+              sections.push(new Paragraph({ children: [], spacing: { after: 120 } }));
+            }
+          } else if (tag === 'blockquote') {
+            sections.push(new Paragraph({
+              children: [new TextRun({ text: el.textContent || '', italics: true, size: 22, color: '374151', font: 'Calibri' })],
+              indent: { left: 400 },
+              spacing: { after: 100 },
+            }));
+          } else {
+            // Recurse for other elements
+            el.childNodes.forEach(child => processNode(child));
+          }
+        }
+      };
+
+      tempDiv.childNodes.forEach(child => processNode(child));
+    }
+
+    // Attachments
+    const pdfAttachments = (policy.attachments || []).filter((att: any) => att.show_in_pdf !== false);
+    if (pdfAttachments.length > 0) {
+      sections.push(new Paragraph({
+        children: [new TextRun({ text: 'Attachments', bold: true, size: 24, font: 'Calibri' })],
+        heading: HeadingLevel.HEADING_2,
+        spacing: { before: 200, after: 100 },
+      }));
+      pdfAttachments.forEach((att: any) => {
+        sections.push(new Paragraph({
+          children: [new TextRun({ text: `• ${att.name}${att.url ? ' — ' + att.url : ''}`, size: 20, font: 'Calibri' })],
+          spacing: { after: 40 },
+        }));
+      });
+    }
+
+    const doc = new Document({
+      sections: [{ children: sections }],
+    });
+
+    const blob = await Packer.toBlob(doc);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${policy.policy_number || policy.name.replace(/[^a-zA-Z0-9]/g, '_')}_v${policy.current_version}.docx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success('DOCX exported successfully');
+  };
+
   const pdfFormatValue = (value: any, fieldType: string, options?: any): string => {
     if (value === null || value === undefined || value === '') return '—';
     // Handle cross-reference fields
@@ -660,9 +829,21 @@ const PolicyDetail = () => {
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <Button variant="outline" size="sm" onClick={exportToPDF}>
-            <Download className="h-4 w-4 mr-1" /> Export PDF
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Download className="h-4 w-4 mr-1" /> Export
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="bg-popover">
+              <DropdownMenuItem onClick={exportToPDF}>
+                <FileText className="h-4 w-4 mr-2" /> Export as PDF
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={exportToDocx}>
+                <FileDown className="h-4 w-4 mr-2" /> Export as DOCX (Google Docs)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           {isAdmin && policy.status === 'draft' && (
             <>
               <Button variant="outline" size="sm" onClick={startEditing}>
@@ -824,12 +1005,6 @@ const PolicyDetail = () => {
           </TabsTrigger>
           <TabsTrigger value="versions" className="gap-1">
             <History className="h-3.5 w-3.5" /> Versions ({versions.length})
-          </TabsTrigger>
-          <TabsTrigger value="acknowledgments" className="gap-1">
-            <UserCheck className="h-3.5 w-3.5" /> Acknowledgments ({acknowledgments.length})
-          </TabsTrigger>
-          <TabsTrigger value="exceptions" className="gap-1">
-            <AlertOctagon className="h-3.5 w-3.5" /> Exceptions ({exceptions.length})
           </TabsTrigger>
           <TabsTrigger value="linkages" className="gap-1">
             <Link2 className="h-3.5 w-3.5" /> Linkages ({linkages.length})
@@ -1126,92 +1301,9 @@ const PolicyDetail = () => {
           </Card>
         </TabsContent>
 
-        {/* Acknowledgments Tab */}
-        <TabsContent value="acknowledgments" className="mt-4">
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center justify-between mb-4">
-                <p className="text-sm font-medium">Acknowledgment Tracking</p>
-                {policy.status === 'published' && !acknowledgments.some(a => a.user_id === user?.id) && (
-                  <Button size="sm" onClick={() => acknowledgePolicy.mutate({ policyId: policy.id, versionNumber: policy.current_version })}>
-                    <UserCheck className="h-4 w-4 mr-1" /> Acknowledge
-                  </Button>
-                )}
-              </div>
-              {acknowledgments.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-6">No acknowledgments yet.</p>
-              ) : (
-                <div className="space-y-2">
-                  {acknowledgments.map(a => (
-                    <div key={a.id} className="flex items-center justify-between p-3 rounded-md border">
-                      <div className="flex items-center gap-2">
-                        <UserCheck className="h-4 w-4 text-primary" />
-                        <span className="text-sm font-medium">{getUserName(a.user_id)}</span>
-                        <Badge variant="outline" className="text-[10px]">v{a.version_acknowledged}</Badge>
-                      </div>
-                      <span className="text-xs text-muted-foreground">{format(new Date(a.acknowledged_at), 'MMM d, yyyy HH:mm')}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+        {/* Acknowledgments Tab hidden */}
 
-        {/* Exceptions Tab */}
-        <TabsContent value="exceptions" className="mt-4">
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center justify-between mb-4">
-                <p className="text-sm font-medium">Exception Requests</p>
-                {policy.status === 'published' && (
-                  <Button size="sm" variant="outline" onClick={() => {
-                    const reason = prompt('Reason for exception request:');
-                    if (reason) {
-                      requestException.mutate({
-                        policy_id: policy.id,
-                        reason,
-                        status: 'pending',
-                      });
-                    }
-                  }}>
-                    <AlertOctagon className="h-4 w-4 mr-1" /> Request Exception
-                  </Button>
-                )}
-              </div>
-              {exceptions.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-6">No exception requests.</p>
-              ) : (
-                <div className="space-y-3">
-                  {exceptions.map(ex => (
-                    <div key={ex.id} className="p-3 rounded-md border space-y-2">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Badge variant={ex.status === 'approved' ? 'default' : ex.status === 'rejected' ? 'destructive' : 'secondary'}>
-                            {ex.status}
-                          </Badge>
-                          <span className="text-sm">{ex.reason}</span>
-                        </div>
-                        <span className="text-xs text-muted-foreground">{format(new Date(ex.created_at), 'MMM d, yyyy')}</span>
-                      </div>
-                      <p className="text-xs text-muted-foreground">Requested by: {getUserName(ex.requested_by)}</p>
-                      {ex.status === 'pending' && isAdmin && (
-                        <div className="flex gap-2 pt-2 border-t">
-                          <Button size="sm" onClick={() => respondException.mutate({ exceptionId: ex.id, status: 'approved', approved_by: user?.id! })}>
-                            Approve
-                          </Button>
-                          <Button size="sm" variant="destructive" onClick={() => respondException.mutate({ exceptionId: ex.id, status: 'rejected', approved_by: user?.id! })}>
-                            Reject
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+        {/* Exceptions Tab hidden */}
 
         {/* Linkages Tab */}
         <TabsContent value="linkages" className="mt-4">
