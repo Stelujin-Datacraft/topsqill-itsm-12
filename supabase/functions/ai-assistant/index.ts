@@ -14,7 +14,7 @@ interface FormField {
 }
 
 interface AIRequest {
-   action: 'auto-fill' | 'suggest-routing' | 'analyze-content' | 'generate-summary' | 'natural-language-query' | 'generate-content' | 'chatbot-assist' | 'chatbot-copilot' | 'generate-formula' | 'generate-form' | 'suggest-workflow' | 'suggest-field-mappings' | 'suggest-chart' | 'generate-sla-template' | 'generate-escalation-chain' | 'suggest-field-rules' | 'suggest-form-rules' | 'generate-email-template';
+   action: 'auto-fill' | 'suggest-routing' | 'analyze-content' | 'generate-summary' | 'natural-language-query' | 'generate-content' | 'chatbot-assist' | 'chatbot-copilot' | 'generate-formula' | 'generate-form' | 'suggest-workflow' | 'suggest-field-mappings' | 'suggest-chart' | 'generate-report-component' | 'generate-sla-template' | 'generate-escalation-chain' | 'suggest-field-rules' | 'suggest-form-rules' | 'generate-email-template';
   context: {
     formFields?: FormField[];
     currentValues?: Record<string, any>;
@@ -1050,6 +1050,63 @@ Return JSON with format:
   ],
   "warnings": ["Any data quality issues noticed"]
 }`;
+        break;
+
+      // Generate Report Component from natural language
+      case 'generate-report-component':
+        temperature = 0.3;
+        maxTokens = 2500;
+        
+        systemPrompt = `You are a report builder AI. Given a natural language prompt describing a chart, generate a complete chart configuration object.
+
+Available chart types: bar, line, area, pie, donut, scatter, bubble, heatmap
+Aggregation types: count, sum, avg, min, max, median, stddev
+Filter operators: equals, not_equals, contains, not_contains, greater_than, less_than, greater_equal, less_equal, is_empty, is_not_empty
+Color themes: default, vibrant, pastel, monochrome
+
+Rules:
+- Use the exact field IDs provided for xAxis, yAxis, dimensions, metrics, filters, and drilldownLevels
+- For pie/donut, set a dimension (group by field) and a metric
+- For bar/line/area, set xAxis (dimension) and yAxis (metric)
+- For scatter, set xAxis and yAxis as numeric fields
+- Aggregation defaults to 'count' unless user specifies otherwise
+- Drilldown levels should be an array of field IDs for hierarchical drill-down
+- Only include filters if the user explicitly mentions filtering criteria
+- Only include drilldown if the user mentions drill-down or hierarchy`;
+
+        userPrompt = `Generate a chart configuration from this prompt:
+
+Form: ${context.selectedFormName || 'Form'}
+Form ID: ${context.selectedFormId || ''}
+
+Available Fields (use these exact IDs):
+${JSON.stringify(context.availableFields, null, 2)}
+
+User Prompt: "${context.userInput}"
+
+Return JSON with this exact format:
+{
+  "title": "Chart Title",
+  "description": "Brief description of what this chart shows",
+  "chartType": "bar|line|area|pie|donut|scatter|bubble|heatmap",
+  "formId": "${context.selectedFormId || ''}",
+  "xAxis": "field_id_for_x_axis",
+  "yAxis": "field_id_for_y_axis",
+  "dimensions": ["field_id_for_grouping"],
+  "metrics": ["field_id_for_measuring"],
+  "aggregationType": "count|sum|avg|min|max|median|stddev",
+  "aggregationEnabled": true,
+  "colorTheme": "default|vibrant|pastel|monochrome",
+  "filters": [{ "field": "field_id", "operator": "equals", "value": "some_value" }],
+  "drilldownConfig": {
+    "enabled": false,
+    "levels": ["field_id_level1", "field_id_level2"]
+  },
+  "maxDataPoints": 20,
+  "reasoning": "Why this configuration matches the user's request"
+}
+
+IMPORTANT: Use the exact field IDs from the available fields list. Do not invent field IDs.`;
         break;
 
       // NEW: SLA Template Generation

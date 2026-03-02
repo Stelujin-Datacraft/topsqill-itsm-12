@@ -13,6 +13,7 @@ import { ChartPreview } from './ChartPreview';
 import { MetricCard } from './MetricCard';
 import { QueryChartComponent } from './QueryChartComponent';
 import { Plus, Save, BarChart3, Table as TableIcon, Hash, Type, FileText, Move, MousePointer, Edit2, Check, X, Image, Video, Link as LinkIcon, File, Database, ChevronDown } from 'lucide-react';
+import { AIReportBuilder } from './AIReportBuilder';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -711,6 +712,43 @@ export function ReportEditor({
             Save
           </Button>
         </div>
+
+      {/* AI Report Builder */}
+      <AIReportBuilder
+        reportId={reportId}
+        onComponentGenerated={async (componentData) => {
+          // Use existing handleSaveComponent flow
+          try {
+            if (reportId === 'new') {
+              toast({ title: "Error", description: "Please save the report first", variant: "destructive" });
+              return;
+            }
+            const defaultLayout = {
+              x: 0,
+              y: Math.max(...components.map(c => c.layout.y + c.layout.h), 0),
+              w: 6,
+              h: 4
+            };
+            const newComponent = await saveReportComponent({
+              report_id: reportId,
+              type: componentData.type as any,
+              config: componentData.config || {},
+              layout: defaultLayout
+            });
+            const typedNew = {
+              ...newComponent,
+              type: newComponent.type as any,
+              config: newComponent.config as any,
+              layout: newComponent.layout as any
+            };
+            setComponents(prev => [...prev, typedNew]);
+            toast({ title: "Success", description: "AI-generated component added" });
+          } catch (error) {
+            console.error('Error adding AI component:', error);
+            toast({ title: "Error", description: "Failed to add component", variant: "destructive" });
+          }
+        }}
+      />
 
       {/* Mode Indicator */}
       {!isDragEnabled && <div className="bg-blue-100 dark:bg-blue-900 border border-blue-200 dark:border-blue-800 rounded-lg p-3 mb-4">
