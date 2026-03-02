@@ -158,7 +158,9 @@ export function AIReportBuilder({ open, onOpenChange, reportId, onComponentGener
       formId: selectedFormId,
       compareMode: isCompare,
       aggregationEnabled: !isCompare && (chartConfig.aggregationEnabled !== false),
-      metricAggregations: chartConfig.metricAggregations || [],
+      // In compare mode, clear dimensions so raw per-submission data is plotted (no grouping/summing)
+      dimensions: isCompare ? [] : (chartConfig.dimensions || []),
+      metricAggregations: isCompare ? [] : (chartConfig.metricAggregations || []),
       drilldownEnabled: chartConfig.drilldownConfig?.enabled || false,
       drilldownLevels: chartConfig.drilldownConfig?.levels || [],
     };
