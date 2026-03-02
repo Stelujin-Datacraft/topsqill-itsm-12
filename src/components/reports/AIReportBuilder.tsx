@@ -46,6 +46,8 @@ interface GeneratedConfig {
   metrics?: string[];
   aggregationType?: string;
   aggregationEnabled?: boolean;
+  compareMode?: boolean;
+  metricAggregations?: Array<{ field: string; aggregation: string }>;
   colorTheme?: string;
   filters?: Array<{ field: string; operator: string; value: any }>;
   drilldownConfig?: { enabled: boolean; levels: string[] };
@@ -150,9 +152,13 @@ export function AIReportBuilder({ open, onOpenChange, reportId, onComponentGener
     if (!generatedConfig) return;
 
     const { reasoning, ...chartConfig } = generatedConfig;
+    const isCompare = chartConfig.compareMode === true;
     const finalConfig = {
       ...chartConfig,
       formId: selectedFormId,
+      compareMode: isCompare,
+      aggregationEnabled: !isCompare && (chartConfig.aggregationEnabled !== false),
+      metricAggregations: chartConfig.metricAggregations || [],
       drilldownEnabled: chartConfig.drilldownConfig?.enabled || false,
       drilldownLevels: chartConfig.drilldownConfig?.levels || [],
     };
@@ -285,7 +291,12 @@ export function AIReportBuilder({ open, onOpenChange, reportId, onComponentGener
               <CardContent className="p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <h4 className="font-medium text-sm">{generatedConfig.title}</h4>
-                  <Badge variant="secondary" className="capitalize">{generatedConfig.chartType}</Badge>
+                  <div className="flex gap-1.5">
+                    <Badge variant={generatedConfig.compareMode ? "default" : "secondary"} className="text-xs">
+                      {generatedConfig.compareMode ? 'Compare Fields' : 'Calculate Values'}
+                    </Badge>
+                    <Badge variant="secondary" className="capitalize text-xs">{generatedConfig.chartType}</Badge>
+                  </div>
                 </div>
 
                 {generatedConfig.description && (
