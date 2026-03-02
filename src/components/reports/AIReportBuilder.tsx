@@ -10,6 +10,13 @@ import { useReports } from '@/hooks/useReports';
 import { FormField } from '@/types/form';
 import { toast } from 'sonner';
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
@@ -22,6 +29,8 @@ import {
 } from '@/components/ui/tooltip';
 
 interface AIReportBuilderProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   reportId: string;
   onComponentGenerated: (componentData: { type: string; config: any }) => void;
 }
@@ -44,8 +53,7 @@ interface GeneratedConfig {
   reasoning?: string;
 }
 
-export function AIReportBuilder({ reportId, onComponentGenerated }: AIReportBuilderProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
+export function AIReportBuilder({ open, onOpenChange, reportId, onComponentGenerated }: AIReportBuilderProps) {
   const [selectedFormId, setSelectedFormId] = useState('');
   const [formFields, setFormFields] = useState<FormField[]>([]);
   const [loadingFields, setLoadingFields] = useState(false);
@@ -141,7 +149,6 @@ export function AIReportBuilder({ reportId, onComponentGenerated }: AIReportBuil
   const handleApply = () => {
     if (!generatedConfig) return;
 
-    // Build the config matching the existing chart component structure
     const { reasoning, ...chartConfig } = generatedConfig;
     const finalConfig = {
       ...chartConfig,
@@ -153,220 +160,211 @@ export function AIReportBuilder({ reportId, onComponentGenerated }: AIReportBuil
     onComponentGenerated({ type: 'chart', config: finalConfig });
     setGeneratedConfig(null);
     setPrompt('');
-    toast.success('Chart component added to report!');
   };
 
   const getFieldLabel = (fieldId: string) => {
     return formFields.find(f => f.id === fieldId)?.label || fieldId;
   };
 
-  const selectedForm = forms.find(f => f.id === selectedFormId);
-
   return (
-    <Card className="border-primary/20 bg-primary/5">
-      <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
-        <CollapsibleTrigger asChild>
-          <button className="w-full flex items-center justify-between p-4 hover:bg-primary/10 transition-colors rounded-t-lg">
-            <div className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-primary" />
-              <span className="font-semibold text-sm">AI Report Builder</span>
-              <Badge variant="secondary" className="text-xs">Beta</Badge>
-            </div>
-            {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          </button>
-        </CollapsibleTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-primary" />
+            AI Report Builder
+            <Badge variant="secondary" className="text-xs">Beta</Badge>
+          </DialogTitle>
+          <DialogDescription>
+            Select a form and describe the chart you want to create using natural language.
+          </DialogDescription>
+        </DialogHeader>
 
-        <CollapsibleContent>
-          <CardContent className="pt-0 space-y-4">
-            {/* Form Selector */}
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Select Form</label>
-              <Select value={selectedFormId} onValueChange={setSelectedFormId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Choose a form to build chart from" />
-                </SelectTrigger>
-                <SelectContent>
-                  {forms.map(form => (
-                    <SelectItem key={form.id} value={form.id}>
-                      <div className="flex items-center gap-2">
-                        <span>{form.name}</span>
-                        <Badge variant="outline" className="text-xs">{form.fields.length} fields</Badge>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+        <div className="space-y-4">
+          {/* Form Selector */}
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Select Form</label>
+            <Select value={selectedFormId} onValueChange={setSelectedFormId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Choose a form to build chart from" />
+              </SelectTrigger>
+              <SelectContent>
+                {forms.map(form => (
+                  <SelectItem key={form.id} value={form.id}>
+                    <div className="flex items-center gap-2">
+                      <span>{form.name}</span>
+                      <Badge variant="outline" className="text-xs">{form.fields.length} fields</Badge>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-            {/* Field Reference - only when form is selected */}
-            {selectedFormId && formFields.length > 0 && (
-              <Collapsible open={showFieldRef} onOpenChange={setShowFieldRef}>
-                <CollapsibleTrigger asChild>
-                  <button className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
-                    <Info className="h-3 w-3" />
-                    <span>Available Fields ({formFields.length})</span>
-                    {showFieldRef ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-                  </button>
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                  <div className="flex flex-wrap gap-1.5 mt-2 p-2 rounded-md bg-background border">
-                    <TooltipProvider delayDuration={200}>
-                      {formFields.map(field => (
-                        <Tooltip key={field.id}>
-                          <TooltipTrigger asChild>
-                            <Badge
-                              variant="outline"
-                              className="text-xs cursor-default"
-                            >
-                              {field.label}
-                              <span className="ml-1 text-muted-foreground opacity-60">({field.type})</span>
-                            </Badge>
-                          </TooltipTrigger>
-                          <TooltipContent side="bottom" className="text-xs">
-                            <p>Use "<strong>{field.label}</strong>" in your prompt</p>
-                            <p className="text-muted-foreground">Type: {field.type}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      ))}
-                    </TooltipProvider>
-                  </div>
-                </CollapsibleContent>
-              </Collapsible>
-            )}
-
-            {loadingFields && (
-              <div className="text-xs text-muted-foreground flex items-center gap-1">
-                <Loader2 className="h-3 w-3 animate-spin" />
-                Loading fields...
-              </div>
-            )}
-
-            {/* Prompt Input */}
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Describe your chart</label>
-              <Textarea
-                placeholder={selectedFormId
-                  ? `e.g., "Show a bar chart of ${formFields[0]?.label || 'Status'} counts, filter by ${formFields[1]?.label || 'Priority'} = High, with drilldown by ${formFields[2]?.label || 'Category'}"`
-                  : 'Select a form first to see available fields...'
-                }
-                value={prompt}
-                onChange={e => setPrompt(e.target.value)}
-                rows={3}
-                disabled={!selectedFormId}
-                className="resize-none text-sm"
-              />
-              <p className="text-xs text-muted-foreground">
-                Mention: chart type, X/Y axis fields, filters, aggregation (count/sum/avg), and drilldown levels
-              </p>
-            </div>
-
-            {/* Generate Button */}
-            <Button
-              onClick={handleGenerate}
-              disabled={isGenerating || !selectedFormId || !prompt.trim()}
-              className="w-full"
-              size="sm"
-            >
-              {isGenerating ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Generating Chart Config...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="h-4 w-4 mr-2" />
-                  Generate Chart
-                </>
-              )}
-            </Button>
-
-            {/* Generated Config Preview */}
-            {generatedConfig && (
-              <Card className="border-primary/30">
-                <CardContent className="p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-medium text-sm">{generatedConfig.title}</h4>
-                    <Badge variant="secondary" className="capitalize">{generatedConfig.chartType}</Badge>
-                  </div>
-
-                  {generatedConfig.description && (
-                    <p className="text-xs text-muted-foreground">{generatedConfig.description}</p>
-                  )}
-
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    {generatedConfig.xAxis && (
-                      <div>
-                        <span className="text-muted-foreground">X-Axis:</span>{' '}
-                        <span className="font-medium">{getFieldLabel(generatedConfig.xAxis)}</span>
-                      </div>
-                    )}
-                    {generatedConfig.yAxis && (
-                      <div>
-                        <span className="text-muted-foreground">Y-Axis:</span>{' '}
-                        <span className="font-medium">{getFieldLabel(generatedConfig.yAxis)}</span>
-                      </div>
-                    )}
-                    {generatedConfig.aggregationType && (
-                      <div>
-                        <span className="text-muted-foreground">Aggregation:</span>{' '}
-                        <span className="font-medium capitalize">{generatedConfig.aggregationType}</span>
-                      </div>
-                    )}
-                    {generatedConfig.colorTheme && (
-                      <div>
-                        <span className="text-muted-foreground">Theme:</span>{' '}
-                        <span className="font-medium capitalize">{generatedConfig.colorTheme}</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {generatedConfig.filters && generatedConfig.filters.length > 0 && (
-                    <div className="text-xs">
-                      <span className="text-muted-foreground">Filters:</span>
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {generatedConfig.filters.map((f, i) => (
-                          <Badge key={i} variant="outline" className="text-xs">
-                            {getFieldLabel(f.field)} {f.operator} {String(f.value)}
+          {/* Field Reference */}
+          {selectedFormId && formFields.length > 0 && (
+            <Collapsible open={showFieldRef} onOpenChange={setShowFieldRef}>
+              <CollapsibleTrigger asChild>
+                <button className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
+                  <Info className="h-3 w-3" />
+                  <span>Available Fields ({formFields.length})</span>
+                  {showFieldRef ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div className="flex flex-wrap gap-1.5 mt-2 p-2 rounded-md bg-muted/50 border">
+                  <TooltipProvider delayDuration={200}>
+                    {formFields.map(field => (
+                      <Tooltip key={field.id}>
+                        <TooltipTrigger asChild>
+                          <Badge variant="outline" className="text-xs cursor-default">
+                            {field.label}
+                            <span className="ml-1 text-muted-foreground opacity-60">({field.type})</span>
                           </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" className="text-xs">
+                          <p>Use "<strong>{field.label}</strong>" in your prompt</p>
+                          <p className="text-muted-foreground">Type: {field.type}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    ))}
+                  </TooltipProvider>
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+          )}
 
-                  {generatedConfig.drilldownConfig?.enabled && generatedConfig.drilldownConfig.levels.length > 0 && (
-                    <div className="text-xs">
-                      <span className="text-muted-foreground">Drilldown:</span>
-                      <div className="flex items-center gap-1 mt-1">
-                        {generatedConfig.drilldownConfig.levels.map((lvl, i) => (
-                          <React.Fragment key={i}>
-                            {i > 0 && <span className="text-muted-foreground">→</span>}
-                            <Badge variant="outline" className="text-xs">{getFieldLabel(lvl)}</Badge>
-                          </React.Fragment>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+          {loadingFields && (
+            <div className="text-xs text-muted-foreground flex items-center gap-1">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              Loading fields...
+            </div>
+          )}
 
-                  {generatedConfig.reasoning && (
-                    <p className="text-xs text-muted-foreground italic border-t pt-2">
-                      {generatedConfig.reasoning}
-                    </p>
-                  )}
+          {/* Prompt Input */}
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Describe your chart</label>
+            <Textarea
+              placeholder={selectedFormId
+                ? `e.g., "Show a bar chart of ${formFields[0]?.label || 'Status'} counts, filter by ${formFields[1]?.label || 'Priority'} = High, with drilldown by ${formFields[2]?.label || 'Category'}"`
+                : 'Select a form first to see available fields...'
+              }
+              value={prompt}
+              onChange={e => setPrompt(e.target.value)}
+              rows={3}
+              disabled={!selectedFormId}
+              className="resize-none text-sm"
+            />
+            <p className="text-xs text-muted-foreground">
+              Mention: chart type, X/Y axis fields, filters, aggregation (count/sum/avg), and drilldown levels
+            </p>
+          </div>
 
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="outline" onClick={() => setGeneratedConfig(null)} className="flex-1">
-                      Discard
-                    </Button>
-                    <Button size="sm" onClick={handleApply} className="flex-1">
-                      Add to Report
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+          {/* Generate Button */}
+          <Button
+            onClick={handleGenerate}
+            disabled={isGenerating || !selectedFormId || !prompt.trim()}
+            className="w-full"
+          >
+            {isGenerating ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Generating Chart Config...
+              </>
+            ) : (
+              <>
+                <Sparkles className="h-4 w-4 mr-2" />
+                Generate Chart
+              </>
             )}
-          </CardContent>
-        </CollapsibleContent>
-      </Collapsible>
-    </Card>
+          </Button>
+
+          {/* Generated Config Preview */}
+          {generatedConfig && (
+            <Card className="border-primary/30">
+              <CardContent className="p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-medium text-sm">{generatedConfig.title}</h4>
+                  <Badge variant="secondary" className="capitalize">{generatedConfig.chartType}</Badge>
+                </div>
+
+                {generatedConfig.description && (
+                  <p className="text-xs text-muted-foreground">{generatedConfig.description}</p>
+                )}
+
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  {generatedConfig.xAxis && (
+                    <div>
+                      <span className="text-muted-foreground">X-Axis:</span>{' '}
+                      <span className="font-medium">{getFieldLabel(generatedConfig.xAxis)}</span>
+                    </div>
+                  )}
+                  {generatedConfig.yAxis && (
+                    <div>
+                      <span className="text-muted-foreground">Y-Axis:</span>{' '}
+                      <span className="font-medium">{getFieldLabel(generatedConfig.yAxis)}</span>
+                    </div>
+                  )}
+                  {generatedConfig.aggregationType && (
+                    <div>
+                      <span className="text-muted-foreground">Aggregation:</span>{' '}
+                      <span className="font-medium capitalize">{generatedConfig.aggregationType}</span>
+                    </div>
+                  )}
+                  {generatedConfig.colorTheme && (
+                    <div>
+                      <span className="text-muted-foreground">Theme:</span>{' '}
+                      <span className="font-medium capitalize">{generatedConfig.colorTheme}</span>
+                    </div>
+                  )}
+                </div>
+
+                {generatedConfig.filters && generatedConfig.filters.length > 0 && (
+                  <div className="text-xs">
+                    <span className="text-muted-foreground">Filters:</span>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {generatedConfig.filters.map((f, i) => (
+                        <Badge key={i} variant="outline" className="text-xs">
+                          {getFieldLabel(f.field)} {f.operator} {String(f.value)}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {generatedConfig.drilldownConfig?.enabled && generatedConfig.drilldownConfig.levels.length > 0 && (
+                  <div className="text-xs">
+                    <span className="text-muted-foreground">Drilldown:</span>
+                    <div className="flex items-center gap-1 mt-1">
+                      {generatedConfig.drilldownConfig.levels.map((lvl, i) => (
+                        <React.Fragment key={i}>
+                          {i > 0 && <span className="text-muted-foreground">→</span>}
+                          <Badge variant="outline" className="text-xs">{getFieldLabel(lvl)}</Badge>
+                        </React.Fragment>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {generatedConfig.reasoning && (
+                  <p className="text-xs text-muted-foreground italic border-t pt-2">
+                    {generatedConfig.reasoning}
+                  </p>
+                )}
+
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={() => setGeneratedConfig(null)} className="flex-1">
+                    Discard
+                  </Button>
+                  <Button size="sm" onClick={handleApply} className="flex-1">
+                    Add to Report
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
