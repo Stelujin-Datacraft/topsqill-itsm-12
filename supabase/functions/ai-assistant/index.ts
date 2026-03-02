@@ -1060,16 +1060,31 @@ Return JSON with format:
         systemPrompt = `You are a report builder AI. Given a natural language prompt describing a chart, generate a complete chart configuration object.
 
 Available chart types: bar, line, area, pie, donut, scatter, bubble, heatmap
-Aggregation types: count, sum, avg, min, max, median, stddev
+Aggregation types: count, sum, avg, min, max
 Filter operators: equals, not_equals, contains, not_contains, greater_than, less_than, greater_equal, less_equal, is_empty, is_not_empty
 Color themes: default, vibrant, pastel, monochrome
 
+There are TWO distinct chart modes:
+
+1. **Compare Two Fields** (compareMode: true, aggregationEnabled: false):
+   - Used when the user wants to plot two fields against each other (e.g., "compare Field A vs Field B")
+   - Both metrics[0] and metrics[1] are field IDs representing the two fields to compare
+   - No aggregation is applied — raw submission values are plotted directly
+   - Best for scatter plots or when user says "compare", "X vs Y", "plot field A against field B"
+   - dimensions should contain both field IDs
+
+2. **Calculate Values** (compareMode: false, aggregationEnabled: true):
+   - Used when the user wants to aggregate/summarize data (e.g., "count of Status", "sum of Amount by Category")
+   - metrics[0] is the field to aggregate, dimensions[0] is the grouping field
+   - aggregationType specifies how to aggregate (count, sum, avg, min, max)
+   - The user MUST explicitly mention aggregation keywords (count, sum, average, total, etc.)
+
 Rules:
-- Use the exact field IDs provided for xAxis, yAxis, dimensions, metrics, filters, and drilldownLevels
-- For pie/donut, set a dimension (group by field) and a metric
-- For bar/line/area, set xAxis (dimension) and yAxis (metric)
-- For scatter, set xAxis and yAxis as numeric fields
-- Aggregation defaults to 'count' unless user specifies otherwise
+- Use the exact field IDs provided for all field references
+- DEFAULT to compareMode when user provides both X and Y axis fields WITHOUT mentioning aggregation
+- Only set aggregationEnabled: true when user explicitly asks for count, sum, avg, min, max, or similar aggregation
+- For pie/donut, always use aggregation mode
+- For scatter, default to compare mode
 - Drilldown levels should be an array of field IDs for hierarchical drill-down
 - Only include filters if the user explicitly mentions filtering criteria
 - Only include drilldown if the user mentions drill-down or hierarchy`;
@@ -1090,12 +1105,12 @@ Return JSON with this exact format:
   "description": "Brief description of what this chart shows",
   "chartType": "bar|line|area|pie|donut|scatter|bubble|heatmap",
   "formId": "${context.selectedFormId || ''}",
-  "xAxis": "field_id_for_x_axis",
-  "yAxis": "field_id_for_y_axis",
+  "compareMode": true or false,
+  "aggregationEnabled": true or false,
+  "metrics": ["field_id_1", "field_id_2_if_compare_mode"],
   "dimensions": ["field_id_for_grouping"],
-  "metrics": ["field_id_for_measuring"],
-  "aggregationType": "count|sum|avg|min|max|median|stddev",
-  "aggregationEnabled": true,
+  "aggregationType": "count|sum|avg|min|max (only when aggregationEnabled is true)",
+  "metricAggregations": [{"field": "field_id", "aggregation": "count|sum|avg|min|max"}],
   "colorTheme": "default|vibrant|pastel|monochrome",
   "filters": [{ "field": "field_id", "operator": "equals", "value": "some_value" }],
   "drilldownConfig": {
@@ -1103,10 +1118,13 @@ Return JSON with this exact format:
     "levels": ["field_id_level1", "field_id_level2"]
   },
   "maxDataPoints": 20,
-  "reasoning": "Why this configuration matches the user's request"
+  "reasoning": "Why this configuration matches the user's request. Explain if compare or calculate mode was chosen and why."
 }
 
-IMPORTANT: Use the exact field IDs from the available fields list. Do not invent field IDs.`;
+IMPORTANT: 
+- Use the exact field IDs from the available fields list. Do not invent field IDs.
+- If user says "X axis = FieldA, Y axis = FieldB" WITHOUT mentioning aggregation, use compareMode: true.
+- If user says "count of FieldA" or "sum of FieldB grouped by FieldA", use aggregationEnabled: true.`;
         break;
 
       // NEW: SLA Template Generation
