@@ -1103,8 +1103,10 @@ export function ChartPreview({
 
         // Use server-side RPC function for drilldown-enabled charts
         // IMPORTANT: Skip this path if cross-reference mode is enabled - cross-ref has its own drilldown handling
+        // IMPORTANT: Skip this path if compare mode is enabled - compare mode needs raw submissions
         const isCrossRefMode = config.crossRefConfig?.enabled && config.crossRefConfig?.crossRefFieldId;
-        if (config.drilldownConfig?.enabled && drilldownLevels.length > 0 && !isCrossRefMode) {
+        const isCompareMode = config.compareMode && config.metrics && config.metrics.length === 2;
+        if (config.drilldownConfig?.enabled && drilldownLevels.length > 0 && !isCrossRefMode && !isCompareMode) {
           // Determine the current dimension based on drilldown state
           const currentDrilldownLevel = drilldownState?.values?.length || 0;
           const currentDimension = drilldownLevels[currentDrilldownLevel] || drilldownLevels[0];
