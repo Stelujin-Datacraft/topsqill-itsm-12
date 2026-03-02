@@ -12,7 +12,7 @@ import { FormSubmissionsTable } from './FormSubmissionsTable';
 import { ChartPreview } from './ChartPreview';
 import { MetricCard } from './MetricCard';
 import { QueryChartComponent } from './QueryChartComponent';
-import { Plus, Save, BarChart3, Table as TableIcon, Hash, Type, FileText, Move, MousePointer, Edit2, Check, X, Image, Video, Link as LinkIcon, File, Database, ChevronDown } from 'lucide-react';
+import { Plus, Save, BarChart3, Table as TableIcon, Hash, Type, FileText, Move, MousePointer, Edit2, Check, X, Image, Video, Link as LinkIcon, File, Database, ChevronDown, Sparkles } from 'lucide-react';
 import { AIReportBuilder } from './AIReportBuilder';
 import {
   DropdownMenu,
@@ -54,6 +54,7 @@ export function ReportEditor({
   const [isEditingName, setIsEditingName] = useState(false);
   const [tempReportName, setTempReportName] = useState(reportName);
   const [isMediaDialogOpen, setIsMediaDialogOpen] = useState(false);
+  const [isAIBuilderOpen, setIsAIBuilderOpen] = useState(false);
   const [isEditMediaDialogOpen, setIsEditMediaDialogOpen] = useState(false);
   const [editingMedia, setEditingMedia] = useState<ReportMedia | null>(null);
   const [mediaItems, setMediaItems] = useState<ReportMedia[]>([]);
@@ -662,6 +663,12 @@ export function ReportEditor({
             {isDragEnabled ? <Move className="h-4 w-4" /> : <MousePointer className="h-4 w-4" />}
             <span className="hidden sm:inline">{isDragEnabled ? 'Drag' : 'Select'}</span>
           </Button>
+
+          {/* AI Report Builder Button */}
+          <Button variant="outline" size="sm" onClick={() => setIsAIBuilderOpen(true)} className="gap-2">
+            <Sparkles className="h-4 w-4 text-primary" />
+            <span className="hidden sm:inline">AI Builder</span>
+          </Button>
           
           {/* Add Component Dropdown */}
           <DropdownMenu>
@@ -713,11 +720,12 @@ export function ReportEditor({
           </Button>
         </div>
 
-      {/* AI Report Builder */}
+      {/* AI Report Builder Dialog */}
       <AIReportBuilder
+        open={isAIBuilderOpen}
+        onOpenChange={setIsAIBuilderOpen}
         reportId={reportId}
         onComponentGenerated={async (componentData) => {
-          // Use existing handleSaveComponent flow
           try {
             if (reportId === 'new') {
               toast({ title: "Error", description: "Please save the report first", variant: "destructive" });
@@ -743,6 +751,7 @@ export function ReportEditor({
             };
             setComponents(prev => [...prev, typedNew]);
             toast({ title: "Success", description: "AI-generated component added" });
+            setIsAIBuilderOpen(false);
           } catch (error) {
             console.error('Error adding AI component:', error);
             toast({ title: "Error", description: "Failed to add component", variant: "destructive" });
