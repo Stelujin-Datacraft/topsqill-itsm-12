@@ -7,7 +7,7 @@ export interface TopLevelPermission {
   id: string;
   project_id: string;
   user_id: string;
-  entity_type: 'forms' | 'workflows' | 'reports';
+  entity_type: 'forms' | 'workflows' | 'reports' | 'policies' | 'projects' | 'dashboards';
   can_create: boolean;
   can_read: boolean;
   can_update: boolean;

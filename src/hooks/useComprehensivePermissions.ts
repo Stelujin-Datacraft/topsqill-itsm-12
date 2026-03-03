@@ -5,7 +5,7 @@ import { useProject } from '@/contexts/ProjectContext';
 import { useEffectiveUser } from '@/hooks/useEffectiveUser';
 import { toast } from 'sonner';
 
-export type EntityType = 'forms' | 'workflows' | 'reports' | 'policies';
+export type EntityType = 'forms' | 'workflows' | 'reports' | 'policies' | 'projects' | 'dashboards';
 export type ActionType = 'create' | 'read' | 'update' | 'delete';
 
 interface TopLevelPermission {

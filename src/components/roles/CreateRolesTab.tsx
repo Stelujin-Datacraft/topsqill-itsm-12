@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Edit, Trash2, Save, X, Shield, Users, FileText, Workflow, BarChart, FolderOpen, BookOpen } from 'lucide-react';
+import { Plus, Edit, Trash2, Save, X, Shield, Users, FileText, Workflow, BarChart, FolderOpen, BookOpen, LayoutDashboard, Briefcase } from 'lucide-react';
 import { useRoles, Role } from '@/hooks/useRoles';
 import { useCreateRole } from '@/hooks/useCreateRole';
 import { useProject } from '@/contexts/ProjectContext';
@@ -15,6 +15,7 @@ import { useFormsData } from '@/hooks/useFormsData';
 import { useWorkflowData } from '@/hooks/useWorkflowData';
 import { useReports } from '@/hooks/useReports';
 import { usePolicies } from '@/hooks/usePolicies';
+import { useDashboards } from '@/hooks/useDashboards';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -23,6 +24,8 @@ interface ResourcePermissions {
 }
 
 const RESOURCE_TYPES = [
+  { id: 'projects', label: 'Projects', icon: Briefcase },
+  { id: 'dashboards', label: 'Dashboards', icon: LayoutDashboard },
   { id: 'forms', label: 'Forms', icon: FileText },
   { id: 'workflows', label: 'Workflows', icon: Workflow },
   { id: 'reports', label: 'Reports', icon: BarChart },
@@ -44,7 +47,7 @@ export function CreateRolesTab() {
   const { workflows } = useWorkflowData();
   const { reports } = useReports();
   const { policies } = usePolicies();
-
+  const { dashboards } = useDashboards();
   const handleStartCreate = () => {
     setIsCreating(true);
     setEditingRole(null);
@@ -79,8 +82,12 @@ export function CreateRolesTab() {
         frontendResourceType = 'reports';
       } else if (resType === 'policy') {
         frontendResourceType = 'policies';
+      } else if (resType === 'project') {
+        frontendResourceType = 'projects';
+      } else if (resType === 'dashboard') {
+        frontendResourceType = 'dashboards';
       } else {
-        frontendResourceType = resType; // Keep as is for 'project'
+        frontendResourceType = resType;
       }
       
       const key = `${frontendResourceType}:${permission.resource_id || 'all'}`;
@@ -111,6 +118,9 @@ export function CreateRolesTab() {
           } else if (resType === 'policy') {
             assetExists = policies.some(policy => policy.id === permission.resource_id && policy.project_id === project.id);
             if (assetExists) assetTypes[project.id] = 'policies';
+          } else if (resType === 'dashboard') {
+            assetExists = (dashboards as any[]).some(dashboard => dashboard.id === permission.resource_id && dashboard.project_id === project.id);
+            if (assetExists) assetTypes[project.id] = 'dashboards';
           }
         });
       }
@@ -176,6 +186,12 @@ export function CreateRolesTab() {
 
   const getAssetsForProject = (projectId: string, assetType: string) => {
     switch (assetType) {
+      case 'projects':
+        // Show the project itself as the asset
+        const proj = projects.find(p => p.id === projectId);
+        return proj ? [{ id: proj.id, name: proj.name }] : [];
+      case 'dashboards':
+        return (dashboards as any[]).filter(d => d.project_id === projectId).map(d => ({ id: d.id, name: d.name }));
       case 'forms':
         return forms.filter(form => form.projectId === projectId);
       case 'workflows':
@@ -356,6 +372,8 @@ export function CreateRolesTab() {
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
+                                  <SelectItem value="projects">Projects</SelectItem>
+                                  <SelectItem value="dashboards">Dashboards</SelectItem>
                                   <SelectItem value="forms">Forms</SelectItem>
                                   <SelectItem value="workflows">Workflows</SelectItem>
                                   <SelectItem value="reports">Reports</SelectItem>
