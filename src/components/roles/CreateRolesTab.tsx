@@ -24,12 +24,10 @@ interface ResourcePermissions {
 }
 
 const RESOURCE_TYPES = [
-  { id: 'projects', label: 'Projects', icon: Briefcase },
-  { id: 'dashboards', label: 'Dashboards', icon: LayoutDashboard },
+  { id: 'dashboards', label: 'Dashboards & Reports', icon: LayoutDashboard },
   { id: 'forms', label: 'Forms', icon: FileText },
   { id: 'workflows', label: 'Workflows', icon: Workflow },
-  { id: 'reports', label: 'Reports', icon: BarChart },
-  { id: 'policies', label: 'Policies', icon: BookOpen },
+  { id: 'policies', label: 'Knowledge Base', icon: BookOpen },
 ];
 
 export function CreateRolesTab() {
@@ -64,9 +62,9 @@ export function CreateRolesTab() {
     const perms: ResourcePermissions = {};
     const assetTypes: Record<string, string> = {};
     
-    // Initialize asset type selections for each project - default to forms
+    // Initialize asset type selections for each project - default to dashboards
     projects.forEach(project => {
-      assetTypes[project.id] = 'forms';
+      assetTypes[project.id] = 'dashboards';
     });
     
     // Process existing permissions from the role
@@ -138,7 +136,7 @@ export function CreateRolesTab() {
     // Initialize asset type selections for each project
     const initialAssetTypes: Record<string, string> = {};
     projects.forEach(project => {
-      initialAssetTypes[project.id] = 'forms';
+      initialAssetTypes[project.id] = 'dashboards';
     });
     setSelectedAssetTypes(initialAssetTypes);
   };
@@ -186,10 +184,6 @@ export function CreateRolesTab() {
 
   const getAssetsForProject = (projectId: string, assetType: string) => {
     switch (assetType) {
-      case 'projects':
-        // Show the project itself as the asset
-        const proj = projects.find(p => p.id === projectId);
-        return proj ? [{ id: proj.id, name: proj.name }] : [];
       case 'dashboards':
         return (dashboards as any[]).filter(d => d.project_id === projectId).map(d => ({ id: d.id, name: d.name }));
       case 'forms':
@@ -208,6 +202,44 @@ export function CreateRolesTab() {
       default:
         return [];
     }
+  };
+
+  const getReportsForDashboard = (dashboardId: string) => {
+    return reports.filter(report => (report as any).dashboard_id === dashboardId);
+  };
+
+  const renderPermissionRow = (resourceType: string, asset: { id: string; name: string }, label?: string) => {
+    const readChecked = isPermissionChecked(resourceType, asset.id, 'read');
+    const updateChecked = isPermissionChecked(resourceType, asset.id, 'update');
+    const deleteChecked = isPermissionChecked(resourceType, asset.id, 'delete');
+    const disableRead = updateChecked || deleteChecked;
+
+    return (
+      <div key={asset.id} className="flex items-center justify-between p-2 border rounded">
+        <div className="flex items-center gap-3">
+          {label && <Badge variant="outline" className="text-xs">{label}</Badge>}
+          <span className="text-sm">{asset.name}</span>
+        </div>
+        <div className="flex gap-4">
+          <div className="flex items-center space-x-2">
+            <Checkbox checked={isPermissionChecked(resourceType, asset.id, 'create')} onCheckedChange={(checked) => handlePermissionChange(resourceType, asset.id, 'create', checked as boolean)} disabled={true} />
+            <Label className="text-sm">Create</Label>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Checkbox checked={readChecked} onCheckedChange={(checked) => handlePermissionChange(resourceType, asset.id, 'read', checked as boolean)} disabled={disableRead} />
+            <Label className="text-sm">Read</Label>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Checkbox checked={updateChecked} onCheckedChange={(checked) => { if (checked && !readChecked) handlePermissionChange(resourceType, asset.id, 'read', true); handlePermissionChange(resourceType, asset.id, 'update', checked as boolean); }} />
+            <Label className="text-sm">Update</Label>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Checkbox checked={deleteChecked} onCheckedChange={(checked) => { if (checked && !readChecked) handlePermissionChange(resourceType, asset.id, 'read', true); handlePermissionChange(resourceType, asset.id, 'delete', checked as boolean); }} />
+            <Label className="text-sm">Delete</Label>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   const handleSubmit = async () => {
@@ -364,7 +396,7 @@ export function CreateRolesTab() {
                             
                             {/* Asset Type Dropdown */}
                             <div className="w-40">
-                              <Select 
+                                <Select 
                                 value={selectedAssetType} 
                                 onValueChange={(value) => handleAssetTypeChange(project.id, value)}
                               >
@@ -372,87 +404,53 @@ export function CreateRolesTab() {
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="projects">Projects</SelectItem>
-                                  <SelectItem value="dashboards">Dashboards</SelectItem>
+                                  <SelectItem value="dashboards">Dashboards & Reports</SelectItem>
                                   <SelectItem value="forms">Forms</SelectItem>
                                   <SelectItem value="workflows">Workflows</SelectItem>
-                                  <SelectItem value="reports">Reports</SelectItem>
-                                  <SelectItem value="policies">Policies</SelectItem>
+                                  <SelectItem value="policies">Knowledge Base</SelectItem>
                                 </SelectContent>
                               </Select>
                             </div>
                           </div>
 
                           {/* Asset Level Permissions */}
-{assets.map(asset => {
-  const readChecked = isPermissionChecked(selectedAssetType, asset.id, 'read');
-  const updateChecked = isPermissionChecked(selectedAssetType, asset.id, 'update');
-  const deleteChecked = isPermissionChecked(selectedAssetType, asset.id, 'delete');
-
-  // Disable 'read' checkbox if either update or delete is checked
-  const disableRead = updateChecked || deleteChecked;
-
+{/* Nested rendering for Dashboards & Reports */}
+{selectedAssetType === 'dashboards' && assets.map(dashboard => {
+  const dashReports = getReportsForDashboard(dashboard.id);
   return (
-    <div key={asset.id} className="flex items-center justify-between p-2 border rounded">
-      <div className="flex items-center gap-3">
-        <span className="text-sm">{asset.name}</span>
-      </div>
-      <div className="flex gap-4">
-        {/* Create - Always disabled */}
-        <div className="flex items-center space-x-2">
-          <Checkbox
-            checked={isPermissionChecked(selectedAssetType, asset.id, 'create')}
-            onCheckedChange={(checked) =>
-              handlePermissionChange(selectedAssetType, asset.id, 'create', checked as boolean)
-            }
-            disabled={true}
-          />
-          <Label className="text-sm">Create</Label>
+    <div key={dashboard.id} className="space-y-2">
+      {renderPermissionRow('dashboards', dashboard, 'Dashboard')}
+      {dashReports.length > 0 && (
+        <div className="ml-6 space-y-1 border-l-2 border-muted pl-4">
+          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Reports in {dashboard.name}</span>
+          {dashReports.map(report => renderPermissionRow('reports', report, 'Report'))}
         </div>
-
-        {/* Read */}
-        <div className="flex items-center space-x-2">
-          <Checkbox
-            checked={readChecked}
-            onCheckedChange={(checked) =>
-              handlePermissionChange(selectedAssetType, asset.id, 'read', checked as boolean)
-            }
-            disabled={disableRead}
-          />
-          <Label className="text-sm">Read</Label>
-        </div>
-
-        {/* Update */}
-        <div className="flex items-center space-x-2">
-          <Checkbox
-            checked={updateChecked}
-            onCheckedChange={(checked) => {
-              if (checked && !readChecked) {
-                handlePermissionChange(selectedAssetType, asset.id, 'read', true);
-              }
-              handlePermissionChange(selectedAssetType, asset.id, 'update', checked as boolean);
-            }}
-          />
-          <Label className="text-sm">Update</Label>
-        </div>
-
-        {/* Delete */}
-        <div className="flex items-center space-x-2">
-          <Checkbox
-            checked={deleteChecked}
-            onCheckedChange={(checked) => {
-              if (checked && !readChecked) {
-                handlePermissionChange(selectedAssetType, asset.id, 'read', true);
-              }
-              handlePermissionChange(selectedAssetType, asset.id, 'delete', checked as boolean);
-            }}
-          />
-          <Label className="text-sm">Delete</Label>
-        </div>
-      </div>
+      )}
     </div>
   );
 })}
+
+{/* Nested rendering for Knowledge Base (Policies) */}
+{selectedAssetType === 'policies' && (() => {
+  const proj = projects.find(p => p.id === project.id);
+  const projPolicies = getAssetsForProject(project.id, 'policies');
+  return (
+    <div className="space-y-2">
+      {proj && renderPermissionRow('projects', { id: proj.id, name: proj.name }, 'Project')}
+      {projPolicies.length > 0 && (
+        <div className="ml-6 space-y-1 border-l-2 border-muted pl-4">
+          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Policies</span>
+          {projPolicies.map(policy => renderPermissionRow('policies', policy, 'Policy'))}
+        </div>
+      )}
+    </div>
+  );
+})()}
+
+{/* Flat rendering for Forms & Workflows */}
+{selectedAssetType !== 'dashboards' && selectedAssetType !== 'policies' && assets.map(asset => 
+  renderPermissionRow(selectedAssetType, asset)
+)}
 
                         </div>
                       </CardContent>
