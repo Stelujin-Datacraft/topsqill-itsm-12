@@ -65,6 +65,8 @@ export function useCreateRole() {
           dbResourceType = 'workflow';
         } else if (resourceType === 'reports') {
           dbResourceType = 'report';
+        } else if (resourceType === 'policies') {
+          dbResourceType = 'policy';
         }
         
         permissionTypes.forEach(permission => {
@@ -154,6 +156,8 @@ export function useCreateRole() {
           dbResourceType = 'workflow';
         } else if (resourceType === 'reports') {
           dbResourceType = 'report';
+        } else if (resourceType === 'policies') {
+          dbResourceType = 'policy';
         }
         
         permissionTypes.forEach(permission => {
