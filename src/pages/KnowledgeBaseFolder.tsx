@@ -125,12 +125,7 @@ const KnowledgeBaseFolder = () => {
             <BarChart3 className="h-4 w-4" />
             Dashboard
           </TabsTrigger>
-          {isAdmin && !isUnassigned && (
-            <TabsTrigger value="access" className="gap-2">
-              <Lock className="h-4 w-4" />
-              Access Controls
-            </TabsTrigger>
-          )}
+          {/* Access Controls moved to Roles and Access page */}
         </TabsList>
 
         <TabsContent value="list" className="space-y-4">
@@ -291,11 +286,7 @@ const KnowledgeBaseFolder = () => {
           <PolicyDashboard policies={folderPolicies} />
         </TabsContent>
 
-        {isAdmin && !isUnassigned && folderId && (
-          <TabsContent value="access">
-            <FolderAccessControls folderId={folderId} />
-          </TabsContent>
-        )}
+        {/* Access Controls moved to Roles and Access page */}
       </Tabs>
 
       {/* Template dialogs - same as original Policies page */}

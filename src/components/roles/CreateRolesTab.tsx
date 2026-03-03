@@ -7,13 +7,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Edit, Trash2, Save, X, Shield, Users, FileText, Workflow, BarChart, FolderOpen } from 'lucide-react';
+import { Plus, Edit, Trash2, Save, X, Shield, Users, FileText, Workflow, BarChart, FolderOpen, BookOpen } from 'lucide-react';
 import { useRoles, Role } from '@/hooks/useRoles';
 import { useCreateRole } from '@/hooks/useCreateRole';
 import { useProject } from '@/contexts/ProjectContext';
 import { useFormsData } from '@/hooks/useFormsData';
 import { useWorkflowData } from '@/hooks/useWorkflowData';
 import { useReports } from '@/hooks/useReports';
+import { usePolicies } from '@/hooks/usePolicies';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -25,6 +26,7 @@ const RESOURCE_TYPES = [
   { id: 'forms', label: 'Forms', icon: FileText },
   { id: 'workflows', label: 'Workflows', icon: Workflow },
   { id: 'reports', label: 'Reports', icon: BarChart },
+  { id: 'policies', label: 'Policies', icon: BookOpen },
 ];
 
 export function CreateRolesTab() {
@@ -41,6 +43,7 @@ export function CreateRolesTab() {
   const { forms } = useFormsData();
   const { workflows } = useWorkflowData();
   const { reports } = useReports();
+  const { policies } = usePolicies();
 
   const handleStartCreate = () => {
     setIsCreating(true);
@@ -67,14 +70,17 @@ export function CreateRolesTab() {
     role.permissions.forEach(permission => {
       // Map database resource types to frontend resource types for the key
       let frontendResourceType: string;
-      if (permission.resource_type === 'form') {
+      const resType = permission.resource_type as string;
+      if (resType === 'form') {
         frontendResourceType = 'forms';
-      } else if (permission.resource_type === 'workflow') {
+      } else if (resType === 'workflow') {
         frontendResourceType = 'workflows';
-      } else if (permission.resource_type === 'report') {
+      } else if (resType === 'report') {
         frontendResourceType = 'reports';
+      } else if (resType === 'policy') {
+        frontendResourceType = 'policies';
       } else {
-        frontendResourceType = permission.resource_type; // Keep as is for 'project'
+        frontendResourceType = resType; // Keep as is for 'project'
       }
       
       const key = `${frontendResourceType}:${permission.resource_id || 'all'}`;
@@ -89,19 +95,22 @@ export function CreateRolesTab() {
         projects.forEach(project => {
           let assetExists = false;
           
-          if (permission.resource_type === 'form') {
+          if (resType === 'form') {
             assetExists = forms.some(form => form.id === permission.resource_id && form.projectId === project.id);
             if (assetExists) assetTypes[project.id] = 'forms';
-          } else if (permission.resource_type === 'workflow') {
+          } else if (resType === 'workflow') {
             assetExists = workflows.some(workflow => 
               workflow && typeof workflow === 'object' && 
               'id' in workflow && workflow.id === permission.resource_id &&
               'projectId' in workflow && String(workflow.projectId) === project.id
             );
             if (assetExists) assetTypes[project.id] = 'workflows';
-          } else if (permission.resource_type === 'report') {
+          } else if (resType === 'report') {
             assetExists = reports.some(report => report.id === permission.resource_id && report.project_id === project.id);
             if (assetExists) assetTypes[project.id] = 'reports';
+          } else if (resType === 'policy') {
+            assetExists = policies.some(policy => policy.id === permission.resource_id && policy.project_id === project.id);
+            if (assetExists) assetTypes[project.id] = 'policies';
           }
         });
       }
@@ -178,6 +187,8 @@ export function CreateRolesTab() {
         });
       case 'reports':
         return reports.filter(report => report.project_id === projectId);
+      case 'policies':
+        return policies.filter(policy => policy.project_id === projectId).map(p => ({ id: p.id, name: p.name || p.policy_number || 'Untitled Policy' }));
       default:
         return [];
     }
@@ -348,6 +359,7 @@ export function CreateRolesTab() {
                                   <SelectItem value="forms">Forms</SelectItem>
                                   <SelectItem value="workflows">Workflows</SelectItem>
                                   <SelectItem value="reports">Reports</SelectItem>
+                                  <SelectItem value="policies">Policies</SelectItem>
                                 </SelectContent>
                               </Select>
                             </div>
