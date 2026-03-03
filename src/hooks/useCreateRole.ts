@@ -67,6 +67,10 @@ export function useCreateRole() {
           dbResourceType = 'report';
         } else if (resourceType === 'policies') {
           dbResourceType = 'policy';
+        } else if (resourceType === 'projects') {
+          dbResourceType = 'project';
+        } else if (resourceType === 'dashboards') {
+          dbResourceType = 'dashboard';
         }
         
         permissionTypes.forEach(permission => {
@@ -158,6 +162,10 @@ export function useCreateRole() {
           dbResourceType = 'report';
         } else if (resourceType === 'policies') {
           dbResourceType = 'policy';
+        } else if (resourceType === 'projects') {
+          dbResourceType = 'project';
+        } else if (resourceType === 'dashboards') {
+          dbResourceType = 'dashboard';
         }
         
         permissionTypes.forEach(permission => {
