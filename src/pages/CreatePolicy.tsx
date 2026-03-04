@@ -170,7 +170,7 @@ const CreatePolicy = () => {
         </Card>
 
         {/* Dynamic Fields (left) + Policy Content (right) */}
-        <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-6">
           {/* Dynamic Fields - Left Sidebar */}
           <Card className="h-fit">
             <CardHeader className="pb-3">
