@@ -6,7 +6,7 @@ import { useProject } from '@/contexts/ProjectContext';
 import { useEffectiveUser } from '@/hooks/useEffectiveUser';
 import { toast } from 'sonner';
 
-export type EntityType = 'forms' | 'workflows' | 'reports';
+export type EntityType = 'forms' | 'workflows' | 'reports' | 'dashboards' | 'projects' | 'policies';
 export type ActionType = 'create' | 'read' | 'update' | 'delete';
 
 interface TopLevelPermissions {
@@ -34,18 +34,30 @@ interface AccessControlState {
   loading: boolean;
 }
 
+const DEFAULT_PERM = { can_create: false, can_read: false, can_update: false, can_delete: false };
+
+const defaultTopLevel = (): Record<EntityType, TopLevelPermissions> => ({
+  forms: { ...DEFAULT_PERM },
+  workflows: { ...DEFAULT_PERM },
+  reports: { ...DEFAULT_PERM },
+  dashboards: { ...DEFAULT_PERM },
+  projects: { ...DEFAULT_PERM },
+  policies: { ...DEFAULT_PERM },
+});
+
+const defaultRolePerms = (): Record<EntityType, RolePermissions> => ({
+  forms: {},
+  workflows: {},
+  reports: {},
+  dashboards: {},
+  projects: {},
+  policies: {},
+});
+
 export function useUnifiedAccessControl(projectId?: string, userId?: string) {
   const [state, setState] = useState<AccessControlState>({
-    topLevelPermissions: {
-      forms: { can_create: false, can_read: false, can_update: false, can_delete: false },
-      workflows: { can_create: false, can_read: false, can_update: false, can_delete: false },
-      reports: { can_create: false, can_read: false, can_update: false, can_delete: false }
-    },
-    rolePermissions: {
-      forms: {},
-      workflows: {},
-      reports: {}
-    },
+    topLevelPermissions: defaultTopLevel(),
+    rolePermissions: defaultRolePerms(),
     userRole: null,
     isProjectAdmin: false,
     isOrgAdmin: false,
@@ -70,16 +82,8 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
     queryFn: async () => {
       if (!targetProjectId || !targetUserId) {
         return {
-          topLevelPermissions: {
-            forms: { can_create: false, can_read: false, can_update: false, can_delete: false },
-            workflows: { can_create: false, can_read: false, can_update: false, can_delete: false },
-            reports: { can_create: false, can_read: false, can_update: false, can_delete: false }
-          },
-          rolePermissions: {
-            forms: {},
-            workflows: {},
-            reports: {}
-          },
+          topLevelPermissions: defaultTopLevel(),
+          rolePermissions: defaultRolePerms(),
           userRole: null,
           isProjectAdmin: false,
           isOrgAdmin: false
@@ -93,7 +97,7 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
           .select('*')
           .eq('project_id', targetProjectId)
           .eq('user_id', targetUserId)
-          .neq('entity_type', 'projects'),
+          ,
         supabase
           .from('project_users')
           .select('role')
@@ -147,11 +151,7 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
         });
       }
 
-      const processedTopLevel: Record<EntityType, TopLevelPermissions> = {
-        forms: { can_create: false, can_read: false, can_update: false, can_delete: false },
-        workflows: { can_create: false, can_read: false, can_update: false, can_delete: false },
-        reports: { can_create: false, can_read: false, can_update: false, can_delete: false }
-      };
+      const processedTopLevel = defaultTopLevel();
 
       topLevelData?.forEach(perm => {
         const entityType = perm.entity_type as EntityType;
@@ -165,11 +165,7 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
         }
       });
 
-      const processedRolePermissions: Record<EntityType, RolePermissions> = {
-        forms: {},
-        workflows: {},
-        reports: {}
-      };
+      const processedRolePermissions = defaultRolePerms();
 
       let userRoleName: string | null = null;
 
@@ -182,15 +178,16 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
 
             permissions.forEach((perm: any) => {
               let mappedEntityType: EntityType;
-              if (perm.resource_type === 'form') {
-                mappedEntityType = 'forms';
-              } else if (perm.resource_type === 'workflow') {
-                mappedEntityType = 'workflows';
-              } else if (perm.resource_type === 'report') {
-                mappedEntityType = 'reports';
-              } else {
-                return;
-              }
+              const typeMap: Record<string, EntityType> = {
+                'form': 'forms',
+                'workflow': 'workflows',
+                'report': 'reports',
+                'dashboard': 'dashboards',
+                'project': 'projects',
+                'policy': 'policies',
+              };
+              mappedEntityType = typeMap[perm.resource_type];
+              if (!mappedEntityType) return;
 
               const resourceId = perm.resource_id;
               
