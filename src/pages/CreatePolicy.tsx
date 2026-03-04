@@ -169,66 +169,67 @@ const CreatePolicy = () => {
           </CardContent>
         </Card>
 
-        {/* Dynamic Fields - MOVED ABOVE Policy Content */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Dynamic Fields</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <PolicyFormLink
-              formId={form.form_id}
-              onFormIdChange={id => {
-                updateField('form_id', id);
-                if (!id) updateField('selected_field_ids', []);
-              }}
-            />
-            {form.form_id && (
-              <>
+        {/* Dynamic Fields (left) + Policy Content (right) */}
+        <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
+          {/* Dynamic Fields - Left Sidebar */}
+          <Card className="h-fit">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg">Dynamic Fields</CardTitle>
+                {form.form_id && (
+                  <Select
+                    value={form.dynamic_fields_display}
+                    onValueChange={v => updateField('dynamic_fields_display', v as 'table' | 'field-value')}
+                  >
+                    <SelectTrigger className="w-[130px] h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="table">Table Format</SelectItem>
+                      <SelectItem value="field-value">Field & Value</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <PolicyFormLink
+                formId={form.form_id}
+                onFormIdChange={id => {
+                  updateField('form_id', id);
+                  if (!id) updateField('selected_field_ids', []);
+                }}
+              />
+              {form.form_id && (
                 <PolicyFieldSelector
                   formId={form.form_id}
                   selectedFieldIds={form.selected_field_ids}
                   onSelectedFieldsChange={ids => updateField('selected_field_ids', ids)}
                 />
-                <div>
-                  <Label>Display Format</Label>
-                  <Select
-                    value={form.dynamic_fields_display}
-                    onValueChange={v => updateField('dynamic_fields_display', v as 'table' | 'field-value')}
-                  >
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="table">Table Format</SelectItem>
-                      <SelectItem value="field-value">Field Name (Bold) + Value</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Selected fields will appear as dynamic data sections in the policy view and PDF export.
-                  </p>
-                </div>
-              </>
-            )}
-          </CardContent>
-        </Card>
+              )}
+            </CardContent>
+          </Card>
 
-        {/* Policy Content Source */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Policy Content</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <PolicyContentSource
-              contentHtml={form.content_html}
-              onContentChange={html => updateField('content_html', html)}
-              onOriginalFileChange={setOriginalDocxFile}
-              templates={templates}
-              templatesLoading={templatesLoading}
-              selectedTemplate={selectedTemplate}
-              onTemplateSelect={handleTemplateSelect}
-              mode={contentMode}
-              onModeChange={setContentMode}
-            />
-          </CardContent>
-        </Card>
+          {/* Policy Content Source - Right */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Policy Content</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <PolicyContentSource
+                contentHtml={form.content_html}
+                onContentChange={html => updateField('content_html', html)}
+                onOriginalFileChange={setOriginalDocxFile}
+                templates={templates}
+                templatesLoading={templatesLoading}
+                selectedTemplate={selectedTemplate}
+                onTemplateSelect={handleTemplateSelect}
+                mode={contentMode}
+                onModeChange={setContentMode}
+              />
+            </CardContent>
+          </Card>
+        </div>
 
         {/* Metadata */}
         <Card>
