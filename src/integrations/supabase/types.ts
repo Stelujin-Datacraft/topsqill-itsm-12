@@ -1946,7 +1946,7 @@ export type Database = {
           changed_at: string
           changed_by: string | null
           comment: string | null
-          duration_in_previous_stage: unknown
+          duration_in_previous_stage: string | null
           field_id: string
           from_stage: string | null
           id: string
@@ -1957,7 +1957,7 @@ export type Database = {
           changed_at?: string
           changed_by?: string | null
           comment?: string | null
-          duration_in_previous_stage?: unknown
+          duration_in_previous_stage?: string | null
           field_id: string
           from_stage?: string | null
           id?: string
@@ -1968,7 +1968,7 @@ export type Database = {
           changed_at?: string
           changed_by?: string | null
           comment?: string | null
-          duration_in_previous_stage?: unknown
+          duration_in_previous_stage?: string | null
           field_id?: string
           from_stage?: string | null
           id?: string
