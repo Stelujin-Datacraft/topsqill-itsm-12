@@ -180,6 +180,100 @@ export type Database = {
           },
         ]
       }
+      audit_findings: {
+        Row: {
+          assigned_to: string | null
+          audit_id: string
+          closed_at: string | null
+          closed_by: string | null
+          control_id: string | null
+          created_at: string
+          created_by: string
+          description: string | null
+          due_date: string | null
+          finding_ref: string | null
+          finding_type: string
+          id: string
+          management_response: string | null
+          policy_id: string | null
+          recommendation: string | null
+          remediation_plan: string | null
+          root_cause: string | null
+          severity: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          audit_id: string
+          closed_at?: string | null
+          closed_by?: string | null
+          control_id?: string | null
+          created_at?: string
+          created_by: string
+          description?: string | null
+          due_date?: string | null
+          finding_ref?: string | null
+          finding_type?: string
+          id?: string
+          management_response?: string | null
+          policy_id?: string | null
+          recommendation?: string | null
+          remediation_plan?: string | null
+          root_cause?: string | null
+          severity?: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          audit_id?: string
+          closed_at?: string | null
+          closed_by?: string | null
+          control_id?: string | null
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          due_date?: string | null
+          finding_ref?: string | null
+          finding_type?: string
+          id?: string
+          management_response?: string | null
+          policy_id?: string | null
+          recommendation?: string | null
+          remediation_plan?: string | null
+          root_cause?: string | null
+          severity?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_findings_audit_id_fkey"
+            columns: ["audit_id"]
+            isOneToOne: false
+            referencedRelation: "audit_programs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "audit_findings_control_id_fkey"
+            columns: ["control_id"]
+            isOneToOne: false
+            referencedRelation: "compliance_controls"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "audit_findings_policy_id_fkey"
+            columns: ["policy_id"]
+            isOneToOne: false
+            referencedRelation: "policies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_logs: {
         Row: {
           created_at: string
@@ -216,6 +310,95 @@ export type Database = {
         }
         Relationships: []
       }
+      audit_programs: {
+        Row: {
+          audit_type: string
+          created_at: string
+          created_by: string
+          description: string | null
+          end_date: string | null
+          folder_id: string | null
+          framework_id: string | null
+          id: string
+          lead_auditor_id: string | null
+          name: string
+          objectives: string | null
+          organization_id: string | null
+          project_id: string
+          scope: string | null
+          start_date: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          audit_type?: string
+          created_at?: string
+          created_by: string
+          description?: string | null
+          end_date?: string | null
+          folder_id?: string | null
+          framework_id?: string | null
+          id?: string
+          lead_auditor_id?: string | null
+          name: string
+          objectives?: string | null
+          organization_id?: string | null
+          project_id: string
+          scope?: string | null
+          start_date?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          audit_type?: string
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          end_date?: string | null
+          folder_id?: string | null
+          framework_id?: string | null
+          id?: string
+          lead_auditor_id?: string | null
+          name?: string
+          objectives?: string | null
+          organization_id?: string | null
+          project_id?: string
+          scope?: string | null
+          start_date?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_programs_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "knowledge_base_folders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "audit_programs_framework_id_fkey"
+            columns: ["framework_id"]
+            isOneToOne: false
+            referencedRelation: "compliance_frameworks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "audit_programs_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "audit_programs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       business_holidays: {
         Row: {
           created_at: string | null
@@ -250,6 +433,204 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      compliance_controls: {
+        Row: {
+          category: string | null
+          control_id_ref: string
+          created_at: string
+          description: string | null
+          effectiveness: string | null
+          framework_id: string
+          id: string
+          implementation_status: string
+          notes: string | null
+          owner_id: string | null
+          parent_control_id: string | null
+          risk_level: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          control_id_ref: string
+          created_at?: string
+          description?: string | null
+          effectiveness?: string | null
+          framework_id: string
+          id?: string
+          implementation_status?: string
+          notes?: string | null
+          owner_id?: string | null
+          parent_control_id?: string | null
+          risk_level?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          control_id_ref?: string
+          created_at?: string
+          description?: string | null
+          effectiveness?: string | null
+          framework_id?: string
+          id?: string
+          implementation_status?: string
+          notes?: string | null
+          owner_id?: string | null
+          parent_control_id?: string | null
+          risk_level?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "compliance_controls_framework_id_fkey"
+            columns: ["framework_id"]
+            isOneToOne: false
+            referencedRelation: "compliance_frameworks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "compliance_controls_parent_control_id_fkey"
+            columns: ["parent_control_id"]
+            isOneToOne: false
+            referencedRelation: "compliance_controls"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      compliance_frameworks: {
+        Row: {
+          created_at: string
+          created_by: string
+          description: string | null
+          framework_type: string
+          id: string
+          name: string
+          organization_id: string | null
+          project_id: string
+          status: string
+          updated_at: string
+          version: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          description?: string | null
+          framework_type?: string
+          id?: string
+          name: string
+          organization_id?: string | null
+          project_id: string
+          status?: string
+          updated_at?: string
+          version?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          framework_type?: string
+          id?: string
+          name?: string
+          organization_id?: string | null
+          project_id?: string
+          status?: string
+          updated_at?: string
+          version?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "compliance_frameworks_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "compliance_frameworks_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      control_tests: {
+        Row: {
+          actual_result: string | null
+          control_id: string
+          created_at: string
+          created_by: string
+          expected_result: string | null
+          id: string
+          next_test_date: string | null
+          notes: string | null
+          project_id: string
+          test_description: string | null
+          test_name: string
+          test_procedure: string | null
+          test_result: string
+          test_type: string
+          tested_at: string | null
+          tested_by: string | null
+          updated_at: string
+        }
+        Insert: {
+          actual_result?: string | null
+          control_id: string
+          created_at?: string
+          created_by: string
+          expected_result?: string | null
+          id?: string
+          next_test_date?: string | null
+          notes?: string | null
+          project_id: string
+          test_description?: string | null
+          test_name: string
+          test_procedure?: string | null
+          test_result?: string
+          test_type?: string
+          tested_at?: string | null
+          tested_by?: string | null
+          updated_at?: string
+        }
+        Update: {
+          actual_result?: string | null
+          control_id?: string
+          created_at?: string
+          created_by?: string
+          expected_result?: string | null
+          id?: string
+          next_test_date?: string | null
+          notes?: string | null
+          project_id?: string
+          test_description?: string | null
+          test_name?: string
+          test_procedure?: string | null
+          test_result?: string
+          test_type?: string
+          tested_at?: string | null
+          tested_by?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "control_tests_control_id_fkey"
+            columns: ["control_id"]
+            isOneToOne: false
+            referencedRelation: "compliance_controls"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "control_tests_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
         ]
@@ -945,6 +1326,118 @@ export type Database = {
             columns: ["escalate_to_group_id"]
             isOneToOne: false
             referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      evidence_items: {
+        Row: {
+          audit_id: string | null
+          collection_date: string | null
+          control_id: string | null
+          created_at: string
+          description: string | null
+          evidence_type: string
+          expiry_date: string | null
+          file_path: string | null
+          file_size_bytes: number | null
+          file_url: string | null
+          finding_id: string | null
+          id: string
+          mime_type: string | null
+          name: string
+          organization_id: string | null
+          policy_id: string | null
+          project_id: string
+          status: string
+          updated_at: string
+          uploaded_by: string
+        }
+        Insert: {
+          audit_id?: string | null
+          collection_date?: string | null
+          control_id?: string | null
+          created_at?: string
+          description?: string | null
+          evidence_type?: string
+          expiry_date?: string | null
+          file_path?: string | null
+          file_size_bytes?: number | null
+          file_url?: string | null
+          finding_id?: string | null
+          id?: string
+          mime_type?: string | null
+          name: string
+          organization_id?: string | null
+          policy_id?: string | null
+          project_id: string
+          status?: string
+          updated_at?: string
+          uploaded_by: string
+        }
+        Update: {
+          audit_id?: string | null
+          collection_date?: string | null
+          control_id?: string | null
+          created_at?: string
+          description?: string | null
+          evidence_type?: string
+          expiry_date?: string | null
+          file_path?: string | null
+          file_size_bytes?: number | null
+          file_url?: string | null
+          finding_id?: string | null
+          id?: string
+          mime_type?: string | null
+          name?: string
+          organization_id?: string | null
+          policy_id?: string | null
+          project_id?: string
+          status?: string
+          updated_at?: string
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "evidence_items_audit_id_fkey"
+            columns: ["audit_id"]
+            isOneToOne: false
+            referencedRelation: "audit_programs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "evidence_items_control_id_fkey"
+            columns: ["control_id"]
+            isOneToOne: false
+            referencedRelation: "compliance_controls"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "evidence_items_finding_id_fkey"
+            columns: ["finding_id"]
+            isOneToOne: false
+            referencedRelation: "audit_findings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "evidence_items_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "evidence_items_policy_id_fkey"
+            columns: ["policy_id"]
+            isOneToOne: false
+            referencedRelation: "policies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "evidence_items_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
         ]
@@ -2616,6 +3109,51 @@ export type Database = {
           },
         ]
       }
+      policy_control_mappings: {
+        Row: {
+          control_id: string
+          coverage_status: string | null
+          created_at: string
+          created_by: string
+          id: string
+          mapping_notes: string | null
+          policy_id: string
+        }
+        Insert: {
+          control_id: string
+          coverage_status?: string | null
+          created_at?: string
+          created_by: string
+          id?: string
+          mapping_notes?: string | null
+          policy_id: string
+        }
+        Update: {
+          control_id?: string
+          coverage_status?: string | null
+          created_at?: string
+          created_by?: string
+          id?: string
+          mapping_notes?: string | null
+          policy_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "policy_control_mappings_control_id_fkey"
+            columns: ["control_id"]
+            isOneToOne: false
+            referencedRelation: "compliance_controls"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "policy_control_mappings_policy_id_fkey"
+            columns: ["policy_id"]
+            isOneToOne: false
+            referencedRelation: "policies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       policy_exceptions: {
         Row: {
           approved_at: string | null
@@ -3158,6 +3696,71 @@ export type Database = {
             columns: ["submission_id"]
             isOneToOne: false
             referencedRelation: "form_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      remediation_tasks: {
+        Row: {
+          assigned_to: string | null
+          completed_at: string | null
+          completed_by: string | null
+          created_at: string
+          created_by: string
+          description: string | null
+          due_date: string | null
+          finding_id: string
+          id: string
+          priority: string
+          status: string
+          title: string
+          updated_at: string
+          verification_notes: string | null
+          verified_at: string | null
+          verified_by: string | null
+        }
+        Insert: {
+          assigned_to?: string | null
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          created_by: string
+          description?: string | null
+          due_date?: string | null
+          finding_id: string
+          id?: string
+          priority?: string
+          status?: string
+          title: string
+          updated_at?: string
+          verification_notes?: string | null
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Update: {
+          assigned_to?: string | null
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          due_date?: string | null
+          finding_id?: string
+          id?: string
+          priority?: string
+          status?: string
+          title?: string
+          updated_at?: string
+          verification_notes?: string | null
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "remediation_tasks_finding_id_fkey"
+            columns: ["finding_id"]
+            isOneToOne: false
+            referencedRelation: "audit_findings"
             referencedColumns: ["id"]
           },
         ]

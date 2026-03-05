@@ -92,6 +92,11 @@ const PolicyDetail = lazy(() => import("./pages/PolicyDetail"));
 const CreatePolicy = lazy(() => import("./pages/CreatePolicy"));
 const CreateTemplate = lazy(() => import("./pages/CreateTemplate"));
 
+// Compliance, Audit, Evidence
+const CompliancePage = lazy(() => import("./pages/CompliancePage"));
+const AuditProgramsPage = lazy(() => import("./pages/AuditProgramsPage"));
+const EvidenceLockerPage = lazy(() => import("./pages/EvidenceLockerPage"));
+
 // Performance-optimized React Query configuration
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -200,6 +205,9 @@ const App = () => (
                         <Route path="/policies/create" element={<CreatePolicy />} />
                         <Route path="/policies/create-template" element={<CreateTemplate />} />
                         <Route path="/policy/:id" element={<PolicyDetail />} />
+                        <Route path="/compliance" element={<CompliancePage />} />
+                        <Route path="/audit-programs" element={<AuditProgramsPage />} />
+                        <Route path="/evidence-locker" element={<EvidenceLockerPage />} />
                         
                         {/* Admin */}
                         <Route path="/users" element={<Users />} />

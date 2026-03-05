@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, FolderOpen, Search, FileText, Trash2, Edit, BookOpen } from 'lucide-react';
+import { Plus, FolderOpen, Search, FileText, Trash2, Edit, BookOpen, Shield, ClipboardList, FileBox } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -80,6 +80,37 @@ const KnowledgeBase = () => {
             Create Folder
           </Button>
         )}
+      </div>
+
+      {/* Quick Access Modules */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => navigate('/compliance')}>
+          <CardContent className="p-5 flex items-center gap-4">
+            <div className="p-3 rounded-lg bg-blue-500/10"><Shield className="h-6 w-6 text-blue-600" /></div>
+            <div>
+              <h3 className="font-semibold text-foreground">Compliance Frameworks</h3>
+              <p className="text-xs text-muted-foreground">SOC 2, ISO 27001, NIST, custom frameworks & controls</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => navigate('/audit-programs')}>
+          <CardContent className="p-5 flex items-center gap-4">
+            <div className="p-3 rounded-lg bg-orange-500/10"><ClipboardList className="h-6 w-6 text-orange-600" /></div>
+            <div>
+              <h3 className="font-semibold text-foreground">Audit Programs</h3>
+              <p className="text-xs text-muted-foreground">Plan audits, track findings & remediation tasks</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => navigate('/evidence-locker')}>
+          <CardContent className="p-5 flex items-center gap-4">
+            <div className="p-3 rounded-lg bg-green-500/10"><FileBox className="h-6 w-6 text-green-600" /></div>
+            <div>
+              <h3 className="font-semibold text-foreground">Evidence Locker</h3>
+              <p className="text-xs text-muted-foreground">Centralized evidence for compliance & audit trails</p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <div className="relative max-w-md">
