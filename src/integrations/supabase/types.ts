@@ -5227,6 +5227,10 @@ export type Database = {
         }
         Returns: number
       }
+      can_access_compliance_project: {
+        Args: { _project_id: string; _user_id: string }
+        Returns: boolean
+      }
       can_access_form: {
         Args: { _form_id: string; _user_id: string }
         Returns: boolean
