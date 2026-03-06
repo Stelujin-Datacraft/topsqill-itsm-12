@@ -68,7 +68,7 @@ export function PolicyFieldSelector({ formId, selectedFieldIds, onSelectedFields
         </div>
       </div>
       <p className="text-xs text-muted-foreground">
-        Choose which fields from the linked form will be shown in the policy's dynamic data section.
+        Choose fields.
         {selectedFieldIds.length > 0 && <span className="font-medium text-foreground ml-1">({selectedFieldIds.length} selected)</span>}
       </p>
       <div className="border rounded-md max-h-[200px] overflow-y-auto">

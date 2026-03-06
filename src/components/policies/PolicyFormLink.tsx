@@ -39,9 +39,6 @@ export function PolicyFormLink({ formId, onFormIdChange }: PolicyFormLinkProps) 
         <Link2 className="h-4 w-4 text-muted-foreground" />
         <Label className="text-sm font-medium">Link to Form (Dynamic Fields)</Label>
       </div>
-      <p className="text-xs text-muted-foreground">
-        Optionally link a form to this policy. The form's fields serve as the dynamic data structure for this policy.
-      </p>
       <div className="flex items-center gap-2">
         <Select value={formId || '_none'} onValueChange={v => onFormIdChange(v === '_none' ? '' : v)}>
           <SelectTrigger className="flex-1">

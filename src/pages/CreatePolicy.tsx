@@ -17,6 +17,7 @@ import { PolicyContentSource } from '@/components/policies/PolicyContentSource';
 import { PolicyFormLink } from '@/components/policies/PolicyFormLink';
 import { PolicyFieldSelector } from '@/components/policies/PolicyFieldSelector';
 import PageContent from '@/components/PageContent';
+import { PolicyRecordSelector } from '@/components/policies/PolicyRecordSelector';
 
 const INITIAL_FORM = {
   name: '',
@@ -124,6 +125,8 @@ const CreatePolicy = () => {
   const updateField = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) => {
     setForm(prev => ({ ...prev, [key]: value }));
   };
+  const [activeView, setActiveView] = useState<'fields' | 'records'>('fields');
+  const [selectedRecords, setSelectedRecords] = useState<string[]>([]);
 
   return (
     <PageContent
@@ -192,20 +195,63 @@ const CreatePolicy = () => {
                 )}
               </div>
             </CardHeader>
-            <CardContent className="space-y-4">
+                        <CardContent className="space-y-4">
               <PolicyFormLink
                 formId={form.form_id}
-                onFormIdChange={id => {
-                  updateField('form_id', id);
-                  if (!id) updateField('selected_field_ids', []);
+                onFormIdChange={(id) => {
+                  updateField("form_id", id);
+                  if (!id) updateField("selected_field_ids", []);
                 }}
               />
+
               {form.form_id && (
-                <PolicyFieldSelector
-                  formId={form.form_id}
-                  selectedFieldIds={form.selected_field_ids}
-                  onSelectedFieldsChange={ids => updateField('selected_field_ids', ids)}
-                />
+                <>
+                  {/* Buttons */}
+
+
+                  <div className="flex gap-2">
+
+                    <button
+                      type="button"
+                      onClick={() => setActiveView("records")}
+                      className={`px-3 py-1 text-sm rounded-md border ${activeView === "records" ? "bg-primary text-white" : ""
+                        }`}
+                    >
+                      Select Records
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setActiveView("fields")}
+                      className={`px-3 py-1 text-sm rounded-md border ${activeView === "fields" ? "bg-primary text-white" : ""
+                        }`}
+                    >
+                      Select Fields
+                    </button>
+
+
+                  </div>
+
+                  {/* Dynamic Section */}
+                  {activeView === "fields" && (
+                    <PolicyFieldSelector
+                      formId={form.form_id}
+                      selectedFieldIds={form.selected_field_ids}
+                      onSelectedFieldsChange={(ids) =>
+                        updateField("selected_field_ids", ids)
+                      }
+                    />
+                  )}
+
+                  {activeView === "records" && (
+                    <PolicyRecordSelector
+                      formId={form.form_id}
+                      selectedFieldIds={form.selected_field_ids}
+                      selectedRecordIds={selectedRecords}
+                      onSelectedRecordsChange={setSelectedRecords}
+                    />
+                  )}
+                </>
               )}
             </CardContent>
           </Card>
