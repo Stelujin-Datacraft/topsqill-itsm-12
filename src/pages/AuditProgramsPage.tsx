@@ -161,10 +161,10 @@ const AuditPage = () => {
                 </Select>
               </div>
               <div><Label>Framework (optional)</Label>
-                <Select value={form.framework_id} onValueChange={v => setForm(f => ({ ...f, framework_id: v }))}>
+                <Select value={form.framework_id || "none"} onValueChange={v => setForm(f => ({ ...f, framework_id: v === "none" ? "" : v }))}>
                   <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="none">None</SelectItem>
                     {frameworks.map(fw => <SelectItem key={fw.id} value={fw.id}>{fw.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
