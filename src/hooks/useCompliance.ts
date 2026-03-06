@@ -188,7 +188,7 @@ export function usePolicyControlMappings(policyId?: string) {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['policy_control_mappings', policyId] });
+      queryClient.invalidateQueries({ queryKey: ['policy_control_mappings'] });
       toast.success('Control mapping added');
     },
     onError: (err: any) => toast.error(err.message),
@@ -200,7 +200,62 @@ export function usePolicyControlMappings(policyId?: string) {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['policy_control_mappings', policyId] });
+      queryClient.invalidateQueries({ queryKey: ['policy_control_mappings'] });
+      toast.success('Mapping removed');
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+
+  return {
+    mappings: mappingsQuery.data || [],
+    isLoading: mappingsQuery.isLoading,
+    createMapping,
+    deleteMapping,
+  };
+}
+
+export function useControlMappings(controlId?: string) {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  const mappingsQuery = useQuery({
+    queryKey: ['policy_control_mappings', 'control', controlId],
+    queryFn: async () => {
+      if (!controlId) return [];
+      const { data, error } = await supabase
+        .from('policy_control_mappings')
+        .select('*')
+        .eq('control_id', controlId);
+      if (error) throw error;
+      return (data || []) as unknown as PolicyControlMapping[];
+    },
+    enabled: !!controlId,
+  });
+
+  const createMapping = useMutation({
+    mutationFn: async (mapping: Partial<PolicyControlMapping>) => {
+      const { data, error } = await supabase
+        .from('policy_control_mappings')
+        .insert([{ ...mapping, control_id: controlId, created_by: user?.id } as any])
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['policy_control_mappings'] });
+      toast.success('Policy mapping added');
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+
+  const deleteMapping = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('policy_control_mappings').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['policy_control_mappings'] });
       toast.success('Mapping removed');
     },
     onError: (err: any) => toast.error(err.message),

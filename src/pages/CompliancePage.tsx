@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Search, Shield, Settings, Trash2, Edit, ChevronRight, CheckCircle, AlertTriangle, XCircle, BarChart3 } from 'lucide-react';
+import { ArrowLeft, Plus, Search, Shield, Settings, Trash2, Edit, ChevronRight, CheckCircle, AlertTriangle, XCircle, BarChart3, Link2, FlaskConical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import ControlDetailPanel from '@/components/compliance/ControlDetailPanel';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -211,6 +212,7 @@ const FrameworkDetail = ({ frameworkId, onBack }: { frameworkId: string; onBack:
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [selectedControl, setSelectedControl] = useState<any>(null);
   const [form, setForm] = useState({ control_id_ref: '', title: '', description: '', category: '', implementation_status: 'not_implemented', risk_level: 'medium' });
 
   const resetForm = () => setForm({ control_id_ref: '', title: '', description: '', category: '', implementation_status: 'not_implemented', risk_level: 'medium' });
@@ -305,7 +307,7 @@ const FrameworkDetail = ({ frameworkId, onBack }: { frameworkId: string; onBack:
             const statusDef = IMPLEMENTATION_STATUSES.find(s => s.value === ctrl.implementation_status);
             const effDef = EFFECTIVENESS_LEVELS.find(e => e.value === ctrl.effectiveness);
             return (
-              <Card key={ctrl.id} className="hover:border-primary/30 transition-colors">
+              <Card key={ctrl.id} className="hover:border-primary/30 transition-colors cursor-pointer" onClick={() => setSelectedControl(ctrl)}>
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <div className="flex-1 min-w-0">
@@ -318,19 +320,23 @@ const FrameworkDetail = ({ frameworkId, onBack }: { frameworkId: string; onBack:
                       </div>
                       {ctrl.description && <p className="text-sm text-muted-foreground line-clamp-1">{ctrl.description}</p>}
                     </div>
+                    <div className="flex items-center gap-1 ml-4">
                     {isAdmin && (
-                      <div className="flex gap-1 ml-4">
+                      <div className="flex gap-1" onClick={e => e.stopPropagation()}>
                         <Select value={ctrl.implementation_status} onValueChange={v => updateControl.mutate({ id: ctrl.id, implementation_status: v })}>
                           <SelectTrigger className="w-[170px] h-8 text-xs"><SelectValue /></SelectTrigger>
                           <SelectContent>{IMPLEMENTATION_STATUSES.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent>
                         </Select>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => {
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => {
+                          e.stopPropagation();
                           setEditCtrl(ctrl);
                           setForm({ control_id_ref: ctrl.control_id_ref, title: ctrl.title, description: ctrl.description || '', category: ctrl.category || '', implementation_status: ctrl.implementation_status, risk_level: ctrl.risk_level });
                         }}><Edit className="h-4 w-4" /></Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteId(ctrl.id)}><Trash2 className="h-4 w-4" /></Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={(e) => { e.stopPropagation(); setDeleteId(ctrl.id); }}><Trash2 className="h-4 w-4" /></Button>
                       </div>
                     )}
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -393,6 +399,14 @@ const FrameworkDetail = ({ frameworkId, onBack }: { frameworkId: string; onBack:
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {selectedControl && (
+        <ControlDetailPanel
+          control={selectedControl}
+          open={!!selectedControl}
+          onClose={() => setSelectedControl(null)}
+        />
+      )}
     </div>
   );
 };
