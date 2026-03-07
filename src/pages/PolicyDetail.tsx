@@ -1197,62 +1197,46 @@ const PolicyDetail = () => {
 
       const docxBlob = zipDoc.generate({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
 
-      // Step 2: Convert DOCX to HTML using mammoth
-      const mammoth = await import('mammoth');
-      const docxArrayBuffer = await docxBlob.arrayBuffer();
-      const mammothResult = await mammoth.convertToHtml({ arrayBuffer: docxArrayBuffer });
-      const htmlContent = mammothResult.value;
-
-      // Step 3: Render HTML to PDF using html2canvas + jsPDF
-      const renderDiv = document.createElement('div');
-      renderDiv.innerHTML = htmlContent;
-      Object.assign(renderDiv.style, {
+      // Step 2: Render DOCX with docx-preview for high-fidelity output (preserves headers, footers, styles, colors)
+      const { renderAsync } = await import('docx-preview');
+      const renderContainer = document.createElement('div');
+      Object.assign(renderContainer.style, {
         position: 'absolute',
         left: '-9999px',
         top: '0',
-        width: '720px',
-        padding: '24px 32px',
+        width: '794px', // A4 width in pixels at 96dpi
         background: 'white',
-        fontFamily: "'Segoe UI', Calibri, Arial, Helvetica, sans-serif",
-        fontSize: '12px',
-        lineHeight: '1.7',
-        color: '#000',
+        overflow: 'hidden',
       });
-      // Style tables
-      document.body.appendChild(renderDiv);
-      renderDiv.querySelectorAll('table').forEach((table) => {
-        table.style.borderCollapse = 'collapse';
-        table.style.width = '100%';
-        table.style.marginTop = '8px';
-        table.style.marginBottom = '8px';
-      });
-      renderDiv.querySelectorAll('td, th').forEach((cell) => {
-        (cell as HTMLElement).style.border = '1px solid #ccc';
-        (cell as HTMLElement).style.padding = '6px 10px';
-        (cell as HTMLElement).style.fontSize = '11px';
-      });
-      renderDiv.querySelectorAll('th').forEach((th) => {
-        (th as HTMLElement).style.backgroundColor = '#f3f4f6';
-        (th as HTMLElement).style.fontWeight = '600';
-      });
-      renderDiv.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach((h) => {
-        (h as HTMLElement).style.marginTop = '12px';
-        (h as HTMLElement).style.marginBottom = '6px';
-        (h as HTMLElement).style.color = '#111';
-      });
-      renderDiv.querySelectorAll('img').forEach((img) => {
-        img.style.maxWidth = '100%';
-        img.style.height = 'auto';
-        img.setAttribute('crossorigin', 'anonymous');
+      document.body.appendChild(renderContainer);
+
+      const docxArrayBuffer = await docxBlob.arrayBuffer();
+      await renderAsync(docxArrayBuffer, renderContainer, undefined, {
+        className: 'docx-preview-pdf',
+        inWrapper: true,
+        ignoreWidth: false,
+        ignoreHeight: false,
+        ignoreFonts: false,
+        breakPages: true,
+        ignoreLastRenderedPageBreak: false,
+        experimental: true,
+        renderHeaders: true,
+        renderFooters: true,
+        renderFootnotes: true,
       });
 
-      const canvas = await html2canvas(renderDiv, {
+      // Wait for images/fonts to load
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      const canvas = await html2canvas(renderContainer, {
         scale: 2,
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#ffffff',
+        width: 794,
+        windowWidth: 794,
       });
-      document.body.removeChild(renderDiv);
+      document.body.removeChild(renderContainer);
 
       const pdf = new jsPDF();
       const pageWidth = pdf.internal.pageSize.getWidth() - 28;
