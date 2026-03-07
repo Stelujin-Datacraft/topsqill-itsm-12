@@ -135,7 +135,8 @@ export function PolicyDynamicFieldsRenderer({ formId, displayFormat, selectedFie
   }
 
   const fields = fieldsQuery.data || [];
-  const submissions = submissionsQuery.data || [];
+  const allSubmissions = submissionsQuery.data || [];
+  const submissions = selectedRecordIds?.length ? allSubmissions.filter(s => selectedRecordIds.includes(s.id)) : allSubmissions;
   const formName = formQuery.data?.name || 'Linked Form';
   const linkedData = linkedRecordsQuery.data || { records: {}, fieldLabels: {} };
 
