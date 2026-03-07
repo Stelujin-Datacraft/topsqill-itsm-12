@@ -488,8 +488,10 @@ const PolicyDetail = () => {
           !['section', 'divider', 'heading', 'paragraph', 'spacer', 'page-break'].includes(f.field_type)
         );
         const selectedFieldIds = policy.content?.selected_field_ids as string[] | undefined;
+        const selectedRecordIds = policy.content?.selected_record_ids as string[] | undefined;
         const fields = selectedFieldIds?.length ? allFields.filter(f => selectedFieldIds.includes(f.id)) : allFields;
-        const submissions = subsRes.data || [];
+        const allSubmissions = subsRes.data || [];
+        const submissions = selectedRecordIds?.length ? allSubmissions.filter(s => selectedRecordIds.includes(s.id)) : allSubmissions;
 
         // Resolve cross-ref linked records for PDF
         const crossRefFields = allFields.filter(f => ['cross-reference', 'child-cross-reference'].includes(f.field_type));
@@ -1021,8 +1023,10 @@ const PolicyDetail = () => {
       ]);
       const allFields = (fR.data || []).filter(f => !['section', 'divider', 'heading', 'paragraph', 'spacer', 'page-break'].includes(f.field_type));
       const selectedIds = policy.content?.selected_field_ids as string[] | undefined;
+      const selectedRecordIds = policy.content?.selected_record_ids as string[] | undefined;
       const fields = selectedIds?.length ? allFields.filter(f => selectedIds.includes(f.id)) : allFields;
-      const subs = sR.data || [];
+      const allSubs = sR.data || [];
+      const subs = selectedRecordIds?.length ? allSubs.filter(s => selectedRecordIds.includes(s.id)) : allSubs;
 
       // Resolve cross-ref linked records
       const crFields = allFields.filter(f => ['cross-reference', 'child-cross-reference'].includes(f.field_type));
@@ -1165,9 +1169,135 @@ const PolicyDetail = () => {
 
   const downloadOriginalPdfWithContent = async () => {
     if (!policy.content?.original_docx_url) return;
-    toast.info('Preparing Original PDF with content...');
-    // Use the same generatePDF which renders template HTML + dynamic fields
-    await generatePDF('download');
+    try {
+      toast.info('Preparing Original PDF with content...');
+      
+      // Step 1: Generate the DOCX with content (same as downloadOriginalDocxWithContent but as blob)
+      const resp = await fetch(policy.content.original_docx_url);
+      if (!resp.ok) throw new Error('Failed to fetch original DOCX');
+      const arrBuf = await resp.arrayBuffer();
+      const zipDoc = new PizZip(arrBuf);
+      const docXmlFile = zipDoc.file('word/document.xml');
+      if (!docXmlFile) throw new Error('Invalid DOCX structure');
+      let xmlContent = docXmlFile.asText();
+
+      const cps = await buildOriginalDocxContentBlocks();
+      if (cps.length > 0) {
+        const bodyClosePattern = /<\/w:body>/i;
+        if (bodyClosePattern.test(xmlContent)) {
+          xmlContent = xmlContent.replace(bodyClosePattern, cps.join('') + '</w:body>');
+        } else {
+          const sectPrPattern = /(<w:sectPr[^>]*>)/;
+          if (sectPrPattern.test(xmlContent)) {
+            xmlContent = xmlContent.replace(sectPrPattern, cps.join('') + '$1');
+          }
+        }
+        zipDoc.file('word/document.xml', xmlContent);
+      }
+
+      const docxBlob = zipDoc.generate({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+
+      // Step 2: Convert DOCX to HTML using mammoth
+      const mammoth = await import('mammoth');
+      const docxArrayBuffer = await docxBlob.arrayBuffer();
+      const mammothResult = await mammoth.convertToHtml({ arrayBuffer: docxArrayBuffer });
+      const htmlContent = mammothResult.value;
+
+      // Step 3: Render HTML to PDF using html2canvas + jsPDF
+      const renderDiv = document.createElement('div');
+      renderDiv.innerHTML = htmlContent;
+      Object.assign(renderDiv.style, {
+        position: 'absolute',
+        left: '-9999px',
+        top: '0',
+        width: '720px',
+        padding: '24px 32px',
+        background: 'white',
+        fontFamily: "'Segoe UI', Calibri, Arial, Helvetica, sans-serif",
+        fontSize: '12px',
+        lineHeight: '1.7',
+        color: '#000',
+      });
+      // Style tables
+      document.body.appendChild(renderDiv);
+      renderDiv.querySelectorAll('table').forEach((table) => {
+        table.style.borderCollapse = 'collapse';
+        table.style.width = '100%';
+        table.style.marginTop = '8px';
+        table.style.marginBottom = '8px';
+      });
+      renderDiv.querySelectorAll('td, th').forEach((cell) => {
+        (cell as HTMLElement).style.border = '1px solid #ccc';
+        (cell as HTMLElement).style.padding = '6px 10px';
+        (cell as HTMLElement).style.fontSize = '11px';
+      });
+      renderDiv.querySelectorAll('th').forEach((th) => {
+        (th as HTMLElement).style.backgroundColor = '#f3f4f6';
+        (th as HTMLElement).style.fontWeight = '600';
+      });
+      renderDiv.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach((h) => {
+        (h as HTMLElement).style.marginTop = '12px';
+        (h as HTMLElement).style.marginBottom = '6px';
+        (h as HTMLElement).style.color = '#111';
+      });
+      renderDiv.querySelectorAll('img').forEach((img) => {
+        img.style.maxWidth = '100%';
+        img.style.height = 'auto';
+        img.setAttribute('crossorigin', 'anonymous');
+      });
+
+      const canvas = await html2canvas(renderDiv, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+      });
+      document.body.removeChild(renderDiv);
+
+      const pdf = new jsPDF();
+      const pageWidth = pdf.internal.pageSize.getWidth() - 28;
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const maxPageContent = pageHeight - 30;
+      const imgData = canvas.toDataURL('image/png');
+      const imgHeight = (canvas.height * pageWidth) / canvas.width;
+
+      if (imgHeight <= maxPageContent) {
+        pdf.addImage(imgData, 'PNG', 14, 14, pageWidth, imgHeight);
+      } else {
+        let srcY = 0;
+        const srcWidth = canvas.width;
+        const srcHeight = canvas.height;
+        let firstPage = true;
+
+        while (srcY < srcHeight) {
+          if (!firstPage) pdf.addPage();
+          const startY = firstPage ? 14 : 14;
+          const availableHeight = maxPageContent - startY + 6;
+          const sliceCanvasHeight = (availableHeight / pageWidth) * srcWidth;
+          const actualSlice = Math.min(sliceCanvasHeight, srcHeight - srcY);
+
+          const sliceCanvas = document.createElement('canvas');
+          sliceCanvas.width = srcWidth;
+          sliceCanvas.height = actualSlice;
+          const sliceCtx = sliceCanvas.getContext('2d');
+          if (sliceCtx) {
+            sliceCtx.drawImage(canvas, 0, srcY, srcWidth, actualSlice, 0, 0, srcWidth, actualSlice);
+            const sliceImg = sliceCanvas.toDataURL('image/png');
+            const sliceImgHeight = (actualSlice * pageWidth) / srcWidth;
+            pdf.addImage(sliceImg, 'PNG', 14, startY, pageWidth, sliceImgHeight);
+          }
+
+          srcY += actualSlice;
+          firstPage = false;
+        }
+      }
+
+      pdf.save(`${policy.policy_number || policy.name.replace(/[^a-zA-Z0-9]/g, '_')}_original_v${policy.current_version}.pdf`);
+      toast.success('Original PDF with content downloaded');
+    } catch (err: any) {
+      console.error('Failed to generate original PDF with content:', err);
+      toast.error('Failed: ' + (err.message || 'Unknown error'));
+    }
   };
 
   const pdfFormatValue = (value: any, fieldType: string, options?: any): string => {
@@ -1671,6 +1801,7 @@ const PolicyDetail = () => {
                 formId={policy.form_id}
                 displayFormat={dynamicFieldsFormat}
                 selectedFieldIds={policy.content?.selected_field_ids as string[] | undefined}
+                selectedRecordIds={policy.content?.selected_record_ids as string[] | undefined}
               />
             </div>
           )}

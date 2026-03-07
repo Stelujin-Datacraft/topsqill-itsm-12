@@ -11,9 +11,10 @@ interface PolicyDynamicFieldsRendererProps {
   formId: string;
   displayFormat: 'table' | 'field-value';
   selectedFieldIds?: string[];
+  selectedRecordIds?: string[];
 }
 
-export function PolicyDynamicFieldsRenderer({ formId, displayFormat, selectedFieldIds }: PolicyDynamicFieldsRendererProps) {
+export function PolicyDynamicFieldsRenderer({ formId, displayFormat, selectedFieldIds, selectedRecordIds }: PolicyDynamicFieldsRendererProps) {
   const formQuery = useQuery({
     queryKey: ['policy-form-info', formId],
     queryFn: async () => {
@@ -134,7 +135,8 @@ export function PolicyDynamicFieldsRenderer({ formId, displayFormat, selectedFie
   }
 
   const fields = fieldsQuery.data || [];
-  const submissions = submissionsQuery.data || [];
+  const allSubmissions = submissionsQuery.data || [];
+  const submissions = selectedRecordIds?.length ? allSubmissions.filter(s => selectedRecordIds.includes(s.id)) : allSubmissions;
   const formName = formQuery.data?.name || 'Linked Form';
   const linkedData = linkedRecordsQuery.data || { records: {}, fieldLabels: {} };
 
