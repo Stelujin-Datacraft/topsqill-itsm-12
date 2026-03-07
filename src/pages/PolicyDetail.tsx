@@ -1671,6 +1671,7 @@ const PolicyDetail = () => {
                 formId={policy.form_id}
                 displayFormat={dynamicFieldsFormat}
                 selectedFieldIds={policy.content?.selected_field_ids as string[] | undefined}
+                selectedRecordIds={policy.content?.selected_record_ids as string[] | undefined}
               />
             </div>
           )}
