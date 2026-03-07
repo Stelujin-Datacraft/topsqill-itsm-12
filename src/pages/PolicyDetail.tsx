@@ -488,8 +488,10 @@ const PolicyDetail = () => {
           !['section', 'divider', 'heading', 'paragraph', 'spacer', 'page-break'].includes(f.field_type)
         );
         const selectedFieldIds = policy.content?.selected_field_ids as string[] | undefined;
+        const selectedRecordIds = policy.content?.selected_record_ids as string[] | undefined;
         const fields = selectedFieldIds?.length ? allFields.filter(f => selectedFieldIds.includes(f.id)) : allFields;
-        const submissions = subsRes.data || [];
+        const allSubmissions = subsRes.data || [];
+        const submissions = selectedRecordIds?.length ? allSubmissions.filter(s => selectedRecordIds.includes(s.id)) : allSubmissions;
 
         // Resolve cross-ref linked records for PDF
         const crossRefFields = allFields.filter(f => ['cross-reference', 'child-cross-reference'].includes(f.field_type));
