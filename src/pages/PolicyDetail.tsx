@@ -1023,8 +1023,10 @@ const PolicyDetail = () => {
       ]);
       const allFields = (fR.data || []).filter(f => !['section', 'divider', 'heading', 'paragraph', 'spacer', 'page-break'].includes(f.field_type));
       const selectedIds = policy.content?.selected_field_ids as string[] | undefined;
+      const selectedRecordIds = policy.content?.selected_record_ids as string[] | undefined;
       const fields = selectedIds?.length ? allFields.filter(f => selectedIds.includes(f.id)) : allFields;
-      const subs = sR.data || [];
+      const allSubs = sR.data || [];
+      const subs = selectedRecordIds?.length ? allSubs.filter(s => selectedRecordIds.includes(s.id)) : allSubs;
 
       // Resolve cross-ref linked records
       const crFields = allFields.filter(f => ['cross-reference', 'child-cross-reference'].includes(f.field_type));
