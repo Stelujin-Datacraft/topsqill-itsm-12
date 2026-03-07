@@ -125,7 +125,7 @@ const CreatePolicy = () => {
   const updateField = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) => {
     setForm(prev => ({ ...prev, [key]: value }));
   };
-  const [activeView, setActiveView] = useState<'fields' | 'records'>('fields');
+  const [activeView, setActiveView] = useState<'fields' | 'records'>('records');
   const [selectedRecords, setSelectedRecords] = useState<string[]>([]);
 
   return (
