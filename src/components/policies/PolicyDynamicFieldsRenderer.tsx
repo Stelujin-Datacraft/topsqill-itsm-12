@@ -11,6 +11,7 @@ interface PolicyDynamicFieldsRendererProps {
   formId: string;
   displayFormat: 'table' | 'field-value';
   selectedFieldIds?: string[];
+  selectedRecordIds?: string[];
 }
 
 export function PolicyDynamicFieldsRenderer({ formId, displayFormat, selectedFieldIds }: PolicyDynamicFieldsRendererProps) {
