@@ -14,7 +14,7 @@ interface PolicyDynamicFieldsRendererProps {
   selectedRecordIds?: string[];
 }
 
-export function PolicyDynamicFieldsRenderer({ formId, displayFormat, selectedFieldIds }: PolicyDynamicFieldsRendererProps) {
+export function PolicyDynamicFieldsRenderer({ formId, displayFormat, selectedFieldIds, selectedRecordIds }: PolicyDynamicFieldsRendererProps) {
   const formQuery = useQuery({
     queryKey: ['policy-form-info', formId],
     queryFn: async () => {
