@@ -103,6 +103,7 @@ const CreatePolicy = () => {
         ...(form.content_html ? { html: form.content_html } : (selectedTemplate?.content_structure || {})),
         dynamic_fields_display: form.form_id ? form.dynamic_fields_display : undefined,
         selected_field_ids: form.form_id && form.selected_field_ids.length > 0 ? form.selected_field_ids : undefined,
+        selected_record_ids: form.form_id && selectedRecords.length > 0 ? selectedRecords : undefined,
         original_docx_url: originalDocxUrl,
         original_docx_name: originalDocxFile?.name,
       },
