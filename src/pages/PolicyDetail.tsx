@@ -1389,6 +1389,8 @@ const PolicyDetail = () => {
               <Users className="h-3 w-3" />
               <span>Owner: <span className="font-medium text-foreground">{getUserName(policy.created_by)}</span></span>
             </div>
+          </div>
+        </div>
         <div className="flex items-center gap-2 flex-wrap">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
