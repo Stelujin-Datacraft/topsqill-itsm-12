@@ -3,10 +3,11 @@ import html2canvas from 'html2canvas';
 import PizZip from 'pizzip';
 import { supabase } from '@/integrations/supabase/client';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Edit, Trash2, Save, Send, Archive, History, Link2, CheckCircle, Clock, FileText, Download, Plus, UserCheck, AlertOctagon, CalendarClock, Shield, BookOpen, Upload, Loader2, Star, FileDown } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, Save, Send, Archive, History, Link2, CheckCircle, Clock, FileText, Download, Plus, UserCheck, AlertOctagon, CalendarClock, Shield, BookOpen, Upload, Loader2, Star, FileDown, Users } from 'lucide-react';
 import { Document, Packer, Paragraph, TextRun, ImageRun, HeadingLevel, Table as DocxTable, TableRow as DocxTableRow, TableCell as DocxTableCell, WidthType, BorderStyle, AlignmentType } from 'docx';
 import { PolicyDynamicFieldsRenderer } from '@/components/policies/PolicyDynamicFieldsRenderer';
 import { PolicyRatingsTab } from '@/components/policies/PolicyRatingsTab';
+import { PolicyCustomFieldsRenderer } from '@/components/policies/PolicyCustomFieldsRenderer';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -1382,9 +1383,13 @@ const PolicyDetail = () => {
                 </Badge>
               )}
             </div>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              {policy.description || 'No description'}
-            </p>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground mt-0.5">
+              <span>{policy.description || 'No description'}</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1">
+              <Users className="h-3 w-3" />
+              <span>Owner: <span className="font-medium text-foreground">{getUserName(policy.created_by)}</span></span>
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -1612,7 +1617,7 @@ const PolicyDetail = () => {
                 <DetailRow label="Category" value={policy.category} />
                 <DetailRow label="Department" value={policy.department || '—'} />
                 <DetailRow label="Priority" value={<Badge className={priorityDef?.color}>{priorityDef?.label}</Badge>} />
-                
+                <DetailRow label="Owner" value={getUserName(policy.created_by)} />
                 <DetailRow label="Version" value={`v${policy.current_version}`} />
               </CardContent>
             </Card>
@@ -1788,6 +1793,15 @@ const PolicyDetail = () => {
                 selectedRecordIds={policy.content?.selected_record_ids as string[] | undefined}
               />
             </div>
+          )}
+
+          {/* Custom Fields */}
+          {policy.content?.custom_fields && (policy.content.custom_fields as any[]).length > 0 && (
+            <PolicyCustomFieldsRenderer
+              fields={policy.content.custom_fields as any[]}
+              values={(policy.content.custom_field_values as Record<string, any>) || {}}
+              readOnly
+            />
           )}
         </TabsContent>
 

@@ -18,6 +18,8 @@ import { PolicyFormLink } from '@/components/policies/PolicyFormLink';
 import { PolicyFieldSelector } from '@/components/policies/PolicyFieldSelector';
 import PageContent from '@/components/PageContent';
 import { PolicyRecordSelector } from '@/components/policies/PolicyRecordSelector';
+import { PolicyCustomFieldsBuilder, type PolicyCustomField } from '@/components/policies/PolicyCustomFieldsBuilder';
+import { PolicyCustomFieldsRenderer } from '@/components/policies/PolicyCustomFieldsRenderer';
 
 const INITIAL_FORM = {
   name: '',
@@ -106,6 +108,8 @@ const CreatePolicy = () => {
         selected_record_ids: form.form_id && selectedRecords.length > 0 ? selectedRecords : undefined,
         original_docx_url: originalDocxUrl,
         original_docx_name: originalDocxFile?.name,
+        custom_fields: customFields.length > 0 ? customFields : undefined,
+        custom_field_values: customFields.length > 0 ? customFieldValues : undefined,
       },
       template_id: selectedTemplate?.id,
       form_id: form.form_id || undefined,
@@ -128,6 +132,8 @@ const CreatePolicy = () => {
   };
   const [activeView, setActiveView] = useState<'fields' | 'records'>('records');
   const [selectedRecords, setSelectedRecords] = useState<string[]>([]);
+  const [customFields, setCustomFields] = useState<PolicyCustomField[]>([]);
+  const [customFieldValues, setCustomFieldValues] = useState<Record<string, any>>({});
 
   return (
     <PageContent
@@ -359,6 +365,21 @@ const CreatePolicy = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Custom Fields */}
+        <PolicyCustomFieldsBuilder
+          fields={customFields}
+          onFieldsChange={setCustomFields}
+        />
+
+        {/* Custom Field Values (if fields exist) */}
+        {customFields.length > 0 && (
+          <PolicyCustomFieldsRenderer
+            fields={customFields}
+            values={customFieldValues}
+            onChange={setCustomFieldValues}
+          />
+        )}
       </div>
     </PageContent>
   );
