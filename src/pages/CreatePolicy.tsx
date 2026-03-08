@@ -19,6 +19,7 @@ import { PolicyFieldSelector } from '@/components/policies/PolicyFieldSelector';
 import PageContent from '@/components/PageContent';
 import { PolicyRecordSelector } from '@/components/policies/PolicyRecordSelector';
 import { PolicyCustomFieldsBuilder, type PolicyCustomField } from '@/components/policies/PolicyCustomFieldsBuilder';
+import { PolicyCustomFieldsRenderer } from '@/components/policies/PolicyCustomFieldsRenderer';
 
 const INITIAL_FORM = {
   name: '',
