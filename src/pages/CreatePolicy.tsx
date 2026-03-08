@@ -129,6 +129,8 @@ const CreatePolicy = () => {
   };
   const [activeView, setActiveView] = useState<'fields' | 'records'>('records');
   const [selectedRecords, setSelectedRecords] = useState<string[]>([]);
+  const [customFields, setCustomFields] = useState<PolicyCustomField[]>([]);
+  const [customFieldValues, setCustomFieldValues] = useState<Record<string, any>>({});
 
   return (
     <PageContent
