@@ -107,6 +107,8 @@ const CreatePolicy = () => {
         selected_record_ids: form.form_id && selectedRecords.length > 0 ? selectedRecords : undefined,
         original_docx_url: originalDocxUrl,
         original_docx_name: originalDocxFile?.name,
+        custom_fields: customFields.length > 0 ? customFields : undefined,
+        custom_field_values: customFields.length > 0 ? customFieldValues : undefined,
       },
       template_id: selectedTemplate?.id,
       form_id: form.form_id || undefined,
