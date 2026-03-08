@@ -364,6 +364,37 @@ const CreatePolicy = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Custom Fields */}
+        <PolicyCustomFieldsBuilder
+          fields={customFields}
+          onFieldsChange={setCustomFields}
+        />
+
+        {/* Custom Field Values (if fields exist) */}
+        {customFields.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Fill Custom Fields</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 gap-4">
+                {customFields.sort((a, b) => a.order - b.order).map(field => {
+                  const isLayout = ['header', 'description', 'horizontal-line'].includes(field.type);
+                  return (
+                    <div key={field.id} className={isLayout ? 'col-span-2' : ''}>
+                      <PolicyCustomFieldValueInput
+                        field={field}
+                        value={customFieldValues[field.id]}
+                        onChange={v => setCustomFieldValues(prev => ({ ...prev, [field.id]: v }))}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </PageContent>
   );
