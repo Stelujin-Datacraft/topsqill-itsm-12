@@ -1382,11 +1382,13 @@ const PolicyDetail = () => {
                 </Badge>
               )}
             </div>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              {policy.description || 'No description'}
-            </p>
-          </div>
-        </div>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground mt-0.5">
+              <span>{policy.description || 'No description'}</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1">
+              <Users className="h-3 w-3" />
+              <span>Owner: <span className="font-medium text-foreground">{getUserName(policy.created_by)}</span></span>
+            </div>
         <div className="flex items-center gap-2 flex-wrap">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
