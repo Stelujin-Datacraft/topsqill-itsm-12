@@ -1794,6 +1794,15 @@ const PolicyDetail = () => {
               />
             </div>
           )}
+
+          {/* Custom Fields */}
+          {policy.content?.custom_fields && (policy.content.custom_fields as any[]).length > 0 && (
+            <PolicyCustomFieldsRenderer
+              fields={policy.content.custom_fields as any[]}
+              values={(policy.content.custom_field_values as Record<string, any>) || {}}
+              readOnly
+            />
+          )}
         </TabsContent>
 
         {/* Approvals Tab */}
