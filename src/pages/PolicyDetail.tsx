@@ -1617,7 +1617,7 @@ const PolicyDetail = () => {
                 <DetailRow label="Category" value={policy.category} />
                 <DetailRow label="Department" value={policy.department || '—'} />
                 <DetailRow label="Priority" value={<Badge className={priorityDef?.color}>{priorityDef?.label}</Badge>} />
-                
+                <DetailRow label="Owner" value={getUserName(policy.created_by)} />
                 <DetailRow label="Version" value={`v${policy.current_version}`} />
               </CardContent>
             </Card>
