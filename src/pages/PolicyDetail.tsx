@@ -65,6 +65,9 @@ const PolicyDetail = () => {
   const [showApprovalDialog, setShowApprovalDialog] = useState(false);
   const [selectedApproverIds, setSelectedApproverIds] = useState<string[]>([]);
   const [approvalSubmitComment, setApprovalSubmitComment] = useState('');
+  const [approvalMode, setApprovalMode] = useState<ApprovalMode>(
+    (policy?.content?.approval_mode as ApprovalMode) || 'any_one'
+  );
 
   // Fetch users for approver selection
   const usersQuery = useQuery({
