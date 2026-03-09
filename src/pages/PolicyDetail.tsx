@@ -1860,57 +1860,23 @@ const PolicyDetail = () => {
           <Card>
             <CardContent className="pt-4">
               <div className="flex items-center justify-between mb-4">
-                <p className="text-sm font-medium">Approval History</p>
+                <p className="text-sm font-medium">Approval Flow</p>
+                {policy.status === 'draft' && (
+                  <Button size="sm" onClick={() => setShowApprovalDialog(true)}>
+                    <Send className="h-3.5 w-3.5 mr-1" /> Submit for Approval
+                  </Button>
+                )}
               </div>
-              {approvals.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-6">No approval history</p>
-              ) : (
-                <div className="space-y-3">
-                  {approvals.map(a => (
-                    <div key={a.id} className="p-3 rounded-md border space-y-2">
-                      <div className="flex items-start gap-3">
-                        {a.status === 'approved' && <CheckCircle className="h-5 w-5 text-primary mt-0.5" />}
-                        {a.status === 'pending' && <Clock className="h-5 w-5 text-muted-foreground mt-0.5" />}
-                        {a.status === 'rejected' && <AlertOctagon className="h-5 w-5 text-destructive mt-0.5" />}
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm capitalize font-medium">{a.status}</span>
-                            <Badge variant="outline">v{a.version_number}</Badge>
-                          </div>
-                          <div className="text-xs text-muted-foreground mt-0.5">
-                            Approver: <span className="font-medium text-foreground">{getUserName(a.approver_id)}</span>
-                          </div>
-                          {a.comments && <div className="text-xs text-muted-foreground mt-1 italic">"{a.comments}"</div>}
-                        </div>
-                        <div className="text-xs text-muted-foreground">{format(new Date(a.created_at), 'MMM d, yyyy HH:mm')}</div>
-                      </div>
-                      {a.status === 'pending' && a.approver_id === user?.id ? (
-                        <div className="flex items-center gap-2 pt-2 border-t">
-                          <Textarea
-                            placeholder="Add comment (required for rejection, optional for approval)"
-                            value={approvalComment}
-                            onChange={e => setApprovalComment(e.target.value)}
-                            className="flex-1 text-sm min-h-[60px]"
-                            rows={2}
-                          />
-                          <div className="flex flex-col gap-1">
-                            <Button size="sm" variant="default" onClick={() => handleApprovalResponse(a.id, 'approved')} disabled={respondApproval.isPending}>
-                              <CheckCircle className="h-3.5 w-3.5 mr-1" /> Approve
-                            </Button>
-                            <Button size="sm" variant="destructive" onClick={() => handleApprovalResponse(a.id, 'rejected')} disabled={respondApproval.isPending || !approvalComment.trim()}>
-                              <AlertOctagon className="h-3.5 w-3.5 mr-1" /> Reject
-                            </Button>
-                          </div>
-                        </div>
-                      ) : a.status === 'pending' ? (
-                        <div className="pt-2 border-t">
-                          <p className="text-xs text-muted-foreground italic">Awaiting response from designated approver</p>
-                        </div>
-                      ) : null}
-                    </div>
-                  ))}
-                </div>
-              )}
+              <PolicyApprovalFlow
+                approvals={approvals}
+                policyStatus={policy.status}
+                approvalMode={(policy.content?.approval_mode as ApprovalMode) || 'any_one'}
+                currentUserId={user?.id}
+                getUserName={getUserName}
+                onApprove={(id, comment) => handleApprovalResponse(id, 'approved', comment)}
+                onReject={(id, comment) => handleApprovalResponse(id, 'rejected', comment)}
+                isPending={respondApproval.isPending}
+              />
             </CardContent>
           </Card>
         </TabsContent>
