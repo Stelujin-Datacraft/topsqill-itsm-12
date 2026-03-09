@@ -11,7 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { usePolicies } from '@/hooks/usePolicies';
-import { POLICY_CATEGORIES, POLICY_PRIORITIES, REVIEW_CYCLE_OPTIONS } from '@/types/policy';
+import { POLICY_CATEGORIES } from '@/types/policy';
 import type { PolicyTemplate } from '@/types/policy';
 import { PolicyContentSource } from '@/components/policies/PolicyContentSource';
 import { PolicyFormLink } from '@/components/policies/PolicyFormLink';
