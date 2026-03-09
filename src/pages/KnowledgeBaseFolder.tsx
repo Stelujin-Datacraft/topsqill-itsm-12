@@ -16,6 +16,8 @@ import { POLICY_CATEGORIES, POLICY_STATUSES, POLICY_PRIORITIES } from '@/types/p
 import { PolicyDashboard } from '@/components/policies/PolicyDashboard';
 import { format, isPast } from 'date-fns';
 import { FolderAccessControls } from '@/components/policies/FolderAccessControls';
+import { PolicyBulkActions } from '@/components/policies/PolicyBulkActions';
+import { Checkbox } from '@/components/ui/checkbox';
 
 // Reuse templates tab from original Policies page
 import type { PolicyTemplate } from '@/types/policy';
