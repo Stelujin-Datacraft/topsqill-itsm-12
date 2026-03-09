@@ -230,11 +230,25 @@ const PolicyDetail = () => {
     toast.success(`Submitted for approval to ${selectedApproverIds.length} approver(s) (${approvalMode === 'any_one' ? 'Any One' : 'All'} mode)`);
   };
 
-  const handleApprovalResponse = async (approvalId: string, status: 'approved' | 'rejected') => {
-    await respondApproval.mutateAsync({ approvalId, status, comments: approvalComment || undefined });
+  const handleApprovalResponse = async (approvalId: string, status: 'approved' | 'rejected', comment?: string) => {
+    await respondApproval.mutateAsync({ approvalId, status, comments: comment || approvalComment || undefined });
+    
+    const savedMode: ApprovalMode = (policy.content?.approval_mode as ApprovalMode) || 'any_one';
+    
     if (status === 'approved') {
-      const pendingApprovals = approvals.filter(a => a.status === 'pending' && a.id !== approvalId);
-      if (pendingApprovals.length === 0) {
+      const remainingPending = approvals.filter(a => a.status === 'pending' && a.id !== approvalId);
+      const currentApproved = approvals.filter(a => a.status === 'approved').length + 1; // +1 for this approval
+      
+      let shouldPublish = false;
+      if (savedMode === 'any_one') {
+        // Any one approval is enough
+        shouldPublish = true;
+      } else {
+        // All must approve
+        shouldPublish = remainingPending.length === 0;
+      }
+      
+      if (shouldPublish) {
         const publishedAt = new Date().toISOString();
         await updatePolicy.mutateAsync({ id: policy.id, status: 'published', published_at: publishedAt });
         if (policy.review_cycle_days && policy.review_cycle_days > 0) {
@@ -246,9 +260,11 @@ const PolicyDetail = () => {
             status: 'scheduled',
           });
         }
+        toast.success('Policy approved and published!');
       }
     } else {
       await updatePolicy.mutateAsync({ id: policy.id, status: 'draft' });
+      toast.info('Policy rejected — returned to Draft');
     }
     setApprovalComment('');
   };
