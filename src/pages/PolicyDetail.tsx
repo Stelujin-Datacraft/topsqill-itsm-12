@@ -44,7 +44,7 @@ const PolicyDetail = () => {
   const { user, userProfile } = useAuth();
   const { currentOrganization } = useOrganization();
   const { currentProject } = useProject();
-  const { policies, updatePolicy, deletePolicy, createVersion, createReviewCycle } = usePolicies();
+  const { policies, updatePolicy, deletePolicy, createVersion, createReviewCycle, clonePolicy, completeReviewCycle } = usePolicies();
   const { versions, linkages, approvals, acknowledgments, exceptions, reviewCycles, isLoading, createLinkage, submitApproval, respondApproval, acknowledgePolicy, requestException, respondException } = usePolicyDetail(id);
   
   const policy = policies.find(p => p.id === id);
