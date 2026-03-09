@@ -11,7 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { usePolicies } from '@/hooks/usePolicies';
-import { POLICY_CATEGORIES, POLICY_PRIORITIES, REVIEW_CYCLE_OPTIONS } from '@/types/policy';
+import { POLICY_CATEGORIES } from '@/types/policy';
 import type { PolicyTemplate } from '@/types/policy';
 import { PolicyContentSource } from '@/components/policies/PolicyContentSource';
 import { PolicyFormLink } from '@/components/policies/PolicyFormLink';
@@ -284,89 +284,7 @@ const CreatePolicy = () => {
           </Card>
         </div>
 
-        {/* Metadata */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Classification & Compliance</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label>Category *</Label>
-                <Select value={form.category} onValueChange={v => updateField('category', v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {POLICY_CATEGORIES.map(c => (
-                      <SelectItem key={c} value={c}>{c}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Priority</Label>
-                <Select value={form.priority} onValueChange={v => updateField('priority', v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {POLICY_PRIORITIES.map(p => (
-                      <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Department</Label>
-                <Input
-                  value={form.department}
-                  onChange={e => updateField('department', e.target.value)}
-                  placeholder="e.g., Engineering, HR"
-                />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Dates & Governance */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Dates & Governance</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label>Effective Date</Label>
-                <Input
-                  type="date"
-                  value={form.effective_date}
-                  onChange={e => updateField('effective_date', e.target.value)}
-                />
-              </div>
-              <div>
-                <Label>Expiry Date</Label>
-                <Input
-                  type="date"
-                  value={form.expiry_date}
-                  onChange={e => updateField('expiry_date', e.target.value)}
-                />
-              </div>
-              <div>
-                <Label>Review Cycle</Label>
-                <Select
-                  value={String(form.review_cycle_days)}
-                  onValueChange={v => updateField('review_cycle_days', Number(v))}
-                >
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {REVIEW_CYCLE_OPTIONS.map(o => (
-                      <SelectItem key={o.value} value={String(o.value)}>{o.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Custom Fields */}
+        {/* Custom Fields Builder + Values Entry */}
         <PolicyCustomFieldsBuilder
           fields={customFields}
           onFieldsChange={setCustomFields}

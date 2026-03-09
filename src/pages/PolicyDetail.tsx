@@ -1641,6 +1641,49 @@ const PolicyDetail = () => {
             </Card>
           </div>
 
+          {/* Custom Fields in Details Tab */}
+          {policy.content?.custom_fields && (policy.content.custom_fields as any[]).length > 0 && (
+            <Card>
+              <CardHeader><CardTitle className="text-sm">Custom Fields</CardTitle></CardHeader>
+              <CardContent className="space-y-2 text-sm">
+                {(() => {
+                  const fields = policy.content.custom_fields as any[];
+                  const vals = (policy.content.custom_field_values as Record<string, any>) || {};
+                  const sorted = [...fields].sort((a: any, b: any) => a.order - b.order);
+                  return (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
+                      {sorted.filter((f: any) => !['header', 'description', 'horizontal-line'].includes(f.type)).map((field: any) => {
+                        const raw = vals[field.id];
+                        let display = '—';
+                        if (raw !== null && raw !== undefined && raw !== '') {
+                          if (Array.isArray(raw)) {
+                            const opts = field.options || [];
+                            display = raw.map((v: string) => {
+                              const opt = opts.find((o: any) => o.value === v);
+                              return opt?.label || v;
+                            }).join(', ') || '—';
+                          } else if (typeof raw === 'boolean') {
+                            display = raw ? 'Yes' : 'No';
+                          } else if ((field.type === 'select' || field.type === 'radio') && field.options) {
+                            const opt = field.options.find((o: any) => o.value === raw);
+                            display = opt?.label || String(raw);
+                          } else if (field.type === 'rating') {
+                            display = '★'.repeat(Number(raw));
+                          } else {
+                            display = String(raw);
+                          }
+                        }
+                        return (
+                          <DetailRow key={field.id} label={field.label} value={display} />
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+              </CardContent>
+            </Card>
+          )}
+
           {/* Attachments */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
@@ -1795,14 +1838,6 @@ const PolicyDetail = () => {
             </div>
           )}
 
-          {/* Custom Fields */}
-          {policy.content?.custom_fields && (policy.content.custom_fields as any[]).length > 0 && (
-            <PolicyCustomFieldsRenderer
-              fields={policy.content.custom_fields as any[]}
-              values={(policy.content.custom_field_values as Record<string, any>) || {}}
-              readOnly
-            />
-          )}
         </TabsContent>
 
         {/* Approvals Tab */}
