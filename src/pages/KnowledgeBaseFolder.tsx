@@ -131,6 +131,16 @@ const KnowledgeBaseFolder = () => {
         </TabsList>
 
         <TabsContent value="list" className="space-y-4">
+          {/* Bulk Actions */}
+          <PolicyBulkActions
+            policies={folderPolicies}
+            selectedIds={selectedIds}
+            onSelectionChange={setSelectedIds}
+            onBulkPublish={async (ids) => { await bulkUpdateStatus.mutateAsync({ ids, status: 'published', extra: { published_at: new Date().toISOString() } }); }}
+            onBulkRetire={async (ids) => { await bulkUpdateStatus.mutateAsync({ ids, status: 'retired', extra: { retired_at: new Date().toISOString() } }); }}
+            onBulkDelete={async (ids) => { await bulkDelete.mutateAsync(ids); }}
+            onClone={async (id) => { await clonePolicy.mutateAsync(id); }}
+          />
           <div className="flex flex-wrap gap-3">
             <div className="relative flex-1 min-w-[280px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
