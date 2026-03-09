@@ -36,7 +36,7 @@ const KnowledgeBaseFolder = () => {
   const { userProfile } = useAuth();
   const { canEdit, canAdmin } = useKnowledgeBasePermission(folderId === 'unassigned' ? null : folderId);
   const isAdmin = canAdmin;
-  const { policies, isLoading, templates, templatesLoading, deleteTemplate, updateTemplate } = usePolicies();
+  const { policies, isLoading, templates, templatesLoading, deleteTemplate, updateTemplate, clonePolicy, bulkUpdateStatus, bulkDelete } = usePolicies();
   const { folders } = useKnowledgeBaseFolders();
 
   const isUnassigned = folderId === 'unassigned';
