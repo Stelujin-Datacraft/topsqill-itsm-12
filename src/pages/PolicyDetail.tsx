@@ -1448,6 +1448,9 @@ const PolicyDetail = () => {
           </DropdownMenu>
           {canEdit && policy.status === 'draft' && (
             <>
+              <Button variant="outline" size="sm" onClick={() => clonePolicy.mutateAsync(policy.id)}>
+                <FileText className="h-4 w-4 mr-1" /> Clone
+              </Button>
               <Button variant="outline" size="sm" onClick={startEditing}>
                 <Edit className="h-4 w-4 mr-1" /> Edit
               </Button>
