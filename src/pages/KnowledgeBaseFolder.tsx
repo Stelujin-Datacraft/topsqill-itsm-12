@@ -244,6 +244,7 @@ const KnowledgeBaseFolder = () => {
                             {policy.description || 'No description'}
                           </p>
                         </div>
+                        </div>
                         <div className="text-right text-xs text-muted-foreground ml-4 shrink-0 space-y-0.5">
                           <div>v{policy.current_version}</div>
                           <div>{format(new Date(policy.updated_at), 'MMM d, yyyy')}</div>
