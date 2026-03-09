@@ -57,7 +57,7 @@ const KnowledgeBaseFolder = () => {
   const [editDescription, setEditDescription] = useState('');
   const [editCategory, setEditCategory] = useState('');
   const [editContentHtml, setEditContentHtml] = useState('');
-
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const folderPolicies = useMemo(() => {
     return policies.filter((p: any) => {
       const matchFolder = isUnassigned ? !p.folder_id : p.folder_id === folderId;
