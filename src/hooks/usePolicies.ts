@@ -182,6 +182,99 @@ export function usePolicies() {
     },
   });
 
+  const clonePolicy = useMutation({
+    mutationFn: async (sourcePolicyId: string) => {
+      const source = policiesQuery.data?.find(p => p.id === sourcePolicyId);
+      if (!source) throw new Error('Policy not found');
+      const { data, error } = await supabase
+        .from('policies')
+        .insert([{
+          name: `Copy of ${source.name}`,
+          description: source.description,
+          category: source.category,
+          department: source.department,
+          owner_type: source.owner_type,
+          owner_id: user?.id,
+          priority: source.priority,
+          content: source.content,
+          tags: source.tags,
+          review_cycle_days: source.review_cycle_days,
+          acknowledgment_required: source.acknowledgment_required,
+          exception_allowed: source.exception_allowed,
+          folder_id: source.folder_id,
+          item_type: source.item_type,
+          project_id: projectId,
+          organization_id: orgId,
+          created_by: user?.id,
+          status: 'draft',
+          current_version: 1,
+          attachments: source.attachments,
+        } as any])
+        .select()
+        .single();
+      if (error) throw error;
+      return data as unknown as Policy;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['policies', projectId] });
+      toast.success('Policy cloned as draft');
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+
+  const bulkUpdateStatus = useMutation({
+    mutationFn: async ({ ids, status, extra }: { ids: string[]; status: string; extra?: Record<string, any> }) => {
+      for (const id of ids) {
+        const { error } = await supabase
+          .from('policies')
+          .update({ status, ...extra } as any)
+          .eq('id', id);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['policies', projectId] });
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+
+  const bulkDelete = useMutation({
+    mutationFn: async (ids: string[]) => {
+      for (const id of ids) {
+        const { error } = await supabase.from('policies').delete().eq('id', id);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['policies', projectId] });
+      toast.success('Policies deleted');
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+
+  const completeReviewCycle = useMutation({
+    mutationFn: async ({ cycleId, findings, outcome }: { cycleId: string; findings: string; outcome: string }) => {
+      const { data, error } = await supabase
+        .from('policy_review_cycles')
+        .update({
+          status: 'completed',
+          findings,
+          outcome,
+          completed_at: new Date().toISOString(),
+          reviewer_id: user?.id,
+        } as any)
+        .eq('id', cycleId)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (_, vars) => {
+      toast.success('Review cycle completed');
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+
   return {
     policies: policiesQuery.data || [],
     isLoading: policiesQuery.isLoading,
@@ -195,6 +288,10 @@ export function usePolicies() {
     updateTemplate,
     deleteTemplate,
     createReviewCycle,
+    clonePolicy,
+    bulkUpdateStatus,
+    bulkDelete,
+    completeReviewCycle,
   };
 }
 

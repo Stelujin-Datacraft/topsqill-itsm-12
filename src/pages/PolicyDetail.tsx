@@ -34,6 +34,8 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { TiptapEditor } from '@/components/ui/tiptap-editor';
 import { PolicyApprovalFlow, type ApprovalMode } from '@/components/policies/PolicyApprovalFlow';
+import { PolicyReviewFlow } from '@/components/policies/PolicyReviewFlow';
+import { PolicyVersionDiff } from '@/components/policies/PolicyVersionDiff';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 const PolicyDetail = () => {
@@ -42,7 +44,7 @@ const PolicyDetail = () => {
   const { user, userProfile } = useAuth();
   const { currentOrganization } = useOrganization();
   const { currentProject } = useProject();
-  const { policies, updatePolicy, deletePolicy, createVersion, createReviewCycle } = usePolicies();
+  const { policies, updatePolicy, deletePolicy, createVersion, createReviewCycle, clonePolicy, completeReviewCycle } = usePolicies();
   const { versions, linkages, approvals, acknowledgments, exceptions, reviewCycles, isLoading, createLinkage, submitApproval, respondApproval, acknowledgePolicy, requestException, respondException } = usePolicyDetail(id);
   
   const policy = policies.find(p => p.id === id);
@@ -1446,6 +1448,9 @@ const PolicyDetail = () => {
           </DropdownMenu>
           {canEdit && policy.status === 'draft' && (
             <>
+              <Button variant="outline" size="sm" onClick={() => clonePolicy.mutateAsync(policy.id)}>
+                <FileText className="h-4 w-4 mr-1" /> Clone
+              </Button>
               <Button variant="outline" size="sm" onClick={startEditing}>
                 <Edit className="h-4 w-4 mr-1" /> Edit
               </Button>
@@ -1621,6 +1626,9 @@ const PolicyDetail = () => {
           </TabsTrigger>
           <TabsTrigger value="approvals" className="gap-1">
             <CheckCircle className="h-3.5 w-3.5" /> Approvals ({approvals.length})
+          </TabsTrigger>
+          <TabsTrigger value="reviews" className="gap-1">
+            <CalendarClock className="h-3.5 w-3.5" /> Reviews ({reviewCycles.length})
           </TabsTrigger>
           <TabsTrigger value="versions" className="gap-1">
             <History className="h-3.5 w-3.5" /> Versions ({versions.length})
@@ -1881,8 +1889,51 @@ const PolicyDetail = () => {
           </Card>
         </TabsContent>
 
+        {/* Reviews Tab */}
+        <TabsContent value="reviews" className="mt-4">
+          <Card>
+            <CardContent className="pt-4">
+              <PolicyReviewFlow
+                reviewCycles={reviewCycles}
+                policyStatus={policy.status}
+                currentUserId={user?.id}
+                getUserName={getUserName}
+                onCompleteReview={async (cycleId, findings, outcome) => {
+                  await completeReviewCycle.mutateAsync({ cycleId, findings, outcome });
+                  // Schedule next review if outcome isn't retire
+                  if (outcome !== 'retire' && policy.review_cycle_days) {
+                    const nextDate = new Date();
+                    nextDate.setDate(nextDate.getDate() + policy.review_cycle_days);
+                    await createReviewCycle.mutateAsync({
+                      policy_id: policy.id,
+                      review_date: nextDate.toISOString().split('T')[0],
+                      status: 'scheduled',
+                    });
+                  }
+                }}
+                isPending={completeReviewCycle.isPending}
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         {/* Versions Tab */}
-        <TabsContent value="versions" className="mt-4">
+        <TabsContent value="versions" className="mt-4 space-y-4">
+          {/* Version Diff */}
+          {versions.length > 0 && (
+            <Card>
+              <CardContent className="pt-4">
+                <p className="text-sm font-medium mb-4">Compare Versions</p>
+                <PolicyVersionDiff
+                  versions={versions}
+                  currentContent={policy.content}
+                  currentVersion={policy.current_version}
+                  policyName={policy.name}
+                />
+              </CardContent>
+            </Card>
+          )}
+
           <Card>
             <CardContent className="pt-4">
               <p className="text-sm font-medium mb-4">Version History</p>

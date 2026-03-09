@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Plus, Search, FileText, Shield, BarChart3, LayoutTemplate, CalendarClock, FolderOpen, Users, Lock } from 'lucide-react';
+import { ArrowLeft, Plus, Search, FileText, Shield, BarChart3, LayoutTemplate, CalendarClock, FolderOpen, Users, Lock, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -16,6 +16,8 @@ import { POLICY_CATEGORIES, POLICY_STATUSES, POLICY_PRIORITIES } from '@/types/p
 import { PolicyDashboard } from '@/components/policies/PolicyDashboard';
 import { format, isPast } from 'date-fns';
 import { FolderAccessControls } from '@/components/policies/FolderAccessControls';
+import { PolicyBulkActions } from '@/components/policies/PolicyBulkActions';
+import { Checkbox } from '@/components/ui/checkbox';
 
 // Reuse templates tab from original Policies page
 import type { PolicyTemplate } from '@/types/policy';
@@ -34,7 +36,7 @@ const KnowledgeBaseFolder = () => {
   const { userProfile } = useAuth();
   const { canEdit, canAdmin } = useKnowledgeBasePermission(folderId === 'unassigned' ? null : folderId);
   const isAdmin = canAdmin;
-  const { policies, isLoading, templates, templatesLoading, deleteTemplate, updateTemplate } = usePolicies();
+  const { policies, isLoading, templates, templatesLoading, deleteTemplate, updateTemplate, clonePolicy, bulkUpdateStatus, bulkDelete } = usePolicies();
   const { folders } = useKnowledgeBaseFolders();
 
   const isUnassigned = folderId === 'unassigned';
@@ -55,7 +57,7 @@ const KnowledgeBaseFolder = () => {
   const [editDescription, setEditDescription] = useState('');
   const [editCategory, setEditCategory] = useState('');
   const [editContentHtml, setEditContentHtml] = useState('');
-
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const folderPolicies = useMemo(() => {
     return policies.filter((p: any) => {
       const matchFolder = isUnassigned ? !p.folder_id : p.folder_id === folderId;
@@ -129,6 +131,16 @@ const KnowledgeBaseFolder = () => {
         </TabsList>
 
         <TabsContent value="list" className="space-y-4">
+          {/* Bulk Actions */}
+          <PolicyBulkActions
+            policies={folderPolicies}
+            selectedIds={selectedIds}
+            onSelectionChange={setSelectedIds}
+            onBulkPublish={async (ids) => { await bulkUpdateStatus.mutateAsync({ ids, status: 'published', extra: { published_at: new Date().toISOString() } }); }}
+            onBulkRetire={async (ids) => { await bulkUpdateStatus.mutateAsync({ ids, status: 'retired', extra: { retired_at: new Date().toISOString() } }); }}
+            onBulkDelete={async (ids) => { await bulkDelete.mutateAsync(ids); }}
+            onClone={async (id) => { await clonePolicy.mutateAsync(id); }}
+          />
           <div className="flex flex-wrap gap-3">
             <div className="relative flex-1 min-w-[280px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -201,7 +213,15 @@ const KnowledgeBaseFolder = () => {
                   >
                     <CardContent className="p-4">
                       <div className="flex items-center justify-between">
-                        <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <Checkbox
+                            checked={selectedIds.includes(policy.id)}
+                            onCheckedChange={(checked) => {
+                              setSelectedIds(prev => checked ? [...prev, policy.id] : prev.filter(id => id !== policy.id));
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                          <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1 flex-wrap">
                             <Badge variant={itemType === 'audit' ? 'default' : 'secondary'} className="text-xs">
                               {itemType === 'audit' ? <Shield className="h-3 w-3 mr-1" /> : <FileText className="h-3 w-3 mr-1" />}
@@ -223,6 +243,7 @@ const KnowledgeBaseFolder = () => {
                           <p className="text-sm text-muted-foreground line-clamp-1">
                             {policy.description || 'No description'}
                           </p>
+                        </div>
                         </div>
                         <div className="text-right text-xs text-muted-foreground ml-4 shrink-0 space-y-0.5">
                           <div>v{policy.current_version}</div>
