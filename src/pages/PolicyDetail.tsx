@@ -1886,8 +1886,51 @@ const PolicyDetail = () => {
           </Card>
         </TabsContent>
 
+        {/* Reviews Tab */}
+        <TabsContent value="reviews" className="mt-4">
+          <Card>
+            <CardContent className="pt-4">
+              <PolicyReviewFlow
+                reviewCycles={reviewCycles}
+                policyStatus={policy.status}
+                currentUserId={user?.id}
+                getUserName={getUserName}
+                onCompleteReview={async (cycleId, findings, outcome) => {
+                  await completeReviewCycle.mutateAsync({ cycleId, findings, outcome });
+                  // Schedule next review if outcome isn't retire
+                  if (outcome !== 'retire' && policy.review_cycle_days) {
+                    const nextDate = new Date();
+                    nextDate.setDate(nextDate.getDate() + policy.review_cycle_days);
+                    await createReviewCycle.mutateAsync({
+                      policy_id: policy.id,
+                      review_date: nextDate.toISOString().split('T')[0],
+                      status: 'scheduled',
+                    });
+                  }
+                }}
+                isPending={completeReviewCycle.isPending}
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         {/* Versions Tab */}
-        <TabsContent value="versions" className="mt-4">
+        <TabsContent value="versions" className="mt-4 space-y-4">
+          {/* Version Diff */}
+          {versions.length > 0 && (
+            <Card>
+              <CardContent className="pt-4">
+                <p className="text-sm font-medium mb-4">Compare Versions</p>
+                <PolicyVersionDiff
+                  versions={versions}
+                  currentContent={policy.content}
+                  currentVersion={policy.current_version}
+                  policyName={policy.name}
+                />
+              </CardContent>
+            </Card>
+          )}
+
           <Card>
             <CardContent className="pt-4">
               <p className="text-sm font-medium mb-4">Version History</p>
