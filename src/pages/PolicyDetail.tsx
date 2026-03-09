@@ -34,6 +34,9 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { TiptapEditor } from '@/components/ui/tiptap-editor';
 import { PolicyApprovalFlow, type ApprovalMode } from '@/components/policies/PolicyApprovalFlow';
+import { PolicyReviewFlow } from '@/components/policies/PolicyReviewFlow';
+import { PolicyVersionDiff } from '@/components/policies/PolicyVersionDiff';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 const PolicyDetail = () => {
