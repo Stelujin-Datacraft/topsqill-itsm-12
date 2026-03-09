@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Plus, Search, FileText, Shield, BarChart3, LayoutTemplate, CalendarClock, FolderOpen, Users, Lock } from 'lucide-react';
+import { ArrowLeft, Plus, Search, FileText, Shield, BarChart3, LayoutTemplate, CalendarClock, FolderOpen, Users, Lock, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
