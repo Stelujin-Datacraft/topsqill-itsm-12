@@ -213,7 +213,15 @@ const KnowledgeBaseFolder = () => {
                   >
                     <CardContent className="p-4">
                       <div className="flex items-center justify-between">
-                        <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <Checkbox
+                            checked={selectedIds.includes(policy.id)}
+                            onCheckedChange={(checked) => {
+                              setSelectedIds(prev => checked ? [...prev, policy.id] : prev.filter(id => id !== policy.id));
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                          <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1 flex-wrap">
                             <Badge variant={itemType === 'audit' ? 'default' : 'secondary'} className="text-xs">
                               {itemType === 'audit' ? <Shield className="h-3 w-3 mr-1" /> : <FileText className="h-3 w-3 mr-1" />}
