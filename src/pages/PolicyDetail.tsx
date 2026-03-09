@@ -37,7 +37,6 @@ import { PolicyApprovalFlow, type ApprovalMode } from '@/components/policies/Pol
 import { PolicyReviewFlow } from '@/components/policies/PolicyReviewFlow';
 import { PolicyVersionDiff } from '@/components/policies/PolicyVersionDiff';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 const PolicyDetail = () => {
   const { id } = useParams<{ id: string }>();
