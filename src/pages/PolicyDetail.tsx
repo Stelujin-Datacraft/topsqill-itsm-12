@@ -218,11 +218,16 @@ const PolicyDetail = () => {
         },
       });
     }
-    await updatePolicy.mutateAsync({ id: policy.id, status: 'pending_approval' });
+    // Save approval mode to policy content
+    await updatePolicy.mutateAsync({
+      id: policy.id,
+      status: 'pending_approval',
+      content: { ...(policy.content || {}), approval_mode: approvalMode },
+    });
     setShowApprovalDialog(false);
     setSelectedApproverIds([]);
     setApprovalSubmitComment('');
-    toast.success(`Submitted for approval to ${selectedApproverIds.length} approver(s)`);
+    toast.success(`Submitted for approval to ${selectedApproverIds.length} approver(s) (${approvalMode === 'any_one' ? 'Any One' : 'All'} mode)`);
   };
 
   const handleApprovalResponse = async (approvalId: string, status: 'approved' | 'rejected') => {
