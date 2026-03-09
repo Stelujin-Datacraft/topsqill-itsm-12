@@ -1624,19 +1624,8 @@ const PolicyDetail = () => {
             <Card>
               <CardHeader><CardTitle className="text-sm">Dates</CardTitle></CardHeader>
               <CardContent className="space-y-2 text-sm">
-                <DetailRow label="Effective Date" value={policy.effective_date || '—'} />
-                <DetailRow label="Expiry Date" value={policy.expiry_date || '—'} />
-                <DetailRow label="Review Cycle" value={REVIEW_CYCLE_OPTIONS.find(o => o.value === policy.review_cycle_days)?.label || `${policy.review_cycle_days || 365} days`} />
-                <DetailRow label="Next Review" value={
-                  policy.next_review_date ? (
-                    <span className={isOverdueReview ? 'text-destructive font-medium' : ''}>
-                      {policy.next_review_date} {isOverdueReview && '(Overdue)'}
-                    </span>
-                  ) : '—'
-                } />
                 <DetailRow label="Created" value={format(new Date(policy.created_at), 'PPpp')} />
                 <DetailRow label="Last Updated" value={format(new Date(policy.updated_at), 'PPpp')} />
-                <DetailRow label="Published" value={policy.published_at ? format(new Date(policy.published_at), 'PPpp') : '—'} />
               </CardContent>
             </Card>
           </div>
