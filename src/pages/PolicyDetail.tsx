@@ -1975,6 +1975,27 @@ const PolicyDetail = () => {
             <DialogTitle>Submit for Approval</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
+            {/* Approval Mode */}
+            <div>
+              <Label className="mb-2 block">Approval Mode *</Label>
+              <RadioGroup value={approvalMode} onValueChange={(v) => setApprovalMode(v as ApprovalMode)} className="space-y-2">
+                <div className="flex items-start gap-3 p-2.5 rounded-md border cursor-pointer hover:bg-muted/50" onClick={() => setApprovalMode('any_one')}>
+                  <RadioGroupItem value="any_one" id="mode_any" className="mt-0.5" />
+                  <div>
+                    <label htmlFor="mode_any" className="text-sm font-medium cursor-pointer">Any One Approves</label>
+                    <p className="text-xs text-muted-foreground">First approval will publish the policy</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 p-2.5 rounded-md border cursor-pointer hover:bg-muted/50" onClick={() => setApprovalMode('all')}>
+                  <RadioGroupItem value="all" id="mode_all" className="mt-0.5" />
+                  <div>
+                    <label htmlFor="mode_all" className="text-sm font-medium cursor-pointer">All Must Approve</label>
+                    <p className="text-xs text-muted-foreground">Every approver must approve before publishing</p>
+                  </div>
+                </div>
+              </RadioGroup>
+            </div>
+
             <div>
               <Label>Select Approver(s) *</Label>
               <p className="text-xs text-muted-foreground mb-2">Choose who should approve this policy before it can be published.</p>
