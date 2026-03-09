@@ -33,6 +33,8 @@ import { toast } from 'sonner';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { TiptapEditor } from '@/components/ui/tiptap-editor';
+import { PolicyApprovalFlow, type ApprovalMode } from '@/components/policies/PolicyApprovalFlow';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 const PolicyDetail = () => {
   const { id } = useParams<{ id: string }>();
