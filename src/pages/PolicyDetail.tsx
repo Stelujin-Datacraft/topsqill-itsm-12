@@ -33,6 +33,8 @@ import { toast } from 'sonner';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { TiptapEditor } from '@/components/ui/tiptap-editor';
+import { PolicyApprovalFlow, type ApprovalMode } from '@/components/policies/PolicyApprovalFlow';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 const PolicyDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -63,6 +65,9 @@ const PolicyDetail = () => {
   const [showApprovalDialog, setShowApprovalDialog] = useState(false);
   const [selectedApproverIds, setSelectedApproverIds] = useState<string[]>([]);
   const [approvalSubmitComment, setApprovalSubmitComment] = useState('');
+  const [approvalMode, setApprovalMode] = useState<ApprovalMode>(
+    (policy?.content?.approval_mode as ApprovalMode) || 'any_one'
+  );
 
   // Fetch users for approver selection
   const usersQuery = useQuery({
@@ -213,18 +218,37 @@ const PolicyDetail = () => {
         },
       });
     }
-    await updatePolicy.mutateAsync({ id: policy.id, status: 'pending_approval' });
+    // Save approval mode to policy content
+    await updatePolicy.mutateAsync({
+      id: policy.id,
+      status: 'pending_approval',
+      content: { ...(policy.content || {}), approval_mode: approvalMode },
+    });
     setShowApprovalDialog(false);
     setSelectedApproverIds([]);
     setApprovalSubmitComment('');
-    toast.success(`Submitted for approval to ${selectedApproverIds.length} approver(s)`);
+    toast.success(`Submitted for approval to ${selectedApproverIds.length} approver(s) (${approvalMode === 'any_one' ? 'Any One' : 'All'} mode)`);
   };
 
-  const handleApprovalResponse = async (approvalId: string, status: 'approved' | 'rejected') => {
-    await respondApproval.mutateAsync({ approvalId, status, comments: approvalComment || undefined });
+  const handleApprovalResponse = async (approvalId: string, status: 'approved' | 'rejected', comment?: string) => {
+    await respondApproval.mutateAsync({ approvalId, status, comments: comment || approvalComment || undefined });
+    
+    const savedMode: ApprovalMode = (policy.content?.approval_mode as ApprovalMode) || 'any_one';
+    
     if (status === 'approved') {
-      const pendingApprovals = approvals.filter(a => a.status === 'pending' && a.id !== approvalId);
-      if (pendingApprovals.length === 0) {
+      const remainingPending = approvals.filter(a => a.status === 'pending' && a.id !== approvalId);
+      const currentApproved = approvals.filter(a => a.status === 'approved').length + 1; // +1 for this approval
+      
+      let shouldPublish = false;
+      if (savedMode === 'any_one') {
+        // Any one approval is enough
+        shouldPublish = true;
+      } else {
+        // All must approve
+        shouldPublish = remainingPending.length === 0;
+      }
+      
+      if (shouldPublish) {
         const publishedAt = new Date().toISOString();
         await updatePolicy.mutateAsync({ id: policy.id, status: 'published', published_at: publishedAt });
         if (policy.review_cycle_days && policy.review_cycle_days > 0) {
@@ -236,9 +260,11 @@ const PolicyDetail = () => {
             status: 'scheduled',
           });
         }
+        toast.success('Policy approved and published!');
       }
     } else {
       await updatePolicy.mutateAsync({ id: policy.id, status: 'draft' });
+      toast.info('Policy rejected — returned to Draft');
     }
     setApprovalComment('');
   };
@@ -1834,57 +1860,23 @@ const PolicyDetail = () => {
           <Card>
             <CardContent className="pt-4">
               <div className="flex items-center justify-between mb-4">
-                <p className="text-sm font-medium">Approval History</p>
+                <p className="text-sm font-medium">Approval Flow</p>
+                {policy.status === 'draft' && (
+                  <Button size="sm" onClick={() => setShowApprovalDialog(true)}>
+                    <Send className="h-3.5 w-3.5 mr-1" /> Submit for Approval
+                  </Button>
+                )}
               </div>
-              {approvals.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-6">No approval history</p>
-              ) : (
-                <div className="space-y-3">
-                  {approvals.map(a => (
-                    <div key={a.id} className="p-3 rounded-md border space-y-2">
-                      <div className="flex items-start gap-3">
-                        {a.status === 'approved' && <CheckCircle className="h-5 w-5 text-primary mt-0.5" />}
-                        {a.status === 'pending' && <Clock className="h-5 w-5 text-muted-foreground mt-0.5" />}
-                        {a.status === 'rejected' && <AlertOctagon className="h-5 w-5 text-destructive mt-0.5" />}
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm capitalize font-medium">{a.status}</span>
-                            <Badge variant="outline">v{a.version_number}</Badge>
-                          </div>
-                          <div className="text-xs text-muted-foreground mt-0.5">
-                            Approver: <span className="font-medium text-foreground">{getUserName(a.approver_id)}</span>
-                          </div>
-                          {a.comments && <div className="text-xs text-muted-foreground mt-1 italic">"{a.comments}"</div>}
-                        </div>
-                        <div className="text-xs text-muted-foreground">{format(new Date(a.created_at), 'MMM d, yyyy HH:mm')}</div>
-                      </div>
-                      {a.status === 'pending' && a.approver_id === user?.id ? (
-                        <div className="flex items-center gap-2 pt-2 border-t">
-                          <Textarea
-                            placeholder="Add comment (required for rejection, optional for approval)"
-                            value={approvalComment}
-                            onChange={e => setApprovalComment(e.target.value)}
-                            className="flex-1 text-sm min-h-[60px]"
-                            rows={2}
-                          />
-                          <div className="flex flex-col gap-1">
-                            <Button size="sm" variant="default" onClick={() => handleApprovalResponse(a.id, 'approved')} disabled={respondApproval.isPending}>
-                              <CheckCircle className="h-3.5 w-3.5 mr-1" /> Approve
-                            </Button>
-                            <Button size="sm" variant="destructive" onClick={() => handleApprovalResponse(a.id, 'rejected')} disabled={respondApproval.isPending || !approvalComment.trim()}>
-                              <AlertOctagon className="h-3.5 w-3.5 mr-1" /> Reject
-                            </Button>
-                          </div>
-                        </div>
-                      ) : a.status === 'pending' ? (
-                        <div className="pt-2 border-t">
-                          <p className="text-xs text-muted-foreground italic">Awaiting response from designated approver</p>
-                        </div>
-                      ) : null}
-                    </div>
-                  ))}
-                </div>
-              )}
+              <PolicyApprovalFlow
+                approvals={approvals}
+                policyStatus={policy.status}
+                approvalMode={(policy.content?.approval_mode as ApprovalMode) || 'any_one'}
+                currentUserId={user?.id}
+                getUserName={getUserName}
+                onApprove={(id, comment) => handleApprovalResponse(id, 'approved', comment)}
+                onReject={(id, comment) => handleApprovalResponse(id, 'rejected', comment)}
+                isPending={respondApproval.isPending}
+              />
             </CardContent>
           </Card>
         </TabsContent>
@@ -1983,6 +1975,27 @@ const PolicyDetail = () => {
             <DialogTitle>Submit for Approval</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
+            {/* Approval Mode */}
+            <div>
+              <Label className="mb-2 block">Approval Mode *</Label>
+              <RadioGroup value={approvalMode} onValueChange={(v) => setApprovalMode(v as ApprovalMode)} className="space-y-2">
+                <div className="flex items-start gap-3 p-2.5 rounded-md border cursor-pointer hover:bg-muted/50" onClick={() => setApprovalMode('any_one')}>
+                  <RadioGroupItem value="any_one" id="mode_any" className="mt-0.5" />
+                  <div>
+                    <label htmlFor="mode_any" className="text-sm font-medium cursor-pointer">Any One Approves</label>
+                    <p className="text-xs text-muted-foreground">First approval will publish the policy</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 p-2.5 rounded-md border cursor-pointer hover:bg-muted/50" onClick={() => setApprovalMode('all')}>
+                  <RadioGroupItem value="all" id="mode_all" className="mt-0.5" />
+                  <div>
+                    <label htmlFor="mode_all" className="text-sm font-medium cursor-pointer">All Must Approve</label>
+                    <p className="text-xs text-muted-foreground">Every approver must approve before publishing</p>
+                  </div>
+                </div>
+              </RadioGroup>
+            </div>
+
             <div>
               <Label>Select Approver(s) *</Label>
               <p className="text-xs text-muted-foreground mb-2">Choose who should approve this policy before it can be published.</p>
