@@ -169,6 +169,7 @@ const PolicyDetail = () => {
       expiry_date: policy.expiry_date || '',
       review_cycle_days: policy.review_cycle_days || 365,
       content_html: policy.content?.html || '',
+      custom_field_values: { ...(policy.content?.custom_field_values || {}) },
     });
     setIsEditing(true);
   };
