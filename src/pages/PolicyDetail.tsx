@@ -98,6 +98,22 @@ const PolicyDetail = () => {
     enabled: !!currentOrganization?.id,
   });
 
+  // Fetch groups for reviewer selection
+  const groupsQuery = useQuery({
+    queryKey: ['groups-for-review', currentOrganization?.id],
+    queryFn: async () => {
+      if (!currentOrganization?.id) return [];
+      const { data, error } = await supabase
+        .from('groups')
+        .select('id, name')
+        .eq('organization_id', currentOrganization.id)
+        .order('name');
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!currentOrganization?.id,
+  });
+
   // Fetch linkable entities based on type
   const formsQuery = useQuery({
     queryKey: ['linkable-forms', currentProject?.id],
