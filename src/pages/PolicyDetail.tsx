@@ -1506,11 +1506,26 @@ const PolicyDetail = () => {
               </Button>
             </>
           )}
-          {policy.status === 'pending_approval' && (
-            <Badge variant="outline" className="gap-1 text-sm py-1 px-3">
-              <Clock className="h-3.5 w-3.5" /> Awaiting Approval
-            </Badge>
-          )}
+          {policy.status === 'pending_approval' && (() => {
+            const approvedCount = approvals.filter(a => a.status === 'approved').length;
+            const rejectedCount = approvals.filter(a => a.status === 'rejected').length;
+            const pendingCount = approvals.filter(a => a.status === 'pending').length;
+            const mode = (policy.content?.approval_mode as ApprovalMode) || 'any_one';
+            const label = rejectedCount > 0
+              ? 'Rejected'
+              : approvedCount > 0 && mode === 'any_one'
+                ? 'Approved'
+                : approvedCount > 0 && pendingCount > 0
+                  ? `${approvedCount}/${approvals.length} Approved`
+                  : 'Awaiting Approval';
+            const variant = rejectedCount > 0 ? 'destructive' as const : 'outline' as const;
+            const Icon = rejectedCount > 0 ? AlertOctagon : approvedCount > 0 ? CheckCircle : Clock;
+            return (
+              <Badge variant={variant} className="gap-1 text-sm py-1 px-3">
+                <Icon className="h-3.5 w-3.5" /> {label}
+              </Badge>
+            );
+          })()}
           {canEdit && policy.status === 'published' && (
             <>
               <Button variant="outline" size="sm" onClick={startEditing}>
