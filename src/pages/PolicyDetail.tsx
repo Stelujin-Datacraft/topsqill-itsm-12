@@ -1482,9 +1482,9 @@ const PolicyDetail = () => {
               <Button variant="outline" size="sm" onClick={startEditing}>
                 <Edit className="h-4 w-4 mr-1" /> Edit
               </Button>
-              <Button size="sm" onClick={() => setShowApprovalDialog(true)}>
+              {/* <Button size="sm" onClick={() => setShowApprovalDialog(true)}>
                 <Send className="h-4 w-4 mr-1" /> Submit for Approval
-              </Button>
+              </Button> */}
               <Button size="sm" variant="default" onClick={async () => {
                 await updatePolicy.mutateAsync({
                   id: policy.id,
@@ -1652,7 +1652,7 @@ const PolicyDetail = () => {
             <CheckCircle className="h-3.5 w-3.5" /> Approvals ({approvals.length})
           </TabsTrigger>
           <TabsTrigger value="reviews" className="gap-1">
-            <CalendarClock className="h-3.5 w-3.5" /> Reviews ({reviewCycles.length})
+            <CalendarClock className="h-3.5 w-3.5" /> Pre/Post Reviews ({reviewCycles.length})
           </TabsTrigger>
           <TabsTrigger value="versions" className="gap-1">
             <History className="h-3.5 w-3.5" /> Versions ({versions.length})
@@ -1678,10 +1678,9 @@ const PolicyDetail = () => {
                 {policy.expiry_date && <DetailRow label="Expiry Date" value={policy.expiry_date} />}
                 {policy.next_review_date && <DetailRow label="Next Review" value={policy.next_review_date} />}
                 {policy.published_at && <DetailRow label="Published" value={format(new Date(policy.published_at), 'PPpp')} />}
-                <Separator />
                 <DetailRow label="Policy Number" value={policy.policy_number || '—'} />
-                <DetailRow label="Category" value={policy.category} />
-                <DetailRow label="Department" value={policy.department || '—'} />
+                {/* <DetailRow label="Category" value={policy.category} />
+                <DetailRow label="Department" value={policy.department || '—'} /> */}
                 <DetailRow label="Priority" value={<Badge className={priorityDef?.color}>{priorityDef?.label}</Badge>} />
                 <DetailRow label="Owner" value={getUserName(policy.created_by)} />
                 <DetailRow label="Version" value={`v${policy.current_version}`} />
