@@ -3,11 +3,10 @@ import html2canvas from 'html2canvas';
 import PizZip from 'pizzip';
 import { supabase } from '@/integrations/supabase/client';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Edit, Trash2, Save, Send, Archive, History, Link2, CheckCircle, Clock, FileText, Download, Plus, UserCheck, AlertOctagon, CalendarClock, Shield, BookOpen, Upload, Loader2, Star, FileDown, Users } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, Save, Send, Archive, History, Link2, CheckCircle, Clock, FileText, Download, Plus, UserCheck, AlertOctagon, CalendarClock, Shield, BookOpen, Upload, Loader2, Star, FileDown, Users, ChevronDown, ChevronUp, Eye, EyeOff } from 'lucide-react';
 import { Document, Packer, Paragraph, TextRun, ImageRun, HeadingLevel, Table as DocxTable, TableRow as DocxTableRow, TableCell as DocxTableCell, WidthType, BorderStyle, AlignmentType } from 'docx';
 import { PolicyDynamicFieldsRenderer } from '@/components/policies/PolicyDynamicFieldsRenderer';
 import { PolicyRatingsTab } from '@/components/policies/PolicyRatingsTab';
-import { PolicyCustomFieldsRenderer } from '@/components/policies/PolicyCustomFieldsRenderer';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -36,6 +35,8 @@ import { TiptapEditor } from '@/components/ui/tiptap-editor';
 import { PolicyApprovalFlow, type ApprovalMode } from '@/components/policies/PolicyApprovalFlow';
 import { PolicyReviewFlow } from '@/components/policies/PolicyReviewFlow';
 import { PolicyVersionDiff } from '@/components/policies/PolicyVersionDiff';
+import { PolicyCustomFieldsRenderer } from '@/components/policies/PolicyCustomFieldsRenderer';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 const PolicyDetail = () => {
@@ -62,6 +63,7 @@ const PolicyDetail = () => {
   const [liveContentHtml, setLiveContentHtml] = useState<string | null>(null);
   const [contentDirty, setContentDirty] = useState(false);
   const [showSaveConfirmDialog, setShowSaveConfirmDialog] = useState(false);
+  const [contentExpanded, setContentExpanded] = useState(true);
 
   // Approval dialog state
   const [showApprovalDialog, setShowApprovalDialog] = useState(false);
@@ -70,6 +72,14 @@ const PolicyDetail = () => {
   const [approvalMode, setApprovalMode] = useState<ApprovalMode>(
     (policy?.content?.approval_mode as ApprovalMode) || 'any_one'
   );
+
+  // Pre-Review / Post-Review dialog state
+  const [showPreReviewDialog, setShowPreReviewDialog] = useState(false);
+  const [showPostReviewDialog, setShowPostReviewDialog] = useState(false);
+  const [preReviewerIds, setPreReviewerIds] = useState<string[]>([]);
+  const [postReviewerIds, setPostReviewerIds] = useState<string[]>([]);
+  const [preReviewComment, setPreReviewComment] = useState('');
+  const [postReviewComment, setPostReviewComment] = useState('');
 
   // Fetch users for approver selection
   const usersQuery = useQuery({
@@ -82,6 +92,22 @@ const PolicyDetail = () => {
         .eq('organization_id', currentOrganization.id)
         .eq('status', 'active')
         .order('first_name');
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!currentOrganization?.id,
+  });
+
+  // Fetch groups for reviewer selection
+  const groupsQuery = useQuery({
+    queryKey: ['groups-for-review', currentOrganization?.id],
+    queryFn: async () => {
+      if (!currentOrganization?.id) return [];
+      const { data, error } = await supabase
+        .from('groups')
+        .select('id, name')
+        .eq('organization_id', currentOrganization.id)
+        .order('name');
       if (error) throw error;
       return data || [];
     },
@@ -143,6 +169,7 @@ const PolicyDetail = () => {
       expiry_date: policy.expiry_date || '',
       review_cycle_days: policy.review_cycle_days || 365,
       content_html: policy.content?.html || '',
+      custom_field_values: { ...(policy.content?.custom_field_values || {}) },
     });
     setIsEditing(true);
   };
@@ -168,11 +195,12 @@ const PolicyDetail = () => {
       next_review_date = d.toISOString().split('T')[0];
     }
 
-    const { content_html, effective_date, expiry_date, ...restEditForm } = editForm;
-    // Merge content_html into existing content to preserve original_docx_url, selected_field_ids, etc.
+    const { content_html, effective_date, expiry_date, custom_field_values, ...restEditForm } = editForm;
+    // Merge content_html and custom_field_values into existing content
     const updatedContent = {
       ...(policy.content || {}),
       ...(content_html ? { html: content_html } : {}),
+      ...(custom_field_values ? { custom_field_values } : {}),
     };
 
     await updatePolicy.mutateAsync({
@@ -1478,11 +1506,26 @@ const PolicyDetail = () => {
               </Button>
             </>
           )}
-          {policy.status === 'pending_approval' && (
-            <Badge variant="outline" className="gap-1 text-sm py-1 px-3">
-              <Clock className="h-3.5 w-3.5" /> Awaiting Approval
-            </Badge>
-          )}
+          {policy.status === 'pending_approval' && (() => {
+            const approvedCount = approvals.filter(a => a.status === 'approved').length;
+            const rejectedCount = approvals.filter(a => a.status === 'rejected').length;
+            const pendingCount = approvals.filter(a => a.status === 'pending').length;
+            const mode = (policy.content?.approval_mode as ApprovalMode) || 'any_one';
+            const label = rejectedCount > 0
+              ? 'Rejected'
+              : approvedCount > 0 && mode === 'any_one'
+                ? 'Approved'
+                : approvedCount > 0 && pendingCount > 0
+                  ? `${approvedCount}/${approvals.length} Approved`
+                  : 'Awaiting Approval';
+            const variant = rejectedCount > 0 ? 'destructive' as const : 'outline' as const;
+            const Icon = rejectedCount > 0 ? AlertOctagon : approvedCount > 0 ? CheckCircle : Clock;
+            return (
+              <Badge variant={variant} className="gap-1 text-sm py-1 px-3">
+                <Icon className="h-3.5 w-3.5" /> {label}
+              </Badge>
+            );
+          })()}
           {canEdit && policy.status === 'published' && (
             <>
               <Button variant="outline" size="sm" onClick={startEditing}>
@@ -1539,39 +1582,6 @@ const PolicyDetail = () => {
                 <Label>Description</Label>
                 <Textarea value={editForm.description} onChange={e => setEditForm((p: any) => ({ ...p, description: e.target.value }))} rows={3} />
               </div>
-              <div>
-                <Label>Category</Label>
-                <Select value={editForm.category} onValueChange={v => setEditForm((p: any) => ({ ...p, category: v }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{POLICY_CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Priority</Label>
-                <Select value={editForm.priority} onValueChange={v => setEditForm((p: any) => ({ ...p, priority: v }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{POLICY_PRIORITIES.map(p => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Department</Label>
-                <Input value={editForm.department} onChange={e => setEditForm((p: any) => ({ ...p, department: e.target.value }))} />
-              </div>
-              <div>
-                <Label>Effective Date</Label>
-                <Input type="date" value={editForm.effective_date} onChange={e => setEditForm((p: any) => ({ ...p, effective_date: e.target.value }))} />
-              </div>
-              <div>
-                <Label>Expiry Date</Label>
-                <Input type="date" value={editForm.expiry_date} onChange={e => setEditForm((p: any) => ({ ...p, expiry_date: e.target.value }))} />
-              </div>
-              <div>
-                <Label>Review Cycle</Label>
-                <Select value={String(editForm.review_cycle_days)} onValueChange={v => setEditForm((p: any) => ({ ...p, review_cycle_days: Number(v) }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{REVIEW_CYCLE_OPTIONS.map(o => <SelectItem key={o.value} value={String(o.value)}>{o.label}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
               <div className="col-span-2">
                 <Label>Policy Content</Label>
                 <TiptapEditor
@@ -1581,6 +1591,20 @@ const PolicyDetail = () => {
                   className="min-h-[150px]"
                 />
               </div>
+
+              {/* Editable Custom Fields */}
+              {policy.content?.custom_fields && (policy.content.custom_fields as any[]).length > 0 && (
+                <div className="col-span-2">
+                  <Label className="mb-2 block">Custom Fields</Label>
+                  <PolicyCustomFieldsRenderer
+                    fields={policy.content.custom_fields as any[]}
+                    values={editForm.custom_field_values || {}}
+                    onChange={(vals) => setEditForm((p: any) => ({ ...p, custom_field_values: vals }))}
+                    readOnly={false}
+                  />
+                </div>
+              )}
+
               <div className="col-span-2">
                 <Label>Change Summary</Label>
                 <Input value={changeSummary} onChange={e => setChangeSummary(e.target.value)} placeholder="What changed?" />
@@ -1644,9 +1668,17 @@ const PolicyDetail = () => {
         {/* Details Tab */}
         <TabsContent value="details" className="space-y-4 mt-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Left: Dates + Metadata */}
             <Card>
-              <CardHeader><CardTitle className="text-sm">Metadata</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="text-sm">Dates & Metadata</CardTitle></CardHeader>
               <CardContent className="space-y-2 text-sm">
+                <DetailRow label="Created" value={format(new Date(policy.created_at), 'PPpp')} />
+                <DetailRow label="Last Updated" value={format(new Date(policy.updated_at), 'PPpp')} />
+                {policy.effective_date && <DetailRow label="Effective Date" value={policy.effective_date} />}
+                {policy.expiry_date && <DetailRow label="Expiry Date" value={policy.expiry_date} />}
+                {policy.next_review_date && <DetailRow label="Next Review" value={policy.next_review_date} />}
+                {policy.published_at && <DetailRow label="Published" value={format(new Date(policy.published_at), 'PPpp')} />}
+                <Separator />
                 <DetailRow label="Policy Number" value={policy.policy_number || '—'} />
                 <DetailRow label="Category" value={policy.category} />
                 <DetailRow label="Department" value={policy.department || '—'} />
@@ -1655,57 +1687,55 @@ const PolicyDetail = () => {
                 <DetailRow label="Version" value={`v${policy.current_version}`} />
               </CardContent>
             </Card>
-            <Card>
-              <CardHeader><CardTitle className="text-sm">Dates</CardTitle></CardHeader>
-              <CardContent className="space-y-2 text-sm">
-                <DetailRow label="Created" value={format(new Date(policy.created_at), 'PPpp')} />
-                <DetailRow label="Last Updated" value={format(new Date(policy.updated_at), 'PPpp')} />
-              </CardContent>
-            </Card>
-          </div>
 
-          {/* Custom Fields in Details Tab */}
-          {policy.content?.custom_fields && (policy.content.custom_fields as any[]).length > 0 && (
-            <Card>
-              <CardHeader><CardTitle className="text-sm">Custom Fields</CardTitle></CardHeader>
-              <CardContent className="space-y-2 text-sm">
-                {(() => {
-                  const fields = policy.content.custom_fields as any[];
-                  const vals = (policy.content.custom_field_values as Record<string, any>) || {};
-                  const sorted = [...fields].sort((a: any, b: any) => a.order - b.order);
-                  return (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
-                      {sorted.filter((f: any) => !['header', 'description', 'horizontal-line'].includes(f.type)).map((field: any) => {
-                        const raw = vals[field.id];
-                        let display = '—';
-                        if (raw !== null && raw !== undefined && raw !== '') {
-                          if (Array.isArray(raw)) {
-                            const opts = field.options || [];
-                            display = raw.map((v: string) => {
-                              const opt = opts.find((o: any) => o.value === v);
-                              return opt?.label || v;
-                            }).join(', ') || '—';
-                          } else if (typeof raw === 'boolean') {
-                            display = raw ? 'Yes' : 'No';
-                          } else if ((field.type === 'select' || field.type === 'radio') && field.options) {
-                            const opt = field.options.find((o: any) => o.value === raw);
-                            display = opt?.label || String(raw);
-                          } else if (field.type === 'rating') {
-                            display = '★'.repeat(Number(raw));
-                          } else {
-                            display = String(raw);
+            {/* Right: Custom Fields */}
+            {policy.content?.custom_fields && (policy.content.custom_fields as any[]).length > 0 ? (
+              <Card>
+                <CardHeader><CardTitle className="text-sm">Custom Fields</CardTitle></CardHeader>
+                <CardContent className="space-y-2 text-sm">
+                  {(() => {
+                    const fields = policy.content.custom_fields as any[];
+                    const vals = (policy.content.custom_field_values as Record<string, any>) || {};
+                    const sorted = [...fields].sort((a: any, b: any) => a.order - b.order);
+                    return (
+                      <div className="space-y-2">
+                        {sorted.filter((f: any) => !['header', 'description', 'horizontal-line'].includes(f.type)).map((field: any) => {
+                          const raw = vals[field.id];
+                          let display = '—';
+                          if (raw !== null && raw !== undefined && raw !== '') {
+                            if (Array.isArray(raw)) {
+                              const opts = field.options || [];
+                              display = raw.map((v: string) => {
+                                const opt = opts.find((o: any) => o.value === v);
+                                return opt?.label || v;
+                              }).join(', ') || '—';
+                            } else if (typeof raw === 'boolean') {
+                              display = raw ? 'Yes' : 'No';
+                            } else if ((field.type === 'select' || field.type === 'radio') && field.options) {
+                              const opt = field.options.find((o: any) => o.value === raw);
+                              display = opt?.label || String(raw);
+                            } else if (field.type === 'rating') {
+                              display = '★'.repeat(Number(raw));
+                            } else {
+                              display = String(raw);
+                            }
                           }
-                        }
-                        return (
-                          <DetailRow key={field.id} label={field.label} value={display} />
-                        );
-                      })}
-                    </div>
-                  );
-                })()}
-              </CardContent>
-            </Card>
-          )}
+                          return <DetailRow key={field.id} label={field.label} value={display} />;
+                        })}
+                      </div>
+                    );
+                  })()}
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardHeader><CardTitle className="text-sm">Custom Fields</CardTitle></CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">No custom fields defined.</p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
 
           {/* Attachments */}
           <Card>
@@ -1776,15 +1806,24 @@ const PolicyDetail = () => {
         {/* Content Tab */}
         <TabsContent value="content" className="mt-4 space-y-4">
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-sm">Policy Content</CardTitle>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setContentExpanded(!contentExpanded)}
+                className="gap-1 text-xs"
+              >
+                {contentExpanded ? <><EyeOff className="h-3.5 w-3.5" /> Collapse</> : <><Eye className="h-3.5 w-3.5" /> Expand</>}
+              </Button>
             </CardHeader>
-            <CardContent>
-              {(liveContentHtml ?? policy.content?.html) ? (
-                <div className="border rounded-lg overflow-hidden bg-white">
-                  <iframe
-                    title="Policy Content Preview"
-                    srcDoc={`<!DOCTYPE html>
+            {contentExpanded && (
+              <CardContent>
+                {(liveContentHtml ?? policy.content?.html) ? (
+                  <div className="border rounded-lg overflow-hidden bg-white">
+                    <iframe
+                      title="Policy Content Preview"
+                      srcDoc={`<!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8" />
@@ -1815,23 +1854,24 @@ const PolicyDetail = () => {
 </head>
 <body>${(liveContentHtml ?? policy.content?.html ?? '').replace(/\x60/g, '&#96;')}</body>
 </html>`}
-                    className="w-full border-0"
-                    style={{ minHeight: '500px', height: '70vh' }}
-                    onLoad={(e) => {
-                      const iframe = e.target as HTMLIFrameElement;
-                      if (iframe.contentDocument?.body) {
-                        const h = iframe.contentDocument.body.scrollHeight + 40;
-                        iframe.style.height = Math.max(400, Math.min(h, 2000)) + 'px';
-                      }
-                    }}
-                  />
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground text-center py-6">
-                  No content has been added yet. Click "Edit" to add policy content.
-                </p>
-              )}
-            </CardContent>
+                      className="w-full border-0"
+                      style={{ minHeight: '500px', height: '70vh' }}
+                      onLoad={(e) => {
+                        const iframe = e.target as HTMLIFrameElement;
+                        if (iframe.contentDocument?.body) {
+                          const h = iframe.contentDocument.body.scrollHeight + 40;
+                          iframe.style.height = Math.max(400, Math.min(h, 2000)) + 'px';
+                        }
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-6">
+                    No content has been added yet. Click "Edit" to add policy content.
+                  </p>
+                )}
+              </CardContent>
+            )}
           </Card>
 
           {/* Dynamic Fields from Linked Form */}
@@ -1890,9 +1930,70 @@ const PolicyDetail = () => {
         </TabsContent>
 
         {/* Reviews Tab */}
-        <TabsContent value="reviews" className="mt-4">
+        <TabsContent value="reviews" className="mt-4 space-y-4">
+          {/* Pre-Review Section */}
           <Card>
-            <CardContent className="pt-4">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Eye className="h-4 w-4 text-blue-500" /> Pre-Review
+              </CardTitle>
+              {canEdit && (
+                <Button size="sm" variant="outline" onClick={() => setShowPreReviewDialog(true)}>
+                  <Plus className="h-3.5 w-3.5 mr-1" /> Assign Pre-Reviewers
+                </Button>
+              )}
+            </CardHeader>
+            <CardContent>
+              {(() => {
+                const preReviewers = (policy.content?.pre_reviewers as Array<{ id: string; type: 'user' | 'group'; comment?: string; status?: string; reviewed_at?: string }>) || [];
+                if (preReviewers.length === 0) {
+                  return <p className="text-sm text-muted-foreground text-center py-4">No pre-reviewers assigned. Pre-reviewers can view and review the policy before approval.</p>;
+                }
+                return (
+                  <div className="space-y-2">
+                    {preReviewers.map((r, i) => {
+                      const name = r.type === 'user' ? getUserName(r.id) : (groupsQuery.data?.find(g => g.id === r.id)?.name || r.id.slice(0, 8));
+                      return (
+                        <div key={i} className={`flex items-center justify-between p-3 rounded-md border ${r.status === 'reviewed' ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30' : 'border-muted'}`}>
+                          <div className="flex items-center gap-2">
+                            {r.status === 'reviewed' ? <CheckCircle className="h-4 w-4 text-emerald-500" /> : <Clock className="h-4 w-4 text-muted-foreground" />}
+                            <Badge variant="outline" className="text-[10px]">{r.type === 'user' ? 'User' : 'Group'}</Badge>
+                            <span className="text-sm font-medium">{name}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {r.comment && <span className="text-xs text-muted-foreground italic">"{r.comment}"</span>}
+                            {r.reviewed_at && <span className="text-xs text-muted-foreground">{format(new Date(r.reviewed_at), 'MMM d, yyyy')}</span>}
+                            {r.status !== 'reviewed' && r.type === 'user' && r.id === user?.id && (
+                              <Button size="sm" variant="outline" onClick={async () => {
+                                const updated = [...preReviewers];
+                                updated[i] = { ...updated[i], status: 'reviewed', reviewed_at: new Date().toISOString() };
+                                await updatePolicy.mutateAsync({
+                                  id: policy.id,
+                                  content: { ...(policy.content || {}), pre_reviewers: updated },
+                                });
+                                toast.success('Pre-review completed');
+                              }}>
+                                <CheckCircle className="h-3.5 w-3.5 mr-1" /> Mark Reviewed
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </CardContent>
+          </Card>
+
+          {/* Review Cycles */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm flex items-center gap-2">
+                <CalendarClock className="h-4 w-4 text-primary" /> Review Cycles
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
               <PolicyReviewFlow
                 reviewCycles={reviewCycles}
                 policyStatus={policy.status}
@@ -1900,7 +2001,6 @@ const PolicyDetail = () => {
                 getUserName={getUserName}
                 onCompleteReview={async (cycleId, findings, outcome) => {
                   await completeReviewCycle.mutateAsync({ cycleId, findings, outcome });
-                  // Schedule next review if outcome isn't retire
                   if (outcome !== 'retire' && policy.review_cycle_days) {
                     const nextDate = new Date();
                     nextDate.setDate(nextDate.getDate() + policy.review_cycle_days);
@@ -1913,6 +2013,61 @@ const PolicyDetail = () => {
                 }}
                 isPending={completeReviewCycle.isPending}
               />
+            </CardContent>
+          </Card>
+
+          {/* Post-Review Section */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Shield className="h-4 w-4 text-amber-500" /> Post-Review
+              </CardTitle>
+              {canEdit && (
+                <Button size="sm" variant="outline" onClick={() => setShowPostReviewDialog(true)}>
+                  <Plus className="h-3.5 w-3.5 mr-1" /> Assign Post-Reviewers
+                </Button>
+              )}
+            </CardHeader>
+            <CardContent>
+              {(() => {
+                const postReviewers = (policy.content?.post_reviewers as Array<{ id: string; type: 'user' | 'group'; comment?: string; status?: string; reviewed_at?: string }>) || [];
+                if (postReviewers.length === 0) {
+                  return <p className="text-sm text-muted-foreground text-center py-4">No post-reviewers assigned. Post-reviewers validate the policy after changes are published.</p>;
+                }
+                return (
+                  <div className="space-y-2">
+                    {postReviewers.map((r, i) => {
+                      const name = r.type === 'user' ? getUserName(r.id) : (groupsQuery.data?.find(g => g.id === r.id)?.name || r.id.slice(0, 8));
+                      return (
+                        <div key={i} className={`flex items-center justify-between p-3 rounded-md border ${r.status === 'reviewed' ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30' : 'border-muted'}`}>
+                          <div className="flex items-center gap-2">
+                            {r.status === 'reviewed' ? <CheckCircle className="h-4 w-4 text-emerald-500" /> : <Clock className="h-4 w-4 text-muted-foreground" />}
+                            <Badge variant="outline" className="text-[10px]">{r.type === 'user' ? 'User' : 'Group'}</Badge>
+                            <span className="text-sm font-medium">{name}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {r.comment && <span className="text-xs text-muted-foreground italic">"{r.comment}"</span>}
+                            {r.reviewed_at && <span className="text-xs text-muted-foreground">{format(new Date(r.reviewed_at), 'MMM d, yyyy')}</span>}
+                            {r.status !== 'reviewed' && r.type === 'user' && r.id === user?.id && (
+                              <Button size="sm" variant="outline" onClick={async () => {
+                                const updated = [...postReviewers];
+                                updated[i] = { ...updated[i], status: 'reviewed', reviewed_at: new Date().toISOString() };
+                                await updatePolicy.mutateAsync({
+                                  id: policy.id,
+                                  content: { ...(policy.content || {}), post_reviewers: updated },
+                                });
+                                toast.success('Post-review completed');
+                              }}>
+                                <CheckCircle className="h-3.5 w-3.5 mr-1" /> Mark Reviewed
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
             </CardContent>
           </Card>
         </TabsContent>
@@ -2151,6 +2306,158 @@ const PolicyDetail = () => {
             <Button variant="outline" onClick={() => setShowLinkDialog(false)}>Cancel</Button>
             <Button onClick={handleCreateLinkage} disabled={!linkForm.linked_entity_id || createLinkage.isPending}>
               {createLinkage.isPending ? 'Linking...' : 'Link'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Pre-Review Assignment Dialog */}
+      <Dialog open={showPreReviewDialog} onOpenChange={setShowPreReviewDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Assign Pre-Reviewers</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label className="mb-2 block">Select Users</Label>
+              <div className="border rounded-md max-h-[180px] overflow-y-auto">
+                {(usersQuery.data || []).filter(u => u.id !== user?.id).map(u => {
+                  const name = [u.first_name, u.last_name].filter(Boolean).join(' ') || u.email;
+                  const isSelected = preReviewerIds.includes(`user:${u.id}`);
+                  return (
+                    <div key={u.id} className={`flex items-center gap-3 p-2.5 cursor-pointer hover:bg-muted/50 border-b last:border-b-0 ${isSelected ? 'bg-primary/5' : ''}`}
+                      onClick={() => setPreReviewerIds(prev => isSelected ? prev.filter(id => id !== `user:${u.id}`) : [...prev, `user:${u.id}`])}>
+                      <div className={`w-4 h-4 rounded border flex items-center justify-center ${isSelected ? 'bg-primary border-primary' : 'border-muted-foreground/30'}`}>
+                        {isSelected && <CheckCircle className="h-3 w-3 text-primary-foreground" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium truncate">{name}</div>
+                        <div className="text-xs text-muted-foreground truncate">{u.email}</div>
+                      </div>
+                      <Badge variant="outline" className="text-[10px]">User</Badge>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            <div>
+              <Label className="mb-2 block">Select Groups</Label>
+              <div className="border rounded-md max-h-[120px] overflow-y-auto">
+                {(groupsQuery.data || []).map(g => {
+                  const isSelected = preReviewerIds.includes(`group:${g.id}`);
+                  return (
+                    <div key={g.id} className={`flex items-center gap-3 p-2.5 cursor-pointer hover:bg-muted/50 border-b last:border-b-0 ${isSelected ? 'bg-primary/5' : ''}`}
+                      onClick={() => setPreReviewerIds(prev => isSelected ? prev.filter(id => id !== `group:${g.id}`) : [...prev, `group:${g.id}`])}>
+                      <div className={`w-4 h-4 rounded border flex items-center justify-center ${isSelected ? 'bg-primary border-primary' : 'border-muted-foreground/30'}`}>
+                        {isSelected && <CheckCircle className="h-3 w-3 text-primary-foreground" />}
+                      </div>
+                      <span className="text-sm font-medium">{g.name}</span>
+                      <Badge variant="outline" className="text-[10px]">Group</Badge>
+                    </div>
+                  );
+                })}
+                {(groupsQuery.data || []).length === 0 && <p className="text-xs text-muted-foreground text-center py-3">No groups available</p>}
+              </div>
+            </div>
+            <div>
+              <Label>Comment (optional)</Label>
+              <Textarea value={preReviewComment} onChange={e => setPreReviewComment(e.target.value)} rows={2} placeholder="Add a note..." />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPreReviewDialog(false)}>Cancel</Button>
+            <Button disabled={preReviewerIds.length === 0} onClick={async () => {
+              const existing = (policy.content?.pre_reviewers as any[]) || [];
+              const newReviewers = preReviewerIds.map(key => {
+                const [type, id] = key.split(':');
+                return { id, type, status: 'pending', comment: preReviewComment || undefined };
+              });
+              await updatePolicy.mutateAsync({
+                id: policy.id,
+                content: { ...(policy.content || {}), pre_reviewers: [...existing, ...newReviewers] },
+              });
+              setShowPreReviewDialog(false);
+              setPreReviewerIds([]);
+              setPreReviewComment('');
+              toast.success('Pre-reviewers assigned');
+            }}>
+              Assign {preReviewerIds.length} Reviewer(s)
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Post-Review Assignment Dialog */}
+      <Dialog open={showPostReviewDialog} onOpenChange={setShowPostReviewDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Assign Post-Reviewers</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label className="mb-2 block">Select Users</Label>
+              <div className="border rounded-md max-h-[180px] overflow-y-auto">
+                {(usersQuery.data || []).filter(u => u.id !== user?.id).map(u => {
+                  const name = [u.first_name, u.last_name].filter(Boolean).join(' ') || u.email;
+                  const isSelected = postReviewerIds.includes(`user:${u.id}`);
+                  return (
+                    <div key={u.id} className={`flex items-center gap-3 p-2.5 cursor-pointer hover:bg-muted/50 border-b last:border-b-0 ${isSelected ? 'bg-primary/5' : ''}`}
+                      onClick={() => setPostReviewerIds(prev => isSelected ? prev.filter(id => id !== `user:${u.id}`) : [...prev, `user:${u.id}`])}>
+                      <div className={`w-4 h-4 rounded border flex items-center justify-center ${isSelected ? 'bg-primary border-primary' : 'border-muted-foreground/30'}`}>
+                        {isSelected && <CheckCircle className="h-3 w-3 text-primary-foreground" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium truncate">{name}</div>
+                        <div className="text-xs text-muted-foreground truncate">{u.email}</div>
+                      </div>
+                      <Badge variant="outline" className="text-[10px]">User</Badge>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            <div>
+              <Label className="mb-2 block">Select Groups</Label>
+              <div className="border rounded-md max-h-[120px] overflow-y-auto">
+                {(groupsQuery.data || []).map(g => {
+                  const isSelected = postReviewerIds.includes(`group:${g.id}`);
+                  return (
+                    <div key={g.id} className={`flex items-center gap-3 p-2.5 cursor-pointer hover:bg-muted/50 border-b last:border-b-0 ${isSelected ? 'bg-primary/5' : ''}`}
+                      onClick={() => setPostReviewerIds(prev => isSelected ? prev.filter(id => id !== `group:${g.id}`) : [...prev, `group:${g.id}`])}>
+                      <div className={`w-4 h-4 rounded border flex items-center justify-center ${isSelected ? 'bg-primary border-primary' : 'border-muted-foreground/30'}`}>
+                        {isSelected && <CheckCircle className="h-3 w-3 text-primary-foreground" />}
+                      </div>
+                      <span className="text-sm font-medium">{g.name}</span>
+                      <Badge variant="outline" className="text-[10px]">Group</Badge>
+                    </div>
+                  );
+                })}
+                {(groupsQuery.data || []).length === 0 && <p className="text-xs text-muted-foreground text-center py-3">No groups available</p>}
+              </div>
+            </div>
+            <div>
+              <Label>Comment (optional)</Label>
+              <Textarea value={postReviewComment} onChange={e => setPostReviewComment(e.target.value)} rows={2} placeholder="Add a note..." />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPostReviewDialog(false)}>Cancel</Button>
+            <Button disabled={postReviewerIds.length === 0} onClick={async () => {
+              const existing = (policy.content?.post_reviewers as any[]) || [];
+              const newReviewers = postReviewerIds.map(key => {
+                const [type, id] = key.split(':');
+                return { id, type, status: 'pending', comment: postReviewComment || undefined };
+              });
+              await updatePolicy.mutateAsync({
+                id: policy.id,
+                content: { ...(policy.content || {}), post_reviewers: [...existing, ...newReviewers] },
+              });
+              setShowPostReviewDialog(false);
+              setPostReviewerIds([]);
+              setPostReviewComment('');
+              toast.success('Post-reviewers assigned');
+            }}>
+              Assign {postReviewerIds.length} Reviewer(s)
             </Button>
           </DialogFooter>
         </DialogContent>
