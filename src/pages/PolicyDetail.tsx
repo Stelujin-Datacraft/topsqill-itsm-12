@@ -1582,39 +1582,6 @@ const PolicyDetail = () => {
                 <Label>Description</Label>
                 <Textarea value={editForm.description} onChange={e => setEditForm((p: any) => ({ ...p, description: e.target.value }))} rows={3} />
               </div>
-              <div>
-                <Label>Category</Label>
-                <Select value={editForm.category} onValueChange={v => setEditForm((p: any) => ({ ...p, category: v }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{POLICY_CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Priority</Label>
-                <Select value={editForm.priority} onValueChange={v => setEditForm((p: any) => ({ ...p, priority: v }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{POLICY_PRIORITIES.map(p => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Department</Label>
-                <Input value={editForm.department} onChange={e => setEditForm((p: any) => ({ ...p, department: e.target.value }))} />
-              </div>
-              <div>
-                <Label>Effective Date</Label>
-                <Input type="date" value={editForm.effective_date} onChange={e => setEditForm((p: any) => ({ ...p, effective_date: e.target.value }))} />
-              </div>
-              <div>
-                <Label>Expiry Date</Label>
-                <Input type="date" value={editForm.expiry_date} onChange={e => setEditForm((p: any) => ({ ...p, expiry_date: e.target.value }))} />
-              </div>
-              <div>
-                <Label>Review Cycle</Label>
-                <Select value={String(editForm.review_cycle_days)} onValueChange={v => setEditForm((p: any) => ({ ...p, review_cycle_days: Number(v) }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{REVIEW_CYCLE_OPTIONS.map(o => <SelectItem key={o.value} value={String(o.value)}>{o.label}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
               <div className="col-span-2">
                 <Label>Policy Content</Label>
                 <TiptapEditor
@@ -1624,6 +1591,20 @@ const PolicyDetail = () => {
                   className="min-h-[150px]"
                 />
               </div>
+
+              {/* Editable Custom Fields */}
+              {policy.content?.custom_fields && (policy.content.custom_fields as any[]).length > 0 && (
+                <div className="col-span-2">
+                  <Label className="mb-2 block">Custom Fields</Label>
+                  <PolicyCustomFieldsRenderer
+                    fields={policy.content.custom_fields as any[]}
+                    values={editForm.custom_field_values || {}}
+                    onChange={(vals) => setEditForm((p: any) => ({ ...p, custom_field_values: vals }))}
+                    readOnly={false}
+                  />
+                </div>
+              )}
+
               <div className="col-span-2">
                 <Label>Change Summary</Label>
                 <Input value={changeSummary} onChange={e => setChangeSummary(e.target.value)} placeholder="What changed?" />
