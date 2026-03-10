@@ -63,6 +63,7 @@ const PolicyDetail = () => {
   const [liveContentHtml, setLiveContentHtml] = useState<string | null>(null);
   const [contentDirty, setContentDirty] = useState(false);
   const [showSaveConfirmDialog, setShowSaveConfirmDialog] = useState(false);
+  const [contentExpanded, setContentExpanded] = useState(true);
 
   // Approval dialog state
   const [showApprovalDialog, setShowApprovalDialog] = useState(false);
@@ -71,6 +72,14 @@ const PolicyDetail = () => {
   const [approvalMode, setApprovalMode] = useState<ApprovalMode>(
     (policy?.content?.approval_mode as ApprovalMode) || 'any_one'
   );
+
+  // Pre-Review / Post-Review dialog state
+  const [showPreReviewDialog, setShowPreReviewDialog] = useState(false);
+  const [showPostReviewDialog, setShowPostReviewDialog] = useState(false);
+  const [preReviewerIds, setPreReviewerIds] = useState<string[]>([]);
+  const [postReviewerIds, setPostReviewerIds] = useState<string[]>([]);
+  const [preReviewComment, setPreReviewComment] = useState('');
+  const [postReviewComment, setPostReviewComment] = useState('');
 
   // Fetch users for approver selection
   const usersQuery = useQuery({
