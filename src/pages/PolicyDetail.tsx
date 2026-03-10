@@ -2310,6 +2310,158 @@ const PolicyDetail = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Pre-Review Assignment Dialog */}
+      <Dialog open={showPreReviewDialog} onOpenChange={setShowPreReviewDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Assign Pre-Reviewers</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label className="mb-2 block">Select Users</Label>
+              <div className="border rounded-md max-h-[180px] overflow-y-auto">
+                {(usersQuery.data || []).filter(u => u.id !== user?.id).map(u => {
+                  const name = [u.first_name, u.last_name].filter(Boolean).join(' ') || u.email;
+                  const isSelected = preReviewerIds.includes(`user:${u.id}`);
+                  return (
+                    <div key={u.id} className={`flex items-center gap-3 p-2.5 cursor-pointer hover:bg-muted/50 border-b last:border-b-0 ${isSelected ? 'bg-primary/5' : ''}`}
+                      onClick={() => setPreReviewerIds(prev => isSelected ? prev.filter(id => id !== `user:${u.id}`) : [...prev, `user:${u.id}`])}>
+                      <div className={`w-4 h-4 rounded border flex items-center justify-center ${isSelected ? 'bg-primary border-primary' : 'border-muted-foreground/30'}`}>
+                        {isSelected && <CheckCircle className="h-3 w-3 text-primary-foreground" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium truncate">{name}</div>
+                        <div className="text-xs text-muted-foreground truncate">{u.email}</div>
+                      </div>
+                      <Badge variant="outline" className="text-[10px]">User</Badge>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            <div>
+              <Label className="mb-2 block">Select Groups</Label>
+              <div className="border rounded-md max-h-[120px] overflow-y-auto">
+                {(groupsQuery.data || []).map(g => {
+                  const isSelected = preReviewerIds.includes(`group:${g.id}`);
+                  return (
+                    <div key={g.id} className={`flex items-center gap-3 p-2.5 cursor-pointer hover:bg-muted/50 border-b last:border-b-0 ${isSelected ? 'bg-primary/5' : ''}`}
+                      onClick={() => setPreReviewerIds(prev => isSelected ? prev.filter(id => id !== `group:${g.id}`) : [...prev, `group:${g.id}`])}>
+                      <div className={`w-4 h-4 rounded border flex items-center justify-center ${isSelected ? 'bg-primary border-primary' : 'border-muted-foreground/30'}`}>
+                        {isSelected && <CheckCircle className="h-3 w-3 text-primary-foreground" />}
+                      </div>
+                      <span className="text-sm font-medium">{g.name}</span>
+                      <Badge variant="outline" className="text-[10px]">Group</Badge>
+                    </div>
+                  );
+                })}
+                {(groupsQuery.data || []).length === 0 && <p className="text-xs text-muted-foreground text-center py-3">No groups available</p>}
+              </div>
+            </div>
+            <div>
+              <Label>Comment (optional)</Label>
+              <Textarea value={preReviewComment} onChange={e => setPreReviewComment(e.target.value)} rows={2} placeholder="Add a note..." />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPreReviewDialog(false)}>Cancel</Button>
+            <Button disabled={preReviewerIds.length === 0} onClick={async () => {
+              const existing = (policy.content?.pre_reviewers as any[]) || [];
+              const newReviewers = preReviewerIds.map(key => {
+                const [type, id] = key.split(':');
+                return { id, type, status: 'pending', comment: preReviewComment || undefined };
+              });
+              await updatePolicy.mutateAsync({
+                id: policy.id,
+                content: { ...(policy.content || {}), pre_reviewers: [...existing, ...newReviewers] },
+              });
+              setShowPreReviewDialog(false);
+              setPreReviewerIds([]);
+              setPreReviewComment('');
+              toast.success('Pre-reviewers assigned');
+            }}>
+              Assign {preReviewerIds.length} Reviewer(s)
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Post-Review Assignment Dialog */}
+      <Dialog open={showPostReviewDialog} onOpenChange={setShowPostReviewDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Assign Post-Reviewers</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label className="mb-2 block">Select Users</Label>
+              <div className="border rounded-md max-h-[180px] overflow-y-auto">
+                {(usersQuery.data || []).filter(u => u.id !== user?.id).map(u => {
+                  const name = [u.first_name, u.last_name].filter(Boolean).join(' ') || u.email;
+                  const isSelected = postReviewerIds.includes(`user:${u.id}`);
+                  return (
+                    <div key={u.id} className={`flex items-center gap-3 p-2.5 cursor-pointer hover:bg-muted/50 border-b last:border-b-0 ${isSelected ? 'bg-primary/5' : ''}`}
+                      onClick={() => setPostReviewerIds(prev => isSelected ? prev.filter(id => id !== `user:${u.id}`) : [...prev, `user:${u.id}`])}>
+                      <div className={`w-4 h-4 rounded border flex items-center justify-center ${isSelected ? 'bg-primary border-primary' : 'border-muted-foreground/30'}`}>
+                        {isSelected && <CheckCircle className="h-3 w-3 text-primary-foreground" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium truncate">{name}</div>
+                        <div className="text-xs text-muted-foreground truncate">{u.email}</div>
+                      </div>
+                      <Badge variant="outline" className="text-[10px]">User</Badge>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            <div>
+              <Label className="mb-2 block">Select Groups</Label>
+              <div className="border rounded-md max-h-[120px] overflow-y-auto">
+                {(groupsQuery.data || []).map(g => {
+                  const isSelected = postReviewerIds.includes(`group:${g.id}`);
+                  return (
+                    <div key={g.id} className={`flex items-center gap-3 p-2.5 cursor-pointer hover:bg-muted/50 border-b last:border-b-0 ${isSelected ? 'bg-primary/5' : ''}`}
+                      onClick={() => setPostReviewerIds(prev => isSelected ? prev.filter(id => id !== `group:${g.id}`) : [...prev, `group:${g.id}`])}>
+                      <div className={`w-4 h-4 rounded border flex items-center justify-center ${isSelected ? 'bg-primary border-primary' : 'border-muted-foreground/30'}`}>
+                        {isSelected && <CheckCircle className="h-3 w-3 text-primary-foreground" />}
+                      </div>
+                      <span className="text-sm font-medium">{g.name}</span>
+                      <Badge variant="outline" className="text-[10px]">Group</Badge>
+                    </div>
+                  );
+                })}
+                {(groupsQuery.data || []).length === 0 && <p className="text-xs text-muted-foreground text-center py-3">No groups available</p>}
+              </div>
+            </div>
+            <div>
+              <Label>Comment (optional)</Label>
+              <Textarea value={postReviewComment} onChange={e => setPostReviewComment(e.target.value)} rows={2} placeholder="Add a note..." />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPostReviewDialog(false)}>Cancel</Button>
+            <Button disabled={postReviewerIds.length === 0} onClick={async () => {
+              const existing = (policy.content?.post_reviewers as any[]) || [];
+              const newReviewers = postReviewerIds.map(key => {
+                const [type, id] = key.split(':');
+                return { id, type, status: 'pending', comment: postReviewComment || undefined };
+              });
+              await updatePolicy.mutateAsync({
+                id: policy.id,
+                content: { ...(policy.content || {}), post_reviewers: [...existing, ...newReviewers] },
+              });
+              setShowPostReviewDialog(false);
+              setPostReviewerIds([]);
+              setPostReviewComment('');
+              toast.success('Post-reviewers assigned');
+            }}>
+              Assign {postReviewerIds.length} Reviewer(s)
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
