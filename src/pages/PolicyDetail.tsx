@@ -195,11 +195,12 @@ const PolicyDetail = () => {
       next_review_date = d.toISOString().split('T')[0];
     }
 
-    const { content_html, effective_date, expiry_date, ...restEditForm } = editForm;
-    // Merge content_html into existing content to preserve original_docx_url, selected_field_ids, etc.
+    const { content_html, effective_date, expiry_date, custom_field_values, ...restEditForm } = editForm;
+    // Merge content_html and custom_field_values into existing content
     const updatedContent = {
       ...(policy.content || {}),
       ...(content_html ? { html: content_html } : {}),
+      ...(custom_field_values ? { custom_field_values } : {}),
     };
 
     await updatePolicy.mutateAsync({
