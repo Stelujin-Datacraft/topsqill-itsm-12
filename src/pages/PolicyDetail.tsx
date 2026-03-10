@@ -1806,15 +1806,24 @@ const PolicyDetail = () => {
         {/* Content Tab */}
         <TabsContent value="content" className="mt-4 space-y-4">
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-sm">Policy Content</CardTitle>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setContentExpanded(!contentExpanded)}
+                className="gap-1 text-xs"
+              >
+                {contentExpanded ? <><EyeOff className="h-3.5 w-3.5" /> Collapse</> : <><Eye className="h-3.5 w-3.5" /> Expand</>}
+              </Button>
             </CardHeader>
-            <CardContent>
-              {(liveContentHtml ?? policy.content?.html) ? (
-                <div className="border rounded-lg overflow-hidden bg-white">
-                  <iframe
-                    title="Policy Content Preview"
-                    srcDoc={`<!DOCTYPE html>
+            {contentExpanded && (
+              <CardContent>
+                {(liveContentHtml ?? policy.content?.html) ? (
+                  <div className="border rounded-lg overflow-hidden bg-white">
+                    <iframe
+                      title="Policy Content Preview"
+                      srcDoc={`<!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8" />
@@ -1845,23 +1854,24 @@ const PolicyDetail = () => {
 </head>
 <body>${(liveContentHtml ?? policy.content?.html ?? '').replace(/\x60/g, '&#96;')}</body>
 </html>`}
-                    className="w-full border-0"
-                    style={{ minHeight: '500px', height: '70vh' }}
-                    onLoad={(e) => {
-                      const iframe = e.target as HTMLIFrameElement;
-                      if (iframe.contentDocument?.body) {
-                        const h = iframe.contentDocument.body.scrollHeight + 40;
-                        iframe.style.height = Math.max(400, Math.min(h, 2000)) + 'px';
-                      }
-                    }}
-                  />
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground text-center py-6">
-                  No content has been added yet. Click "Edit" to add policy content.
-                </p>
-              )}
-            </CardContent>
+                      className="w-full border-0"
+                      style={{ minHeight: '500px', height: '70vh' }}
+                      onLoad={(e) => {
+                        const iframe = e.target as HTMLIFrameElement;
+                        if (iframe.contentDocument?.body) {
+                          const h = iframe.contentDocument.body.scrollHeight + 40;
+                          iframe.style.height = Math.max(400, Math.min(h, 2000)) + 'px';
+                        }
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-6">
+                    No content has been added yet. Click "Edit" to add policy content.
+                  </p>
+                )}
+              </CardContent>
+            )}
           </Card>
 
           {/* Dynamic Fields from Linked Form */}
