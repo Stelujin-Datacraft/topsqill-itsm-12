@@ -2438,14 +2438,43 @@ const PolicyDetail = () => {
                 const [type, id] = key.split(':');
                 return { id, type, status: 'pending', comment: preReviewComment || undefined };
               });
+              // Deduplicate: skip already-assigned reviewers
+              const existingKeys = new Set(existing.map((r: any) => `${r.type}:${r.id}`));
+              const uniqueNew = newReviewers.filter(r => !existingKeys.has(`${r.type}:${r.id}`));
               await updatePolicy.mutateAsync({
                 id: policy.id,
-                content: { ...(policy.content || {}), pre_reviewers: [...existing, ...newReviewers] },
+                content: { ...(policy.content || {}), pre_reviewers: [...existing, ...uniqueNew] },
               });
+              // Send notifications to user-type reviewers
+              for (const r of uniqueNew) {
+                if (r.type === 'user') {
+                  await supabase.from('notifications').insert({
+                    user_id: r.id,
+                    type: 'policy_review_request',
+                    title: 'Pre-Review Requested',
+                    message: `You have been assigned as a pre-reviewer for policy "${policy.name}" (${policy.policy_number || 'Draft'}).`,
+                    data: { policy_id: policy.id, review_type: 'pre', link: `/policy/${policy.id}` },
+                  });
+                } else if (r.type === 'group') {
+                  // Notify all group members
+                  const { data: members } = await supabase.rpc('get_group_members', { _group_id: r.id });
+                  if (members) {
+                    for (const m of members.filter((m: any) => m.member_type === 'user')) {
+                      await supabase.from('notifications').insert({
+                        user_id: m.member_id,
+                        type: 'policy_review_request',
+                        title: 'Pre-Review Requested',
+                        message: `Your group has been assigned as a pre-reviewer for policy "${policy.name}".`,
+                        data: { policy_id: policy.id, review_type: 'pre', link: `/policy/${policy.id}` },
+                      });
+                    }
+                  }
+                }
+              }
               setShowPreReviewDialog(false);
               setPreReviewerIds([]);
               setPreReviewComment('');
-              toast.success('Pre-reviewers assigned');
+              toast.success(`${uniqueNew.length} pre-reviewer(s) assigned`);
             }}>
               Assign {preReviewerIds.length} Reviewer(s)
             </Button>
