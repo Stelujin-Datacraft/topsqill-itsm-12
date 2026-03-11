@@ -2269,9 +2269,9 @@ const PolicyDetail = () => {
             </div>
 
             <div>
-              <Label>Select Approver(s) *</Label>
-              <p className="text-xs text-muted-foreground mb-2">Choose who should approve this policy before it can be published.</p>
-              <div className="border rounded-md max-h-[200px] overflow-y-auto">
+              <Label>Select Approver(s) — Users *</Label>
+              <p className="text-xs text-muted-foreground mb-2">Choose users or groups who should approve this policy.</p>
+              <div className="border rounded-md max-h-[160px] overflow-y-auto">
                 {(usersQuery.data || []).filter(u => u.id !== user?.id).map(u => {
                   const name = [u.first_name, u.last_name].filter(Boolean).join(' ') || u.email;
                   const isSelected = selectedApproverIds.includes(u.id);
@@ -2299,6 +2299,25 @@ const PolicyDetail = () => {
                 {(usersQuery.data || []).filter(u => u.id !== user?.id).length === 0 && (
                   <p className="text-sm text-muted-foreground text-center py-4">No other users available</p>
                 )}
+              </div>
+            </div>
+            <div>
+              <Label className="mb-2 block">Select Approver Groups</Label>
+              <div className="border rounded-md max-h-[120px] overflow-y-auto">
+                {(groupsQuery.data || []).map(g => {
+                  const isSelected = selectedApproverIds.includes(`group:${g.id}`);
+                  return (
+                    <div key={g.id} className={`flex items-center gap-3 p-2.5 cursor-pointer hover:bg-muted/50 border-b last:border-b-0 ${isSelected ? 'bg-primary/5' : ''}`}
+                      onClick={() => setSelectedApproverIds(prev => isSelected ? prev.filter(id => id !== `group:${g.id}`) : [...prev, `group:${g.id}`])}>
+                      <div className={`w-4 h-4 rounded border flex items-center justify-center ${isSelected ? 'bg-primary border-primary' : 'border-muted-foreground/30'}`}>
+                        {isSelected && <CheckCircle className="h-3 w-3 text-primary-foreground" />}
+                      </div>
+                      <span className="text-sm font-medium">{g.name}</span>
+                      <Badge variant="outline" className="text-[10px]">Group</Badge>
+                    </div>
+                  );
+                })}
+                {(groupsQuery.data || []).length === 0 && <p className="text-xs text-muted-foreground text-center py-3">No groups available</p>}
               </div>
               {selectedApproverIds.length > 0 && (
                 <p className="text-xs text-muted-foreground mt-1">{selectedApproverIds.length} approver(s) selected</p>
