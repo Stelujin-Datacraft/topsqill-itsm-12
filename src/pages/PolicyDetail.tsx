@@ -260,37 +260,41 @@ const PolicyDetail = () => {
     toast.success(`Submitted for approval to ${selectedApproverIds.length} approver(s) (${approvalMode === 'any_one' ? 'Any One' : 'All'} mode)`);
   };
 
+  // Compute approval readiness (used in multiple places)
+  const getApprovalStatus = () => {
+    const approvedCount = approvals.filter(a => a.status === 'approved').length;
+    const rejectedCount = approvals.filter(a => a.status === 'rejected').length;
+    const pendingCount = approvals.filter(a => a.status === 'pending').length;
+    const mode = (policy.content?.approval_mode as ApprovalMode) || 'any_one';
+    
+    let isReadyForPublish = false;
+    if (approvals.length > 0 && rejectedCount === 0) {
+      if (mode === 'any_one' && approvedCount > 0) isReadyForPublish = true;
+      if (mode === 'all' && pendingCount === 0 && approvedCount > 0) isReadyForPublish = true;
+    }
+    
+    return { approvedCount, rejectedCount, pendingCount, mode, isReadyForPublish };
+  };
+
   const handleApprovalResponse = async (approvalId: string, status: 'approved' | 'rejected', comment?: string) => {
     await respondApproval.mutateAsync({ approvalId, status, comments: comment || approvalComment || undefined });
     
-    const savedMode: ApprovalMode = (policy.content?.approval_mode as ApprovalMode) || 'any_one';
-    
     if (status === 'approved') {
+      // Don't auto-publish — let user click Publish when ready
+      const savedMode: ApprovalMode = (policy.content?.approval_mode as ApprovalMode) || 'any_one';
       const remainingPending = approvals.filter(a => a.status === 'pending' && a.id !== approvalId);
-      const currentApproved = approvals.filter(a => a.status === 'approved').length + 1; // +1 for this approval
       
-      let shouldPublish = false;
+      let readyForPublish = false;
       if (savedMode === 'any_one') {
-        // Any one approval is enough
-        shouldPublish = true;
+        readyForPublish = true;
       } else {
-        // All must approve
-        shouldPublish = remainingPending.length === 0;
+        readyForPublish = remainingPending.length === 0;
       }
       
-      if (shouldPublish) {
-        const publishedAt = new Date().toISOString();
-        await updatePolicy.mutateAsync({ id: policy.id, status: 'published', published_at: publishedAt });
-        if (policy.review_cycle_days && policy.review_cycle_days > 0) {
-          const reviewDate = new Date();
-          reviewDate.setDate(reviewDate.getDate() + policy.review_cycle_days);
-          await createReviewCycle.mutateAsync({
-            policy_id: policy.id,
-            review_date: reviewDate.toISOString().split('T')[0],
-            status: 'scheduled',
-          });
-        }
-        toast.success('Policy approved and published!');
+      if (readyForPublish) {
+        toast.success('All approvals received — policy is ready for publish!');
+      } else {
+        toast.success('Approval recorded');
       }
     } else {
       await updatePolicy.mutateAsync({ id: policy.id, status: 'draft' });
