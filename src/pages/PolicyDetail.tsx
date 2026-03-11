@@ -2543,14 +2543,41 @@ const PolicyDetail = () => {
                 const [type, id] = key.split(':');
                 return { id, type, status: 'pending', comment: postReviewComment || undefined };
               });
+              const existingKeys = new Set(existing.map((r: any) => `${r.type}:${r.id}`));
+              const uniqueNew = newReviewers.filter(r => !existingKeys.has(`${r.type}:${r.id}`));
               await updatePolicy.mutateAsync({
                 id: policy.id,
-                content: { ...(policy.content || {}), post_reviewers: [...existing, ...newReviewers] },
+                content: { ...(policy.content || {}), post_reviewers: [...existing, ...uniqueNew] },
               });
+              // Send notifications to user-type reviewers
+              for (const r of uniqueNew) {
+                if (r.type === 'user') {
+                  await supabase.from('notifications').insert({
+                    user_id: r.id,
+                    type: 'policy_review_request',
+                    title: 'Post-Review Requested',
+                    message: `You have been assigned as a post-reviewer for policy "${policy.name}" (${policy.policy_number || 'Draft'}).`,
+                    data: { policy_id: policy.id, review_type: 'post', link: `/policy/${policy.id}` },
+                  });
+                } else if (r.type === 'group') {
+                  const { data: members } = await supabase.rpc('get_group_members', { _group_id: r.id });
+                  if (members) {
+                    for (const m of members.filter((m: any) => m.member_type === 'user')) {
+                      await supabase.from('notifications').insert({
+                        user_id: m.member_id,
+                        type: 'policy_review_request',
+                        title: 'Post-Review Requested',
+                        message: `Your group has been assigned as a post-reviewer for policy "${policy.name}".`,
+                        data: { policy_id: policy.id, review_type: 'post', link: `/policy/${policy.id}` },
+                      });
+                    }
+                  }
+                }
+              }
               setShowPostReviewDialog(false);
               setPostReviewerIds([]);
               setPostReviewComment('');
-              toast.success('Post-reviewers assigned');
+              toast.success(`${uniqueNew.length} post-reviewer(s) assigned`);
             }}>
               Assign {postReviewerIds.length} Reviewer(s)
             </Button>
