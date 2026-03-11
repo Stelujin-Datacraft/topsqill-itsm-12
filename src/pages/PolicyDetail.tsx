@@ -223,8 +223,26 @@ const PolicyDetail = () => {
       toast.error('Please select at least one approver');
       return;
     }
-    // Create one approval record per selected approver
-    for (const approverId of selectedApproverIds) {
+    // Resolve group IDs to individual user IDs
+    const resolvedUserIds = new Set<string>();
+    for (const id of selectedApproverIds) {
+      if (id.startsWith('group:')) {
+        const groupId = id.replace('group:', '');
+        const { data: members } = await supabase.rpc('get_group_members', { _group_id: groupId });
+        if (members) {
+          for (const m of members.filter((m: any) => m.member_type === 'user')) {
+            resolvedUserIds.add(m.member_id);
+          }
+        }
+      } else {
+        resolvedUserIds.add(id);
+      }
+    }
+
+    const approverIds = Array.from(resolvedUserIds);
+    
+    // Create one approval record per resolved user
+    for (const approverId of approverIds) {
       await submitApproval.mutateAsync({
         policyId: policy.id,
         versionNumber: policy.current_version,
@@ -257,40 +275,44 @@ const PolicyDetail = () => {
     setShowApprovalDialog(false);
     setSelectedApproverIds([]);
     setApprovalSubmitComment('');
-    toast.success(`Submitted for approval to ${selectedApproverIds.length} approver(s) (${approvalMode === 'any_one' ? 'Any One' : 'All'} mode)`);
+    toast.success(`Submitted for approval to ${approverIds.length} approver(s) (${approvalMode === 'any_one' ? 'Any One' : 'All'} mode)`);
+  };
+
+  // Compute approval readiness (used in multiple places)
+  const getApprovalStatus = () => {
+    const approvedCount = approvals.filter(a => a.status === 'approved').length;
+    const rejectedCount = approvals.filter(a => a.status === 'rejected').length;
+    const pendingCount = approvals.filter(a => a.status === 'pending').length;
+    const mode = (policy.content?.approval_mode as ApprovalMode) || 'any_one';
+    
+    let isReadyForPublish = false;
+    if (approvals.length > 0 && rejectedCount === 0) {
+      if (mode === 'any_one' && approvedCount > 0) isReadyForPublish = true;
+      if (mode === 'all' && pendingCount === 0 && approvedCount > 0) isReadyForPublish = true;
+    }
+    
+    return { approvedCount, rejectedCount, pendingCount, mode, isReadyForPublish };
   };
 
   const handleApprovalResponse = async (approvalId: string, status: 'approved' | 'rejected', comment?: string) => {
     await respondApproval.mutateAsync({ approvalId, status, comments: comment || approvalComment || undefined });
     
-    const savedMode: ApprovalMode = (policy.content?.approval_mode as ApprovalMode) || 'any_one';
-    
     if (status === 'approved') {
+      // Don't auto-publish — let user click Publish when ready
+      const savedMode: ApprovalMode = (policy.content?.approval_mode as ApprovalMode) || 'any_one';
       const remainingPending = approvals.filter(a => a.status === 'pending' && a.id !== approvalId);
-      const currentApproved = approvals.filter(a => a.status === 'approved').length + 1; // +1 for this approval
       
-      let shouldPublish = false;
+      let readyForPublish = false;
       if (savedMode === 'any_one') {
-        // Any one approval is enough
-        shouldPublish = true;
+        readyForPublish = true;
       } else {
-        // All must approve
-        shouldPublish = remainingPending.length === 0;
+        readyForPublish = remainingPending.length === 0;
       }
       
-      if (shouldPublish) {
-        const publishedAt = new Date().toISOString();
-        await updatePolicy.mutateAsync({ id: policy.id, status: 'published', published_at: publishedAt });
-        if (policy.review_cycle_days && policy.review_cycle_days > 0) {
-          const reviewDate = new Date();
-          reviewDate.setDate(reviewDate.getDate() + policy.review_cycle_days);
-          await createReviewCycle.mutateAsync({
-            policy_id: policy.id,
-            review_date: reviewDate.toISOString().split('T')[0],
-            status: 'scheduled',
-          });
-        }
-        toast.success('Policy approved and published!');
+      if (readyForPublish) {
+        toast.success('All approvals received — policy is ready for publish!');
+      } else {
+        toast.success('Approval recorded');
       }
     } else {
       await updatePolicy.mutateAsync({ id: policy.id, status: 'draft' });
@@ -1507,23 +1529,43 @@ const PolicyDetail = () => {
             </>
           )}
           {policy.status === 'pending_approval' && (() => {
-            const approvedCount = approvals.filter(a => a.status === 'approved').length;
-            const rejectedCount = approvals.filter(a => a.status === 'rejected').length;
-            const pendingCount = approvals.filter(a => a.status === 'pending').length;
-            const mode = (policy.content?.approval_mode as ApprovalMode) || 'any_one';
+            const { approvedCount, rejectedCount, pendingCount, mode, isReadyForPublish } = getApprovalStatus();
             const label = rejectedCount > 0
               ? 'Rejected'
-              : approvedCount > 0 && mode === 'any_one'
-                ? 'Approved'
+              : isReadyForPublish
+                ? 'Ready for Publish'
                 : approvedCount > 0 && pendingCount > 0
                   ? `${approvedCount}/${approvals.length} Approved`
                   : 'Awaiting Approval';
-            const variant = rejectedCount > 0 ? 'destructive' as const : 'outline' as const;
-            const Icon = rejectedCount > 0 ? AlertOctagon : approvedCount > 0 ? CheckCircle : Clock;
+            const variant = rejectedCount > 0 ? 'destructive' as const : isReadyForPublish ? 'default' as const : 'outline' as const;
+            const Icon = rejectedCount > 0 ? AlertOctagon : isReadyForPublish ? CheckCircle : approvedCount > 0 ? CheckCircle : Clock;
             return (
-              <Badge variant={variant} className="gap-1 text-sm py-1 px-3">
-                <Icon className="h-3.5 w-3.5" /> {label}
-              </Badge>
+              <>
+                <Badge variant={variant} className="gap-1 text-sm py-1 px-3">
+                  <Icon className="h-3.5 w-3.5" /> {label}
+                </Badge>
+                {isReadyForPublish && canEdit && (
+                  <Button size="sm" variant="default" onClick={async () => {
+                    await updatePolicy.mutateAsync({
+                      id: policy.id,
+                      status: 'published',
+                      published_at: new Date().toISOString(),
+                    });
+                    if (policy.review_cycle_days && policy.review_cycle_days > 0) {
+                      const reviewDate = new Date();
+                      reviewDate.setDate(reviewDate.getDate() + policy.review_cycle_days);
+                      await createReviewCycle.mutateAsync({
+                        policy_id: policy.id,
+                        review_date: reviewDate.toISOString().split('T')[0],
+                        status: 'scheduled',
+                      });
+                    }
+                    toast.success('Policy published successfully');
+                  }}>
+                    <CheckCircle className="h-4 w-4 mr-1" /> Publish
+                  </Button>
+                )}
+              </>
             );
           })()}
           {canEdit && policy.status === 'published' && (
@@ -1652,7 +1694,7 @@ const PolicyDetail = () => {
             <CheckCircle className="h-3.5 w-3.5" /> Approvals ({approvals.length})
           </TabsTrigger>
           <TabsTrigger value="reviews" className="gap-1">
-            <CalendarClock className="h-3.5 w-3.5" /> Pre/Post Reviews ({reviewCycles.length})
+            <CalendarClock className="h-3.5 w-3.5" /> Reviews
           </TabsTrigger>
           <TabsTrigger value="versions" className="gap-1">
             <History className="h-3.5 w-3.5" /> Versions ({versions.length})
@@ -1928,147 +1970,190 @@ const PolicyDetail = () => {
           </Card>
         </TabsContent>
 
-        {/* Reviews Tab */}
-        <TabsContent value="reviews" className="mt-4 space-y-4">
-          {/* Pre-Review Section */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <Eye className="h-4 w-4 text-blue-500" /> Pre-Review
-              </CardTitle>
-              {canEdit && (
-                <Button size="sm" variant="outline" onClick={() => setShowPreReviewDialog(true)}>
-                  <Plus className="h-3.5 w-3.5 mr-1" /> Assign Pre-Reviewers
-                </Button>
-              )}
-            </CardHeader>
-            <CardContent>
-              {(() => {
-                const preReviewers = (policy.content?.pre_reviewers as Array<{ id: string; type: 'user' | 'group'; comment?: string; status?: string; reviewed_at?: string }>) || [];
-                if (preReviewers.length === 0) {
-                  return <p className="text-sm text-muted-foreground text-center py-4">No pre-reviewers assigned. Pre-reviewers can view and review the policy before approval.</p>;
-                }
-                return (
-                  <div className="space-y-2">
-                    {preReviewers.map((r, i) => {
-                      const name = r.type === 'user' ? getUserName(r.id) : (groupsQuery.data?.find(g => g.id === r.id)?.name || r.id.slice(0, 8));
-                      return (
-                        <div key={i} className={`flex items-center justify-between p-3 rounded-md border ${r.status === 'reviewed' ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30' : 'border-muted'}`}>
-                          <div className="flex items-center gap-2">
-                            {r.status === 'reviewed' ? <CheckCircle className="h-4 w-4 text-emerald-500" /> : <Clock className="h-4 w-4 text-muted-foreground" />}
-                            <Badge variant="outline" className="text-[10px]">{r.type === 'user' ? 'User' : 'Group'}</Badge>
-                            <span className="text-sm font-medium">{name}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {r.comment && <span className="text-xs text-muted-foreground italic">"{r.comment}"</span>}
-                            {r.reviewed_at && <span className="text-xs text-muted-foreground">{format(new Date(r.reviewed_at), 'MMM d, yyyy')}</span>}
-                            {r.status !== 'reviewed' && r.type === 'user' && r.id === user?.id && (
-                              <Button size="sm" variant="outline" onClick={async () => {
-                                const updated = [...preReviewers];
-                                updated[i] = { ...updated[i], status: 'reviewed', reviewed_at: new Date().toISOString() };
-                                await updatePolicy.mutateAsync({
-                                  id: policy.id,
-                                  content: { ...(policy.content || {}), pre_reviewers: updated },
-                                });
-                                toast.success('Pre-review completed');
-                              }}>
-                                <CheckCircle className="h-3.5 w-3.5 mr-1" /> Mark Reviewed
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                );
-              })()}
-            </CardContent>
-          </Card>
+        {/* Reviews Tab - with inner Pre/Post sub-tabs */}
+        <TabsContent value="reviews" className="mt-4">
+          <Tabs defaultValue="pre-review">
+            <TabsList>
+              <TabsTrigger value="pre-review" className="gap-1">
+                <Eye className="h-3.5 w-3.5" /> Pre-Review
+              </TabsTrigger>
+              <TabsTrigger value="post-review" className="gap-1">
+                <Shield className="h-3.5 w-3.5" /> Post-Review
+              </TabsTrigger>
+            </TabsList>
 
-          {/* Review Cycles */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm flex items-center gap-2">
-                <CalendarClock className="h-4 w-4 text-primary" /> Review Cycles
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <PolicyReviewFlow
-                reviewCycles={reviewCycles}
-                policyStatus={policy.status}
-                currentUserId={user?.id}
-                getUserName={getUserName}
-                onCompleteReview={async (cycleId, findings, outcome) => {
-                  await completeReviewCycle.mutateAsync({ cycleId, findings, outcome });
-                  if (outcome !== 'retire' && policy.review_cycle_days) {
-                    const nextDate = new Date();
-                    nextDate.setDate(nextDate.getDate() + policy.review_cycle_days);
-                    await createReviewCycle.mutateAsync({
-                      policy_id: policy.id,
-                      review_date: nextDate.toISOString().split('T')[0],
-                      status: 'scheduled',
-                    });
-                  }
-                }}
-                isPending={completeReviewCycle.isPending}
-              />
-            </CardContent>
-          </Card>
+            {/* Pre-Review Sub-Tab */}
+            <TabsContent value="pre-review" className="mt-4 space-y-4">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Eye className="h-4 w-4 text-primary" /> Pre-Reviewers
+                  </CardTitle>
+                  {canEdit && (
+                    <Button size="sm" variant="outline" onClick={() => setShowPreReviewDialog(true)}>
+                      <Plus className="h-3.5 w-3.5 mr-1" /> Assign Pre-Reviewers
+                    </Button>
+                  )}
+                </CardHeader>
+                <CardContent>
+                  {(() => {
+                    const preReviewers = (policy.content?.pre_reviewers as Array<{ id: string; type: 'user' | 'group'; comment?: string; status?: string; reviewed_at?: string }>) || [];
+                    if (preReviewers.length === 0) {
+                      return <p className="text-sm text-muted-foreground text-center py-4">No pre-reviewers assigned. Pre-reviewers can review the policy before it goes for approval.</p>;
+                    }
+                    return (
+                      <div className="space-y-2">
+                        {preReviewers.map((r, i) => {
+                          const name = r.type === 'user' ? getUserName(r.id) : (groupsQuery.data?.find(g => g.id === r.id)?.name || r.id.slice(0, 8));
+                          return (
+                            <div key={i} className={`flex items-center justify-between p-3 rounded-md border ${r.status === 'reviewed' ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30' : 'border-muted'}`}>
+                              <div className="flex items-center gap-2">
+                                {r.status === 'reviewed' ? <CheckCircle className="h-4 w-4 text-emerald-500" /> : <Clock className="h-4 w-4 text-muted-foreground" />}
+                                <Badge variant="outline" className="text-[10px]">{r.type === 'user' ? 'User' : 'Group'}</Badge>
+                                <span className="text-sm font-medium">{name}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {r.comment && <span className="text-xs text-muted-foreground italic">"{r.comment}"</span>}
+                                {r.reviewed_at && <span className="text-xs text-muted-foreground">{format(new Date(r.reviewed_at), 'MMM d, yyyy')}</span>}
+                                {r.status !== 'reviewed' && r.type === 'user' && r.id === user?.id && (
+                                  <Button size="sm" variant="outline" onClick={async () => {
+                                    const updated = [...preReviewers];
+                                    updated[i] = { ...updated[i], status: 'reviewed', reviewed_at: new Date().toISOString() };
+                                    await updatePolicy.mutateAsync({
+                                      id: policy.id,
+                                      content: { ...(policy.content || {}), pre_reviewers: updated },
+                                    });
+                                    toast.success('Pre-review completed');
+                                  }}>
+                                    <CheckCircle className="h-3.5 w-3.5 mr-1" /> Mark Reviewed
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
+                </CardContent>
+              </Card>
 
-          {/* Post-Review Section */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <Shield className="h-4 w-4 text-amber-500" /> Post-Review
-              </CardTitle>
-              {canEdit && (
-                <Button size="sm" variant="outline" onClick={() => setShowPostReviewDialog(true)}>
-                  <Plus className="h-3.5 w-3.5 mr-1" /> Assign Post-Reviewers
-                </Button>
-              )}
-            </CardHeader>
-            <CardContent>
-              {(() => {
-                const postReviewers = (policy.content?.post_reviewers as Array<{ id: string; type: 'user' | 'group'; comment?: string; status?: string; reviewed_at?: string }>) || [];
-                if (postReviewers.length === 0) {
-                  return <p className="text-sm text-muted-foreground text-center py-4">No post-reviewers assigned. Post-reviewers validate the policy after changes are published.</p>;
-                }
-                return (
-                  <div className="space-y-2">
-                    {postReviewers.map((r, i) => {
-                      const name = r.type === 'user' ? getUserName(r.id) : (groupsQuery.data?.find(g => g.id === r.id)?.name || r.id.slice(0, 8));
-                      return (
-                        <div key={i} className={`flex items-center justify-between p-3 rounded-md border ${r.status === 'reviewed' ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30' : 'border-muted'}`}>
-                          <div className="flex items-center gap-2">
-                            {r.status === 'reviewed' ? <CheckCircle className="h-4 w-4 text-emerald-500" /> : <Clock className="h-4 w-4 text-muted-foreground" />}
-                            <Badge variant="outline" className="text-[10px]">{r.type === 'user' ? 'User' : 'Group'}</Badge>
-                            <span className="text-sm font-medium">{name}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {r.comment && <span className="text-xs text-muted-foreground italic">"{r.comment}"</span>}
-                            {r.reviewed_at && <span className="text-xs text-muted-foreground">{format(new Date(r.reviewed_at), 'MMM d, yyyy')}</span>}
-                            {r.status !== 'reviewed' && r.type === 'user' && r.id === user?.id && (
-                              <Button size="sm" variant="outline" onClick={async () => {
-                                const updated = [...postReviewers];
-                                updated[i] = { ...updated[i], status: 'reviewed', reviewed_at: new Date().toISOString() };
-                                await updatePolicy.mutateAsync({
-                                  id: policy.id,
-                                  content: { ...(policy.content || {}), post_reviewers: updated },
-                                });
-                                toast.success('Post-review completed');
-                              }}>
-                                <CheckCircle className="h-3.5 w-3.5 mr-1" /> Mark Reviewed
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                );
-              })()}
-            </CardContent>
-          </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <CalendarClock className="h-4 w-4 text-primary" /> Review Cycles
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <PolicyReviewFlow
+                    reviewCycles={reviewCycles}
+                    policyStatus={policy.status}
+                    currentUserId={user?.id}
+                    getUserName={getUserName}
+                    onCompleteReview={async (cycleId, findings, outcome) => {
+                      await completeReviewCycle.mutateAsync({ cycleId, findings, outcome });
+                      if (outcome !== 'retire' && policy.review_cycle_days) {
+                        const nextDate = new Date();
+                        nextDate.setDate(nextDate.getDate() + policy.review_cycle_days);
+                        await createReviewCycle.mutateAsync({
+                          policy_id: policy.id,
+                          review_date: nextDate.toISOString().split('T')[0],
+                          status: 'scheduled',
+                        });
+                      }
+                    }}
+                    isPending={completeReviewCycle.isPending}
+                  />
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Post-Review Sub-Tab */}
+            <TabsContent value="post-review" className="mt-4 space-y-4">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Shield className="h-4 w-4 text-primary" /> Post-Reviewers
+                  </CardTitle>
+                  {canEdit && (
+                    <Button size="sm" variant="outline" onClick={() => setShowPostReviewDialog(true)}>
+                      <Plus className="h-3.5 w-3.5 mr-1" /> Assign Post-Reviewers
+                    </Button>
+                  )}
+                </CardHeader>
+                <CardContent>
+                  {(() => {
+                    const postReviewers = (policy.content?.post_reviewers as Array<{ id: string; type: 'user' | 'group'; comment?: string; status?: string; reviewed_at?: string }>) || [];
+                    if (postReviewers.length === 0) {
+                      return <p className="text-sm text-muted-foreground text-center py-4">No post-reviewers assigned. Post-reviewers validate the policy after it has been published.</p>;
+                    }
+                    return (
+                      <div className="space-y-2">
+                        {postReviewers.map((r, i) => {
+                          const name = r.type === 'user' ? getUserName(r.id) : (groupsQuery.data?.find(g => g.id === r.id)?.name || r.id.slice(0, 8));
+                          return (
+                            <div key={i} className={`flex items-center justify-between p-3 rounded-md border ${r.status === 'reviewed' ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30' : 'border-muted'}`}>
+                              <div className="flex items-center gap-2">
+                                {r.status === 'reviewed' ? <CheckCircle className="h-4 w-4 text-emerald-500" /> : <Clock className="h-4 w-4 text-muted-foreground" />}
+                                <Badge variant="outline" className="text-[10px]">{r.type === 'user' ? 'User' : 'Group'}</Badge>
+                                <span className="text-sm font-medium">{name}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {r.comment && <span className="text-xs text-muted-foreground italic">"{r.comment}"</span>}
+                                {r.reviewed_at && <span className="text-xs text-muted-foreground">{format(new Date(r.reviewed_at), 'MMM d, yyyy')}</span>}
+                                {r.status !== 'reviewed' && r.type === 'user' && r.id === user?.id && (
+                                  <Button size="sm" variant="outline" onClick={async () => {
+                                    const updated = [...postReviewers];
+                                    updated[i] = { ...updated[i], status: 'reviewed', reviewed_at: new Date().toISOString() };
+                                    await updatePolicy.mutateAsync({
+                                      id: policy.id,
+                                      content: { ...(policy.content || {}), post_reviewers: updated },
+                                    });
+                                    toast.success('Post-review completed');
+                                  }}>
+                                    <CheckCircle className="h-3.5 w-3.5 mr-1" /> Mark Reviewed
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <CalendarClock className="h-4 w-4 text-primary" /> Review Cycles
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <PolicyReviewFlow
+                    reviewCycles={reviewCycles}
+                    policyStatus={policy.status}
+                    currentUserId={user?.id}
+                    getUserName={getUserName}
+                    onCompleteReview={async (cycleId, findings, outcome) => {
+                      await completeReviewCycle.mutateAsync({ cycleId, findings, outcome });
+                      if (outcome !== 'retire' && policy.review_cycle_days) {
+                        const nextDate = new Date();
+                        nextDate.setDate(nextDate.getDate() + policy.review_cycle_days);
+                        await createReviewCycle.mutateAsync({
+                          policy_id: policy.id,
+                          review_date: nextDate.toISOString().split('T')[0],
+                          status: 'scheduled',
+                        });
+                      }
+                    }}
+                    isPending={completeReviewCycle.isPending}
+                  />
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
         </TabsContent>
 
         {/* Versions Tab */}
@@ -2202,9 +2287,9 @@ const PolicyDetail = () => {
             </div>
 
             <div>
-              <Label>Select Approver(s) *</Label>
-              <p className="text-xs text-muted-foreground mb-2">Choose who should approve this policy before it can be published.</p>
-              <div className="border rounded-md max-h-[200px] overflow-y-auto">
+              <Label>Select Approver(s) — Users *</Label>
+              <p className="text-xs text-muted-foreground mb-2">Choose users or groups who should approve this policy.</p>
+              <div className="border rounded-md max-h-[160px] overflow-y-auto">
                 {(usersQuery.data || []).filter(u => u.id !== user?.id).map(u => {
                   const name = [u.first_name, u.last_name].filter(Boolean).join(' ') || u.email;
                   const isSelected = selectedApproverIds.includes(u.id);
@@ -2232,6 +2317,25 @@ const PolicyDetail = () => {
                 {(usersQuery.data || []).filter(u => u.id !== user?.id).length === 0 && (
                   <p className="text-sm text-muted-foreground text-center py-4">No other users available</p>
                 )}
+              </div>
+            </div>
+            <div>
+              <Label className="mb-2 block">Select Approver Groups</Label>
+              <div className="border rounded-md max-h-[120px] overflow-y-auto">
+                {(groupsQuery.data || []).map(g => {
+                  const isSelected = selectedApproverIds.includes(`group:${g.id}`);
+                  return (
+                    <div key={g.id} className={`flex items-center gap-3 p-2.5 cursor-pointer hover:bg-muted/50 border-b last:border-b-0 ${isSelected ? 'bg-primary/5' : ''}`}
+                      onClick={() => setSelectedApproverIds(prev => isSelected ? prev.filter(id => id !== `group:${g.id}`) : [...prev, `group:${g.id}`])}>
+                      <div className={`w-4 h-4 rounded border flex items-center justify-center ${isSelected ? 'bg-primary border-primary' : 'border-muted-foreground/30'}`}>
+                        {isSelected && <CheckCircle className="h-3 w-3 text-primary-foreground" />}
+                      </div>
+                      <span className="text-sm font-medium">{g.name}</span>
+                      <Badge variant="outline" className="text-[10px]">Group</Badge>
+                    </div>
+                  );
+                })}
+                {(groupsQuery.data || []).length === 0 && <p className="text-xs text-muted-foreground text-center py-3">No groups available</p>}
               </div>
               {selectedApproverIds.length > 0 && (
                 <p className="text-xs text-muted-foreground mt-1">{selectedApproverIds.length} approver(s) selected</p>
@@ -2371,14 +2475,43 @@ const PolicyDetail = () => {
                 const [type, id] = key.split(':');
                 return { id, type, status: 'pending', comment: preReviewComment || undefined };
               });
+              // Deduplicate: skip already-assigned reviewers
+              const existingKeys = new Set(existing.map((r: any) => `${r.type}:${r.id}`));
+              const uniqueNew = newReviewers.filter(r => !existingKeys.has(`${r.type}:${r.id}`));
               await updatePolicy.mutateAsync({
                 id: policy.id,
-                content: { ...(policy.content || {}), pre_reviewers: [...existing, ...newReviewers] },
+                content: { ...(policy.content || {}), pre_reviewers: [...existing, ...uniqueNew] },
               });
+              // Send notifications to user-type reviewers
+              for (const r of uniqueNew) {
+                if (r.type === 'user') {
+                  await supabase.from('notifications').insert({
+                    user_id: r.id,
+                    type: 'policy_review_request',
+                    title: 'Pre-Review Requested',
+                    message: `You have been assigned as a pre-reviewer for policy "${policy.name}" (${policy.policy_number || 'Draft'}).`,
+                    data: { policy_id: policy.id, review_type: 'pre', link: `/policy/${policy.id}` },
+                  });
+                } else if (r.type === 'group') {
+                  // Notify all group members
+                  const { data: members } = await supabase.rpc('get_group_members', { _group_id: r.id });
+                  if (members) {
+                    for (const m of members.filter((m: any) => m.member_type === 'user')) {
+                      await supabase.from('notifications').insert({
+                        user_id: m.member_id,
+                        type: 'policy_review_request',
+                        title: 'Pre-Review Requested',
+                        message: `Your group has been assigned as a pre-reviewer for policy "${policy.name}".`,
+                        data: { policy_id: policy.id, review_type: 'pre', link: `/policy/${policy.id}` },
+                      });
+                    }
+                  }
+                }
+              }
               setShowPreReviewDialog(false);
               setPreReviewerIds([]);
               setPreReviewComment('');
-              toast.success('Pre-reviewers assigned');
+              toast.success(`${uniqueNew.length} pre-reviewer(s) assigned`);
             }}>
               Assign {preReviewerIds.length} Reviewer(s)
             </Button>
@@ -2447,14 +2580,41 @@ const PolicyDetail = () => {
                 const [type, id] = key.split(':');
                 return { id, type, status: 'pending', comment: postReviewComment || undefined };
               });
+              const existingKeys = new Set(existing.map((r: any) => `${r.type}:${r.id}`));
+              const uniqueNew = newReviewers.filter(r => !existingKeys.has(`${r.type}:${r.id}`));
               await updatePolicy.mutateAsync({
                 id: policy.id,
-                content: { ...(policy.content || {}), post_reviewers: [...existing, ...newReviewers] },
+                content: { ...(policy.content || {}), post_reviewers: [...existing, ...uniqueNew] },
               });
+              // Send notifications to user-type reviewers
+              for (const r of uniqueNew) {
+                if (r.type === 'user') {
+                  await supabase.from('notifications').insert({
+                    user_id: r.id,
+                    type: 'policy_review_request',
+                    title: 'Post-Review Requested',
+                    message: `You have been assigned as a post-reviewer for policy "${policy.name}" (${policy.policy_number || 'Draft'}).`,
+                    data: { policy_id: policy.id, review_type: 'post', link: `/policy/${policy.id}` },
+                  });
+                } else if (r.type === 'group') {
+                  const { data: members } = await supabase.rpc('get_group_members', { _group_id: r.id });
+                  if (members) {
+                    for (const m of members.filter((m: any) => m.member_type === 'user')) {
+                      await supabase.from('notifications').insert({
+                        user_id: m.member_id,
+                        type: 'policy_review_request',
+                        title: 'Post-Review Requested',
+                        message: `Your group has been assigned as a post-reviewer for policy "${policy.name}".`,
+                        data: { policy_id: policy.id, review_type: 'post', link: `/policy/${policy.id}` },
+                      });
+                    }
+                  }
+                }
+              }
               setShowPostReviewDialog(false);
               setPostReviewerIds([]);
               setPostReviewComment('');
-              toast.success('Post-reviewers assigned');
+              toast.success(`${uniqueNew.length} post-reviewer(s) assigned`);
             }}>
               Assign {postReviewerIds.length} Reviewer(s)
             </Button>
