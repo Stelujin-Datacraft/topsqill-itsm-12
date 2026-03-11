@@ -1511,23 +1511,43 @@ const PolicyDetail = () => {
             </>
           )}
           {policy.status === 'pending_approval' && (() => {
-            const approvedCount = approvals.filter(a => a.status === 'approved').length;
-            const rejectedCount = approvals.filter(a => a.status === 'rejected').length;
-            const pendingCount = approvals.filter(a => a.status === 'pending').length;
-            const mode = (policy.content?.approval_mode as ApprovalMode) || 'any_one';
+            const { approvedCount, rejectedCount, pendingCount, mode, isReadyForPublish } = getApprovalStatus();
             const label = rejectedCount > 0
               ? 'Rejected'
-              : approvedCount > 0 && mode === 'any_one'
-                ? 'Approved'
+              : isReadyForPublish
+                ? 'Ready for Publish'
                 : approvedCount > 0 && pendingCount > 0
                   ? `${approvedCount}/${approvals.length} Approved`
                   : 'Awaiting Approval';
-            const variant = rejectedCount > 0 ? 'destructive' as const : 'outline' as const;
-            const Icon = rejectedCount > 0 ? AlertOctagon : approvedCount > 0 ? CheckCircle : Clock;
+            const variant = rejectedCount > 0 ? 'destructive' as const : isReadyForPublish ? 'default' as const : 'outline' as const;
+            const Icon = rejectedCount > 0 ? AlertOctagon : isReadyForPublish ? CheckCircle : approvedCount > 0 ? CheckCircle : Clock;
             return (
-              <Badge variant={variant} className="gap-1 text-sm py-1 px-3">
-                <Icon className="h-3.5 w-3.5" /> {label}
-              </Badge>
+              <>
+                <Badge variant={variant} className="gap-1 text-sm py-1 px-3">
+                  <Icon className="h-3.5 w-3.5" /> {label}
+                </Badge>
+                {isReadyForPublish && canEdit && (
+                  <Button size="sm" variant="default" onClick={async () => {
+                    await updatePolicy.mutateAsync({
+                      id: policy.id,
+                      status: 'published',
+                      published_at: new Date().toISOString(),
+                    });
+                    if (policy.review_cycle_days && policy.review_cycle_days > 0) {
+                      const reviewDate = new Date();
+                      reviewDate.setDate(reviewDate.getDate() + policy.review_cycle_days);
+                      await createReviewCycle.mutateAsync({
+                        policy_id: policy.id,
+                        review_date: reviewDate.toISOString().split('T')[0],
+                        status: 'scheduled',
+                      });
+                    }
+                    toast.success('Policy published successfully');
+                  }}>
+                    <CheckCircle className="h-4 w-4 mr-1" /> Publish
+                  </Button>
+                )}
+              </>
             );
           })()}
           {canEdit && policy.status === 'published' && (
