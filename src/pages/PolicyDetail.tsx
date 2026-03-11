@@ -223,8 +223,26 @@ const PolicyDetail = () => {
       toast.error('Please select at least one approver');
       return;
     }
-    // Create one approval record per selected approver
-    for (const approverId of selectedApproverIds) {
+    // Resolve group IDs to individual user IDs
+    const resolvedUserIds = new Set<string>();
+    for (const id of selectedApproverIds) {
+      if (id.startsWith('group:')) {
+        const groupId = id.replace('group:', '');
+        const { data: members } = await supabase.rpc('get_group_members', { _group_id: groupId });
+        if (members) {
+          for (const m of members.filter((m: any) => m.member_type === 'user')) {
+            resolvedUserIds.add(m.member_id);
+          }
+        }
+      } else {
+        resolvedUserIds.add(id);
+      }
+    }
+
+    const approverIds = Array.from(resolvedUserIds);
+    
+    // Create one approval record per resolved user
+    for (const approverId of approverIds) {
       await submitApproval.mutateAsync({
         policyId: policy.id,
         versionNumber: policy.current_version,
@@ -257,7 +275,7 @@ const PolicyDetail = () => {
     setShowApprovalDialog(false);
     setSelectedApproverIds([]);
     setApprovalSubmitComment('');
-    toast.success(`Submitted for approval to ${selectedApproverIds.length} approver(s) (${approvalMode === 'any_one' ? 'Any One' : 'All'} mode)`);
+    toast.success(`Submitted for approval to ${approverIds.length} approver(s) (${approvalMode === 'any_one' ? 'Any One' : 'All'} mode)`);
   };
 
   // Compute approval readiness (used in multiple places)
