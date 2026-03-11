@@ -1676,7 +1676,7 @@ const PolicyDetail = () => {
             <CheckCircle className="h-3.5 w-3.5" /> Approvals ({approvals.length})
           </TabsTrigger>
           <TabsTrigger value="reviews" className="gap-1">
-            <CalendarClock className="h-3.5 w-3.5" /> Pre/Post Reviews ({reviewCycles.length})
+            <CalendarClock className="h-3.5 w-3.5" /> Reviews
           </TabsTrigger>
           <TabsTrigger value="versions" className="gap-1">
             <History className="h-3.5 w-3.5" /> Versions ({versions.length})
