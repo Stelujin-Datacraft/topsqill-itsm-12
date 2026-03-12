@@ -107,7 +107,7 @@ const KnowledgeBaseFolder = () => {
             </Button>
             <Button onClick={() => navigate(`/policies/create?folder=${folderId}&type=policy`)} className="gap-2">
               <FileText className="h-4 w-4" />
-              Create Policy
+              Create Doc
             </Button>
           </div>
         )}
@@ -155,7 +155,7 @@ const KnowledgeBaseFolder = () => {
               <SelectTrigger className="w-[130px]"><SelectValue placeholder="Type" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="policy">Policy</SelectItem>
+                <SelectItem value="policy">Doc</SelectItem>
                 <SelectItem value="audit">Audit</SelectItem>
               </SelectContent>
             </Select>
@@ -190,11 +190,11 @@ const KnowledgeBaseFolder = () => {
               <CardContent className="flex flex-col items-center justify-center py-12 text-center">
                 <FileText className="h-12 w-12 text-muted-foreground mb-3" />
                 <h3 className="text-lg font-medium">No items found</h3>
-                <p className="text-sm text-muted-foreground mt-1">Create a Policy or Audit to get started.</p>
+                <p className="text-sm text-muted-foreground mt-1">Create a Doc or Audit to get started.</p>
                 {isAdmin && !isUnassigned && (
                   <div className="flex gap-2 mt-4">
                     <Button onClick={() => navigate(`/policies/create?folder=${folderId}&type=policy`)} className="gap-2">
-                      <FileText className="h-4 w-4" /> Create Policy
+                      <FileText className="h-4 w-4" /> Create Doc
                     </Button>
                   </div>
                 )}

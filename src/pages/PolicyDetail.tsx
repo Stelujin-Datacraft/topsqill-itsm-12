@@ -3,9 +3,10 @@ import html2canvas from 'html2canvas';
 import PizZip from 'pizzip';
 import { supabase } from '@/integrations/supabase/client';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Edit, Trash2, Save, Send, Archive, History, Link2, CheckCircle, Clock, FileText, Download, Plus, UserCheck, AlertOctagon, CalendarClock, Shield, BookOpen, Upload, Loader2, Star, FileDown, Users, ChevronDown, ChevronUp, Eye, EyeOff } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, Save, Send, Archive, History, Link2, CheckCircle, Clock, FileText, Download, Plus, UserCheck, AlertOctagon, CalendarClock, Shield, BookOpen, Upload, Loader2, Star, FileDown, Users, ChevronDown, ChevronUp, Eye, EyeOff, RotateCcw, AlertTriangle } from 'lucide-react';
 import { Document, Packer, Paragraph, TextRun, ImageRun, HeadingLevel, Table as DocxTable, TableRow as DocxTableRow, TableCell as DocxTableCell, WidthType, BorderStyle, AlignmentType } from 'docx';
 import { PolicyDynamicFieldsRenderer } from '@/components/policies/PolicyDynamicFieldsRenderer';
+import { PolicyCustomFieldsBuilder, type PolicyCustomField } from '@/components/policies/PolicyCustomFieldsBuilder';
 import { PolicyRatingsTab } from '@/components/policies/PolicyRatingsTab';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -151,7 +152,7 @@ const PolicyDetail = () => {
       <div className="flex items-center justify-center h-[60vh]">
         <div className="text-center space-y-2">
           <FileText className="h-12 w-12 text-muted-foreground mx-auto" />
-          <h3 className="text-lg font-medium">Policy not found</h3>
+          <h3 className="text-lg font-medium">Document not found</h3>
           <Button variant="outline" onClick={() => navigate(-1)}>Back to Knowledge Base</Button>
         </div>
       </div>
@@ -170,6 +171,7 @@ const PolicyDetail = () => {
       review_cycle_days: policy.review_cycle_days || 365,
       content_html: policy.content?.html || '',
       custom_field_values: { ...(policy.content?.custom_field_values || {}) },
+      custom_fields: [...(policy.content?.custom_fields as PolicyCustomField[] || [])],
     });
     setIsEditing(true);
   };
@@ -195,12 +197,13 @@ const PolicyDetail = () => {
       next_review_date = d.toISOString().split('T')[0];
     }
 
-    const { content_html, effective_date, expiry_date, custom_field_values, ...restEditForm } = editForm;
-    // Merge content_html and custom_field_values into existing content
+    const { content_html, effective_date, expiry_date, custom_field_values, custom_fields, ...restEditForm } = editForm;
+    // Merge content_html, custom_field_values, and custom_fields into existing content
     const updatedContent = {
       ...(policy.content || {}),
-      ...(content_html ? { html: content_html } : {}),
+      ...(content_html !== undefined ? { html: content_html } : {}),
       ...(custom_field_values ? { custom_field_values } : {}),
+      ...(custom_fields ? { custom_fields } : {}),
     };
 
     await updatePolicy.mutateAsync({
@@ -1522,7 +1525,7 @@ const PolicyDetail = () => {
                     status: 'scheduled',
                   });
                 }
-                toast.success('Policy published successfully');
+                toast.success('Document published successfully');
               }}>
                 <CheckCircle className="h-4 w-4 mr-1" /> Publish
               </Button>
@@ -1560,7 +1563,7 @@ const PolicyDetail = () => {
                         status: 'scheduled',
                       });
                     }
-                    toast.success('Policy published successfully');
+                    toast.success('Document published successfully');
                   }}>
                     <CheckCircle className="h-4 w-4 mr-1" /> Publish
                   </Button>
@@ -1573,6 +1576,12 @@ const PolicyDetail = () => {
               <Button variant="outline" size="sm" onClick={startEditing}>
                 <Edit className="h-4 w-4 mr-1" /> Edit
               </Button>
+              <Button variant="outline" size="sm" onClick={async () => {
+                await updatePolicy.mutateAsync({ id: policy.id, status: 'draft' });
+                toast.success('Document moved back to draft');
+              }}>
+                <RotateCcw className="h-4 w-4 mr-1" /> Back to Draft
+              </Button>
               <Button variant="outline" size="sm" onClick={retirePolicy}>
                 <Archive className="h-4 w-4 mr-1" /> Retire
               </Button>
@@ -1581,7 +1590,7 @@ const PolicyDetail = () => {
           {canEdit && policy.status === 'retired' && (
             <Button variant="outline" size="sm" onClick={async () => {
               await updatePolicy.mutateAsync({ id: policy.id, status: 'draft' });
-              toast.success('Policy moved back to draft');
+              toast.success('Document moved back to draft');
             }}>
               <Edit className="h-4 w-4 mr-1" /> Reopen as Draft
             </Button>
@@ -1593,9 +1602,9 @@ const PolicyDetail = () => {
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Delete Policy</AlertDialogTitle>
+                  <AlertDialogTitle>Delete Document</AlertDialogTitle>
                   <AlertDialogDescription>
-                    This will permanently delete this policy and all its versions. This cannot be undone.
+                    This will permanently delete this document and all its versions. This cannot be undone.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -1612,7 +1621,7 @@ const PolicyDetail = () => {
       {isEditing && (
         <Card className="border-primary">
           <CardHeader>
-            <CardTitle className="text-sm">Edit Policy</CardTitle>
+            <CardTitle className="text-sm">Edit Document</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
@@ -1634,12 +1643,21 @@ const PolicyDetail = () => {
                 />
               </div>
 
-              {/* Editable Custom Fields */}
-              {policy.content?.custom_fields && (policy.content.custom_fields as any[]).length > 0 && (
+              {/* Add / Edit Custom Fields */}
+              <div className="col-span-2">
+                <Label className="mb-2 block">Custom Fields</Label>
+                <PolicyCustomFieldsBuilder
+                  fields={editForm.custom_fields || []}
+                  onFieldsChange={(fields) => setEditForm((p: any) => ({ ...p, custom_fields: fields }))}
+                />
+              </div>
+
+              {/* Editable Custom Field Values */}
+              {(editForm.custom_fields || []).length > 0 && (
                 <div className="col-span-2">
-                  <Label className="mb-2 block">Custom Fields</Label>
+                  <Label className="mb-2 block">Custom Field Values</Label>
                   <PolicyCustomFieldsRenderer
-                    fields={policy.content.custom_fields as any[]}
+                    fields={editForm.custom_fields}
                     values={editForm.custom_field_values || {}}
                     onChange={(vals) => setEditForm((p: any) => ({ ...p, custom_field_values: vals }))}
                     readOnly={false}
@@ -1663,9 +1681,9 @@ const PolicyDetail = () => {
             <AlertDialog open={showSaveConfirmDialog} onOpenChange={setShowSaveConfirmDialog}>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Save Policy Changes?</AlertDialogTitle>
+                  <AlertDialogTitle>Save Document Changes?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    This will create a new version (v{(policy.current_version || 0) + 1}) of this policy. The current version will be saved to version history.
+                    This will create a new version (v{(policy.current_version || 0) + 1}) of this document. The current version will be saved to version history.
                     {changeSummary && (
                       <span className="block mt-2 text-foreground font-medium">Change summary: "{changeSummary}"</span>
                     )}
@@ -1698,6 +1716,12 @@ const PolicyDetail = () => {
           </TabsTrigger>
           <TabsTrigger value="versions" className="gap-1">
             <History className="h-3.5 w-3.5" /> Versions ({versions.length})
+          </TabsTrigger>
+          <TabsTrigger value="acknowledgments" className="gap-1">
+            <UserCheck className="h-3.5 w-3.5" /> Acknowledgments ({acknowledgments.length})
+          </TabsTrigger>
+          <TabsTrigger value="exceptions" className="gap-1">
+            <AlertTriangle className="h-3.5 w-3.5" /> Exceptions ({exceptions.length})
           </TabsTrigger>
           <TabsTrigger value="linkages" className="gap-1">
             <Link2 className="h-3.5 w-3.5" /> Linkages ({linkages.length})
@@ -1848,7 +1872,7 @@ const PolicyDetail = () => {
         <TabsContent value="content" className="mt-4 space-y-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-sm">Policy Content</CardTitle>
+              <CardTitle className="text-sm">Document Content</CardTitle>
               <Button
                 variant="ghost"
                 size="sm"
@@ -1863,7 +1887,7 @@ const PolicyDetail = () => {
                 {(liveContentHtml ?? policy.content?.html) ? (
                   <div className="border rounded-lg overflow-hidden bg-white">
                     <iframe
-                      title="Policy Content Preview"
+                      title="Document Content Preview"
                       srcDoc={`<!DOCTYPE html>
 <html>
 <head>
@@ -1908,12 +1932,64 @@ const PolicyDetail = () => {
                   </div>
                 ) : (
                   <p className="text-sm text-muted-foreground text-center py-6">
-                    No content has been added yet. Click "Edit" to add policy content.
+                    No content has been added yet. Click "Edit" to add content.
                   </p>
                 )}
               </CardContent>
             )}
           </Card>
+
+          {/* Custom Fields in Content */}
+          {policy.content?.custom_fields && (policy.content.custom_fields as any[]).length > 0 && (() => {
+            const fields = (policy.content.custom_fields as any[]).filter((f: any) => !['header', 'description', 'horizontal-line'].includes(f.type));
+            const vals = (policy.content?.custom_field_values as Record<string, any>) || {};
+            if (fields.length === 0) return null;
+            return (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm">Custom Fields Data</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-auto">
+                    <table className="w-full text-sm border-collapse">
+                      <thead>
+                        <tr className="border-b bg-muted/50">
+                          <th className="text-left p-2 font-medium text-muted-foreground">Field</th>
+                          <th className="text-left p-2 font-medium text-muted-foreground">Value</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {fields.sort((a: any, b: any) => a.order - b.order).map((field: any) => {
+                          const raw = vals[field.id];
+                          let display = '—';
+                          if (raw !== null && raw !== undefined && raw !== '') {
+                            if (Array.isArray(raw)) {
+                              const opts = field.options || [];
+                              display = raw.map((v: string) => opts.find((o: any) => o.value === v)?.label || v).join(', ') || '—';
+                            } else if (typeof raw === 'boolean') {
+                              display = raw ? 'Yes' : 'No';
+                            } else if (field.type === 'rating') {
+                              display = '★'.repeat(Number(raw));
+                            } else if ((field.type === 'select' || field.type === 'radio') && field.options) {
+                              display = field.options.find((o: any) => o.value === raw)?.label || String(raw);
+                            } else {
+                              display = String(raw);
+                            }
+                          }
+                          return (
+                            <tr key={field.id} className="border-b">
+                              <td className="p-2 font-medium">{field.label}</td>
+                              <td className="p-2">{display}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })()}
 
           {/* Dynamic Fields from Linked Form */}
           {policy.form_id && (
@@ -2216,16 +2292,120 @@ const PolicyDetail = () => {
           </Card>
         </TabsContent>
 
-        {/* Acknowledgments Tab hidden */}
+        {/* Acknowledgments Tab */}
+        <TabsContent value="acknowledgments" className="mt-4">
+          <Card>
+            <CardContent className="pt-4">
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-sm font-medium">Acknowledgments</p>
+                {policy.status === 'published' && (
+                  <Button size="sm" variant="outline" onClick={async () => {
+                    await acknowledgePolicy.mutateAsync({
+                      policyId: policy.id,
+                      versionNumber: policy.current_version,
+                    });
+                  }} disabled={acknowledgePolicy.isPending || acknowledgments.some(a => a.user_id === user?.id && a.version_acknowledged === policy.current_version)}>
+                    <UserCheck className="h-3.5 w-3.5 mr-1" />
+                    {acknowledgments.some(a => a.user_id === user?.id && a.version_acknowledged === policy.current_version) ? 'Already Acknowledged' : 'Acknowledge'}
+                  </Button>
+                )}
+              </div>
+              {acknowledgments.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-6">No acknowledgments yet.{policy.status === 'published' ? ' Users can acknowledge this document once published.' : ' Publish the document to allow acknowledgments.'}</p>
+              ) : (
+                <div className="space-y-2">
+                  {acknowledgments.map(a => (
+                    <div key={a.id} className="flex items-center justify-between p-3 rounded-md border">
+                      <div className="flex items-center gap-2">
+                        <UserCheck className="h-4 w-4 text-emerald-500" />
+                        <span className="text-sm font-medium">{getUserName(a.user_id)}</span>
+                        <Badge variant="outline" className="text-[10px]">v{a.version_acknowledged}</Badge>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {a.comments && <span className="text-xs text-muted-foreground italic">"{a.comments}"</span>}
+                        <span className="text-xs text-muted-foreground">{format(new Date(a.acknowledged_at), 'MMM d, yyyy HH:mm')}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-        {/* Exceptions Tab hidden */}
+        {/* Exceptions Tab */}
+        <TabsContent value="exceptions" className="mt-4">
+          <Card>
+            <CardContent className="pt-4">
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-sm font-medium">Exceptions</p>
+                {policy.status === 'published' && (
+                  <Dialog>
+                    <Button size="sm" variant="outline" asChild>
+                      <span onClick={() => {
+                        const dialog = document.getElementById('exception-dialog');
+                        if (dialog) (dialog as any).showModal?.();
+                      }}>
+                        <AlertTriangle className="h-3.5 w-3.5 mr-1" /> Request Exception
+                      </span>
+                    </Button>
+                  </Dialog>
+                )}
+              </div>
+              {exceptions.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-6">No exceptions requested. Exceptions allow temporary deviations from this document's requirements.</p>
+              ) : (
+                <div className="space-y-2">
+                  {exceptions.map(ex => {
+                    const statusColors: Record<string, string> = {
+                      pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
+                      approved: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+                      rejected: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+                      expired: 'bg-muted text-muted-foreground',
+                    };
+                    return (
+                      <div key={ex.id} className="p-3 rounded-md border space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-sm font-medium">Requested by: {getUserName(ex.requested_by)}</span>
+                            <Badge className={statusColors[ex.status] || ''}>{ex.status}</Badge>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground">{format(new Date(ex.created_at), 'MMM d, yyyy')}</span>
+                            {canEdit && ex.status === 'pending' && (
+                              <>
+                                <Button size="sm" variant="outline" onClick={() => respondException.mutateAsync({ exceptionId: ex.id, status: 'approved', approved_by: user?.id || '' })}>
+                                  <CheckCircle className="h-3 w-3 mr-1" /> Approve
+                                </Button>
+                                <Button size="sm" variant="outline" onClick={() => respondException.mutateAsync({ exceptionId: ex.id, status: 'rejected', approved_by: user?.id || '' })}>
+                                  <AlertOctagon className="h-3 w-3 mr-1" /> Reject
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        <p className="text-sm text-muted-foreground">{ex.reason}</p>
+                        {ex.justification && <p className="text-xs text-muted-foreground">Justification: {ex.justification}</p>}
+                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                          <span>From: {ex.start_date}</span>
+                          <span>To: {ex.end_date}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         {/* Linkages Tab */}
         <TabsContent value="linkages" className="mt-4">
           <Card>
             <CardContent className="pt-4">
               <div className="flex items-center justify-between mb-4">
-                <p className="text-sm font-medium">Policy Linkages</p>
+                <p className="text-sm font-medium">Document Linkages</p>
                 {canEdit && (
                   <Button size="sm" variant="outline" onClick={() => setShowLinkDialog(true)}>
                     <Plus className="h-4 w-4 mr-1" /> Add Link
@@ -2233,7 +2413,7 @@ const PolicyDetail = () => {
                 )}
               </div>
               {linkages.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-6">No linkages. Link this policy to forms, incidents, or other policies.</p>
+                <p className="text-sm text-muted-foreground text-center py-6">No linkages. Link this document to forms, incidents, or other documents.</p>
               ) : (
                 <div className="space-y-2">
                   {linkages.map(l => (
