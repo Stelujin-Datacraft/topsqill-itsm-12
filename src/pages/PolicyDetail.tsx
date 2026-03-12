@@ -1619,7 +1619,7 @@ const PolicyDetail = () => {
       {isEditing && (
         <Card className="border-primary">
           <CardHeader>
-            <CardTitle className="text-sm">Edit Policy</CardTitle>
+            <CardTitle className="text-sm">Edit Document</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
