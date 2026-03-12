@@ -1643,12 +1643,21 @@ const PolicyDetail = () => {
                 />
               </div>
 
-              {/* Editable Custom Fields */}
-              {policy.content?.custom_fields && (policy.content.custom_fields as any[]).length > 0 && (
+              {/* Add / Edit Custom Fields */}
+              <div className="col-span-2">
+                <Label className="mb-2 block">Custom Fields</Label>
+                <PolicyCustomFieldsBuilder
+                  fields={editForm.custom_fields || []}
+                  onFieldsChange={(fields) => setEditForm((p: any) => ({ ...p, custom_fields: fields }))}
+                />
+              </div>
+
+              {/* Editable Custom Field Values */}
+              {(editForm.custom_fields || []).length > 0 && (
                 <div className="col-span-2">
-                  <Label className="mb-2 block">Custom Fields</Label>
+                  <Label className="mb-2 block">Custom Field Values</Label>
                   <PolicyCustomFieldsRenderer
-                    fields={policy.content.custom_fields as any[]}
+                    fields={editForm.custom_fields}
                     values={editForm.custom_field_values || {}}
                     onChange={(vals) => setEditForm((p: any) => ({ ...p, custom_field_values: vals }))}
                     readOnly={false}
