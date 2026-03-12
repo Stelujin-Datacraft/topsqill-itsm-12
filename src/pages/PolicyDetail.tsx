@@ -152,7 +152,7 @@ const PolicyDetail = () => {
       <div className="flex items-center justify-center h-[60vh]">
         <div className="text-center space-y-2">
           <FileText className="h-12 w-12 text-muted-foreground mx-auto" />
-          <h3 className="text-lg font-medium">Policy not found</h3>
+          <h3 className="text-lg font-medium">Document not found</h3>
           <Button variant="outline" onClick={() => navigate(-1)}>Back to Knowledge Base</Button>
         </div>
       </div>
