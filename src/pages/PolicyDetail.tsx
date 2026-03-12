@@ -1525,7 +1525,7 @@ const PolicyDetail = () => {
                     status: 'scheduled',
                   });
                 }
-                toast.success('Policy published successfully');
+                toast.success('Document published successfully');
               }}>
                 <CheckCircle className="h-4 w-4 mr-1" /> Publish
               </Button>
