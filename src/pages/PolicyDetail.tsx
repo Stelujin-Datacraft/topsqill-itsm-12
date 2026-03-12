@@ -2405,7 +2405,7 @@ const PolicyDetail = () => {
           <Card>
             <CardContent className="pt-4">
               <div className="flex items-center justify-between mb-4">
-                <p className="text-sm font-medium">Policy Linkages</p>
+                <p className="text-sm font-medium">Document Linkages</p>
                 {canEdit && (
                   <Button size="sm" variant="outline" onClick={() => setShowLinkDialog(true)}>
                     <Plus className="h-4 w-4 mr-1" /> Add Link
@@ -2413,7 +2413,7 @@ const PolicyDetail = () => {
                 )}
               </div>
               {linkages.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-6">No linkages. Link this policy to forms, incidents, or other policies.</p>
+                <p className="text-sm text-muted-foreground text-center py-6">No linkages. Link this document to forms, incidents, or other documents.</p>
               ) : (
                 <div className="space-y-2">
                   {linkages.map(l => (
