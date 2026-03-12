@@ -2292,9 +2292,113 @@ const PolicyDetail = () => {
           </Card>
         </TabsContent>
 
-        {/* Acknowledgments Tab hidden */}
+        {/* Acknowledgments Tab */}
+        <TabsContent value="acknowledgments" className="mt-4">
+          <Card>
+            <CardContent className="pt-4">
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-sm font-medium">Acknowledgments</p>
+                {policy.status === 'published' && (
+                  <Button size="sm" variant="outline" onClick={async () => {
+                    await acknowledgePolicy.mutateAsync({
+                      policyId: policy.id,
+                      versionNumber: policy.current_version,
+                    });
+                  }} disabled={acknowledgePolicy.isPending || acknowledgments.some(a => a.user_id === user?.id && a.version_acknowledged === policy.current_version)}>
+                    <UserCheck className="h-3.5 w-3.5 mr-1" />
+                    {acknowledgments.some(a => a.user_id === user?.id && a.version_acknowledged === policy.current_version) ? 'Already Acknowledged' : 'Acknowledge'}
+                  </Button>
+                )}
+              </div>
+              {acknowledgments.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-6">No acknowledgments yet.{policy.status === 'published' ? ' Users can acknowledge this document once published.' : ' Publish the document to allow acknowledgments.'}</p>
+              ) : (
+                <div className="space-y-2">
+                  {acknowledgments.map(a => (
+                    <div key={a.id} className="flex items-center justify-between p-3 rounded-md border">
+                      <div className="flex items-center gap-2">
+                        <UserCheck className="h-4 w-4 text-emerald-500" />
+                        <span className="text-sm font-medium">{getUserName(a.user_id)}</span>
+                        <Badge variant="outline" className="text-[10px]">v{a.version_acknowledged}</Badge>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {a.comments && <span className="text-xs text-muted-foreground italic">"{a.comments}"</span>}
+                        <span className="text-xs text-muted-foreground">{format(new Date(a.acknowledged_at), 'MMM d, yyyy HH:mm')}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-        {/* Exceptions Tab hidden */}
+        {/* Exceptions Tab */}
+        <TabsContent value="exceptions" className="mt-4">
+          <Card>
+            <CardContent className="pt-4">
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-sm font-medium">Exceptions</p>
+                {policy.status === 'published' && (
+                  <Dialog>
+                    <Button size="sm" variant="outline" asChild>
+                      <span onClick={() => {
+                        const dialog = document.getElementById('exception-dialog');
+                        if (dialog) (dialog as any).showModal?.();
+                      }}>
+                        <AlertTriangle className="h-3.5 w-3.5 mr-1" /> Request Exception
+                      </span>
+                    </Button>
+                  </Dialog>
+                )}
+              </div>
+              {exceptions.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-6">No exceptions requested. Exceptions allow temporary deviations from this document's requirements.</p>
+              ) : (
+                <div className="space-y-2">
+                  {exceptions.map(ex => {
+                    const statusColors: Record<string, string> = {
+                      pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
+                      approved: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+                      rejected: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+                      expired: 'bg-muted text-muted-foreground',
+                    };
+                    return (
+                      <div key={ex.id} className="p-3 rounded-md border space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-sm font-medium">Requested by: {getUserName(ex.requested_by)}</span>
+                            <Badge className={statusColors[ex.status] || ''}>{ex.status}</Badge>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground">{format(new Date(ex.created_at), 'MMM d, yyyy')}</span>
+                            {canEdit && ex.status === 'pending' && (
+                              <>
+                                <Button size="sm" variant="outline" onClick={() => respondException.mutateAsync({ exceptionId: ex.id, status: 'approved', approved_by: user?.id || '' })}>
+                                  <CheckCircle className="h-3 w-3 mr-1" /> Approve
+                                </Button>
+                                <Button size="sm" variant="outline" onClick={() => respondException.mutateAsync({ exceptionId: ex.id, status: 'rejected', approved_by: user?.id || '' })}>
+                                  <AlertOctagon className="h-3 w-3 mr-1" /> Reject
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        <p className="text-sm text-muted-foreground">{ex.reason}</p>
+                        {ex.justification && <p className="text-xs text-muted-foreground">Justification: {ex.justification}</p>}
+                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                          <span>From: {ex.start_date}</span>
+                          <span>To: {ex.end_date}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         {/* Linkages Tab */}
         <TabsContent value="linkages" className="mt-4">
