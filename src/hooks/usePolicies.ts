@@ -269,7 +269,10 @@ export function usePolicies() {
       if (error) throw error;
       return data;
     },
-    onSuccess: (_, vars) => {
+    onSuccess: () => {
+      // Invalidate all policy_review_cycles queries to ensure both pre and post tabs refresh
+      queryClient.invalidateQueries({ queryKey: ['policy_review_cycles'] });
+      queryClient.invalidateQueries({ queryKey: ['policies'] });
       toast.success('Review cycle completed');
     },
     onError: (err: any) => toast.error(err.message),
