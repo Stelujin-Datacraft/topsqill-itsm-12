@@ -1681,9 +1681,9 @@ const PolicyDetail = () => {
             <AlertDialog open={showSaveConfirmDialog} onOpenChange={setShowSaveConfirmDialog}>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Save Policy Changes?</AlertDialogTitle>
+                  <AlertDialogTitle>Save Document Changes?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    This will create a new version (v{(policy.current_version || 0) + 1}) of this policy. The current version will be saved to version history.
+                    This will create a new version (v{(policy.current_version || 0) + 1}) of this document. The current version will be saved to version history.
                     {changeSummary && (
                       <span className="block mt-2 text-foreground font-medium">Change summary: "{changeSummary}"</span>
                     )}
