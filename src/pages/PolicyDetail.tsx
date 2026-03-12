@@ -1872,7 +1872,7 @@ const PolicyDetail = () => {
         <TabsContent value="content" className="mt-4 space-y-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-sm">Policy Content</CardTitle>
+              <CardTitle className="text-sm">Document Content</CardTitle>
               <Button
                 variant="ghost"
                 size="sm"
@@ -1887,7 +1887,7 @@ const PolicyDetail = () => {
                 {(liveContentHtml ?? policy.content?.html) ? (
                   <div className="border rounded-lg overflow-hidden bg-white">
                     <iframe
-                      title="Policy Content Preview"
+                      title="Document Content Preview"
                       srcDoc={`<!DOCTYPE html>
 <html>
 <head>
@@ -1932,12 +1932,64 @@ const PolicyDetail = () => {
                   </div>
                 ) : (
                   <p className="text-sm text-muted-foreground text-center py-6">
-                    No content has been added yet. Click "Edit" to add policy content.
+                    No content has been added yet. Click "Edit" to add content.
                   </p>
                 )}
               </CardContent>
             )}
           </Card>
+
+          {/* Custom Fields in Content */}
+          {policy.content?.custom_fields && (policy.content.custom_fields as any[]).length > 0 && (() => {
+            const fields = (policy.content.custom_fields as any[]).filter((f: any) => !['header', 'description', 'horizontal-line'].includes(f.type));
+            const vals = (policy.content?.custom_field_values as Record<string, any>) || {};
+            if (fields.length === 0) return null;
+            return (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm">Custom Fields Data</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-auto">
+                    <table className="w-full text-sm border-collapse">
+                      <thead>
+                        <tr className="border-b bg-muted/50">
+                          <th className="text-left p-2 font-medium text-muted-foreground">Field</th>
+                          <th className="text-left p-2 font-medium text-muted-foreground">Value</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {fields.sort((a: any, b: any) => a.order - b.order).map((field: any) => {
+                          const raw = vals[field.id];
+                          let display = '—';
+                          if (raw !== null && raw !== undefined && raw !== '') {
+                            if (Array.isArray(raw)) {
+                              const opts = field.options || [];
+                              display = raw.map((v: string) => opts.find((o: any) => o.value === v)?.label || v).join(', ') || '—';
+                            } else if (typeof raw === 'boolean') {
+                              display = raw ? 'Yes' : 'No';
+                            } else if (field.type === 'rating') {
+                              display = '★'.repeat(Number(raw));
+                            } else if ((field.type === 'select' || field.type === 'radio') && field.options) {
+                              display = field.options.find((o: any) => o.value === raw)?.label || String(raw);
+                            } else {
+                              display = String(raw);
+                            }
+                          }
+                          return (
+                            <tr key={field.id} className="border-b">
+                              <td className="p-2 font-medium">{field.label}</td>
+                              <td className="p-2">{display}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })()}
 
           {/* Dynamic Fields from Linked Form */}
           {policy.form_id && (
