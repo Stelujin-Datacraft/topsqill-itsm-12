@@ -1574,6 +1574,12 @@ const PolicyDetail = () => {
               <Button variant="outline" size="sm" onClick={startEditing}>
                 <Edit className="h-4 w-4 mr-1" /> Edit
               </Button>
+              <Button variant="outline" size="sm" onClick={async () => {
+                await updatePolicy.mutateAsync({ id: policy.id, status: 'draft' });
+                toast.success('Document moved back to draft');
+              }}>
+                <RotateCcw className="h-4 w-4 mr-1" /> Back to Draft
+              </Button>
               <Button variant="outline" size="sm" onClick={retirePolicy}>
                 <Archive className="h-4 w-4 mr-1" /> Retire
               </Button>
@@ -1582,7 +1588,7 @@ const PolicyDetail = () => {
           {canEdit && policy.status === 'retired' && (
             <Button variant="outline" size="sm" onClick={async () => {
               await updatePolicy.mutateAsync({ id: policy.id, status: 'draft' });
-              toast.success('Policy moved back to draft');
+              toast.success('Document moved back to draft');
             }}>
               <Edit className="h-4 w-4 mr-1" /> Reopen as Draft
             </Button>
