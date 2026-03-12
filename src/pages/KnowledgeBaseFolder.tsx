@@ -107,7 +107,7 @@ const KnowledgeBaseFolder = () => {
             </Button>
             <Button onClick={() => navigate(`/policies/create?folder=${folderId}&type=policy`)} className="gap-2">
               <FileText className="h-4 w-4" />
-              Create Policy
+              Create Doc
             </Button>
           </div>
         )}
