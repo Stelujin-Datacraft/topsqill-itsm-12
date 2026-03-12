@@ -1602,9 +1602,9 @@ const PolicyDetail = () => {
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Delete Policy</AlertDialogTitle>
+                  <AlertDialogTitle>Delete Document</AlertDialogTitle>
                   <AlertDialogDescription>
-                    This will permanently delete this policy and all its versions. This cannot be undone.
+                    This will permanently delete this document and all its versions. This cannot be undone.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
