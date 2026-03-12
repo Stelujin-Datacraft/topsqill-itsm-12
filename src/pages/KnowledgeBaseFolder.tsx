@@ -155,7 +155,7 @@ const KnowledgeBaseFolder = () => {
               <SelectTrigger className="w-[130px]"><SelectValue placeholder="Type" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="policy">Policy</SelectItem>
+                <SelectItem value="policy">Doc</SelectItem>
                 <SelectItem value="audit">Audit</SelectItem>
               </SelectContent>
             </Select>
