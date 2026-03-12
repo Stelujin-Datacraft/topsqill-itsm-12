@@ -197,12 +197,13 @@ const PolicyDetail = () => {
       next_review_date = d.toISOString().split('T')[0];
     }
 
-    const { content_html, effective_date, expiry_date, custom_field_values, ...restEditForm } = editForm;
-    // Merge content_html and custom_field_values into existing content
+    const { content_html, effective_date, expiry_date, custom_field_values, custom_fields, ...restEditForm } = editForm;
+    // Merge content_html, custom_field_values, and custom_fields into existing content
     const updatedContent = {
       ...(policy.content || {}),
-      ...(content_html ? { html: content_html } : {}),
+      ...(content_html !== undefined ? { html: content_html } : {}),
       ...(custom_field_values ? { custom_field_values } : {}),
+      ...(custom_fields ? { custom_fields } : {}),
     };
 
     await updatePolicy.mutateAsync({
