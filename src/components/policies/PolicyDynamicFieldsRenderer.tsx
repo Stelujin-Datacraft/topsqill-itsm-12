@@ -1,20 +1,38 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, Database } from 'lucide-react';
+import { Loader2, Database, MessageSquare, Download, Plus } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
+import { format } from 'date-fns';
+import { toast } from 'sonner';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+
+interface RecordComment {
+  fieldId: string;
+  fieldLabel: string;
+  comment: string;
+  author: string;
+  created_at: string;
+}
 
 interface PolicyDynamicFieldsRendererProps {
   formId: string;
   displayFormat: 'table' | 'field-value';
   selectedFieldIds?: string[];
   selectedRecordIds?: string[];
+  recordComments?: Record<string, RecordComment[]>;
+  onAddComment?: (recordId: string, comment: RecordComment) => void;
+  currentUserName?: string;
 }
 
-export function PolicyDynamicFieldsRenderer({ formId, displayFormat, selectedFieldIds, selectedRecordIds }: PolicyDynamicFieldsRendererProps) {
+export function PolicyDynamicFieldsRenderer({ formId, displayFormat, selectedFieldIds, selectedRecordIds, recordComments, onAddComment, currentUserName }: PolicyDynamicFieldsRendererProps) {
   const formQuery = useQuery({
     queryKey: ['policy-form-info', formId],
     queryFn: async () => {
@@ -175,14 +193,28 @@ export function PolicyDynamicFieldsRenderer({ formId, displayFormat, selectedFie
 
       {submissions.map((submission, index) => {
         const refId = submission.submission_ref_id || submission.id.slice(0, 8);
-        const sectionTitle = `Policy ${index + 1} — ${refId}`;
+        const sectionTitle = `Record ${index + 1} — ${refId}`;
+        const comments = recordComments?.[submission.id] || [];
 
         return (
           <Card key={submission.id}>
-            <CardHeader className="py-3 px-4">
+            <CardHeader className="py-3 px-4 flex flex-row items-center justify-between">
               <CardTitle className="text-sm font-semibold">{sectionTitle}</CardTitle>
+              <div className="flex items-center gap-2">
+                {onAddComment && (
+                  <RecordCommentButton
+                    recordId={submission.id}
+                    fields={dataFields}
+                    onAddComment={onAddComment}
+                    currentUserName={currentUserName || 'User'}
+                  />
+                )}
+                <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => exportRecordToPDF(submission, dataFields, linkedData, refId, comments)}>
+                  <Download className="h-3 w-3 mr-1" /> Export
+                </Button>
+              </div>
             </CardHeader>
-            <CardContent className="px-4 pb-4 pt-0">
+            <CardContent className="px-4 pb-4 pt-0 space-y-3">
               {displayFormat === 'table' ? (
                 <TableFormatView
                   fields={dataFields}
@@ -196,12 +228,126 @@ export function PolicyDynamicFieldsRenderer({ formId, displayFormat, selectedFie
                   linkedData={linkedData}
                 />
               )}
+              {comments.length > 0 && (
+                <div className="border-t pt-2 space-y-2">
+                  <p className="text-xs font-medium text-muted-foreground flex items-center gap-1"><MessageSquare className="h-3 w-3" /> Comments ({comments.length})</p>
+                  {comments.map((c, ci) => (
+                    <div key={ci} className="text-xs p-2 rounded border bg-muted/30">
+                      <div className="flex justify-between">
+                        <span className="font-medium">{c.fieldLabel}</span>
+                        <span className="text-muted-foreground">{c.author} · {format(new Date(c.created_at), 'MMM d, HH:mm')}</span>
+                      </div>
+                      <p className="mt-1">{c.comment}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         );
       })}
     </div>
   );
+}
+
+function RecordCommentButton({ recordId, fields, onAddComment, currentUserName }: {
+  recordId: string;
+  fields: Array<{ id: string; label: string }>;
+  onAddComment: (recordId: string, comment: RecordComment) => void;
+  currentUserName: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [selectedField, setSelectedField] = useState('');
+  const [comment, setComment] = useState('');
+
+  if (!open) {
+    return (
+      <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setOpen(true)}>
+        <MessageSquare className="h-3 w-3 mr-1" /> Comment
+      </Button>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-2 border rounded-md p-2 bg-muted/30">
+      <Select value={selectedField} onValueChange={setSelectedField}>
+        <SelectTrigger className="h-7 text-xs w-[140px]"><SelectValue placeholder="Select field" /></SelectTrigger>
+        <SelectContent>
+          {fields.map(f => <SelectItem key={f.id} value={f.id}>{f.label}</SelectItem>)}
+        </SelectContent>
+      </Select>
+      <Textarea
+        value={comment}
+        onChange={e => setComment(e.target.value)}
+        placeholder="Add comment..."
+        className="text-xs min-h-[32px] h-8 py-1"
+        rows={1}
+      />
+      <Button size="sm" className="h-7 text-xs" disabled={!selectedField || !comment.trim()} onClick={() => {
+        const field = fields.find(f => f.id === selectedField);
+        onAddComment(recordId, {
+          fieldId: selectedField,
+          fieldLabel: field?.label || selectedField,
+          comment: comment.trim(),
+          author: currentUserName,
+          created_at: new Date().toISOString(),
+        });
+        setComment('');
+        setSelectedField('');
+        setOpen(false);
+        toast.success('Comment added');
+      }}>
+        <Plus className="h-3 w-3" />
+      </Button>
+      <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setOpen(false)}>✕</Button>
+    </div>
+  );
+}
+
+function exportRecordToPDF(
+  submission: any,
+  fields: Array<{ id: string; label: string; field_type: string; options: any }>,
+  linkedData: LinkedData,
+  refId: string,
+  comments: RecordComment[]
+) {
+  const doc = new jsPDF();
+  let yPos = 20;
+  doc.setFontSize(14);
+  doc.text(`Record — ${refId}`, 14, yPos);
+  yPos += 10;
+
+  const rows = fields.map(f => [
+    f.label,
+    formatValue((submission.submission_data || {})[f.id], f.field_type, f.options, linkedData),
+  ]);
+  autoTable(doc, {
+    head: [['Field', 'Value']],
+    body: rows,
+    startY: yPos,
+    margin: { left: 14 },
+    styles: { fontSize: 9 },
+    headStyles: { fillColor: [60, 60, 60] },
+  });
+  yPos = (doc as any).lastAutoTable?.finalY + 10 || yPos + 10;
+
+  if (comments.length > 0) {
+    doc.setFontSize(12);
+    doc.text('Comments', 14, yPos);
+    yPos += 6;
+    const commentRows = comments.map(c => [c.fieldLabel, c.comment, c.author, format(new Date(c.created_at), 'MMM d, HH:mm')]);
+    autoTable(doc, {
+      head: [['Field', 'Comment', 'Author', 'Date']],
+      body: commentRows,
+      startY: yPos,
+      margin: { left: 14 },
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [60, 60, 60] },
+    });
+  }
+
+  doc.save(`Record_${refId}.pdf`);
+  toast.success('Record exported as PDF');
 }
 
 interface LinkedData {

@@ -3,11 +3,10 @@ import html2canvas from 'html2canvas';
 import PizZip from 'pizzip';
 import { supabase } from '@/integrations/supabase/client';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Edit, Trash2, Save, Send, Archive, History, Link2, CheckCircle, Clock, FileText, Download, Plus, UserCheck, AlertOctagon, CalendarClock, Shield, BookOpen, Upload, Loader2, Star, FileDown, Users, ChevronDown, ChevronUp, Eye, EyeOff, RotateCcw, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, Save, Send, Archive, History, CheckCircle, Clock, FileText, Download, Plus, AlertOctagon, CalendarClock, Shield, BookOpen, Upload, Loader2, FileDown, Users, Eye, EyeOff, RotateCcw, MessageSquare } from 'lucide-react';
 import { Document, Packer, Paragraph, TextRun, ImageRun, HeadingLevel, Table as DocxTable, TableRow as DocxTableRow, TableCell as DocxTableCell, WidthType, BorderStyle, AlignmentType } from 'docx';
 import { PolicyDynamicFieldsRenderer } from '@/components/policies/PolicyDynamicFieldsRenderer';
 import { PolicyCustomFieldsBuilder, type PolicyCustomField } from '@/components/policies/PolicyCustomFieldsBuilder';
-import { PolicyRatingsTab } from '@/components/policies/PolicyRatingsTab';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -47,12 +46,13 @@ const PolicyDetail = () => {
   const { currentOrganization } = useOrganization();
   const { currentProject } = useProject();
   const { policies, updatePolicy, deletePolicy, createVersion, createReviewCycle, clonePolicy, completeReviewCycle } = usePolicies();
-  const { versions, linkages, approvals, acknowledgments, exceptions, reviewCycles, isLoading, createLinkage, submitApproval, respondApproval, acknowledgePolicy, requestException, respondException } = usePolicyDetail(id);
+  const { versions, linkages, approvals, reviewCycles, isLoading, createLinkage, submitApproval, respondApproval } = usePolicyDetail(id);
   
   const policy = policies.find(p => p.id === id);
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<any>({});
   const [changeSummary, setChangeSummary] = useState('');
+  const [reviewCommentMap, setReviewCommentMap] = useState<Record<string, string>>({});
   const [showLinkDialog, setShowLinkDialog] = useState(false);
   const [linkForm, setLinkForm] = useState({ linked_entity_type: 'form' as const, linked_entity_id: '', link_description: '' });
   const [approvalComment, setApprovalComment] = useState('');
@@ -555,6 +555,44 @@ const PolicyDetail = () => {
       }
     }
 
+    // Custom Fields Data in PDF
+    if (policy.content?.custom_fields && (policy.content.custom_fields as any[]).length > 0) {
+      const fields = (policy.content.custom_fields as any[]).filter((f: any) => !['header', 'description', 'horizontal-line'].includes(f.type));
+      const vals = (policy.content?.custom_field_values as Record<string, any>) || {};
+      if (fields.length > 0) {
+        yPos += 8;
+        ensureSpace(30);
+        doc.setFontSize(13);
+        doc.text('Custom Fields', 14, yPos);
+        yPos += 8;
+        const customRows = fields.sort((a: any, b: any) => a.order - b.order).map((field: any) => {
+          const raw = vals[field.id];
+          let display = '—';
+          if (raw !== null && raw !== undefined && raw !== '') {
+            if (Array.isArray(raw)) {
+              display = raw.map((v: string) => field.options?.find((o: any) => o.value === v)?.label || v).join(', ') || '—';
+            } else if (typeof raw === 'boolean') {
+              display = raw ? 'Yes' : 'No';
+            } else if ((field.type === 'select' || field.type === 'radio') && field.options) {
+              display = field.options.find((o: any) => o.value === raw)?.label || String(raw);
+            } else {
+              display = String(raw);
+            }
+          }
+          return [field.label, display];
+        });
+        autoTable(doc, {
+          head: [['Field', 'Value']],
+          body: customRows,
+          startY: yPos,
+          margin: { left: 14 },
+          styles: { fontSize: 9 },
+          headStyles: { fillColor: [60, 60, 60] },
+        });
+        yPos = (doc as any).lastAutoTable?.finalY + 6 || yPos + 10;
+      }
+    }
+
     // Dynamic Fields from linked form
     if (policy.form_id) {
       try {
@@ -999,6 +1037,50 @@ const PolicyDetail = () => {
       tempDiv.childNodes.forEach(child => processNode(child));
     }
 
+    // Custom Fields Data in DOCX
+    if (policy.content?.custom_fields && (policy.content.custom_fields as any[]).length > 0) {
+      const fields = (policy.content.custom_fields as any[]).filter((f: any) => !['header', 'description', 'horizontal-line'].includes(f.type));
+      const vals = (policy.content?.custom_field_values as Record<string, any>) || {};
+      if (fields.length > 0) {
+        sections.push(new Paragraph({
+          children: [new TextRun({ text: 'Custom Fields', bold: true, size: 24, font: 'Calibri' })],
+          heading: HeadingLevel.HEADING_2,
+          spacing: { before: 200, after: 100 },
+        }));
+        const docxRows = [
+          new DocxTableRow({
+            children: [
+              new DocxTableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Field', bold: true, size: 20, font: 'Calibri' })] })], width: { size: 40, type: WidthType.PERCENTAGE } }),
+              new DocxTableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Value', bold: true, size: 20, font: 'Calibri' })] })], width: { size: 60, type: WidthType.PERCENTAGE } }),
+            ],
+          }),
+          ...fields.sort((a: any, b: any) => a.order - b.order).map((field: any) => {
+            const raw = vals[field.id];
+            let display = '—';
+            if (raw !== null && raw !== undefined && raw !== '') {
+              if (Array.isArray(raw)) {
+                display = raw.map((v: string) => field.options?.find((o: any) => o.value === v)?.label || v).join(', ') || '—';
+              } else if (typeof raw === 'boolean') {
+                display = raw ? 'Yes' : 'No';
+              } else if ((field.type === 'select' || field.type === 'radio') && field.options) {
+                display = field.options.find((o: any) => o.value === raw)?.label || String(raw);
+              } else {
+                display = String(raw);
+              }
+            }
+            return new DocxTableRow({
+              children: [
+                new DocxTableCell({ children: [new Paragraph({ children: [new TextRun({ text: field.label, bold: true, size: 20, font: 'Calibri' })] })] }),
+                new DocxTableCell({ children: [new Paragraph({ children: [new TextRun({ text: display, size: 20, font: 'Calibri' })] })] }),
+              ],
+            });
+          }),
+        ];
+        sections.push(new DocxTable({ rows: docxRows, width: { size: 100, type: WidthType.PERCENTAGE } }));
+        sections.push(new Paragraph({ children: [], spacing: { after: 120 } }));
+      }
+    }
+
     // Attachments
     const pdfAttachments = (policy.attachments || []).filter((att: any) => att.show_in_pdf !== false);
     if (pdfAttachments.length > 0) {
@@ -1095,6 +1177,40 @@ const PolicyDetail = () => {
         return b;
       };
       td.childNodes.forEach(ch => cps.push(...extractBlocks(ch)));
+    }
+
+    // Custom Fields Data in Original DOCX
+    if (policy.content?.custom_fields && (policy.content.custom_fields as any[]).length > 0) {
+      const fields = (policy.content.custom_fields as any[]).filter((f: any) => !['header', 'description', 'horizontal-line'].includes(f.type));
+      const vals = (policy.content?.custom_field_values as Record<string, any>) || {};
+      if (fields.length > 0) {
+        cps.push('<w:p><w:r><w:rPr><w:b/><w:sz w:val="28"/></w:rPr><w:t xml:space="preserve">Custom Fields</w:t></w:r></w:p>');
+        let tx = '<w:tbl><w:tblPr><w:tblW w:w="5000" w:type="pct"/><w:tblBorders>' +
+          '<w:top w:val="single" w:sz="4" w:space="0" w:color="auto"/>' +
+          '<w:left w:val="single" w:sz="4" w:space="0" w:color="auto"/>' +
+          '<w:bottom w:val="single" w:sz="4" w:space="0" w:color="auto"/>' +
+          '<w:right w:val="single" w:sz="4" w:space="0" w:color="auto"/>' +
+          '<w:insideH w:val="single" w:sz="4" w:space="0" w:color="auto"/>' +
+          '<w:insideV w:val="single" w:sz="4" w:space="0" w:color="auto"/>' +
+          '</w:tblBorders></w:tblPr>';
+        tx += '<w:tr><w:tc><w:tcPr><w:shd w:val="clear" w:color="auto" w:fill="E0E0E0"/></w:tcPr><w:p><w:r><w:rPr><w:b/></w:rPr><w:t>Field</w:t></w:r></w:p></w:tc>' +
+          '<w:tc><w:tcPr><w:shd w:val="clear" w:color="auto" w:fill="E0E0E0"/></w:tcPr><w:p><w:r><w:rPr><w:b/></w:rPr><w:t>Value</w:t></w:r></w:p></w:tc></w:tr>';
+        fields.sort((a: any, b: any) => a.order - b.order).forEach((field: any) => {
+          const raw = vals[field.id];
+          let display = '\u2014';
+          if (raw !== null && raw !== undefined && raw !== '') {
+            if (Array.isArray(raw)) display = raw.map((v: string) => field.options?.find((o: any) => o.value === v)?.label || v).join(', ') || '\u2014';
+            else if (typeof raw === 'boolean') display = raw ? 'Yes' : 'No';
+            else if ((field.type === 'select' || field.type === 'radio') && field.options) display = field.options.find((o: any) => o.value === raw)?.label || String(raw);
+            else display = String(raw);
+          }
+          tx += '<w:tr><w:tc><w:p><w:r><w:rPr><w:b/></w:rPr><w:t xml:space="preserve">' + esc(field.label) + '</w:t></w:r></w:p></w:tc>' +
+            '<w:tc><w:p><w:r><w:t xml:space="preserve">' + esc(display) + '</w:t></w:r></w:p></w:tc></w:tr>';
+        });
+        tx += '</w:tbl>';
+        cps.push(tx);
+        cps.push('<w:p/>');
+      }
     }
 
     // Inject dynamic form fields
@@ -1717,18 +1833,6 @@ const PolicyDetail = () => {
           <TabsTrigger value="versions" className="gap-1">
             <History className="h-3.5 w-3.5" /> Versions ({versions.length})
           </TabsTrigger>
-          <TabsTrigger value="acknowledgments" className="gap-1">
-            <UserCheck className="h-3.5 w-3.5" /> Acknowledgments ({acknowledgments.length})
-          </TabsTrigger>
-          <TabsTrigger value="exceptions" className="gap-1">
-            <AlertTriangle className="h-3.5 w-3.5" /> Exceptions ({exceptions.length})
-          </TabsTrigger>
-          <TabsTrigger value="linkages" className="gap-1">
-            <Link2 className="h-3.5 w-3.5" /> Linkages ({linkages.length})
-          </TabsTrigger>
-          <TabsTrigger value="ratings" className="gap-1">
-            <Star className="h-3.5 w-3.5" /> Ratings
-          </TabsTrigger>
         </TabsList>
 
         {/* Details Tab */}
@@ -2014,6 +2118,16 @@ const PolicyDetail = () => {
                 displayFormat={dynamicFieldsFormat}
                 selectedFieldIds={policy.content?.selected_field_ids as string[] | undefined}
                 selectedRecordIds={policy.content?.selected_record_ids as string[] | undefined}
+                recordComments={(policy.content?.record_comments as Record<string, any>) || {}}
+                onAddComment={canEdit ? async (recordId, comment) => {
+                  const existing = (policy.content?.record_comments as Record<string, any[]>) || {};
+                  const updated = { ...existing, [recordId]: [...(existing[recordId] || []), comment] };
+                  await updatePolicy.mutateAsync({
+                    id: policy.id,
+                    content: { ...(policy.content || {}), record_comments: updated },
+                  });
+                } : undefined}
+                currentUserName={getUserName(user?.id || '')}
               />
             </div>
           )}
@@ -2073,38 +2187,61 @@ const PolicyDetail = () => {
                 </CardHeader>
                 <CardContent>
                   {(() => {
-                    const preReviewers = (policy.content?.pre_reviewers as Array<{ id: string; type: 'user' | 'group'; comment?: string; status?: string; reviewed_at?: string }>) || [];
+                    const preReviewers = (policy.content?.pre_reviewers as Array<{ id: string; type: 'user' | 'group'; comment?: string; status?: string; reviewed_at?: string; review_comment?: string }>) || [];
                     if (preReviewers.length === 0) {
-                      return <p className="text-sm text-muted-foreground text-center py-4">No pre-reviewers assigned. Pre-reviewers can review the policy before it goes for approval.</p>;
+                      return <p className="text-sm text-muted-foreground text-center py-4">No pre-reviewers assigned. Pre-reviewers can review the document before it goes for approval.</p>;
                     }
                     return (
-                      <div className="space-y-2">
+                      <div className="space-y-3">
                         {preReviewers.map((r, i) => {
                           const name = r.type === 'user' ? getUserName(r.id) : (groupsQuery.data?.find(g => g.id === r.id)?.name || r.id.slice(0, 8));
+                          const commentKey = `pre-${i}`;
                           return (
-                            <div key={i} className={`flex items-center justify-between p-3 rounded-md border ${r.status === 'reviewed' ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30' : 'border-muted'}`}>
-                              <div className="flex items-center gap-2">
-                                {r.status === 'reviewed' ? <CheckCircle className="h-4 w-4 text-emerald-500" /> : <Clock className="h-4 w-4 text-muted-foreground" />}
-                                <Badge variant="outline" className="text-[10px]">{r.type === 'user' ? 'User' : 'Group'}</Badge>
-                                <span className="text-sm font-medium">{name}</span>
+                            <div key={i} className={`p-3 rounded-md border space-y-2 ${r.status === 'reviewed' ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30' : 'border-muted'}`}>
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  {r.status === 'reviewed' ? <CheckCircle className="h-4 w-4 text-emerald-500" /> : <Clock className="h-4 w-4 text-muted-foreground" />}
+                                  <Badge variant="outline" className="text-[10px]">{r.type === 'user' ? 'User' : 'Group'}</Badge>
+                                  <span className="text-sm font-medium">{name}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Badge variant={r.status === 'reviewed' ? 'default' : 'secondary'} className="text-[10px]">
+                                    {r.status === 'reviewed' ? 'Reviewed' : 'Pending'}
+                                  </Badge>
+                                  {r.reviewed_at && <span className="text-xs text-muted-foreground">{format(new Date(r.reviewed_at), 'MMM d, yyyy HH:mm')}</span>}
+                                </div>
                               </div>
-                              <div className="flex items-center gap-2">
-                                {r.comment && <span className="text-xs text-muted-foreground italic">"{r.comment}"</span>}
-                                {r.reviewed_at && <span className="text-xs text-muted-foreground">{format(new Date(r.reviewed_at), 'MMM d, yyyy')}</span>}
-                                {r.status !== 'reviewed' && r.type === 'user' && r.id === user?.id && (
-                                  <Button size="sm" variant="outline" onClick={async () => {
+                              {r.review_comment && (
+                                <div className="text-xs bg-background/60 rounded p-2 border">
+                                  <span className="font-medium">Review Comment:</span> {r.review_comment}
+                                </div>
+                              )}
+                              {r.comment && (
+                                <div className="text-xs text-muted-foreground italic">Assignment note: "{r.comment}"</div>
+                              )}
+                              {r.status !== 'reviewed' && r.type === 'user' && r.id === user?.id && (
+                                <div className="space-y-2 pt-1" onClick={e => e.stopPropagation()}>
+                                  <Textarea
+                                    placeholder="Add your review comment..."
+                                    value={reviewCommentMap[commentKey] || ''}
+                                    onChange={e => setReviewCommentMap(prev => ({ ...prev, [commentKey]: e.target.value }))}
+                                    className="text-sm min-h-[60px] bg-background"
+                                    rows={2}
+                                  />
+                                  <Button size="sm" onClick={async () => {
                                     const updated = [...preReviewers];
-                                    updated[i] = { ...updated[i], status: 'reviewed', reviewed_at: new Date().toISOString() };
+                                    updated[i] = { ...updated[i], status: 'reviewed', reviewed_at: new Date().toISOString(), review_comment: reviewCommentMap[commentKey] || '' };
                                     await updatePolicy.mutateAsync({
                                       id: policy.id,
                                       content: { ...(policy.content || {}), pre_reviewers: updated },
                                     });
+                                    setReviewCommentMap(prev => { const n = { ...prev }; delete n[commentKey]; return n; });
                                     toast.success('Pre-review completed');
                                   }}>
-                                    <CheckCircle className="h-3.5 w-3.5 mr-1" /> Mark Reviewed
+                                    <CheckCircle className="h-3.5 w-3.5 mr-1" /> Submit Review
                                   </Button>
-                                )}
-                              </div>
+                                </div>
+                              )}
                             </div>
                           );
                         })}
@@ -2159,38 +2296,61 @@ const PolicyDetail = () => {
                 </CardHeader>
                 <CardContent>
                   {(() => {
-                    const postReviewers = (policy.content?.post_reviewers as Array<{ id: string; type: 'user' | 'group'; comment?: string; status?: string; reviewed_at?: string }>) || [];
+                    const postReviewers = (policy.content?.post_reviewers as Array<{ id: string; type: 'user' | 'group'; comment?: string; status?: string; reviewed_at?: string; review_comment?: string }>) || [];
                     if (postReviewers.length === 0) {
-                      return <p className="text-sm text-muted-foreground text-center py-4">No post-reviewers assigned. Post-reviewers validate the policy after it has been published.</p>;
+                      return <p className="text-sm text-muted-foreground text-center py-4">No post-reviewers assigned. Post-reviewers validate the document after it has been published.</p>;
                     }
                     return (
-                      <div className="space-y-2">
+                      <div className="space-y-3">
                         {postReviewers.map((r, i) => {
                           const name = r.type === 'user' ? getUserName(r.id) : (groupsQuery.data?.find(g => g.id === r.id)?.name || r.id.slice(0, 8));
+                          const commentKey = `post-${i}`;
                           return (
-                            <div key={i} className={`flex items-center justify-between p-3 rounded-md border ${r.status === 'reviewed' ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30' : 'border-muted'}`}>
-                              <div className="flex items-center gap-2">
-                                {r.status === 'reviewed' ? <CheckCircle className="h-4 w-4 text-emerald-500" /> : <Clock className="h-4 w-4 text-muted-foreground" />}
-                                <Badge variant="outline" className="text-[10px]">{r.type === 'user' ? 'User' : 'Group'}</Badge>
-                                <span className="text-sm font-medium">{name}</span>
+                            <div key={i} className={`p-3 rounded-md border space-y-2 ${r.status === 'reviewed' ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30' : 'border-muted'}`}>
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  {r.status === 'reviewed' ? <CheckCircle className="h-4 w-4 text-emerald-500" /> : <Clock className="h-4 w-4 text-muted-foreground" />}
+                                  <Badge variant="outline" className="text-[10px]">{r.type === 'user' ? 'User' : 'Group'}</Badge>
+                                  <span className="text-sm font-medium">{name}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Badge variant={r.status === 'reviewed' ? 'default' : 'secondary'} className="text-[10px]">
+                                    {r.status === 'reviewed' ? 'Reviewed' : 'Pending'}
+                                  </Badge>
+                                  {r.reviewed_at && <span className="text-xs text-muted-foreground">{format(new Date(r.reviewed_at), 'MMM d, yyyy HH:mm')}</span>}
+                                </div>
                               </div>
-                              <div className="flex items-center gap-2">
-                                {r.comment && <span className="text-xs text-muted-foreground italic">"{r.comment}"</span>}
-                                {r.reviewed_at && <span className="text-xs text-muted-foreground">{format(new Date(r.reviewed_at), 'MMM d, yyyy')}</span>}
-                                {r.status !== 'reviewed' && r.type === 'user' && r.id === user?.id && (
-                                  <Button size="sm" variant="outline" onClick={async () => {
+                              {r.review_comment && (
+                                <div className="text-xs bg-background/60 rounded p-2 border">
+                                  <span className="font-medium">Review Comment:</span> {r.review_comment}
+                                </div>
+                              )}
+                              {r.comment && (
+                                <div className="text-xs text-muted-foreground italic">Assignment note: "{r.comment}"</div>
+                              )}
+                              {r.status !== 'reviewed' && r.type === 'user' && r.id === user?.id && (
+                                <div className="space-y-2 pt-1" onClick={e => e.stopPropagation()}>
+                                  <Textarea
+                                    placeholder="Add your review comment..."
+                                    value={reviewCommentMap[commentKey] || ''}
+                                    onChange={e => setReviewCommentMap(prev => ({ ...prev, [commentKey]: e.target.value }))}
+                                    className="text-sm min-h-[60px] bg-background"
+                                    rows={2}
+                                  />
+                                  <Button size="sm" onClick={async () => {
                                     const updated = [...postReviewers];
-                                    updated[i] = { ...updated[i], status: 'reviewed', reviewed_at: new Date().toISOString() };
+                                    updated[i] = { ...updated[i], status: 'reviewed', reviewed_at: new Date().toISOString(), review_comment: reviewCommentMap[commentKey] || '' };
                                     await updatePolicy.mutateAsync({
                                       id: policy.id,
                                       content: { ...(policy.content || {}), post_reviewers: updated },
                                     });
+                                    setReviewCommentMap(prev => { const n = { ...prev }; delete n[commentKey]; return n; });
                                     toast.success('Post-review completed');
                                   }}>
-                                    <CheckCircle className="h-3.5 w-3.5 mr-1" /> Mark Reviewed
+                                    <CheckCircle className="h-3.5 w-3.5 mr-1" /> Submit Review
                                   </Button>
-                                )}
-                              </div>
+                                </div>
+                              )}
                             </div>
                           );
                         })}
@@ -2292,150 +2452,6 @@ const PolicyDetail = () => {
           </Card>
         </TabsContent>
 
-        {/* Acknowledgments Tab */}
-        <TabsContent value="acknowledgments" className="mt-4">
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center justify-between mb-4">
-                <p className="text-sm font-medium">Acknowledgments</p>
-                {policy.status === 'published' && (
-                  <Button size="sm" variant="outline" onClick={async () => {
-                    await acknowledgePolicy.mutateAsync({
-                      policyId: policy.id,
-                      versionNumber: policy.current_version,
-                    });
-                  }} disabled={acknowledgePolicy.isPending || acknowledgments.some(a => a.user_id === user?.id && a.version_acknowledged === policy.current_version)}>
-                    <UserCheck className="h-3.5 w-3.5 mr-1" />
-                    {acknowledgments.some(a => a.user_id === user?.id && a.version_acknowledged === policy.current_version) ? 'Already Acknowledged' : 'Acknowledge'}
-                  </Button>
-                )}
-              </div>
-              {acknowledgments.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-6">No acknowledgments yet.{policy.status === 'published' ? ' Users can acknowledge this document once published.' : ' Publish the document to allow acknowledgments.'}</p>
-              ) : (
-                <div className="space-y-2">
-                  {acknowledgments.map(a => (
-                    <div key={a.id} className="flex items-center justify-between p-3 rounded-md border">
-                      <div className="flex items-center gap-2">
-                        <UserCheck className="h-4 w-4 text-emerald-500" />
-                        <span className="text-sm font-medium">{getUserName(a.user_id)}</span>
-                        <Badge variant="outline" className="text-[10px]">v{a.version_acknowledged}</Badge>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {a.comments && <span className="text-xs text-muted-foreground italic">"{a.comments}"</span>}
-                        <span className="text-xs text-muted-foreground">{format(new Date(a.acknowledged_at), 'MMM d, yyyy HH:mm')}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Exceptions Tab */}
-        <TabsContent value="exceptions" className="mt-4">
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center justify-between mb-4">
-                <p className="text-sm font-medium">Exceptions</p>
-                {policy.status === 'published' && (
-                  <Dialog>
-                    <Button size="sm" variant="outline" asChild>
-                      <span onClick={() => {
-                        const dialog = document.getElementById('exception-dialog');
-                        if (dialog) (dialog as any).showModal?.();
-                      }}>
-                        <AlertTriangle className="h-3.5 w-3.5 mr-1" /> Request Exception
-                      </span>
-                    </Button>
-                  </Dialog>
-                )}
-              </div>
-              {exceptions.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-6">No exceptions requested. Exceptions allow temporary deviations from this document's requirements.</p>
-              ) : (
-                <div className="space-y-2">
-                  {exceptions.map(ex => {
-                    const statusColors: Record<string, string> = {
-                      pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-                      approved: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-                      rejected: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-                      expired: 'bg-muted text-muted-foreground',
-                    };
-                    return (
-                      <div key={ex.id} className="p-3 rounded-md border space-y-2">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-sm font-medium">Requested by: {getUserName(ex.requested_by)}</span>
-                            <Badge className={statusColors[ex.status] || ''}>{ex.status}</Badge>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs text-muted-foreground">{format(new Date(ex.created_at), 'MMM d, yyyy')}</span>
-                            {canEdit && ex.status === 'pending' && (
-                              <>
-                                <Button size="sm" variant="outline" onClick={() => respondException.mutateAsync({ exceptionId: ex.id, status: 'approved', approved_by: user?.id || '' })}>
-                                  <CheckCircle className="h-3 w-3 mr-1" /> Approve
-                                </Button>
-                                <Button size="sm" variant="outline" onClick={() => respondException.mutateAsync({ exceptionId: ex.id, status: 'rejected', approved_by: user?.id || '' })}>
-                                  <AlertOctagon className="h-3 w-3 mr-1" /> Reject
-                                </Button>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                        <p className="text-sm text-muted-foreground">{ex.reason}</p>
-                        {ex.justification && <p className="text-xs text-muted-foreground">Justification: {ex.justification}</p>}
-                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                          <span>From: {ex.start_date}</span>
-                          <span>To: {ex.end_date}</span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Linkages Tab */}
-        <TabsContent value="linkages" className="mt-4">
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center justify-between mb-4">
-                <p className="text-sm font-medium">Document Linkages</p>
-                {canEdit && (
-                  <Button size="sm" variant="outline" onClick={() => setShowLinkDialog(true)}>
-                    <Plus className="h-4 w-4 mr-1" /> Add Link
-                  </Button>
-                )}
-              </div>
-              {linkages.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-6">No linkages. Link this document to forms, incidents, or other documents.</p>
-              ) : (
-                <div className="space-y-2">
-                  {linkages.map(l => (
-                    <div key={l.id} className="flex items-center justify-between p-3 rounded-md border">
-                      <div className="flex items-center gap-2">
-                        <Link2 className="h-4 w-4 text-muted-foreground" />
-                        <Badge variant="outline" className="capitalize">{l.linked_entity_type}</Badge>
-                        <span className="text-sm">{l.link_description || l.linked_entity_id.slice(0, 8)}</span>
-                      </div>
-                      <span className="text-xs text-muted-foreground">{format(new Date(l.created_at), 'MMM d, yyyy')}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Ratings Tab */}
-        <TabsContent value="ratings" className="mt-4">
-          <PolicyRatingsTab policyId={policy.id} getUserName={getUserName} />
-        </TabsContent>
       </Tabs>
 
       {/* Submit for Approval Dialog */}
