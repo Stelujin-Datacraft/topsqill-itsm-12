@@ -193,14 +193,28 @@ export function PolicyDynamicFieldsRenderer({ formId, displayFormat, selectedFie
 
       {submissions.map((submission, index) => {
         const refId = submission.submission_ref_id || submission.id.slice(0, 8);
-        const sectionTitle = `Policy ${index + 1} — ${refId}`;
+        const sectionTitle = `Record ${index + 1} — ${refId}`;
+        const comments = recordComments?.[submission.id] || [];
 
         return (
           <Card key={submission.id}>
-            <CardHeader className="py-3 px-4">
+            <CardHeader className="py-3 px-4 flex flex-row items-center justify-between">
               <CardTitle className="text-sm font-semibold">{sectionTitle}</CardTitle>
+              <div className="flex items-center gap-2">
+                {onAddComment && (
+                  <RecordCommentButton
+                    recordId={submission.id}
+                    fields={dataFields}
+                    onAddComment={onAddComment}
+                    currentUserName={currentUserName || 'User'}
+                  />
+                )}
+                <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => exportRecordToPDF(submission, dataFields, linkedData, refId, comments)}>
+                  <Download className="h-3 w-3 mr-1" /> Export
+                </Button>
+              </div>
             </CardHeader>
-            <CardContent className="px-4 pb-4 pt-0">
+            <CardContent className="px-4 pb-4 pt-0 space-y-3">
               {displayFormat === 'table' ? (
                 <TableFormatView
                   fields={dataFields}
@@ -213,6 +227,20 @@ export function PolicyDynamicFieldsRenderer({ formId, displayFormat, selectedFie
                   submissionData={submission.submission_data as Record<string, any>}
                   linkedData={linkedData}
                 />
+              )}
+              {comments.length > 0 && (
+                <div className="border-t pt-2 space-y-2">
+                  <p className="text-xs font-medium text-muted-foreground flex items-center gap-1"><MessageSquare className="h-3 w-3" /> Comments ({comments.length})</p>
+                  {comments.map((c, ci) => (
+                    <div key={ci} className="text-xs p-2 rounded border bg-muted/30">
+                      <div className="flex justify-between">
+                        <span className="font-medium">{c.fieldLabel}</span>
+                        <span className="text-muted-foreground">{c.author} · {format(new Date(c.created_at), 'MMM d, HH:mm')}</span>
+                      </div>
+                      <p className="mt-1">{c.comment}</p>
+                    </div>
+                  ))}
+                </div>
               )}
             </CardContent>
           </Card>
