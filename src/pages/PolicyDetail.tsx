@@ -1179,6 +1179,40 @@ const PolicyDetail = () => {
       td.childNodes.forEach(ch => cps.push(...extractBlocks(ch)));
     }
 
+    // Custom Fields Data in Original DOCX
+    if (policy.content?.custom_fields && (policy.content.custom_fields as any[]).length > 0) {
+      const fields = (policy.content.custom_fields as any[]).filter((f: any) => !['header', 'description', 'horizontal-line'].includes(f.type));
+      const vals = (policy.content?.custom_field_values as Record<string, any>) || {};
+      if (fields.length > 0) {
+        cps.push('<w:p><w:r><w:rPr><w:b/><w:sz w:val="28"/></w:rPr><w:t xml:space="preserve">Custom Fields</w:t></w:r></w:p>');
+        let tx = '<w:tbl><w:tblPr><w:tblW w:w="5000" w:type="pct"/><w:tblBorders>' +
+          '<w:top w:val="single" w:sz="4" w:space="0" w:color="auto"/>' +
+          '<w:left w:val="single" w:sz="4" w:space="0" w:color="auto"/>' +
+          '<w:bottom w:val="single" w:sz="4" w:space="0" w:color="auto"/>' +
+          '<w:right w:val="single" w:sz="4" w:space="0" w:color="auto"/>' +
+          '<w:insideH w:val="single" w:sz="4" w:space="0" w:color="auto"/>' +
+          '<w:insideV w:val="single" w:sz="4" w:space="0" w:color="auto"/>' +
+          '</w:tblBorders></w:tblPr>';
+        tx += '<w:tr><w:tc><w:tcPr><w:shd w:val="clear" w:color="auto" w:fill="E0E0E0"/></w:tcPr><w:p><w:r><w:rPr><w:b/></w:rPr><w:t>Field</w:t></w:r></w:p></w:tc>' +
+          '<w:tc><w:tcPr><w:shd w:val="clear" w:color="auto" w:fill="E0E0E0"/></w:tcPr><w:p><w:r><w:rPr><w:b/></w:rPr><w:t>Value</w:t></w:r></w:p></w:tc></w:tr>';
+        fields.sort((a: any, b: any) => a.order - b.order).forEach((field: any) => {
+          const raw = vals[field.id];
+          let display = '\u2014';
+          if (raw !== null && raw !== undefined && raw !== '') {
+            if (Array.isArray(raw)) display = raw.map((v: string) => field.options?.find((o: any) => o.value === v)?.label || v).join(', ') || '\u2014';
+            else if (typeof raw === 'boolean') display = raw ? 'Yes' : 'No';
+            else if ((field.type === 'select' || field.type === 'radio') && field.options) display = field.options.find((o: any) => o.value === raw)?.label || String(raw);
+            else display = String(raw);
+          }
+          tx += '<w:tr><w:tc><w:p><w:r><w:rPr><w:b/></w:rPr><w:t xml:space="preserve">' + esc(field.label) + '</w:t></w:r></w:p></w:tc>' +
+            '<w:tc><w:p><w:r><w:t xml:space="preserve">' + esc(display) + '</w:t></w:r></w:p></w:tc></w:tr>';
+        });
+        tx += '</w:tbl>';
+        cps.push(tx);
+        cps.push('<w:p/>');
+      }
+    }
+
     // Inject dynamic form fields
     if (policy.form_id) {
       const [fR, sR] = await Promise.all([
