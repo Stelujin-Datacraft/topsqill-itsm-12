@@ -555,6 +555,44 @@ const PolicyDetail = () => {
       }
     }
 
+    // Custom Fields Data in PDF
+    if (policy.content?.custom_fields && (policy.content.custom_fields as any[]).length > 0) {
+      const fields = (policy.content.custom_fields as any[]).filter((f: any) => !['header', 'description', 'horizontal-line'].includes(f.type));
+      const vals = (policy.content?.custom_field_values as Record<string, any>) || {};
+      if (fields.length > 0) {
+        yPos += 8;
+        ensureSpace(30);
+        doc.setFontSize(13);
+        doc.text('Custom Fields', 14, yPos);
+        yPos += 8;
+        const customRows = fields.sort((a: any, b: any) => a.order - b.order).map((field: any) => {
+          const raw = vals[field.id];
+          let display = '—';
+          if (raw !== null && raw !== undefined && raw !== '') {
+            if (Array.isArray(raw)) {
+              display = raw.map((v: string) => field.options?.find((o: any) => o.value === v)?.label || v).join(', ') || '—';
+            } else if (typeof raw === 'boolean') {
+              display = raw ? 'Yes' : 'No';
+            } else if ((field.type === 'select' || field.type === 'radio') && field.options) {
+              display = field.options.find((o: any) => o.value === raw)?.label || String(raw);
+            } else {
+              display = String(raw);
+            }
+          }
+          return [field.label, display];
+        });
+        autoTable(doc, {
+          head: [['Field', 'Value']],
+          body: customRows,
+          startY: yPos,
+          margin: { left: 14 },
+          styles: { fontSize: 9 },
+          headStyles: { fillColor: [60, 60, 60] },
+        });
+        yPos = (doc as any).lastAutoTable?.finalY + 6 || yPos + 10;
+      }
+    }
+
     // Dynamic Fields from linked form
     if (policy.form_id) {
       try {
