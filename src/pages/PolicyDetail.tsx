@@ -1716,18 +1716,6 @@ const PolicyDetail = () => {
           <TabsTrigger value="versions" className="gap-1">
             <History className="h-3.5 w-3.5" /> Versions ({versions.length})
           </TabsTrigger>
-          <TabsTrigger value="acknowledgments" className="gap-1">
-            <UserCheck className="h-3.5 w-3.5" /> Acknowledgments ({acknowledgments.length})
-          </TabsTrigger>
-          <TabsTrigger value="exceptions" className="gap-1">
-            <AlertTriangle className="h-3.5 w-3.5" /> Exceptions ({exceptions.length})
-          </TabsTrigger>
-          <TabsTrigger value="linkages" className="gap-1">
-            <Link2 className="h-3.5 w-3.5" /> Linkages ({linkages.length})
-          </TabsTrigger>
-          <TabsTrigger value="ratings" className="gap-1">
-            <Star className="h-3.5 w-3.5" /> Ratings
-          </TabsTrigger>
         </TabsList>
 
         {/* Details Tab */}
