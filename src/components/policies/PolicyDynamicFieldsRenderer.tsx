@@ -14,14 +14,25 @@ import { toast } from 'sonner';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
+interface RecordComment {
+  fieldId: string;
+  fieldLabel: string;
+  comment: string;
+  author: string;
+  created_at: string;
+}
+
 interface PolicyDynamicFieldsRendererProps {
   formId: string;
   displayFormat: 'table' | 'field-value';
   selectedFieldIds?: string[];
   selectedRecordIds?: string[];
+  recordComments?: Record<string, RecordComment[]>;
+  onAddComment?: (recordId: string, comment: RecordComment) => void;
+  currentUserName?: string;
 }
 
-export function PolicyDynamicFieldsRenderer({ formId, displayFormat, selectedFieldIds, selectedRecordIds }: PolicyDynamicFieldsRendererProps) {
+export function PolicyDynamicFieldsRenderer({ formId, displayFormat, selectedFieldIds, selectedRecordIds, recordComments, onAddComment, currentUserName }: PolicyDynamicFieldsRendererProps) {
   const formQuery = useQuery({
     queryKey: ['policy-form-info', formId],
     queryFn: async () => {
