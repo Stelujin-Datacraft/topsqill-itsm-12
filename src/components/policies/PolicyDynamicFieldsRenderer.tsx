@@ -250,6 +250,106 @@ export function PolicyDynamicFieldsRenderer({ formId, displayFormat, selectedFie
   );
 }
 
+function RecordCommentButton({ recordId, fields, onAddComment, currentUserName }: {
+  recordId: string;
+  fields: Array<{ id: string; label: string }>;
+  onAddComment: (recordId: string, comment: RecordComment) => void;
+  currentUserName: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [selectedField, setSelectedField] = useState('');
+  const [comment, setComment] = useState('');
+
+  if (!open) {
+    return (
+      <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setOpen(true)}>
+        <MessageSquare className="h-3 w-3 mr-1" /> Comment
+      </Button>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-2 border rounded-md p-2 bg-muted/30">
+      <Select value={selectedField} onValueChange={setSelectedField}>
+        <SelectTrigger className="h-7 text-xs w-[140px]"><SelectValue placeholder="Select field" /></SelectTrigger>
+        <SelectContent>
+          {fields.map(f => <SelectItem key={f.id} value={f.id}>{f.label}</SelectItem>)}
+        </SelectContent>
+      </Select>
+      <Textarea
+        value={comment}
+        onChange={e => setComment(e.target.value)}
+        placeholder="Add comment..."
+        className="text-xs min-h-[32px] h-8 py-1"
+        rows={1}
+      />
+      <Button size="sm" className="h-7 text-xs" disabled={!selectedField || !comment.trim()} onClick={() => {
+        const field = fields.find(f => f.id === selectedField);
+        onAddComment(recordId, {
+          fieldId: selectedField,
+          fieldLabel: field?.label || selectedField,
+          comment: comment.trim(),
+          author: currentUserName,
+          created_at: new Date().toISOString(),
+        });
+        setComment('');
+        setSelectedField('');
+        setOpen(false);
+        toast.success('Comment added');
+      }}>
+        <Plus className="h-3 w-3" />
+      </Button>
+      <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setOpen(false)}>✕</Button>
+    </div>
+  );
+}
+
+function exportRecordToPDF(
+  submission: any,
+  fields: Array<{ id: string; label: string; field_type: string; options: any }>,
+  linkedData: LinkedData,
+  refId: string,
+  comments: RecordComment[]
+) {
+  const doc = new jsPDF();
+  let yPos = 20;
+  doc.setFontSize(14);
+  doc.text(`Record — ${refId}`, 14, yPos);
+  yPos += 10;
+
+  const rows = fields.map(f => [
+    f.label,
+    formatValue((submission.submission_data || {})[f.id], f.field_type, f.options, linkedData),
+  ]);
+  autoTable(doc, {
+    head: [['Field', 'Value']],
+    body: rows,
+    startY: yPos,
+    margin: { left: 14 },
+    styles: { fontSize: 9 },
+    headStyles: { fillColor: [60, 60, 60] },
+  });
+  yPos = (doc as any).lastAutoTable?.finalY + 10 || yPos + 10;
+
+  if (comments.length > 0) {
+    doc.setFontSize(12);
+    doc.text('Comments', 14, yPos);
+    yPos += 6;
+    const commentRows = comments.map(c => [c.fieldLabel, c.comment, c.author, format(new Date(c.created_at), 'MMM d, HH:mm')]);
+    autoTable(doc, {
+      head: [['Field', 'Comment', 'Author', 'Date']],
+      body: commentRows,
+      startY: yPos,
+      margin: { left: 14 },
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [60, 60, 60] },
+    });
+  }
+
+  doc.save(`Record_${refId}.pdf`);
+  toast.success('Record exported as PDF');
+}
+
 interface LinkedData {
   records?: Record<string, any>;
   fieldLabels?: Record<string, Record<string, string>>;
