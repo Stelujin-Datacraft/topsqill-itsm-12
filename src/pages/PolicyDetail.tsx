@@ -53,6 +53,7 @@ const PolicyDetail = () => {
   const [editForm, setEditForm] = useState<any>({});
   const [changeSummary, setChangeSummary] = useState('');
   const [reviewCommentMap, setReviewCommentMap] = useState<Record<string, string>>({});
+  const [showLinkDialog, setShowLinkDialog] = useState(false);
   const [linkForm, setLinkForm] = useState({ linked_entity_type: 'form' as const, linked_entity_id: '', link_description: '' });
   const [approvalComment, setApprovalComment] = useState('');
   const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
