@@ -2118,6 +2118,16 @@ const PolicyDetail = () => {
                 displayFormat={dynamicFieldsFormat}
                 selectedFieldIds={policy.content?.selected_field_ids as string[] | undefined}
                 selectedRecordIds={policy.content?.selected_record_ids as string[] | undefined}
+                recordComments={(policy.content?.record_comments as Record<string, any>) || {}}
+                onAddComment={canEdit ? async (recordId, comment) => {
+                  const existing = (policy.content?.record_comments as Record<string, any[]>) || {};
+                  const updated = { ...existing, [recordId]: [...(existing[recordId] || []), comment] };
+                  await updatePolicy.mutateAsync({
+                    id: policy.id,
+                    content: { ...(policy.content || {}), record_comments: updated },
+                  });
+                } : undefined}
+                currentUserName={getUserName(user?.id || '')}
               />
             </div>
           )}
