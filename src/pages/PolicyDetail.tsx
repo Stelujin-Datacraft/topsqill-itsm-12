@@ -46,7 +46,7 @@ const PolicyDetail = () => {
   const { currentOrganization } = useOrganization();
   const { currentProject } = useProject();
   const { policies, updatePolicy, deletePolicy, createVersion, createReviewCycle, clonePolicy, completeReviewCycle } = usePolicies();
-  const { versions, linkages, approvals, acknowledgments, exceptions, reviewCycles, isLoading, createLinkage, submitApproval, respondApproval, acknowledgePolicy, requestException, respondException } = usePolicyDetail(id);
+  const { versions, linkages, approvals, reviewCycles, isLoading, createLinkage, submitApproval, respondApproval } = usePolicyDetail(id);
   
   const policy = policies.find(p => p.id === id);
   const [isEditing, setIsEditing] = useState(false);
