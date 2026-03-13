@@ -209,9 +209,9 @@ export function PolicyDynamicFieldsRenderer({ formId, displayFormat, selectedFie
                     currentUserName={currentUserName || 'User'}
                   />
                 )}
-                <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => exportRecordToPDF(submission, dataFields, linkedData, refId, comments)}>
+                {/* <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => exportRecordToPDF(submission, dataFields, linkedData, refId, comments)}>
                   <Download className="h-3 w-3 mr-1" /> Export
-                </Button>
+                </Button> */}
               </div>
             </CardHeader>
             <CardContent className="px-4 pb-4 pt-0 space-y-3">
