@@ -1037,6 +1037,50 @@ const PolicyDetail = () => {
       tempDiv.childNodes.forEach(child => processNode(child));
     }
 
+    // Custom Fields Data in DOCX
+    if (policy.content?.custom_fields && (policy.content.custom_fields as any[]).length > 0) {
+      const fields = (policy.content.custom_fields as any[]).filter((f: any) => !['header', 'description', 'horizontal-line'].includes(f.type));
+      const vals = (policy.content?.custom_field_values as Record<string, any>) || {};
+      if (fields.length > 0) {
+        sections.push(new Paragraph({
+          children: [new TextRun({ text: 'Custom Fields', bold: true, size: 24, font: 'Calibri' })],
+          heading: HeadingLevel.HEADING_2,
+          spacing: { before: 200, after: 100 },
+        }));
+        const docxRows = [
+          new DocxTableRow({
+            children: [
+              new DocxTableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Field', bold: true, size: 20, font: 'Calibri' })] })], width: { size: 40, type: WidthType.PERCENTAGE } }),
+              new DocxTableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Value', bold: true, size: 20, font: 'Calibri' })] })], width: { size: 60, type: WidthType.PERCENTAGE } }),
+            ],
+          }),
+          ...fields.sort((a: any, b: any) => a.order - b.order).map((field: any) => {
+            const raw = vals[field.id];
+            let display = '—';
+            if (raw !== null && raw !== undefined && raw !== '') {
+              if (Array.isArray(raw)) {
+                display = raw.map((v: string) => field.options?.find((o: any) => o.value === v)?.label || v).join(', ') || '—';
+              } else if (typeof raw === 'boolean') {
+                display = raw ? 'Yes' : 'No';
+              } else if ((field.type === 'select' || field.type === 'radio') && field.options) {
+                display = field.options.find((o: any) => o.value === raw)?.label || String(raw);
+              } else {
+                display = String(raw);
+              }
+            }
+            return new DocxTableRow({
+              children: [
+                new DocxTableCell({ children: [new Paragraph({ children: [new TextRun({ text: field.label, bold: true, size: 20, font: 'Calibri' })] })] }),
+                new DocxTableCell({ children: [new Paragraph({ children: [new TextRun({ text: display, size: 20, font: 'Calibri' })] })] }),
+              ],
+            });
+          }),
+        ];
+        sections.push(new DocxTable({ rows: docxRows, width: { size: 100, type: WidthType.PERCENTAGE } }));
+        sections.push(new Paragraph({ children: [], spacing: { after: 120 } }));
+      }
+    }
+
     // Attachments
     const pdfAttachments = (policy.attachments || []).filter((att: any) => att.show_in_pdf !== false);
     if (pdfAttachments.length > 0) {
