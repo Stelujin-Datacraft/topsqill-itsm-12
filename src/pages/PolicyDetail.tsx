@@ -2061,38 +2061,61 @@ const PolicyDetail = () => {
                 </CardHeader>
                 <CardContent>
                   {(() => {
-                    const preReviewers = (policy.content?.pre_reviewers as Array<{ id: string; type: 'user' | 'group'; comment?: string; status?: string; reviewed_at?: string }>) || [];
+                    const preReviewers = (policy.content?.pre_reviewers as Array<{ id: string; type: 'user' | 'group'; comment?: string; status?: string; reviewed_at?: string; review_comment?: string }>) || [];
                     if (preReviewers.length === 0) {
-                      return <p className="text-sm text-muted-foreground text-center py-4">No pre-reviewers assigned. Pre-reviewers can review the policy before it goes for approval.</p>;
+                      return <p className="text-sm text-muted-foreground text-center py-4">No pre-reviewers assigned. Pre-reviewers can review the document before it goes for approval.</p>;
                     }
                     return (
-                      <div className="space-y-2">
+                      <div className="space-y-3">
                         {preReviewers.map((r, i) => {
                           const name = r.type === 'user' ? getUserName(r.id) : (groupsQuery.data?.find(g => g.id === r.id)?.name || r.id.slice(0, 8));
+                          const commentKey = `pre-${i}`;
                           return (
-                            <div key={i} className={`flex items-center justify-between p-3 rounded-md border ${r.status === 'reviewed' ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30' : 'border-muted'}`}>
-                              <div className="flex items-center gap-2">
-                                {r.status === 'reviewed' ? <CheckCircle className="h-4 w-4 text-emerald-500" /> : <Clock className="h-4 w-4 text-muted-foreground" />}
-                                <Badge variant="outline" className="text-[10px]">{r.type === 'user' ? 'User' : 'Group'}</Badge>
-                                <span className="text-sm font-medium">{name}</span>
+                            <div key={i} className={`p-3 rounded-md border space-y-2 ${r.status === 'reviewed' ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30' : 'border-muted'}`}>
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  {r.status === 'reviewed' ? <CheckCircle className="h-4 w-4 text-emerald-500" /> : <Clock className="h-4 w-4 text-muted-foreground" />}
+                                  <Badge variant="outline" className="text-[10px]">{r.type === 'user' ? 'User' : 'Group'}</Badge>
+                                  <span className="text-sm font-medium">{name}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Badge variant={r.status === 'reviewed' ? 'default' : 'secondary'} className="text-[10px]">
+                                    {r.status === 'reviewed' ? 'Reviewed' : 'Pending'}
+                                  </Badge>
+                                  {r.reviewed_at && <span className="text-xs text-muted-foreground">{format(new Date(r.reviewed_at), 'MMM d, yyyy HH:mm')}</span>}
+                                </div>
                               </div>
-                              <div className="flex items-center gap-2">
-                                {r.comment && <span className="text-xs text-muted-foreground italic">"{r.comment}"</span>}
-                                {r.reviewed_at && <span className="text-xs text-muted-foreground">{format(new Date(r.reviewed_at), 'MMM d, yyyy')}</span>}
-                                {r.status !== 'reviewed' && r.type === 'user' && r.id === user?.id && (
-                                  <Button size="sm" variant="outline" onClick={async () => {
+                              {r.review_comment && (
+                                <div className="text-xs bg-background/60 rounded p-2 border">
+                                  <span className="font-medium">Review Comment:</span> {r.review_comment}
+                                </div>
+                              )}
+                              {r.comment && (
+                                <div className="text-xs text-muted-foreground italic">Assignment note: "{r.comment}"</div>
+                              )}
+                              {r.status !== 'reviewed' && r.type === 'user' && r.id === user?.id && (
+                                <div className="space-y-2 pt-1" onClick={e => e.stopPropagation()}>
+                                  <Textarea
+                                    placeholder="Add your review comment..."
+                                    value={reviewCommentMap[commentKey] || ''}
+                                    onChange={e => setReviewCommentMap(prev => ({ ...prev, [commentKey]: e.target.value }))}
+                                    className="text-sm min-h-[60px] bg-background"
+                                    rows={2}
+                                  />
+                                  <Button size="sm" onClick={async () => {
                                     const updated = [...preReviewers];
-                                    updated[i] = { ...updated[i], status: 'reviewed', reviewed_at: new Date().toISOString() };
+                                    updated[i] = { ...updated[i], status: 'reviewed', reviewed_at: new Date().toISOString(), review_comment: reviewCommentMap[commentKey] || '' };
                                     await updatePolicy.mutateAsync({
                                       id: policy.id,
                                       content: { ...(policy.content || {}), pre_reviewers: updated },
                                     });
+                                    setReviewCommentMap(prev => { const n = { ...prev }; delete n[commentKey]; return n; });
                                     toast.success('Pre-review completed');
                                   }}>
-                                    <CheckCircle className="h-3.5 w-3.5 mr-1" /> Mark Reviewed
+                                    <CheckCircle className="h-3.5 w-3.5 mr-1" /> Submit Review
                                   </Button>
-                                )}
-                              </div>
+                                </div>
+                              )}
                             </div>
                           );
                         })}
