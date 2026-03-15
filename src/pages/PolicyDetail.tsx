@@ -434,6 +434,7 @@ const PolicyDetail = () => {
   };
 
   const generatePDF = async (mode: 'download' | 'preview' = 'download') => {
+    const currentSectionOrder = getSectionOrder();
 
     const doc = new jsPDF();
     let yPos = 22;
@@ -443,6 +444,7 @@ const PolicyDetail = () => {
       if (yPos > pageHeight - needed) { doc.addPage(); yPos = 20; }
     };
 
+    // Always print title first
     doc.setFontSize(18);
     doc.text(policy.name, 14, yPos);
     yPos += 10;
