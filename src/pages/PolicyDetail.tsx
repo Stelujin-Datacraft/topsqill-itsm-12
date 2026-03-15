@@ -2179,6 +2179,44 @@ const PolicyDetail = () => {
           </DragDropContext>
         </TabsContent>
 
+        {/* Approvals Tab */}
+        <TabsContent value="approvals" className="mt-4">
+          <Card>
+            <CardContent className="pt-4">
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-sm font-medium">Approval Flow</p>
+                {policy.status === 'draft' && (
+                  <Button size="sm" onClick={() => setShowApprovalDialog(true)}>
+                    <Send className="h-3.5 w-3.5 mr-1" /> Submit for Approval
+                  </Button>
+                )}
+              </div>
+              <PolicyApprovalFlow
+                approvals={approvals}
+                policyStatus={policy.status}
+                approvalMode={(policy.content?.approval_mode as ApprovalMode) || 'any_one'}
+                currentUserId={user?.id}
+                getUserName={getUserName}
+                onApprove={(id, comment) => handleApprovalResponse(id, 'approved', comment)}
+                onReject={(id, comment) => handleApprovalResponse(id, 'rejected', comment)}
+                isPending={respondApproval.isPending}
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Reviews Tab - with inner Pre/Post sub-tabs */}
+        <TabsContent value="reviews" className="mt-4">
+          <Tabs defaultValue="pre-review">
+            <TabsList>
+              <TabsTrigger value="pre-review" className="gap-1">
+                <Eye className="h-3.5 w-3.5" /> Pre-Review
+              </TabsTrigger>
+              <TabsTrigger value="post-review" className="gap-1">
+                <Shield className="h-3.5 w-3.5" /> Post-Review
+              </TabsTrigger>
+            </TabsList>
+
             {/* Pre-Review Sub-Tab */}
             <TabsContent value="pre-review" className="mt-4 space-y-4">
               <Card>
