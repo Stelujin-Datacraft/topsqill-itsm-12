@@ -1855,9 +1855,8 @@ const PolicyDetail = () => {
       )}
 
       {/* Tabs */}
-      <Tabs defaultValue="details">
+      <Tabs defaultValue="content">
         <TabsList className="flex-wrap">
-          <TabsTrigger value="details">Details</TabsTrigger>
           <TabsTrigger value="content" className="gap-1">
             <BookOpen className="h-3.5 w-3.5" /> Content
           </TabsTrigger>
@@ -1872,164 +1871,67 @@ const PolicyDetail = () => {
           </TabsTrigger>
         </TabsList>
 
-        {/* Details Tab */}
-        <TabsContent value="details" className="space-y-4 mt-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Left: Dates + Metadata */}
-            <Card>
-              <CardHeader><CardTitle className="text-sm">Dates & Metadata</CardTitle></CardHeader>
-              <CardContent className="space-y-2 text-sm">
-                <DetailRow label="Created" value={format(new Date(policy.created_at), 'PPpp')} />
-                <DetailRow label="Last Updated" value={format(new Date(policy.updated_at), 'PPpp')} />
-                {policy.effective_date && <DetailRow label="Effective Date" value={policy.effective_date} />}
-                {policy.expiry_date && <DetailRow label="Expiry Date" value={policy.expiry_date} />}
-                {policy.next_review_date && <DetailRow label="Next Review" value={policy.next_review_date} />}
-                {policy.published_at && <DetailRow label="Published" value={format(new Date(policy.published_at), 'PPpp')} />}
-                <DetailRow label="Policy Number" value={policy.policy_number || '—'} />
-                {/* <DetailRow label="Category" value={policy.category} />
-                <DetailRow label="Department" value={policy.department || '—'} /> */}
-                <DetailRow label="Priority" value={<Badge className={priorityDef?.color}>{priorityDef?.label}</Badge>} />
-                <DetailRow label="Owner" value={getUserName(policy.created_by)} />
-                <DetailRow label="Version" value={`v${policy.current_version}`} />
-              </CardContent>
-            </Card>
+        {/* Content Tab - Draggable sections */}
+        <TabsContent value="content" className="mt-4 space-y-1">
+          <p className="text-xs text-muted-foreground mb-2">Drag sections to reorder. Export will follow this order.</p>
+          <DragDropContext onDragEnd={handleSectionDragEnd}>
+            <Droppable droppableId="content-sections">
+              {(provided) => (
+                <div ref={provided.innerRef} {...provided.droppableProps} className="space-y-4">
+                  {sectionOrder.map((sectionId, index) => (
+                    <Draggable key={sectionId} draggableId={sectionId} index={index}>
+                      {(provided, snapshot) => (
+                        <div
+                          ref={provided.innerRef}
+                          {...provided.draggableProps}
+                          className={`transition-shadow ${snapshot.isDragging ? 'shadow-lg ring-2 ring-primary/30 rounded-lg' : ''}`}
+                        >
+                          {sectionId === 'metadata' && (
+                            <Card>
+                              <CardHeader className="flex flex-row items-center gap-2 py-3 px-4">
+                                <div {...provided.dragHandleProps} className="cursor-grab active:cursor-grabbing">
+                                  <GripVertical className="h-4 w-4 text-muted-foreground" />
+                                </div>
+                                <CardTitle className="text-sm flex-1">Dates & Metadata</CardTitle>
+                              </CardHeader>
+                              <CardContent className="space-y-2 text-sm px-4 pb-4 pt-0">
+                                <DetailRow label="Created" value={format(new Date(policy.created_at), 'PPpp')} />
+                                <DetailRow label="Last Updated" value={format(new Date(policy.updated_at), 'PPpp')} />
+                                {policy.effective_date && <DetailRow label="Effective Date" value={policy.effective_date} />}
+                                {policy.expiry_date && <DetailRow label="Expiry Date" value={policy.expiry_date} />}
+                                {policy.next_review_date && <DetailRow label="Next Review" value={policy.next_review_date} />}
+                                {policy.published_at && <DetailRow label="Published" value={format(new Date(policy.published_at), 'PPpp')} />}
+                                <DetailRow label="Doc Number" value={policy.policy_number || '—'} />
+                                <DetailRow label="Priority" value={<Badge className={priorityDef?.color}>{priorityDef?.label}</Badge>} />
+                                <DetailRow label="Owner" value={getUserName(policy.created_by)} />
+                                <DetailRow label="Version" value={`v${policy.current_version}`} />
+                              </CardContent>
+                            </Card>
+                          )}
 
-            {/* Right: Custom Fields */}
-            {policy.content?.custom_fields && (policy.content.custom_fields as any[]).length > 0 ? (
-              <Card>
-                <CardHeader><CardTitle className="text-sm">Custom Fields</CardTitle></CardHeader>
-                <CardContent className="space-y-2 text-sm">
-                  {(() => {
-                    const fields = policy.content.custom_fields as any[];
-                    const vals = (policy.content.custom_field_values as Record<string, any>) || {};
-                    const sorted = [...fields].sort((a: any, b: any) => a.order - b.order);
-                    return (
-                      <div className="space-y-2">
-                        {sorted.filter((f: any) => !['header', 'description', 'horizontal-line'].includes(f.type)).map((field: any) => {
-                          const raw = vals[field.id];
-                          let display = '—';
-                          if (raw !== null && raw !== undefined && raw !== '') {
-                            if (Array.isArray(raw)) {
-                              const opts = field.options || [];
-                              display = raw.map((v: string) => {
-                                const opt = opts.find((o: any) => o.value === v);
-                                return opt?.label || v;
-                              }).join(', ') || '—';
-                            } else if (typeof raw === 'boolean') {
-                              display = raw ? 'Yes' : 'No';
-                            } else if ((field.type === 'select' || field.type === 'radio') && field.options) {
-                              const opt = field.options.find((o: any) => o.value === raw);
-                              display = opt?.label || String(raw);
-                            } else if (field.type === 'rating') {
-                              display = '★'.repeat(Number(raw));
-                            } else {
-                              display = String(raw);
-                            }
-                          }
-                          return <DetailRow key={field.id} label={field.label} value={display} />;
-                        })}
-                      </div>
-                    );
-                  })()}
-                </CardContent>
-              </Card>
-            ) : (
-              <Card>
-                <CardHeader><CardTitle className="text-sm">Custom Fields</CardTitle></CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">No custom fields defined.</p>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-
-          {/* Attachments */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-sm">Attachments</CardTitle>
-              {canEdit && (
-                <div>
-                  <input
-                    ref={attachmentInputRef}
-                    type="file"
-                    className="hidden"
-                    onChange={handleAttachmentUpload}
-                  />
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => attachmentInputRef.current?.click()}
-                    disabled={isUploadingAttachment}
-                  >
-                    {isUploadingAttachment ? (
-                      <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Uploading...</>
-                    ) : (
-                      <><Upload className="h-4 w-4 mr-1" /> Upload Attachment</>
-                    )}
-                  </Button>
-                </div>
-              )}
-            </CardHeader>
-            <CardContent>
-              {(!policy.attachments || policy.attachments.length === 0) ? (
-                <p className="text-sm text-muted-foreground">No attachments.{canEdit ? ' Click "Upload Attachment" to add files.' : ''}</p>
-              ) : (
-                <div className="space-y-2">
-                  {policy.attachments.map((att: any, i: number) => (
-                    <div key={i} className="flex items-center gap-2 text-sm p-2 rounded-md border">
-                      <FileText className="h-4 w-4 text-muted-foreground" />
-                      <span className="flex-1 truncate">{att.name}</span>
-                      {att.size && <span className="text-xs text-muted-foreground shrink-0">{(att.size / 1024).toFixed(1)} KB</span>}
-                      {canEdit && (
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer" title="Include in PDF export">
-                            <span>PDF</span>
-                            <Switch
-                              checked={att.show_in_pdf !== false}
-                              onCheckedChange={async (checked) => {
-                                const updated = [...policy.attachments];
-                                updated[i] = { ...updated[i], show_in_pdf: checked };
-                                await updatePolicy.mutateAsync({ id: policy.id, attachments: updated as any });
-                              }}
-                              className="scale-75"
-                            />
-                          </label>
-                        </div>
-                      )}
-                      {att.url && (
-                        <a href={att.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-xs">
-                          <Download className="h-3.5 w-3.5" />
-                        </a>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Content Tab */}
-        <TabsContent value="content" className="mt-4 space-y-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-sm">Document Content</CardTitle>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setContentExpanded(!contentExpanded)}
-                className="gap-1 text-xs"
-              >
-                {contentExpanded ? <><EyeOff className="h-3.5 w-3.5" /> Collapse</> : <><Eye className="h-3.5 w-3.5" /> Expand</>}
-              </Button>
-            </CardHeader>
-            {contentExpanded && (
-              <CardContent>
-                {(liveContentHtml ?? policy.content?.html) ? (
-                  <div className="border rounded-lg overflow-hidden bg-white">
-                    <iframe
-                      title="Document Content Preview"
-                      srcDoc={`<!DOCTYPE html>
+                          {sectionId === 'document_content' && (
+                            <div>
+                              <div className="flex items-center gap-2 mb-2">
+                                <div {...provided.dragHandleProps} className="cursor-grab active:cursor-grabbing">
+                                  <GripVertical className="h-4 w-4 text-muted-foreground" />
+                                </div>
+                                <span className="text-sm font-semibold text-foreground">Document Content</span>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => setContentExpanded(!contentExpanded)}
+                                  className="gap-1 text-xs ml-auto"
+                                >
+                                  {contentExpanded ? <><EyeOff className="h-3.5 w-3.5" /> Collapse</> : <><Eye className="h-3.5 w-3.5" /> Expand</>}
+                                </Button>
+                              </div>
+                              {contentExpanded && (
+                                <>
+                                  {(liveContentHtml ?? policy.content?.html) ? (
+                                    <div className="border rounded-lg overflow-hidden bg-white">
+                                      <iframe
+                                        title="Document Content Preview"
+                                        srcDoc={`<!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8" />
@@ -2060,154 +1962,222 @@ const PolicyDetail = () => {
 </head>
 <body>${(liveContentHtml ?? policy.content?.html ?? '').replace(/\x60/g, '&#96;')}</body>
 </html>`}
-                      className="w-full border-0"
-                      style={{ minHeight: '500px', height: '70vh' }}
-                      onLoad={(e) => {
-                        const iframe = e.target as HTMLIFrameElement;
-                        if (iframe.contentDocument?.body) {
-                          const h = iframe.contentDocument.body.scrollHeight + 40;
-                          iframe.style.height = Math.max(400, Math.min(h, 2000)) + 'px';
-                        }
-                      }}
-                    />
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground text-center py-6">
-                    No content has been added yet. Click "Edit" to add content.
-                  </p>
-                )}
-              </CardContent>
-            )}
-          </Card>
+                                        className="w-full border-0"
+                                        style={{ minHeight: '500px', height: '70vh' }}
+                                        onLoad={(e) => {
+                                          const iframe = e.target as HTMLIFrameElement;
+                                          if (iframe.contentDocument?.body) {
+                                            const h = iframe.contentDocument.body.scrollHeight + 40;
+                                            iframe.style.height = Math.max(400, Math.min(h, 2000)) + 'px';
+                                          }
+                                        }}
+                                      />
+                                    </div>
+                                  ) : (
+                                    <p className="text-sm text-muted-foreground text-center py-6 border rounded-lg">
+                                      No content has been added yet. Click "Edit" to add content.
+                                    </p>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                          )}
 
-          {/* Custom Fields in Content */}
-          {policy.content?.custom_fields && (policy.content.custom_fields as any[]).length > 0 && (() => {
-            const fields = (policy.content.custom_fields as any[]).filter((f: any) => !['header', 'description', 'horizontal-line'].includes(f.type));
-            const vals = (policy.content?.custom_field_values as Record<string, any>) || {};
-            if (fields.length === 0) return null;
-            return (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-sm">Custom Fields Data</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="overflow-auto">
-                    <table className="w-full text-sm border-collapse">
-                      <thead>
-                        <tr className="border-b bg-muted/50">
-                          <th className="text-left p-2 font-medium text-muted-foreground">Field</th>
-                          <th className="text-left p-2 font-medium text-muted-foreground">Value</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {fields.sort((a: any, b: any) => a.order - b.order).map((field: any) => {
-                          const raw = vals[field.id];
-                          let display = '—';
-                          if (raw !== null && raw !== undefined && raw !== '') {
-                            if (Array.isArray(raw)) {
-                              const opts = field.options || [];
-                              display = raw.map((v: string) => opts.find((o: any) => o.value === v)?.label || v).join(', ') || '—';
-                            } else if (typeof raw === 'boolean') {
-                              display = raw ? 'Yes' : 'No';
-                            } else if (field.type === 'rating') {
-                              display = '★'.repeat(Number(raw));
-                            } else if ((field.type === 'select' || field.type === 'radio') && field.options) {
-                              display = field.options.find((o: any) => o.value === raw)?.label || String(raw);
-                            } else {
-                              display = String(raw);
-                            }
-                          }
-                          return (
-                            <tr key={field.id} className="border-b">
-                              <td className="p-2 font-medium">{field.label}</td>
-                              <td className="p-2">{display}</td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })()}
+                          {sectionId === 'custom_fields' && policy.content?.custom_fields && (policy.content.custom_fields as any[]).length > 0 && (() => {
+                            const fields = (policy.content.custom_fields as any[]).filter((f: any) => !['header', 'description', 'horizontal-line'].includes(f.type));
+                            const vals = (policy.content?.custom_field_values as Record<string, any>) || {};
+                            if (fields.length === 0) return null;
+                            return (
+                              <Card>
+                                <CardHeader className="flex flex-row items-center gap-2 py-3 px-4">
+                                  <div {...provided.dragHandleProps} className="cursor-grab active:cursor-grabbing">
+                                    <GripVertical className="h-4 w-4 text-muted-foreground" />
+                                  </div>
+                                  <CardTitle className="text-sm flex-1">Custom Fields Data</CardTitle>
+                                  <span className="text-[10px] text-muted-foreground">Drag fields internally to reorder</span>
+                                </CardHeader>
+                                <CardContent className="px-4 pb-4 pt-0">
+                                  <DragDropContext onDragEnd={handleCustomFieldDragEnd}>
+                                    <Droppable droppableId="custom-fields-list">
+                                      {(cfProvided) => (
+                                        <div ref={cfProvided.innerRef} {...cfProvided.droppableProps}>
+                                          <table className="w-full text-sm border-collapse">
+                                            <thead>
+                                              <tr className="border-b bg-muted/50">
+                                                <th className="w-8"></th>
+                                                <th className="text-left p-2 font-medium text-muted-foreground">Field</th>
+                                                <th className="text-left p-2 font-medium text-muted-foreground">Value</th>
+                                              </tr>
+                                            </thead>
+                                            <tbody>
+                                              {fields.sort((a: any, b: any) => a.order - b.order).map((field: any, fIdx: number) => {
+                                                const raw = vals[field.id];
+                                                let display = '—';
+                                                if (raw !== null && raw !== undefined && raw !== '') {
+                                                  if (Array.isArray(raw)) {
+                                                    const opts = field.options || [];
+                                                    display = raw.map((v: string) => opts.find((o: any) => o.value === v)?.label || v).join(', ') || '—';
+                                                  } else if (typeof raw === 'boolean') {
+                                                    display = raw ? 'Yes' : 'No';
+                                                  } else if (field.type === 'rating') {
+                                                    display = '★'.repeat(Number(raw));
+                                                  } else if ((field.type === 'select' || field.type === 'radio') && field.options) {
+                                                    display = field.options.find((o: any) => o.value === raw)?.label || String(raw);
+                                                  } else {
+                                                    display = String(raw);
+                                                  }
+                                                }
+                                                return (
+                                                  <Draggable key={field.id} draggableId={`cf-${field.id}`} index={fIdx}>
+                                                    {(cfDrag, cfSnap) => (
+                                                      <tr
+                                                        ref={cfDrag.innerRef}
+                                                        {...cfDrag.draggableProps}
+                                                        className={`border-b ${cfSnap.isDragging ? 'bg-primary/5 shadow' : ''}`}
+                                                      >
+                                                        <td className="p-1 w-8" {...cfDrag.dragHandleProps}>
+                                                          <GripVertical className="h-3.5 w-3.5 text-muted-foreground cursor-grab" />
+                                                        </td>
+                                                        <td className="p-2 font-medium">{field.label}</td>
+                                                        <td className="p-2">{display}</td>
+                                                      </tr>
+                                                    )}
+                                                  </Draggable>
+                                                );
+                                              })}
+                                              {cfProvided.placeholder}
+                                            </tbody>
+                                          </table>
+                                        </div>
+                                      )}
+                                    </Droppable>
+                                  </DragDropContext>
+                                </CardContent>
+                              </Card>
+                            );
+                          })()}
 
-          {/* Dynamic Fields from Linked Form */}
-          {policy.form_id && (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-foreground">Dynamic Fields Display</span>
-                <Select
-                  value={dynamicFieldsFormat}
-                  onValueChange={v => setDynamicFieldsFormat(v as 'table' | 'field-value')}
-                >
-                  <SelectTrigger className="w-[200px] h-8 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="table">Tabular Format</SelectItem>
-                    <SelectItem value="field-value">Field & Value</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <PolicyDynamicFieldsRenderer
-                formId={policy.form_id}
-                displayFormat={dynamicFieldsFormat}
-                selectedFieldIds={policy.content?.selected_field_ids as string[] | undefined}
-                selectedRecordIds={policy.content?.selected_record_ids as string[] | undefined}
-                recordComments={(policy.content?.record_comments as Record<string, any>) || {}}
-                onAddComment={canEdit ? async (recordId, comment) => {
-                  const existing = (policy.content?.record_comments as Record<string, any[]>) || {};
-                  const updated = { ...existing, [recordId]: [...(existing[recordId] || []), comment] };
-                  await updatePolicy.mutateAsync({
-                    id: policy.id,
-                    content: { ...(policy.content || {}), record_comments: updated },
-                  });
-                } : undefined}
-                currentUserName={getUserName(user?.id || '')}
-              />
-            </div>
-          )}
+                          {sectionId === 'dynamic_fields' && policy.form_id && (
+                            <div>
+                              <div className="flex items-center gap-2 mb-2">
+                                <div {...provided.dragHandleProps} className="cursor-grab active:cursor-grabbing">
+                                  <GripVertical className="h-4 w-4 text-muted-foreground" />
+                                </div>
+                                <span className="text-sm font-medium text-foreground flex-1">Dynamic Fields Display</span>
+                                <Select
+                                  value={dynamicFieldsFormat}
+                                  onValueChange={v => setDynamicFieldsFormat(v as 'table' | 'field-value')}
+                                >
+                                  <SelectTrigger className="w-[200px] h-8 text-xs">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="table">Tabular Format</SelectItem>
+                                    <SelectItem value="field-value">Field & Value</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <PolicyDynamicFieldsRenderer
+                                formId={policy.form_id}
+                                displayFormat={dynamicFieldsFormat}
+                                selectedFieldIds={policy.content?.selected_field_ids as string[] | undefined}
+                                selectedRecordIds={policy.content?.selected_record_ids as string[] | undefined}
+                                recordComments={(policy.content?.record_comments as Record<string, any>) || {}}
+                                onAddComment={canEdit ? async (recordId, comment) => {
+                                  const existing = (policy.content?.record_comments as Record<string, any[]>) || {};
+                                  const updated = { ...existing, [recordId]: [...(existing[recordId] || []), comment] };
+                                  await updatePolicy.mutateAsync({
+                                    id: policy.id,
+                                    content: { ...(policy.content || {}), record_comments: updated },
+                                  });
+                                } : undefined}
+                                currentUserName={getUserName(user?.id || '')}
+                              />
+                            </div>
+                          )}
 
+                          {sectionId === 'attachments' && (
+                            <Card>
+                              <CardHeader className="flex flex-row items-center gap-2 py-3 px-4">
+                                <div {...provided.dragHandleProps} className="cursor-grab active:cursor-grabbing">
+                                  <GripVertical className="h-4 w-4 text-muted-foreground" />
+                                </div>
+                                <CardTitle className="text-sm flex-1">Attachments</CardTitle>
+                                {canEdit && (
+                                  <div>
+                                    <input
+                                      ref={attachmentInputRef}
+                                      type="file"
+                                      className="hidden"
+                                      onChange={handleAttachmentUpload}
+                                    />
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => attachmentInputRef.current?.click()}
+                                      disabled={isUploadingAttachment}
+                                    >
+                                      {isUploadingAttachment ? (
+                                        <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Uploading...</>
+                                      ) : (
+                                        <><Upload className="h-4 w-4 mr-1" /> Upload</>
+                                      )}
+                                    </Button>
+                                  </div>
+                                )}
+                              </CardHeader>
+                              <CardContent className="px-4 pb-4 pt-0">
+                                {(!policy.attachments || policy.attachments.length === 0) ? (
+                                  <p className="text-sm text-muted-foreground">No attachments.{canEdit ? ' Click "Upload" to add files.' : ''}</p>
+                                ) : (
+                                  <div className="space-y-2">
+                                    {policy.attachments.map((att: any, i: number) => (
+                                      <div key={i} className="flex items-center gap-2 text-sm p-2 rounded-md border">
+                                        <FileText className="h-4 w-4 text-muted-foreground" />
+                                        <span className="flex-1 truncate">{att.name}</span>
+                                        {att.size && <span className="text-xs text-muted-foreground shrink-0">{(att.size / 1024).toFixed(1)} KB</span>}
+                                        {canEdit && (
+                                          <div className="flex items-center gap-1.5 shrink-0">
+                                            <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer" title="Include in PDF export">
+                                              <span>PDF</span>
+                                              <Switch
+                                                checked={att.show_in_pdf !== false}
+                                                onCheckedChange={async (checked) => {
+                                                  const updated = [...policy.attachments];
+                                                  updated[i] = { ...updated[i], show_in_pdf: checked };
+                                                  await updatePolicy.mutateAsync({ id: policy.id, attachments: updated as any });
+                                                }}
+                                                className="scale-75"
+                                              />
+                                            </label>
+                                          </div>
+                                        )}
+                                        {att.url && (
+                                          <a href={att.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-xs">
+                                            <Download className="h-3.5 w-3.5" />
+                                          </a>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </CardContent>
+                            </Card>
+                          )}
+
+                          {/* For sections that don't match (custom_fields with no data, dynamic_fields with no form), render nothing but keep draggable */}
+                          {sectionId === 'custom_fields' && (!policy.content?.custom_fields || (policy.content.custom_fields as any[]).filter((f: any) => !['header', 'description', 'horizontal-line'].includes(f.type)).length === 0) && null}
+                          {sectionId === 'dynamic_fields' && !policy.form_id && null}
+                        </div>
+                      )}
+                    </Draggable>
+                  ))}
+                  {provided.placeholder}
+                </div>
+              )}
+            </Droppable>
+          </DragDropContext>
         </TabsContent>
-
-        {/* Approvals Tab */}
-        <TabsContent value="approvals" className="mt-4">
-          <Card>
-            <CardContent className="pt-4">
-              <div className="flex items-center justify-between mb-4">
-                <p className="text-sm font-medium">Approval Flow</p>
-                {policy.status === 'draft' && (
-                  <Button size="sm" onClick={() => setShowApprovalDialog(true)}>
-                    <Send className="h-3.5 w-3.5 mr-1" /> Submit for Approval
-                  </Button>
-                )}
-              </div>
-              <PolicyApprovalFlow
-                approvals={approvals}
-                policyStatus={policy.status}
-                approvalMode={(policy.content?.approval_mode as ApprovalMode) || 'any_one'}
-                currentUserId={user?.id}
-                getUserName={getUserName}
-                onApprove={(id, comment) => handleApprovalResponse(id, 'approved', comment)}
-                onReject={(id, comment) => handleApprovalResponse(id, 'rejected', comment)}
-                isPending={respondApproval.isPending}
-              />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Reviews Tab - with inner Pre/Post sub-tabs */}
-        <TabsContent value="reviews" className="mt-4">
-          <Tabs defaultValue="pre-review">
-            <TabsList>
-              <TabsTrigger value="pre-review" className="gap-1">
-                <Eye className="h-3.5 w-3.5" /> Pre-Review
-              </TabsTrigger>
-              <TabsTrigger value="post-review" className="gap-1">
-                <Shield className="h-3.5 w-3.5" /> Post-Review
-              </TabsTrigger>
-            </TabsList>
 
             {/* Pre-Review Sub-Tab */}
             <TabsContent value="pre-review" className="mt-4 space-y-4">
