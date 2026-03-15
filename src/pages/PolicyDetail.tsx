@@ -449,133 +449,81 @@ const PolicyDetail = () => {
     doc.text(policy.name, 14, yPos);
     yPos += 10;
 
-    doc.setFontSize(10);
-    doc.text(`${policy.policy_number || ''} | Status: ${policy.status} | Category: ${policy.category} | Priority: ${policy.priority || 'medium'} | Version: ${policy.current_version}`, 14, yPos);
-    yPos += 6;
-    doc.text(`Last Updated: ${format(new Date(policy.updated_at), 'PPpp')}`, 14, yPos);
-    yPos += 6;
-    if (policy.effective_date) { doc.text(`Effective: ${policy.effective_date}`, 14, yPos); yPos += 6; }
-
-
-    if (policy.description) {
-      yPos += 4;
-      doc.setFontSize(12);
-      doc.text('Description', 14, yPos);
-      yPos += 6;
+    // Section renderers
+    const renderMetadata = () => {
       doc.setFontSize(10);
-      const descLines = doc.splitTextToSize(policy.description, 180);
-      doc.text(descLines, 14, yPos);
-      yPos += descLines.length * 5 + 4;
-    }
+      doc.text(`${policy.policy_number || ''} | Status: ${policy.status} | Category: ${policy.category} | Priority: ${policy.priority || 'medium'} | Version: ${policy.current_version}`, 14, yPos);
+      yPos += 6;
+      doc.text(`Last Updated: ${format(new Date(policy.updated_at), 'PPpp')}`, 14, yPos);
+      yPos += 6;
+      if (policy.effective_date) { doc.text(`Effective: ${policy.effective_date}`, 14, yPos); yPos += 6; }
+      if (policy.description) {
+        yPos += 4;
+        doc.setFontSize(12);
+        doc.text('Description', 14, yPos);
+        yPos += 6;
+        doc.setFontSize(10);
+        const descLines = doc.splitTextToSize(policy.description, 180);
+        doc.text(descLines, 14, yPos);
+        yPos += descLines.length * 5 + 4;
+      }
+    };
 
-    const contentHtmlForExport = liveContentHtml ?? policy.content?.html;
-    if (contentHtmlForExport) {
+    const renderDocumentContent = async () => {
+      const contentHtmlForExport = liveContentHtml ?? policy.content?.html;
+      if (!contentHtmlForExport) return;
       yPos += 4;
       doc.setFontSize(12);
-      doc.text('Policy Content', 14, yPos);
+      doc.text('Document Content', 14, yPos);
       yPos += 8;
 
-      // Render styled HTML to canvas for design-preserving PDF
       const renderDiv = document.createElement('div');
       renderDiv.innerHTML = contentHtmlForExport;
       Object.assign(renderDiv.style, {
-        position: 'absolute',
-        left: '-9999px',
-        top: '0',
-        width: '720px',
-        padding: '24px 32px',
-        background: 'white',
+        position: 'absolute', left: '-9999px', top: '0', width: '720px',
+        padding: '24px 32px', background: 'white',
         fontFamily: "'Segoe UI', Arial, Helvetica, sans-serif",
-        fontSize: '12px',
-        lineHeight: '1.7',
-        color: '#000',
+        fontSize: '12px', lineHeight: '1.7', color: '#000',
       });
       document.body.appendChild(renderDiv);
-
-      // Preserve images (logos, headers) with proper sizing
-      renderDiv.querySelectorAll('img').forEach((img) => {
-        img.style.maxWidth = '100%';
-        img.style.height = 'auto';
-        img.style.display = 'inline-block';
-        img.setAttribute('crossorigin', 'anonymous');
-      });
-      // Style tables for better rendering
-      renderDiv.querySelectorAll('table').forEach((table) => {
-        table.style.borderCollapse = 'collapse';
-        table.style.width = '100%';
-        table.style.marginTop = '8px';
-        table.style.marginBottom = '8px';
-      });
-      renderDiv.querySelectorAll('td, th').forEach((cell) => {
-        (cell as HTMLElement).style.border = '1px solid #ccc';
-        (cell as HTMLElement).style.padding = '6px 10px';
-        (cell as HTMLElement).style.fontSize = '11px';
-      });
-      renderDiv.querySelectorAll('th').forEach((th) => {
-        (th as HTMLElement).style.backgroundColor = '#f3f4f6';
-        (th as HTMLElement).style.fontWeight = '600';
-      });
-      // Preserve heading styles
-      renderDiv.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach((h) => {
-        (h as HTMLElement).style.marginTop = '12px';
-        (h as HTMLElement).style.marginBottom = '6px';
-        (h as HTMLElement).style.color = '#111';
-      });
-      // Preserve blockquote styling
-      renderDiv.querySelectorAll('blockquote').forEach((bq) => {
-        (bq as HTMLElement).style.borderLeft = '3px solid #6366f1';
-        (bq as HTMLElement).style.paddingLeft = '12px';
-        (bq as HTMLElement).style.margin = '8px 0';
-        (bq as HTMLElement).style.color = '#374151';
-      });
+      renderDiv.querySelectorAll('img').forEach((img) => { img.style.maxWidth = '100%'; img.style.height = 'auto'; img.setAttribute('crossorigin', 'anonymous'); });
+      renderDiv.querySelectorAll('table').forEach((table) => { table.style.borderCollapse = 'collapse'; table.style.width = '100%'; });
+      renderDiv.querySelectorAll('td, th').forEach((cell) => { (cell as HTMLElement).style.border = '1px solid #ccc'; (cell as HTMLElement).style.padding = '6px 10px'; (cell as HTMLElement).style.fontSize = '11px'; });
+      renderDiv.querySelectorAll('th').forEach((th) => { (th as HTMLElement).style.backgroundColor = '#f3f4f6'; (th as HTMLElement).style.fontWeight = '600'; });
+      renderDiv.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach((h) => { (h as HTMLElement).style.marginTop = '12px'; (h as HTMLElement).style.marginBottom = '6px'; (h as HTMLElement).style.color = '#111'; });
+      renderDiv.querySelectorAll('blockquote').forEach((bq) => { (bq as HTMLElement).style.borderLeft = '3px solid #6366f1'; (bq as HTMLElement).style.paddingLeft = '12px'; (bq as HTMLElement).style.margin = '8px 0'; (bq as HTMLElement).style.color = '#374151'; });
 
       try {
-        const canvas = await html2canvas(renderDiv, {
-          scale: 2,
-          useCORS: true,
-          allowTaint: true,
-          backgroundColor: '#ffffff',
-        });
+        const canvas = await html2canvas(renderDiv, { scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#ffffff' });
         document.body.removeChild(renderDiv);
-
         const imgData = canvas.toDataURL('image/png');
-        const pageWidth = doc.internal.pageSize.getWidth() - 28; // 14px margin each side
+        const pageWidth = doc.internal.pageSize.getWidth() - 28;
         const imgHeight = (canvas.height * pageWidth) / canvas.width;
         const maxPageContent = pageHeight - 30;
 
-        // If the rendered content fits on remaining space, add it
         if (yPos + imgHeight <= maxPageContent) {
           doc.addImage(imgData, 'PNG', 14, yPos, pageWidth, imgHeight);
           yPos += imgHeight + 6;
         } else {
-          // Split across pages by slicing the canvas
           let srcY = 0;
-          const srcWidth = canvas.width;
-          const srcHeight = canvas.height;
-
-          while (srcY < srcHeight) {
+          while (srcY < canvas.height) {
             const availableHeight = (srcY === 0 ? maxPageContent - yPos : maxPageContent - 20);
-            const sliceCanvasHeight = (availableHeight / pageWidth) * srcWidth;
-            const actualSlice = Math.min(sliceCanvasHeight, srcHeight - srcY);
-
+            const sliceCanvasHeight = (availableHeight / pageWidth) * canvas.width;
+            const actualSlice = Math.min(sliceCanvasHeight, canvas.height - srcY);
             const sliceCanvas = document.createElement('canvas');
-            sliceCanvas.width = srcWidth;
+            sliceCanvas.width = canvas.width;
             sliceCanvas.height = actualSlice;
             const sliceCtx = sliceCanvas.getContext('2d');
             if (sliceCtx) {
-              sliceCtx.drawImage(canvas, 0, srcY, srcWidth, actualSlice, 0, 0, srcWidth, actualSlice);
+              sliceCtx.drawImage(canvas, 0, srcY, canvas.width, actualSlice, 0, 0, canvas.width, actualSlice);
               const sliceImg = sliceCanvas.toDataURL('image/png');
-              const sliceImgHeight = (actualSlice * pageWidth) / srcWidth;
+              const sliceImgHeight = (actualSlice * pageWidth) / canvas.width;
               const startY = srcY === 0 ? yPos : 20;
               doc.addImage(sliceImg, 'PNG', 14, startY, pageWidth, sliceImgHeight);
               yPos = startY + sliceImgHeight + 6;
             }
-
             srcY += actualSlice;
-            if (srcY < srcHeight) {
-              doc.addPage();
-              yPos = 20;
-            }
+            if (srcY < canvas.height) { doc.addPage(); yPos = 20; }
           }
         }
       } catch (err) {
@@ -586,54 +534,44 @@ const PolicyDetail = () => {
         fallbackDiv.innerHTML = policy.content.html;
         const plainText = fallbackDiv.innerText || fallbackDiv.textContent || '';
         const contentLines = doc.splitTextToSize(plainText, 180);
-        for (const line of contentLines) {
-          ensureSpace(20);
-          doc.text(line, 14, yPos);
-          yPos += 5;
-        }
+        for (const line of contentLines) { ensureSpace(20); doc.text(line, 14, yPos); yPos += 5; }
       }
-    }
+    };
 
-    // Custom Fields Data in PDF
-    if (policy.content?.custom_fields && (policy.content.custom_fields as any[]).length > 0) {
+    const renderCustomFields = () => {
+      if (!policy.content?.custom_fields || !(policy.content.custom_fields as any[]).length) return;
       const fields = (policy.content.custom_fields as any[]).filter((f: any) => !['header', 'description', 'horizontal-line'].includes(f.type));
       const vals = (policy.content?.custom_field_values as Record<string, any>) || {};
-      if (fields.length > 0) {
-        yPos += 8;
-        ensureSpace(30);
-        doc.setFontSize(13);
-        doc.text('Custom Fields', 14, yPos);
-        yPos += 8;
-        const customRows = fields.sort((a: any, b: any) => a.order - b.order).map((field: any) => {
-          const raw = vals[field.id];
-          let display = '—';
-          if (raw !== null && raw !== undefined && raw !== '') {
-            if (Array.isArray(raw)) {
-              display = raw.map((v: string) => field.options?.find((o: any) => o.value === v)?.label || v).join(', ') || '—';
-            } else if (typeof raw === 'boolean') {
-              display = raw ? 'Yes' : 'No';
-            } else if ((field.type === 'select' || field.type === 'radio') && field.options) {
-              display = field.options.find((o: any) => o.value === raw)?.label || String(raw);
-            } else {
-              display = String(raw);
-            }
-          }
-          return [field.label, display];
-        });
-        autoTable(doc, {
-          head: [['Field', 'Value']],
-          body: customRows,
-          startY: yPos,
-          margin: { left: 14 },
-          styles: { fontSize: 9 },
-          headStyles: { fillColor: [60, 60, 60] },
-        });
-        yPos = (doc as any).lastAutoTable?.finalY + 6 || yPos + 10;
-      }
-    }
+      if (fields.length === 0) return;
+      yPos += 8;
+      ensureSpace(30);
+      doc.setFontSize(13);
+      doc.text('Custom Fields', 14, yPos);
+      yPos += 8;
+      const customRows = fields.sort((a: any, b: any) => a.order - b.order).map((field: any) => {
+        const raw = vals[field.id];
+        let display = '—';
+        if (raw !== null && raw !== undefined && raw !== '') {
+          if (Array.isArray(raw)) display = raw.map((v: string) => field.options?.find((o: any) => o.value === v)?.label || v).join(', ') || '—';
+          else if (typeof raw === 'boolean') display = raw ? 'Yes' : 'No';
+          else if ((field.type === 'select' || field.type === 'radio') && field.options) display = field.options.find((o: any) => o.value === raw)?.label || String(raw);
+          else display = String(raw);
+        }
+        return [field.label, display];
+      });
+      autoTable(doc, {
+        head: [['Field', 'Value']],
+        body: customRows,
+        startY: yPos,
+        margin: { left: 14 },
+        styles: { fontSize: 9 },
+        headStyles: { fillColor: [60, 60, 60] },
+      });
+      yPos = (doc as any).lastAutoTable?.finalY + 6 || yPos + 10;
+    };
 
-    // Dynamic Fields from linked form
-    if (policy.form_id) {
+    const renderDynamicFields = async () => {
+      if (!policy.form_id) return;
       try {
         const displayFormat = dynamicFieldsFormat;
         const [formRes, fieldsRes, subsRes] = await Promise.all([
@@ -641,18 +579,15 @@ const PolicyDetail = () => {
           supabase.from('form_fields').select('id, label, field_type, options, field_order, custom_config').eq('form_id', policy.form_id).order('field_order'),
           supabase.from('form_submissions').select('id, submission_ref_id, submission_data').eq('form_id', policy.form_id).order('submitted_at', { ascending: true }),
         ]);
-
         const formName = formRes.data?.name || 'Linked Form';
-        const allFields = (fieldsRes.data || []).filter(f =>
-          !['section', 'divider', 'heading', 'paragraph', 'spacer', 'page-break'].includes(f.field_type)
-        );
+        const allFields = (fieldsRes.data || []).filter(f => !['section', 'divider', 'heading', 'paragraph', 'spacer', 'page-break'].includes(f.field_type));
         const selectedFieldIds = policy.content?.selected_field_ids as string[] | undefined;
         const selectedRecordIds = policy.content?.selected_record_ids as string[] | undefined;
         const fields = selectedFieldIds?.length ? allFields.filter(f => selectedFieldIds.includes(f.id)) : allFields;
         const allSubmissions = subsRes.data || [];
         const submissions = selectedRecordIds?.length ? allSubmissions.filter(s => selectedRecordIds.includes(s.id)) : allSubmissions;
 
-        // Resolve cross-ref linked records for PDF
+        // Resolve cross-ref
         const crossRefFields = allFields.filter(f => ['cross-reference', 'child-cross-reference'].includes(f.field_type));
         const linkedIds = new Set<string>();
         for (const sub of submissions) {
@@ -694,9 +629,7 @@ const PolicyDetail = () => {
             const parts: string[] = [];
             for (const [fid, label] of Object.entries(labels).slice(0, 4)) {
               const val = subData[fid];
-              if (val !== null && val !== undefined && val !== '' && typeof val !== 'object') {
-                parts.push(`${label}: ${val}`);
-              }
+              if (val !== null && val !== undefined && val !== '' && typeof val !== 'object') parts.push(`${label}: ${val}`);
               if (parts.length >= 3) break;
             }
             return parts.length > 0 ? `${refId} — ${parts.join(' | ')}` : refId;
@@ -706,9 +639,7 @@ const PolicyDetail = () => {
         };
 
         const pdfFmtVal = (val: any, fType: string, opts?: any) => {
-          if (['cross-reference', 'child-cross-reference', 'dynamic-table'].includes(fType)) {
-            return pdfResolveCrossRef(val);
-          }
+          if (['cross-reference', 'child-cross-reference', 'dynamic-table'].includes(fType)) return pdfResolveCrossRef(val);
           return pdfFormatValue(val, fType, opts);
         };
 
@@ -721,29 +652,17 @@ const PolicyDetail = () => {
 
           submissions.forEach((sub: any, idx: number) => {
             const refId = sub.submission_ref_id || sub.id.slice(0, 8);
-            const sectionTitle = `Policy ${idx + 1} — ${refId}`;
             ensureSpace(25);
             doc.setFontSize(11);
             doc.setFont('helvetica', 'bold');
-            doc.text(sectionTitle, 14, yPos);
+            doc.text(`Record ${idx + 1} — ${refId}`, 14, yPos);
             doc.setFont('helvetica', 'normal');
             yPos += 6;
-
             const data = sub.submission_data || {};
 
             if (displayFormat === 'table') {
-              const tableRows = fields.map((f: any) => [
-                f.label,
-                pdfFmtVal(data[f.id], f.field_type, f.options),
-              ]);
-              autoTable(doc, {
-                head: [['Field', 'Value']],
-                body: tableRows,
-                startY: yPos,
-                margin: { left: 14 },
-                styles: { fontSize: 9 },
-                headStyles: { fillColor: [60, 60, 60] },
-              });
+              const tableRows = fields.map((f: any) => [f.label, pdfFmtVal(data[f.id], f.field_type, f.options)]);
+              autoTable(doc, { head: [['Field', 'Value']], body: tableRows, startY: yPos, margin: { left: 14 }, styles: { fontSize: 9 }, headStyles: { fillColor: [60, 60, 60] } });
               yPos = (doc as any).lastAutoTable?.finalY + 6 || yPos + 10;
             } else {
               doc.setFontSize(10);
@@ -755,11 +674,7 @@ const PolicyDetail = () => {
                 doc.setFont('helvetica', 'normal');
                 const val = pdfFmtVal(data[f.id], f.field_type, f.options);
                 const valLines = doc.splitTextToSize(val, 180);
-                for (const vl of valLines) {
-                  ensureSpace(12);
-                  doc.text(vl, 14, yPos);
-                  yPos += 5;
-                }
+                for (const vl of valLines) { ensureSpace(12); doc.text(vl, 14, yPos); yPos += 5; }
                 yPos += 2;
               });
             }
@@ -769,30 +684,41 @@ const PolicyDetail = () => {
       } catch (err) {
         console.error('Failed to fetch dynamic fields for PDF:', err);
       }
-    }
+    };
 
-    // Attachments list with clickable links
-    const pdfAttachments = (policy.attachments || []).filter((att: any) => att.show_in_pdf !== false);
-    if (pdfAttachments.length > 0) {
-      const lastY = (doc as any).lastAutoTable?.finalY || yPos + 10;
-      let attY = lastY + 10;
-      if (attY > pageHeight - 30) { doc.addPage(); attY = 20; }
+    const renderAttachments = () => {
+      const pdfAttachments = (policy.attachments || []).filter((att: any) => att.show_in_pdf !== false);
+      if (pdfAttachments.length === 0) return;
+      const lastY = (doc as any).lastAutoTable?.finalY || yPos;
+      yPos = lastY + 10;
+      if (yPos > pageHeight - 30) { doc.addPage(); yPos = 20; }
       doc.setFontSize(12);
-      doc.text('Attachments', 14, attY);
-      attY += 6;
+      doc.text('Attachments', 14, yPos);
+      yPos += 6;
       doc.setFontSize(10);
       pdfAttachments.forEach((att: any) => {
-        if (attY > pageHeight - 15) { doc.addPage(); attY = 20; }
+        if (yPos > pageHeight - 15) { doc.addPage(); yPos = 20; }
         const label = `• ${att.name}`;
-        doc.text(label, 14, attY);
+        doc.text(label, 14, yPos);
         if (att.url) {
           const labelWidth = doc.getTextWidth(label);
           doc.setTextColor(37, 99, 235);
-          doc.textWithLink(' [Open / Download]', 14 + labelWidth, attY, { url: att.url });
+          doc.textWithLink(' [Open / Download]', 14 + labelWidth, yPos, { url: att.url });
           doc.setTextColor(0, 0, 0);
         }
-        attY += 5;
+        yPos += 5;
       });
+    };
+
+    // Render sections in order
+    for (const section of currentSectionOrder) {
+      switch (section) {
+        case 'metadata': renderMetadata(); break;
+        case 'document_content': await renderDocumentContent(); break;
+        case 'custom_fields': renderCustomFields(); break;
+        case 'dynamic_fields': await renderDynamicFields(); break;
+        case 'attachments': renderAttachments(); break;
+      }
     }
 
     if (mode === 'preview') {
