@@ -1,9 +1,10 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import html2canvas from 'html2canvas';
 import PizZip from 'pizzip';
 import { supabase } from '@/integrations/supabase/client';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Edit, Trash2, Save, Send, Archive, History, CheckCircle, Clock, FileText, Download, Plus, AlertOctagon, CalendarClock, Shield, BookOpen, Upload, Loader2, FileDown, Users, Eye, EyeOff, RotateCcw, MessageSquare } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, Save, Send, Archive, History, CheckCircle, Clock, FileText, Download, Plus, AlertOctagon, CalendarClock, Shield, BookOpen, Upload, Loader2, FileDown, Users, Eye, EyeOff, RotateCcw, MessageSquare, GripVertical } from 'lucide-react';
+import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd';
 import { Document, Packer, Paragraph, TextRun, ImageRun, HeadingLevel, Table as DocxTable, TableRow as DocxTableRow, TableCell as DocxTableCell, WidthType, BorderStyle, AlignmentType } from 'docx';
 import { PolicyDynamicFieldsRenderer } from '@/components/policies/PolicyDynamicFieldsRenderer';
 import { PolicyCustomFieldsBuilder, type PolicyCustomField } from '@/components/policies/PolicyCustomFieldsBuilder';
@@ -65,6 +66,42 @@ const PolicyDetail = () => {
   const [contentDirty, setContentDirty] = useState(false);
   const [showSaveConfirmDialog, setShowSaveConfirmDialog] = useState(false);
   const [contentExpanded, setContentExpanded] = useState(true);
+
+  const DEFAULT_SECTION_ORDER = ['metadata', 'document_content', 'custom_fields', 'dynamic_fields', 'attachments'];
+  const getSectionOrder = (): string[] => {
+    const saved = policy?.content?.section_order as string[] | undefined;
+    if (saved && Array.isArray(saved) && saved.length > 0) return saved;
+    return DEFAULT_SECTION_ORDER;
+  };
+  const [sectionOrder, setSectionOrder] = useState<string[]>(getSectionOrder());
+
+  const handleSectionDragEnd = useCallback(async (result: DropResult) => {
+    if (!result.destination || !policy) return;
+    const items = Array.from(sectionOrder);
+    const [reordered] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, reordered);
+    setSectionOrder(items);
+    await updatePolicy.mutateAsync({
+      id: policy.id,
+      content: { ...(policy.content || {}), section_order: items },
+    });
+  }, [sectionOrder, policy, updatePolicy]);
+
+  const handleCustomFieldDragEnd = useCallback(async (result: DropResult) => {
+    if (!result.destination || !policy) return;
+    const fields = [...((policy.content?.custom_fields as any[]) || [])];
+    const dataFields = fields.filter((f: any) => !['header', 'description', 'horizontal-line'].includes(f.type));
+    const layoutFields = fields.filter((f: any) => ['header', 'description', 'horizontal-line'].includes(f.type));
+    const [reordered] = dataFields.splice(result.source.index, 1);
+    dataFields.splice(result.destination.index, 0, reordered);
+    // Reassign order
+    const reorderedFields = dataFields.map((f: any, i: number) => ({ ...f, order: i }));
+    const allFields = [...layoutFields, ...reorderedFields];
+    await updatePolicy.mutateAsync({
+      id: policy.id,
+      content: { ...(policy.content || {}), custom_fields: allFields },
+    });
+  }, [policy, updatePolicy]);
 
   // Approval dialog state
   const [showApprovalDialog, setShowApprovalDialog] = useState(false);
@@ -397,6 +434,7 @@ const PolicyDetail = () => {
   };
 
   const generatePDF = async (mode: 'download' | 'preview' = 'download') => {
+    const currentSectionOrder = getSectionOrder();
 
     const doc = new jsPDF();
     let yPos = 22;
@@ -406,137 +444,86 @@ const PolicyDetail = () => {
       if (yPos > pageHeight - needed) { doc.addPage(); yPos = 20; }
     };
 
+    // Always print title first
     doc.setFontSize(18);
     doc.text(policy.name, 14, yPos);
     yPos += 10;
 
-    doc.setFontSize(10);
-    doc.text(`${policy.policy_number || ''} | Status: ${policy.status} | Category: ${policy.category} | Priority: ${policy.priority || 'medium'} | Version: ${policy.current_version}`, 14, yPos);
-    yPos += 6;
-    doc.text(`Last Updated: ${format(new Date(policy.updated_at), 'PPpp')}`, 14, yPos);
-    yPos += 6;
-    if (policy.effective_date) { doc.text(`Effective: ${policy.effective_date}`, 14, yPos); yPos += 6; }
-
-
-    if (policy.description) {
-      yPos += 4;
-      doc.setFontSize(12);
-      doc.text('Description', 14, yPos);
-      yPos += 6;
+    // Section renderers
+    const renderMetadata = () => {
       doc.setFontSize(10);
-      const descLines = doc.splitTextToSize(policy.description, 180);
-      doc.text(descLines, 14, yPos);
-      yPos += descLines.length * 5 + 4;
-    }
+      doc.text(`${policy.policy_number || ''} | Status: ${policy.status} | Category: ${policy.category} | Priority: ${policy.priority || 'medium'} | Version: ${policy.current_version}`, 14, yPos);
+      yPos += 6;
+      doc.text(`Last Updated: ${format(new Date(policy.updated_at), 'PPpp')}`, 14, yPos);
+      yPos += 6;
+      if (policy.effective_date) { doc.text(`Effective: ${policy.effective_date}`, 14, yPos); yPos += 6; }
+      if (policy.description) {
+        yPos += 4;
+        doc.setFontSize(12);
+        doc.text('Description', 14, yPos);
+        yPos += 6;
+        doc.setFontSize(10);
+        const descLines = doc.splitTextToSize(policy.description, 180);
+        doc.text(descLines, 14, yPos);
+        yPos += descLines.length * 5 + 4;
+      }
+    };
 
-    const contentHtmlForExport = liveContentHtml ?? policy.content?.html;
-    if (contentHtmlForExport) {
+    const renderDocumentContent = async () => {
+      const contentHtmlForExport = liveContentHtml ?? policy.content?.html;
+      if (!contentHtmlForExport) return;
       yPos += 4;
       doc.setFontSize(12);
-      doc.text('Policy Content', 14, yPos);
+      doc.text('Document Content', 14, yPos);
       yPos += 8;
 
-      // Render styled HTML to canvas for design-preserving PDF
       const renderDiv = document.createElement('div');
       renderDiv.innerHTML = contentHtmlForExport;
       Object.assign(renderDiv.style, {
-        position: 'absolute',
-        left: '-9999px',
-        top: '0',
-        width: '720px',
-        padding: '24px 32px',
-        background: 'white',
+        position: 'absolute', left: '-9999px', top: '0', width: '720px',
+        padding: '24px 32px', background: 'white',
         fontFamily: "'Segoe UI', Arial, Helvetica, sans-serif",
-        fontSize: '12px',
-        lineHeight: '1.7',
-        color: '#000',
+        fontSize: '12px', lineHeight: '1.7', color: '#000',
       });
       document.body.appendChild(renderDiv);
-
-      // Preserve images (logos, headers) with proper sizing
-      renderDiv.querySelectorAll('img').forEach((img) => {
-        img.style.maxWidth = '100%';
-        img.style.height = 'auto';
-        img.style.display = 'inline-block';
-        img.setAttribute('crossorigin', 'anonymous');
-      });
-      // Style tables for better rendering
-      renderDiv.querySelectorAll('table').forEach((table) => {
-        table.style.borderCollapse = 'collapse';
-        table.style.width = '100%';
-        table.style.marginTop = '8px';
-        table.style.marginBottom = '8px';
-      });
-      renderDiv.querySelectorAll('td, th').forEach((cell) => {
-        (cell as HTMLElement).style.border = '1px solid #ccc';
-        (cell as HTMLElement).style.padding = '6px 10px';
-        (cell as HTMLElement).style.fontSize = '11px';
-      });
-      renderDiv.querySelectorAll('th').forEach((th) => {
-        (th as HTMLElement).style.backgroundColor = '#f3f4f6';
-        (th as HTMLElement).style.fontWeight = '600';
-      });
-      // Preserve heading styles
-      renderDiv.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach((h) => {
-        (h as HTMLElement).style.marginTop = '12px';
-        (h as HTMLElement).style.marginBottom = '6px';
-        (h as HTMLElement).style.color = '#111';
-      });
-      // Preserve blockquote styling
-      renderDiv.querySelectorAll('blockquote').forEach((bq) => {
-        (bq as HTMLElement).style.borderLeft = '3px solid #6366f1';
-        (bq as HTMLElement).style.paddingLeft = '12px';
-        (bq as HTMLElement).style.margin = '8px 0';
-        (bq as HTMLElement).style.color = '#374151';
-      });
+      renderDiv.querySelectorAll('img').forEach((img) => { img.style.maxWidth = '100%'; img.style.height = 'auto'; img.setAttribute('crossorigin', 'anonymous'); });
+      renderDiv.querySelectorAll('table').forEach((table) => { table.style.borderCollapse = 'collapse'; table.style.width = '100%'; });
+      renderDiv.querySelectorAll('td, th').forEach((cell) => { (cell as HTMLElement).style.border = '1px solid #ccc'; (cell as HTMLElement).style.padding = '6px 10px'; (cell as HTMLElement).style.fontSize = '11px'; });
+      renderDiv.querySelectorAll('th').forEach((th) => { (th as HTMLElement).style.backgroundColor = '#f3f4f6'; (th as HTMLElement).style.fontWeight = '600'; });
+      renderDiv.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach((h) => { (h as HTMLElement).style.marginTop = '12px'; (h as HTMLElement).style.marginBottom = '6px'; (h as HTMLElement).style.color = '#111'; });
+      renderDiv.querySelectorAll('blockquote').forEach((bq) => { (bq as HTMLElement).style.borderLeft = '3px solid #6366f1'; (bq as HTMLElement).style.paddingLeft = '12px'; (bq as HTMLElement).style.margin = '8px 0'; (bq as HTMLElement).style.color = '#374151'; });
 
       try {
-        const canvas = await html2canvas(renderDiv, {
-          scale: 2,
-          useCORS: true,
-          allowTaint: true,
-          backgroundColor: '#ffffff',
-        });
+        const canvas = await html2canvas(renderDiv, { scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#ffffff' });
         document.body.removeChild(renderDiv);
-
         const imgData = canvas.toDataURL('image/png');
-        const pageWidth = doc.internal.pageSize.getWidth() - 28; // 14px margin each side
+        const pageWidth = doc.internal.pageSize.getWidth() - 28;
         const imgHeight = (canvas.height * pageWidth) / canvas.width;
         const maxPageContent = pageHeight - 30;
 
-        // If the rendered content fits on remaining space, add it
         if (yPos + imgHeight <= maxPageContent) {
           doc.addImage(imgData, 'PNG', 14, yPos, pageWidth, imgHeight);
           yPos += imgHeight + 6;
         } else {
-          // Split across pages by slicing the canvas
           let srcY = 0;
-          const srcWidth = canvas.width;
-          const srcHeight = canvas.height;
-
-          while (srcY < srcHeight) {
+          while (srcY < canvas.height) {
             const availableHeight = (srcY === 0 ? maxPageContent - yPos : maxPageContent - 20);
-            const sliceCanvasHeight = (availableHeight / pageWidth) * srcWidth;
-            const actualSlice = Math.min(sliceCanvasHeight, srcHeight - srcY);
-
+            const sliceCanvasHeight = (availableHeight / pageWidth) * canvas.width;
+            const actualSlice = Math.min(sliceCanvasHeight, canvas.height - srcY);
             const sliceCanvas = document.createElement('canvas');
-            sliceCanvas.width = srcWidth;
+            sliceCanvas.width = canvas.width;
             sliceCanvas.height = actualSlice;
             const sliceCtx = sliceCanvas.getContext('2d');
             if (sliceCtx) {
-              sliceCtx.drawImage(canvas, 0, srcY, srcWidth, actualSlice, 0, 0, srcWidth, actualSlice);
+              sliceCtx.drawImage(canvas, 0, srcY, canvas.width, actualSlice, 0, 0, canvas.width, actualSlice);
               const sliceImg = sliceCanvas.toDataURL('image/png');
-              const sliceImgHeight = (actualSlice * pageWidth) / srcWidth;
+              const sliceImgHeight = (actualSlice * pageWidth) / canvas.width;
               const startY = srcY === 0 ? yPos : 20;
               doc.addImage(sliceImg, 'PNG', 14, startY, pageWidth, sliceImgHeight);
               yPos = startY + sliceImgHeight + 6;
             }
-
             srcY += actualSlice;
-            if (srcY < srcHeight) {
-              doc.addPage();
-              yPos = 20;
-            }
+            if (srcY < canvas.height) { doc.addPage(); yPos = 20; }
           }
         }
       } catch (err) {
@@ -547,54 +534,44 @@ const PolicyDetail = () => {
         fallbackDiv.innerHTML = policy.content.html;
         const plainText = fallbackDiv.innerText || fallbackDiv.textContent || '';
         const contentLines = doc.splitTextToSize(plainText, 180);
-        for (const line of contentLines) {
-          ensureSpace(20);
-          doc.text(line, 14, yPos);
-          yPos += 5;
-        }
+        for (const line of contentLines) { ensureSpace(20); doc.text(line, 14, yPos); yPos += 5; }
       }
-    }
+    };
 
-    // Custom Fields Data in PDF
-    if (policy.content?.custom_fields && (policy.content.custom_fields as any[]).length > 0) {
+    const renderCustomFields = () => {
+      if (!policy.content?.custom_fields || !(policy.content.custom_fields as any[]).length) return;
       const fields = (policy.content.custom_fields as any[]).filter((f: any) => !['header', 'description', 'horizontal-line'].includes(f.type));
       const vals = (policy.content?.custom_field_values as Record<string, any>) || {};
-      if (fields.length > 0) {
-        yPos += 8;
-        ensureSpace(30);
-        doc.setFontSize(13);
-        doc.text('Custom Fields', 14, yPos);
-        yPos += 8;
-        const customRows = fields.sort((a: any, b: any) => a.order - b.order).map((field: any) => {
-          const raw = vals[field.id];
-          let display = '—';
-          if (raw !== null && raw !== undefined && raw !== '') {
-            if (Array.isArray(raw)) {
-              display = raw.map((v: string) => field.options?.find((o: any) => o.value === v)?.label || v).join(', ') || '—';
-            } else if (typeof raw === 'boolean') {
-              display = raw ? 'Yes' : 'No';
-            } else if ((field.type === 'select' || field.type === 'radio') && field.options) {
-              display = field.options.find((o: any) => o.value === raw)?.label || String(raw);
-            } else {
-              display = String(raw);
-            }
-          }
-          return [field.label, display];
-        });
-        autoTable(doc, {
-          head: [['Field', 'Value']],
-          body: customRows,
-          startY: yPos,
-          margin: { left: 14 },
-          styles: { fontSize: 9 },
-          headStyles: { fillColor: [60, 60, 60] },
-        });
-        yPos = (doc as any).lastAutoTable?.finalY + 6 || yPos + 10;
-      }
-    }
+      if (fields.length === 0) return;
+      yPos += 8;
+      ensureSpace(30);
+      doc.setFontSize(13);
+      doc.text('Custom Fields', 14, yPos);
+      yPos += 8;
+      const customRows = fields.sort((a: any, b: any) => a.order - b.order).map((field: any) => {
+        const raw = vals[field.id];
+        let display = '—';
+        if (raw !== null && raw !== undefined && raw !== '') {
+          if (Array.isArray(raw)) display = raw.map((v: string) => field.options?.find((o: any) => o.value === v)?.label || v).join(', ') || '—';
+          else if (typeof raw === 'boolean') display = raw ? 'Yes' : 'No';
+          else if ((field.type === 'select' || field.type === 'radio') && field.options) display = field.options.find((o: any) => o.value === raw)?.label || String(raw);
+          else display = String(raw);
+        }
+        return [field.label, display];
+      });
+      autoTable(doc, {
+        head: [['Field', 'Value']],
+        body: customRows,
+        startY: yPos,
+        margin: { left: 14 },
+        styles: { fontSize: 9 },
+        headStyles: { fillColor: [60, 60, 60] },
+      });
+      yPos = (doc as any).lastAutoTable?.finalY + 6 || yPos + 10;
+    };
 
-    // Dynamic Fields from linked form
-    if (policy.form_id) {
+    const renderDynamicFields = async () => {
+      if (!policy.form_id) return;
       try {
         const displayFormat = dynamicFieldsFormat;
         const [formRes, fieldsRes, subsRes] = await Promise.all([
@@ -602,18 +579,15 @@ const PolicyDetail = () => {
           supabase.from('form_fields').select('id, label, field_type, options, field_order, custom_config').eq('form_id', policy.form_id).order('field_order'),
           supabase.from('form_submissions').select('id, submission_ref_id, submission_data').eq('form_id', policy.form_id).order('submitted_at', { ascending: true }),
         ]);
-
         const formName = formRes.data?.name || 'Linked Form';
-        const allFields = (fieldsRes.data || []).filter(f =>
-          !['section', 'divider', 'heading', 'paragraph', 'spacer', 'page-break'].includes(f.field_type)
-        );
+        const allFields = (fieldsRes.data || []).filter(f => !['section', 'divider', 'heading', 'paragraph', 'spacer', 'page-break'].includes(f.field_type));
         const selectedFieldIds = policy.content?.selected_field_ids as string[] | undefined;
         const selectedRecordIds = policy.content?.selected_record_ids as string[] | undefined;
         const fields = selectedFieldIds?.length ? allFields.filter(f => selectedFieldIds.includes(f.id)) : allFields;
         const allSubmissions = subsRes.data || [];
         const submissions = selectedRecordIds?.length ? allSubmissions.filter(s => selectedRecordIds.includes(s.id)) : allSubmissions;
 
-        // Resolve cross-ref linked records for PDF
+        // Resolve cross-ref
         const crossRefFields = allFields.filter(f => ['cross-reference', 'child-cross-reference'].includes(f.field_type));
         const linkedIds = new Set<string>();
         for (const sub of submissions) {
@@ -655,9 +629,7 @@ const PolicyDetail = () => {
             const parts: string[] = [];
             for (const [fid, label] of Object.entries(labels).slice(0, 4)) {
               const val = subData[fid];
-              if (val !== null && val !== undefined && val !== '' && typeof val !== 'object') {
-                parts.push(`${label}: ${val}`);
-              }
+              if (val !== null && val !== undefined && val !== '' && typeof val !== 'object') parts.push(`${label}: ${val}`);
               if (parts.length >= 3) break;
             }
             return parts.length > 0 ? `${refId} — ${parts.join(' | ')}` : refId;
@@ -667,9 +639,7 @@ const PolicyDetail = () => {
         };
 
         const pdfFmtVal = (val: any, fType: string, opts?: any) => {
-          if (['cross-reference', 'child-cross-reference', 'dynamic-table'].includes(fType)) {
-            return pdfResolveCrossRef(val);
-          }
+          if (['cross-reference', 'child-cross-reference', 'dynamic-table'].includes(fType)) return pdfResolveCrossRef(val);
           return pdfFormatValue(val, fType, opts);
         };
 
@@ -682,29 +652,17 @@ const PolicyDetail = () => {
 
           submissions.forEach((sub: any, idx: number) => {
             const refId = sub.submission_ref_id || sub.id.slice(0, 8);
-            const sectionTitle = `Policy ${idx + 1} — ${refId}`;
             ensureSpace(25);
             doc.setFontSize(11);
             doc.setFont('helvetica', 'bold');
-            doc.text(sectionTitle, 14, yPos);
+            doc.text(`Record ${idx + 1} — ${refId}`, 14, yPos);
             doc.setFont('helvetica', 'normal');
             yPos += 6;
-
             const data = sub.submission_data || {};
 
             if (displayFormat === 'table') {
-              const tableRows = fields.map((f: any) => [
-                f.label,
-                pdfFmtVal(data[f.id], f.field_type, f.options),
-              ]);
-              autoTable(doc, {
-                head: [['Field', 'Value']],
-                body: tableRows,
-                startY: yPos,
-                margin: { left: 14 },
-                styles: { fontSize: 9 },
-                headStyles: { fillColor: [60, 60, 60] },
-              });
+              const tableRows = fields.map((f: any) => [f.label, pdfFmtVal(data[f.id], f.field_type, f.options)]);
+              autoTable(doc, { head: [['Field', 'Value']], body: tableRows, startY: yPos, margin: { left: 14 }, styles: { fontSize: 9 }, headStyles: { fillColor: [60, 60, 60] } });
               yPos = (doc as any).lastAutoTable?.finalY + 6 || yPos + 10;
             } else {
               doc.setFontSize(10);
@@ -716,11 +674,7 @@ const PolicyDetail = () => {
                 doc.setFont('helvetica', 'normal');
                 const val = pdfFmtVal(data[f.id], f.field_type, f.options);
                 const valLines = doc.splitTextToSize(val, 180);
-                for (const vl of valLines) {
-                  ensureSpace(12);
-                  doc.text(vl, 14, yPos);
-                  yPos += 5;
-                }
+                for (const vl of valLines) { ensureSpace(12); doc.text(vl, 14, yPos); yPos += 5; }
                 yPos += 2;
               });
             }
@@ -730,30 +684,41 @@ const PolicyDetail = () => {
       } catch (err) {
         console.error('Failed to fetch dynamic fields for PDF:', err);
       }
-    }
+    };
 
-    // Attachments list with clickable links
-    const pdfAttachments = (policy.attachments || []).filter((att: any) => att.show_in_pdf !== false);
-    if (pdfAttachments.length > 0) {
-      const lastY = (doc as any).lastAutoTable?.finalY || yPos + 10;
-      let attY = lastY + 10;
-      if (attY > pageHeight - 30) { doc.addPage(); attY = 20; }
+    const renderAttachments = () => {
+      const pdfAttachments = (policy.attachments || []).filter((att: any) => att.show_in_pdf !== false);
+      if (pdfAttachments.length === 0) return;
+      const lastY = (doc as any).lastAutoTable?.finalY || yPos;
+      yPos = lastY + 10;
+      if (yPos > pageHeight - 30) { doc.addPage(); yPos = 20; }
       doc.setFontSize(12);
-      doc.text('Attachments', 14, attY);
-      attY += 6;
+      doc.text('Attachments', 14, yPos);
+      yPos += 6;
       doc.setFontSize(10);
       pdfAttachments.forEach((att: any) => {
-        if (attY > pageHeight - 15) { doc.addPage(); attY = 20; }
+        if (yPos > pageHeight - 15) { doc.addPage(); yPos = 20; }
         const label = `• ${att.name}`;
-        doc.text(label, 14, attY);
+        doc.text(label, 14, yPos);
         if (att.url) {
           const labelWidth = doc.getTextWidth(label);
           doc.setTextColor(37, 99, 235);
-          doc.textWithLink(' [Open / Download]', 14 + labelWidth, attY, { url: att.url });
+          doc.textWithLink(' [Open / Download]', 14 + labelWidth, yPos, { url: att.url });
           doc.setTextColor(0, 0, 0);
         }
-        attY += 5;
+        yPos += 5;
       });
+    };
+
+    // Render sections in order
+    for (const section of currentSectionOrder) {
+      switch (section) {
+        case 'metadata': renderMetadata(); break;
+        case 'document_content': await renderDocumentContent(); break;
+        case 'custom_fields': renderCustomFields(); break;
+        case 'dynamic_fields': await renderDynamicFields(); break;
+        case 'attachments': renderAttachments(); break;
+      }
     }
 
     if (mode === 'preview') {
@@ -902,9 +867,10 @@ const PolicyDetail = () => {
   };
 
   const exportToDocx = async () => {
+    const currentSectionOrder = getSectionOrder();
     const sections: any[] = [];
 
-    // Title
+    // Title always first
     sections.push(
       new Paragraph({
         children: [new TextRun({ text: policy.name, bold: true, size: 36, font: 'Calibri' })],
@@ -913,188 +879,113 @@ const PolicyDetail = () => {
       })
     );
 
-    // Metadata line
-    sections.push(
-      new Paragraph({
-        children: [
-          new TextRun({ text: `${policy.policy_number || ''} | Status: ${policy.status} | Category: ${policy.category} | Version: v${policy.current_version}`, size: 20, color: '666666', font: 'Calibri' }),
-        ],
+    const addMetadata = () => {
+      sections.push(new Paragraph({
+        children: [new TextRun({ text: `${policy.policy_number || ''} | Status: ${policy.status} | Category: ${policy.category} | Version: v${policy.current_version}`, size: 20, color: '666666', font: 'Calibri' })],
         spacing: { after: 100 },
-      })
-    );
-    sections.push(
-      new Paragraph({
-        children: [
-          new TextRun({ text: `Last Updated: ${format(new Date(policy.updated_at), 'PPpp')}`, size: 20, color: '666666', font: 'Calibri' }),
-        ],
+      }));
+      sections.push(new Paragraph({
+        children: [new TextRun({ text: `Last Updated: ${format(new Date(policy.updated_at), 'PPpp')}`, size: 20, color: '666666', font: 'Calibri' })],
         spacing: { after: 200 },
-      })
-    );
+      }));
+      if (policy.description) {
+        sections.push(new Paragraph({ children: [new TextRun({ text: 'Description', bold: true, size: 24, font: 'Calibri' })], heading: HeadingLevel.HEADING_2, spacing: { after: 100 } }));
+        sections.push(new Paragraph({ children: [new TextRun({ text: policy.description, size: 22, font: 'Calibri' })], spacing: { after: 200 } }));
+      }
+    };
 
-    if (policy.description) {
-      sections.push(
-        new Paragraph({
-          children: [new TextRun({ text: 'Description', bold: true, size: 24, font: 'Calibri' })],
-          heading: HeadingLevel.HEADING_2,
-          spacing: { after: 100 },
-        })
-      );
-      sections.push(
-        new Paragraph({
-          children: [new TextRun({ text: policy.description, size: 22, font: 'Calibri' })],
-          spacing: { after: 200 },
-        })
-      );
-    }
-
-    // Content - convert HTML to simple paragraphs
-    const docxContentHtml = liveContentHtml ?? policy.content?.html;
-    if (docxContentHtml) {
-      sections.push(
-        new Paragraph({
-          children: [new TextRun({ text: 'Policy Content', bold: true, size: 24, font: 'Calibri' })],
-          heading: HeadingLevel.HEADING_2,
-          spacing: { after: 100 },
-        })
-      );
-
-      // Parse HTML to extract text blocks
+    const addDocumentContent = () => {
+      const docxContentHtml = liveContentHtml ?? policy.content?.html;
+      if (!docxContentHtml) return;
+      sections.push(new Paragraph({ children: [new TextRun({ text: 'Document Content', bold: true, size: 24, font: 'Calibri' })], heading: HeadingLevel.HEADING_2, spacing: { after: 100 } }));
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = docxContentHtml;
-
       const processNode = (node: Node) => {
         if (node.nodeType === Node.TEXT_NODE) {
           const text = node.textContent?.trim();
-          if (text) {
-            sections.push(new Paragraph({
-              children: [new TextRun({ text, size: 22, font: 'Calibri' })],
-              spacing: { after: 80 },
-            }));
-          }
+          if (text) sections.push(new Paragraph({ children: [new TextRun({ text, size: 22, font: 'Calibri' })], spacing: { after: 80 } }));
         } else if (node.nodeType === Node.ELEMENT_NODE) {
           const el = node as HTMLElement;
           const tag = el.tagName.toLowerCase();
-
           if (['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].includes(tag)) {
             const level = tag === 'h1' ? HeadingLevel.HEADING_1 : tag === 'h2' ? HeadingLevel.HEADING_2 : HeadingLevel.HEADING_3;
-            sections.push(new Paragraph({
-              children: [new TextRun({ text: el.textContent || '', bold: true, size: tag === 'h1' ? 32 : tag === 'h2' ? 28 : 24, font: 'Calibri' })],
-              heading: level,
-              spacing: { after: 120 },
-            }));
+            sections.push(new Paragraph({ children: [new TextRun({ text: el.textContent || '', bold: true, size: tag === 'h1' ? 32 : tag === 'h2' ? 28 : 24, font: 'Calibri' })], heading: level, spacing: { after: 120 } }));
           } else if (tag === 'p' || tag === 'div') {
             const text = el.textContent?.trim();
-            if (text) {
-              sections.push(new Paragraph({
-                children: [new TextRun({ text, size: 22, font: 'Calibri' })],
-                spacing: { after: 80 },
-              }));
-            }
+            if (text) sections.push(new Paragraph({ children: [new TextRun({ text, size: 22, font: 'Calibri' })], spacing: { after: 80 } }));
           } else if (tag === 'ul' || tag === 'ol') {
             el.querySelectorAll('li').forEach((li, idx) => {
               const bullet = tag === 'ul' ? '• ' : `${idx + 1}. `;
-              sections.push(new Paragraph({
-                children: [new TextRun({ text: bullet + (li.textContent || ''), size: 22, font: 'Calibri' })],
-                spacing: { after: 40 },
-                indent: { left: 400 },
-              }));
+              sections.push(new Paragraph({ children: [new TextRun({ text: bullet + (li.textContent || ''), size: 22, font: 'Calibri' })], spacing: { after: 40 }, indent: { left: 400 } }));
             });
           } else if (tag === 'table') {
             const rows = el.querySelectorAll('tr');
             if (rows.length > 0) {
               const docxRows = Array.from(rows).map((tr, rIdx) => {
                 const cells = tr.querySelectorAll('td, th');
-                return new DocxTableRow({
-                  children: Array.from(cells).map(cell => new DocxTableCell({
-                    children: [new Paragraph({
-                      children: [new TextRun({
-                        text: cell.textContent || '',
-                        bold: cell.tagName.toLowerCase() === 'th' || rIdx === 0,
-                        size: 20,
-                        font: 'Calibri',
-                      })],
-                    })],
-                    width: { size: 100 / cells.length, type: WidthType.PERCENTAGE },
-                  })),
-                });
+                return new DocxTableRow({ children: Array.from(cells).map(cell => new DocxTableCell({ children: [new Paragraph({ children: [new TextRun({ text: cell.textContent || '', bold: cell.tagName.toLowerCase() === 'th' || rIdx === 0, size: 20, font: 'Calibri' })] })], width: { size: 100 / cells.length, type: WidthType.PERCENTAGE } })) });
               });
               sections.push(new DocxTable({ rows: docxRows, width: { size: 100, type: WidthType.PERCENTAGE } }));
               sections.push(new Paragraph({ children: [], spacing: { after: 120 } }));
             }
           } else if (tag === 'blockquote') {
-            sections.push(new Paragraph({
-              children: [new TextRun({ text: el.textContent || '', italics: true, size: 22, color: '374151', font: 'Calibri' })],
-              indent: { left: 400 },
-              spacing: { after: 100 },
-            }));
+            sections.push(new Paragraph({ children: [new TextRun({ text: el.textContent || '', italics: true, size: 22, color: '374151', font: 'Calibri' })], indent: { left: 400 }, spacing: { after: 100 } }));
           } else {
-            // Recurse for other elements
             el.childNodes.forEach(child => processNode(child));
           }
         }
       };
-
       tempDiv.childNodes.forEach(child => processNode(child));
-    }
+    };
 
-    // Custom Fields Data in DOCX
-    if (policy.content?.custom_fields && (policy.content.custom_fields as any[]).length > 0) {
+    const addCustomFields = () => {
+      if (!policy.content?.custom_fields || !(policy.content.custom_fields as any[]).length) return;
       const fields = (policy.content.custom_fields as any[]).filter((f: any) => !['header', 'description', 'horizontal-line'].includes(f.type));
       const vals = (policy.content?.custom_field_values as Record<string, any>) || {};
-      if (fields.length > 0) {
-        sections.push(new Paragraph({
-          children: [new TextRun({ text: 'Custom Fields', bold: true, size: 24, font: 'Calibri' })],
-          heading: HeadingLevel.HEADING_2,
-          spacing: { before: 200, after: 100 },
-        }));
-        const docxRows = [
-          new DocxTableRow({
-            children: [
-              new DocxTableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Field', bold: true, size: 20, font: 'Calibri' })] })], width: { size: 40, type: WidthType.PERCENTAGE } }),
-              new DocxTableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Value', bold: true, size: 20, font: 'Calibri' })] })], width: { size: 60, type: WidthType.PERCENTAGE } }),
-            ],
-          }),
-          ...fields.sort((a: any, b: any) => a.order - b.order).map((field: any) => {
-            const raw = vals[field.id];
-            let display = '—';
-            if (raw !== null && raw !== undefined && raw !== '') {
-              if (Array.isArray(raw)) {
-                display = raw.map((v: string) => field.options?.find((o: any) => o.value === v)?.label || v).join(', ') || '—';
-              } else if (typeof raw === 'boolean') {
-                display = raw ? 'Yes' : 'No';
-              } else if ((field.type === 'select' || field.type === 'radio') && field.options) {
-                display = field.options.find((o: any) => o.value === raw)?.label || String(raw);
-              } else {
-                display = String(raw);
-              }
-            }
-            return new DocxTableRow({
-              children: [
-                new DocxTableCell({ children: [new Paragraph({ children: [new TextRun({ text: field.label, bold: true, size: 20, font: 'Calibri' })] })] }),
-                new DocxTableCell({ children: [new Paragraph({ children: [new TextRun({ text: display, size: 20, font: 'Calibri' })] })] }),
-              ],
-            });
-          }),
-        ];
-        sections.push(new DocxTable({ rows: docxRows, width: { size: 100, type: WidthType.PERCENTAGE } }));
-        sections.push(new Paragraph({ children: [], spacing: { after: 120 } }));
-      }
-    }
+      if (fields.length === 0) return;
+      sections.push(new Paragraph({ children: [new TextRun({ text: 'Custom Fields', bold: true, size: 24, font: 'Calibri' })], heading: HeadingLevel.HEADING_2, spacing: { before: 200, after: 100 } }));
+      const docxRows = [
+        new DocxTableRow({ children: [
+          new DocxTableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Field', bold: true, size: 20, font: 'Calibri' })] })], width: { size: 40, type: WidthType.PERCENTAGE } }),
+          new DocxTableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Value', bold: true, size: 20, font: 'Calibri' })] })], width: { size: 60, type: WidthType.PERCENTAGE } }),
+        ] }),
+        ...fields.sort((a: any, b: any) => a.order - b.order).map((field: any) => {
+          const raw = vals[field.id];
+          let display = '—';
+          if (raw !== null && raw !== undefined && raw !== '') {
+            if (Array.isArray(raw)) display = raw.map((v: string) => field.options?.find((o: any) => o.value === v)?.label || v).join(', ') || '—';
+            else if (typeof raw === 'boolean') display = raw ? 'Yes' : 'No';
+            else if ((field.type === 'select' || field.type === 'radio') && field.options) display = field.options.find((o: any) => o.value === raw)?.label || String(raw);
+            else display = String(raw);
+          }
+          return new DocxTableRow({ children: [
+            new DocxTableCell({ children: [new Paragraph({ children: [new TextRun({ text: field.label, bold: true, size: 20, font: 'Calibri' })] })] }),
+            new DocxTableCell({ children: [new Paragraph({ children: [new TextRun({ text: display, size: 20, font: 'Calibri' })] })] }),
+          ] });
+        }),
+      ];
+      sections.push(new DocxTable({ rows: docxRows, width: { size: 100, type: WidthType.PERCENTAGE } }));
+      sections.push(new Paragraph({ children: [], spacing: { after: 120 } }));
+    };
 
-    // Attachments
-    const pdfAttachments = (policy.attachments || []).filter((att: any) => att.show_in_pdf !== false);
-    if (pdfAttachments.length > 0) {
-      sections.push(new Paragraph({
-        children: [new TextRun({ text: 'Attachments', bold: true, size: 24, font: 'Calibri' })],
-        heading: HeadingLevel.HEADING_2,
-        spacing: { before: 200, after: 100 },
-      }));
+    const addAttachments = () => {
+      const pdfAttachments = (policy.attachments || []).filter((att: any) => att.show_in_pdf !== false);
+      if (pdfAttachments.length === 0) return;
+      sections.push(new Paragraph({ children: [new TextRun({ text: 'Attachments', bold: true, size: 24, font: 'Calibri' })], heading: HeadingLevel.HEADING_2, spacing: { before: 200, after: 100 } }));
       pdfAttachments.forEach((att: any) => {
-        sections.push(new Paragraph({
-          children: [new TextRun({ text: `• ${att.name}${att.url ? ' — ' + att.url : ''}`, size: 20, font: 'Calibri' })],
-          spacing: { after: 40 },
-        }));
+        sections.push(new Paragraph({ children: [new TextRun({ text: `• ${att.name}${att.url ? ' — ' + att.url : ''}`, size: 20, font: 'Calibri' })], spacing: { after: 40 } }));
       });
+    };
+
+    // Render in section order
+    for (const section of currentSectionOrder) {
+      switch (section) {
+        case 'metadata': addMetadata(); break;
+        case 'document_content': addDocumentContent(); break;
+        case 'custom_fields': addCustomFields(); break;
+        case 'attachments': addAttachments(); break;
+        // dynamic_fields not supported in simple DOCX export (kept in original docx flow)
+      }
     }
 
     const doc = new Document({
@@ -1818,9 +1709,8 @@ const PolicyDetail = () => {
       )}
 
       {/* Tabs */}
-      <Tabs defaultValue="details">
+      <Tabs defaultValue="content">
         <TabsList className="flex-wrap">
-          <TabsTrigger value="details">Details</TabsTrigger>
           <TabsTrigger value="content" className="gap-1">
             <BookOpen className="h-3.5 w-3.5" /> Content
           </TabsTrigger>
@@ -1835,164 +1725,67 @@ const PolicyDetail = () => {
           </TabsTrigger>
         </TabsList>
 
-        {/* Details Tab */}
-        <TabsContent value="details" className="space-y-4 mt-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Left: Dates + Metadata */}
-            <Card>
-              <CardHeader><CardTitle className="text-sm">Dates & Metadata</CardTitle></CardHeader>
-              <CardContent className="space-y-2 text-sm">
-                <DetailRow label="Created" value={format(new Date(policy.created_at), 'PPpp')} />
-                <DetailRow label="Last Updated" value={format(new Date(policy.updated_at), 'PPpp')} />
-                {policy.effective_date && <DetailRow label="Effective Date" value={policy.effective_date} />}
-                {policy.expiry_date && <DetailRow label="Expiry Date" value={policy.expiry_date} />}
-                {policy.next_review_date && <DetailRow label="Next Review" value={policy.next_review_date} />}
-                {policy.published_at && <DetailRow label="Published" value={format(new Date(policy.published_at), 'PPpp')} />}
-                <DetailRow label="Policy Number" value={policy.policy_number || '—'} />
-                {/* <DetailRow label="Category" value={policy.category} />
-                <DetailRow label="Department" value={policy.department || '—'} /> */}
-                <DetailRow label="Priority" value={<Badge className={priorityDef?.color}>{priorityDef?.label}</Badge>} />
-                <DetailRow label="Owner" value={getUserName(policy.created_by)} />
-                <DetailRow label="Version" value={`v${policy.current_version}`} />
-              </CardContent>
-            </Card>
+        {/* Content Tab - Draggable sections */}
+        <TabsContent value="content" className="mt-4 space-y-1">
+          <p className="text-xs text-muted-foreground mb-2">Drag sections to reorder. Export will follow this order.</p>
+          <DragDropContext onDragEnd={handleSectionDragEnd}>
+            <Droppable droppableId="content-sections">
+              {(provided) => (
+                <div ref={provided.innerRef} {...provided.droppableProps} className="space-y-4">
+                  {sectionOrder.map((sectionId, index) => (
+                    <Draggable key={sectionId} draggableId={sectionId} index={index}>
+                      {(provided, snapshot) => (
+                        <div
+                          ref={provided.innerRef}
+                          {...provided.draggableProps}
+                          className={`transition-shadow ${snapshot.isDragging ? 'shadow-lg ring-2 ring-primary/30 rounded-lg' : ''}`}
+                        >
+                          {sectionId === 'metadata' && (
+                            <Card>
+                              <CardHeader className="flex flex-row items-center gap-2 py-3 px-4">
+                                <div {...provided.dragHandleProps} className="cursor-grab active:cursor-grabbing">
+                                  <GripVertical className="h-4 w-4 text-muted-foreground" />
+                                </div>
+                                <CardTitle className="text-sm flex-1">Dates & Metadata</CardTitle>
+                              </CardHeader>
+                              <CardContent className="space-y-2 text-sm px-4 pb-4 pt-0">
+                                <DetailRow label="Created" value={format(new Date(policy.created_at), 'PPpp')} />
+                                <DetailRow label="Last Updated" value={format(new Date(policy.updated_at), 'PPpp')} />
+                                {policy.effective_date && <DetailRow label="Effective Date" value={policy.effective_date} />}
+                                {policy.expiry_date && <DetailRow label="Expiry Date" value={policy.expiry_date} />}
+                                {policy.next_review_date && <DetailRow label="Next Review" value={policy.next_review_date} />}
+                                {policy.published_at && <DetailRow label="Published" value={format(new Date(policy.published_at), 'PPpp')} />}
+                                <DetailRow label="Doc Number" value={policy.policy_number || '—'} />
+                                <DetailRow label="Priority" value={<Badge className={priorityDef?.color}>{priorityDef?.label}</Badge>} />
+                                <DetailRow label="Owner" value={getUserName(policy.created_by)} />
+                                <DetailRow label="Version" value={`v${policy.current_version}`} />
+                              </CardContent>
+                            </Card>
+                          )}
 
-            {/* Right: Custom Fields */}
-            {policy.content?.custom_fields && (policy.content.custom_fields as any[]).length > 0 ? (
-              <Card>
-                <CardHeader><CardTitle className="text-sm">Custom Fields</CardTitle></CardHeader>
-                <CardContent className="space-y-2 text-sm">
-                  {(() => {
-                    const fields = policy.content.custom_fields as any[];
-                    const vals = (policy.content.custom_field_values as Record<string, any>) || {};
-                    const sorted = [...fields].sort((a: any, b: any) => a.order - b.order);
-                    return (
-                      <div className="space-y-2">
-                        {sorted.filter((f: any) => !['header', 'description', 'horizontal-line'].includes(f.type)).map((field: any) => {
-                          const raw = vals[field.id];
-                          let display = '—';
-                          if (raw !== null && raw !== undefined && raw !== '') {
-                            if (Array.isArray(raw)) {
-                              const opts = field.options || [];
-                              display = raw.map((v: string) => {
-                                const opt = opts.find((o: any) => o.value === v);
-                                return opt?.label || v;
-                              }).join(', ') || '—';
-                            } else if (typeof raw === 'boolean') {
-                              display = raw ? 'Yes' : 'No';
-                            } else if ((field.type === 'select' || field.type === 'radio') && field.options) {
-                              const opt = field.options.find((o: any) => o.value === raw);
-                              display = opt?.label || String(raw);
-                            } else if (field.type === 'rating') {
-                              display = '★'.repeat(Number(raw));
-                            } else {
-                              display = String(raw);
-                            }
-                          }
-                          return <DetailRow key={field.id} label={field.label} value={display} />;
-                        })}
-                      </div>
-                    );
-                  })()}
-                </CardContent>
-              </Card>
-            ) : (
-              <Card>
-                <CardHeader><CardTitle className="text-sm">Custom Fields</CardTitle></CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">No custom fields defined.</p>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-
-          {/* Attachments */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-sm">Attachments</CardTitle>
-              {canEdit && (
-                <div>
-                  <input
-                    ref={attachmentInputRef}
-                    type="file"
-                    className="hidden"
-                    onChange={handleAttachmentUpload}
-                  />
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => attachmentInputRef.current?.click()}
-                    disabled={isUploadingAttachment}
-                  >
-                    {isUploadingAttachment ? (
-                      <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Uploading...</>
-                    ) : (
-                      <><Upload className="h-4 w-4 mr-1" /> Upload Attachment</>
-                    )}
-                  </Button>
-                </div>
-              )}
-            </CardHeader>
-            <CardContent>
-              {(!policy.attachments || policy.attachments.length === 0) ? (
-                <p className="text-sm text-muted-foreground">No attachments.{canEdit ? ' Click "Upload Attachment" to add files.' : ''}</p>
-              ) : (
-                <div className="space-y-2">
-                  {policy.attachments.map((att: any, i: number) => (
-                    <div key={i} className="flex items-center gap-2 text-sm p-2 rounded-md border">
-                      <FileText className="h-4 w-4 text-muted-foreground" />
-                      <span className="flex-1 truncate">{att.name}</span>
-                      {att.size && <span className="text-xs text-muted-foreground shrink-0">{(att.size / 1024).toFixed(1)} KB</span>}
-                      {canEdit && (
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer" title="Include in PDF export">
-                            <span>PDF</span>
-                            <Switch
-                              checked={att.show_in_pdf !== false}
-                              onCheckedChange={async (checked) => {
-                                const updated = [...policy.attachments];
-                                updated[i] = { ...updated[i], show_in_pdf: checked };
-                                await updatePolicy.mutateAsync({ id: policy.id, attachments: updated as any });
-                              }}
-                              className="scale-75"
-                            />
-                          </label>
-                        </div>
-                      )}
-                      {att.url && (
-                        <a href={att.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-xs">
-                          <Download className="h-3.5 w-3.5" />
-                        </a>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Content Tab */}
-        <TabsContent value="content" className="mt-4 space-y-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-sm">Document Content</CardTitle>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setContentExpanded(!contentExpanded)}
-                className="gap-1 text-xs"
-              >
-                {contentExpanded ? <><EyeOff className="h-3.5 w-3.5" /> Collapse</> : <><Eye className="h-3.5 w-3.5" /> Expand</>}
-              </Button>
-            </CardHeader>
-            {contentExpanded && (
-              <CardContent>
-                {(liveContentHtml ?? policy.content?.html) ? (
-                  <div className="border rounded-lg overflow-hidden bg-white">
-                    <iframe
-                      title="Document Content Preview"
-                      srcDoc={`<!DOCTYPE html>
+                          {sectionId === 'document_content' && (
+                            <div>
+                              <div className="flex items-center gap-2 mb-2">
+                                <div {...provided.dragHandleProps} className="cursor-grab active:cursor-grabbing">
+                                  <GripVertical className="h-4 w-4 text-muted-foreground" />
+                                </div>
+                                <span className="text-sm font-semibold text-foreground">Document Content</span>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => setContentExpanded(!contentExpanded)}
+                                  className="gap-1 text-xs ml-auto"
+                                >
+                                  {contentExpanded ? <><EyeOff className="h-3.5 w-3.5" /> Collapse</> : <><Eye className="h-3.5 w-3.5" /> Expand</>}
+                                </Button>
+                              </div>
+                              {contentExpanded && (
+                                <>
+                                  {(liveContentHtml ?? policy.content?.html) ? (
+                                    <div className="border rounded-lg overflow-hidden bg-white">
+                                      <iframe
+                                        title="Document Content Preview"
+                                        srcDoc={`<!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8" />
@@ -2023,115 +1816,221 @@ const PolicyDetail = () => {
 </head>
 <body>${(liveContentHtml ?? policy.content?.html ?? '').replace(/\x60/g, '&#96;')}</body>
 </html>`}
-                      className="w-full border-0"
-                      style={{ minHeight: '500px', height: '70vh' }}
-                      onLoad={(e) => {
-                        const iframe = e.target as HTMLIFrameElement;
-                        if (iframe.contentDocument?.body) {
-                          const h = iframe.contentDocument.body.scrollHeight + 40;
-                          iframe.style.height = Math.max(400, Math.min(h, 2000)) + 'px';
-                        }
-                      }}
-                    />
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground text-center py-6">
-                    No content has been added yet. Click "Edit" to add content.
-                  </p>
-                )}
-              </CardContent>
-            )}
-          </Card>
+                                        className="w-full border-0"
+                                        style={{ minHeight: '500px', height: '70vh' }}
+                                        onLoad={(e) => {
+                                          const iframe = e.target as HTMLIFrameElement;
+                                          if (iframe.contentDocument?.body) {
+                                            const h = iframe.contentDocument.body.scrollHeight + 40;
+                                            iframe.style.height = Math.max(400, Math.min(h, 2000)) + 'px';
+                                          }
+                                        }}
+                                      />
+                                    </div>
+                                  ) : (
+                                    <p className="text-sm text-muted-foreground text-center py-6 border rounded-lg">
+                                      No content has been added yet. Click "Edit" to add content.
+                                    </p>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                          )}
 
-          {/* Custom Fields in Content */}
-          {policy.content?.custom_fields && (policy.content.custom_fields as any[]).length > 0 && (() => {
-            const fields = (policy.content.custom_fields as any[]).filter((f: any) => !['header', 'description', 'horizontal-line'].includes(f.type));
-            const vals = (policy.content?.custom_field_values as Record<string, any>) || {};
-            if (fields.length === 0) return null;
-            return (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-sm">Custom Fields Data</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="overflow-auto">
-                    <table className="w-full text-sm border-collapse">
-                      <thead>
-                        <tr className="border-b bg-muted/50">
-                          <th className="text-left p-2 font-medium text-muted-foreground">Field</th>
-                          <th className="text-left p-2 font-medium text-muted-foreground">Value</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {fields.sort((a: any, b: any) => a.order - b.order).map((field: any) => {
-                          const raw = vals[field.id];
-                          let display = '—';
-                          if (raw !== null && raw !== undefined && raw !== '') {
-                            if (Array.isArray(raw)) {
-                              const opts = field.options || [];
-                              display = raw.map((v: string) => opts.find((o: any) => o.value === v)?.label || v).join(', ') || '—';
-                            } else if (typeof raw === 'boolean') {
-                              display = raw ? 'Yes' : 'No';
-                            } else if (field.type === 'rating') {
-                              display = '★'.repeat(Number(raw));
-                            } else if ((field.type === 'select' || field.type === 'radio') && field.options) {
-                              display = field.options.find((o: any) => o.value === raw)?.label || String(raw);
-                            } else {
-                              display = String(raw);
-                            }
-                          }
-                          return (
-                            <tr key={field.id} className="border-b">
-                              <td className="p-2 font-medium">{field.label}</td>
-                              <td className="p-2">{display}</td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })()}
+                          {sectionId === 'custom_fields' && policy.content?.custom_fields && (policy.content.custom_fields as any[]).length > 0 && (() => {
+                            const fields = (policy.content.custom_fields as any[]).filter((f: any) => !['header', 'description', 'horizontal-line'].includes(f.type));
+                            const vals = (policy.content?.custom_field_values as Record<string, any>) || {};
+                            if (fields.length === 0) return null;
+                            return (
+                              <Card>
+                                <CardHeader className="flex flex-row items-center gap-2 py-3 px-4">
+                                  <div {...provided.dragHandleProps} className="cursor-grab active:cursor-grabbing">
+                                    <GripVertical className="h-4 w-4 text-muted-foreground" />
+                                  </div>
+                                  <CardTitle className="text-sm flex-1">Custom Fields Data</CardTitle>
+                                  <span className="text-[10px] text-muted-foreground">Drag fields internally to reorder</span>
+                                </CardHeader>
+                                <CardContent className="px-4 pb-4 pt-0">
+                                  <DragDropContext onDragEnd={handleCustomFieldDragEnd}>
+                                    <Droppable droppableId="custom-fields-list">
+                                      {(cfProvided) => (
+                                        <div ref={cfProvided.innerRef} {...cfProvided.droppableProps}>
+                                          <table className="w-full text-sm border-collapse">
+                                            <thead>
+                                              <tr className="border-b bg-muted/50">
+                                                <th className="w-8"></th>
+                                                <th className="text-left p-2 font-medium text-muted-foreground">Field</th>
+                                                <th className="text-left p-2 font-medium text-muted-foreground">Value</th>
+                                              </tr>
+                                            </thead>
+                                            <tbody>
+                                              {fields.sort((a: any, b: any) => a.order - b.order).map((field: any, fIdx: number) => {
+                                                const raw = vals[field.id];
+                                                let display = '—';
+                                                if (raw !== null && raw !== undefined && raw !== '') {
+                                                  if (Array.isArray(raw)) {
+                                                    const opts = field.options || [];
+                                                    display = raw.map((v: string) => opts.find((o: any) => o.value === v)?.label || v).join(', ') || '—';
+                                                  } else if (typeof raw === 'boolean') {
+                                                    display = raw ? 'Yes' : 'No';
+                                                  } else if (field.type === 'rating') {
+                                                    display = '★'.repeat(Number(raw));
+                                                  } else if ((field.type === 'select' || field.type === 'radio') && field.options) {
+                                                    display = field.options.find((o: any) => o.value === raw)?.label || String(raw);
+                                                  } else {
+                                                    display = String(raw);
+                                                  }
+                                                }
+                                                return (
+                                                  <Draggable key={field.id} draggableId={`cf-${field.id}`} index={fIdx}>
+                                                    {(cfDrag, cfSnap) => (
+                                                      <tr
+                                                        ref={cfDrag.innerRef}
+                                                        {...cfDrag.draggableProps}
+                                                        className={`border-b ${cfSnap.isDragging ? 'bg-primary/5 shadow' : ''}`}
+                                                      >
+                                                        <td className="p-1 w-8" {...cfDrag.dragHandleProps}>
+                                                          <GripVertical className="h-3.5 w-3.5 text-muted-foreground cursor-grab" />
+                                                        </td>
+                                                        <td className="p-2 font-medium">{field.label}</td>
+                                                        <td className="p-2">{display}</td>
+                                                      </tr>
+                                                    )}
+                                                  </Draggable>
+                                                );
+                                              })}
+                                              {cfProvided.placeholder}
+                                            </tbody>
+                                          </table>
+                                        </div>
+                                      )}
+                                    </Droppable>
+                                  </DragDropContext>
+                                </CardContent>
+                              </Card>
+                            );
+                          })()}
 
-          {/* Dynamic Fields from Linked Form */}
-          {policy.form_id && (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-foreground">Dynamic Fields Display</span>
-                <Select
-                  value={dynamicFieldsFormat}
-                  onValueChange={v => setDynamicFieldsFormat(v as 'table' | 'field-value')}
-                >
-                  <SelectTrigger className="w-[200px] h-8 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="table">Tabular Format</SelectItem>
-                    <SelectItem value="field-value">Field & Value</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <PolicyDynamicFieldsRenderer
-                formId={policy.form_id}
-                displayFormat={dynamicFieldsFormat}
-                selectedFieldIds={policy.content?.selected_field_ids as string[] | undefined}
-                selectedRecordIds={policy.content?.selected_record_ids as string[] | undefined}
-                recordComments={(policy.content?.record_comments as Record<string, any>) || {}}
-                onAddComment={canEdit ? async (recordId, comment) => {
-                  const existing = (policy.content?.record_comments as Record<string, any[]>) || {};
-                  const updated = { ...existing, [recordId]: [...(existing[recordId] || []), comment] };
-                  await updatePolicy.mutateAsync({
-                    id: policy.id,
-                    content: { ...(policy.content || {}), record_comments: updated },
-                  });
-                } : undefined}
-                currentUserName={getUserName(user?.id || '')}
-              />
-            </div>
-          )}
+                          {sectionId === 'dynamic_fields' && policy.form_id && (
+                            <div>
+                              <div className="flex items-center gap-2 mb-2">
+                                <div {...provided.dragHandleProps} className="cursor-grab active:cursor-grabbing">
+                                  <GripVertical className="h-4 w-4 text-muted-foreground" />
+                                </div>
+                                <span className="text-sm font-medium text-foreground flex-1">Dynamic Fields Display</span>
+                                <Select
+                                  value={dynamicFieldsFormat}
+                                  onValueChange={v => setDynamicFieldsFormat(v as 'table' | 'field-value')}
+                                >
+                                  <SelectTrigger className="w-[200px] h-8 text-xs">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="table">Tabular Format</SelectItem>
+                                    <SelectItem value="field-value">Field & Value</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <PolicyDynamicFieldsRenderer
+                                formId={policy.form_id}
+                                displayFormat={dynamicFieldsFormat}
+                                selectedFieldIds={policy.content?.selected_field_ids as string[] | undefined}
+                                selectedRecordIds={policy.content?.selected_record_ids as string[] | undefined}
+                                recordComments={(policy.content?.record_comments as Record<string, any>) || {}}
+                                onAddComment={canEdit ? async (recordId, comment) => {
+                                  const existing = (policy.content?.record_comments as Record<string, any[]>) || {};
+                                  const updated = { ...existing, [recordId]: [...(existing[recordId] || []), comment] };
+                                  await updatePolicy.mutateAsync({
+                                    id: policy.id,
+                                    content: { ...(policy.content || {}), record_comments: updated },
+                                  });
+                                } : undefined}
+                                currentUserName={getUserName(user?.id || '')}
+                              />
+                            </div>
+                          )}
 
+                          {sectionId === 'attachments' && (
+                            <Card>
+                              <CardHeader className="flex flex-row items-center gap-2 py-3 px-4">
+                                <div {...provided.dragHandleProps} className="cursor-grab active:cursor-grabbing">
+                                  <GripVertical className="h-4 w-4 text-muted-foreground" />
+                                </div>
+                                <CardTitle className="text-sm flex-1">Attachments</CardTitle>
+                                {canEdit && (
+                                  <div>
+                                    <input
+                                      ref={attachmentInputRef}
+                                      type="file"
+                                      className="hidden"
+                                      onChange={handleAttachmentUpload}
+                                    />
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => attachmentInputRef.current?.click()}
+                                      disabled={isUploadingAttachment}
+                                    >
+                                      {isUploadingAttachment ? (
+                                        <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Uploading...</>
+                                      ) : (
+                                        <><Upload className="h-4 w-4 mr-1" /> Upload</>
+                                      )}
+                                    </Button>
+                                  </div>
+                                )}
+                              </CardHeader>
+                              <CardContent className="px-4 pb-4 pt-0">
+                                {(!policy.attachments || policy.attachments.length === 0) ? (
+                                  <p className="text-sm text-muted-foreground">No attachments.{canEdit ? ' Click "Upload" to add files.' : ''}</p>
+                                ) : (
+                                  <div className="space-y-2">
+                                    {policy.attachments.map((att: any, i: number) => (
+                                      <div key={i} className="flex items-center gap-2 text-sm p-2 rounded-md border">
+                                        <FileText className="h-4 w-4 text-muted-foreground" />
+                                        <span className="flex-1 truncate">{att.name}</span>
+                                        {att.size && <span className="text-xs text-muted-foreground shrink-0">{(att.size / 1024).toFixed(1)} KB</span>}
+                                        {canEdit && (
+                                          <div className="flex items-center gap-1.5 shrink-0">
+                                            <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer" title="Include in PDF export">
+                                              <span>PDF</span>
+                                              <Switch
+                                                checked={att.show_in_pdf !== false}
+                                                onCheckedChange={async (checked) => {
+                                                  const updated = [...policy.attachments];
+                                                  updated[i] = { ...updated[i], show_in_pdf: checked };
+                                                  await updatePolicy.mutateAsync({ id: policy.id, attachments: updated as any });
+                                                }}
+                                                className="scale-75"
+                                              />
+                                            </label>
+                                          </div>
+                                        )}
+                                        {att.url && (
+                                          <a href={att.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-xs">
+                                            <Download className="h-3.5 w-3.5" />
+                                          </a>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </CardContent>
+                            </Card>
+                          )}
+
+                          {/* For sections that don't match (custom_fields with no data, dynamic_fields with no form), render nothing but keep draggable */}
+                          {sectionId === 'custom_fields' && (!policy.content?.custom_fields || (policy.content.custom_fields as any[]).filter((f: any) => !['header', 'description', 'horizontal-line'].includes(f.type)).length === 0) && null}
+                          {sectionId === 'dynamic_fields' && !policy.form_id && null}
+                        </div>
+                      )}
+                    </Draggable>
+                  ))}
+                  {provided.placeholder}
+                </div>
+              )}
+            </Droppable>
+          </DragDropContext>
         </TabsContent>
 
         {/* Approvals Tab */}
