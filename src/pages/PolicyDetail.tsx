@@ -67,6 +67,42 @@ const PolicyDetail = () => {
   const [showSaveConfirmDialog, setShowSaveConfirmDialog] = useState(false);
   const [contentExpanded, setContentExpanded] = useState(true);
 
+  const DEFAULT_SECTION_ORDER = ['metadata', 'document_content', 'custom_fields', 'dynamic_fields', 'attachments'];
+  const getSectionOrder = (): string[] => {
+    const saved = policy?.content?.section_order as string[] | undefined;
+    if (saved && Array.isArray(saved) && saved.length > 0) return saved;
+    return DEFAULT_SECTION_ORDER;
+  };
+  const [sectionOrder, setSectionOrder] = useState<string[]>(getSectionOrder());
+
+  const handleSectionDragEnd = useCallback(async (result: DropResult) => {
+    if (!result.destination || !policy) return;
+    const items = Array.from(sectionOrder);
+    const [reordered] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, reordered);
+    setSectionOrder(items);
+    await updatePolicy.mutateAsync({
+      id: policy.id,
+      content: { ...(policy.content || {}), section_order: items },
+    });
+  }, [sectionOrder, policy, updatePolicy]);
+
+  const handleCustomFieldDragEnd = useCallback(async (result: DropResult) => {
+    if (!result.destination || !policy) return;
+    const fields = [...((policy.content?.custom_fields as any[]) || [])];
+    const dataFields = fields.filter((f: any) => !['header', 'description', 'horizontal-line'].includes(f.type));
+    const layoutFields = fields.filter((f: any) => ['header', 'description', 'horizontal-line'].includes(f.type));
+    const [reordered] = dataFields.splice(result.source.index, 1);
+    dataFields.splice(result.destination.index, 0, reordered);
+    // Reassign order
+    const reorderedFields = dataFields.map((f: any, i: number) => ({ ...f, order: i }));
+    const allFields = [...layoutFields, ...reorderedFields];
+    await updatePolicy.mutateAsync({
+      id: policy.id,
+      content: { ...(policy.content || {}), custom_fields: allFields },
+    });
+  }, [policy, updatePolicy]);
+
   // Approval dialog state
   const [showApprovalDialog, setShowApprovalDialog] = useState(false);
   const [selectedApproverIds, setSelectedApproverIds] = useState<string[]>([]);
