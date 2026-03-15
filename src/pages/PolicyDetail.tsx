@@ -867,9 +867,10 @@ const PolicyDetail = () => {
   };
 
   const exportToDocx = async () => {
+    const currentSectionOrder = getSectionOrder();
     const sections: any[] = [];
 
-    // Title
+    // Title always first
     sections.push(
       new Paragraph({
         children: [new TextRun({ text: policy.name, bold: true, size: 36, font: 'Calibri' })],
@@ -878,188 +879,113 @@ const PolicyDetail = () => {
       })
     );
 
-    // Metadata line
-    sections.push(
-      new Paragraph({
-        children: [
-          new TextRun({ text: `${policy.policy_number || ''} | Status: ${policy.status} | Category: ${policy.category} | Version: v${policy.current_version}`, size: 20, color: '666666', font: 'Calibri' }),
-        ],
+    const addMetadata = () => {
+      sections.push(new Paragraph({
+        children: [new TextRun({ text: `${policy.policy_number || ''} | Status: ${policy.status} | Category: ${policy.category} | Version: v${policy.current_version}`, size: 20, color: '666666', font: 'Calibri' })],
         spacing: { after: 100 },
-      })
-    );
-    sections.push(
-      new Paragraph({
-        children: [
-          new TextRun({ text: `Last Updated: ${format(new Date(policy.updated_at), 'PPpp')}`, size: 20, color: '666666', font: 'Calibri' }),
-        ],
+      }));
+      sections.push(new Paragraph({
+        children: [new TextRun({ text: `Last Updated: ${format(new Date(policy.updated_at), 'PPpp')}`, size: 20, color: '666666', font: 'Calibri' })],
         spacing: { after: 200 },
-      })
-    );
+      }));
+      if (policy.description) {
+        sections.push(new Paragraph({ children: [new TextRun({ text: 'Description', bold: true, size: 24, font: 'Calibri' })], heading: HeadingLevel.HEADING_2, spacing: { after: 100 } }));
+        sections.push(new Paragraph({ children: [new TextRun({ text: policy.description, size: 22, font: 'Calibri' })], spacing: { after: 200 } }));
+      }
+    };
 
-    if (policy.description) {
-      sections.push(
-        new Paragraph({
-          children: [new TextRun({ text: 'Description', bold: true, size: 24, font: 'Calibri' })],
-          heading: HeadingLevel.HEADING_2,
-          spacing: { after: 100 },
-        })
-      );
-      sections.push(
-        new Paragraph({
-          children: [new TextRun({ text: policy.description, size: 22, font: 'Calibri' })],
-          spacing: { after: 200 },
-        })
-      );
-    }
-
-    // Content - convert HTML to simple paragraphs
-    const docxContentHtml = liveContentHtml ?? policy.content?.html;
-    if (docxContentHtml) {
-      sections.push(
-        new Paragraph({
-          children: [new TextRun({ text: 'Policy Content', bold: true, size: 24, font: 'Calibri' })],
-          heading: HeadingLevel.HEADING_2,
-          spacing: { after: 100 },
-        })
-      );
-
-      // Parse HTML to extract text blocks
+    const addDocumentContent = () => {
+      const docxContentHtml = liveContentHtml ?? policy.content?.html;
+      if (!docxContentHtml) return;
+      sections.push(new Paragraph({ children: [new TextRun({ text: 'Document Content', bold: true, size: 24, font: 'Calibri' })], heading: HeadingLevel.HEADING_2, spacing: { after: 100 } }));
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = docxContentHtml;
-
       const processNode = (node: Node) => {
         if (node.nodeType === Node.TEXT_NODE) {
           const text = node.textContent?.trim();
-          if (text) {
-            sections.push(new Paragraph({
-              children: [new TextRun({ text, size: 22, font: 'Calibri' })],
-              spacing: { after: 80 },
-            }));
-          }
+          if (text) sections.push(new Paragraph({ children: [new TextRun({ text, size: 22, font: 'Calibri' })], spacing: { after: 80 } }));
         } else if (node.nodeType === Node.ELEMENT_NODE) {
           const el = node as HTMLElement;
           const tag = el.tagName.toLowerCase();
-
           if (['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].includes(tag)) {
             const level = tag === 'h1' ? HeadingLevel.HEADING_1 : tag === 'h2' ? HeadingLevel.HEADING_2 : HeadingLevel.HEADING_3;
-            sections.push(new Paragraph({
-              children: [new TextRun({ text: el.textContent || '', bold: true, size: tag === 'h1' ? 32 : tag === 'h2' ? 28 : 24, font: 'Calibri' })],
-              heading: level,
-              spacing: { after: 120 },
-            }));
+            sections.push(new Paragraph({ children: [new TextRun({ text: el.textContent || '', bold: true, size: tag === 'h1' ? 32 : tag === 'h2' ? 28 : 24, font: 'Calibri' })], heading: level, spacing: { after: 120 } }));
           } else if (tag === 'p' || tag === 'div') {
             const text = el.textContent?.trim();
-            if (text) {
-              sections.push(new Paragraph({
-                children: [new TextRun({ text, size: 22, font: 'Calibri' })],
-                spacing: { after: 80 },
-              }));
-            }
+            if (text) sections.push(new Paragraph({ children: [new TextRun({ text, size: 22, font: 'Calibri' })], spacing: { after: 80 } }));
           } else if (tag === 'ul' || tag === 'ol') {
             el.querySelectorAll('li').forEach((li, idx) => {
               const bullet = tag === 'ul' ? '• ' : `${idx + 1}. `;
-              sections.push(new Paragraph({
-                children: [new TextRun({ text: bullet + (li.textContent || ''), size: 22, font: 'Calibri' })],
-                spacing: { after: 40 },
-                indent: { left: 400 },
-              }));
+              sections.push(new Paragraph({ children: [new TextRun({ text: bullet + (li.textContent || ''), size: 22, font: 'Calibri' })], spacing: { after: 40 }, indent: { left: 400 } }));
             });
           } else if (tag === 'table') {
             const rows = el.querySelectorAll('tr');
             if (rows.length > 0) {
               const docxRows = Array.from(rows).map((tr, rIdx) => {
                 const cells = tr.querySelectorAll('td, th');
-                return new DocxTableRow({
-                  children: Array.from(cells).map(cell => new DocxTableCell({
-                    children: [new Paragraph({
-                      children: [new TextRun({
-                        text: cell.textContent || '',
-                        bold: cell.tagName.toLowerCase() === 'th' || rIdx === 0,
-                        size: 20,
-                        font: 'Calibri',
-                      })],
-                    })],
-                    width: { size: 100 / cells.length, type: WidthType.PERCENTAGE },
-                  })),
-                });
+                return new DocxTableRow({ children: Array.from(cells).map(cell => new DocxTableCell({ children: [new Paragraph({ children: [new TextRun({ text: cell.textContent || '', bold: cell.tagName.toLowerCase() === 'th' || rIdx === 0, size: 20, font: 'Calibri' })] })], width: { size: 100 / cells.length, type: WidthType.PERCENTAGE } })) });
               });
               sections.push(new DocxTable({ rows: docxRows, width: { size: 100, type: WidthType.PERCENTAGE } }));
               sections.push(new Paragraph({ children: [], spacing: { after: 120 } }));
             }
           } else if (tag === 'blockquote') {
-            sections.push(new Paragraph({
-              children: [new TextRun({ text: el.textContent || '', italics: true, size: 22, color: '374151', font: 'Calibri' })],
-              indent: { left: 400 },
-              spacing: { after: 100 },
-            }));
+            sections.push(new Paragraph({ children: [new TextRun({ text: el.textContent || '', italics: true, size: 22, color: '374151', font: 'Calibri' })], indent: { left: 400 }, spacing: { after: 100 } }));
           } else {
-            // Recurse for other elements
             el.childNodes.forEach(child => processNode(child));
           }
         }
       };
-
       tempDiv.childNodes.forEach(child => processNode(child));
-    }
+    };
 
-    // Custom Fields Data in DOCX
-    if (policy.content?.custom_fields && (policy.content.custom_fields as any[]).length > 0) {
+    const addCustomFields = () => {
+      if (!policy.content?.custom_fields || !(policy.content.custom_fields as any[]).length) return;
       const fields = (policy.content.custom_fields as any[]).filter((f: any) => !['header', 'description', 'horizontal-line'].includes(f.type));
       const vals = (policy.content?.custom_field_values as Record<string, any>) || {};
-      if (fields.length > 0) {
-        sections.push(new Paragraph({
-          children: [new TextRun({ text: 'Custom Fields', bold: true, size: 24, font: 'Calibri' })],
-          heading: HeadingLevel.HEADING_2,
-          spacing: { before: 200, after: 100 },
-        }));
-        const docxRows = [
-          new DocxTableRow({
-            children: [
-              new DocxTableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Field', bold: true, size: 20, font: 'Calibri' })] })], width: { size: 40, type: WidthType.PERCENTAGE } }),
-              new DocxTableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Value', bold: true, size: 20, font: 'Calibri' })] })], width: { size: 60, type: WidthType.PERCENTAGE } }),
-            ],
-          }),
-          ...fields.sort((a: any, b: any) => a.order - b.order).map((field: any) => {
-            const raw = vals[field.id];
-            let display = '—';
-            if (raw !== null && raw !== undefined && raw !== '') {
-              if (Array.isArray(raw)) {
-                display = raw.map((v: string) => field.options?.find((o: any) => o.value === v)?.label || v).join(', ') || '—';
-              } else if (typeof raw === 'boolean') {
-                display = raw ? 'Yes' : 'No';
-              } else if ((field.type === 'select' || field.type === 'radio') && field.options) {
-                display = field.options.find((o: any) => o.value === raw)?.label || String(raw);
-              } else {
-                display = String(raw);
-              }
-            }
-            return new DocxTableRow({
-              children: [
-                new DocxTableCell({ children: [new Paragraph({ children: [new TextRun({ text: field.label, bold: true, size: 20, font: 'Calibri' })] })] }),
-                new DocxTableCell({ children: [new Paragraph({ children: [new TextRun({ text: display, size: 20, font: 'Calibri' })] })] }),
-              ],
-            });
-          }),
-        ];
-        sections.push(new DocxTable({ rows: docxRows, width: { size: 100, type: WidthType.PERCENTAGE } }));
-        sections.push(new Paragraph({ children: [], spacing: { after: 120 } }));
-      }
-    }
+      if (fields.length === 0) return;
+      sections.push(new Paragraph({ children: [new TextRun({ text: 'Custom Fields', bold: true, size: 24, font: 'Calibri' })], heading: HeadingLevel.HEADING_2, spacing: { before: 200, after: 100 } }));
+      const docxRows = [
+        new DocxTableRow({ children: [
+          new DocxTableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Field', bold: true, size: 20, font: 'Calibri' })] })], width: { size: 40, type: WidthType.PERCENTAGE } }),
+          new DocxTableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Value', bold: true, size: 20, font: 'Calibri' })] })], width: { size: 60, type: WidthType.PERCENTAGE } }),
+        ] }),
+        ...fields.sort((a: any, b: any) => a.order - b.order).map((field: any) => {
+          const raw = vals[field.id];
+          let display = '—';
+          if (raw !== null && raw !== undefined && raw !== '') {
+            if (Array.isArray(raw)) display = raw.map((v: string) => field.options?.find((o: any) => o.value === v)?.label || v).join(', ') || '—';
+            else if (typeof raw === 'boolean') display = raw ? 'Yes' : 'No';
+            else if ((field.type === 'select' || field.type === 'radio') && field.options) display = field.options.find((o: any) => o.value === raw)?.label || String(raw);
+            else display = String(raw);
+          }
+          return new DocxTableRow({ children: [
+            new DocxTableCell({ children: [new Paragraph({ children: [new TextRun({ text: field.label, bold: true, size: 20, font: 'Calibri' })] })] }),
+            new DocxTableCell({ children: [new Paragraph({ children: [new TextRun({ text: display, size: 20, font: 'Calibri' })] })] }),
+          ] });
+        }),
+      ];
+      sections.push(new DocxTable({ rows: docxRows, width: { size: 100, type: WidthType.PERCENTAGE } }));
+      sections.push(new Paragraph({ children: [], spacing: { after: 120 } }));
+    };
 
-    // Attachments
-    const pdfAttachments = (policy.attachments || []).filter((att: any) => att.show_in_pdf !== false);
-    if (pdfAttachments.length > 0) {
-      sections.push(new Paragraph({
-        children: [new TextRun({ text: 'Attachments', bold: true, size: 24, font: 'Calibri' })],
-        heading: HeadingLevel.HEADING_2,
-        spacing: { before: 200, after: 100 },
-      }));
+    const addAttachments = () => {
+      const pdfAttachments = (policy.attachments || []).filter((att: any) => att.show_in_pdf !== false);
+      if (pdfAttachments.length === 0) return;
+      sections.push(new Paragraph({ children: [new TextRun({ text: 'Attachments', bold: true, size: 24, font: 'Calibri' })], heading: HeadingLevel.HEADING_2, spacing: { before: 200, after: 100 } }));
       pdfAttachments.forEach((att: any) => {
-        sections.push(new Paragraph({
-          children: [new TextRun({ text: `• ${att.name}${att.url ? ' — ' + att.url : ''}`, size: 20, font: 'Calibri' })],
-          spacing: { after: 40 },
-        }));
+        sections.push(new Paragraph({ children: [new TextRun({ text: `• ${att.name}${att.url ? ' — ' + att.url : ''}`, size: 20, font: 'Calibri' })], spacing: { after: 40 } }));
       });
+    };
+
+    // Render in section order
+    for (const section of currentSectionOrder) {
+      switch (section) {
+        case 'metadata': addMetadata(); break;
+        case 'document_content': addDocumentContent(); break;
+        case 'custom_fields': addCustomFields(); break;
+        case 'attachments': addAttachments(); break;
+        // dynamic_fields not supported in simple DOCX export (kept in original docx flow)
+      }
     }
 
     const doc = new Document({
