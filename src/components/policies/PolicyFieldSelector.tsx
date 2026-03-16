@@ -3,17 +3,20 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, ListFilter } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { CheckCircle, ListFilter, Tag } from 'lucide-react';
 
 interface PolicyFieldSelectorProps {
   formId: string;
   selectedFieldIds: string[];
   onSelectedFieldsChange: (ids: string[]) => void;
+  recordNameFieldId?: string;
+  onRecordNameFieldChange?: (id: string) => void;
 }
 
 const EXCLUDED_TYPES = ['section', 'divider', 'heading', 'paragraph', 'spacer', 'page-break'];
 
-export function PolicyFieldSelector({ formId, selectedFieldIds, onSelectedFieldsChange }: PolicyFieldSelectorProps) {
+export function PolicyFieldSelector({ formId, selectedFieldIds, onSelectedFieldsChange, recordNameFieldId, onRecordNameFieldChange }: PolicyFieldSelectorProps) {
   const fieldsQuery = useQuery({
     queryKey: ['form-fields-for-policy-select', formId],
     queryFn: async () => {
@@ -38,13 +41,8 @@ export function PolicyFieldSelector({ formId, selectedFieldIds, onSelectedFields
     }
   };
 
-  const selectAll = () => {
-    onSelectedFieldsChange(fields.map(f => f.id));
-  };
-
-  const clearAll = () => {
-    onSelectedFieldsChange([]);
-  };
+  const selectAll = () => onSelectedFieldsChange(fields.map(f => f.id));
+  const clearAll = () => onSelectedFieldsChange([]);
 
   if (fieldsQuery.isLoading) {
     return <p className="text-xs text-muted-foreground py-2">Loading fields...</p>;
@@ -55,7 +53,27 @@ export function PolicyFieldSelector({ formId, selectedFieldIds, onSelectedFields
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
+      {/* Record Name Field Selector */}
+      {onRecordNameFieldChange && (
+        <div className="p-3 border rounded-md bg-muted/30 space-y-1.5">
+          <div className="flex items-center gap-1.5">
+            <Tag className="h-3.5 w-3.5 text-primary" />
+            <Label className="text-xs font-medium">Record Name Field</Label>
+          </div>
+          <p className="text-[11px] text-muted-foreground">Select a field whose value will be used as the record title instead of "Record 1, Record 2..."</p>
+          <Select value={recordNameFieldId || '__none__'} onValueChange={v => onRecordNameFieldChange(v === '__none__' ? '' : v)}>
+            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Default (Record 1, 2...)" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none__">Default (Record 1, 2...)</SelectItem>
+              {fields.filter(f => ['text', 'email', 'number', 'select', 'radio'].includes(f.field_type)).map(f => (
+                <SelectItem key={f.id} value={f.id}>{f.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <ListFilter className="h-4 w-4 text-primary" />

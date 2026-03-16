@@ -66,6 +66,9 @@ const PolicyDetail = () => {
   const [contentDirty, setContentDirty] = useState(false);
   const [showSaveConfirmDialog, setShowSaveConfirmDialog] = useState(false);
   const [contentExpanded, setContentExpanded] = useState(true);
+  const [exportColumns, setExportColumns] = useState<number>(
+    (policies.find(p => p.id === id)?.content?.export_columns as number) || 1
+  );
 
   const DEFAULT_SECTION_ORDER = ['metadata', 'document_content', 'custom_fields', 'dynamic_fields', 'attachments'];
   const getSectionOrder = (): string[] => {
@@ -543,6 +546,7 @@ const PolicyDetail = () => {
       const fields = (policy.content.custom_fields as any[]).filter((f: any) => !['header', 'description', 'horizontal-line'].includes(f.type));
       const vals = (policy.content?.custom_field_values as Record<string, any>) || {};
       if (fields.length === 0) return;
+      const cols = (policy.content?.export_columns as number) || 1;
       yPos += 8;
       ensureSpace(30);
       doc.setFontSize(13);
@@ -559,15 +563,36 @@ const PolicyDetail = () => {
         }
         return [field.label, display];
       });
-      autoTable(doc, {
-        head: [['Field', 'Value']],
-        body: customRows,
-        startY: yPos,
-        margin: { left: 14 },
-        styles: { fontSize: 9 },
-        headStyles: { fillColor: [60, 60, 60] },
-      });
-      yPos = (doc as any).lastAutoTable?.finalY + 6 || yPos + 10;
+
+      if (cols > 1) {
+        const rowsPerCol = Math.ceil(customRows.length / cols);
+        const colWidth = (doc.internal.pageSize.getWidth() - 28) / cols;
+        for (let c = 0; c < cols; c++) {
+          const colRows = customRows.slice(c * rowsPerCol, (c + 1) * rowsPerCol);
+          if (colRows.length > 0) {
+            autoTable(doc, {
+              head: [['Field', 'Value']],
+              body: colRows,
+              startY: yPos,
+              margin: { left: 14 + c * colWidth },
+              tableWidth: colWidth - 4,
+              styles: { fontSize: 8 },
+              headStyles: { fillColor: [60, 60, 60] },
+            });
+          }
+        }
+        yPos = (doc as any).lastAutoTable?.finalY + 6 || yPos + 10;
+      } else {
+        autoTable(doc, {
+          head: [['Field', 'Value']],
+          body: customRows,
+          startY: yPos,
+          margin: { left: 14 },
+          styles: { fontSize: 9 },
+          headStyles: { fillColor: [60, 60, 60] },
+        });
+        yPos = (doc as any).lastAutoTable?.finalY + 6 || yPos + 10;
+      }
     };
 
     const renderDynamicFields = async () => {
@@ -644,6 +669,8 @@ const PolicyDetail = () => {
         };
 
         if (submissions.length > 0) {
+          const recordNameFId = policy.content?.record_name_field_id as string | undefined;
+          const cols = (policy.content?.export_columns as number) || 1;
           yPos += 8;
           ensureSpace(30);
           doc.setFontSize(13);
@@ -652,18 +679,42 @@ const PolicyDetail = () => {
 
           submissions.forEach((sub: any, idx: number) => {
             const refId = sub.submission_ref_id || sub.id.slice(0, 8);
+            const nameVal = recordNameFId ? (sub.submission_data || {})[recordNameFId] : null;
+            const recordLabel = nameVal && typeof nameVal === 'string' && nameVal.trim() ? nameVal.trim() : `Record ${idx + 1}`;
             ensureSpace(25);
             doc.setFontSize(11);
             doc.setFont('helvetica', 'bold');
-            doc.text(`Record ${idx + 1} — ${refId}`, 14, yPos);
+            doc.text(`${recordLabel} — ${refId}`, 14, yPos);
             doc.setFont('helvetica', 'normal');
             yPos += 6;
             const data = sub.submission_data || {};
 
             if (displayFormat === 'table') {
-              const tableRows = fields.map((f: any) => [f.label, pdfFmtVal(data[f.id], f.field_type, f.options)]);
-              autoTable(doc, { head: [['Field', 'Value']], body: tableRows, startY: yPos, margin: { left: 14 }, styles: { fontSize: 9 }, headStyles: { fillColor: [60, 60, 60] } });
-              yPos = (doc as any).lastAutoTable?.finalY + 6 || yPos + 10;
+              if (cols > 1) {
+                // Multi-column table layout
+                const allRows = fields.map((f: any) => [f.label, pdfFmtVal(data[f.id], f.field_type, f.options)]);
+                const rowsPerCol = Math.ceil(allRows.length / cols);
+                const colWidth = (doc.internal.pageSize.getWidth() - 28) / cols;
+                for (let c = 0; c < cols; c++) {
+                  const colRows = allRows.slice(c * rowsPerCol, (c + 1) * rowsPerCol);
+                  if (colRows.length > 0) {
+                    autoTable(doc, {
+                      head: [['Field', 'Value']],
+                      body: colRows,
+                      startY: yPos,
+                      margin: { left: 14 + c * colWidth },
+                      tableWidth: colWidth - 4,
+                      styles: { fontSize: 8 },
+                      headStyles: { fillColor: [60, 60, 60] },
+                    });
+                  }
+                }
+                yPos = (doc as any).lastAutoTable?.finalY + 6 || yPos + 10;
+              } else {
+                const tableRows = fields.map((f: any) => [f.label, pdfFmtVal(data[f.id], f.field_type, f.options)]);
+                autoTable(doc, { head: [['Field', 'Value']], body: tableRows, startY: yPos, margin: { left: 14 }, styles: { fontSize: 9 }, headStyles: { fillColor: [60, 60, 60] } });
+                yPos = (doc as any).lastAutoTable?.finalY + 6 || yPos + 10;
+              }
             } else {
               doc.setFontSize(10);
               fields.forEach((f: any) => {
@@ -1173,9 +1224,12 @@ const PolicyDetail = () => {
 
       if (subs.length > 0) {
         cps.push('<w:p><w:r><w:rPr><w:b/><w:sz w:val="28"/></w:rPr><w:t xml:space="preserve">Dynamic Data</w:t></w:r></w:p>');
+        const recordNameFId2 = policy.content?.record_name_field_id as string | undefined;
         subs.forEach((s: any, i: number) => {
           const refId = s.submission_ref_id || s.id.slice(0, 8);
-          cps.push('<w:p><w:r><w:rPr><w:b/><w:sz w:val="24"/></w:rPr><w:t xml:space="preserve">' + esc('Record ' + (i + 1) + ' \u2014 ' + refId) + '</w:t></w:r></w:p>');
+          const nameVal2 = recordNameFId2 ? (s.submission_data || {})[recordNameFId2] : null;
+          const recordLabel2 = nameVal2 && typeof nameVal2 === 'string' && nameVal2.trim() ? nameVal2.trim() : 'Record ' + (i + 1);
+          cps.push('<w:p><w:r><w:rPr><w:b/><w:sz w:val="24"/></w:rPr><w:t xml:space="preserve">' + esc(recordLabel2 + ' \u2014 ' + refId) + '</w:t></w:r></w:p>');
           const d = s.submission_data || {};
 
           let tx = '<w:tbl><w:tblPr><w:tblW w:w="5000" w:type="pct"/><w:tblBorders>' +
@@ -1919,10 +1973,30 @@ const PolicyDetail = () => {
                                 </div>
                                 <span className="text-sm font-medium text-foreground flex-1">Dynamic Fields Display</span>
                                 <Select
+                                  value={String(exportColumns)}
+                                  onValueChange={async v => {
+                                    const cols = Number(v);
+                                    setExportColumns(cols);
+                                    await updatePolicy.mutateAsync({
+                                      id: policy.id,
+                                      content: { ...(policy.content || {}), export_columns: cols },
+                                    });
+                                  }}
+                                >
+                                  <SelectTrigger className="w-[120px] h-8 text-xs">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="1">1 Column</SelectItem>
+                                    <SelectItem value="2">2 Columns</SelectItem>
+                                    <SelectItem value="3">3 Columns</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <Select
                                   value={dynamicFieldsFormat}
                                   onValueChange={v => setDynamicFieldsFormat(v as 'table' | 'field-value')}
                                 >
-                                  <SelectTrigger className="w-[200px] h-8 text-xs">
+                                  <SelectTrigger className="w-[150px] h-8 text-xs">
                                     <SelectValue />
                                   </SelectTrigger>
                                   <SelectContent>
@@ -1936,6 +2010,8 @@ const PolicyDetail = () => {
                                 displayFormat={dynamicFieldsFormat}
                                 selectedFieldIds={policy.content?.selected_field_ids as string[] | undefined}
                                 selectedRecordIds={policy.content?.selected_record_ids as string[] | undefined}
+                                recordNameFieldId={policy.content?.record_name_field_id as string | undefined}
+                                exportColumns={exportColumns}
                                 recordComments={(policy.content?.record_comments as Record<string, any>) || {}}
                                 onAddComment={canEdit ? async (recordId, comment) => {
                                   const existing = (policy.content?.record_comments as Record<string, any[]>) || {};
