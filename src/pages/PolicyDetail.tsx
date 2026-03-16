@@ -66,6 +66,9 @@ const PolicyDetail = () => {
   const [contentDirty, setContentDirty] = useState(false);
   const [showSaveConfirmDialog, setShowSaveConfirmDialog] = useState(false);
   const [contentExpanded, setContentExpanded] = useState(true);
+  const [exportColumns, setExportColumns] = useState<number>(
+    (policies.find(p => p.id === id)?.content?.export_columns as number) || 1
+  );
 
   const DEFAULT_SECTION_ORDER = ['metadata', 'document_content', 'custom_fields', 'dynamic_fields', 'attachments'];
   const getSectionOrder = (): string[] => {
