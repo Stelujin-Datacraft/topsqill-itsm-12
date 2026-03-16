@@ -647,6 +647,8 @@ const PolicyDetail = () => {
         };
 
         if (submissions.length > 0) {
+          const recordNameFId = policy.content?.record_name_field_id as string | undefined;
+          const cols = (policy.content?.export_columns as number) || 1;
           yPos += 8;
           ensureSpace(30);
           doc.setFontSize(13);
@@ -655,18 +657,42 @@ const PolicyDetail = () => {
 
           submissions.forEach((sub: any, idx: number) => {
             const refId = sub.submission_ref_id || sub.id.slice(0, 8);
+            const nameVal = recordNameFId ? (sub.submission_data || {})[recordNameFId] : null;
+            const recordLabel = nameVal && typeof nameVal === 'string' && nameVal.trim() ? nameVal.trim() : `Record ${idx + 1}`;
             ensureSpace(25);
             doc.setFontSize(11);
             doc.setFont('helvetica', 'bold');
-            doc.text(`Record ${idx + 1} — ${refId}`, 14, yPos);
+            doc.text(`${recordLabel} — ${refId}`, 14, yPos);
             doc.setFont('helvetica', 'normal');
             yPos += 6;
             const data = sub.submission_data || {};
 
             if (displayFormat === 'table') {
-              const tableRows = fields.map((f: any) => [f.label, pdfFmtVal(data[f.id], f.field_type, f.options)]);
-              autoTable(doc, { head: [['Field', 'Value']], body: tableRows, startY: yPos, margin: { left: 14 }, styles: { fontSize: 9 }, headStyles: { fillColor: [60, 60, 60] } });
-              yPos = (doc as any).lastAutoTable?.finalY + 6 || yPos + 10;
+              if (cols > 1) {
+                // Multi-column table layout
+                const allRows = fields.map((f: any) => [f.label, pdfFmtVal(data[f.id], f.field_type, f.options)]);
+                const rowsPerCol = Math.ceil(allRows.length / cols);
+                const colWidth = (doc.internal.pageSize.getWidth() - 28) / cols;
+                for (let c = 0; c < cols; c++) {
+                  const colRows = allRows.slice(c * rowsPerCol, (c + 1) * rowsPerCol);
+                  if (colRows.length > 0) {
+                    autoTable(doc, {
+                      head: [['Field', 'Value']],
+                      body: colRows,
+                      startY: yPos,
+                      margin: { left: 14 + c * colWidth },
+                      tableWidth: colWidth - 4,
+                      styles: { fontSize: 8 },
+                      headStyles: { fillColor: [60, 60, 60] },
+                    });
+                  }
+                }
+                yPos = (doc as any).lastAutoTable?.finalY + 6 || yPos + 10;
+              } else {
+                const tableRows = fields.map((f: any) => [f.label, pdfFmtVal(data[f.id], f.field_type, f.options)]);
+                autoTable(doc, { head: [['Field', 'Value']], body: tableRows, startY: yPos, margin: { left: 14 }, styles: { fontSize: 9 }, headStyles: { fillColor: [60, 60, 60] } });
+                yPos = (doc as any).lastAutoTable?.finalY + 6 || yPos + 10;
+              }
             } else {
               doc.setFontSize(10);
               fields.forEach((f: any) => {
