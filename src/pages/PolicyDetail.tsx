@@ -546,6 +546,7 @@ const PolicyDetail = () => {
       const fields = (policy.content.custom_fields as any[]).filter((f: any) => !['header', 'description', 'horizontal-line'].includes(f.type));
       const vals = (policy.content?.custom_field_values as Record<string, any>) || {};
       if (fields.length === 0) return;
+      const cols = (policy.content?.export_columns as number) || 1;
       yPos += 8;
       ensureSpace(30);
       doc.setFontSize(13);
@@ -562,15 +563,36 @@ const PolicyDetail = () => {
         }
         return [field.label, display];
       });
-      autoTable(doc, {
-        head: [['Field', 'Value']],
-        body: customRows,
-        startY: yPos,
-        margin: { left: 14 },
-        styles: { fontSize: 9 },
-        headStyles: { fillColor: [60, 60, 60] },
-      });
-      yPos = (doc as any).lastAutoTable?.finalY + 6 || yPos + 10;
+
+      if (cols > 1) {
+        const rowsPerCol = Math.ceil(customRows.length / cols);
+        const colWidth = (doc.internal.pageSize.getWidth() - 28) / cols;
+        for (let c = 0; c < cols; c++) {
+          const colRows = customRows.slice(c * rowsPerCol, (c + 1) * rowsPerCol);
+          if (colRows.length > 0) {
+            autoTable(doc, {
+              head: [['Field', 'Value']],
+              body: colRows,
+              startY: yPos,
+              margin: { left: 14 + c * colWidth },
+              tableWidth: colWidth - 4,
+              styles: { fontSize: 8 },
+              headStyles: { fillColor: [60, 60, 60] },
+            });
+          }
+        }
+        yPos = (doc as any).lastAutoTable?.finalY + 6 || yPos + 10;
+      } else {
+        autoTable(doc, {
+          head: [['Field', 'Value']],
+          body: customRows,
+          startY: yPos,
+          margin: { left: 14 },
+          styles: { fontSize: 9 },
+          headStyles: { fillColor: [60, 60, 60] },
+        });
+        yPos = (doc as any).lastAutoTable?.finalY + 6 || yPos + 10;
+      }
     };
 
     const renderDynamicFields = async () => {
