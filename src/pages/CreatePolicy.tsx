@@ -179,110 +179,102 @@ const CreatePolicy = () => {
           </CardContent>
         </Card>
 
-        {/* Dynamic Fields (left) + Policy Content (right) */}
-        <div className="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-4">
-          {/* Dynamic Fields - Left Sidebar */}
-          <Card className="h-fit">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg">Dynamic Fields</CardTitle>
-                {form.form_id && (
-                  <Select
-                    value={form.dynamic_fields_display}
-                    onValueChange={v => updateField('dynamic_fields_display', v as 'table' | 'field-value')}
-                  >
-                    <SelectTrigger className="w-[130px] h-8 text-xs">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="table">Table Format</SelectItem>
-                      <SelectItem value="field-value">Field & Value</SelectItem>
-                    </SelectContent>
-                  </Select>
-                )}
-              </div>
-            </CardHeader>
-                        <CardContent className="space-y-4">
-              <PolicyFormLink
-                formId={form.form_id}
-                onFormIdChange={(id) => {
-                  updateField("form_id", id);
-                  if (!id) updateField("selected_field_ids", []);
-                }}
-              />
+        {/* Policy Content - Full Width */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Policy Content</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <PolicyContentSource
+              contentHtml={form.content_html}
+              onContentChange={html => updateField('content_html', html)}
+              onOriginalFileChange={setOriginalDocxFile}
+              templates={templates}
+              templatesLoading={templatesLoading}
+              selectedTemplate={selectedTemplate}
+              onTemplateSelect={handleTemplateSelect}
+              mode={contentMode}
+              onModeChange={setContentMode}
+            />
+          </CardContent>
+        </Card>
 
+        {/* Dynamic Fields - Full Width Below Content */}
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg">Dynamic Fields</CardTitle>
               {form.form_id && (
-                <>
-                  {/* Buttons */}
-
-
-                  <div className="flex gap-2">
-
-                    <button
-                      type="button"
-                      onClick={() => setActiveView("records")}
-                      className={`px-3 py-1 text-sm rounded-md border ${activeView === "records" ? "bg-primary text-white" : ""
-                        }`}
-                    >
-                      Select Records
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setActiveView("fields")}
-                      className={`px-3 py-1 text-sm rounded-md border ${activeView === "fields" ? "bg-primary text-white" : ""
-                        }`}
-                    >
-                      Select Fields
-                    </button>
-
-
-                  </div>
-
-                  {/* Dynamic Section */}
-                  {activeView === "fields" && (
-                    <PolicyFieldSelector
-                      formId={form.form_id}
-                      selectedFieldIds={form.selected_field_ids}
-                      onSelectedFieldsChange={(ids) =>
-                        updateField("selected_field_ids", ids)
-                      }
-                    />
-                  )}
-
-                  {activeView === "records" && (
-                    <PolicyRecordSelector
-                      formId={form.form_id}
-                      selectedFieldIds={form.selected_field_ids}
-                      selectedRecordIds={selectedRecords}
-                      onSelectedRecordsChange={setSelectedRecords}
-                    />
-                  )}
-                </>
+                <Select
+                  value={form.dynamic_fields_display}
+                  onValueChange={v => updateField('dynamic_fields_display', v as 'table' | 'field-value')}
+                >
+                  <SelectTrigger className="w-[130px] h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="table">Table Format</SelectItem>
+                    <SelectItem value="field-value">Field & Value</SelectItem>
+                  </SelectContent>
+                </Select>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <PolicyFormLink
+              formId={form.form_id}
+              onFormIdChange={(id) => {
+                updateField("form_id", id);
+                if (!id) {
+                  updateField("selected_field_ids", []);
+                  setRecordNameFieldId('');
+                }
+              }}
+            />
 
-          {/* Policy Content Source - Right */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Policy Content</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <PolicyContentSource
-                contentHtml={form.content_html}
-                onContentChange={html => updateField('content_html', html)}
-                onOriginalFileChange={setOriginalDocxFile}
-                templates={templates}
-                templatesLoading={templatesLoading}
-                selectedTemplate={selectedTemplate}
-                onTemplateSelect={handleTemplateSelect}
-                mode={contentMode}
-                onModeChange={setContentMode}
-              />
-            </CardContent>
-          </Card>
-        </div>
+            {form.form_id && (
+              <>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setActiveView("records")}
+                    className={`px-3 py-1 text-sm rounded-md border ${activeView === "records" ? "bg-primary text-primary-foreground" : ""}`}
+                  >
+                    Select Records
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveView("fields")}
+                    className={`px-3 py-1 text-sm rounded-md border ${activeView === "fields" ? "bg-primary text-primary-foreground" : ""}`}
+                  >
+                    Select Fields
+                  </button>
+                </div>
+
+                {activeView === "fields" && (
+                  <PolicyFieldSelector
+                    formId={form.form_id}
+                    selectedFieldIds={form.selected_field_ids}
+                    onSelectedFieldsChange={(ids) =>
+                      updateField("selected_field_ids", ids)
+                    }
+                    recordNameFieldId={recordNameFieldId}
+                    onRecordNameFieldChange={setRecordNameFieldId}
+                  />
+                )}
+
+                {activeView === "records" && (
+                  <PolicyRecordSelector
+                    formId={form.form_id}
+                    selectedFieldIds={form.selected_field_ids}
+                    selectedRecordIds={selectedRecords}
+                    onSelectedRecordsChange={setSelectedRecords}
+                  />
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Custom Fields Builder + Values Entry */}
         <PolicyCustomFieldsBuilder
