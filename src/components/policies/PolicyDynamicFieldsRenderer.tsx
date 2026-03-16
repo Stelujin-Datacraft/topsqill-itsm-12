@@ -30,9 +30,11 @@ interface PolicyDynamicFieldsRendererProps {
   recordComments?: Record<string, RecordComment[]>;
   onAddComment?: (recordId: string, comment: RecordComment) => void;
   currentUserName?: string;
+  recordNameFieldId?: string;
+  exportColumns?: number;
 }
 
-export function PolicyDynamicFieldsRenderer({ formId, displayFormat, selectedFieldIds, selectedRecordIds, recordComments, onAddComment, currentUserName }: PolicyDynamicFieldsRendererProps) {
+export function PolicyDynamicFieldsRenderer({ formId, displayFormat, selectedFieldIds, selectedRecordIds, recordComments, onAddComment, currentUserName, recordNameFieldId, exportColumns }: PolicyDynamicFieldsRendererProps) {
   const formQuery = useQuery({
     queryKey: ['policy-form-info', formId],
     queryFn: async () => {
