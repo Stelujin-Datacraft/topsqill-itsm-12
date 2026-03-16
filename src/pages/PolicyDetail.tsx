@@ -1959,6 +1959,8 @@ const PolicyDetail = () => {
                                 displayFormat={dynamicFieldsFormat}
                                 selectedFieldIds={policy.content?.selected_field_ids as string[] | undefined}
                                 selectedRecordIds={policy.content?.selected_record_ids as string[] | undefined}
+                                recordNameFieldId={policy.content?.record_name_field_id as string | undefined}
+                                exportColumns={exportColumns}
                                 recordComments={(policy.content?.record_comments as Record<string, any>) || {}}
                                 onAddComment={canEdit ? async (recordId, comment) => {
                                   const existing = (policy.content?.record_comments as Record<string, any[]>) || {};
