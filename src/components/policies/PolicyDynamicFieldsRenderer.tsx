@@ -195,7 +195,13 @@ export function PolicyDynamicFieldsRenderer({ formId, displayFormat, selectedFie
 
       {submissions.map((submission, index) => {
         const refId = submission.submission_ref_id || submission.id.slice(0, 8);
-        const sectionTitle = `Record ${index + 1} — ${refId}`;
+        const nameFieldValue = recordNameFieldId
+          ? (submission.submission_data as Record<string, any>)?.[recordNameFieldId]
+          : null;
+        const recordLabel = nameFieldValue && typeof nameFieldValue === 'string' && nameFieldValue.trim()
+          ? nameFieldValue.trim()
+          : `Record ${index + 1}`;
+        const sectionTitle = `${recordLabel} — ${refId}`;
         const comments = recordComments?.[submission.id] || [];
 
         return (
