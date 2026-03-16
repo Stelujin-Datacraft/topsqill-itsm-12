@@ -278,20 +278,13 @@ const CreatePolicy = () => {
           </CardContent>
         </Card>
 
-        {/* Custom Fields Builder + Values Entry */}
+        {/* Custom Fields Builder with inline values */}
         <PolicyCustomFieldsBuilder
           fields={customFields}
           onFieldsChange={setCustomFields}
+          values={customFieldValues}
+          onValuesChange={setCustomFieldValues}
         />
-
-        {/* Custom Field Values (if fields exist) */}
-        {customFields.length > 0 && (
-          <PolicyCustomFieldsRenderer
-            fields={customFields}
-            values={customFieldValues}
-            onChange={setCustomFieldValues}
-          />
-        )}
       </div>
     </PageContent>
   );
