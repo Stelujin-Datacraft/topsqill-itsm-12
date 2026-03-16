@@ -1224,9 +1224,12 @@ const PolicyDetail = () => {
 
       if (subs.length > 0) {
         cps.push('<w:p><w:r><w:rPr><w:b/><w:sz w:val="28"/></w:rPr><w:t xml:space="preserve">Dynamic Data</w:t></w:r></w:p>');
+        const recordNameFId2 = policy.content?.record_name_field_id as string | undefined;
         subs.forEach((s: any, i: number) => {
           const refId = s.submission_ref_id || s.id.slice(0, 8);
-          cps.push('<w:p><w:r><w:rPr><w:b/><w:sz w:val="24"/></w:rPr><w:t xml:space="preserve">' + esc('Record ' + (i + 1) + ' \u2014 ' + refId) + '</w:t></w:r></w:p>');
+          const nameVal2 = recordNameFId2 ? (s.submission_data || {})[recordNameFId2] : null;
+          const recordLabel2 = nameVal2 && typeof nameVal2 === 'string' && nameVal2.trim() ? nameVal2.trim() : 'Record ' + (i + 1);
+          cps.push('<w:p><w:r><w:rPr><w:b/><w:sz w:val="24"/></w:rPr><w:t xml:space="preserve">' + esc(recordLabel2 + ' \u2014 ' + refId) + '</w:t></w:r></w:p>');
           const d = s.submission_data || {};
 
           let tx = '<w:tbl><w:tblPr><w:tblW w:w="5000" w:type="pct"/><w:tblBorders>' +
