@@ -1922,10 +1922,30 @@ const PolicyDetail = () => {
                                 </div>
                                 <span className="text-sm font-medium text-foreground flex-1">Dynamic Fields Display</span>
                                 <Select
+                                  value={String(exportColumns)}
+                                  onValueChange={async v => {
+                                    const cols = Number(v);
+                                    setExportColumns(cols);
+                                    await updatePolicy.mutateAsync({
+                                      id: policy.id,
+                                      content: { ...(policy.content || {}), export_columns: cols },
+                                    });
+                                  }}
+                                >
+                                  <SelectTrigger className="w-[120px] h-8 text-xs">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="1">1 Column</SelectItem>
+                                    <SelectItem value="2">2 Columns</SelectItem>
+                                    <SelectItem value="3">3 Columns</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <Select
                                   value={dynamicFieldsFormat}
                                   onValueChange={v => setDynamicFieldsFormat(v as 'table' | 'field-value')}
                                 >
-                                  <SelectTrigger className="w-[200px] h-8 text-xs">
+                                  <SelectTrigger className="w-[150px] h-8 text-xs">
                                     <SelectValue />
                                   </SelectTrigger>
                                   <SelectContent>
