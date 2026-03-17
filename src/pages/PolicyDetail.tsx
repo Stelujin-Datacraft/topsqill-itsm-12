@@ -1943,6 +1943,48 @@ const PolicyDetail = () => {
                                     <Droppable droppableId="custom-fields-list">
                                       {(cfProvided) => (
                                         <div ref={cfProvided.innerRef} {...cfProvided.droppableProps}>
+                                          {exportColumns > 1 ? (
+                                            <div className={`grid gap-3 ${exportColumns === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
+                                              {fields.sort((a: any, b: any) => a.order - b.order).map((field: any, fIdx: number) => {
+                                                const raw = vals[field.id];
+                                                let display = '—';
+                                                if (raw !== null && raw !== undefined && raw !== '') {
+                                                  if (Array.isArray(raw)) {
+                                                    const opts = field.options || [];
+                                                    display = raw.map((v: string) => opts.find((o: any) => o.value === v)?.label || v).join(', ') || '—';
+                                                  } else if (typeof raw === 'boolean') {
+                                                    display = raw ? 'Yes' : 'No';
+                                                  } else if (field.type === 'rating') {
+                                                    display = '★'.repeat(Number(raw));
+                                                  } else if ((field.type === 'select' || field.type === 'radio') && field.options) {
+                                                    display = field.options.find((o: any) => o.value === raw)?.label || String(raw);
+                                                  } else {
+                                                    display = String(raw);
+                                                  }
+                                                }
+                                                return (
+                                                  <Draggable key={field.id} draggableId={`cf-${field.id}`} index={fIdx}>
+                                                    {(cfDrag, cfSnap) => (
+                                                      <div
+                                                        ref={cfDrag.innerRef}
+                                                        {...cfDrag.draggableProps}
+                                                        className={`p-3 border rounded-md ${cfSnap.isDragging ? 'bg-primary/5 shadow' : 'bg-muted/20'}`}
+                                                      >
+                                                        <div className="flex items-center gap-1 mb-1">
+                                                          <div {...cfDrag.dragHandleProps}>
+                                                            <GripVertical className="h-3 w-3 text-muted-foreground cursor-grab" />
+                                                          </div>
+                                                          <span className="text-xs font-medium text-muted-foreground">{field.label}</span>
+                                                        </div>
+                                                        <p className="text-sm font-medium">{display}</p>
+                                                      </div>
+                                                    )}
+                                                  </Draggable>
+                                                );
+                                              })}
+                                              {cfProvided.placeholder}
+                                            </div>
+                                          ) : (
                                           <table className="w-full text-sm border-collapse">
                                             <thead>
                                               <tr className="border-b bg-muted/50">
@@ -1990,6 +2032,7 @@ const PolicyDetail = () => {
                                               {cfProvided.placeholder}
                                             </tbody>
                                           </table>
+                                          )}
                                         </div>
                                       )}
                                     </Droppable>
