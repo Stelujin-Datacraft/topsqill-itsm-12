@@ -39,6 +39,7 @@ import { PolicyVersionDiff } from '@/components/policies/PolicyVersionDiff';
 import { PolicyCustomFieldsRenderer } from '@/components/policies/PolicyCustomFieldsRenderer';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { sendKBNotificationEmail } from '@/services/kbNotificationEmail';
 
 const PolicyDetail = () => {
   const { id } = useParams<{ id: string }>();
