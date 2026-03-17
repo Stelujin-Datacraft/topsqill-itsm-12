@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { ArrowLeft, Edit, Save, X, Calendar, Clock, History } from 'lucide-react';
+import { ArrowLeft, Edit, Save, X, Calendar, Clock, History, MessageSquare } from 'lucide-react';
 import { SubmissionRefDisplay } from './SubmissionRefDisplay';
 import { FormFieldsRenderer } from './FormFieldsRenderer';
 import { FormPagination } from './FormPagination';
