@@ -96,6 +96,29 @@ function generateKBNotificationHtml(params: KBNotificationRequest & { recipientN
       ctaText = 'View Document';
       break;
 
+    case 'review_response':
+      const reviewOutcome = params.responseStatus === 'approved' ? 'completed' : 'flagged';
+      const reviewLabel = params.reviewType === 'pre' ? 'Pre-Review' : 'Post-Review';
+      title = `${reviewLabel} ${reviewOutcome === 'completed' ? 'Completed' : 'Flagged'}`;
+      subtitle = `A reviewer has ${reviewOutcome === 'completed' ? 'completed their review' : 'flagged issues'} on your document`;
+      accentColor = reviewOutcome === 'completed' ? '#8b5cf6' : '#f59e0b';
+      bodyContent = `
+        <p style="margin:0 0 15px;color:#333;font-size:15px;line-height:1.6;">Hi <strong>${params.recipientName}</strong>,</p>
+        <p style="margin:0 0 15px;color:#555;font-size:14px;line-height:1.6;">The <strong>${reviewLabel.toLowerCase()}</strong> for your document has been <strong style="color:${accentColor};">${reviewOutcome}</strong> by ${params.senderName || 'a reviewer'}.</p>
+        <table role="presentation" style="width:100%;border-collapse:collapse;margin:20px 0;">
+          <tr><td style="background-color:${reviewOutcome === 'completed' ? '#f5f3ff' : '#fffbeb'};border:1px solid ${reviewOutcome === 'completed' ? '#ddd6fe' : '#fde68a'};border-radius:8px;padding:20px;">
+            <table role="presentation" style="width:100%;border-collapse:collapse;">
+              <tr><td style="padding:6px 0;"><span style="color:${reviewOutcome === 'completed' ? '#5b21b6' : '#92400e'};font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Document</span><p style="margin:4px 0 0;color:#1e293b;font-size:16px;font-weight:700;">${params.policyName}</p></td></tr>
+              ${params.policyNumber ? `<tr><td style="padding:6px 0;border-top:1px dashed ${reviewOutcome === 'completed' ? '#ddd6fe' : '#fde68a'};"><span style="color:${reviewOutcome === 'completed' ? '#5b21b6' : '#92400e'};font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Document Number</span><p style="margin:4px 0 0;color:#1e293b;font-size:14px;font-weight:600;">${params.policyNumber}</p></td></tr>` : ''}
+              <tr><td style="padding:6px 0;border-top:1px dashed ${reviewOutcome === 'completed' ? '#ddd6fe' : '#fde68a'};"><span style="color:${reviewOutcome === 'completed' ? '#5b21b6' : '#92400e'};font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Review Type</span><p style="margin:4px 0 0;color:#1e293b;font-size:14px;font-weight:600;">${reviewLabel}</p></td></tr>
+              <tr><td style="padding:6px 0;border-top:1px dashed ${reviewOutcome === 'completed' ? '#ddd6fe' : '#fde68a'};"><span style="color:${reviewOutcome === 'completed' ? '#5b21b6' : '#92400e'};font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Outcome</span><p style="margin:4px 0 0;color:${accentColor};font-size:14px;font-weight:700;text-transform:uppercase;">${reviewOutcome}</p></td></tr>
+            </table>
+          </td></tr>
+        </table>
+        ${params.comment ? `<div style="background:#f8f9fc;border-left:3px solid ${accentColor};border-radius:0 6px 6px 0;padding:12px 15px;margin:15px 0;"><p style="margin:0;color:#64748b;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Reviewer's Findings</p><p style="margin:4px 0 0;color:#334155;font-size:14px;">${params.comment}</p></div>` : ''}`;
+      ctaText = 'View Document';
+      break;
+
     default:
       title = 'Document Notification';
       subtitle = 'You have a new notification';

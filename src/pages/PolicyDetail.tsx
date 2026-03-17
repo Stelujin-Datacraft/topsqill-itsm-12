@@ -2460,6 +2460,22 @@ const PolicyDetail = () => {
                     getUserName={getUserName}
                     onCompleteReview={async (cycleId, findings, outcome) => {
                       await completeReviewCycle.mutateAsync({ cycleId, findings, outcome });
+                      // Send review response email to document owner
+                      if (policy.created_by && currentOrganization?.id) {
+                        sendKBNotificationEmail({
+                          type: 'review_response',
+                          recipientUserId: policy.created_by,
+                          policyName: policy.name,
+                          policyNumber: policy.policy_number || undefined,
+                          policyId: policy.id,
+                          version: policy.current_version,
+                          organizationId: currentOrganization.id,
+                          senderName: userProfile ? `${userProfile.first_name || ''} ${userProfile.last_name || ''}`.trim() : undefined,
+                          reviewType: 'post',
+                          comment: findings || undefined,
+                          responseStatus: outcome === 'retire' ? 'rejected' : 'approved',
+                        });
+                      }
                       if (outcome !== 'retire' && policy.review_cycle_days) {
                         const nextDate = new Date();
                         nextDate.setDate(nextDate.getDate() + policy.review_cycle_days);
