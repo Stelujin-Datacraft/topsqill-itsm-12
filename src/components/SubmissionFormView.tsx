@@ -50,6 +50,7 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
   const [navigationVisible, setNavigationVisible] = useState(true);
   const [highlightedFieldId, setHighlightedFieldId] = useState<string | null>(null);
   const [showRecordHistory, setShowRecordHistory] = useState(false);
+  const [showCommentBox, setShowCommentBox] = useState(false);
 
   // Find lifecycle dropdown fields (select fields with displayAsLifecycle enabled)
   // Must be called before any early returns to follow Rules of Hooks
