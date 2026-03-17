@@ -15,6 +15,7 @@ interface PolicyFieldSelectorProps {
 }
 
 const EXCLUDED_TYPES = ['section', 'divider', 'heading', 'paragraph', 'spacer', 'page-break'];
+const RECORD_NAME_ALLOWED_TYPES = ['text', 'number', 'date', 'time', 'datetime', 'short-text', 'long-text', 'email', 'url', 'phone'];
 
 export function PolicyFieldSelector({ formId, selectedFieldIds, onSelectedFieldsChange, recordNameFieldId, onRecordNameFieldChange }: PolicyFieldSelectorProps) {
   const fieldsQuery = useQuery({
