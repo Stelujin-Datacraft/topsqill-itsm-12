@@ -1946,8 +1946,8 @@ const PolicyDetail = () => {
                                     <Droppable droppableId="custom-fields-list">
                                       {(cfProvided) => (
                                         <div ref={cfProvided.innerRef} {...cfProvided.droppableProps}>
-                                          {exportColumns > 1 ? (
-                                            <div className={`grid gap-3 ${exportColumns === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
+                                          {customFieldColumns > 1 ? (
+                                            <div className={`grid gap-3 ${customFieldColumns === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
                                               {fields.sort((a: any, b: any) => a.order - b.order).map((field: any, fIdx: number) => {
                                                 const raw = vals[field.id];
                                                 let display = '—';
