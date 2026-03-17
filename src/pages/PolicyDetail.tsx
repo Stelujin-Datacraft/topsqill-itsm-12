@@ -357,8 +357,23 @@ const PolicyDetail = () => {
   const handleApprovalResponse = async (approvalId: string, status: 'approved' | 'rejected', comment?: string) => {
     await respondApproval.mutateAsync({ approvalId, status, comments: comment || approvalComment || undefined });
     
+    // Send email notification to document owner about approval response
+    if (policy.created_by && currentOrganization?.id) {
+      sendKBNotificationEmail({
+        type: 'approval_response',
+        recipientUserId: policy.created_by,
+        policyName: policy.name,
+        policyNumber: policy.policy_number || undefined,
+        policyId: policy.id,
+        version: policy.current_version,
+        organizationId: currentOrganization.id,
+        senderName: userProfile ? `${userProfile.first_name || ''} ${userProfile.last_name || ''}`.trim() : undefined,
+        responseStatus: status,
+        comment: comment || approvalComment || undefined,
+      });
+    }
+
     if (status === 'approved') {
-      // Don't auto-publish — let user click Publish when ready
       const savedMode: ApprovalMode = (policy.content?.approval_mode as ApprovalMode) || 'any_one';
       const remainingPending = approvals.filter(a => a.status === 'pending' && a.id !== approvalId);
       
