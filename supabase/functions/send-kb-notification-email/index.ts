@@ -215,34 +215,57 @@ serve(async (req) => {
         subject = `Document Notification: ${body.policyName}`;
     }
 
-    const client = new SMTPClient({
-      connection: {
-        hostname: smtpConfig.host,
-        port: smtpConfig.port,
-        tls: smtpConfig.use_tls,
-        auth: {
-          username: smtpConfig.username,
-          password: smtpConfig.password,
-        },
-      },
-    });
+    console.log(`📨 Using SMTP: ${smtpConfig.host}:${smtpConfig.port} (${smtpConfig.from_email}), TLS: ${smtpConfig.use_tls}`);
+    console.log(`📬 Sending to: ${recipient.email}, Subject: ${subject}`);
 
-    await client.send({
-      from: smtpConfig.from_name
-        ? `${smtpConfig.from_name} <${smtpConfig.from_email}>`
-        : smtpConfig.from_email,
-      to: recipient.email,
-      subject,
-      content: 'auto',
-      html: emailHtml,
-    });
+    // Try all available SMTP configs in order (fallback)
+    let lastError: Error | null = null;
+    const configsToTry = [smtpConfig, ...(smtpConfigs || []).filter((c: any) => c.id !== smtpConfig.id)];
 
-    await client.close();
-    console.log('✅ KB notification email sent to:', recipient.email);
+    for (const config of configsToTry) {
+      try {
+        console.log(`🔄 Trying SMTP: ${config.host}:${config.port} (${config.from_email})`);
+        const client = new SMTPClient({
+          connection: {
+            hostname: config.host,
+            port: config.port,
+            tls: config.use_tls,
+            auth: {
+              username: config.username,
+              password: config.password,
+            },
+          },
+        });
 
-    return new Response(JSON.stringify({ success: true }), {
+        await client.send({
+          from: config.from_name
+            ? `${config.from_name} <${config.from_email}>`
+            : config.from_email,
+          to: recipient.email,
+          subject,
+          content: 'auto',
+          html: emailHtml,
+        });
+
+        await client.close();
+        console.log('✅ KB notification email sent to:', recipient.email, 'via', config.host);
+
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
+        });
+      } catch (smtpError: any) {
+        console.warn(`⚠️ SMTP failed with ${config.host}: ${smtpError.message}`);
+        lastError = smtpError;
+        // Continue to next config
+      }
+    }
+
+    // All configs failed
+    console.error('❌ All SMTP configs failed. Last error:', lastError?.message);
+    return new Response(JSON.stringify({ success: false, error: lastError?.message || 'All SMTP configs failed' }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 200,
+      status: 500,
     });
   } catch (error: any) {
     console.error('❌ Error sending KB notification email:', error);
