@@ -683,10 +683,19 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
      
 
             <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowCommentBox(true)}
+            >
+              <MessageSquare className="h-4 w-4 mr-1" />
+              Comments
+            </Button>
+
+            <Button
             variant="outline"
             size="sm"
             onClick={() => setShowRecordHistory(true)}
-          > <History className="h-4 w-4 mr-1" />
+           > <History className="h-4 w-4 mr-1" />
             History
             </Button>
             <Button size="sm" onClick={() => setIsEditing(true)}>
