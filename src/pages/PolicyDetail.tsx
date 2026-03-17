@@ -687,7 +687,7 @@ const PolicyDetail = () => {
 
         if (submissions.length > 0) {
           const recordNameFId = policy.content?.record_name_field_id as string | undefined;
-          const cols = (policy.content?.export_columns as number) || 1;
+          const cols = (policy.content?.dynamic_field_columns as number) || 1;
           yPos += 8;
           ensureSpace(30);
           doc.setFontSize(13);
