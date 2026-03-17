@@ -208,6 +208,9 @@ serve(async (req) => {
       case 'approval_response':
         subject = `Document ${body.responseStatus === 'approved' ? 'Approved' : 'Rejected'}: ${body.policyName}`;
         break;
+      case 'review_response':
+        subject = `${body.reviewType === 'pre' ? 'Pre-Review' : 'Post-Review'} ${body.responseStatus === 'approved' ? 'Completed' : 'Flagged'}: ${body.policyName}`;
+        break;
       default:
         subject = `Document Notification: ${body.policyName}`;
     }
