@@ -105,7 +105,7 @@ export function SubmissionCommentBox({ open, onOpenChange, submissionId, formFie
       const updatedData = {
         ...currentData,
         __field_comments: updatedComments,
-      };
+      } as any;
 
       const { error: updateError } = await supabase
         .from('form_submissions')
