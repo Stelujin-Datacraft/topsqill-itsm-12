@@ -2796,6 +2796,8 @@ const PolicyDetail = () => {
                 content: { ...(policy.content || {}), post_reviewers: [...existing, ...uniqueNew] },
               });
               // Send notifications to user-type reviewers
+              const senderName2 = [userProfile?.first_name, userProfile?.last_name].filter(Boolean).join(' ') || userProfile?.email || '';
+              const orgId2 = currentOrganization?.id || userProfile?.organization_id || '';
               for (const r of uniqueNew) {
                 if (r.type === 'user') {
                   await supabase.from('notifications').insert({
@@ -2804,6 +2806,17 @@ const PolicyDetail = () => {
                     title: 'Post-Review Requested',
                     message: `You have been assigned as a post-reviewer for policy "${policy.name}" (${policy.policy_number || 'Draft'}).`,
                     data: { policy_id: policy.id, review_type: 'post', link: `/policy/${policy.id}` },
+                  });
+                  sendKBNotificationEmail({
+                    type: 'review_request',
+                    recipientUserId: r.id,
+                    policyName: policy.name,
+                    policyNumber: policy.policy_number || undefined,
+                    policyId: policy.id,
+                    organizationId: orgId2,
+                    senderName: senderName2,
+                    reviewType: 'post',
+                    comment: postReviewComment || undefined,
                   });
                 } else if (r.type === 'group') {
                   const { data: members } = await supabase.rpc('get_group_members', { _group_id: r.id });
@@ -2815,6 +2828,17 @@ const PolicyDetail = () => {
                         title: 'Post-Review Requested',
                         message: `Your group has been assigned as a post-reviewer for policy "${policy.name}".`,
                         data: { policy_id: policy.id, review_type: 'post', link: `/policy/${policy.id}` },
+                      });
+                      sendKBNotificationEmail({
+                        type: 'review_request',
+                        recipientUserId: m.member_id,
+                        policyName: policy.name,
+                        policyNumber: policy.policy_number || undefined,
+                        policyId: policy.id,
+                        organizationId: orgId2,
+                        senderName: senderName2,
+                        reviewType: 'post',
+                        comment: postReviewComment || undefined,
                       });
                     }
                   }
