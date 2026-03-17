@@ -2053,13 +2053,13 @@ const PolicyDetail = () => {
                                 </div>
                                 <span className="text-sm font-medium text-foreground flex-1">Dynamic Fields Display</span>
                                 <Select
-                                  value={String(exportColumns)}
+                                  value={String(dynamicFieldColumns)}
                                   onValueChange={async v => {
                                     const cols = Number(v);
-                                    setExportColumns(cols);
+                                    setDynamicFieldColumns(cols);
                                     await updatePolicy.mutateAsync({
                                       id: policy.id,
-                                      content: { ...(policy.content || {}), export_columns: cols },
+                                      content: { ...(policy.content || {}), dynamic_field_columns: cols },
                                     });
                                   }}
                                 >
