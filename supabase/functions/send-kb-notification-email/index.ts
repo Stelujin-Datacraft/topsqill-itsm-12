@@ -237,22 +237,35 @@ serve(async (req) => {
           },
         });
 
-    await client.send({
-      from: smtpConfig.from_name
-        ? `${smtpConfig.from_name} <${smtpConfig.from_email}>`
-        : smtpConfig.from_email,
-      to: recipient.email,
-      subject,
-      content: 'auto',
-      html: emailHtml,
-    });
+        await client.send({
+          from: config.from_name
+            ? `${config.from_name} <${config.from_email}>`
+            : config.from_email,
+          to: recipient.email,
+          subject,
+          content: 'auto',
+          html: emailHtml,
+        });
 
-    await client.close();
-    console.log('✅ KB notification email sent to:', recipient.email);
+        await client.close();
+        console.log('✅ KB notification email sent to:', recipient.email, 'via', config.host);
 
-    return new Response(JSON.stringify({ success: true }), {
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
+        });
+      } catch (smtpError: any) {
+        console.warn(`⚠️ SMTP failed with ${config.host}: ${smtpError.message}`);
+        lastError = smtpError;
+        // Continue to next config
+      }
+    }
+
+    // All configs failed
+    console.error('❌ All SMTP configs failed. Last error:', lastError?.message);
+    return new Response(JSON.stringify({ success: false, error: lastError?.message || 'All SMTP configs failed' }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 200,
+      status: 500,
     });
   } catch (error: any) {
     console.error('❌ Error sending KB notification email:', error);
