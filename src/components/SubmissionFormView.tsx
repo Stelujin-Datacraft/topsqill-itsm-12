@@ -12,6 +12,7 @@ import { FormNavigationPanel } from './FormNavigationPanel';
 import { SubmissionFormRenderer } from './SubmissionFormRenderer';
 import { LifecycleStatusBar } from './LifecycleStatusBar';
 import { RecordHistoryDialog } from './RecordHistoryDialog';
+import { SubmissionCommentBox } from './SubmissionCommentBox';
 import { ManualWorkflowTrigger } from './ManualWorkflowTrigger';
 import { Form, FormField } from '@/types/form';
 import { supabase } from '@/integrations/supabase/client';
