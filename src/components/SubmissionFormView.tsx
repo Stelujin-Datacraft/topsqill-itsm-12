@@ -799,4 +799,5 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
         />
       )}
     </div>
+  );
 }
