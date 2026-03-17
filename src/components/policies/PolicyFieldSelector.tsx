@@ -67,7 +67,7 @@ export function PolicyFieldSelector({ formId, selectedFieldIds, onSelectedFields
             <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Default (Record 1, 2...)" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="__none__">Default (Record 1, 2...)</SelectItem>
-              {fields.map(f => (
+              {fields.filter(f => RECORD_NAME_ALLOWED_TYPES.includes(f.field_type)).map(f => (
                 <SelectItem key={f.id} value={f.id}>
                   {f.label}
                   <span className="ml-1.5 text-[10px] text-muted-foreground">({f.field_type})</span>
