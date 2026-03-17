@@ -563,7 +563,7 @@ const PolicyDetail = () => {
       const fields = (policy.content.custom_fields as any[]).filter((f: any) => !['header', 'description', 'horizontal-line'].includes(f.type));
       const vals = (policy.content?.custom_field_values as Record<string, any>) || {};
       if (fields.length === 0) return;
-      const cols = (policy.content?.export_columns as number) || 1;
+      const cols = (policy.content?.custom_field_columns as number) || 1;
       yPos += 8;
       ensureSpace(30);
       doc.setFontSize(13);
