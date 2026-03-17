@@ -1920,13 +1920,13 @@ const PolicyDetail = () => {
                                   </div>
                                   <CardTitle className="text-sm flex-1">Custom Fields Data</CardTitle>
                                   <Select
-                                    value={String(exportColumns)}
+                                    value={String(customFieldColumns)}
                                     onValueChange={async v => {
                                       const cols = Number(v);
-                                      setExportColumns(cols);
+                                      setCustomFieldColumns(cols);
                                       await updatePolicy.mutateAsync({
                                         id: policy.id,
-                                        content: { ...(policy.content || {}), export_columns: cols },
+                                        content: { ...(policy.content || {}), custom_field_columns: cols },
                                       });
                                     }}
                                   >
