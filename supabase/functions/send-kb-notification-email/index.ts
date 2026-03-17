@@ -215,17 +215,27 @@ serve(async (req) => {
         subject = `Document Notification: ${body.policyName}`;
     }
 
-    const client = new SMTPClient({
-      connection: {
-        hostname: smtpConfig.host,
-        port: smtpConfig.port,
-        tls: smtpConfig.use_tls,
-        auth: {
-          username: smtpConfig.username,
-          password: smtpConfig.password,
-        },
-      },
-    });
+    console.log(`📨 Using SMTP: ${smtpConfig.host}:${smtpConfig.port} (${smtpConfig.from_email}), TLS: ${smtpConfig.use_tls}`);
+    console.log(`📬 Sending to: ${recipient.email}, Subject: ${subject}`);
+
+    // Try all available SMTP configs in order (fallback)
+    let lastError: Error | null = null;
+    const configsToTry = [smtpConfig, ...(smtpConfigs || []).filter((c: any) => c.id !== smtpConfig.id)];
+
+    for (const config of configsToTry) {
+      try {
+        console.log(`🔄 Trying SMTP: ${config.host}:${config.port} (${config.from_email})`);
+        const client = new SMTPClient({
+          connection: {
+            hostname: config.host,
+            port: config.port,
+            tls: config.use_tls,
+            auth: {
+              username: config.username,
+              password: config.password,
+            },
+          },
+        });
 
     await client.send({
       from: smtpConfig.from_name
