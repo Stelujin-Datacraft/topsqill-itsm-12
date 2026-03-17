@@ -787,6 +787,16 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
         onOpenChange={setShowRecordHistory}
         submissionId={submissionId}
       />
+
+      {/* Comment Box Dialog */}
+      {form && (
+        <SubmissionCommentBox
+          open={showCommentBox}
+          onOpenChange={setShowCommentBox}
+          submissionId={submissionId}
+          formFields={form.fields}
+          formData={formData}
+        />
+      )}
     </div>
-  );
 }
