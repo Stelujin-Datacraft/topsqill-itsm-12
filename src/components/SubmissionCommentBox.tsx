@@ -264,16 +264,6 @@ export function SubmissionCommentBox({ open, onOpenChange, submissionId, formFie
                               <Clock className="h-3 w-3" />
                               <span>{new Date(c.createdAt).toLocaleString()}</span>
                             </div>
-                            {c.userId === user?.id && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-6 px-2 text-xs text-destructive hover:text-destructive"
-                                onClick={() => handleDeleteComment(c.id)}
-                              >
-                                Delete
-                              </Button>
-                            )}
                           </div>
                           <p className="text-sm">{c.comment}</p>
                         </div>

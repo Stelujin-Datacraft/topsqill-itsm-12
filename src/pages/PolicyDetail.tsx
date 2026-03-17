@@ -1916,7 +1916,27 @@ const PolicyDetail = () => {
                                     <GripVertical className="h-4 w-4 text-muted-foreground" />
                                   </div>
                                   <CardTitle className="text-sm flex-1">Custom Fields Data</CardTitle>
-                                  <span className="text-[10px] text-muted-foreground">Drag fields internally to reorder</span>
+                                  <Select
+                                    value={String(exportColumns)}
+                                    onValueChange={async v => {
+                                      const cols = Number(v);
+                                      setExportColumns(cols);
+                                      await updatePolicy.mutateAsync({
+                                        id: policy.id,
+                                        content: { ...(policy.content || {}), export_columns: cols },
+                                      });
+                                    }}
+                                  >
+                                    <SelectTrigger className="w-[120px] h-8 text-xs">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="1">1 Column</SelectItem>
+                                      <SelectItem value="2">2 Columns</SelectItem>
+                                      <SelectItem value="3">3 Columns</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                  <span className="text-[10px] text-muted-foreground">Drag to reorder</span>
                                 </CardHeader>
                                 <CardContent className="px-4 pb-4 pt-0">
                                   <DragDropContext onDragEnd={handleCustomFieldDragEnd}>

@@ -255,6 +255,7 @@ export function PolicyDynamicFieldsRenderer({ formId, displayFormat, selectedFie
           </Card>
         );
       })}
+      </div>
     </div>
   );
 }
