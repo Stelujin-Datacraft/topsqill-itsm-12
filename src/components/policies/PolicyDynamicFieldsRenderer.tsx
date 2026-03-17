@@ -193,6 +193,7 @@ export function PolicyDynamicFieldsRenderer({ formId, displayFormat, selectedFie
         </Badge>
       </div>
 
+      <div className={exportColumns && exportColumns > 1 ? `grid grid-cols-${exportColumns} gap-4` : ''}>
       {submissions.map((submission, index) => {
         const refId = submission.submission_ref_id || submission.id.slice(0, 8);
         const nameFieldValue = recordNameFieldId
