@@ -39,6 +39,7 @@ import { PolicyVersionDiff } from '@/components/policies/PolicyVersionDiff';
 import { PolicyCustomFieldsRenderer } from '@/components/policies/PolicyCustomFieldsRenderer';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { sendKBNotificationEmail } from '@/services/kbNotificationEmail';
 
 const PolicyDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -307,6 +308,19 @@ const PolicyDetail = () => {
           submitted_by: user?.id,
           link: `/policy/${policy.id}`,
         },
+      });
+
+      // Send email notification (non-blocking)
+      sendKBNotificationEmail({
+        type: 'approval_request',
+        recipientUserId: approverId,
+        policyName: policy.name,
+        policyNumber: policy.policy_number || undefined,
+        policyId: policy.id,
+        version: policy.current_version,
+        organizationId: currentOrganization?.id || userProfile?.organization_id || '',
+        senderName: [userProfile?.first_name, userProfile?.last_name].filter(Boolean).join(' ') || userProfile?.email || '',
+        comment: approvalSubmitComment || undefined,
       });
     }
     // Save approval mode to policy content
@@ -2654,6 +2668,8 @@ const PolicyDetail = () => {
                 content: { ...(policy.content || {}), pre_reviewers: [...existing, ...uniqueNew] },
               });
               // Send notifications to user-type reviewers
+              const senderName = [userProfile?.first_name, userProfile?.last_name].filter(Boolean).join(' ') || userProfile?.email || '';
+              const orgId = currentOrganization?.id || userProfile?.organization_id || '';
               for (const r of uniqueNew) {
                 if (r.type === 'user') {
                   await supabase.from('notifications').insert({
@@ -2662,6 +2678,17 @@ const PolicyDetail = () => {
                     title: 'Pre-Review Requested',
                     message: `You have been assigned as a pre-reviewer for policy "${policy.name}" (${policy.policy_number || 'Draft'}).`,
                     data: { policy_id: policy.id, review_type: 'pre', link: `/policy/${policy.id}` },
+                  });
+                  sendKBNotificationEmail({
+                    type: 'review_request',
+                    recipientUserId: r.id,
+                    policyName: policy.name,
+                    policyNumber: policy.policy_number || undefined,
+                    policyId: policy.id,
+                    organizationId: orgId,
+                    senderName,
+                    reviewType: 'pre',
+                    comment: preReviewComment || undefined,
                   });
                 } else if (r.type === 'group') {
                   // Notify all group members
@@ -2674,6 +2701,17 @@ const PolicyDetail = () => {
                         title: 'Pre-Review Requested',
                         message: `Your group has been assigned as a pre-reviewer for policy "${policy.name}".`,
                         data: { policy_id: policy.id, review_type: 'pre', link: `/policy/${policy.id}` },
+                      });
+                      sendKBNotificationEmail({
+                        type: 'review_request',
+                        recipientUserId: m.member_id,
+                        policyName: policy.name,
+                        policyNumber: policy.policy_number || undefined,
+                        policyId: policy.id,
+                        organizationId: orgId,
+                        senderName,
+                        reviewType: 'pre',
+                        comment: preReviewComment || undefined,
                       });
                     }
                   }
@@ -2758,6 +2796,8 @@ const PolicyDetail = () => {
                 content: { ...(policy.content || {}), post_reviewers: [...existing, ...uniqueNew] },
               });
               // Send notifications to user-type reviewers
+              const senderName2 = [userProfile?.first_name, userProfile?.last_name].filter(Boolean).join(' ') || userProfile?.email || '';
+              const orgId2 = currentOrganization?.id || userProfile?.organization_id || '';
               for (const r of uniqueNew) {
                 if (r.type === 'user') {
                   await supabase.from('notifications').insert({
@@ -2766,6 +2806,17 @@ const PolicyDetail = () => {
                     title: 'Post-Review Requested',
                     message: `You have been assigned as a post-reviewer for policy "${policy.name}" (${policy.policy_number || 'Draft'}).`,
                     data: { policy_id: policy.id, review_type: 'post', link: `/policy/${policy.id}` },
+                  });
+                  sendKBNotificationEmail({
+                    type: 'review_request',
+                    recipientUserId: r.id,
+                    policyName: policy.name,
+                    policyNumber: policy.policy_number || undefined,
+                    policyId: policy.id,
+                    organizationId: orgId2,
+                    senderName: senderName2,
+                    reviewType: 'post',
+                    comment: postReviewComment || undefined,
                   });
                 } else if (r.type === 'group') {
                   const { data: members } = await supabase.rpc('get_group_members', { _group_id: r.id });
@@ -2777,6 +2828,17 @@ const PolicyDetail = () => {
                         title: 'Post-Review Requested',
                         message: `Your group has been assigned as a post-reviewer for policy "${policy.name}".`,
                         data: { policy_id: policy.id, review_type: 'post', link: `/policy/${policy.id}` },
+                      });
+                      sendKBNotificationEmail({
+                        type: 'review_request',
+                        recipientUserId: m.member_id,
+                        policyName: policy.name,
+                        policyNumber: policy.policy_number || undefined,
+                        policyId: policy.id,
+                        organizationId: orgId2,
+                        senderName: senderName2,
+                        reviewType: 'post',
+                        comment: postReviewComment || undefined,
                       });
                     }
                   }

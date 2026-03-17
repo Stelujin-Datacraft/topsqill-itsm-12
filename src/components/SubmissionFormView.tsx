@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { ArrowLeft, Edit, Save, X, Calendar, Clock, History } from 'lucide-react';
+import { ArrowLeft, Edit, Save, X, Calendar, Clock, History, MessageSquare } from 'lucide-react';
 import { SubmissionRefDisplay } from './SubmissionRefDisplay';
 import { FormFieldsRenderer } from './FormFieldsRenderer';
 import { FormPagination } from './FormPagination';
@@ -12,6 +12,7 @@ import { FormNavigationPanel } from './FormNavigationPanel';
 import { SubmissionFormRenderer } from './SubmissionFormRenderer';
 import { LifecycleStatusBar } from './LifecycleStatusBar';
 import { RecordHistoryDialog } from './RecordHistoryDialog';
+import { SubmissionCommentBox } from './SubmissionCommentBox';
 import { ManualWorkflowTrigger } from './ManualWorkflowTrigger';
 import { Form, FormField } from '@/types/form';
 import { supabase } from '@/integrations/supabase/client';
@@ -49,6 +50,7 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
   const [navigationVisible, setNavigationVisible] = useState(true);
   const [highlightedFieldId, setHighlightedFieldId] = useState<string | null>(null);
   const [showRecordHistory, setShowRecordHistory] = useState(false);
+  const [showCommentBox, setShowCommentBox] = useState(false);
 
   // Find lifecycle dropdown fields (select fields with displayAsLifecycle enabled)
   // Must be called before any early returns to follow Rules of Hooks
@@ -681,10 +683,19 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
      
 
             <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowCommentBox(true)}
+            >
+              <MessageSquare className="h-4 w-4 mr-1" />
+              Comments
+            </Button>
+
+            <Button
             variant="outline"
             size="sm"
             onClick={() => setShowRecordHistory(true)}
-          > <History className="h-4 w-4 mr-1" />
+           > <History className="h-4 w-4 mr-1" />
             History
             </Button>
             <Button size="sm" onClick={() => setIsEditing(true)}>
@@ -776,6 +787,17 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
         onOpenChange={setShowRecordHistory}
         submissionId={submissionId}
       />
+
+      {/* Comment Box Dialog */}
+      {form && (
+        <SubmissionCommentBox
+          open={showCommentBox}
+          onOpenChange={setShowCommentBox}
+          submissionId={submissionId}
+          formFields={form.fields}
+          formData={formData}
+        />
+      )}
     </div>
   );
 }
