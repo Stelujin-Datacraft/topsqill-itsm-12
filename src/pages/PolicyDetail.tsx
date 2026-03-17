@@ -309,6 +309,19 @@ const PolicyDetail = () => {
           link: `/policy/${policy.id}`,
         },
       });
+
+      // Send email notification (non-blocking)
+      sendKBNotificationEmail({
+        type: 'approval_request',
+        recipientUserId: approverId,
+        policyName: policy.name,
+        policyNumber: policy.policy_number || undefined,
+        policyId: policy.id,
+        version: policy.current_version,
+        organizationId: currentOrganization?.id || userProfile?.organization_id || '',
+        senderName: [userProfile?.first_name, userProfile?.last_name].filter(Boolean).join(' ') || userProfile?.email || '',
+        comment: approvalSubmitComment || undefined,
+      });
     }
     // Save approval mode to policy content
     await updatePolicy.mutateAsync({
