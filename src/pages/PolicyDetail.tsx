@@ -67,8 +67,11 @@ const PolicyDetail = () => {
   const [contentDirty, setContentDirty] = useState(false);
   const [showSaveConfirmDialog, setShowSaveConfirmDialog] = useState(false);
   const [contentExpanded, setContentExpanded] = useState(true);
-  const [exportColumns, setExportColumns] = useState<number>(
-    (policies.find(p => p.id === id)?.content?.export_columns as number) || 1
+  const [customFieldColumns, setCustomFieldColumns] = useState<number>(
+    (policies.find(p => p.id === id)?.content?.custom_field_columns as number) || 1
+  );
+  const [dynamicFieldColumns, setDynamicFieldColumns] = useState<number>(
+    (policies.find(p => p.id === id)?.content?.dynamic_field_columns as number) || 1
   );
 
   const DEFAULT_SECTION_ORDER = ['metadata', 'document_content', 'custom_fields', 'dynamic_fields', 'attachments'];
@@ -560,7 +563,7 @@ const PolicyDetail = () => {
       const fields = (policy.content.custom_fields as any[]).filter((f: any) => !['header', 'description', 'horizontal-line'].includes(f.type));
       const vals = (policy.content?.custom_field_values as Record<string, any>) || {};
       if (fields.length === 0) return;
-      const cols = (policy.content?.export_columns as number) || 1;
+      const cols = (policy.content?.custom_field_columns as number) || 1;
       yPos += 8;
       ensureSpace(30);
       doc.setFontSize(13);
@@ -684,7 +687,7 @@ const PolicyDetail = () => {
 
         if (submissions.length > 0) {
           const recordNameFId = policy.content?.record_name_field_id as string | undefined;
-          const cols = (policy.content?.export_columns as number) || 1;
+          const cols = (policy.content?.dynamic_field_columns as number) || 1;
           yPos += 8;
           ensureSpace(30);
           doc.setFontSize(13);
@@ -1917,13 +1920,13 @@ const PolicyDetail = () => {
                                   </div>
                                   <CardTitle className="text-sm flex-1">Custom Fields Data</CardTitle>
                                   <Select
-                                    value={String(exportColumns)}
+                                    value={String(customFieldColumns)}
                                     onValueChange={async v => {
                                       const cols = Number(v);
-                                      setExportColumns(cols);
+                                      setCustomFieldColumns(cols);
                                       await updatePolicy.mutateAsync({
                                         id: policy.id,
-                                        content: { ...(policy.content || {}), export_columns: cols },
+                                        content: { ...(policy.content || {}), custom_field_columns: cols },
                                       });
                                     }}
                                   >
@@ -1943,8 +1946,8 @@ const PolicyDetail = () => {
                                     <Droppable droppableId="custom-fields-list">
                                       {(cfProvided) => (
                                         <div ref={cfProvided.innerRef} {...cfProvided.droppableProps}>
-                                          {exportColumns > 1 ? (
-                                            <div className={`grid gap-3 ${exportColumns === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
+                                          {customFieldColumns > 1 ? (
+                                            <div className={`grid gap-3 ${customFieldColumns === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
                                               {fields.sort((a: any, b: any) => a.order - b.order).map((field: any, fIdx: number) => {
                                                 const raw = vals[field.id];
                                                 let display = '—';
@@ -2050,13 +2053,13 @@ const PolicyDetail = () => {
                                 </div>
                                 <span className="text-sm font-medium text-foreground flex-1">Dynamic Fields Display</span>
                                 <Select
-                                  value={String(exportColumns)}
+                                  value={String(dynamicFieldColumns)}
                                   onValueChange={async v => {
                                     const cols = Number(v);
-                                    setExportColumns(cols);
+                                    setDynamicFieldColumns(cols);
                                     await updatePolicy.mutateAsync({
                                       id: policy.id,
-                                      content: { ...(policy.content || {}), export_columns: cols },
+                                      content: { ...(policy.content || {}), dynamic_field_columns: cols },
                                     });
                                   }}
                                 >
@@ -2088,7 +2091,7 @@ const PolicyDetail = () => {
                                 selectedFieldIds={policy.content?.selected_field_ids as string[] | undefined}
                                 selectedRecordIds={policy.content?.selected_record_ids as string[] | undefined}
                                 recordNameFieldId={policy.content?.record_name_field_id as string | undefined}
-                                exportColumns={exportColumns}
+                                exportColumns={dynamicFieldColumns}
                                 recordComments={(policy.content?.record_comments as Record<string, any>) || {}}
                                 onAddComment={canEdit ? async (recordId, comment) => {
                                   const existing = (policy.content?.record_comments as Record<string, any[]>) || {};
