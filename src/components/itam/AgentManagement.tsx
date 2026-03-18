@@ -379,7 +379,7 @@ echo "Agent report completed successfully!"`;
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2"><CheckCircle className="h-5 w-5" />Quick Test (Copy & Paste)</CardTitle>
           <CardDescription>
-            Don't want to download a file? Copy these commands and paste them directly into your Terminal to quickly test the agent connection.
+            Don't want to download a file? Copy the command for your OS and paste it directly into your terminal.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -388,48 +388,56 @@ echo "Agent report completed successfully!"`;
               ⏳ Loading your organization profile… Please wait.
             </div>
           ) : (
-            <>
-              <div className="rounded-lg border bg-muted/50 p-4 space-y-3">
-                <h4 className="font-semibold text-sm">Steps</h4>
-                <ol className="text-sm space-y-2 list-decimal list-inside text-muted-foreground">
-                  <li>Open <strong>Terminal</strong> (macOS: <kbd className="px-1.5 py-0.5 rounded bg-muted border text-xs font-mono">⌘ Cmd</kbd> + <kbd className="px-1.5 py-0.5 rounded bg-muted border text-xs font-mono">Space</kbd> → type "Terminal").</li>
-                  <li>Click <strong>"Copy Test Command"</strong> below.</li>
-                  <li>Paste into Terminal and press Enter.</li>
-                  <li>You should see two <code>{`{"success":true,...}`}</code> responses.</li>
-                  <li>Come back here and click <strong>"Refresh"</strong> below to see your device.</li>
-                </ol>
-              </div>
+            <Tabs defaultValue={defaultTab}>
+              <TabsList>
+                <TabsTrigger value="windows">Windows (PowerShell)</TabsTrigger>
+                <TabsTrigger value="linux">macOS / Linux (Terminal)</TabsTrigger>
+              </TabsList>
 
-              <div className="bg-muted rounded-lg p-3 max-h-[200px] overflow-y-auto">
-                <pre className="text-xs font-mono whitespace-pre-wrap">{`curl -s -X POST "${SUPABASE_URL}/functions/v1/asset-agent-report" \\
-  -H "Content-Type: application/json" \\
-  -H "x-agent-key: quick-test-$(hostname)" \\
-  -d '{
-    "action": "register",
-    "organization_id": "${orgId}",
-    "hostname": "'$(hostname)'",
-    "os_type": "'$(uname -s)'",
-    "os_version": "'$(sw_vers -productVersion 2>/dev/null || uname -r)'"
-  }' && echo "" && \\
-curl -s -X POST "${SUPABASE_URL}/functions/v1/asset-agent-report" \\
-  -H "Content-Type: application/json" \\
-  -H "x-agent-key: quick-test-$(hostname)" \\
-  -d '{
-    "action": "report",
-    "system": {"hostname": "'$(hostname)'", "manufacturer": "Apple", "model": "'$(sysctl -n hw.model 2>/dev/null || echo Unknown)'"},
-    "hardware": {"cpu_model": "'$(sysctl -n machdep.cpu.brand_string 2>/dev/null || echo Unknown)'", "cpu_cores": '$(sysctl -n hw.ncpu 2>/dev/null || echo 4)', "ram_total_gb": '$(echo "scale=0; $(sysctl -n hw.memsize 2>/dev/null || echo 8589934592) / 1073741824" | bc 2>/dev/null || echo 8)', "os_name": "'$(uname -s)'", "os_version": "'$(sw_vers -productVersion 2>/dev/null || uname -r)'"},
-    "software": [{"name": "Quick Test", "version": "1.0"}]
-  }'`}</pre>
-              </div>
+              {/* Windows Quick Test */}
+              <TabsContent value="windows" className="space-y-4">
+                <div className="rounded-lg border bg-muted/50 p-4 space-y-3">
+                  <h4 className="font-semibold text-sm">Steps</h4>
+                  <ol className="text-sm space-y-2 list-decimal list-inside text-muted-foreground">
+                    <li>Open <strong>PowerShell as Administrator</strong> — right-click Start menu → "Windows PowerShell (Admin)".</li>
+                    <li>Click <strong>"Copy Test Command"</strong> below.</li>
+                    <li>Paste into PowerShell and press Enter.</li>
+                    <li>You should see <code>{`{"success":true,...}`}</code> responses.</li>
+                    <li>Come back here and click <strong>"Refresh"</strong> to see your device.</li>
+                  </ol>
+                </div>
 
-              <Button size="sm" disabled={!hasOrgId} onClick={() => {
-                const cmd = `curl -s -X POST "${SUPABASE_URL}/functions/v1/asset-agent-report" \\\n  -H "Content-Type: application/json" \\\n  -H "x-agent-key: quick-test-$(hostname)" \\\n  -d '{\n    "action": "register",\n    "organization_id": "${orgId}",\n    "hostname": "'$(hostname)'",\n    "os_type": "'$(uname -s)'",\n    "os_version": "'$(sw_vers -productVersion 2>/dev/null || uname -r)'"\n  }' && echo "" && \\\ncurl -s -X POST "${SUPABASE_URL}/functions/v1/asset-agent-report" \\\n  -H "Content-Type: application/json" \\\n  -H "x-agent-key: quick-test-$(hostname)" \\\n  -d '{\n    "action": "report",\n    "system": {"hostname": "'$(hostname)'", "manufacturer": "Apple", "model": "'$(sysctl -n hw.model 2>/dev/null || echo Unknown)'"},\n    "hardware": {"cpu_model": "'$(sysctl -n machdep.cpu.brand_string 2>/dev/null || echo Unknown)'", "cpu_cores": '$(sysctl -n hw.ncpu 2>/dev/null || echo 4)', "ram_total_gb": '$(echo "scale=0; $(sysctl -n hw.memsize 2>/dev/null || echo 8589934592) / 1073741824" | bc 2>/dev/null || echo 8)', "os_name": "'$(uname -s)'", "os_version": "'$(sw_vers -productVersion 2>/dev/null || uname -r)'"},\n    "software": [{"name": "Quick Test", "version": "1.0"}]\n  }'`;
-                navigator.clipboard.writeText(cmd);
-                toast({ title: 'Copied!', description: 'Paste this into your Terminal and press Enter.' });
-              }}>
-                <Copy className="h-4 w-4 mr-2" />Copy Test Command
-              </Button>
-            </>
+                <div className="bg-muted rounded-lg p-3 max-h-[180px] overflow-y-auto">
+                  <pre className="text-xs font-mono whitespace-pre-wrap">{windowsQuickTest}</pre>
+                </div>
+
+                <Button size="sm" onClick={() => { navigator.clipboard.writeText(windowsQuickTest); toast({ title: 'Copied!', description: 'Paste into PowerShell (Admin) and press Enter.' }); }}>
+                  <Copy className="h-4 w-4 mr-2" />Copy Test Command
+                </Button>
+              </TabsContent>
+
+              {/* macOS / Linux Quick Test */}
+              <TabsContent value="linux" className="space-y-4">
+                <div className="rounded-lg border bg-muted/50 p-4 space-y-3">
+                  <h4 className="font-semibold text-sm">Steps</h4>
+                  <ol className="text-sm space-y-2 list-decimal list-inside text-muted-foreground">
+                    <li>Open <strong>Terminal</strong> (macOS: <kbd className="px-1.5 py-0.5 rounded bg-muted border text-xs font-mono">⌘ Cmd</kbd> + <kbd className="px-1.5 py-0.5 rounded bg-muted border text-xs font-mono">Space</kbd> → type "Terminal").</li>
+                    <li>Click <strong>"Copy Test Command"</strong> below.</li>
+                    <li>Paste into Terminal and press Enter.</li>
+                    <li>You should see two <code>{`{"success":true,...}`}</code> responses.</li>
+                    <li>Come back here and click <strong>"Refresh"</strong> to see your device.</li>
+                  </ol>
+                </div>
+
+                <div className="bg-muted rounded-lg p-3 max-h-[180px] overflow-y-auto">
+                  <pre className="text-xs font-mono whitespace-pre-wrap">{macLinuxQuickTest}</pre>
+                </div>
+
+                <Button size="sm" onClick={() => { navigator.clipboard.writeText(macLinuxQuickTest); toast({ title: 'Copied!', description: 'Paste into Terminal and press Enter.' }); }}>
+                  <Copy className="h-4 w-4 mr-2" />Copy Test Command
+                </Button>
+              </TabsContent>
+            </Tabs>
           )}
         </CardContent>
       </Card>

@@ -11,7 +11,7 @@ const ITAssets = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
 
   return (
-    <div className="flex-1 space-y-6 p-6">
+    <div className="flex-1 space-y-6 p-6 overflow-y-auto max-h-[calc(100vh-4rem)]">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">IT Asset Management</h1>
         <p className="text-muted-foreground mt-1">
