@@ -72,7 +72,7 @@ const KnowledgeBase = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Knowledge Base</h1>
-          <p className="text-sm text-muted-foreground">Organize policies, audits, and governance documents</p>
+          <p className="text-sm text-muted-foreground">Organize docs, audits, and governance documents</p>
         </div>
         {isAdmin && (
           <Button onClick={() => setShowCreate(true)} className="gap-2">
@@ -116,7 +116,7 @@ const KnowledgeBase = () => {
       <div className="relative max-w-md">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
-          placeholder="Search folders, policies, audits..."
+          placeholder="Search folders, docs, audits..."
           value={search}
           onChange={e => setSearch(e.target.value)}
           className="pl-10"
@@ -143,7 +143,7 @@ const KnowledgeBase = () => {
                       <div className="flex items-center gap-2">
                         {p.policy_number && <span className="text-xs font-mono text-muted-foreground">{p.policy_number}</span>}
                         <span className="text-sm font-medium">{p.name}</span>
-                        <Badge variant="outline" className="text-[10px]">{p.item_type || 'policy'}</Badge>
+                        <Badge variant="outline" className="text-[10px]">{p.item_type === 'audit' ? 'audit' : 'doc'}</Badge>
                         <Badge variant="secondary" className="text-[10px]">{p.status}</Badge>
                       </div>
                       {p.description && <p className="text-xs text-muted-foreground line-clamp-1">{p.description}</p>}
@@ -168,7 +168,7 @@ const KnowledgeBase = () => {
           <CardContent className="flex flex-col items-center justify-center py-12 text-center">
             <FolderOpen className="h-12 w-12 text-muted-foreground mb-3" />
             <h3 className="text-lg font-medium">No folders yet</h3>
-            <p className="text-sm text-muted-foreground mt-1">Create your first Knowledge Base folder to organize policies and audits.</p>
+            <p className="text-sm text-muted-foreground mt-1">Create your first Knowledge Base folder to organize docs and audits.</p>
             {isAdmin && (
               <Button onClick={() => setShowCreate(true)} className="mt-4 gap-2">
                 <Plus className="h-4 w-4" /> Create Folder
@@ -238,7 +238,7 @@ const KnowledgeBase = () => {
                   </div>
                   <div>
                     <h3 className="font-semibold text-foreground">Unassigned Items</h3>
-                    <p className="text-xs text-muted-foreground mt-0.5">Policies & audits not in any folder</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Docs & audits not in any folder</p>
                   </div>
                 </div>
                 <div className="mt-4">
@@ -257,7 +257,7 @@ const KnowledgeBase = () => {
           <div className="space-y-4">
             <div>
               <Label>Folder Name *</Label>
-              <Input value={newName} onChange={e => setNewName(e.target.value)} placeholder="e.g., IT Policies" />
+              <Input value={newName} onChange={e => setNewName(e.target.value)} placeholder="e.g., IT Docs" />
             </div>
             <div>
               <Label>Description</Label>
@@ -318,7 +318,7 @@ const KnowledgeBase = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Folder</AlertDialogTitle>
             <AlertDialogDescription>
-              This will delete the folder. Policies inside will become unassigned. Continue?
+              This will delete the folder. Docs inside will become unassigned. Continue?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

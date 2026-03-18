@@ -145,7 +145,7 @@ const KnowledgeBaseFolder = () => {
             <div className="relative flex-1 min-w-[280px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search by name, description, or policy number..."
+                placeholder="Search by name, description, or doc number..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 className="pl-10"
@@ -225,7 +225,7 @@ const KnowledgeBaseFolder = () => {
                           <div className="flex items-center gap-2 mb-1 flex-wrap">
                             <Badge variant={itemType === 'audit' ? 'default' : 'secondary'} className="text-xs">
                               {itemType === 'audit' ? <Shield className="h-3 w-3 mr-1" /> : <FileText className="h-3 w-3 mr-1" />}
-                              {itemType === 'audit' ? 'Audit' : 'Policy'}
+                              {itemType === 'audit' ? 'Audit' : 'Doc'}
                             </Badge>
                             {policy.policy_number && (
                               <span className="text-xs font-mono text-muted-foreground">{policy.policy_number}</span>
@@ -270,7 +270,7 @@ const KnowledgeBaseFolder = () => {
               <CardContent className="flex flex-col items-center justify-center py-12 text-center">
                 <LayoutTemplate className="h-12 w-12 text-muted-foreground mb-3" />
                 <h3 className="text-lg font-medium">No templates yet</h3>
-                <p className="text-sm text-muted-foreground mt-1">Create your first policy template.</p>
+                <p className="text-sm text-muted-foreground mt-1">Create your first doc template.</p>
                 <Button onClick={() => navigate('/policies/create-template')} className="mt-4 gap-2">
                   <Plus className="h-4 w-4" /> Create Template
                 </Button>
