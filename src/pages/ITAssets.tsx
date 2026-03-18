@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Monitor, Cpu, Download, History, BarChart3 } from 'lucide-react';
+import { Monitor, Cpu, Download, History, BarChart3, ShieldCheck, FileText } from 'lucide-react';
 import { AssetDashboard } from '@/components/itam/AssetDashboard';
 import { AssetList } from '@/components/itam/AssetList';
 import { AgentManagement } from '@/components/itam/AgentManagement';
 import { SoftwareInventory } from '@/components/itam/SoftwareInventory';
 import { AssetHistoryView } from '@/components/itam/AssetHistoryView';
+import { WarrantyLicenseTracker } from '@/components/itam/WarrantyLicenseTracker';
+import { AssetExport } from '@/components/itam/AssetExport';
 
 const ITAssets = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -20,7 +22,7 @@ const ITAssets = () => {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="dashboard" className="flex items-center gap-2">
             <BarChart3 className="h-4 w-4" />
             Dashboard
@@ -33,9 +35,17 @@ const ITAssets = () => {
             <Cpu className="h-4 w-4" />
             Software
           </TabsTrigger>
+          <TabsTrigger value="warranty" className="flex items-center gap-2">
+            <ShieldCheck className="h-4 w-4" />
+            Warranty
+          </TabsTrigger>
           <TabsTrigger value="agents" className="flex items-center gap-2">
             <Download className="h-4 w-4" />
             Agents
+          </TabsTrigger>
+          <TabsTrigger value="reports" className="flex items-center gap-2">
+            <FileText className="h-4 w-4" />
+            Reports
           </TabsTrigger>
           <TabsTrigger value="history" className="flex items-center gap-2">
             <History className="h-4 w-4" />
@@ -46,7 +56,9 @@ const ITAssets = () => {
         <TabsContent value="dashboard"><AssetDashboard /></TabsContent>
         <TabsContent value="assets"><AssetList /></TabsContent>
         <TabsContent value="software"><SoftwareInventory /></TabsContent>
+        <TabsContent value="warranty"><WarrantyLicenseTracker /></TabsContent>
         <TabsContent value="agents"><AgentManagement /></TabsContent>
+        <TabsContent value="reports"><AssetExport /></TabsContent>
         <TabsContent value="history"><AssetHistoryView /></TabsContent>
       </Tabs>
     </div>
