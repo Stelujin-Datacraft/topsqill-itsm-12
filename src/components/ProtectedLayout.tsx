@@ -53,11 +53,42 @@ function ContentLoader() {
  */
 const ProtectedLayout: React.FC = () => {
   const { user, userProfile, isLoading } = useAuth();
+  const { currentProject } = useProject();
   const { isImpersonating } = useImpersonation();
   const location = useLocation();
+  const navigate = useNavigate();
+  const defaultDashboardChecked = useRef(false);
  
    // Enable real-time permission sync for authenticated users
    usePermissionRealtimeSync();
+
+  // Auto-redirect to default dashboard on initial login (when landing on /dashboard)
+  useEffect(() => {
+    if (defaultDashboardChecked.current) return;
+    if (!currentProject?.id || !user || location.pathname !== '/dashboard') return;
+
+    defaultDashboardChecked.current = true;
+
+    const checkDefaultDashboard = async () => {
+      try {
+        const { data } = await supabase
+          .from('dashboards')
+          .select('id')
+          .eq('project_id', currentProject.id)
+          .eq('is_default', true)
+          .limit(1)
+          .maybeSingle();
+
+        if (data?.id) {
+          navigate(`/dashboard-view/${data.id}`, { replace: true });
+        }
+      } catch (err) {
+        console.error('Failed to check default dashboard:', err);
+      }
+    };
+
+    checkDefaultDashboard();
+  }, [currentProject?.id, user, location.pathname, navigate]);
 
   // Auth loading state - show full page loader since we don't know if user is authenticated
   if (isLoading) {
