@@ -143,7 +143,7 @@ const KnowledgeBase = () => {
                       <div className="flex items-center gap-2">
                         {p.policy_number && <span className="text-xs font-mono text-muted-foreground">{p.policy_number}</span>}
                         <span className="text-sm font-medium">{p.name}</span>
-                        <Badge variant="outline" className="text-[10px]">{p.item_type || 'policy'}</Badge>
+                        <Badge variant="outline" className="text-[10px]">{p.item_type === 'audit' ? 'audit' : 'doc'}</Badge>
                         <Badge variant="secondary" className="text-[10px]">{p.status}</Badge>
                       </div>
                       {p.description && <p className="text-xs text-muted-foreground line-clamp-1">{p.description}</p>}
