@@ -107,7 +107,7 @@ export function SetDefaultDashboardDialog({ dashboard, isOpen, onClose }: SetDef
       // Update dashboard: set is_default and default_for
       const { error: updateError } = await supabase
         .from('dashboards')
-        .update({ is_default: true, default_for: defaultFor } as any)
+        .update({ is_default: true, default_for: defaultFor })
         .eq('id', dashboard.id);
 
       if (updateError) throw updateError;
