@@ -371,6 +371,87 @@ export type Database = {
           },
         ]
       }
+      asset_licenses: {
+        Row: {
+          asset_id: string | null
+          cost: number | null
+          created_at: string
+          created_by: string
+          currency: string | null
+          expiry_date: string | null
+          id: string
+          license_key: string | null
+          license_name: string
+          license_type: string
+          notes: string | null
+          organization_id: string
+          product: string | null
+          purchase_date: string | null
+          seats_total: number | null
+          seats_used: number | null
+          status: string
+          updated_at: string
+          vendor: string | null
+        }
+        Insert: {
+          asset_id?: string | null
+          cost?: number | null
+          created_at?: string
+          created_by: string
+          currency?: string | null
+          expiry_date?: string | null
+          id?: string
+          license_key?: string | null
+          license_name: string
+          license_type?: string
+          notes?: string | null
+          organization_id: string
+          product?: string | null
+          purchase_date?: string | null
+          seats_total?: number | null
+          seats_used?: number | null
+          status?: string
+          updated_at?: string
+          vendor?: string | null
+        }
+        Update: {
+          asset_id?: string | null
+          cost?: number | null
+          created_at?: string
+          created_by?: string
+          currency?: string | null
+          expiry_date?: string | null
+          id?: string
+          license_key?: string | null
+          license_name?: string
+          license_type?: string
+          notes?: string | null
+          organization_id?: string
+          product?: string | null
+          purchase_date?: string | null
+          seats_total?: number | null
+          seats_used?: number | null
+          status?: string
+          updated_at?: string
+          vendor?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "asset_licenses_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "it_assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "asset_licenses_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       asset_permissions: {
         Row: {
           asset_id: string
