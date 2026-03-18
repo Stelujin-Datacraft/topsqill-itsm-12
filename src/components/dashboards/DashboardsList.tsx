@@ -235,6 +235,13 @@ export function DashboardsList({
         onClose={() => setEditingDashboard(null)}
         onSuccess={() => refetchDashboards()}
       />
+
+      {/* Set Default Dashboard Dialog */}
+      <SetDefaultDashboardDialog
+        dashboard={defaultDashboard}
+        isOpen={!!defaultDashboard}
+        onClose={() => setDefaultDashboard(null)}
+      />
     </div>
   );
 }
