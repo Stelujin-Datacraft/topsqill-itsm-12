@@ -311,14 +311,32 @@ const ReportViewerPage = () => {
           ) : (
             <ResponsiveGridLayout
               className="layout"
-              layouts={{ lg: components.map(component => ({
-                i: component.id,
-                x: component.layout.x,
-                y: component.layout.y,
-                w: component.layout.w,
-                h: component.layout.h,
-                static: true // Make components non-draggable and non-resizable
-              })) }}
+              layouts={{
+                lg: components.map(component => ({
+                  i: component.id,
+                  x: component.layout.x,
+                  y: component.layout.y,
+                  w: component.layout.w,
+                  h: component.layout.h,
+                  static: true,
+                })),
+                md: components.map(component => ({
+                  i: component.id,
+                  x: Math.min(component.layout.x, 10 - component.layout.w),
+                  y: component.layout.y,
+                  w: Math.min(component.layout.w, 10),
+                  h: component.layout.h,
+                  static: true,
+                })),
+                sm: components.map(component => ({
+                  i: component.id,
+                  x: 0,
+                  y: component.layout.y,
+                  w: 6,
+                  h: component.layout.h,
+                  static: true,
+                })),
+              }}
               breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
               cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
               rowHeight={60}
