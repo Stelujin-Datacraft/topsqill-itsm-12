@@ -48,6 +48,20 @@ export function DashboardsList({
     setEditingDashboard(dashboard);
   };
 
+  const handleSetDefault = async (dashboard: DashboardWithReports) => {
+    if (!checkPermissionWithAlert('reports', 'update')) return;
+    try {
+      setLoading(true);
+      const newDefault = !(dashboard as any).is_default;
+      await setDefaultDashboard(dashboard.id, newDefault);
+    } catch (error) {
+      console.error('Error setting default dashboard:', error);
+      toast({ title: "Error", description: "Failed to update default dashboard", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleDeleteClick = async (dashboard: DashboardWithReports) => {
     if (!checkPermissionWithAlert('reports', 'delete')) {
       return;
