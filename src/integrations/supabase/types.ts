@@ -3914,6 +3914,7 @@ export type Database = {
           dashboard_id: string | null
           description: string | null
           id: string
+          is_default_report: boolean | null
           is_public: boolean | null
           name: string
           organization_id: string | null
@@ -3927,6 +3928,7 @@ export type Database = {
           dashboard_id?: string | null
           description?: string | null
           id?: string
+          is_default_report?: boolean | null
           is_public?: boolean | null
           name: string
           organization_id?: string | null
@@ -3940,6 +3942,7 @@ export type Database = {
           dashboard_id?: string | null
           description?: string | null
           id?: string
+          is_default_report?: boolean | null
           is_public?: boolean | null
           name?: string
           organization_id?: string | null
