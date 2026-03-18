@@ -268,7 +268,7 @@ echo "Agent report completed successfully!"`;
           <Tabs value={scriptTab} onValueChange={setScriptTab}>
             <TabsList>
               <TabsTrigger value="windows">Windows (PowerShell)</TabsTrigger>
-              <TabsTrigger value="linux">Linux / macOS (Bash)</TabsTrigger>
+              <TabsTrigger value="linux">macOS / Linux (Bash)</TabsTrigger>
             </TabsList>
 
             <TabsContent value="windows" className="space-y-3">
