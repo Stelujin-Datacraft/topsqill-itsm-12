@@ -152,9 +152,10 @@ export function DashboardsList({
             const editButtonState = getButtonState('reports', 'update');
             const deleteButtonState = getButtonState('reports', 'delete');
             const reportCount = dashboard.reports?.length || 0;
+            const isDefault = (dashboard as any).is_default;
             
             return (
-              <Card key={dashboard.id} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => onView(dashboard)}>
+              <Card key={dashboard.id} className={`hover:shadow-md transition-shadow cursor-pointer ${isDefault ? 'ring-2 ring-primary' : ''}`} onClick={() => onView(dashboard)}>
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <div className="space-y-1 flex-1">
