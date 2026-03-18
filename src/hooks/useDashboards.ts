@@ -57,6 +57,24 @@ export function useDashboards() {
     return data as Dashboard;
   };
 
+  const setDefaultDashboard = async (dashboardId: string, isDefault: boolean) => {
+    const { error } = await supabase
+      .from('dashboards')
+      .update({ is_default: isDefault } as any)
+      .eq('id', dashboardId);
+
+    if (error) throw error;
+    
+    await queryClient.invalidateQueries({ queryKey: ['dashboards'] });
+    
+    toast({
+      title: isDefault ? 'Default Dashboard Set' : 'Default Removed',
+      description: isDefault 
+        ? 'Users will be redirected to this dashboard on login.' 
+        : 'Default dashboard has been unset.',
+    });
+  };
+
   const updateDashboard = async (dashboardId: string, updates: { name?: string; description?: string }) => {
     const { data, error } = await supabase
       .from('dashboards')
