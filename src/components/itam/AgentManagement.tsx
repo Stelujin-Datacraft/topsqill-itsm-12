@@ -579,8 +579,9 @@ touch "\$MARKER"`;
                   <li>Run the script:
                     <code className="block bg-muted rounded px-2 py-1 mt-1 font-mono text-xs">.\topsqill-agent.ps1</code>
                   </li>
-                    <li>You should see <strong>"Agent report completed successfully!"</strong> — a Scheduled Task will auto-install to report every 6 hours.</li>
-                    <li>Refresh this page to see your device.</li>
+                  <li>You should see <strong>"Agent report completed successfully!"</strong> — a Scheduled Task will auto-install to report every 6 hours.</li>
+                  <li>Refresh this page to see your device.</li>
+                </ol>
               </div>
 
               <details className="text-sm text-muted-foreground">
