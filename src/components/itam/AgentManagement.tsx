@@ -623,6 +623,7 @@ touch "\$MARKER"`;
                   </li>
                   <li>You should see <strong>"Agent report completed successfully!"</strong> — a scheduled job (cron/LaunchDaemon) auto-installs to report every 6 hours.</li>
                   <li>Refresh this page to see your device.</li>
+                </ol>
               </div>
 
               <div className="rounded-lg border bg-muted/50 p-4 space-y-3">
