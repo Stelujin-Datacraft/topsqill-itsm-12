@@ -31,7 +31,7 @@ export function DashboardsList({
   const navigate = useNavigate();
   const { toast } = useToast();
   const { getButtonState, checkPermissionWithAlert } = useUnifiedAccessControl();
-  const { deleteDashboard, refetchDashboards } = useDashboards();
+  const { deleteDashboard, setDefaultDashboard, refetchDashboards } = useDashboards();
 
   const handleCopyId = (dashboardId: string) => {
     navigator.clipboard.writeText(dashboardId);
