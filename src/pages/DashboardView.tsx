@@ -22,6 +22,7 @@ const DashboardView = () => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [defaultReportTarget, setDefaultReportTarget] = useState<any>(null);
   const { getButtonState, checkPermissionWithAlert } = useUnifiedAccessControl();
 
   const { data: dashboard, isLoading } = useQuery({
