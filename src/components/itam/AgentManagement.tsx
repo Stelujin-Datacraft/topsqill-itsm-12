@@ -295,10 +295,10 @@ echo "Agent report completed successfully!"`;
                 <pre className="text-xs font-mono whitespace-pre-wrap">{linuxScript.slice(0, 500)}...</pre>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={() => copyScript(linuxScript)}>
+                <Button variant="outline" size="sm" disabled={!hasOrgId} onClick={() => copyScript(linuxScript)}>
                   <Copy className="h-4 w-4 mr-2" />Copy Script
                 </Button>
-                <Button size="sm" onClick={() => downloadScript(linuxScript, 'topsqill-agent.sh')}>
+                <Button size="sm" disabled={!hasOrgId} onClick={() => downloadScript(linuxScript, 'topsqill-agent.sh')}>
                   <Download className="h-4 w-4 mr-2" />Download .sh
                 </Button>
               </div>
