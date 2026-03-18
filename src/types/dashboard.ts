@@ -8,6 +8,7 @@ export interface Dashboard {
   created_at: string;
   updated_at: string;
   is_public: boolean;
+  is_default?: boolean;
   layout?: any[];
   reference_id?: string;
 }

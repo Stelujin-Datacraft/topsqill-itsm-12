@@ -278,6 +278,7 @@ export function useDashboards() {
     createDashboard,
     updateDashboard,
     deleteDashboard,
+    setDefaultDashboard,
     createReportInDashboard,
     migrateOrphanReports,
     addReportMedia,
