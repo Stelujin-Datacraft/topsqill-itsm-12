@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useITAssets } from '@/hooks/useITAssets';
 import { useAuth } from '@/contexts/AuthContext';
-import { Download, Copy, Terminal, CheckCircle, XCircle, Clock, RefreshCw, Wifi, WifiOff } from 'lucide-react';
+import { Download, Copy, Terminal, CheckCircle, XCircle, Clock, RefreshCw, Wifi, WifiOff, LogIn, Zap } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { format, formatDistanceToNow } from 'date-fns';
 
