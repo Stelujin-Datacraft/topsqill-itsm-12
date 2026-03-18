@@ -533,6 +533,154 @@ echo "Agent report completed successfully!"`;
         </CardContent>
       </Card>
 
+      {/* Login Script Auto-Install */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2"><LogIn className="h-5 w-5" />Login Script (Auto-Install on Sign-In)</CardTitle>
+          <CardDescription>
+            Deploy this script via Group Policy (Windows) or Login Hook (macOS) / profile.d (Linux) so every user's device is automatically registered on first sign-in.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {!hasOrgId ? (
+            <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+              ⏳ Loading your organization profile… Please wait.
+            </div>
+          ) : (
+            <Tabs defaultValue={defaultTab}>
+              <TabsList>
+                <TabsTrigger value="windows">Windows (GPO)</TabsTrigger>
+                <TabsTrigger value="linux">macOS / Linux</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="windows" className="space-y-4">
+                <div className="rounded-lg border bg-muted/50 p-4 space-y-3">
+                  <h4 className="font-semibold text-sm">How to deploy via Group Policy</h4>
+                  <ol className="text-sm space-y-2 list-decimal list-inside text-muted-foreground">
+                    <li>Download the login script below and place it on a network share (e.g. <code className="font-mono text-xs bg-muted px-1 rounded">\\\\server\\scripts\\topsqill-login.ps1</code>).</li>
+                    <li>Open <strong>Group Policy Management Console</strong> → edit a GPO linked to the target OU.</li>
+                    <li>Navigate to <strong>User Configuration → Policies → Windows Settings → Scripts (Logon/Logoff)</strong>.</li>
+                    <li>Click <strong>Logon → Add</strong> and browse to the network share path.</li>
+                    <li>Devices will auto-register the next time a user signs in.</li>
+                  </ol>
+                </div>
+
+                <div className="flex gap-2">
+                  <Button size="sm" disabled={!hasOrgId} onClick={() => downloadScript(windowsLoginScript, 'topsqill-login.ps1')}>
+                    <Download className="h-4 w-4 mr-2" />Download topsqill-login.ps1
+                  </Button>
+                  <Button variant="outline" size="sm" disabled={!hasOrgId} onClick={() => copyScript(windowsLoginScript)}>
+                    <Copy className="h-4 w-4 mr-2" />Copy Script
+                  </Button>
+                </div>
+
+                <details className="text-xs">
+                  <summary className="cursor-pointer text-muted-foreground font-medium">View login script</summary>
+                  <div className="bg-muted rounded-lg p-3 mt-2 max-h-[200px] overflow-y-auto">
+                    <pre className="font-mono whitespace-pre-wrap">{windowsLoginScript}</pre>
+                  </div>
+                </details>
+              </TabsContent>
+
+              <TabsContent value="linux" className="space-y-4">
+                <div className="rounded-lg border bg-muted/50 p-4 space-y-3">
+                  <h4 className="font-semibold text-sm">macOS: Login Hook</h4>
+                  <ol className="text-sm space-y-2 list-decimal list-inside text-muted-foreground">
+                    <li>Download the script and save to <code className="font-mono text-xs bg-muted px-1 rounded">/usr/local/bin/topsqill-login.sh</code>.</li>
+                    <li>Make executable: <code className="font-mono text-xs bg-muted px-1 rounded">chmod +x /usr/local/bin/topsqill-login.sh</code></li>
+                    <li>Set as login hook: <code className="font-mono text-xs bg-muted px-1 rounded">sudo defaults write com.apple.loginwindow LoginHook /usr/local/bin/topsqill-login.sh</code></li>
+                  </ol>
+                </div>
+
+                <div className="rounded-lg border bg-muted/50 p-4 space-y-3">
+                  <h4 className="font-semibold text-sm">Linux: profile.d</h4>
+                  <ol className="text-sm space-y-2 list-decimal list-inside text-muted-foreground">
+                    <li>Download the script and save to <code className="font-mono text-xs bg-muted px-1 rounded">/etc/profile.d/topsqill-login.sh</code>.</li>
+                    <li>Make executable: <code className="font-mono text-xs bg-muted px-1 rounded">chmod +x /etc/profile.d/topsqill-login.sh</code></li>
+                    <li>The script runs automatically on each user's login shell.</li>
+                  </ol>
+                </div>
+
+                <div className="flex gap-2">
+                  <Button size="sm" disabled={!hasOrgId} onClick={() => downloadScript(loginScriptUnix, 'topsqill-login.sh')}>
+                    <Download className="h-4 w-4 mr-2" />Download topsqill-login.sh
+                  </Button>
+                  <Button variant="outline" size="sm" disabled={!hasOrgId} onClick={() => copyScript(loginScriptUnix)}>
+                    <Copy className="h-4 w-4 mr-2" />Copy Script
+                  </Button>
+                </div>
+
+                <details className="text-xs">
+                  <summary className="cursor-pointer text-muted-foreground font-medium">View login script</summary>
+                  <div className="bg-muted rounded-lg p-3 mt-2 max-h-[200px] overflow-y-auto">
+                    <pre className="font-mono whitespace-pre-wrap">{loginScriptUnix}</pre>
+                  </div>
+                </details>
+              </TabsContent>
+            </Tabs>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Self-Registering One-Liner */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2"><Zap className="h-5 w-5" />Self-Registering Agent (One-Liner)</CardTitle>
+          <CardDescription>
+            A single command to paste into OS imaging, provisioning tools (e.g. Ansible, Terraform, cloud-init), or MDM bootstrap scripts.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {!hasOrgId ? (
+            <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+              ⏳ Loading your organization profile… Please wait.
+            </div>
+          ) : (
+            <Tabs defaultValue={defaultTab}>
+              <TabsList>
+                <TabsTrigger value="windows">Windows (PowerShell)</TabsTrigger>
+                <TabsTrigger value="linux">macOS / Linux (bash)</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="windows" className="space-y-4">
+                <div className="rounded-lg border bg-muted/50 p-4 space-y-2">
+                  <h4 className="font-semibold text-sm">Use cases</h4>
+                  <ul className="text-sm text-muted-foreground list-disc list-inside space-y-1">
+                    <li>Paste into a <strong>Windows MDT / WDS</strong> task sequence</li>
+                    <li>Add to <strong>Intune</strong> as a PowerShell remediation script</li>
+                    <li>Include in a <strong>Packer / Vagrant</strong> provisioner</li>
+                  </ul>
+                </div>
+                <div className="bg-muted rounded-lg p-3 overflow-x-auto">
+                  <pre className="text-xs font-mono whitespace-pre-wrap">{windowsOneLiner}</pre>
+                </div>
+                <Button size="sm" onClick={() => { navigator.clipboard.writeText(windowsOneLiner); toast({ title: 'Copied!', description: 'Paste into your provisioning workflow.' }); }}>
+                  <Copy className="h-4 w-4 mr-2" />Copy One-Liner
+                </Button>
+              </TabsContent>
+
+              <TabsContent value="linux" className="space-y-4">
+                <div className="rounded-lg border bg-muted/50 p-4 space-y-2">
+                  <h4 className="font-semibold text-sm">Use cases</h4>
+                  <ul className="text-sm text-muted-foreground list-disc list-inside space-y-1">
+                    <li>Add to <strong>cloud-init</strong> user-data / runcmd</li>
+                    <li>Include in <strong>Ansible</strong> playbooks or <strong>Terraform</strong> provisioners</li>
+                    <li>Paste into <strong>Jamf Pro</strong> enrollment scripts (macOS)</li>
+                    <li>Add to <strong>Dockerfile</strong> or container build steps</li>
+                  </ul>
+                </div>
+                <div className="bg-muted rounded-lg p-3 overflow-x-auto">
+                  <pre className="text-xs font-mono whitespace-pre-wrap">{unixOneLiner}</pre>
+                </div>
+                <Button size="sm" onClick={() => { navigator.clipboard.writeText(unixOneLiner); toast({ title: 'Copied!', description: 'Paste into your provisioning workflow.' }); }}>
+                  <Copy className="h-4 w-4 mr-2" />Copy One-Liner
+                </Button>
+              </TabsContent>
+            </Tabs>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Registered Agents */}
       <Card>
         <CardHeader className="pb-3">
