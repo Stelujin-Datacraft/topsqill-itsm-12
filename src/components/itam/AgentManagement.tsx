@@ -620,8 +620,8 @@ touch "\$MARKER"`;
                   <li>Make the script executable and run it:
                     <code className="block bg-muted rounded px-2 py-1 mt-1 font-mono text-xs">chmod +x topsqill-agent.sh && bash topsqill-agent.sh</code>
                   </li>
-                  <li>You should see <strong>"Agent report completed successfully!"</strong> — then refresh this page.</li>
-                </ol>
+                  <li>You should see <strong>"Agent report completed successfully!"</strong> — a scheduled job (cron/LaunchDaemon) auto-installs to report every 6 hours.</li>
+                  <li>Refresh this page to see your device.</li>
               </div>
 
               <div className="rounded-lg border bg-muted/50 p-4 space-y-3">
