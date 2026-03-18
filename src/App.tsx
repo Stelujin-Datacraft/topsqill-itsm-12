@@ -236,6 +236,7 @@ const App = () => (
                         <Route path="/sla-management" element={<SLAManagementPage />} />
                         <Route path="/api-integration" element={<ApiIntegration />} />
                         <Route path="/api-docs" element={<ApiDocs />} />
+                        <Route path="/it-assets" element={<ITAssets />} />
                       </Route>
                       
                       {/* Catch-all */}

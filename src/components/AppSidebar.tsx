@@ -103,6 +103,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         isDisabled: !currentProject,
       },
       {
+        title: "IT Assets",
+        url: "/it-assets",
+        icon: HardDrive,
+      },
+      {
         title: "Email Config",
         url: "/settings",
         icon: Mail,
