@@ -257,7 +257,7 @@ const KnowledgeBase = () => {
           <div className="space-y-4">
             <div>
               <Label>Folder Name *</Label>
-              <Input value={newName} onChange={e => setNewName(e.target.value)} placeholder="e.g., IT Policies" />
+              <Input value={newName} onChange={e => setNewName(e.target.value)} placeholder="e.g., IT Docs" />
             </div>
             <div>
               <Label>Description</Label>
