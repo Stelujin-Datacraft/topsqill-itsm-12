@@ -184,7 +184,7 @@ export function SetDefaultDashboardDialog({ dashboard, isOpen, onClose }: SetDef
     return name.includes(searchQuery.toLowerCase());
   });
 
-  const isCurrentlyDefault = (dashboard as any)?.is_default;
+  const isCurrentlyDefault = dashboard?.is_default;
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
