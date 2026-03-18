@@ -15,9 +15,11 @@ const SUPABASE_URL = "https://fnmkczsvwpzpxyklztkt.supabase.co";
 export function AgentManagement() {
   const { agents, loadAgents } = useITAssets();
   const { userProfile } = useAuth();
-  const [scriptTab, setScriptTab] = useState('windows');
+  const defaultTab = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform) ? 'linux' : 'windows';
+  const [scriptTab, setScriptTab] = useState(defaultTab);
 
-  const orgId = userProfile?.organization_id || '<YOUR_ORG_ID>';
+  const hasOrgId = Boolean(userProfile?.organization_id);
+  const orgId = userProfile?.organization_id || '';
 
   const windowsScript = `# TopSqill IT Asset Agent - Windows PowerShell
 # Run as Administrator
