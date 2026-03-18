@@ -37,19 +37,54 @@ Deno.serve(async (req) => {
       // Check if agent already exists
       const { data: existing } = await supabase
         .from('asset_agents')
-        .select('id, asset_id')
+        .select('id, asset_id, organization_id')
         .eq('agent_key', agentKey)
         .single();
 
       if (existing) {
-        // Update existing agent
-        await supabase.from('asset_agents').update({
-          hostname, os_type, os_version, status: 'online',
+        const nextOrganizationId = organization_id || existing.organization_id;
+        const orgChanged = Boolean(
+          organization_id && existing.organization_id && existing.organization_id !== organization_id
+        );
+
+        // If agent was previously registered with a wrong org, correct it on re-register.
+        // This prevents successful reports being invisible to the current org due to RLS.
+        if (orgChanged && existing.asset_id) {
+          const { error: assetOrgError } = await supabase
+            .from('it_assets')
+            .update({ organization_id: nextOrganizationId })
+            .eq('id', existing.asset_id);
+
+          if (assetOrgError) {
+            console.error('Error updating asset organization:', assetOrgError);
+            return new Response(JSON.stringify({ error: 'Failed to update existing asset organization' }), {
+              status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+        }
+
+        const { error: agentUpdateError } = await supabase.from('asset_agents').update({
+          organization_id: nextOrganizationId,
+          hostname,
+          os_type,
+          os_version,
+          status: 'online',
           last_heartbeat: new Date().toISOString(),
         }).eq('id', existing.id);
 
-        return new Response(JSON.stringify({ 
-          success: true, agent_id: existing.id, asset_id: existing.asset_id, message: 'Agent updated' 
+        if (agentUpdateError) {
+          console.error('Error updating existing agent:', agentUpdateError);
+          return new Response(JSON.stringify({ error: 'Failed to update existing agent' }), {
+            status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
+        return new Response(JSON.stringify({
+          success: true,
+          agent_id: existing.id,
+          asset_id: existing.asset_id,
+          organization_id: nextOrganizationId,
+          message: orgChanged ? 'Agent updated and organization corrected' : 'Agent updated'
         }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
 
