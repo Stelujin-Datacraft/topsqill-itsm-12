@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Users, User, Search, Star } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useProject } from '@/contexts/ProjectContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useDashboards } from '@/hooks/useDashboards';
 import { useToast } from '@/hooks/use-toast';
 import { DashboardWithReports } from '@/types/dashboard';
@@ -35,6 +36,7 @@ export function SetDefaultDashboardDialog({ dashboard, isOpen, onClose }: SetDef
   const [loading, setLoading] = useState(false);
   const [usersLoading, setUsersLoading] = useState(false);
   const { currentProject } = useProject();
+  const { user } = useAuth();
   const { setDefaultDashboard, refetchDashboards } = useDashboards();
   const { toast } = useToast();
 
@@ -45,25 +47,26 @@ export function SetDefaultDashboardDialog({ dashboard, isOpen, onClose }: SetDef
     const loadData = async () => {
       setUsersLoading(true);
       try {
-        // Load project users
-        const { data: users } = await supabase
-          .from('project_users')
-          .select('user_id, role')
-          .eq('project_id', currentProject.id);
+        // Load all organization users
+        const { data: currentUser } = await supabase
+          .from('user_profiles')
+          .select('organization_id')
+          .eq('id', user?.id)
+          .single();
 
-        if (users?.length) {
-          const userIds = users.map(u => u.user_id);
+        if (currentUser?.organization_id) {
           const { data: profiles } = await supabase
             .from('user_profiles')
-            .select('id, email, first_name, last_name')
-            .in('id', userIds);
+            .select('id, email, first_name, last_name, role')
+            .eq('organization_id', currentUser.organization_id)
+            .order('email');
 
           const merged: ProjectUser[] = (profiles || []).map(p => ({
             user_id: p.id,
             email: p.email,
             first_name: p.first_name,
             last_name: p.last_name,
-            role: users.find(u => u.user_id === p.id)?.role || 'viewer',
+            role: p.role || 'user',
           }));
           setProjectUsers(merged);
         }
