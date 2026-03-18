@@ -209,16 +209,40 @@ const DashboardView = () => {
               const editButtonState = getButtonState('reports', 'update', report.id);
               const deleteButtonState = getButtonState('reports', 'delete', report.id);
               const isDeleting = deleting === report.id;
+              const isDefaultReport = report.is_default_report;
 
               return (
-                <Card key={report.id} className="hover:shadow-md transition-shadow">
+                <Card key={report.id} className={`hover:shadow-md transition-shadow ${isDefaultReport ? 'ring-2 ring-primary' : ''}`}>
                   <CardHeader>
                     <div className="flex items-start justify-between">
                       <div className="space-y-1">
-                        <CardTitle className="text-lg">{report.name}</CardTitle>
+                        <div className="flex items-center gap-2">
+                          <CardTitle className="text-lg">{report.name}</CardTitle>
+                          {isDefaultReport && <Badge variant="default" className="text-[10px]">Default</Badge>}
+                        </div>
                         {report.description && <CardDescription>{report.description}</CardDescription>}
                       </div>
                       <div className="flex space-x-1">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                onClick={() => {
+                                  if (!checkPermissionWithAlert('reports', 'update')) return;
+                                  setDefaultReportTarget(report);
+                                }}
+                                disabled={editButtonState.disabled}
+                              >
+                                <Star className={`h-4 w-4 ${isDefaultReport ? 'fill-primary text-primary' : 'text-primary'}`} />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{isDefaultReport ? 'Remove as Default Report' : 'Set as Default Report'}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                         <Button 
                           variant="ghost" 
                           size="sm" 
