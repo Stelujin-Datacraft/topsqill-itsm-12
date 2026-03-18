@@ -11,6 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { CreateReportDialog } from '@/components/reports/CreateReportDialog';
 import { ShareLinkButton } from '@/components/shared/ShareLinkButton';
+import { SetDefaultReportDialog } from '@/components/dashboards/SetDefaultReportDialog';
 import { useUnifiedAccessControl } from '@/hooks/useUnifiedAccessControl';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
