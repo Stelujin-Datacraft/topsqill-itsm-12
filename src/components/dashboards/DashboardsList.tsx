@@ -29,6 +29,7 @@ export function DashboardsList({
 }: DashboardsListProps) {
   const [loading, setLoading] = useState(false);
   const [editingDashboard, setEditingDashboard] = useState<DashboardWithReports | null>(null);
+  const [defaultDashboard, setDefaultDashboard] = useState<DashboardWithReports | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
   const { getButtonState, checkPermissionWithAlert } = useUnifiedAccessControl();
