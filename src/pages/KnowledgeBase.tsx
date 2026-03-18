@@ -168,7 +168,7 @@ const KnowledgeBase = () => {
           <CardContent className="flex flex-col items-center justify-center py-12 text-center">
             <FolderOpen className="h-12 w-12 text-muted-foreground mb-3" />
             <h3 className="text-lg font-medium">No folders yet</h3>
-            <p className="text-sm text-muted-foreground mt-1">Create your first Knowledge Base folder to organize policies and audits.</p>
+            <p className="text-sm text-muted-foreground mt-1">Create your first Knowledge Base folder to organize docs and audits.</p>
             {isAdmin && (
               <Button onClick={() => setShowCreate(true)} className="mt-4 gap-2">
                 <Plus className="h-4 w-4" /> Create Folder
