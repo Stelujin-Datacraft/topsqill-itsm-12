@@ -154,7 +154,7 @@ export function SetDefaultDashboardDialog({ dashboard, isOpen, onClose }: SetDef
     try {
       await supabase
         .from('dashboards')
-        .update({ is_default: false, default_for: 'all' } as any)
+        .update({ is_default: false, default_for: 'all' })
         .eq('id', dashboard.id);
 
       await supabase
