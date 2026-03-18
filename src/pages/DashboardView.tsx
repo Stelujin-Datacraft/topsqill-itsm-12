@@ -316,6 +316,14 @@ const DashboardView = () => {
           </div>
         )}
       </div>
+
+      {/* Set Default Report Dialog */}
+      <SetDefaultReportDialog
+        report={defaultReportTarget}
+        dashboardId={dashboard.id}
+        isOpen={!!defaultReportTarget}
+        onClose={() => setDefaultReportTarget(null)}
+      />
     </DashboardLayout>
   );
 };
