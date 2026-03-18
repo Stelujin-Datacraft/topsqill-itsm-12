@@ -587,8 +587,8 @@ touch "\$MARKER"`;
                 <summary className="cursor-pointer font-medium">Advanced deployment options</summary>
                 <ul className="mt-2 space-y-1 list-disc list-inside ml-2">
                   <li><strong>GPO:</strong> Create a startup script policy pointing to this .ps1 file.</li>
-                  <li><strong>Scheduled:</strong> Use Task Scheduler to run daily for continuous monitoring.</li>
                   <li><strong>SCCM/Intune:</strong> Deploy as a script package to managed devices.</li>
+                  <li><strong>Custom interval:</strong> Edit the Scheduled Task "TopSqill-AssetAgent" in Task Scheduler to change the 6-hour default.</li>
                 </ul>
               </details>
 
