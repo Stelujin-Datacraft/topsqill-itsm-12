@@ -72,8 +72,8 @@ export function SetDefaultDashboardDialog({ dashboard, isOpen, onClose }: SetDef
         }
 
         // Load existing default settings
-        const currentDefaultFor = (dashboard as any).default_for || 'all';
-        setDefaultFor(currentDefaultFor);
+        const currentDefaultFor = dashboard.default_for || 'all';
+        setDefaultFor(currentDefaultFor as 'all' | 'specific');
 
         if (currentDefaultFor === 'specific') {
           const { data: assignedUsers } = await supabase
