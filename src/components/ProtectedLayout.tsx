@@ -1,13 +1,15 @@
-import React, { Suspense, createContext } from 'react';
+import React, { Suspense, createContext, useEffect, useRef } from 'react';
 import { Outlet } from 'react-router-dom';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { AppSidebar } from './AppSidebar';
 import { useImpersonation } from '@/contexts/ImpersonationContext';
 import { useAuth } from '@/contexts/AuthContext';
- import { usePermissionRealtimeSync } from '@/hooks/usePermissionRealtimeSync';
-import { Navigate, useLocation } from 'react-router-dom';
- import { PageSkeleton } from '@/components/loading/PageSkeleton';
- import { Skeleton } from '@/components/ui/skeleton';
+import { useProject } from '@/contexts/ProjectContext';
+import { usePermissionRealtimeSync } from '@/hooks/usePermissionRealtimeSync';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { PageSkeleton } from '@/components/loading/PageSkeleton';
+import { Skeleton } from '@/components/ui/skeleton';
+import { supabase } from '@/integrations/supabase/client';
 
 // Context to signal that we're inside ProtectedLayout
 // DashboardLayout checks this to avoid double-wrapping
@@ -51,11 +53,42 @@ function ContentLoader() {
  */
 const ProtectedLayout: React.FC = () => {
   const { user, userProfile, isLoading } = useAuth();
+  const { currentProject } = useProject();
   const { isImpersonating } = useImpersonation();
   const location = useLocation();
+  const navigate = useNavigate();
+  const defaultDashboardChecked = useRef(false);
  
    // Enable real-time permission sync for authenticated users
    usePermissionRealtimeSync();
+
+  // Auto-redirect to default dashboard on initial login (when landing on /dashboard)
+  useEffect(() => {
+    if (defaultDashboardChecked.current) return;
+    if (!currentProject?.id || !user || location.pathname !== '/dashboard') return;
+
+    defaultDashboardChecked.current = true;
+
+    const checkDefaultDashboard = async () => {
+      try {
+        const { data } = await supabase
+          .from('dashboards')
+          .select('id')
+          .eq('project_id', currentProject.id)
+          .eq('is_default', true)
+          .limit(1)
+          .maybeSingle();
+
+        if (data?.id) {
+          navigate(`/dashboard-view/${data.id}`, { replace: true });
+        }
+      } catch (err) {
+        console.error('Failed to check default dashboard:', err);
+      }
+    };
+
+    checkDefaultDashboard();
+  }, [currentProject?.id, user, location.pathname, navigate]);
 
   // Auth loading state - show full page loader since we don't know if user is authenticated
   if (isLoading) {
