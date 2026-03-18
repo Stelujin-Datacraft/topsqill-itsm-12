@@ -46,25 +46,49 @@ Invoke-RestMethod -Uri $API_URL -Method POST -Headers $headers -Body $reportBody
 
 Write-Host "Done! Refresh the Agents page to see your device." -ForegroundColor Green`;
 
-  const macLinuxQuickTest = `curl -s -X POST "${API_URL}" \\
-  -H "Content-Type: application/json" \\
-  -H "x-agent-key: quick-test-\$(hostname)" \\
-  -d '{
-    "action": "register",
-    "organization_id": "${orgId}",
-    "hostname": "'\$(hostname)'",
-    "os_type": "'\$(uname -s)'",
-    "os_version": "'\$(sw_vers -productVersion 2>/dev/null || uname -r)'"
-  }' && echo "" && \\
+  const macLinuxQuickTest = `HOSTNAME_VAL=$(hostname)
+OS_TYPE=$(uname -s)
+if [ "$OS_TYPE" = "Darwin" ]; then
+  OS_TYPE="macOS"
+  OS_VER=$(sw_vers -productVersion 2>/dev/null || echo "unknown")
+  CPU_MODEL=$(sysctl -n machdep.cpu.brand_string 2>/dev/null || echo "Unknown")
+  CPU_CORES=$(sysctl -n hw.ncpu 2>/dev/null || echo 0)
+  RAM_GB=$(echo "scale=0; $(sysctl -n hw.memsize 2>/dev/null || echo 0) / 1073741824" | bc 2>/dev/null || echo 0)
+  DISK_TOTAL=$(df -g / | tail -1 | awk '{print $2}')
+  DISK_FREE=$(df -g / | tail -1 | awk '{print $4}')
+  MODEL=$(sysctl -n hw.model 2>/dev/null || echo "Unknown")
+  IP_ADDR=$(ipconfig getifaddr en0 2>/dev/null || echo "")
+  MAC_ADDR=$(ifconfig en0 2>/dev/null | awk '/ether/{print $2}' || echo "")
+  SERIAL=$(system_profiler SPHardwareDataType 2>/dev/null | awk '/Serial Number/{print $NF}' || echo "unknown")
+else
+  OS_VER=$(uname -r)
+  CPU_MODEL=$(grep "model name" /proc/cpuinfo 2>/dev/null | head -1 | cut -d: -f2 | xargs || echo "Unknown")
+  CPU_CORES=$(nproc 2>/dev/null || echo 0)
+  RAM_GB=$(echo "scale=0; $(grep MemTotal /proc/meminfo 2>/dev/null | awk '{print $2}' || echo 0) / 1048576" | bc 2>/dev/null || echo 0)
+  DISK_TOTAL=$(df -BG / | tail -1 | awk '{print int($2)}')
+  DISK_FREE=$(df -BG / | tail -1 | awk '{print int($4)}')
+  MODEL=$(cat /sys/devices/virtual/dmi/id/product_name 2>/dev/null || echo "Unknown")
+  IP_ADDR=$(hostname -I 2>/dev/null | awk '{print $1}' || echo "")
+  MAC_ADDR=$(ip link show 2>/dev/null | grep link/ether | head -1 | awk '{print $2}' || echo "")
+  SERIAL=$(cat /sys/devices/virtual/dmi/id/product_serial 2>/dev/null || echo "unknown")
+fi
+AGENT_KEY="quick-test-$HOSTNAME_VAL"
+
+echo "Registering agent..."
 curl -s -X POST "${API_URL}" \\
   -H "Content-Type: application/json" \\
-  -H "x-agent-key: quick-test-\$(hostname)" \\
-  -d '{
-    "action": "report",
-    "system": {"hostname": "'\$(hostname)'", "manufacturer": "Apple", "model": "'\$(sysctl -n hw.model 2>/dev/null || echo Unknown)'"},
-    "hardware": {"cpu_model": "'\$(sysctl -n machdep.cpu.brand_string 2>/dev/null || echo Unknown)'", "cpu_cores": '\$(sysctl -n hw.ncpu 2>/dev/null || echo 4)', "ram_total_gb": '\$(echo "scale=0; \$(sysctl -n hw.memsize 2>/dev/null || echo 8589934592) / 1073741824" | bc 2>/dev/null || echo 8)', "os_name": "'\$(uname -s)'", "os_version": "'\$(sw_vers -productVersion 2>/dev/null || uname -r)'"},
-    "software": [{"name": "Quick Test", "version": "1.0"}]
-  }' && echo "\\nDone! Refresh the Agents page to see your device."`;
+  -H "x-agent-key: $AGENT_KEY" \\
+  -d "{\\"action\\":\\"register\\",\\"organization_id\\":\\"${orgId}\\",\\"hostname\\":\\"$HOSTNAME_VAL\\",\\"os_type\\":\\"$OS_TYPE\\",\\"os_version\\":\\"$OS_VER\\"}"
+
+echo ""
+echo "Sending report..."
+curl -s -X POST "${API_URL}" \\
+  -H "Content-Type: application/json" \\
+  -H "x-agent-key: $AGENT_KEY" \\
+  -d "{\\"action\\":\\"report\\",\\"system\\":{\\"hostname\\":\\"$HOSTNAME_VAL\\",\\"ip_address\\":\\"$IP_ADDR\\",\\"mac_address\\":\\"$MAC_ADDR\\",\\"manufacturer\\":\\"Apple\\",\\"model\\":\\"$MODEL\\",\\"serial_number\\":\\"$SERIAL\\"},\\"hardware\\":{\\"cpu_model\\":\\"$CPU_MODEL\\",\\"cpu_cores\\":$CPU_CORES,\\"ram_total_gb\\":$RAM_GB,\\"disk_total_gb\\":$DISK_TOTAL,\\"disk_free_gb\\":$DISK_FREE,\\"os_name\\":\\"$OS_TYPE\\",\\"os_version\\":\\"$OS_VER\\"},\\"software\\":[{\\"name\\":\\"Quick Test\\",\\"version\\":\\"1.0\\"}]}"
+
+echo ""
+echo "Done! Refresh the Agents page to see your device."`;
 
   const windowsScript = `# TopSqill IT Asset Agent - Windows PowerShell
 # Run as Administrator
@@ -161,72 +185,91 @@ Write-Host "Agent report completed successfully!" -ForegroundColor Green`;
 
   const linuxScript = `#!/bin/bash
 # TopSqill IT Asset Agent - Linux/macOS
-# Run with sudo
+# Run with: bash topsqill-agent.sh
 
 API_URL="${SUPABASE_URL}/functions/v1/asset-agent-report"
 ORG_ID="${orgId}"
-HOSTNAME_VAL=$(hostname)
-SERIAL=$(sudo dmidecode -s system-serial-number 2>/dev/null || echo "unknown")
-AGENT_KEY="\${HOSTNAME_VAL}-\${SERIAL}"
+HOSTNAME_VAL=\$(hostname)
 
 send_report() {
-    local action=$1
-    local body=$2
-    curl -s -X POST "$API_URL" \\
+    local action=\$1
+    local body=\$2
+    echo "[\$action] Sending..."
+    RESULT=\$(curl -s -X POST "\$API_URL" \\
         -H "Content-Type: application/json" \\
-        -H "x-agent-key: $AGENT_KEY" \\
-        -d "$body"
+        -H "x-agent-key: \$AGENT_KEY" \\
+        -d "\$body")
+    echo "[\$action] Response: \$RESULT"
 }
 
-# Detect OS
-if [[ "$OSTYPE" == "darwin"* ]]; then
+# Get serial number
+if [[ "\$OSTYPE" == "darwin"* ]]; then
+    SERIAL=\$(system_profiler SPHardwareDataType 2>/dev/null | awk '/Serial Number/{print \$NF}' || echo "unknown")
+else
+    SERIAL=\$(sudo cat /sys/devices/virtual/dmi/id/product_serial 2>/dev/null || sudo dmidecode -s system-serial-number 2>/dev/null || echo "unknown")
+fi
+AGENT_KEY="\${HOSTNAME_VAL}-\${SERIAL}"
+
+# Detect OS and collect hardware info
+if [[ "\$OSTYPE" == "darwin"* ]]; then
     OS_TYPE="macOS"
-    OS_VERSION=$(sw_vers -productVersion)
-    CPU_MODEL=$(sysctl -n machdep.cpu.brand_string)
-    CPU_CORES=$(sysctl -n hw.ncpu)
-    CPU_SPEED=$(sysctl -n hw.cpufrequency 2>/dev/null || echo "0")
-    RAM_GB=$(echo "scale=2; $(sysctl -n hw.memsize) / 1073741824" | bc)
-    DISK_TOTAL=$(df -g / | tail -1 | awk '{print $2}')
-    DISK_FREE=$(df -g / | tail -1 | awk '{print $4}')
+    OS_VERSION=\$(sw_vers -productVersion)
+    CPU_MODEL=\$(sysctl -n machdep.cpu.brand_string 2>/dev/null || echo "Apple Silicon")
+    CPU_CORES=\$(sysctl -n hw.ncpu 2>/dev/null || echo 0)
+    CPU_SPEED=\$(sysctl -n hw.cpufrequency 2>/dev/null)
+    CPU_SPEED=\${CPU_SPEED:-0}
+    CPU_SPEED_MHZ=\$(echo "\$CPU_SPEED / 1000000" | bc 2>/dev/null || echo 0)
+    RAM_BYTES=\$(sysctl -n hw.memsize 2>/dev/null || echo 0)
+    RAM_GB=\$(echo "scale=2; \$RAM_BYTES / 1073741824" | bc 2>/dev/null || echo 0)
+    DISK_TOTAL=\$(df -g / | tail -1 | awk '{print \$2}')
+    DISK_FREE=\$(df -g / | tail -1 | awk '{print \$4}')
+    DISK_TOTAL=\${DISK_TOTAL:-0}
+    DISK_FREE=\${DISK_FREE:-0}
     MANUFACTURER="Apple"
-    MODEL=$(sysctl -n hw.model)
-    IP_ADDR=$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null)
-    MAC_ADDR=$(ifconfig en0 2>/dev/null | awk '/ether/{print $2}')
+    MODEL=\$(sysctl -n hw.model 2>/dev/null || echo "Unknown")
+    IP_ADDR=\$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || echo "")
+    MAC_ADDR=\$(ifconfig en0 2>/dev/null | awk '/ether/{print \$2}' || echo "")
+    GPU_MODEL=\$(system_profiler SPDisplaysDataType 2>/dev/null | awk -F': ' '/Chipset Model/{print \$2}' | head -1 || echo "")
+    BIOS_VER=""
+    BOARD=""
+    BOOT_TIME=\$(sysctl -n kern.boottime 2>/dev/null | awk '{print \$4}' | tr -d ',')
+    NOW=\$(date +%s)
+    if [ -n "\$BOOT_TIME" ] && [ "\$BOOT_TIME" -gt 0 ] 2>/dev/null; then
+        UPTIME_HOURS=\$(echo "scale=2; (\$NOW - \$BOOT_TIME) / 3600" | bc 2>/dev/null || echo 0)
+    else
+        UPTIME_HOURS=0
+    fi
 else
     OS_TYPE="Linux"
-    OS_VERSION=$(cat /etc/os-release 2>/dev/null | grep PRETTY_NAME | cut -d'"' -f2)
-    CPU_MODEL=$(grep "model name" /proc/cpuinfo | head -1 | cut -d':' -f2 | xargs)
-    CPU_CORES=$(nproc)
-    CPU_SPEED=$(grep "cpu MHz" /proc/cpuinfo | head -1 | awk '{print int($4)}')
-    RAM_GB=$(echo "scale=2; $(grep MemTotal /proc/meminfo | awk '{print $2}') / 1048576" | bc)
-    DISK_TOTAL=$(df -BG / | tail -1 | awk '{print int($2)}')
-    DISK_FREE=$(df -BG / | tail -1 | awk '{print int($4)}')
-    MANUFACTURER=$(sudo dmidecode -s system-manufacturer 2>/dev/null || echo "Unknown")
-    MODEL=$(sudo dmidecode -s system-product-name 2>/dev/null || echo "Unknown")
-    IP_ADDR=$(hostname -I 2>/dev/null | awk '{print $1}')
-    MAC_ADDR=$(ip link show | grep link/ether | head -1 | awk '{print $2}')
+    OS_VERSION=\$(cat /etc/os-release 2>/dev/null | grep PRETTY_NAME | cut -d'"' -f2 || echo "Linux")
+    CPU_MODEL=\$(grep "model name" /proc/cpuinfo 2>/dev/null | head -1 | cut -d':' -f2 | xargs || echo "Unknown")
+    CPU_CORES=\$(nproc 2>/dev/null || echo 0)
+    CPU_SPEED_MHZ=\$(grep "cpu MHz" /proc/cpuinfo 2>/dev/null | head -1 | awk '{print int(\$4)}' || echo 0)
+    RAM_KB=\$(grep MemTotal /proc/meminfo 2>/dev/null | awk '{print \$2}' || echo 0)
+    RAM_GB=\$(echo "scale=2; \$RAM_KB / 1048576" | bc 2>/dev/null || echo 0)
+    DISK_TOTAL=\$(df -BG / | tail -1 | awk '{print int(\$2)}')
+    DISK_FREE=\$(df -BG / | tail -1 | awk '{print int(\$4)}')
+    DISK_TOTAL=\${DISK_TOTAL:-0}
+    DISK_FREE=\${DISK_FREE:-0}
+    MANUFACTURER=\$(sudo dmidecode -s system-manufacturer 2>/dev/null || echo "Unknown")
+    MODEL=\$(sudo dmidecode -s system-product-name 2>/dev/null || echo "Unknown")
+    IP_ADDR=\$(hostname -I 2>/dev/null | awk '{print \$1}' || echo "")
+    MAC_ADDR=\$(ip link show 2>/dev/null | grep link/ether | head -1 | awk '{print \$2}' || echo "")
+    GPU_MODEL=\$(lspci 2>/dev/null | grep VGA | cut -d':' -f3 | xargs || echo "")
+    BIOS_VER=\$(sudo dmidecode -s bios-version 2>/dev/null || echo "")
+    BOARD=\$(sudo dmidecode -s baseboard-product-name 2>/dev/null || echo "")
+    UPTIME_SEC=\$(cat /proc/uptime 2>/dev/null | awk '{print \$1}' || echo 0)
+    UPTIME_HOURS=\$(echo "scale=2; \$UPTIME_SEC / 3600" | bc 2>/dev/null || echo 0)
 fi
 
-GPU_MODEL=$(lspci 2>/dev/null | grep VGA | cut -d':' -f3 | xargs || echo "")
-BIOS_VER=$(sudo dmidecode -s bios-version 2>/dev/null || echo "")
-BOARD=$(sudo dmidecode -s baseboard-product-name 2>/dev/null || echo "")
-UPTIME_HOURS=$(echo "scale=2; $(cat /proc/uptime 2>/dev/null | awk '{print $1}' || echo 0) / 3600" | bc 2>/dev/null || echo "0")
-
 # Register
-send_report "register" "$(cat <<EOF
-{
-    "action": "register",
-    "organization_id": "$ORG_ID",
-    "hostname": "$HOSTNAME_VAL",
-    "os_type": "$OS_TYPE",
-    "os_version": "$OS_VERSION"
-}
-EOF
-)"
+send_report "register" "{\\"action\\":\\"register\\",\\"organization_id\\":\\"\$ORG_ID\\",\\"hostname\\":\\"\$HOSTNAME_VAL\\",\\"os_type\\":\\"\$OS_TYPE\\",\\"os_version\\":\\"\$OS_VERSION\\"}"
+
+echo ""
 
 # Collect software list
-if [[ "$OSTYPE" == "darwin"* ]]; then
-    SOFTWARE=$(system_profiler SPApplicationsDataType -json 2>/dev/null | python3 -c "
+if [[ "\$OSTYPE" == "darwin"* ]]; then
+    SOFTWARE=\$(system_profiler SPApplicationsDataType -json 2>/dev/null | python3 -c "
 import sys, json
 data = json.load(sys.stdin)
 apps = data.get('SPApplicationsDataType', [])
@@ -235,42 +278,45 @@ for app in apps[:200]:
     result.append({'name': app.get('_name',''), 'version': app.get('version',''), 'path': app.get('path','')})
 print(json.dumps(result))" 2>/dev/null || echo "[]")
 else
-    SOFTWARE=$(dpkg-query -W -f='{"name":"\${Package}","version":"\${Version}"},' 2>/dev/null | sed 's/,$//' | awk 'BEGIN{print "["}{print}END{print "]"}' 2>/dev/null || 
-              rpm -qa --queryformat '{"name":"%{NAME}","version":"%{VERSION}"},' 2>/dev/null | sed 's/,$//' | awk 'BEGIN{print "["}{print}END{print "]"}' 2>/dev/null || echo "[]")
+    SOFTWARE=\$(dpkg-query -W -f='{"name":"\${Package}","version":"\${Version}"},' 2>/dev/null | sed 's/,\$//' | awk 'BEGIN{print "["}1{print}END{print "]"}' 2>/dev/null || 
+              rpm -qa --queryformat '{"name":"%{NAME}","version":"%{VERSION}"},' 2>/dev/null | sed 's/,\$//' | awk 'BEGIN{print "["}1{print}END{print "]"}' 2>/dev/null || echo "[]")
 fi
 
-# Send report
-send_report "report" "$(cat <<EOF
+# Send full report
+REPORT_JSON=\$(cat <<EOJSON
 {
     "action": "report",
     "system": {
-        "hostname": "$HOSTNAME_VAL",
-        "ip_address": "$IP_ADDR",
-        "mac_address": "$MAC_ADDR",
-        "manufacturer": "$MANUFACTURER",
-        "model": "$MODEL",
-        "serial_number": "$SERIAL"
+        "hostname": "\$HOSTNAME_VAL",
+        "ip_address": "\$IP_ADDR",
+        "mac_address": "\$MAC_ADDR",
+        "manufacturer": "\$MANUFACTURER",
+        "model": "\$MODEL",
+        "serial_number": "\$SERIAL"
     },
     "hardware": {
-        "cpu_model": "$CPU_MODEL",
-        "cpu_cores": $CPU_CORES,
-        "cpu_speed_mhz": $CPU_SPEED,
-        "ram_total_gb": $RAM_GB,
-        "disk_total_gb": $DISK_TOTAL,
-        "disk_free_gb": $DISK_FREE,
-        "gpu_model": "$GPU_MODEL",
-        "os_name": "$OS_TYPE",
-        "os_version": "$OS_VERSION",
-        "os_architecture": "$(uname -m)",
-        "bios_version": "$BIOS_VER",
-        "motherboard_model": "$BOARD",
-        "uptime_hours": $UPTIME_HOURS
+        "cpu_model": "\$CPU_MODEL",
+        "cpu_cores": \${CPU_CORES:-0},
+        "cpu_speed_mhz": \${CPU_SPEED_MHZ:-0},
+        "ram_total_gb": \${RAM_GB:-0},
+        "disk_total_gb": \${DISK_TOTAL:-0},
+        "disk_free_gb": \${DISK_FREE:-0},
+        "gpu_model": "\$GPU_MODEL",
+        "os_name": "\$OS_TYPE",
+        "os_version": "\$OS_VERSION",
+        "os_architecture": "\$(uname -m)",
+        "bios_version": "\$BIOS_VER",
+        "motherboard_model": "\$BOARD",
+        "uptime_hours": \${UPTIME_HOURS:-0}
     },
-    "software": $SOFTWARE
+    "software": \$SOFTWARE
 }
-EOF
-)"
+EOJSON
+)
 
+send_report "report" "\$REPORT_JSON"
+
+echo ""
 echo "Agent report completed successfully!"`;
 
   const copyScript = (script: string) => {
