@@ -319,6 +319,110 @@ send_report "report" "\$REPORT_JSON"
 echo ""
 echo "Agent report completed successfully!"`;
 
+  // ─── Login Script (Windows GPO) ───
+  const windowsLoginScript = `# TopSqill Login Script - Windows GPO
+# Deploy via: User Config > Policies > Windows Settings > Scripts > Logon
+# Checks if already reported today to avoid duplicate calls.
+
+$API_URL = "${SUPABASE_URL}/functions/v1/asset-agent-report"
+$ORG_ID = "${orgId}"
+$AGENT_KEY = "$env:COMPUTERNAME-$(Get-WmiObject Win32_BIOS | Select-Object -ExpandProperty SerialNumber)"
+$MARKER = "$env:ProgramData\\TopSqill\\last-report.txt"
+
+# Skip if already reported today
+if (Test-Path $MARKER) {
+    $lastRun = Get-Content $MARKER -ErrorAction SilentlyContinue
+    if ($lastRun -eq (Get-Date -Format "yyyy-MM-dd")) { exit 0 }
+}
+
+$headers = @{ "x-agent-key" = $AGENT_KEY; "Content-Type" = "application/json" }
+
+# Register
+$os = Get-CimInstance Win32_OperatingSystem
+$regBody = @{ action = "register"; organization_id = $ORG_ID; hostname = $env:COMPUTERNAME; os_type = "Windows"; os_version = $os.Caption } | ConvertTo-Json
+try { Invoke-RestMethod -Uri $API_URL -Method POST -Headers $headers -Body $regBody -ErrorAction Stop } catch {}
+
+# Collect & Report
+$cpu = Get-CimInstance Win32_Processor | Select-Object -First 1
+$cs = Get-CimInstance Win32_ComputerSystem
+$bios = Get-CimInstance Win32_BIOS
+$disk = Get-CimInstance Win32_LogicalDisk -Filter "DriveType=3" | Measure-Object Size, FreeSpace -Sum
+$ipAddr = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.InterfaceAlias -notmatch "Loopback" } | Select-Object -First 1).IPAddress
+$macAddr = (Get-NetAdapter | Where-Object { $_.Status -eq "Up" } | Select-Object -First 1).MacAddress
+
+$reportBody = @{
+    action = "report"
+    system = @{ hostname = $env:COMPUTERNAME; ip_address = $ipAddr; mac_address = $macAddr; manufacturer = $cs.Manufacturer; model = $cs.Model; serial_number = $bios.SerialNumber }
+    hardware = @{ cpu_model = $cpu.Name; cpu_cores = $cpu.NumberOfCores; ram_total_gb = [math]::Round($cs.TotalPhysicalMemory/1GB,2); disk_total_gb = [math]::Round($disk.Sum[0]/1GB,2); disk_free_gb = [math]::Round($disk.Sum[1]/1GB,2); os_name = $os.Caption; os_version = $os.Version; os_architecture = $os.OSArchitecture }
+    software = @(Get-ItemProperty "HKLM:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*" -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName } | Select-Object -First 100 | ForEach-Object { @{ name = $_.DisplayName; version = $_.DisplayVersion; publisher = $_.Publisher } })
+} | ConvertTo-Json -Depth 5
+try { Invoke-RestMethod -Uri $API_URL -Method POST -Headers $headers -Body $reportBody -ErrorAction Stop } catch {}
+
+# Mark as done today
+New-Item -Path (Split-Path $MARKER) -ItemType Directory -Force | Out-Null
+Set-Content -Path $MARKER -Value (Get-Date -Format "yyyy-MM-dd")`;
+
+  // ─── Login Script (macOS / Linux) ───
+  const loginScriptUnix = `#!/bin/bash
+# TopSqill Login Script - macOS Login Hook / Linux profile.d
+# macOS: sudo defaults write com.apple.loginwindow LoginHook /usr/local/bin/topsqill-login.sh
+# Linux: cp topsqill-login.sh /etc/profile.d/
+
+API_URL="${SUPABASE_URL}/functions/v1/asset-agent-report"
+ORG_ID="${orgId}"
+HOSTNAME_VAL=\$(hostname)
+MARKER="/tmp/.topsqill-reported-\$(date +%Y%m%d)"
+
+# Skip if already reported today
+[ -f "\$MARKER" ] && exit 0
+
+if [[ "\$OSTYPE" == "darwin"* ]]; then
+    SERIAL=\$(system_profiler SPHardwareDataType 2>/dev/null | awk '/Serial Number/{print \$NF}' || echo "unknown")
+else
+    SERIAL=\$(cat /sys/devices/virtual/dmi/id/product_serial 2>/dev/null || echo "unknown")
+fi
+AGENT_KEY="\${HOSTNAME_VAL}-\${SERIAL}"
+
+# Register
+curl -s -X POST "\$API_URL" \\
+  -H "Content-Type: application/json" \\
+  -H "x-agent-key: \$AGENT_KEY" \\
+  -d "{\\"action\\":\\"register\\",\\"organization_id\\":\\"\$ORG_ID\\",\\"hostname\\":\\"\$HOSTNAME_VAL\\",\\"os_type\\":\\"\$(uname -s)\\",\\"os_version\\":\\"\$(sw_vers -productVersion 2>/dev/null || uname -r)\\"}" >/dev/null 2>&1
+
+# Collect hardware
+if [[ "\$OSTYPE" == "darwin"* ]]; then
+    CPU_MODEL=\$(sysctl -n machdep.cpu.brand_string 2>/dev/null || echo "Apple Silicon")
+    CPU_CORES=\$(sysctl -n hw.ncpu 2>/dev/null || echo 0)
+    RAM_GB=\$(echo "scale=0; \$(sysctl -n hw.memsize 2>/dev/null || echo 0) / 1073741824" | bc 2>/dev/null || echo 0)
+    DISK_TOTAL=\$(df -g / | tail -1 | awk '{print \$2}')
+    DISK_FREE=\$(df -g / | tail -1 | awk '{print \$4}')
+    IP_ADDR=\$(ipconfig getifaddr en0 2>/dev/null || echo "")
+    MAC_ADDR=\$(ifconfig en0 2>/dev/null | awk '/ether/{print \$2}' || echo "")
+    MODEL=\$(sysctl -n hw.model 2>/dev/null || echo "Unknown")
+else
+    CPU_MODEL=\$(grep "model name" /proc/cpuinfo 2>/dev/null | head -1 | cut -d: -f2 | xargs || echo "Unknown")
+    CPU_CORES=\$(nproc 2>/dev/null || echo 0)
+    RAM_GB=\$(echo "scale=0; \$(grep MemTotal /proc/meminfo 2>/dev/null | awk '{print \$2}' || echo 0) / 1048576" | bc 2>/dev/null || echo 0)
+    DISK_TOTAL=\$(df -BG / | tail -1 | awk '{print int(\$2)}')
+    DISK_FREE=\$(df -BG / | tail -1 | awk '{print int(\$4)}')
+    IP_ADDR=\$(hostname -I 2>/dev/null | awk '{print \$1}' || echo "")
+    MAC_ADDR=\$(ip link show 2>/dev/null | grep link/ether | head -1 | awk '{print \$2}' || echo "")
+    MODEL=\$(cat /sys/devices/virtual/dmi/id/product_name 2>/dev/null || echo "Unknown")
+fi
+
+# Report
+curl -s -X POST "\$API_URL" \\
+  -H "Content-Type: application/json" \\
+  -H "x-agent-key: \$AGENT_KEY" \\
+  -d "{\\"action\\":\\"report\\",\\"system\\":{\\"hostname\\":\\"\$HOSTNAME_VAL\\",\\"ip_address\\":\\"\$IP_ADDR\\",\\"mac_address\\":\\"\$MAC_ADDR\\",\\"model\\":\\"\$MODEL\\",\\"serial_number\\":\\"\$SERIAL\\"},\\"hardware\\":{\\"cpu_model\\":\\"\$CPU_MODEL\\",\\"cpu_cores\\":\${CPU_CORES:-0},\\"ram_total_gb\\":\${RAM_GB:-0},\\"disk_total_gb\\":\${DISK_TOTAL:-0},\\"disk_free_gb\\":\${DISK_FREE:-0},\\"os_name\\":\\"\$(uname -s)\\",\\"os_version\\":\\"\$(sw_vers -productVersion 2>/dev/null || uname -r)\\"},\\"software\\":[]}" >/dev/null 2>&1
+
+touch "\$MARKER"`;
+
+  // ─── Self-Registering One-Liners ───
+  const windowsOneLiner = `powershell -ExecutionPolicy Bypass -Command "$u='${API_URL}';$k=\\"$env:COMPUTERNAME-$(Get-WmiObject Win32_BIOS|Select -Exp SerialNumber)\\";$h=@{'x-agent-key'=$k;'Content-Type'='application/json'};irm $u -Method POST -Headers $h -Body (@{action='register';organization_id='${orgId}';hostname=$env:COMPUTERNAME;os_type='Windows';os_version=(Get-CimInstance Win32_OperatingSystem).Caption}|ConvertTo-Json);$c=Get-CimInstance Win32_Processor|Select -First 1;$s=Get-CimInstance Win32_ComputerSystem;$o=Get-CimInstance Win32_OperatingSystem;irm $u -Method POST -Headers $h -Body (@{action='report';system=@{hostname=$env:COMPUTERNAME;manufacturer=$s.Manufacturer;model=$s.Model};hardware=@{cpu_model=$c.Name;cpu_cores=$c.NumberOfCores;ram_total_gb=[math]::Round($s.TotalPhysicalMemory/1GB,1);os_name=$o.Caption;os_version=$o.Version};software=@()}|ConvertTo-Json -Depth 5)"`;
+
+  const unixOneLiner = `H=$(hostname);S=$(system_profiler SPHardwareDataType 2>/dev/null|awk '/Serial/{print $NF}'||cat /sys/devices/virtual/dmi/id/product_serial 2>/dev/null||echo unknown);K="$H-$S";U="${API_URL}";curl -s -X POST "$U" -H "Content-Type: application/json" -H "x-agent-key: $K" -d '{"action":"register","organization_id":"${orgId}","hostname":"'$H'","os_type":"'$(uname -s)'"}';C=$(sysctl -n hw.ncpu 2>/dev/null||nproc 2>/dev/null||echo 0);R=$(echo "scale=0;$(sysctl -n hw.memsize 2>/dev/null||echo $(grep MemTotal /proc/meminfo 2>/dev/null|awk '{print $2*1024}'||echo 0))/1073741824"|bc 2>/dev/null||echo 0);curl -s -X POST "$U" -H "Content-Type: application/json" -H "x-agent-key: $K" -d '{"action":"report","system":{"hostname":"'$H'","serial_number":"'$S'"},"hardware":{"cpu_cores":'$C',"ram_total_gb":'$R',"os_name":"'$(uname -s)'","os_version":"'$(sw_vers -productVersion 2>/dev/null||uname -r)'"},"software":[]}'`;
+
   const copyScript = (script: string) => {
     navigator.clipboard.writeText(script);
     toast({ title: 'Copied!', description: 'Agent script copied to clipboard.' });
