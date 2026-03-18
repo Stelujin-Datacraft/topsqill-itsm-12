@@ -169,6 +169,18 @@ export function DashboardsList({
                       )}
                     </div>
                     <div className="flex space-x-1" onClick={(e) => e.stopPropagation()}>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button variant="ghost" size="sm" onClick={() => handleSetDefault(dashboard)} disabled={editButtonState.disabled || loading}>
+                              <Star className={`h-4 w-4 ${isDefault ? 'fill-primary text-primary' : 'text-primary'}`} />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{isDefault ? 'Remove as Default' : 'Set as Default'}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                       <Button variant="ghost" size="sm" onClick={() => handleCopyId(dashboard.id)} title="Copy Dashboard ID">
                         <Copy className="h-4 w-4 text-primary" />
                       </Button>
