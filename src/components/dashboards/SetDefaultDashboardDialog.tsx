@@ -72,8 +72,8 @@ export function SetDefaultDashboardDialog({ dashboard, isOpen, onClose }: SetDef
         }
 
         // Load existing default settings
-        const currentDefaultFor = dashboard.default_for || 'all';
-        setDefaultFor(currentDefaultFor as 'all' | 'specific');
+        const currentDefaultFor = (dashboard as any).default_for || 'all';
+        setDefaultFor(currentDefaultFor);
 
         if (currentDefaultFor === 'specific') {
           const { data: assignedUsers } = await supabase
@@ -107,7 +107,7 @@ export function SetDefaultDashboardDialog({ dashboard, isOpen, onClose }: SetDef
       // Update dashboard: set is_default and default_for
       const { error: updateError } = await supabase
         .from('dashboards')
-        .update({ is_default: true, default_for: defaultFor })
+        .update({ is_default: true, default_for: defaultFor } as any)
         .eq('id', dashboard.id);
 
       if (updateError) throw updateError;
@@ -154,7 +154,7 @@ export function SetDefaultDashboardDialog({ dashboard, isOpen, onClose }: SetDef
     try {
       await supabase
         .from('dashboards')
-        .update({ is_default: false, default_for: 'all' })
+        .update({ is_default: false, default_for: 'all' } as any)
         .eq('id', dashboard.id);
 
       await supabase
@@ -184,7 +184,7 @@ export function SetDefaultDashboardDialog({ dashboard, isOpen, onClose }: SetDef
     return name.includes(searchQuery.toLowerCase());
   });
 
-  const isCurrentlyDefault = dashboard?.is_default;
+  const isCurrentlyDefault = (dashboard as any)?.is_default;
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>

@@ -57,32 +57,42 @@ const ProtectedLayout: React.FC = () => {
   const { isImpersonating } = useImpersonation();
   const location = useLocation();
   const navigate = useNavigate();
-  const defaultDashboardChecked = useRef<string | null>(null);
+  const defaultDashboardChecked = useRef(false);
  
    // Enable real-time permission sync for authenticated users
    usePermissionRealtimeSync();
 
   // Auto-redirect to default dashboard on initial login (when landing on /dashboard)
   useEffect(() => {
-    // Reset check when project changes
-    const checkKey = `${currentProject?.id}-${user?.id}`;
-    if (defaultDashboardChecked.current === checkKey) return;
+    if (defaultDashboardChecked.current) return;
     if (!currentProject?.id || !user || location.pathname !== '/dashboard') return;
 
-    defaultDashboardChecked.current = checkKey;
+    defaultDashboardChecked.current = true;
 
     const checkDefaultDashboard = async () => {
       try {
         console.log('[DefaultDashboard] Checking for user:', user.id, 'project:', currentProject.id);
+        
+        // First check for a user-specific default assignment
+        // Note: user_profiles.id may differ from auth user.id, so look up the profile id first
+        const { data: userProfile } = await supabase
+          .from('user_profiles')
+          .select('id')
+          .eq('id', user.id)
+          .maybeSingle();
 
-        // 1. Check for user-specific default assignment first
-        const { data: userAssignment } = await supabase
+        const profileId = userProfile?.id || user.id;
+        console.log('[DefaultDashboard] Profile ID:', profileId);
+
+        const { data: userAssignment, error: userError } = await supabase
           .from('default_dashboard_users')
           .select('dashboard_id')
           .eq('project_id', currentProject.id)
-          .eq('user_id', user.id)
+          .eq('user_id', profileId)
           .limit(1)
           .maybeSingle();
+
+        console.log('[DefaultDashboard] User assignment:', userAssignment, 'error:', userError);
 
         if (userAssignment?.dashboard_id) {
           console.log('[DefaultDashboard] Redirecting to user-specific dashboard:', userAssignment.dashboard_id);
@@ -90,8 +100,8 @@ const ProtectedLayout: React.FC = () => {
           return;
         }
 
-        // 2. Check for project-wide default (default_for = 'all')
-        const { data: projectDefault } = await supabase
+        // Then check for a project-wide default (default_for = 'all')
+        const { data: projectDefault, error: projectError } = await supabase
           .from('dashboards')
           .select('id, default_for')
           .eq('project_id', currentProject.id)
@@ -99,7 +109,9 @@ const ProtectedLayout: React.FC = () => {
           .limit(1)
           .maybeSingle();
 
-        if (projectDefault?.id && projectDefault.default_for === 'all') {
+        console.log('[DefaultDashboard] Project default:', projectDefault, 'error:', projectError);
+
+        if (projectDefault?.id && (projectDefault as any).default_for === 'all') {
           console.log('[DefaultDashboard] Redirecting to project-wide dashboard:', projectDefault.id);
           navigate(`/dashboard-view/${projectDefault.id}`, { replace: true });
         }

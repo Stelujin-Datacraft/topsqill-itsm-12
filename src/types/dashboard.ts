@@ -9,7 +9,6 @@ export interface Dashboard {
   updated_at: string;
   is_public: boolean;
   is_default?: boolean;
-  default_for?: string | null;
   layout?: any[];
   reference_id?: string;
 }
