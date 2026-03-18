@@ -15,9 +15,11 @@ const SUPABASE_URL = "https://fnmkczsvwpzpxyklztkt.supabase.co";
 export function AgentManagement() {
   const { agents, loadAgents } = useITAssets();
   const { userProfile } = useAuth();
-  const [scriptTab, setScriptTab] = useState('windows');
+  const defaultTab = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform) ? 'linux' : 'windows';
+  const [scriptTab, setScriptTab] = useState(defaultTab);
 
-  const orgId = userProfile?.organization_id || '<YOUR_ORG_ID>';
+  const hasOrgId = Boolean(userProfile?.organization_id);
+  const orgId = userProfile?.organization_id || '';
 
   const windowsScript = `# TopSqill IT Asset Agent - Windows PowerShell
 # Run as Administrator
@@ -253,16 +255,20 @@ echo "Agent report completed successfully!"`;
       <Card>
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2"><Terminal className="h-5 w-5" />Agent Installation</CardTitle>
-          <CardDescription>
-            Download and run the agent script on each system to automatically collect hardware and software inventory. 
-            The agent can be deployed via Group Policy (GPO), SCCM, or manually.
+          <CardDescription className="space-y-1">
+            <p>Download and run the agent script on each system to automatically collect hardware and software inventory.</p>
+            <p>The agent can be deployed via Group Policy (GPO), SCCM, or manually.</p>
+            <p><strong>Organization ID used in scripts:</strong> {orgId || 'Loading...'}</p>
+            {!hasOrgId && (
+              <p><strong>Wait for profile to load</strong> before copying/downloading, then refresh this page.</p>
+            )}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs value={scriptTab} onValueChange={setScriptTab}>
             <TabsList>
               <TabsTrigger value="windows">Windows (PowerShell)</TabsTrigger>
-              <TabsTrigger value="linux">Linux / macOS (Bash)</TabsTrigger>
+              <TabsTrigger value="linux">macOS / Linux (Bash)</TabsTrigger>
             </TabsList>
 
             <TabsContent value="windows" className="space-y-3">
@@ -270,10 +276,10 @@ echo "Agent report completed successfully!"`;
                 <pre className="text-xs font-mono whitespace-pre-wrap">{windowsScript.slice(0, 500)}...</pre>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={() => copyScript(windowsScript)}>
+                <Button variant="outline" size="sm" disabled={!hasOrgId} onClick={() => copyScript(windowsScript)}>
                   <Copy className="h-4 w-4 mr-2" />Copy Script
                 </Button>
-                <Button size="sm" onClick={() => downloadScript(windowsScript, 'topsqill-agent.ps1')}>
+                <Button size="sm" disabled={!hasOrgId} onClick={() => downloadScript(windowsScript, 'topsqill-agent.ps1')}>
                   <Download className="h-4 w-4 mr-2" />Download .ps1
                 </Button>
               </div>
@@ -289,10 +295,10 @@ echo "Agent report completed successfully!"`;
                 <pre className="text-xs font-mono whitespace-pre-wrap">{linuxScript.slice(0, 500)}...</pre>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={() => copyScript(linuxScript)}>
+                <Button variant="outline" size="sm" disabled={!hasOrgId} onClick={() => copyScript(linuxScript)}>
                   <Copy className="h-4 w-4 mr-2" />Copy Script
                 </Button>
-                <Button size="sm" onClick={() => downloadScript(linuxScript, 'topsqill-agent.sh')}>
+                <Button size="sm" disabled={!hasOrgId} onClick={() => downloadScript(linuxScript, 'topsqill-agent.sh')}>
                   <Download className="h-4 w-4 mr-2" />Download .sh
                 </Button>
               </div>
