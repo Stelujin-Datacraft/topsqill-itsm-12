@@ -225,7 +225,7 @@ const KnowledgeBaseFolder = () => {
                           <div className="flex items-center gap-2 mb-1 flex-wrap">
                             <Badge variant={itemType === 'audit' ? 'default' : 'secondary'} className="text-xs">
                               {itemType === 'audit' ? <Shield className="h-3 w-3 mr-1" /> : <FileText className="h-3 w-3 mr-1" />}
-                              {itemType === 'audit' ? 'Audit' : 'Policy'}
+                              {itemType === 'audit' ? 'Audit' : 'Doc'}
                             </Badge>
                             {policy.policy_number && (
                               <span className="text-xs font-mono text-muted-foreground">{policy.policy_number}</span>
