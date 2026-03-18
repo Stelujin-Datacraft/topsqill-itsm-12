@@ -71,16 +71,31 @@ const ProtectedLayout: React.FC = () => {
 
     const checkDefaultDashboard = async () => {
       try {
-        const { data } = await supabase
+        // First check for a user-specific default assignment
+        const { data: userAssignment } = await supabase
+          .from('default_dashboard_users')
+          .select('dashboard_id')
+          .eq('project_id', currentProject.id)
+          .eq('user_id', user.id)
+          .limit(1)
+          .maybeSingle();
+
+        if (userAssignment?.dashboard_id) {
+          navigate(`/dashboard-view/${userAssignment.dashboard_id}`, { replace: true });
+          return;
+        }
+
+        // Then check for a project-wide default (default_for = 'all')
+        const { data: projectDefault } = await supabase
           .from('dashboards')
-          .select('id')
+          .select('id, default_for')
           .eq('project_id', currentProject.id)
           .eq('is_default', true)
           .limit(1)
           .maybeSingle();
 
-        if (data?.id) {
-          navigate(`/dashboard-view/${data.id}`, { replace: true });
+        if (projectDefault?.id && (projectDefault as any).default_for === 'all') {
+          navigate(`/dashboard-view/${projectDefault.id}`, { replace: true });
         }
       } catch (err) {
         console.error('Failed to check default dashboard:', err);
