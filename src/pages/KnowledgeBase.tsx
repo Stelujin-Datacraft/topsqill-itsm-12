@@ -72,7 +72,7 @@ const KnowledgeBase = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Knowledge Base</h1>
-          <p className="text-sm text-muted-foreground">Organize policies, audits, and governance documents</p>
+          <p className="text-sm text-muted-foreground">Organize docs, audits, and governance documents</p>
         </div>
         {isAdmin && (
           <Button onClick={() => setShowCreate(true)} className="gap-2">
