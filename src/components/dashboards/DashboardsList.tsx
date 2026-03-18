@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { LayoutDashboard, Calendar, Eye, Edit, Trash2, FileText, Plus, Copy } from 'lucide-react';
+import { LayoutDashboard, Calendar, Eye, Edit, Trash2, FileText, Plus, Copy, Star } from 'lucide-react';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
@@ -31,7 +31,7 @@ export function DashboardsList({
   const navigate = useNavigate();
   const { toast } = useToast();
   const { getButtonState, checkPermissionWithAlert } = useUnifiedAccessControl();
-  const { deleteDashboard, refetchDashboards } = useDashboards();
+  const { deleteDashboard, setDefaultDashboard, refetchDashboards } = useDashboards();
 
   const handleCopyId = (dashboardId: string) => {
     navigator.clipboard.writeText(dashboardId);
@@ -46,6 +46,20 @@ export function DashboardsList({
       return;
     }
     setEditingDashboard(dashboard);
+  };
+
+  const handleSetDefault = async (dashboard: DashboardWithReports) => {
+    if (!checkPermissionWithAlert('reports', 'update')) return;
+    try {
+      setLoading(true);
+      const newDefault = !(dashboard as any).is_default;
+      await setDefaultDashboard(dashboard.id, newDefault);
+    } catch (error) {
+      console.error('Error setting default dashboard:', error);
+      toast({ title: "Error", description: "Failed to update default dashboard", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleDeleteClick = async (dashboard: DashboardWithReports) => {
@@ -138,21 +152,35 @@ export function DashboardsList({
             const editButtonState = getButtonState('reports', 'update');
             const deleteButtonState = getButtonState('reports', 'delete');
             const reportCount = dashboard.reports?.length || 0;
+            const isDefault = (dashboard as any).is_default;
             
             return (
-              <Card key={dashboard.id} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => onView(dashboard)}>
+              <Card key={dashboard.id} className={`hover:shadow-md transition-shadow cursor-pointer ${isDefault ? 'ring-2 ring-primary' : ''}`} onClick={() => onView(dashboard)}>
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <div className="space-y-1 flex-1">
                       <div className="flex items-center gap-2">
                         <LayoutDashboard className="h-4 w-4 text-primary" />
                         <CardTitle className="text-lg">{dashboard.name}</CardTitle>
+                        {isDefault && <Badge variant="default" className="text-[10px]">Default</Badge>}
                       </div>
                       {dashboard.description && (
                         <CardDescription className="line-clamp-2">{dashboard.description}</CardDescription>
                       )}
                     </div>
                     <div className="flex space-x-1" onClick={(e) => e.stopPropagation()}>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button variant="ghost" size="sm" onClick={() => handleSetDefault(dashboard)} disabled={editButtonState.disabled || loading}>
+                              <Star className={`h-4 w-4 ${isDefault ? 'fill-primary text-primary' : 'text-primary'}`} />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{isDefault ? 'Remove as Default' : 'Set as Default'}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                       <Button variant="ghost" size="sm" onClick={() => handleCopyId(dashboard.id)} title="Copy Dashboard ID">
                         <Copy className="h-4 w-4 text-primary" />
                       </Button>

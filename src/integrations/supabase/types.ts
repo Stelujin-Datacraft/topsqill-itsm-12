@@ -641,6 +641,7 @@ export type Database = {
           created_by: string
           description: string | null
           id: string
+          is_default: boolean | null
           is_public: boolean | null
           layout: Json | null
           name: string
@@ -654,6 +655,7 @@ export type Database = {
           created_by: string
           description?: string | null
           id?: string
+          is_default?: boolean | null
           is_public?: boolean | null
           layout?: Json | null
           name: string
@@ -667,6 +669,7 @@ export type Database = {
           created_by?: string
           description?: string | null
           id?: string
+          is_default?: boolean | null
           is_public?: boolean | null
           layout?: Json | null
           name?: string
