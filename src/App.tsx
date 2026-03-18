@@ -97,6 +97,9 @@ const CompliancePage = lazy(() => import("./pages/CompliancePage"));
 const AuditProgramsPage = lazy(() => import("./pages/AuditProgramsPage"));
 const EvidenceLockerPage = lazy(() => import("./pages/EvidenceLockerPage"));
 
+// IT Asset Management
+const ITAssets = lazy(() => import("./pages/ITAssets"));
+
 // Performance-optimized React Query configuration
 const queryClient = new QueryClient({
   defaultOptions: {
