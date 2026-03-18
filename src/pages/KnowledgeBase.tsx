@@ -318,7 +318,7 @@ const KnowledgeBase = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Folder</AlertDialogTitle>
             <AlertDialogDescription>
-              This will delete the folder. Policies inside will become unassigned. Continue?
+              This will delete the folder. Docs inside will become unassigned. Continue?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
