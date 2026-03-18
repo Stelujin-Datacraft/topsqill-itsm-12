@@ -91,11 +91,13 @@ echo ""
 echo "Done! Refresh the Agents page to see your device."`;
 
   const windowsScript = `# TopSqill IT Asset Agent - Windows PowerShell
-# Run as Administrator
+# Run as Administrator — auto-installs a Scheduled Task to report every 6 hours
 
 $API_URL = "${SUPABASE_URL}/functions/v1/asset-agent-report"
 $ORG_ID = "${orgId}"
 $AGENT_KEY = "$env:COMPUTERNAME-$(Get-WmiObject Win32_BIOS | Select-Object -ExpandProperty SerialNumber)"
+$SCRIPT_DIR = "$env:ProgramData\\TopSqill"
+$SCRIPT_PATH = "$SCRIPT_DIR\\topsqill-agent.ps1"
 
 function Send-AgentReport {
     param([string]$Action, [hashtable]$Body)
@@ -181,15 +183,42 @@ Send-AgentReport -Action "report" -Body @{
     software = @($software)
 }
 
+# ── Auto-install Scheduled Task (runs every 6 hours) ──
+Write-Host ""
+Write-Host "Setting up scheduled reporting (every 6 hours)..." -ForegroundColor Cyan
+
+# Save this script to a persistent location
+New-Item -Path $SCRIPT_DIR -ItemType Directory -Force | Out-Null
+$MyInvocation.MyCommand.ScriptBlock.ToString() | Out-File -FilePath $SCRIPT_PATH -Encoding UTF8 -Force
+
+$taskName = "TopSqill-AssetAgent"
+$existingTask = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
+
+if (-not $existingTask) {
+    $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-ExecutionPolicy Bypass -WindowStyle Hidden -File \\"$SCRIPT_PATH\\""
+    $trigger = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Hours 6) -RepetitionDuration ([TimeSpan]::MaxValue)
+    $principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
+    $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 15)
+
+    Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Description "TopSqill ITAM Agent - reports hardware and software inventory every 6 hours" | Out-Null
+    Write-Host "✅ Scheduled Task '$taskName' created — reports every 6 hours." -ForegroundColor Green
+} else {
+    Write-Host "ℹ️  Scheduled Task '$taskName' already exists — no changes made." -ForegroundColor Yellow
+}
+
+Write-Host ""
 Write-Host "Agent report completed successfully!" -ForegroundColor Green`;
 
   const linuxScript = `#!/bin/bash
 # TopSqill IT Asset Agent - Linux/macOS
 # Run with: bash topsqill-agent.sh
+# Auto-installs a cron job to report every 6 hours
 
 API_URL="${SUPABASE_URL}/functions/v1/asset-agent-report"
 ORG_ID="${orgId}"
 HOSTNAME_VAL=\$(hostname)
+INSTALL_DIR="/usr/local/bin"
+SCRIPT_PATH="\$INSTALL_DIR/topsqill-agent.sh"
 
 send_report() {
     local action=\$1
@@ -315,6 +344,64 @@ EOJSON
 )
 
 send_report "report" "\$REPORT_JSON"
+
+echo ""
+
+# ── Auto-install cron job (runs every 6 hours) ──
+echo "Setting up scheduled reporting (every 6 hours)..."
+
+# Copy script to persistent location
+if [ "\$(id -u)" -eq 0 ]; then
+    cp "\$0" "\$SCRIPT_PATH" 2>/dev/null || true
+    chmod +x "\$SCRIPT_PATH" 2>/dev/null || true
+fi
+
+CRON_CMD="0 */6 * * * \$SCRIPT_PATH >/dev/null 2>&1"
+CRON_TAG="# TopSqill ITAM Agent"
+
+if [[ "\$OSTYPE" == "darwin"* ]]; then
+    # macOS: Use LaunchDaemon for reliable scheduling
+    PLIST_PATH="/Library/LaunchDaemons/com.topsqill.agent.plist"
+    if [ ! -f "\$PLIST_PATH" ] && [ "\$(id -u)" -eq 0 ]; then
+        cat > "\$PLIST_PATH" <<EOPLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.topsqill.agent</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>\$SCRIPT_PATH</string>
+    </array>
+    <key>StartInterval</key>
+    <integer>21600</integer>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/var/log/topsqill-agent.log</string>
+    <key>StandardErrorPath</key>
+    <string>/var/log/topsqill-agent.log</string>
+</dict>
+</plist>
+EOPLIST
+        launchctl load "\$PLIST_PATH" 2>/dev/null
+        echo "✅ LaunchDaemon installed — reports every 6 hours."
+    elif [ -f "\$PLIST_PATH" ]; then
+        echo "ℹ️  LaunchDaemon already exists — no changes made."
+    else
+        echo "⚠️  Run with sudo to install scheduled reporting."
+    fi
+else
+    # Linux: Use crontab
+    if ! crontab -l 2>/dev/null | grep -q "topsqill-agent"; then
+        (crontab -l 2>/dev/null; echo ""; echo "\$CRON_TAG"; echo "\$CRON_CMD") | crontab -
+        echo "✅ Cron job installed — reports every 6 hours."
+    else
+        echo "ℹ️  Cron job already exists — no changes made."
+    fi
+fi
 
 echo ""
 echo "Agent report completed successfully!"`;
@@ -451,7 +538,7 @@ touch "\$MARKER"`;
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2"><Terminal className="h-5 w-5" />Agent Installation</CardTitle>
           <CardDescription>
-            Download and run the agent script on each device to automatically collect hardware & software inventory and report it here.
+            Download and run the agent script on each device to automatically collect hardware &amp; software inventory. The script auto-installs a scheduled task to report every 6 hours.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -492,7 +579,8 @@ touch "\$MARKER"`;
                   <li>Run the script:
                     <code className="block bg-muted rounded px-2 py-1 mt-1 font-mono text-xs">.\topsqill-agent.ps1</code>
                   </li>
-                  <li>You should see <strong>"Agent report completed successfully!"</strong> — then refresh this page.</li>
+                  <li>You should see <strong>"Agent report completed successfully!"</strong> — a Scheduled Task will auto-install to report every 6 hours.</li>
+                  <li>Refresh this page to see your device.</li>
                 </ol>
               </div>
 
@@ -500,8 +588,8 @@ touch "\$MARKER"`;
                 <summary className="cursor-pointer font-medium">Advanced deployment options</summary>
                 <ul className="mt-2 space-y-1 list-disc list-inside ml-2">
                   <li><strong>GPO:</strong> Create a startup script policy pointing to this .ps1 file.</li>
-                  <li><strong>Scheduled:</strong> Use Task Scheduler to run daily for continuous monitoring.</li>
                   <li><strong>SCCM/Intune:</strong> Deploy as a script package to managed devices.</li>
+                  <li><strong>Custom interval:</strong> Edit the Scheduled Task "TopSqill-AssetAgent" in Task Scheduler to change the 6-hour default.</li>
                 </ul>
               </details>
 
@@ -533,7 +621,8 @@ touch "\$MARKER"`;
                   <li>Make the script executable and run it:
                     <code className="block bg-muted rounded px-2 py-1 mt-1 font-mono text-xs">chmod +x topsqill-agent.sh && bash topsqill-agent.sh</code>
                   </li>
-                  <li>You should see <strong>"Agent report completed successfully!"</strong> — then refresh this page.</li>
+                  <li>You should see <strong>"Agent report completed successfully!"</strong> — a scheduled job (cron/LaunchDaemon) auto-installs to report every 6 hours.</li>
+                  <li>Refresh this page to see your device.</li>
                 </ol>
               </div>
 
@@ -548,14 +637,15 @@ touch "\$MARKER"`;
                   <li>Make the script executable and run it:
                     <code className="block bg-muted rounded px-2 py-1 mt-1 font-mono text-xs">chmod +x topsqill-agent.sh && sudo bash topsqill-agent.sh</code>
                   </li>
-                  <li>You should see <strong>"Agent report completed successfully!"</strong> — then refresh this page.</li>
+                  <li>You should see <strong>"Agent report completed successfully!"</strong> — a scheduled job auto-installs to report every 6 hours.</li>
                 </ol>
               </div>
 
               <details className="text-sm text-muted-foreground">
-                <summary className="cursor-pointer font-medium">Advanced: Schedule with cron</summary>
-                <p className="mt-2">Run every 6 hours automatically:</p>
-                <code className="block bg-muted rounded px-2 py-1 mt-1 font-mono text-xs">0 */6 * * * /path/to/topsqill-agent.sh</code>
+                <summary className="cursor-pointer font-medium">Advanced: Change reporting interval</summary>
+                <p className="mt-2">The script auto-installs a 6-hour schedule. To customize:</p>
+                <p className="mt-1"><strong>macOS:</strong> Edit <code className="font-mono text-xs bg-muted px-1 rounded">/Library/LaunchDaemons/com.topsqill.agent.plist</code> and change <code className="font-mono text-xs">StartInterval</code>.</p>
+                <p className="mt-1"><strong>Linux:</strong> Run <code className="font-mono text-xs bg-muted px-1 rounded">crontab -e</code> and edit the TopSqill line.</p>
               </details>
 
               <details className="text-xs">
