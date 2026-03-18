@@ -69,6 +69,25 @@ const ProtectedLayout: React.FC = () => {
 
     defaultDashboardChecked.current = true;
 
+    const getDefaultReportForDashboard = async (dashboardId: string): Promise<string | null> => {
+      try {
+        const { data, error } = await supabase
+          .from('reports')
+          .select('id')
+          .eq('dashboard_id', dashboardId)
+          .eq('is_default_report', true)
+          .limit(1)
+          .maybeSingle();
+        if (error) {
+          console.error('[DefaultDashboard] Error checking default report:', error);
+          return null;
+        }
+        return data?.id || null;
+      } catch {
+        return null;
+      }
+    };
+
     const checkDefaultDashboard = async () => {
       try {
         console.log('[DefaultDashboard] Checking for user:', user.id, 'project:', currentProject.id);
@@ -96,7 +115,14 @@ const ProtectedLayout: React.FC = () => {
 
         if (userAssignment?.dashboard_id) {
           console.log('[DefaultDashboard] Redirecting to user-specific dashboard:', userAssignment.dashboard_id);
-          navigate(`/dashboard-view/${userAssignment.dashboard_id}`, { replace: true });
+          // Check for a default report within this dashboard
+          const defaultReportId = await getDefaultReportForDashboard(userAssignment.dashboard_id);
+          if (defaultReportId) {
+            console.log('[DefaultDashboard] Redirecting to default report:', defaultReportId);
+            navigate(`/report-view/${defaultReportId}`, { replace: true });
+          } else {
+            navigate(`/dashboard-view/${userAssignment.dashboard_id}`, { replace: true });
+          }
           return;
         }
 
@@ -113,7 +139,14 @@ const ProtectedLayout: React.FC = () => {
 
         if (projectDefault?.id && (projectDefault as any).default_for === 'all') {
           console.log('[DefaultDashboard] Redirecting to project-wide dashboard:', projectDefault.id);
-          navigate(`/dashboard-view/${projectDefault.id}`, { replace: true });
+          // Check for a default report within this dashboard
+          const defaultReportId = await getDefaultReportForDashboard(projectDefault.id);
+          if (defaultReportId) {
+            console.log('[DefaultDashboard] Redirecting to default report:', defaultReportId);
+            navigate(`/report-view/${defaultReportId}`, { replace: true });
+          } else {
+            navigate(`/dashboard-view/${projectDefault.id}`, { replace: true });
+          }
         }
       } catch (err) {
         console.error('Failed to check default dashboard:', err);

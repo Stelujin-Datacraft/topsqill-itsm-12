@@ -5,12 +5,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { ArrowLeft, Plus, FileText, Eye, Edit, Trash2, Calendar, Copy } from 'lucide-react';
+import { ArrowLeft, Plus, FileText, Eye, Edit, Trash2, Calendar, Copy, Star } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { CreateReportDialog } from '@/components/reports/CreateReportDialog';
 import { ShareLinkButton } from '@/components/shared/ShareLinkButton';
+import { SetDefaultReportDialog } from '@/components/dashboards/SetDefaultReportDialog';
 import { useUnifiedAccessControl } from '@/hooks/useUnifiedAccessControl';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
@@ -21,6 +22,7 @@ const DashboardView = () => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [defaultReportTarget, setDefaultReportTarget] = useState<any>(null);
   const { getButtonState, checkPermissionWithAlert } = useUnifiedAccessControl();
 
   const { data: dashboard, isLoading } = useQuery({
@@ -28,7 +30,7 @@ const DashboardView = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('dashboards')
-        .select(`*, reports:reports(id, name, description, created_at, updated_at, is_public)`)
+        .select(`*, reports:reports(id, name, description, created_at, updated_at, is_public, is_default_report)`)
         .eq('id', id)
         .single();
       if (error) throw error;
@@ -207,16 +209,40 @@ const DashboardView = () => {
               const editButtonState = getButtonState('reports', 'update', report.id);
               const deleteButtonState = getButtonState('reports', 'delete', report.id);
               const isDeleting = deleting === report.id;
+              const isDefaultReport = report.is_default_report;
 
               return (
-                <Card key={report.id} className="hover:shadow-md transition-shadow">
+                <Card key={report.id} className={`hover:shadow-md transition-shadow ${isDefaultReport ? 'ring-2 ring-primary' : ''}`}>
                   <CardHeader>
                     <div className="flex items-start justify-between">
                       <div className="space-y-1">
-                        <CardTitle className="text-lg">{report.name}</CardTitle>
+                        <div className="flex items-center gap-2">
+                          <CardTitle className="text-lg">{report.name}</CardTitle>
+                          {isDefaultReport && <Badge variant="default" className="text-[10px]">Default</Badge>}
+                        </div>
                         {report.description && <CardDescription>{report.description}</CardDescription>}
                       </div>
                       <div className="flex space-x-1">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                onClick={() => {
+                                  if (!checkPermissionWithAlert('reports', 'update')) return;
+                                  setDefaultReportTarget(report);
+                                }}
+                                disabled={editButtonState.disabled}
+                              >
+                                <Star className={`h-4 w-4 ${isDefaultReport ? 'fill-primary text-primary' : 'text-primary'}`} />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{isDefaultReport ? 'Remove as Default Report' : 'Set as Default Report'}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                         <Button 
                           variant="ghost" 
                           size="sm" 
@@ -290,6 +316,14 @@ const DashboardView = () => {
           </div>
         )}
       </div>
+
+      {/* Set Default Report Dialog */}
+      <SetDefaultReportDialog
+        report={defaultReportTarget}
+        dashboardId={dashboard.id}
+        isOpen={!!defaultReportTarget}
+        onClose={() => setDefaultReportTarget(null)}
+      />
     </DashboardLayout>
   );
 };
