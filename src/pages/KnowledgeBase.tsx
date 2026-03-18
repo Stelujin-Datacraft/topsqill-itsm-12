@@ -238,7 +238,7 @@ const KnowledgeBase = () => {
                   </div>
                   <div>
                     <h3 className="font-semibold text-foreground">Unassigned Items</h3>
-                    <p className="text-xs text-muted-foreground mt-0.5">Policies & audits not in any folder</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Docs & audits not in any folder</p>
                   </div>
                 </div>
                 <div className="mt-4">
