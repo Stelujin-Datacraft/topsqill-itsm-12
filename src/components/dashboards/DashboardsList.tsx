@@ -12,6 +12,7 @@ import { useUnifiedAccessControl } from '@/hooks/useUnifiedAccessControl';
 import { useDashboards } from '@/hooks/useDashboards';
 import { CreateDashboardDialog } from './CreateDashboardDialog';
 import { EditDashboardDialog } from './EditDashboardDialog';
+import { SetDefaultDashboardDialog } from './SetDefaultDashboardDialog';
 
 export interface DashboardsListProps {
   dashboards: DashboardWithReports[];
