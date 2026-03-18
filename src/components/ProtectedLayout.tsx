@@ -96,7 +96,14 @@ const ProtectedLayout: React.FC = () => {
 
         if (userAssignment?.dashboard_id) {
           console.log('[DefaultDashboard] Redirecting to user-specific dashboard:', userAssignment.dashboard_id);
-          navigate(`/dashboard-view/${userAssignment.dashboard_id}`, { replace: true });
+          // Check for a default report within this dashboard
+          const defaultReportId = await getDefaultReportForDashboard(userAssignment.dashboard_id);
+          if (defaultReportId) {
+            console.log('[DefaultDashboard] Redirecting to default report:', defaultReportId);
+            navigate(`/report-view/${defaultReportId}`, { replace: true });
+          } else {
+            navigate(`/dashboard-view/${userAssignment.dashboard_id}`, { replace: true });
+          }
           return;
         }
 
