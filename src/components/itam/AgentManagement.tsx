@@ -46,25 +46,49 @@ Invoke-RestMethod -Uri $API_URL -Method POST -Headers $headers -Body $reportBody
 
 Write-Host "Done! Refresh the Agents page to see your device." -ForegroundColor Green`;
 
-  const macLinuxQuickTest = `curl -s -X POST "${API_URL}" \\
-  -H "Content-Type: application/json" \\
-  -H "x-agent-key: quick-test-\$(hostname)" \\
-  -d '{
-    "action": "register",
-    "organization_id": "${orgId}",
-    "hostname": "'\$(hostname)'",
-    "os_type": "'\$(uname -s)'",
-    "os_version": "'\$(sw_vers -productVersion 2>/dev/null || uname -r)'"
-  }' && echo "" && \\
+  const macLinuxQuickTest = `HOSTNAME_VAL=$(hostname)
+OS_TYPE=$(uname -s)
+if [ "$OS_TYPE" = "Darwin" ]; then
+  OS_TYPE="macOS"
+  OS_VER=$(sw_vers -productVersion 2>/dev/null || echo "unknown")
+  CPU_MODEL=$(sysctl -n machdep.cpu.brand_string 2>/dev/null || echo "Unknown")
+  CPU_CORES=$(sysctl -n hw.ncpu 2>/dev/null || echo 0)
+  RAM_GB=$(echo "scale=0; $(sysctl -n hw.memsize 2>/dev/null || echo 0) / 1073741824" | bc 2>/dev/null || echo 0)
+  DISK_TOTAL=$(df -g / | tail -1 | awk '{print $2}')
+  DISK_FREE=$(df -g / | tail -1 | awk '{print $4}')
+  MODEL=$(sysctl -n hw.model 2>/dev/null || echo "Unknown")
+  IP_ADDR=$(ipconfig getifaddr en0 2>/dev/null || echo "")
+  MAC_ADDR=$(ifconfig en0 2>/dev/null | awk '/ether/{print $2}' || echo "")
+  SERIAL=$(system_profiler SPHardwareDataType 2>/dev/null | awk '/Serial Number/{print $NF}' || echo "unknown")
+else
+  OS_VER=$(uname -r)
+  CPU_MODEL=$(grep "model name" /proc/cpuinfo 2>/dev/null | head -1 | cut -d: -f2 | xargs || echo "Unknown")
+  CPU_CORES=$(nproc 2>/dev/null || echo 0)
+  RAM_GB=$(echo "scale=0; $(grep MemTotal /proc/meminfo 2>/dev/null | awk '{print $2}' || echo 0) / 1048576" | bc 2>/dev/null || echo 0)
+  DISK_TOTAL=$(df -BG / | tail -1 | awk '{print int($2)}')
+  DISK_FREE=$(df -BG / | tail -1 | awk '{print int($4)}')
+  MODEL=$(cat /sys/devices/virtual/dmi/id/product_name 2>/dev/null || echo "Unknown")
+  IP_ADDR=$(hostname -I 2>/dev/null | awk '{print $1}' || echo "")
+  MAC_ADDR=$(ip link show 2>/dev/null | grep link/ether | head -1 | awk '{print $2}' || echo "")
+  SERIAL=$(cat /sys/devices/virtual/dmi/id/product_serial 2>/dev/null || echo "unknown")
+fi
+AGENT_KEY="quick-test-$HOSTNAME_VAL"
+
+echo "Registering agent..."
 curl -s -X POST "${API_URL}" \\
   -H "Content-Type: application/json" \\
-  -H "x-agent-key: quick-test-\$(hostname)" \\
-  -d '{
-    "action": "report",
-    "system": {"hostname": "'\$(hostname)'", "manufacturer": "Apple", "model": "'\$(sysctl -n hw.model 2>/dev/null || echo Unknown)'"},
-    "hardware": {"cpu_model": "'\$(sysctl -n machdep.cpu.brand_string 2>/dev/null || echo Unknown)'", "cpu_cores": '\$(sysctl -n hw.ncpu 2>/dev/null || echo 4)', "ram_total_gb": '\$(echo "scale=0; \$(sysctl -n hw.memsize 2>/dev/null || echo 8589934592) / 1073741824" | bc 2>/dev/null || echo 8)', "os_name": "'\$(uname -s)'", "os_version": "'\$(sw_vers -productVersion 2>/dev/null || uname -r)'"},
-    "software": [{"name": "Quick Test", "version": "1.0"}]
-  }' && echo "\\nDone! Refresh the Agents page to see your device."`;
+  -H "x-agent-key: $AGENT_KEY" \\
+  -d "{\\"action\\":\\"register\\",\\"organization_id\\":\\"${orgId}\\",\\"hostname\\":\\"$HOSTNAME_VAL\\",\\"os_type\\":\\"$OS_TYPE\\",\\"os_version\\":\\"$OS_VER\\"}"
+
+echo ""
+echo "Sending report..."
+curl -s -X POST "${API_URL}" \\
+  -H "Content-Type: application/json" \\
+  -H "x-agent-key: $AGENT_KEY" \\
+  -d "{\\"action\\":\\"report\\",\\"system\\":{\\"hostname\\":\\"$HOSTNAME_VAL\\",\\"ip_address\\":\\"$IP_ADDR\\",\\"mac_address\\":\\"$MAC_ADDR\\",\\"manufacturer\\":\\"Apple\\",\\"model\\":\\"$MODEL\\",\\"serial_number\\":\\"$SERIAL\\"},\\"hardware\\":{\\"cpu_model\\":\\"$CPU_MODEL\\",\\"cpu_cores\\":$CPU_CORES,\\"ram_total_gb\\":$RAM_GB,\\"disk_total_gb\\":$DISK_TOTAL,\\"disk_free_gb\\":$DISK_FREE,\\"os_name\\":\\"$OS_TYPE\\",\\"os_version\\":\\"$OS_VER\\"},\\"software\\":[{\\"name\\":\\"Quick Test\\",\\"version\\":\\"1.0\\"}]}"
+
+echo ""
+echo "Done! Refresh the Agents page to see your device."`;
 
   const windowsScript = `# TopSqill IT Asset Agent - Windows PowerShell
 # Run as Administrator
