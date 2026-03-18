@@ -21,6 +21,51 @@ export function AgentManagement() {
   const hasOrgId = Boolean(userProfile?.organization_id);
   const orgId = userProfile?.organization_id || '';
 
+  const API_URL = `${SUPABASE_URL}/functions/v1/asset-agent-report`;
+
+  const windowsQuickTest = `$API_URL = "${API_URL}"
+$ORG_ID = "${orgId}"
+$AGENT_KEY = "$env:COMPUTERNAME-QuickTest"
+$headers = @{ "x-agent-key" = $AGENT_KEY; "Content-Type" = "application/json" }
+
+# Register
+$regBody = @{ action = "register"; organization_id = $ORG_ID; hostname = $env:COMPUTERNAME; os_type = "Windows"; os_version = (Get-CimInstance Win32_OperatingSystem).Version } | ConvertTo-Json
+Invoke-RestMethod -Uri $API_URL -Method POST -Headers $headers -Body $regBody
+
+# Report
+$cpu = Get-CimInstance Win32_Processor | Select-Object -First 1
+$os = Get-CimInstance Win32_OperatingSystem
+$disk = Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='C:'" | Select-Object -First 1
+$reportBody = @{
+    action = "report"
+    system = @{ hostname = $env:COMPUTERNAME; manufacturer = (Get-CimInstance Win32_ComputerSystem).Manufacturer; model = (Get-CimInstance Win32_ComputerSystem).Model }
+    hardware = @{ cpu_model = $cpu.Name; cpu_cores = $cpu.NumberOfCores; ram_total_gb = [math]::Round($os.TotalVisibleMemorySize/1MB,1); disk_total_gb = [math]::Round($disk.Size/1GB,0); disk_free_gb = [math]::Round($disk.FreeSpace/1GB,0); os_name = "Windows"; os_version = $os.Version }
+    software = @(@{ name = "Quick Test"; version = "1.0" })
+} | ConvertTo-Json -Depth 5
+Invoke-RestMethod -Uri $API_URL -Method POST -Headers $headers -Body $reportBody
+
+Write-Host "Done! Refresh the Agents page to see your device." -ForegroundColor Green`;
+
+  const macLinuxQuickTest = `curl -s -X POST "${API_URL}" \\
+  -H "Content-Type: application/json" \\
+  -H "x-agent-key: quick-test-\$(hostname)" \\
+  -d '{
+    "action": "register",
+    "organization_id": "${orgId}",
+    "hostname": "'\$(hostname)'",
+    "os_type": "'\$(uname -s)'",
+    "os_version": "'\$(sw_vers -productVersion 2>/dev/null || uname -r)'"
+  }' && echo "" && \\
+curl -s -X POST "${API_URL}" \\
+  -H "Content-Type: application/json" \\
+  -H "x-agent-key: quick-test-\$(hostname)" \\
+  -d '{
+    "action": "report",
+    "system": {"hostname": "'\$(hostname)'", "manufacturer": "Apple", "model": "'\$(sysctl -n hw.model 2>/dev/null || echo Unknown)'"},
+    "hardware": {"cpu_model": "'\$(sysctl -n machdep.cpu.brand_string 2>/dev/null || echo Unknown)'", "cpu_cores": '\$(sysctl -n hw.ncpu 2>/dev/null || echo 4)', "ram_total_gb": '\$(echo "scale=0; \$(sysctl -n hw.memsize 2>/dev/null || echo 8589934592) / 1073741824" | bc 2>/dev/null || echo 8)', "os_name": "'\$(uname -s)'", "os_version": "'\$(sw_vers -productVersion 2>/dev/null || uname -r)'"},
+    "software": [{"name": "Quick Test", "version": "1.0"}]
+  }' && echo "\\nDone! Refresh the Agents page to see your device."`;
+
   const windowsScript = `# TopSqill IT Asset Agent - Windows PowerShell
 # Run as Administrator
 
