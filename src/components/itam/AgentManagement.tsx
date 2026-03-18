@@ -261,7 +261,7 @@ echo "Agent report completed successfully!"`;
         </CardHeader>
         <CardContent className="space-y-4">
           {!hasOrgId && (
-            <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-3 text-sm text-yellow-700 dark:text-yellow-400">
+            <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
               ⏳ Loading your organization profile… Please wait before downloading.
             </div>
           )}
