@@ -35,8 +35,30 @@ const Auth = () => {
   // Redirect authenticated users
   useEffect(() => {
     if (user && !isLoading) {
-      const redirectPath = returnTo || '/dashboard';
-      navigate(redirectPath, { replace: true });
+      if (returnTo) {
+        navigate(returnTo, { replace: true });
+        return;
+      }
+      // Check for a default dashboard to redirect to
+      const checkDefaultDashboard = async () => {
+        try {
+          const { data } = await supabase
+            .from('dashboards')
+            .select('id')
+            .eq('is_default', true)
+            .limit(1)
+            .maybeSingle();
+          
+          if (data?.id) {
+            navigate(`/dashboard-view/${data.id}`, { replace: true });
+          } else {
+            navigate('/dashboard', { replace: true });
+          }
+        } catch {
+          navigate('/dashboard', { replace: true });
+        }
+      };
+      checkDefaultDashboard();
     }
   }, [user, isLoading, navigate, returnTo]);
 
