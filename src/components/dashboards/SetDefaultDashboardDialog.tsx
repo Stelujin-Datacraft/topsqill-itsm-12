@@ -36,6 +36,7 @@ export function SetDefaultDashboardDialog({ dashboard, isOpen, onClose }: SetDef
   const [loading, setLoading] = useState(false);
   const [usersLoading, setUsersLoading] = useState(false);
   const { currentProject } = useProject();
+  const { user } = useAuth();
   const { setDefaultDashboard, refetchDashboards } = useDashboards();
   const { toast } = useToast();
 
