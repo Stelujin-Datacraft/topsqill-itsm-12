@@ -1,13 +1,15 @@
-import React, { Suspense, createContext } from 'react';
+import React, { Suspense, createContext, useEffect, useRef } from 'react';
 import { Outlet } from 'react-router-dom';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { AppSidebar } from './AppSidebar';
 import { useImpersonation } from '@/contexts/ImpersonationContext';
 import { useAuth } from '@/contexts/AuthContext';
- import { usePermissionRealtimeSync } from '@/hooks/usePermissionRealtimeSync';
-import { Navigate, useLocation } from 'react-router-dom';
- import { PageSkeleton } from '@/components/loading/PageSkeleton';
- import { Skeleton } from '@/components/ui/skeleton';
+import { useProject } from '@/contexts/ProjectContext';
+import { usePermissionRealtimeSync } from '@/hooks/usePermissionRealtimeSync';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { PageSkeleton } from '@/components/loading/PageSkeleton';
+import { Skeleton } from '@/components/ui/skeleton';
+import { supabase } from '@/integrations/supabase/client';
 
 // Context to signal that we're inside ProtectedLayout
 // DashboardLayout checks this to avoid double-wrapping
