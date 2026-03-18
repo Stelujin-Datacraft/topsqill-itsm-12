@@ -324,9 +324,6 @@ echo "Agent report completed successfully!"`;
                 <Button size="sm" disabled={!hasOrgId} onClick={() => downloadScript(linuxScript, 'topsqill-agent.sh')}>
                   <Download className="h-4 w-4 mr-2" />Download topsqill-agent.sh
                 </Button>
-                <Button variant="outline" size="sm" disabled={!hasOrgId} onClick={() => copyScript(linuxScript)}>
-                  <Copy className="h-4 w-4 mr-2" />Copy Script
-                </Button>
               </div>
 
               <div className="rounded-lg border bg-muted/50 p-4 space-y-3">
