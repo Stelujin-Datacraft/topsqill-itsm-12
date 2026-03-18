@@ -10,6 +10,7 @@ import { Users, User, Search, Star } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useProject } from '@/contexts/ProjectContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useDashboards } from '@/hooks/useDashboards';
 import { useToast } from '@/hooks/use-toast';
 import { DashboardWithReports } from '@/types/dashboard';
 
