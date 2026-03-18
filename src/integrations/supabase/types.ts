@@ -139,6 +139,238 @@ export type Database = {
           },
         ]
       }
+      asset_agents: {
+        Row: {
+          agent_key: string
+          agent_version: string | null
+          asset_id: string | null
+          created_at: string
+          hostname: string | null
+          id: string
+          ip_address: string | null
+          last_heartbeat: string | null
+          last_report: string | null
+          organization_id: string
+          os_type: string | null
+          os_version: string | null
+          registered_at: string
+          status: Database["public"]["Enums"]["agent_status"]
+          updated_at: string
+        }
+        Insert: {
+          agent_key: string
+          agent_version?: string | null
+          asset_id?: string | null
+          created_at?: string
+          hostname?: string | null
+          id?: string
+          ip_address?: string | null
+          last_heartbeat?: string | null
+          last_report?: string | null
+          organization_id: string
+          os_type?: string | null
+          os_version?: string | null
+          registered_at?: string
+          status?: Database["public"]["Enums"]["agent_status"]
+          updated_at?: string
+        }
+        Update: {
+          agent_key?: string
+          agent_version?: string | null
+          asset_id?: string | null
+          created_at?: string
+          hostname?: string | null
+          id?: string
+          ip_address?: string | null
+          last_heartbeat?: string | null
+          last_report?: string | null
+          organization_id?: string
+          os_type?: string | null
+          os_version?: string | null
+          registered_at?: string
+          status?: Database["public"]["Enums"]["agent_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "asset_agents_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "it_assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "asset_agents_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      asset_categories: {
+        Row: {
+          created_at: string
+          description: string | null
+          icon: string | null
+          id: string
+          name: string
+          organization_id: string
+          parent_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          name: string
+          organization_id: string
+          parent_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          name?: string
+          organization_id?: string
+          parent_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "asset_categories_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "asset_categories_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "asset_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      asset_hardware_info: {
+        Row: {
+          asset_id: string
+          bios_version: string | null
+          collected_at: string
+          cpu_cores: number | null
+          cpu_model: string | null
+          cpu_speed_mhz: number | null
+          disk_free_gb: number | null
+          disk_total_gb: number | null
+          display_info: Json | null
+          gpu_model: string | null
+          id: string
+          last_boot_time: string | null
+          motherboard_model: string | null
+          network_adapters: Json | null
+          os_architecture: string | null
+          os_name: string | null
+          os_version: string | null
+          ram_total_gb: number | null
+          updated_at: string
+          uptime_hours: number | null
+        }
+        Insert: {
+          asset_id: string
+          bios_version?: string | null
+          collected_at?: string
+          cpu_cores?: number | null
+          cpu_model?: string | null
+          cpu_speed_mhz?: number | null
+          disk_free_gb?: number | null
+          disk_total_gb?: number | null
+          display_info?: Json | null
+          gpu_model?: string | null
+          id?: string
+          last_boot_time?: string | null
+          motherboard_model?: string | null
+          network_adapters?: Json | null
+          os_architecture?: string | null
+          os_name?: string | null
+          os_version?: string | null
+          ram_total_gb?: number | null
+          updated_at?: string
+          uptime_hours?: number | null
+        }
+        Update: {
+          asset_id?: string
+          bios_version?: string | null
+          collected_at?: string
+          cpu_cores?: number | null
+          cpu_model?: string | null
+          cpu_speed_mhz?: number | null
+          disk_free_gb?: number | null
+          disk_total_gb?: number | null
+          display_info?: Json | null
+          gpu_model?: string | null
+          id?: string
+          last_boot_time?: string | null
+          motherboard_model?: string | null
+          network_adapters?: Json | null
+          os_architecture?: string | null
+          os_name?: string | null
+          os_version?: string | null
+          ram_total_gb?: number | null
+          updated_at?: string
+          uptime_hours?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "asset_hardware_info_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: true
+            referencedRelation: "it_assets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      asset_history: {
+        Row: {
+          asset_id: string
+          description: string | null
+          event_type: string
+          id: string
+          new_value: Json | null
+          old_value: Json | null
+          performed_at: string
+          performed_by: string | null
+        }
+        Insert: {
+          asset_id: string
+          description?: string | null
+          event_type: string
+          id?: string
+          new_value?: Json | null
+          old_value?: Json | null
+          performed_at?: string
+          performed_by?: string | null
+        }
+        Update: {
+          asset_id?: string
+          description?: string | null
+          event_type?: string
+          id?: string
+          new_value?: Json | null
+          old_value?: Json | null
+          performed_at?: string
+          performed_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "asset_history_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "it_assets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       asset_permissions: {
         Row: {
           asset_id: string
@@ -176,6 +408,53 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      asset_software: {
+        Row: {
+          asset_id: string
+          collected_at: string
+          id: string
+          install_date: string | null
+          install_path: string | null
+          is_system_component: boolean | null
+          publisher: string | null
+          size_mb: number | null
+          software_name: string
+          version: string | null
+        }
+        Insert: {
+          asset_id: string
+          collected_at?: string
+          id?: string
+          install_date?: string | null
+          install_path?: string | null
+          is_system_component?: boolean | null
+          publisher?: string | null
+          size_mb?: number | null
+          software_name: string
+          version?: string | null
+        }
+        Update: {
+          asset_id?: string
+          collected_at?: string
+          id?: string
+          install_date?: string | null
+          install_path?: string | null
+          is_system_component?: boolean | null
+          publisher?: string | null
+          size_mb?: number | null
+          software_name?: string
+          version?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "asset_software_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "it_assets"
             referencedColumns: ["id"]
           },
         ]
@@ -2070,6 +2349,118 @@ export type Database = {
             columns: ["role_id"]
             isOneToOne: false
             referencedRelation: "roles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      it_assets: {
+        Row: {
+          asset_tag: string | null
+          asset_type: string
+          assigned_to: string | null
+          category: string | null
+          condition: Database["public"]["Enums"]["asset_condition"] | null
+          created_at: string
+          created_by: string
+          custom_fields: Json | null
+          department: string | null
+          display_name: string
+          hostname: string | null
+          id: string
+          ip_address: string | null
+          location: string | null
+          mac_address: string | null
+          manufacturer: string | null
+          model: string | null
+          notes: string | null
+          organization_id: string
+          project_id: string | null
+          purchase_cost: number | null
+          purchase_date: string | null
+          serial_number: string | null
+          status: Database["public"]["Enums"]["asset_status"]
+          tags: string[] | null
+          updated_at: string
+          warranty_expiry: string | null
+        }
+        Insert: {
+          asset_tag?: string | null
+          asset_type?: string
+          assigned_to?: string | null
+          category?: string | null
+          condition?: Database["public"]["Enums"]["asset_condition"] | null
+          created_at?: string
+          created_by: string
+          custom_fields?: Json | null
+          department?: string | null
+          display_name: string
+          hostname?: string | null
+          id?: string
+          ip_address?: string | null
+          location?: string | null
+          mac_address?: string | null
+          manufacturer?: string | null
+          model?: string | null
+          notes?: string | null
+          organization_id: string
+          project_id?: string | null
+          purchase_cost?: number | null
+          purchase_date?: string | null
+          serial_number?: string | null
+          status?: Database["public"]["Enums"]["asset_status"]
+          tags?: string[] | null
+          updated_at?: string
+          warranty_expiry?: string | null
+        }
+        Update: {
+          asset_tag?: string | null
+          asset_type?: string
+          assigned_to?: string | null
+          category?: string | null
+          condition?: Database["public"]["Enums"]["asset_condition"] | null
+          created_at?: string
+          created_by?: string
+          custom_fields?: Json | null
+          department?: string | null
+          display_name?: string
+          hostname?: string | null
+          id?: string
+          ip_address?: string | null
+          location?: string | null
+          mac_address?: string | null
+          manufacturer?: string | null
+          model?: string | null
+          notes?: string | null
+          organization_id?: string
+          project_id?: string | null
+          purchase_cost?: number | null
+          purchase_date?: string | null
+          serial_number?: string | null
+          status?: Database["public"]["Enums"]["asset_status"]
+          tags?: string[] | null
+          updated_at?: string
+          warranty_expiry?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "it_assets_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "it_assets_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "it_assets_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
         ]
@@ -5573,6 +5964,16 @@ export type Database = {
       }
     }
     Enums: {
+      agent_status: "online" | "offline" | "error" | "unregistered"
+      asset_condition: "new" | "good" | "fair" | "poor" | "broken"
+      asset_status:
+        | "active"
+        | "inactive"
+        | "maintenance"
+        | "retired"
+        | "disposed"
+        | "lost"
+        | "stolen"
       escalation_level: "L1" | "L2" | "L3" | "L4"
       sla_status: "on_track" | "warning" | "breached" | "completed" | "paused"
     }
@@ -5702,6 +6103,17 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      agent_status: ["online", "offline", "error", "unregistered"],
+      asset_condition: ["new", "good", "fair", "poor", "broken"],
+      asset_status: [
+        "active",
+        "inactive",
+        "maintenance",
+        "retired",
+        "disposed",
+        "lost",
+        "stolen",
+      ],
       escalation_level: ["L1", "L2", "L3", "L4"],
       sla_status: ["on_track", "warning", "breached", "completed", "paused"],
     },
