@@ -69,6 +69,25 @@ const ProtectedLayout: React.FC = () => {
 
     defaultDashboardChecked.current = true;
 
+    const getDefaultReportForDashboard = async (dashboardId: string): Promise<string | null> => {
+      try {
+        const { data, error } = await supabase
+          .from('reports')
+          .select('id')
+          .eq('dashboard_id', dashboardId)
+          .eq('is_default_report', true)
+          .limit(1)
+          .maybeSingle();
+        if (error) {
+          console.error('[DefaultDashboard] Error checking default report:', error);
+          return null;
+        }
+        return data?.id || null;
+      } catch {
+        return null;
+      }
+    };
+
     const checkDefaultDashboard = async () => {
       try {
         console.log('[DefaultDashboard] Checking for user:', user.id, 'project:', currentProject.id);
