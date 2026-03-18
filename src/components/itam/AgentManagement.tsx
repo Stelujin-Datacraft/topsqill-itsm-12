@@ -640,9 +640,10 @@ touch "\$MARKER"`;
               </div>
 
               <details className="text-sm text-muted-foreground">
-                <summary className="cursor-pointer font-medium">Advanced: Schedule with cron</summary>
-                <p className="mt-2">Run every 6 hours automatically:</p>
-                <code className="block bg-muted rounded px-2 py-1 mt-1 font-mono text-xs">0 */6 * * * /path/to/topsqill-agent.sh</code>
+                <summary className="cursor-pointer font-medium">Advanced: Change reporting interval</summary>
+                <p className="mt-2">The script auto-installs a 6-hour schedule. To customize:</p>
+                <p className="mt-1"><strong>macOS:</strong> Edit <code className="font-mono text-xs bg-muted px-1 rounded">/Library/LaunchDaemons/com.topsqill.agent.plist</code> and change <code className="font-mono text-xs">StartInterval</code>.</p>
+                <p className="mt-1"><strong>Linux:</strong> Run <code className="font-mono text-xs bg-muted px-1 rounded">crontab -e</code> and edit the TopSqill line.</p>
               </details>
 
               <details className="text-xs">
