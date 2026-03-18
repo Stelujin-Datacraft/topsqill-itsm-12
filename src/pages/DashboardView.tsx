@@ -30,7 +30,7 @@ const DashboardView = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('dashboards')
-        .select(`*, reports:reports(id, name, description, created_at, updated_at, is_public)`)
+        .select(`*, reports:reports(id, name, description, created_at, updated_at, is_public, is_default_report)`)
         .eq('id', id)
         .single();
       if (error) throw error;
