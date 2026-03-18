@@ -71,22 +71,37 @@ const ProtectedLayout: React.FC = () => {
 
     const checkDefaultDashboard = async () => {
       try {
+        console.log('[DefaultDashboard] Checking for user:', user.id, 'project:', currentProject.id);
+        
         // First check for a user-specific default assignment
-        const { data: userAssignment } = await supabase
+        // Note: user_profiles.id may differ from auth user.id, so look up the profile id first
+        const { data: userProfile } = await supabase
+          .from('user_profiles')
+          .select('id')
+          .eq('id', user.id)
+          .maybeSingle();
+
+        const profileId = userProfile?.id || user.id;
+        console.log('[DefaultDashboard] Profile ID:', profileId);
+
+        const { data: userAssignment, error: userError } = await supabase
           .from('default_dashboard_users')
           .select('dashboard_id')
           .eq('project_id', currentProject.id)
-          .eq('user_id', user.id)
+          .eq('user_id', profileId)
           .limit(1)
           .maybeSingle();
 
+        console.log('[DefaultDashboard] User assignment:', userAssignment, 'error:', userError);
+
         if (userAssignment?.dashboard_id) {
+          console.log('[DefaultDashboard] Redirecting to user-specific dashboard:', userAssignment.dashboard_id);
           navigate(`/dashboard-view/${userAssignment.dashboard_id}`, { replace: true });
           return;
         }
 
         // Then check for a project-wide default (default_for = 'all')
-        const { data: projectDefault } = await supabase
+        const { data: projectDefault, error: projectError } = await supabase
           .from('dashboards')
           .select('id, default_for')
           .eq('project_id', currentProject.id)
@@ -94,7 +109,10 @@ const ProtectedLayout: React.FC = () => {
           .limit(1)
           .maybeSingle();
 
+        console.log('[DefaultDashboard] Project default:', projectDefault, 'error:', projectError);
+
         if (projectDefault?.id && (projectDefault as any).default_for === 'all') {
+          console.log('[DefaultDashboard] Redirecting to project-wide dashboard:', projectDefault.id);
           navigate(`/dashboard-view/${projectDefault.id}`, { replace: true });
         }
       } catch (err) {
