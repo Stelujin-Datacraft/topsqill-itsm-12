@@ -276,10 +276,10 @@ echo "Agent report completed successfully!"`;
                 <pre className="text-xs font-mono whitespace-pre-wrap">{windowsScript.slice(0, 500)}...</pre>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={() => copyScript(windowsScript)}>
+                <Button variant="outline" size="sm" disabled={!hasOrgId} onClick={() => copyScript(windowsScript)}>
                   <Copy className="h-4 w-4 mr-2" />Copy Script
                 </Button>
-                <Button size="sm" onClick={() => downloadScript(windowsScript, 'topsqill-agent.ps1')}>
+                <Button size="sm" disabled={!hasOrgId} onClick={() => downloadScript(windowsScript, 'topsqill-agent.ps1')}>
                   <Download className="h-4 w-4 mr-2" />Download .ps1
                 </Button>
               </div>
