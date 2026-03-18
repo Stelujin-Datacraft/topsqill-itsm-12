@@ -255,57 +255,123 @@ echo "Agent report completed successfully!"`;
       <Card>
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2"><Terminal className="h-5 w-5" />Agent Installation</CardTitle>
-          <CardDescription className="space-y-1">
-            <p>Download and run the agent script on each system to automatically collect hardware and software inventory.</p>
-            <p>The agent can be deployed via Group Policy (GPO), SCCM, or manually.</p>
-            <p><strong>Organization ID used in scripts:</strong> {orgId || 'Loading...'}</p>
-            {!hasOrgId && (
-              <p><strong>Wait for profile to load</strong> before copying/downloading, then refresh this page.</p>
-            )}
+          <CardDescription>
+            Download and run the agent script on each device to automatically collect hardware & software inventory and report it here.
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          {!hasOrgId && (
+            <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+              ⏳ Loading your organization profile… Please wait before downloading.
+            </div>
+          )}
+
           <Tabs value={scriptTab} onValueChange={setScriptTab}>
             <TabsList>
-              <TabsTrigger value="windows">Windows (PowerShell)</TabsTrigger>
-              <TabsTrigger value="linux">macOS / Linux (Bash)</TabsTrigger>
+              <TabsTrigger value="windows">Windows</TabsTrigger>
+              <TabsTrigger value="linux">macOS / Linux</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="windows" className="space-y-3">
-              <div className="bg-muted rounded-lg p-4 max-h-[300px] overflow-y-auto">
-                <pre className="text-xs font-mono whitespace-pre-wrap">{windowsScript.slice(0, 500)}...</pre>
-              </div>
+            {/* ─── Windows ─── */}
+            <TabsContent value="windows" className="space-y-4">
               <div className="flex gap-2">
+                <Button size="sm" disabled={!hasOrgId} onClick={() => downloadScript(windowsScript, 'topsqill-agent.ps1')}>
+                  <Download className="h-4 w-4 mr-2" />Download topsqill-agent.ps1
+                </Button>
                 <Button variant="outline" size="sm" disabled={!hasOrgId} onClick={() => copyScript(windowsScript)}>
                   <Copy className="h-4 w-4 mr-2" />Copy Script
                 </Button>
-                <Button size="sm" disabled={!hasOrgId} onClick={() => downloadScript(windowsScript, 'topsqill-agent.ps1')}>
-                  <Download className="h-4 w-4 mr-2" />Download .ps1
-                </Button>
               </div>
-              <div className="text-sm text-muted-foreground space-y-1">
-                <p><strong>Manual:</strong> Run PowerShell as Administrator, then execute the script.</p>
-                <p><strong>GPO Deploy:</strong> Create a startup script policy pointing to this .ps1 file.</p>
-                <p><strong>Scheduled:</strong> Use Task Scheduler to run daily for continuous monitoring.</p>
+
+              <div className="rounded-lg border bg-muted/50 p-4 space-y-3">
+                <h4 className="font-semibold text-sm">How to run (step-by-step)</h4>
+                <ol className="text-sm space-y-2 list-decimal list-inside text-muted-foreground">
+                  <li>Click <strong>"Download topsqill-agent.ps1"</strong> above.</li>
+                  <li>Open <strong>PowerShell as Administrator</strong> — right-click the Start menu → "Windows PowerShell (Admin)".</li>
+                  <li>Navigate to your Downloads folder:
+                    <code className="block bg-muted rounded px-2 py-1 mt-1 font-mono text-xs">cd ~\Downloads</code>
+                  </li>
+                  <li>Allow running the script (one-time):
+                    <code className="block bg-muted rounded px-2 py-1 mt-1 font-mono text-xs">Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass</code>
+                  </li>
+                  <li>Run the script:
+                    <code className="block bg-muted rounded px-2 py-1 mt-1 font-mono text-xs">.\topsqill-agent.ps1</code>
+                  </li>
+                  <li>You should see <strong>"Agent report completed successfully!"</strong> — then refresh this page.</li>
+                </ol>
               </div>
+
+              <details className="text-sm text-muted-foreground">
+                <summary className="cursor-pointer font-medium">Advanced deployment options</summary>
+                <ul className="mt-2 space-y-1 list-disc list-inside ml-2">
+                  <li><strong>GPO:</strong> Create a startup script policy pointing to this .ps1 file.</li>
+                  <li><strong>Scheduled:</strong> Use Task Scheduler to run daily for continuous monitoring.</li>
+                  <li><strong>SCCM/Intune:</strong> Deploy as a script package to managed devices.</li>
+                </ul>
+              </details>
+
+              <details className="text-xs">
+                <summary className="cursor-pointer text-muted-foreground font-medium">View full script</summary>
+                <div className="bg-muted rounded-lg p-3 mt-2 max-h-[250px] overflow-y-auto">
+                  <pre className="font-mono whitespace-pre-wrap">{windowsScript}</pre>
+                </div>
+              </details>
             </TabsContent>
 
-            <TabsContent value="linux" className="space-y-3">
-              <div className="bg-muted rounded-lg p-4 max-h-[300px] overflow-y-auto">
-                <pre className="text-xs font-mono whitespace-pre-wrap">{linuxScript.slice(0, 500)}...</pre>
-              </div>
+            {/* ─── macOS / Linux ─── */}
+            <TabsContent value="linux" className="space-y-4">
               <div className="flex gap-2">
+                <Button size="sm" disabled={!hasOrgId} onClick={() => downloadScript(linuxScript, 'topsqill-agent.sh')}>
+                  <Download className="h-4 w-4 mr-2" />Download topsqill-agent.sh
+                </Button>
                 <Button variant="outline" size="sm" disabled={!hasOrgId} onClick={() => copyScript(linuxScript)}>
                   <Copy className="h-4 w-4 mr-2" />Copy Script
                 </Button>
-                <Button size="sm" disabled={!hasOrgId} onClick={() => downloadScript(linuxScript, 'topsqill-agent.sh')}>
-                  <Download className="h-4 w-4 mr-2" />Download .sh
-                </Button>
               </div>
-              <div className="text-sm text-muted-foreground space-y-1">
-                <p><strong>Manual:</strong> <code>chmod +x topsqill-agent.sh && sudo ./topsqill-agent.sh</code></p>
-                <p><strong>Cron:</strong> Add to crontab for scheduled collection: <code>0 */6 * * * /path/to/topsqill-agent.sh</code></p>
+
+              <div className="rounded-lg border bg-muted/50 p-4 space-y-3">
+                <h4 className="font-semibold text-sm">How to run on macOS (step-by-step)</h4>
+                <ol className="text-sm space-y-2 list-decimal list-inside text-muted-foreground">
+                  <li>Click <strong>"Download topsqill-agent.sh"</strong> above.</li>
+                  <li>The file will save to your <strong>Downloads</strong> folder (don't open it in VS Code or a text editor).</li>
+                  <li>Open <strong>Terminal</strong> — press <kbd className="px-1.5 py-0.5 rounded bg-muted border text-xs font-mono">⌘ Cmd</kbd> + <kbd className="px-1.5 py-0.5 rounded bg-muted border text-xs font-mono">Space</kbd>, type <strong>Terminal</strong>, press Enter.</li>
+                  <li>Navigate to your Downloads folder:
+                    <code className="block bg-muted rounded px-2 py-1 mt-1 font-mono text-xs">cd ~/Downloads</code>
+                  </li>
+                  <li>Make the script executable and run it:
+                    <code className="block bg-muted rounded px-2 py-1 mt-1 font-mono text-xs">chmod +x topsqill-agent.sh && bash topsqill-agent.sh</code>
+                  </li>
+                  <li>You should see <strong>"Agent report completed successfully!"</strong> — then refresh this page.</li>
+                </ol>
               </div>
+
+              <div className="rounded-lg border bg-muted/50 p-4 space-y-3">
+                <h4 className="font-semibold text-sm">How to run on Linux (step-by-step)</h4>
+                <ol className="text-sm space-y-2 list-decimal list-inside text-muted-foreground">
+                  <li>Click <strong>"Download topsqill-agent.sh"</strong> above.</li>
+                  <li>Open a <strong>Terminal</strong>.</li>
+                  <li>Navigate to your Downloads folder:
+                    <code className="block bg-muted rounded px-2 py-1 mt-1 font-mono text-xs">cd ~/Downloads</code>
+                  </li>
+                  <li>Make the script executable and run it:
+                    <code className="block bg-muted rounded px-2 py-1 mt-1 font-mono text-xs">chmod +x topsqill-agent.sh && sudo bash topsqill-agent.sh</code>
+                  </li>
+                  <li>You should see <strong>"Agent report completed successfully!"</strong> — then refresh this page.</li>
+                </ol>
+              </div>
+
+              <details className="text-sm text-muted-foreground">
+                <summary className="cursor-pointer font-medium">Advanced: Schedule with cron</summary>
+                <p className="mt-2">Run every 6 hours automatically:</p>
+                <code className="block bg-muted rounded px-2 py-1 mt-1 font-mono text-xs">0 */6 * * * /path/to/topsqill-agent.sh</code>
+              </details>
+
+              <details className="text-xs">
+                <summary className="cursor-pointer text-muted-foreground font-medium">View full script</summary>
+                <div className="bg-muted rounded-lg p-3 mt-2 max-h-[250px] overflow-y-auto">
+                  <pre className="font-mono whitespace-pre-wrap">{linuxScript}</pre>
+                </div>
+              </details>
             </TabsContent>
           </Tabs>
         </CardContent>
