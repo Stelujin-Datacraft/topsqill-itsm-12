@@ -635,7 +635,7 @@ touch "\$MARKER"`;
                   <li>Make the script executable and run it:
                     <code className="block bg-muted rounded px-2 py-1 mt-1 font-mono text-xs">chmod +x topsqill-agent.sh && sudo bash topsqill-agent.sh</code>
                   </li>
-                  <li>You should see <strong>"Agent report completed successfully!"</strong> — then refresh this page.</li>
+                  <li>You should see <strong>"Agent report completed successfully!"</strong> — a scheduled job auto-installs to report every 6 hours.</li>
                 </ol>
               </div>
 
