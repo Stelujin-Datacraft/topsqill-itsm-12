@@ -538,7 +538,7 @@ touch "\$MARKER"`;
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2"><Terminal className="h-5 w-5" />Agent Installation</CardTitle>
           <CardDescription>
-            Download and run the agent script on each device to automatically collect hardware & software inventory and report it here.
+            Download and run the agent script on each device to automatically collect hardware &amp; software inventory. The script auto-installs a scheduled task to report every 6 hours.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
