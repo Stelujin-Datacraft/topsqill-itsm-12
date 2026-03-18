@@ -62,3 +62,6 @@ verify_jwt = false
 
 [functions.send-kb-notification-email]
 verify_jwt = false
+
+[functions.asset-agent-report]
+verify_jwt = false

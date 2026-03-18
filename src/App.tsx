@@ -97,6 +97,9 @@ const CompliancePage = lazy(() => import("./pages/CompliancePage"));
 const AuditProgramsPage = lazy(() => import("./pages/AuditProgramsPage"));
 const EvidenceLockerPage = lazy(() => import("./pages/EvidenceLockerPage"));
 
+// IT Asset Management
+const ITAssets = lazy(() => import("./pages/ITAssets"));
+
 // Performance-optimized React Query configuration
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -233,6 +236,7 @@ const App = () => (
                         <Route path="/sla-management" element={<SLAManagementPage />} />
                         <Route path="/api-integration" element={<ApiIntegration />} />
                         <Route path="/api-docs" element={<ApiDocs />} />
+                        <Route path="/it-assets" element={<ITAssets />} />
                       </Route>
                       
                       {/* Catch-all */}
