@@ -212,10 +212,13 @@ Write-Host "Agent report completed successfully!" -ForegroundColor Green`;
   const linuxScript = `#!/bin/bash
 # TopSqill IT Asset Agent - Linux/macOS
 # Run with: bash topsqill-agent.sh
+# Auto-installs a cron job to report every 6 hours
 
 API_URL="${SUPABASE_URL}/functions/v1/asset-agent-report"
 ORG_ID="${orgId}"
 HOSTNAME_VAL=\$(hostname)
+INSTALL_DIR="/usr/local/bin"
+SCRIPT_PATH="\$INSTALL_DIR/topsqill-agent.sh"
 
 send_report() {
     local action=\$1
@@ -341,6 +344,64 @@ EOJSON
 )
 
 send_report "report" "\$REPORT_JSON"
+
+echo ""
+
+# ── Auto-install cron job (runs every 6 hours) ──
+echo "Setting up scheduled reporting (every 6 hours)..."
+
+# Copy script to persistent location
+if [ "\$(id -u)" -eq 0 ]; then
+    cp "\$0" "\$SCRIPT_PATH" 2>/dev/null || true
+    chmod +x "\$SCRIPT_PATH" 2>/dev/null || true
+fi
+
+CRON_CMD="0 */6 * * * \$SCRIPT_PATH >/dev/null 2>&1"
+CRON_TAG="# TopSqill ITAM Agent"
+
+if [[ "\$OSTYPE" == "darwin"* ]]; then
+    # macOS: Use LaunchDaemon for reliable scheduling
+    PLIST_PATH="/Library/LaunchDaemons/com.topsqill.agent.plist"
+    if [ ! -f "\$PLIST_PATH" ] && [ "\$(id -u)" -eq 0 ]; then
+        cat > "\$PLIST_PATH" <<EOPLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.topsqill.agent</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>\$SCRIPT_PATH</string>
+    </array>
+    <key>StartInterval</key>
+    <integer>21600</integer>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/var/log/topsqill-agent.log</string>
+    <key>StandardErrorPath</key>
+    <string>/var/log/topsqill-agent.log</string>
+</dict>
+</plist>
+EOPLIST
+        launchctl load "\$PLIST_PATH" 2>/dev/null
+        echo "✅ LaunchDaemon installed — reports every 6 hours."
+    elif [ -f "\$PLIST_PATH" ]; then
+        echo "ℹ️  LaunchDaemon already exists — no changes made."
+    else
+        echo "⚠️  Run with sudo to install scheduled reporting."
+    fi
+else
+    # Linux: Use crontab
+    if ! crontab -l 2>/dev/null | grep -q "topsqill-agent"; then
+        (crontab -l 2>/dev/null; echo ""; echo "\$CRON_TAG"; echo "\$CRON_CMD") | crontab -
+        echo "✅ Cron job installed — reports every 6 hours."
+    else
+        echo "ℹ️  Cron job already exists — no changes made."
+    fi
+fi
 
 echo ""
 echo "Agent report completed successfully!"`;
