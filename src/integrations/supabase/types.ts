@@ -639,6 +639,7 @@ export type Database = {
         Row: {
           created_at: string
           created_by: string
+          default_for: string | null
           description: string | null
           id: string
           is_default: boolean | null
@@ -653,6 +654,7 @@ export type Database = {
         Insert: {
           created_at?: string
           created_by: string
+          default_for?: string | null
           description?: string | null
           id?: string
           is_default?: boolean | null
@@ -667,6 +669,7 @@ export type Database = {
         Update: {
           created_at?: string
           created_by?: string
+          default_for?: string | null
           description?: string | null
           id?: string
           is_default?: boolean | null
@@ -982,6 +985,45 @@ export type Database = {
           },
           {
             foreignKeyName: "data_source_connections_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      default_dashboard_users: {
+        Row: {
+          created_at: string
+          dashboard_id: string
+          id: string
+          project_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          dashboard_id: string
+          id?: string
+          project_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          dashboard_id?: string
+          id?: string
+          project_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "default_dashboard_users_dashboard_id_fkey"
+            columns: ["dashboard_id"]
+            isOneToOne: false
+            referencedRelation: "dashboards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "default_dashboard_users_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"

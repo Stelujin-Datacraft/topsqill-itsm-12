@@ -12,6 +12,7 @@ import { useUnifiedAccessControl } from '@/hooks/useUnifiedAccessControl';
 import { useDashboards } from '@/hooks/useDashboards';
 import { CreateDashboardDialog } from './CreateDashboardDialog';
 import { EditDashboardDialog } from './EditDashboardDialog';
+import { SetDefaultDashboardDialog } from './SetDefaultDashboardDialog';
 
 export interface DashboardsListProps {
   dashboards: DashboardWithReports[];
@@ -28,10 +29,11 @@ export function DashboardsList({
 }: DashboardsListProps) {
   const [loading, setLoading] = useState(false);
   const [editingDashboard, setEditingDashboard] = useState<DashboardWithReports | null>(null);
+  const [defaultDashboard, setDefaultDashboard] = useState<DashboardWithReports | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
   const { getButtonState, checkPermissionWithAlert } = useUnifiedAccessControl();
-  const { deleteDashboard, setDefaultDashboard, refetchDashboards } = useDashboards();
+  const { deleteDashboard, refetchDashboards } = useDashboards();
 
   const handleCopyId = (dashboardId: string) => {
     navigator.clipboard.writeText(dashboardId);
@@ -48,18 +50,9 @@ export function DashboardsList({
     setEditingDashboard(dashboard);
   };
 
-  const handleSetDefault = async (dashboard: DashboardWithReports) => {
+  const handleSetDefault = (dashboard: DashboardWithReports) => {
     if (!checkPermissionWithAlert('reports', 'update')) return;
-    try {
-      setLoading(true);
-      const newDefault = !(dashboard as any).is_default;
-      await setDefaultDashboard(dashboard.id, newDefault);
-    } catch (error) {
-      console.error('Error setting default dashboard:', error);
-      toast({ title: "Error", description: "Failed to update default dashboard", variant: "destructive" });
-    } finally {
-      setLoading(false);
-    }
+    setDefaultDashboard(dashboard);
   };
 
   const handleDeleteClick = async (dashboard: DashboardWithReports) => {
@@ -241,6 +234,13 @@ export function DashboardsList({
         isOpen={!!editingDashboard}
         onClose={() => setEditingDashboard(null)}
         onSuccess={() => refetchDashboards()}
+      />
+
+      {/* Set Default Dashboard Dialog */}
+      <SetDefaultDashboardDialog
+        dashboard={defaultDashboard}
+        isOpen={!!defaultDashboard}
+        onClose={() => setDefaultDashboard(null)}
       />
     </div>
   );
