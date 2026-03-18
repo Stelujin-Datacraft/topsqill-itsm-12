@@ -255,9 +255,13 @@ echo "Agent report completed successfully!"`;
       <Card>
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2"><Terminal className="h-5 w-5" />Agent Installation</CardTitle>
-          <CardDescription>
-            Download and run the agent script on each system to automatically collect hardware and software inventory. 
-            The agent can be deployed via Group Policy (GPO), SCCM, or manually.
+          <CardDescription className="space-y-1">
+            <p>Download and run the agent script on each system to automatically collect hardware and software inventory.</p>
+            <p>The agent can be deployed via Group Policy (GPO), SCCM, or manually.</p>
+            <p><strong>Organization ID used in scripts:</strong> {orgId || 'Loading...'}</p>
+            {!hasOrgId && (
+              <p><strong>Wait for profile to load</strong> before copying/downloading, then refresh this page.</p>
+            )}
           </CardDescription>
         </CardHeader>
         <CardContent>
