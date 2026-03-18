@@ -91,11 +91,13 @@ echo ""
 echo "Done! Refresh the Agents page to see your device."`;
 
   const windowsScript = `# TopSqill IT Asset Agent - Windows PowerShell
-# Run as Administrator
+# Run as Administrator — auto-installs a Scheduled Task to report every 6 hours
 
 $API_URL = "${SUPABASE_URL}/functions/v1/asset-agent-report"
 $ORG_ID = "${orgId}"
 $AGENT_KEY = "$env:COMPUTERNAME-$(Get-WmiObject Win32_BIOS | Select-Object -ExpandProperty SerialNumber)"
+$SCRIPT_DIR = "$env:ProgramData\\TopSqill"
+$SCRIPT_PATH = "$SCRIPT_DIR\\topsqill-agent.ps1"
 
 function Send-AgentReport {
     param([string]$Action, [hashtable]$Body)
@@ -181,6 +183,30 @@ Send-AgentReport -Action "report" -Body @{
     software = @($software)
 }
 
+# ── Auto-install Scheduled Task (runs every 6 hours) ──
+Write-Host ""
+Write-Host "Setting up scheduled reporting (every 6 hours)..." -ForegroundColor Cyan
+
+# Save this script to a persistent location
+New-Item -Path $SCRIPT_DIR -ItemType Directory -Force | Out-Null
+$MyInvocation.MyCommand.ScriptBlock.ToString() | Out-File -FilePath $SCRIPT_PATH -Encoding UTF8 -Force
+
+$taskName = "TopSqill-AssetAgent"
+$existingTask = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
+
+if (-not $existingTask) {
+    $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-ExecutionPolicy Bypass -WindowStyle Hidden -File \\"$SCRIPT_PATH\\""
+    $trigger = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Hours 6) -RepetitionDuration ([TimeSpan]::MaxValue)
+    $principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
+    $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 15)
+
+    Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Description "TopSqill ITAM Agent - reports hardware and software inventory every 6 hours" | Out-Null
+    Write-Host "✅ Scheduled Task '$taskName' created — reports every 6 hours." -ForegroundColor Green
+} else {
+    Write-Host "ℹ️  Scheduled Task '$taskName' already exists — no changes made." -ForegroundColor Yellow
+}
+
+Write-Host ""
 Write-Host "Agent report completed successfully!" -ForegroundColor Green`;
 
   const linuxScript = `#!/bin/bash
