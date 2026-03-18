@@ -162,6 +162,7 @@ export function DashboardsList({
                       <div className="flex items-center gap-2">
                         <LayoutDashboard className="h-4 w-4 text-primary" />
                         <CardTitle className="text-lg">{dashboard.name}</CardTitle>
+                        {isDefault && <Badge variant="default" className="text-[10px]">Default</Badge>}
                       </div>
                       {dashboard.description && (
                         <CardDescription className="line-clamp-2">{dashboard.description}</CardDescription>
