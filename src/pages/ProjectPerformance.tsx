@@ -6,11 +6,10 @@ import NoProjectSelected from '@/components/NoProjectSelected';
 import { PerformanceProjectList } from '@/components/performance/PerformanceProjectList';
 import { PerformanceOverview } from '@/components/performance/overview/PerformanceOverview';
 import { AlertsPanel } from '@/components/performance/alerts/AlertsPanel';
-import { PredictionsPanel } from '@/components/performance/predictions/PredictionsPanel';
 import { ThresholdsConfig } from '@/components/performance/thresholds/ThresholdsConfig';
 import { DataSourceConfig } from '@/components/performance/data-sources/DataSourceConfig';
 import { AnalyticsPanel } from '@/components/performance/analytics/AnalyticsPanel';
-import { AlertTriangle, ArrowLeft, BarChart3, Brain, Database, LineChart, Settings2 } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, BarChart3, Database, LineChart, Settings2 } from 'lucide-react';
 
 interface SelectedPerfProject {
   id: string;
