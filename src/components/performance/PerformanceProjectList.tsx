@@ -3,8 +3,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useProject } from '@/contexts/ProjectContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -20,17 +18,12 @@ interface PerformanceProject {
   description: string | null;
   project_id: string;
   organization_id: string | null;
-  form_id: string;
-  form_name: string;
+  form_id: string | null;
+  form_name: string | null;
   created_by: string;
   status: string;
   created_at: string;
   updated_at: string;
-}
-
-interface FormOption {
-  id: string;
-  name: string;
 }
 
 interface Props {
@@ -50,7 +43,6 @@ export function PerformanceProjectList({ onSelectProject }: Props) {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [newName, setNewName] = useState('');
   const [newDescription, setNewDescription] = useState('');
-  const [selectedFormId, setSelectedFormId] = useState('');
 
   // Fetch performance projects
   const { data: perfProjects = [], isLoading } = useQuery({
@@ -69,39 +61,17 @@ export function PerformanceProjectList({ onSelectProject }: Props) {
     enabled: !!projectId,
   });
 
-  // Fetch forms for project (excluding already used ones)
-  const usedFormIds = perfProjects.map(p => p.form_id);
-  const { data: forms = [] } = useQuery({
-    queryKey: ['project-forms-for-perf', projectId],
-    queryFn: async () => {
-      if (!projectId) return [];
-      const { data, error } = await supabase
-        .from('forms')
-        .select('id, name')
-        .eq('project_id', projectId)
-        .order('name');
-      if (error) throw error;
-      return data as FormOption[];
-    },
-    enabled: !!projectId,
-  });
-
-  const availableForms = forms.filter(f => !usedFormIds.includes(f.id));
-
-  // Create performance project
+  // Create performance project (simple — no form required)
   const createProject = useMutation({
     mutationFn: async () => {
-      if (!projectId || !userProfile || !selectedFormId) throw new Error('Missing data');
-      const selectedForm = forms.find(f => f.id === selectedFormId);
+      if (!projectId || !userProfile) throw new Error('Missing data');
       const { data, error } = await supabase
         .from('performance_projects')
         .insert({
-          name: newName || `${selectedForm?.name} Performance`,
+          name: newName,
           description: newDescription || null,
           project_id: projectId,
           organization_id: userProfile.organization_id,
-          form_id: selectedFormId,
-          form_name: selectedForm?.name || '',
           created_by: userProfile.id,
         })
         .select()
@@ -110,28 +80,6 @@ export function PerformanceProjectList({ onSelectProject }: Props) {
         console.error('Performance project insert error:', error);
         throw error;
       }
-
-      // Auto-create a data source for this form
-      try {
-        const { error: dsError } = await supabase
-          .from('performance_data_sources')
-          .insert({
-            project_id: projectId,
-            organization_id: userProfile.organization_id || null,
-            created_by: userProfile.id,
-            source_form_id: selectedFormId,
-            source_form_name: selectedForm?.name || '',
-            field_mappings: [],
-            linked_forms: [],
-            data_limit: 500,
-            is_active: true,
-            performance_project_id: data.id,
-          });
-        if (dsError) console.error('Auto data source creation error:', dsError);
-      } catch (e) {
-        console.error('Data source auto-create failed:', e);
-      }
-
       return data;
     },
     onSuccess: () => {
@@ -140,7 +88,6 @@ export function PerformanceProjectList({ onSelectProject }: Props) {
       setCreateOpen(false);
       setNewName('');
       setNewDescription('');
-      setSelectedFormId('');
     },
     onError: (err: Error) => {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
@@ -202,39 +149,24 @@ export function PerformanceProjectList({ onSelectProject }: Props) {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Project Performance</h1>
           <p className="text-muted-foreground text-sm mt-1">
-            Create a performance project per form for focused AI-powered analysis
+            Create performance projects for focused AI-powered analysis
           </p>
         </div>
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger asChild>
-            <Button disabled={availableForms.length === 0}>
+            <Button>
               <Plus className="mr-2 h-4 w-4" />New Performance Project
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Create Performance Project</DialogTitle>
-              <DialogDescription>Select a form to create a dedicated performance analysis project for it.</DialogDescription>
+              <DialogDescription>Create a project, then configure data sources inside it.</DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               <div>
-                <Label>Select Form</Label>
-                <Select value={selectedFormId} onValueChange={(v) => {
-                  setSelectedFormId(v);
-                  const form = forms.find(f => f.id === v);
-                  if (form && !newName) setNewName(`${form.name} Performance`);
-                }}>
-                  <SelectTrigger><SelectValue placeholder="Choose a form..." /></SelectTrigger>
-                  <SelectContent>
-                    {availableForms.map(f => (
-                      <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
                 <Label>Project Name</Label>
-                <Input value={newName} onChange={e => setNewName(e.target.value)} placeholder="e.g., Budget Tracker Performance" />
+                <Input value={newName} onChange={e => setNewName(e.target.value)} placeholder="e.g., Budget Analysis" />
               </div>
               <div>
                 <Label>Description (optional)</Label>
@@ -243,7 +175,7 @@ export function PerformanceProjectList({ onSelectProject }: Props) {
               <Button
                 className="w-full"
                 onClick={() => createProject.mutate()}
-                disabled={!selectedFormId || !newName || createProject.isPending}
+                disabled={!newName || createProject.isPending}
               >
                 {createProject.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                 Create Project
@@ -283,7 +215,7 @@ export function PerformanceProjectList({ onSelectProject }: Props) {
           <DialogHeader>
             <DialogTitle>Delete Performance Project?</DialogTitle>
             <DialogDescription>
-              This will permanently delete this performance project and all its data sources, thresholds, alerts, and predictions. This action cannot be undone.
+              This will permanently delete this performance project and all its data sources, thresholds, alerts, and predictions.
             </DialogDescription>
           </DialogHeader>
           <div className="flex gap-2 justify-end">
@@ -303,7 +235,7 @@ export function PerformanceProjectList({ onSelectProject }: Props) {
             <BarChart3 className="h-12 w-12 text-muted-foreground mb-4" />
             <p className="font-medium text-foreground">No performance projects yet</p>
             <p className="text-sm text-muted-foreground mt-1">
-              Create a performance project for each form you want to analyze individually.
+              Create a performance project to start analyzing your data.
             </p>
           </CardContent>
         </Card>
@@ -318,12 +250,14 @@ export function PerformanceProjectList({ onSelectProject }: Props) {
                     {project.description && (
                       <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{project.description}</p>
                     )}
-                    <div className="flex items-center gap-2 mt-3">
-                      <Badge variant="outline" className="text-xs">
-                        <BarChart3 className="h-3 w-3 mr-1" />
-                        {project.form_name}
-                      </Badge>
-                    </div>
+                    {project.form_name && (
+                      <div className="flex items-center gap-2 mt-3">
+                        <span className="text-xs text-muted-foreground flex items-center gap-1">
+                          <BarChart3 className="h-3 w-3" />
+                          {project.form_name}
+                        </span>
+                      </div>
+                    )}
                     <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
                       <Calendar className="h-3 w-3" />
                       Created {format(new Date(project.created_at), 'MMM d, yyyy')}
