@@ -334,7 +334,7 @@ export function AnalyticsPanel({ perfProjectId }: Props) {
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={metricTrendData}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis dataKey="date" tick={{ fontSize: 10, angle: -30 }} height={50} />
+                <XAxis dataKey="date" tick={{ fontSize: 10 }} height={50} />
                 <YAxis tick={{ fontSize: 11 }} />
                 <Tooltip />
                 <Legend />
