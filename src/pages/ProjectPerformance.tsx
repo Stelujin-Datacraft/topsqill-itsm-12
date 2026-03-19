@@ -86,9 +86,6 @@ export default function ProjectPerformance() {
         <TabsContent value="alerts">
           <AlertsPanel perfProjectId={selectedPerfProject.id} />
         </TabsContent>
-        <TabsContent value="predictions">
-          <PredictionsPanel perfProjectId={selectedPerfProject.id} />
-        </TabsContent>
         <TabsContent value="thresholds">
           <ThresholdsConfig perfProjectId={selectedPerfProject.id} perfFormId={selectedPerfProject.form_id || undefined} perfFormName={selectedPerfProject.form_name || undefined} />
         </TabsContent>
