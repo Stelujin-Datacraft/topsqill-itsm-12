@@ -234,6 +234,7 @@ export function DataSourceConfig({ perfProjectId, perfFormId }: DataSourceConfig
           data_limit: dataLimit,
           date_field_id: dateFieldId || null,
           is_active: true,
+          ...(perfProjectId ? { performance_project_id: perfProjectId } : {}),
         })
         .select()
         .single();
