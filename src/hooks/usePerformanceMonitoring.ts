@@ -77,6 +77,10 @@ export interface PerformanceThreshold {
   severity: string;
   is_active: boolean;
   send_email: boolean;
+  data_source_id?: string;
+  form_field_id?: string;
+  form_field_label?: string;
+  data_limit?: number;
 }
 
 export interface AIAnalysis {
