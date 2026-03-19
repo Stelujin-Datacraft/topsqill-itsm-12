@@ -3308,6 +3308,355 @@ export type Database = {
         }
         Relationships: []
       }
+      performance_alerts: {
+        Row: {
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          actual_value: number | null
+          ai_confidence: number | null
+          ai_generated: boolean | null
+          ai_reasoning: string | null
+          ai_recommendation: string | null
+          alert_type: string
+          created_at: string
+          description: string | null
+          email_sent: boolean | null
+          email_sent_at: string | null
+          id: string
+          metric_name: string | null
+          organization_id: string | null
+          project_id: string
+          resolved_at: string | null
+          resolved_by: string | null
+          severity: string
+          snapshot_id: string | null
+          status: string
+          threshold_value: number | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          actual_value?: number | null
+          ai_confidence?: number | null
+          ai_generated?: boolean | null
+          ai_reasoning?: string | null
+          ai_recommendation?: string | null
+          alert_type: string
+          created_at?: string
+          description?: string | null
+          email_sent?: boolean | null
+          email_sent_at?: string | null
+          id?: string
+          metric_name?: string | null
+          organization_id?: string | null
+          project_id: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          snapshot_id?: string | null
+          status?: string
+          threshold_value?: number | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          actual_value?: number | null
+          ai_confidence?: number | null
+          ai_generated?: boolean | null
+          ai_reasoning?: string | null
+          ai_recommendation?: string | null
+          alert_type?: string
+          created_at?: string
+          description?: string | null
+          email_sent?: boolean | null
+          email_sent_at?: string | null
+          id?: string
+          metric_name?: string | null
+          organization_id?: string | null
+          project_id?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          snapshot_id?: string | null
+          status?: string
+          threshold_value?: number | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "performance_alerts_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "performance_alerts_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "performance_alerts_snapshot_id_fkey"
+            columns: ["snapshot_id"]
+            isOneToOne: false
+            referencedRelation: "performance_snapshots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      performance_predictions: {
+        Row: {
+          accuracy_pct: number | null
+          actual_value: number | null
+          confidence_level: number | null
+          created_at: string
+          id: string
+          input_data_points: number | null
+          model_used: string | null
+          organization_id: string | null
+          predicted_value: number | null
+          prediction_date: string
+          prediction_range_high: number | null
+          prediction_range_low: number | null
+          prediction_type: string
+          project_id: string
+          reasoning: string | null
+          target_date: string | null
+        }
+        Insert: {
+          accuracy_pct?: number | null
+          actual_value?: number | null
+          confidence_level?: number | null
+          created_at?: string
+          id?: string
+          input_data_points?: number | null
+          model_used?: string | null
+          organization_id?: string | null
+          predicted_value?: number | null
+          prediction_date?: string
+          prediction_range_high?: number | null
+          prediction_range_low?: number | null
+          prediction_type: string
+          project_id: string
+          reasoning?: string | null
+          target_date?: string | null
+        }
+        Update: {
+          accuracy_pct?: number | null
+          actual_value?: number | null
+          confidence_level?: number | null
+          created_at?: string
+          id?: string
+          input_data_points?: number | null
+          model_used?: string | null
+          organization_id?: string | null
+          predicted_value?: number | null
+          prediction_date?: string
+          prediction_range_high?: number | null
+          prediction_range_low?: number | null
+          prediction_type?: string
+          project_id?: string
+          reasoning?: string | null
+          target_date?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "performance_predictions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "performance_predictions_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      performance_snapshots: {
+        Row: {
+          actual_budget: number | null
+          actual_resources: number | null
+          actual_start_date: string | null
+          blocked_tasks: number | null
+          budget_variance: number | null
+          completed_milestones: number | null
+          completed_tasks: number | null
+          completion_pct: number | null
+          created_at: string
+          created_by: string
+          custom_metrics: Json | null
+          health_status: string | null
+          id: string
+          in_progress_tasks: number | null
+          notes: string | null
+          organization_id: string | null
+          overdue_milestones: number | null
+          planned_budget: number | null
+          planned_end_date: string | null
+          planned_resources: number | null
+          planned_start_date: string | null
+          project_id: string
+          projected_end_date: string | null
+          resource_utilization_pct: number | null
+          risk_score: number | null
+          schedule_variance_days: number | null
+          snapshot_date: string
+          total_milestones: number | null
+          total_tasks: number | null
+          updated_at: string
+        }
+        Insert: {
+          actual_budget?: number | null
+          actual_resources?: number | null
+          actual_start_date?: string | null
+          blocked_tasks?: number | null
+          budget_variance?: number | null
+          completed_milestones?: number | null
+          completed_tasks?: number | null
+          completion_pct?: number | null
+          created_at?: string
+          created_by: string
+          custom_metrics?: Json | null
+          health_status?: string | null
+          id?: string
+          in_progress_tasks?: number | null
+          notes?: string | null
+          organization_id?: string | null
+          overdue_milestones?: number | null
+          planned_budget?: number | null
+          planned_end_date?: string | null
+          planned_resources?: number | null
+          planned_start_date?: string | null
+          project_id: string
+          projected_end_date?: string | null
+          resource_utilization_pct?: number | null
+          risk_score?: number | null
+          schedule_variance_days?: number | null
+          snapshot_date?: string
+          total_milestones?: number | null
+          total_tasks?: number | null
+          updated_at?: string
+        }
+        Update: {
+          actual_budget?: number | null
+          actual_resources?: number | null
+          actual_start_date?: string | null
+          blocked_tasks?: number | null
+          budget_variance?: number | null
+          completed_milestones?: number | null
+          completed_tasks?: number | null
+          completion_pct?: number | null
+          created_at?: string
+          created_by?: string
+          custom_metrics?: Json | null
+          health_status?: string | null
+          id?: string
+          in_progress_tasks?: number | null
+          notes?: string | null
+          organization_id?: string | null
+          overdue_milestones?: number | null
+          planned_budget?: number | null
+          planned_end_date?: string | null
+          planned_resources?: number | null
+          planned_start_date?: string | null
+          project_id?: string
+          projected_end_date?: string | null
+          resource_utilization_pct?: number | null
+          risk_score?: number | null
+          schedule_variance_days?: number | null
+          snapshot_date?: string
+          total_milestones?: number | null
+          total_tasks?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "performance_snapshots_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "performance_snapshots_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      performance_thresholds: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          is_active: boolean | null
+          metric_name: string
+          operator: string
+          organization_id: string | null
+          project_id: string
+          send_email: boolean | null
+          severity: string
+          threshold_value: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          is_active?: boolean | null
+          metric_name: string
+          operator: string
+          organization_id?: string | null
+          project_id: string
+          send_email?: boolean | null
+          severity?: string
+          threshold_value: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          is_active?: boolean | null
+          metric_name?: string
+          operator?: string
+          organization_id?: string | null
+          project_id?: string
+          send_email?: boolean | null
+          severity?: string
+          threshold_value?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "performance_thresholds_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "performance_thresholds_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       permission_audit_log: {
         Row: {
           action: string
