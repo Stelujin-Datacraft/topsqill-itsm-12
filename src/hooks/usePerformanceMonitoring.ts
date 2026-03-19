@@ -141,53 +141,6 @@ export function usePerformanceMonitoring() {
     enabled: !!projectId,
   });
 
-  // Create snapshot
-  const createSnapshot = useMutation({
-    mutationFn: async (snapshotData: Partial<PerformanceSnapshot>) => {
-      if (!projectId || !userProfile) throw new Error('Project required');
-      const insertData = {
-        project_id: projectId,
-        organization_id: userProfile.organization_id,
-        created_by: userProfile.id,
-        snapshot_date: snapshotData.snapshot_date || new Date().toISOString().split('T')[0],
-        planned_budget: snapshotData.planned_budget || 0,
-        actual_budget: snapshotData.actual_budget || 0,
-        planned_start_date: snapshotData.planned_start_date || null,
-        planned_end_date: snapshotData.planned_end_date || null,
-        actual_start_date: snapshotData.actual_start_date || null,
-        projected_end_date: snapshotData.projected_end_date || null,
-        schedule_variance_days: snapshotData.schedule_variance_days || 0,
-        planned_resources: snapshotData.planned_resources || 0,
-        actual_resources: snapshotData.actual_resources || 0,
-        resource_utilization_pct: snapshotData.resource_utilization_pct || 0,
-        total_tasks: snapshotData.total_tasks || 0,
-        completed_tasks: snapshotData.completed_tasks || 0,
-        in_progress_tasks: snapshotData.in_progress_tasks || 0,
-        blocked_tasks: snapshotData.blocked_tasks || 0,
-        total_milestones: snapshotData.total_milestones || 0,
-        completed_milestones: snapshotData.completed_milestones || 0,
-        overdue_milestones: snapshotData.overdue_milestones || 0,
-        risk_score: snapshotData.risk_score || 0,
-        health_status: snapshotData.health_status || 'green',
-        notes: snapshotData.notes || null,
-      };
-      const { data, error } = await supabase
-        .from('performance_snapshots')
-        .insert(insertData)
-        .select()
-        .single();
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['performance-snapshots', projectId] });
-      toast({ title: 'Snapshot Created', description: 'Performance data recorded successfully.' });
-    },
-    onError: (err: Error) => {
-      toast({ title: 'Error', description: err.message, variant: 'destructive' });
-    },
-  });
-
   // Update alert status
   const updateAlertStatus = useMutation({
     mutationFn: async ({ alertId, status }: { alertId: string; status: string }) => {
