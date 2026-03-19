@@ -9,7 +9,8 @@ import { AlertsPanel } from '@/components/performance/alerts/AlertsPanel';
 import { PredictionsPanel } from '@/components/performance/predictions/PredictionsPanel';
 import { ThresholdsConfig } from '@/components/performance/thresholds/ThresholdsConfig';
 import { DataSourceConfig } from '@/components/performance/data-sources/DataSourceConfig';
-import { AlertTriangle, ArrowLeft, BarChart3, Brain, Database, Settings2 } from 'lucide-react';
+import { AnalyticsPanel } from '@/components/performance/analytics/AnalyticsPanel';
+import { AlertTriangle, ArrowLeft, BarChart3, Brain, Database, LineChart, Settings2 } from 'lucide-react';
 
 interface SelectedPerfProject {
   id: string;
@@ -74,6 +75,10 @@ export default function ProjectPerformance() {
             <Settings2 className="h-4 w-4" />
             Thresholds
           </TabsTrigger>
+          <TabsTrigger value="analytics" className="gap-2">
+            <LineChart className="h-4 w-4" />
+            Reports Analytics
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview">
@@ -90,6 +95,9 @@ export default function ProjectPerformance() {
         </TabsContent>
         <TabsContent value="thresholds">
           <ThresholdsConfig perfProjectId={selectedPerfProject.id} perfFormId={selectedPerfProject.form_id || undefined} perfFormName={selectedPerfProject.form_name || undefined} />
+        </TabsContent>
+        <TabsContent value="analytics">
+          <AnalyticsPanel perfProjectId={selectedPerfProject.id} />
         </TabsContent>
       </Tabs>
     </div>
