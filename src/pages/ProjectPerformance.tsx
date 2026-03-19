@@ -2,12 +2,12 @@ import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useProject } from '@/contexts/ProjectContext';
 import NoProjectSelected from '@/components/NoProjectSelected';
-import { PerformanceOverview } from '@/components/performance/PerformanceOverview';
-import { SnapshotManager } from '@/components/performance/SnapshotManager';
-import { AlertsPanel } from '@/components/performance/AlertsPanel';
-import { PredictionsPanel } from '@/components/performance/PredictionsPanel';
-import { ThresholdsConfig } from '@/components/performance/ThresholdsConfig';
-import { DataSourceConfig } from '@/components/performance/DataSourceConfig';
+import { PerformanceOverview } from '@/components/performance/overview/PerformanceOverview';
+import { SnapshotManager } from '@/components/performance/snapshots/SnapshotManager';
+import { AlertsPanel } from '@/components/performance/alerts/AlertsPanel';
+import { PredictionsPanel } from '@/components/performance/predictions/PredictionsPanel';
+import { ThresholdsConfig } from '@/components/performance/thresholds/ThresholdsConfig';
+import { DataSourceConfig } from '@/components/performance/data-sources/DataSourceConfig';
 import { Activity, AlertTriangle, BarChart3, Brain, Database, Settings2 } from 'lucide-react';
 
 export default function ProjectPerformance() {
