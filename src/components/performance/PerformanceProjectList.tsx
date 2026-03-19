@@ -66,10 +66,12 @@ export function PerformanceProjectList({ onSelectProject }: Props) {
     mutationFn: async () => {
       if (!projectId) throw new Error('Project is required');
 
-      const { data: authData, error: authError } = await supabase.auth.getUser();
-      if (authError || !authData.user) {
+      const { data: sessionData, error: refreshError } = await supabase.auth.refreshSession();
+      if (refreshError || !sessionData.session?.user?.id) {
         throw new Error('Please log in again and retry');
       }
+
+      const authUserId = sessionData.session.user.id;
 
       const { data, error } = await supabase
         .from('performance_projects')
@@ -78,7 +80,7 @@ export function PerformanceProjectList({ onSelectProject }: Props) {
           description: newDescription || null,
           project_id: projectId,
           organization_id: userProfile?.organization_id || null,
-          created_by: authData.user.id,
+          created_by: authUserId,
         })
         .select()
         .single();
