@@ -357,7 +357,7 @@ export function DataSourceConfig() {
                           <SelectItem value="updated_at">Updated At (system)</SelectItem>
                           {dateFields.map(f => (
                             <SelectItem key={f.id} value={f.id}>{f.label}</SelectItem>
-                          )))}
+                          ))}
                         </SelectContent>
                       </Select>
                       <p className="text-xs text-muted-foreground">Used for trend analysis ordering</p>
