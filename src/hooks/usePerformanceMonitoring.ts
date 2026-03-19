@@ -91,23 +91,6 @@ export function usePerformanceMonitoring() {
 
   const projectId = currentProject?.id;
 
-  // Fetch snapshots
-  const { data: snapshots = [], isLoading: loadingSnapshots } = useQuery({
-    queryKey: ['performance-snapshots', projectId],
-    queryFn: async () => {
-      if (!projectId) return [];
-      const { data, error } = await supabase
-        .from('performance_snapshots')
-        .select('*')
-        .eq('project_id', projectId)
-        .order('snapshot_date', { ascending: false })
-        .limit(50);
-      if (error) throw error;
-      return data as PerformanceSnapshot[];
-    },
-    enabled: !!projectId,
-  });
-
   // Fetch alerts
   const { data: alerts = [], isLoading: loadingAlerts } = useQuery({
     queryKey: ['performance-alerts', projectId],
