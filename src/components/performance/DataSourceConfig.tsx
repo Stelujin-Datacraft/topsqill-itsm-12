@@ -136,9 +136,9 @@ export function DataSourceConfig() {
     setLoadingFields(true);
     supabase
       .from('form_fields')
-      .select('id, label, field_type, config')
+      .select('id, label, field_type, custom_config')
       .eq('form_id', selectedFormId)
-      .order('sequence')
+      .order('field_order')
       .then(({ data, error }) => {
         setLoadingFields(false);
         if (error || !data) return;
@@ -146,7 +146,7 @@ export function DataSourceConfig() {
           id: f.id,
           label: f.label,
           type: f.field_type,
-          config: f.config,
+          config: f.custom_config,
         }));
         setFormFields(fields);
         setCrossRefFields(fields.filter(f =>
