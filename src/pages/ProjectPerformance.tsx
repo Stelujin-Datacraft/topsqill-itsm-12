@@ -9,7 +9,8 @@ import { AlertsPanel } from '@/components/performance/alerts/AlertsPanel';
 import { PredictionsPanel } from '@/components/performance/predictions/PredictionsPanel';
 import { ThresholdsConfig } from '@/components/performance/thresholds/ThresholdsConfig';
 import { DataSourceConfig } from '@/components/performance/data-sources/DataSourceConfig';
-import { AlertTriangle, ArrowLeft, BarChart3, Brain, Database, Settings2 } from 'lucide-react';
+import { AnalyticsPanel } from '@/components/performance/analytics/AnalyticsPanel';
+import { AlertTriangle, ArrowLeft, BarChart3, Brain, Database, LineChart, Settings2 } from 'lucide-react';
 
 interface SelectedPerfProject {
   id: string;
