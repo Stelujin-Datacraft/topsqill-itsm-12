@@ -284,7 +284,7 @@ export function AnalyticsPanel({ perfProjectId }: Props) {
               <ResponsiveContainer width="100%" height={250}>
                 <BarChart data={categoryData}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis dataKey="name" tick={{ fontSize: 10, angle: -30 }} height={50} />
+                  <XAxis dataKey="name" tick={{ fontSize: 10 }} height={50} />
                   <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
                   <Tooltip />
                   <Bar dataKey="value" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} name="Count" />
