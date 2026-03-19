@@ -163,22 +163,31 @@ export function ThresholdsConfig({ perfProjectId, perfFormId, perfFormName }: Pr
               {/* Form Selection */}
               <div>
                 <Label>Source Form</Label>
-                <Select
-                  value={selectedFormId}
-                  onValueChange={v => {
-                    setSelectedFormId(v);
-                    const form = forms.find(f => f.id === v);
-                    setSelectedFormName(form?.name || '');
-                    setFormData(p => ({ ...p, form_field_id: '', form_field_label: '' }));
-                  }}
-                >
-                  <SelectTrigger><SelectValue placeholder="Select a form..." /></SelectTrigger>
-                  <SelectContent>
-                    {forms.map(f => (
-                      <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {perfFormId ? (
+                  <Input
+                    value={perfFormName || 'Linked Form'}
+                    readOnly
+                    disabled
+                    className="bg-muted cursor-not-allowed"
+                  />
+                ) : (
+                  <Select
+                    value={selectedFormId}
+                    onValueChange={v => {
+                      setSelectedFormId(v);
+                      const form = forms.find(f => f.id === v);
+                      setSelectedFormName(form?.name || '');
+                      setFormData(p => ({ ...p, form_field_id: '', form_field_label: '' }));
+                    }}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Select a form..." /></SelectTrigger>
+                    <SelectContent>
+                      {forms.map(f => (
+                        <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
 
               {/* Field Selection */}
