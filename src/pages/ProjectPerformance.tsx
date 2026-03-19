@@ -67,10 +67,6 @@ export default function ProjectPerformance() {
             <AlertTriangle className="h-4 w-4" />
             Alerts
           </TabsTrigger>
-          <TabsTrigger value="predictions" className="gap-2">
-            <Brain className="h-4 w-4" />
-            AI Predictions
-          </TabsTrigger>
           <TabsTrigger value="thresholds" className="gap-2">
             <Settings2 className="h-4 w-4" />
             Thresholds
