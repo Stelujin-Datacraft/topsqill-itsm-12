@@ -208,7 +208,7 @@ Analyze using:
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-2.5-flash-preview",
+          model: "google/gemini-3-flash-preview",
           messages: [
             { role: "system", content: "You are an expert project performance analyst. Always respond with valid JSON. Be precise and reference actual data values." },
             { role: "user", content: prompt },
