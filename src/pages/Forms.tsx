@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/DashboardLayout';
 import { FormsList } from '@/components/FormsList';
@@ -14,11 +14,13 @@ import {
 import { useUnifiedAccessControl } from '@/hooks/useUnifiedAccessControl';
 import { useProject } from '@/contexts/ProjectContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { BarChart3, History, FileText, Timer, MoreVertical } from 'lucide-react';
+import { BarChart3, History, FileText, Timer, MoreVertical, Database } from 'lucide-react';
 import NoProjectSelected from '@/components/NoProjectSelected';
 import { AIFormGenerator } from '@/components/ai/AIFormGenerator';
 import { ExcelFormImporter } from '@/components/ExcelFormImporter';
 import { useFormsData } from '@/hooks/useFormsData';
+import { seedProjectKPIsForm } from '@/utils/seedProjectKPIs';
+import { toast } from 'sonner';
 
 const Forms = () => {
   const navigate = useNavigate();
@@ -26,6 +28,22 @@ const Forms = () => {
   const { createForm, addField } = useFormsData();
   const { hasPermission, loading: permissionLoading } = useUnifiedAccessControl();
   const { currentProject } = useProject();
+  const [seeding, setSeeding] = useState(false);
+
+  const handleSeedKPIs = async () => {
+    if (!currentProject?.id || !userProfile?.organization_id || !userProfile?.id) return;
+    setSeeding(true);
+    try {
+      const result = await seedProjectKPIsForm(currentProject.id, userProfile.organization_id, userProfile.id);
+      toast.success(`Created "Project KPIs Tracker" with ${result.fieldCount} fields and ${result.submissionCount} submissions!`);
+      window.location.reload();
+    } catch (error: any) {
+      console.error('Seed error:', error);
+      toast.error('Failed to seed: ' + error.message);
+    } finally {
+      setSeeding(false);
+    }
+  };
 
   if (!currentProject) {
     return (
@@ -157,6 +175,12 @@ const Forms = () => {
 
   const actions = (
     <div className="flex flex-wrap items-center gap-2">
+      {canCreateForm && !permissionLoading && (
+        <Button variant="outline" size="sm" onClick={handleSeedKPIs} disabled={seeding}>
+          <Database className="h-4 w-4 mr-2" />
+          {seeding ? 'Seeding...' : 'Seed KPI Form'}
+        </Button>
+      )}
       {canReadForms && (
         <FormSubmissionsDialog>
           <Button variant="outline" size="sm">
