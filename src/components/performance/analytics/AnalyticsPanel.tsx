@@ -22,6 +22,7 @@ interface Props {
 export function AnalyticsPanel({ perfProjectId }: Props) {
   const { alerts, predictions, thresholds, loading } = usePerformanceMonitoring(perfProjectId);
   const { currentProject } = useProject();
+  const chartContainerRef = useRef<HTMLDivElement>(null);
 
   // Fetch data sources to get form submission data
   const { data: dataSources = [] } = useQuery({
