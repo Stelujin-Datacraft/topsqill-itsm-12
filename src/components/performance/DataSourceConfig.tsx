@@ -386,7 +386,7 @@ export function DataSourceConfig() {
                             {f.label}
                             <Badge variant="secondary" className="ml-1 text-[10px]">{f.type}</Badge>
                           </Button>
-                        ))}
+                          ))}
                       </div>
                     )}
 
