@@ -3588,8 +3588,8 @@ export type Database = {
           created_at: string
           created_by: string
           description: string | null
-          form_id: string
-          form_name: string
+          form_id: string | null
+          form_name: string | null
           id: string
           name: string
           organization_id: string | null
@@ -3601,8 +3601,8 @@ export type Database = {
           created_at?: string
           created_by: string
           description?: string | null
-          form_id: string
-          form_name: string
+          form_id?: string | null
+          form_name?: string | null
           id?: string
           name: string
           organization_id?: string | null
@@ -3614,8 +3614,8 @@ export type Database = {
           created_at?: string
           created_by?: string
           description?: string | null
-          form_id?: string
-          form_name?: string
+          form_id?: string | null
+          form_name?: string | null
           id?: string
           name?: string
           organization_id?: string | null
