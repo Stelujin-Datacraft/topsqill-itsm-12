@@ -11,6 +11,7 @@ import {
 } from 'recharts';
 import { Loader2, BarChart3, PieChart as PieChartIcon, TrendingUp, Activity, Brain } from 'lucide-react';
 import { format, subDays, startOfDay } from 'date-fns';
+import { ChartExportButton } from '@/components/reports/ChartExportButton';
 
 const COLORS = ['hsl(var(--primary))', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16'];
 
