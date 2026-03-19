@@ -67,10 +67,6 @@ export default function ProjectPerformance() {
             <AlertTriangle className="h-4 w-4" />
             Alerts
           </TabsTrigger>
-          <TabsTrigger value="predictions" className="gap-2">
-            <Brain className="h-4 w-4" />
-            AI Predictions
-          </TabsTrigger>
           <TabsTrigger value="thresholds" className="gap-2">
             <Settings2 className="h-4 w-4" />
             Thresholds
@@ -89,9 +85,6 @@ export default function ProjectPerformance() {
         </TabsContent>
         <TabsContent value="alerts">
           <AlertsPanel perfProjectId={selectedPerfProject.id} />
-        </TabsContent>
-        <TabsContent value="predictions">
-          <PredictionsPanel perfProjectId={selectedPerfProject.id} />
         </TabsContent>
         <TabsContent value="thresholds">
           <ThresholdsConfig perfProjectId={selectedPerfProject.id} perfFormId={selectedPerfProject.form_id || undefined} perfFormName={selectedPerfProject.form_name || undefined} />
