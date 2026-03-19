@@ -31,9 +31,9 @@ async function fetchFormData(supabase: any, dataSources: any[]) {
 
     const { data: submissions, error: subError } = await supabase
       .from("form_submissions")
-      .select("id, submission_data, created_at, updated_at, submission_ref_id")
+      .select("id, submission_data, submitted_at, submission_ref_id")
       .eq("form_id", ds.source_form_id)
-      .order("created_at", { ascending: false })
+      .order("submitted_at", { ascending: false })
       .limit(limit);
 
     if (subError) {
@@ -46,7 +46,7 @@ async function fetchFormData(supabase: any, dataSources: any[]) {
     const mappedData = submissions.map((sub: any) => {
       const row: Record<string, any> = {
         _ref_id: sub.submission_ref_id,
-        _created_at: sub.created_at,
+        _submitted_at: sub.submitted_at,
       };
       for (const mapping of fieldMappings) {
         const val = sub.submission_data?.[mapping.formFieldId];
@@ -81,9 +81,9 @@ async function fetchFormData(supabase: any, dataSources: any[]) {
     for (const lf of linkedForms) {
       const { data: linkedSubs } = await supabase
         .from("form_submissions")
-        .select("id, submission_data, created_at, submission_ref_id")
+        .select("id, submission_data, submitted_at, submission_ref_id")
         .eq("form_id", lf.formId)
-        .order("created_at", { ascending: false })
+        .order("submitted_at", { ascending: false })
         .limit(Math.min(limit, 200));
 
       if (linkedSubs && linkedSubs.length > 0) {
