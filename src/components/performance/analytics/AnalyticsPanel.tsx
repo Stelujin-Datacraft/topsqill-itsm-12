@@ -162,15 +162,22 @@ export function AnalyticsPanel({ perfProjectId }: Props) {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-          <BarChart3 className="h-5 w-5 text-primary" />
-          Reports Analytics
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          Visual insights from your performance data — all charts are based on saved data
-        </p>
+    <div className="space-y-6" ref={chartContainerRef}>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+            <BarChart3 className="h-5 w-5 text-primary" />
+            Reports Analytics
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Visual insights from your performance data — all charts are based on saved data
+          </p>
+        </div>
+        <ChartExportButton
+          chartRef={chartContainerRef as React.RefObject<HTMLDivElement>}
+          filename="performance-analytics-report"
+          title="Performance Analytics Report"
+        />
       </div>
 
       {/* Summary Cards */}
