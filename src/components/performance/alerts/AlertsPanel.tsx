@@ -6,8 +6,12 @@ import { usePerformanceMonitoring } from '@/hooks/usePerformanceMonitoring';
 import { AlertTriangle, Brain, CheckCircle2, Eye, XCircle, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 
-export function AlertsPanel() {
-  const { alerts, loading, updateAlertStatus } = usePerformanceMonitoring();
+interface Props {
+  perfProjectId?: string;
+}
+
+export function AlertsPanel({ perfProjectId }: Props) {
+  const { alerts, loading, updateAlertStatus } = usePerformanceMonitoring(perfProjectId);
 
   const severityColor = (severity: string) => {
     switch (severity) {
