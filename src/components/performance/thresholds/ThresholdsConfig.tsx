@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,6 +22,12 @@ interface FormFieldOption {
 interface FormOption {
   id: string;
   name: string;
+}
+
+interface DataSourceLink {
+  id: string;
+  source_form_id: string;
+  source_form_name: string;
 }
 
 interface Props {
@@ -64,6 +70,44 @@ export function ThresholdsConfig({ perfProjectId, perfFormId, perfFormName }: Pr
     enabled: !!projectId,
   });
 
+  // Get active data source (if any) for this perf project
+  const { data: linkedDataSource } = useQuery({
+    queryKey: ['perf-data-source-link', perfProjectId, projectId],
+    queryFn: async () => {
+      if (!perfProjectId || !projectId) return null;
+      const { data, error } = await supabase
+        .from('performance_data_sources')
+        .select('id, source_form_id, source_form_name')
+        .eq('performance_project_id', perfProjectId)
+        .eq('project_id', projectId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return (data as DataSourceLink | null) || null;
+    },
+    enabled: !!perfProjectId && !!projectId,
+  });
+
+  const lockedFormId = perfFormId || linkedDataSource?.source_form_id || '';
+  const lockedFormName = perfFormName || linkedDataSource?.source_form_name || '';
+  const dataSourceId = linkedDataSource?.id || null;
+
+  useEffect(() => {
+    if (!lockedFormId) return;
+
+    const resolvedLockedFormName = lockedFormName || forms.find(f => f.id === lockedFormId)?.name || '';
+
+    if (selectedFormId !== lockedFormId) {
+      setSelectedFormId(lockedFormId);
+      setFormData(prev => ({ ...prev, form_field_id: '', form_field_label: '' }));
+    }
+
+    if (resolvedLockedFormName && selectedFormName !== resolvedLockedFormName) {
+      setSelectedFormName(resolvedLockedFormName);
+    }
+  }, [forms, lockedFormId, lockedFormName, selectedFormId, selectedFormName]);
+
   // Fetch numeric fields for the selected form
   const { data: formFields = [] } = useQuery({
     queryKey: ['form-fields-for-thresholds', selectedFormId],
@@ -79,22 +123,6 @@ export function ThresholdsConfig({ perfProjectId, perfFormId, perfFormName }: Pr
       return data as FormFieldOption[];
     },
     enabled: !!selectedFormId,
-  });
-
-  // Get data source ID for this perf project
-  const { data: dataSourceId } = useQuery({
-    queryKey: ['perf-data-source-id', perfProjectId],
-    queryFn: async () => {
-      if (!perfProjectId || !projectId) return null;
-      const { data } = await supabase
-        .from('performance_data_sources')
-        .select('id')
-        .eq('performance_project_id', perfProjectId)
-        .limit(1)
-        .maybeSingle();
-      return data?.id || null;
-    },
-    enabled: !!perfProjectId && !!projectId,
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -121,10 +149,16 @@ export function ThresholdsConfig({ perfProjectId, perfFormId, perfFormName }: Pr
       operator: '>', threshold_value: 0, severity: 'medium',
       send_email: false, form_field_id: '', form_field_label: '', data_limit: 100,
     });
-    if (!perfFormId) {
-      setSelectedFormId('');
-      setSelectedFormName('');
+
+    if (lockedFormId) {
+      const resolvedLockedFormName = lockedFormName || forms.find(f => f.id === lockedFormId)?.name || '';
+      setSelectedFormId(lockedFormId);
+      setSelectedFormName(resolvedLockedFormName);
+      return;
     }
+
+    setSelectedFormId('');
+    setSelectedFormName('');
   };
 
   const severityColor = (severity: string) => {
