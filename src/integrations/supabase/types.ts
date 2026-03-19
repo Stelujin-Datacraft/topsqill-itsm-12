@@ -3411,6 +3411,76 @@ export type Database = {
           },
         ]
       }
+      performance_data_sources: {
+        Row: {
+          created_at: string
+          created_by: string
+          data_limit: number
+          date_field_id: string | null
+          field_mappings: Json
+          id: string
+          is_active: boolean
+          linked_forms: Json
+          organization_id: string | null
+          project_id: string
+          source_form_id: string
+          source_form_name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          data_limit?: number
+          date_field_id?: string | null
+          field_mappings?: Json
+          id?: string
+          is_active?: boolean
+          linked_forms?: Json
+          organization_id?: string | null
+          project_id: string
+          source_form_id: string
+          source_form_name?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          data_limit?: number
+          date_field_id?: string | null
+          field_mappings?: Json
+          id?: string
+          is_active?: boolean
+          linked_forms?: Json
+          organization_id?: string | null
+          project_id?: string
+          source_form_id?: string
+          source_form_name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "performance_data_sources_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "performance_data_sources_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "performance_data_sources_source_form_id_fkey"
+            columns: ["source_form_id"]
+            isOneToOne: false
+            referencedRelation: "forms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       performance_predictions: {
         Row: {
           accuracy_pct: number | null
@@ -3601,6 +3671,10 @@ export type Database = {
         Row: {
           created_at: string
           created_by: string
+          data_limit: number | null
+          data_source_id: string | null
+          form_field_id: string | null
+          form_field_label: string | null
           id: string
           is_active: boolean | null
           metric_name: string
@@ -3615,6 +3689,10 @@ export type Database = {
         Insert: {
           created_at?: string
           created_by: string
+          data_limit?: number | null
+          data_source_id?: string | null
+          form_field_id?: string | null
+          form_field_label?: string | null
           id?: string
           is_active?: boolean | null
           metric_name: string
@@ -3629,6 +3707,10 @@ export type Database = {
         Update: {
           created_at?: string
           created_by?: string
+          data_limit?: number | null
+          data_source_id?: string | null
+          form_field_id?: string | null
+          form_field_label?: string | null
           id?: string
           is_active?: boolean | null
           metric_name?: string
@@ -3641,6 +3723,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "performance_thresholds_data_source_id_fkey"
+            columns: ["data_source_id"]
+            isOneToOne: false
+            referencedRelation: "performance_data_sources"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "performance_thresholds_organization_id_fkey"
             columns: ["organization_id"]
