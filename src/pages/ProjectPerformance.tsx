@@ -101,6 +101,12 @@ export default function ProjectPerformance() {
         <TabsContent value="analytics">
           <AnalyticsPanel perfProjectId={selectedPerfProject.id} />
         </TabsContent>
+        <TabsContent value="scenarios">
+          <ScenarioSimulator perfProjectId={selectedPerfProject.id} />
+        </TabsContent>
+        <TabsContent value="data-quality">
+          <DataQualityPanel perfProjectId={selectedPerfProject.id} />
+        </TabsContent>
       </Tabs>
     </div>
   );
