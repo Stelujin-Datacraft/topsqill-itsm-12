@@ -261,7 +261,7 @@ export function DataSourceConfig({ perfProjectId, perfFormId }: DataSourceConfig
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['performance-data-sources', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['performance-data-sources', projectId, perfProjectId] });
       toast({ title: 'Data Source Removed' });
     },
   });
