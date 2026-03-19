@@ -238,14 +238,20 @@ export function usePerformanceMonitoring() {
   const createThreshold = useMutation({
     mutationFn: async (thresholdData: Partial<PerformanceThreshold>) => {
       if (!projectId || !userProfile) throw new Error('Project required');
+      const insertData = {
+        metric_name: thresholdData.metric_name || '',
+        operator: thresholdData.operator || '>',
+        threshold_value: thresholdData.threshold_value || 0,
+        severity: thresholdData.severity || 'medium',
+        is_active: thresholdData.is_active ?? true,
+        send_email: thresholdData.send_email ?? false,
+        project_id: projectId,
+        organization_id: userProfile.organization_id,
+        created_by: userProfile.id,
+      };
       const { data, error } = await supabase
         .from('performance_thresholds')
-        .insert({
-          ...thresholdData,
-          project_id: projectId,
-          organization_id: userProfile.organization_id,
-          created_by: userProfile.id,
-        })
+        .insert(insertData)
         .select()
         .single();
       if (error) throw error;

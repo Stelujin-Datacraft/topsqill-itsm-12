@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useProject } from '@/contexts/ProjectContext';
-import { NoProjectSelected } from '@/components/NoProjectSelected';
+import NoProjectSelected from '@/components/NoProjectSelected';
 import { PerformanceOverview } from '@/components/performance/PerformanceOverview';
 import { SnapshotManager } from '@/components/performance/SnapshotManager';
 import { AlertsPanel } from '@/components/performance/AlertsPanel';
