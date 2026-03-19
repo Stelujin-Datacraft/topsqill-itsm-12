@@ -124,7 +124,7 @@ export function DataSourceConfig({ perfProjectId, perfFormId }: DataSourceConfig
       if (perfProjectId) {
         query = query.eq('performance_project_id', perfProjectId);
       }
-      if (error) throw error;
+      const { data, error } = await query;
       return (data || []).map((d: any) => ({
         ...d,
         field_mappings: Array.isArray(d.field_mappings) ? d.field_mappings : [],
