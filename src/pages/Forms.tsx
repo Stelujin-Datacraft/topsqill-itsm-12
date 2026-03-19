@@ -157,12 +157,6 @@ const Forms = () => {
 
   const actions = (
     <div className="flex flex-wrap items-center gap-2">
-      {canCreateForm && !permissionLoading && (
-        <Button variant="outline" size="sm" onClick={handleSeedKPIs} disabled={seeding}>
-          <Database className="h-4 w-4 mr-2" />
-          {seeding ? 'Seeding...' : 'Seed KPI Form'}
-        </Button>
-      )}
       {canReadForms && (
         <FormSubmissionsDialog>
           <Button variant="outline" size="sm">
