@@ -4,38 +4,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useProject } from '@/contexts/ProjectContext';
 import { useToast } from '@/hooks/use-toast';
 
-export interface PerformanceSnapshot {
-  id: string;
-  project_id: string;
-  organization_id?: string;
-  created_by: string;
-  snapshot_date: string;
-  planned_budget: number;
-  actual_budget: number;
-  budget_variance: number;
-  planned_start_date?: string;
-  planned_end_date?: string;
-  actual_start_date?: string;
-  projected_end_date?: string;
-  schedule_variance_days: number;
-  planned_resources: number;
-  actual_resources: number;
-  resource_utilization_pct: number;
-  total_tasks: number;
-  completed_tasks: number;
-  in_progress_tasks: number;
-  blocked_tasks: number;
-  completion_pct: number;
-  total_milestones: number;
-  completed_milestones: number;
-  overdue_milestones: number;
-  risk_score: number;
-  health_status: 'green' | 'yellow' | 'orange' | 'red';
-  custom_metrics?: Record<string, any>;
-  notes?: string;
-  created_at: string;
-  updated_at: string;
-}
 
 export interface PerformanceAlert {
   id: string;
@@ -123,23 +91,6 @@ export function usePerformanceMonitoring() {
 
   const projectId = currentProject?.id;
 
-  // Fetch snapshots
-  const { data: snapshots = [], isLoading: loadingSnapshots } = useQuery({
-    queryKey: ['performance-snapshots', projectId],
-    queryFn: async () => {
-      if (!projectId) return [];
-      const { data, error } = await supabase
-        .from('performance_snapshots')
-        .select('*')
-        .eq('project_id', projectId)
-        .order('snapshot_date', { ascending: false })
-        .limit(50);
-      if (error) throw error;
-      return data as PerformanceSnapshot[];
-    },
-    enabled: !!projectId,
-  });
-
   // Fetch alerts
   const { data: alerts = [], isLoading: loadingAlerts } = useQuery({
     queryKey: ['performance-alerts', projectId],
@@ -188,53 +139,6 @@ export function usePerformanceMonitoring() {
       return data as PerformanceThreshold[];
     },
     enabled: !!projectId,
-  });
-
-  // Create snapshot
-  const createSnapshot = useMutation({
-    mutationFn: async (snapshotData: Partial<PerformanceSnapshot>) => {
-      if (!projectId || !userProfile) throw new Error('Project required');
-      const insertData = {
-        project_id: projectId,
-        organization_id: userProfile.organization_id,
-        created_by: userProfile.id,
-        snapshot_date: snapshotData.snapshot_date || new Date().toISOString().split('T')[0],
-        planned_budget: snapshotData.planned_budget || 0,
-        actual_budget: snapshotData.actual_budget || 0,
-        planned_start_date: snapshotData.planned_start_date || null,
-        planned_end_date: snapshotData.planned_end_date || null,
-        actual_start_date: snapshotData.actual_start_date || null,
-        projected_end_date: snapshotData.projected_end_date || null,
-        schedule_variance_days: snapshotData.schedule_variance_days || 0,
-        planned_resources: snapshotData.planned_resources || 0,
-        actual_resources: snapshotData.actual_resources || 0,
-        resource_utilization_pct: snapshotData.resource_utilization_pct || 0,
-        total_tasks: snapshotData.total_tasks || 0,
-        completed_tasks: snapshotData.completed_tasks || 0,
-        in_progress_tasks: snapshotData.in_progress_tasks || 0,
-        blocked_tasks: snapshotData.blocked_tasks || 0,
-        total_milestones: snapshotData.total_milestones || 0,
-        completed_milestones: snapshotData.completed_milestones || 0,
-        overdue_milestones: snapshotData.overdue_milestones || 0,
-        risk_score: snapshotData.risk_score || 0,
-        health_status: snapshotData.health_status || 'green',
-        notes: snapshotData.notes || null,
-      };
-      const { data, error } = await supabase
-        .from('performance_snapshots')
-        .insert(insertData)
-        .select()
-        .single();
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['performance-snapshots', projectId] });
-      toast({ title: 'Snapshot Created', description: 'Performance data recorded successfully.' });
-    },
-    onError: (err: Error) => {
-      toast({ title: 'Error', description: err.message, variant: 'destructive' });
-    },
   });
 
   // Update alert status
@@ -331,12 +235,10 @@ export function usePerformanceMonitoring() {
   });
 
   return {
-    snapshots,
     alerts,
     predictions,
     thresholds,
-    loading: loadingSnapshots || loadingAlerts || loadingPredictions || loadingThresholds,
-    createSnapshot,
+    loading: loadingAlerts || loadingPredictions || loadingThresholds,
     updateAlertStatus,
     createThreshold,
     deleteThreshold,

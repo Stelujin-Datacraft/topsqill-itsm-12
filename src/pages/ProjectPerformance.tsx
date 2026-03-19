@@ -3,12 +3,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useProject } from '@/contexts/ProjectContext';
 import NoProjectSelected from '@/components/NoProjectSelected';
 import { PerformanceOverview } from '@/components/performance/overview/PerformanceOverview';
-import { SnapshotManager } from '@/components/performance/snapshots/SnapshotManager';
 import { AlertsPanel } from '@/components/performance/alerts/AlertsPanel';
 import { PredictionsPanel } from '@/components/performance/predictions/PredictionsPanel';
 import { ThresholdsConfig } from '@/components/performance/thresholds/ThresholdsConfig';
 import { DataSourceConfig } from '@/components/performance/data-sources/DataSourceConfig';
-import { Activity, AlertTriangle, BarChart3, Brain, Database, Settings2 } from 'lucide-react';
+import { AlertTriangle, BarChart3, Brain, Database, Settings2 } from 'lucide-react';
 
 export default function ProjectPerformance() {
   const { currentProject } = useProject();
@@ -37,10 +36,6 @@ export default function ProjectPerformance() {
             <Database className="h-4 w-4" />
             Data Sources
           </TabsTrigger>
-          <TabsTrigger value="snapshots" className="gap-2">
-            <Activity className="h-4 w-4" />
-            Snapshots
-          </TabsTrigger>
           <TabsTrigger value="alerts" className="gap-2">
             <AlertTriangle className="h-4 w-4" />
             Alerts
@@ -60,9 +55,6 @@ export default function ProjectPerformance() {
         </TabsContent>
         <TabsContent value="data-sources">
           <DataSourceConfig />
-        </TabsContent>
-        <TabsContent value="snapshots">
-          <SnapshotManager />
         </TabsContent>
         <TabsContent value="alerts">
           <AlertsPanel />
