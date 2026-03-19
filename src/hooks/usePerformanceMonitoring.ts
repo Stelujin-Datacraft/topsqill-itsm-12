@@ -302,27 +302,15 @@ export function usePerformanceMonitoring() {
   const runAnalysis = useMutation({
     mutationFn: async (): Promise<AIAnalysis> => {
       if (!projectId) throw new Error('Project required');
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error('Not authenticated');
 
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-performance`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({ project_id: projectId, action: 'analyze' }),
-        }
-      );
+      const { data, error } = await supabase.functions.invoke('analyze-performance', {
+        body: { project_id: projectId, action: 'analyze' },
+      });
 
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error || 'Analysis failed');
-      }
+      if (error) throw new Error(error.message || 'Analysis failed');
+      if (data?.error) throw new Error(data.error);
 
-      return response.json();
+      return data as AIAnalysis;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['performance-alerts', projectId] });
