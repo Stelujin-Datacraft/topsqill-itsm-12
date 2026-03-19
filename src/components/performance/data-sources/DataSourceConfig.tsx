@@ -242,7 +242,7 @@ export function DataSourceConfig({ perfProjectId, perfFormId }: DataSourceConfig
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['performance-data-sources', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['performance-data-sources', projectId, perfProjectId] });
       toast({ title: 'Data Source Created', description: 'Form data source configured for analysis.' });
       setOpen(false);
       resetForm();
