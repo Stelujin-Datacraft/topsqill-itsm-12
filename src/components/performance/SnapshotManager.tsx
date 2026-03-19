@@ -77,10 +77,35 @@ export function SnapshotManager() {
           <h2 className="text-lg font-semibold text-foreground">Performance Snapshots</h2>
           <p className="text-sm text-muted-foreground">Record periodic project data for trend analysis</p>
         </div>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button><Plus className="mr-2 h-4 w-4" />New Snapshot</Button>
-          </DialogTrigger>
+        <div className="flex gap-2">
+          {snapshots.length === 0 && (
+            <Button variant="outline" disabled={loadingDemo} onClick={async () => {
+              setLoadingDemo(true);
+              const demoData = [
+                { snapshot_date: '2026-02-01', planned_budget: 500000, actual_budget: 480000, planned_start_date: '2026-01-15', planned_end_date: '2026-06-30', actual_start_date: '2026-01-15', projected_end_date: '2026-06-30', schedule_variance_days: 0, planned_resources: 12, actual_resources: 10, resource_utilization_pct: 83.3, total_tasks: 120, completed_tasks: 15, in_progress_tasks: 25, blocked_tasks: 2, total_milestones: 8, completed_milestones: 1, overdue_milestones: 0, risk_score: 18, health_status: 'green' as const, notes: 'Project kickoff month - on track' },
+                { snapshot_date: '2026-02-15', planned_budget: 500000, actual_budget: 510000, planned_start_date: '2026-01-15', planned_end_date: '2026-06-30', actual_start_date: '2026-01-15', projected_end_date: '2026-07-05', schedule_variance_days: 5, planned_resources: 12, actual_resources: 11, resource_utilization_pct: 91.7, total_tasks: 120, completed_tasks: 28, in_progress_tasks: 30, blocked_tasks: 3, total_milestones: 8, completed_milestones: 2, overdue_milestones: 0, risk_score: 25, health_status: 'yellow' as const, notes: 'Slight budget overrun due to vendor costs' },
+                { snapshot_date: '2026-03-01', planned_budget: 500000, actual_budget: 535000, planned_start_date: '2026-01-15', planned_end_date: '2026-06-30', actual_start_date: '2026-01-15', projected_end_date: '2026-07-12', schedule_variance_days: 12, planned_resources: 12, actual_resources: 11, resource_utilization_pct: 91.7, total_tasks: 120, completed_tasks: 42, in_progress_tasks: 28, blocked_tasks: 5, total_milestones: 8, completed_milestones: 3, overdue_milestones: 1, risk_score: 38, health_status: 'yellow' as const, notes: 'Schedule slipping - blocked tasks increasing' },
+                { snapshot_date: '2026-03-15', planned_budget: 500000, actual_budget: 570000, planned_start_date: '2026-01-15', planned_end_date: '2026-06-30', actual_start_date: '2026-01-15', projected_end_date: '2026-07-20', schedule_variance_days: 20, planned_resources: 12, actual_resources: 13, resource_utilization_pct: 108.3, total_tasks: 120, completed_tasks: 50, in_progress_tasks: 32, blocked_tasks: 8, total_milestones: 8, completed_milestones: 3, overdue_milestones: 2, risk_score: 55, health_status: 'orange' as const, notes: 'Budget overrun 14% - resource overstaffing to catch up' },
+                { snapshot_date: '2026-03-19', planned_budget: 500000, actual_budget: 590000, planned_start_date: '2026-01-15', planned_end_date: '2026-06-30', actual_start_date: '2026-01-15', projected_end_date: '2026-07-25', schedule_variance_days: 25, planned_resources: 12, actual_resources: 14, resource_utilization_pct: 116.7, total_tasks: 120, completed_tasks: 55, in_progress_tasks: 30, blocked_tasks: 10, total_milestones: 8, completed_milestones: 4, overdue_milestones: 2, risk_score: 65, health_status: 'orange' as const, notes: 'Critical - 10 blocked tasks, 18% budget overrun' },
+              ];
+              try {
+                for (const d of demoData) {
+                  await createSnapshot.mutateAsync(d);
+                }
+                toast({ title: 'Demo Data Loaded', description: '5 sample snapshots created successfully.' });
+              } catch (e: any) {
+                toast({ title: 'Error', description: e.message, variant: 'destructive' });
+              }
+              setLoadingDemo(false);
+            }}>
+              {loadingDemo ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Database className="mr-2 h-4 w-4" />}
+              Load Demo Data
+            </Button>
+          )}
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <Button><Plus className="mr-2 h-4 w-4" />New Snapshot</Button>
+            </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Record Performance Snapshot</DialogTitle>
