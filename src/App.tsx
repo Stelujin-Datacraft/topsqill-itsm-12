@@ -99,6 +99,7 @@ const EvidenceLockerPage = lazy(() => import("./pages/EvidenceLockerPage"));
 
 // IT Asset Management
 const ITAssets = lazy(() => import("./pages/ITAssets"));
+const ProjectPerformance = lazy(() => import("./pages/ProjectPerformance"));
 
 // Performance-optimized React Query configuration
 const queryClient = new QueryClient({
