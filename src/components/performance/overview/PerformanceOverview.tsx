@@ -5,8 +5,12 @@ import { Badge } from '@/components/ui/badge';
 import { usePerformanceMonitoring, AIAnalysis } from '@/hooks/usePerformanceMonitoring';
 import { Brain, AlertTriangle, Loader2, Lightbulb, ShieldAlert, TrendingUp } from 'lucide-react';
 
-export function PerformanceOverview() {
-  const { alerts, predictions, loading, runAnalysis } = usePerformanceMonitoring();
+interface Props {
+  perfProjectId?: string;
+}
+
+export function PerformanceOverview({ perfProjectId }: Props) {
+  const { alerts, predictions, loading, runAnalysis } = usePerformanceMonitoring(perfProjectId);
   const [aiResult, setAiResult] = useState<AIAnalysis | null>(null);
 
   const activeAlerts = alerts.filter(a => a.status === 'active');
@@ -28,9 +32,9 @@ export function PerformanceOverview() {
 
   const severityColor = (severity: string) => {
     switch (severity) {
-      case 'critical': return 'destructive';
-      case 'high': return 'destructive';
-      default: return 'secondary';
+      case 'critical': return 'destructive' as const;
+      case 'high': return 'destructive' as const;
+      default: return 'secondary' as const;
     }
   };
 
@@ -40,7 +44,6 @@ export function PerformanceOverview() {
 
   return (
     <div className="space-y-6">
-      {/* AI Analysis Button */}
       <Card className="border-primary/20 bg-primary/5">
         <CardContent className="flex items-center justify-between py-4">
           <div className="flex items-center gap-3">
@@ -48,7 +51,7 @@ export function PerformanceOverview() {
             <div>
               <p className="font-semibold text-foreground">AI Performance Analysis</p>
               <p className="text-sm text-muted-foreground">
-                Analyze connected form data sources for anomalies, trends, and predictive insights
+                Analyze connected form data for anomalies, trends, and predictive insights
               </p>
             </div>
           </div>
@@ -58,7 +61,6 @@ export function PerformanceOverview() {
         </CardContent>
       </Card>
 
-      {/* AI Results */}
       {aiResult && (
         <div className="space-y-4">
           <Card className="border-primary/30">
@@ -79,7 +81,6 @@ export function PerformanceOverview() {
             </CardContent>
           </Card>
 
-          {/* Anomalies */}
           {aiResult.anomalies?.length > 0 && (
             <Card>
               <CardHeader>
@@ -102,7 +103,6 @@ export function PerformanceOverview() {
             </Card>
           )}
 
-          {/* Predictions */}
           {aiResult.predictions?.length > 0 && (
             <Card>
               <CardHeader>
@@ -126,7 +126,6 @@ export function PerformanceOverview() {
             </Card>
           )}
 
-          {/* Recommendations */}
           {aiResult.recommendations?.length > 0 && (
             <Card>
               <CardHeader>
@@ -151,7 +150,6 @@ export function PerformanceOverview() {
         </div>
       )}
 
-      {/* Quick Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardContent className="pt-6">
@@ -164,7 +162,6 @@ export function PerformanceOverview() {
             </div>
           </CardContent>
         </Card>
-
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
@@ -176,7 +173,6 @@ export function PerformanceOverview() {
             </div>
           </CardContent>
         </Card>
-
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
@@ -192,14 +188,13 @@ export function PerformanceOverview() {
         </Card>
       </div>
 
-      {/* Empty state */}
       {!aiResult && alerts.length === 0 && (
         <Card className="border-dashed">
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Brain className="h-12 w-12 text-muted-foreground mb-4" />
             <p className="font-medium text-foreground">No analysis data yet</p>
             <p className="text-sm text-muted-foreground mt-1">
-              Configure your form data sources, then click "Run AI Analysis" to get insights.
+              Configure your data source fields, then click "Run AI Analysis" to get insights.
             </p>
           </CardContent>
         </Card>
