@@ -4,10 +4,10 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useProject } from '@/contexts/ProjectContext';
 import { useToast } from '@/hooks/use-toast';
 
-
 export interface PerformanceAlert {
   id: string;
   project_id: string;
+  performance_project_id?: string;
   alert_type: string;
   severity: 'low' | 'medium' | 'high' | 'critical';
   title: string;
@@ -26,6 +26,7 @@ export interface PerformanceAlert {
 export interface PerformancePrediction {
   id: string;
   project_id: string;
+  performance_project_id?: string;
   prediction_type: string;
   prediction_date: string;
   predicted_value?: number;
@@ -39,6 +40,7 @@ export interface PerformancePrediction {
 export interface PerformanceThreshold {
   id: string;
   project_id: string;
+  performance_project_id?: string;
   metric_name: string;
   operator: string;
   threshold_value: number;
@@ -83,7 +85,7 @@ export interface AIAnalysis {
   }>;
 }
 
-export function usePerformanceMonitoring() {
+export function usePerformanceMonitoring(perfProjectId?: string) {
   const { userProfile } = useAuth();
   const { currentProject } = useProject();
   const queryClient = useQueryClient();
@@ -91,17 +93,21 @@ export function usePerformanceMonitoring() {
 
   const projectId = currentProject?.id;
 
-  // Fetch alerts
+  // Fetch alerts scoped to performance project
   const { data: alerts = [], isLoading: loadingAlerts } = useQuery({
-    queryKey: ['performance-alerts', projectId],
+    queryKey: ['performance-alerts', projectId, perfProjectId],
     queryFn: async () => {
       if (!projectId) return [];
-      const { data, error } = await supabase
+      let query = supabase
         .from('performance_alerts')
         .select('*')
         .eq('project_id', projectId)
         .order('created_at', { ascending: false })
         .limit(50);
+      if (perfProjectId) {
+        query = query.eq('performance_project_id', perfProjectId);
+      }
+      const { data, error } = await query;
       if (error) throw error;
       return data as PerformanceAlert[];
     },
@@ -110,15 +116,19 @@ export function usePerformanceMonitoring() {
 
   // Fetch predictions
   const { data: predictions = [], isLoading: loadingPredictions } = useQuery({
-    queryKey: ['performance-predictions', projectId],
+    queryKey: ['performance-predictions', projectId, perfProjectId],
     queryFn: async () => {
       if (!projectId) return [];
-      const { data, error } = await supabase
+      let query = supabase
         .from('performance_predictions')
         .select('*')
         .eq('project_id', projectId)
         .order('created_at', { ascending: false })
         .limit(20);
+      if (perfProjectId) {
+        query = query.eq('performance_project_id', perfProjectId);
+      }
+      const { data, error } = await query;
       if (error) throw error;
       return data as PerformancePrediction[];
     },
@@ -127,14 +137,18 @@ export function usePerformanceMonitoring() {
 
   // Fetch thresholds
   const { data: thresholds = [], isLoading: loadingThresholds } = useQuery({
-    queryKey: ['performance-thresholds', projectId],
+    queryKey: ['performance-thresholds', projectId, perfProjectId],
     queryFn: async () => {
       if (!projectId) return [];
-      const { data, error } = await supabase
+      let query = supabase
         .from('performance_thresholds')
         .select('*')
         .eq('project_id', projectId)
         .order('created_at', { ascending: false });
+      if (perfProjectId) {
+        query = query.eq('performance_project_id', perfProjectId);
+      }
+      const { data, error } = await query;
       if (error) throw error;
       return data as PerformanceThreshold[];
     },
@@ -159,7 +173,7 @@ export function usePerformanceMonitoring() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['performance-alerts', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['performance-alerts', projectId, perfProjectId] });
     },
   });
 
@@ -178,6 +192,8 @@ export function usePerformanceMonitoring() {
         organization_id: userProfile.organization_id,
         created_by: userProfile.id,
       };
+      if (perfProjectId) insertData.performance_project_id = perfProjectId;
+      // Only set data_source_id if it's a valid performance_data_sources ID
       if (thresholdData.data_source_id) insertData.data_source_id = thresholdData.data_source_id;
       if (thresholdData.form_field_id) insertData.form_field_id = thresholdData.form_field_id;
       if (thresholdData.form_field_label) insertData.form_field_label = thresholdData.form_field_label;
@@ -191,8 +207,11 @@ export function usePerformanceMonitoring() {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['performance-thresholds', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['performance-thresholds', projectId, perfProjectId] });
       toast({ title: 'Threshold Created' });
+    },
+    onError: (err: Error) => {
+      toast({ title: 'Error Creating Threshold', description: err.message, variant: 'destructive' });
     },
   });
 
@@ -206,7 +225,7 @@ export function usePerformanceMonitoring() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['performance-thresholds', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['performance-thresholds', projectId, perfProjectId] });
     },
   });
 
@@ -216,7 +235,7 @@ export function usePerformanceMonitoring() {
       if (!projectId) throw new Error('Project required');
 
       const { data, error } = await supabase.functions.invoke('analyze-performance', {
-        body: { project_id: projectId, action: 'analyze' },
+        body: { project_id: projectId, action: 'analyze', performance_project_id: perfProjectId },
       });
 
       if (error) throw new Error(error.message || 'Analysis failed');
@@ -225,8 +244,8 @@ export function usePerformanceMonitoring() {
       return data as AIAnalysis;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['performance-alerts', projectId] });
-      queryClient.invalidateQueries({ queryKey: ['performance-predictions', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['performance-alerts', projectId, perfProjectId] });
+      queryClient.invalidateQueries({ queryKey: ['performance-predictions', projectId, perfProjectId] });
       toast({ title: 'AI Analysis Complete', description: 'Insights and predictions have been generated.' });
     },
     onError: (err: Error) => {
