@@ -203,6 +203,7 @@ export function SnapshotManager() {
             </form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       {/* Snapshots List */}
