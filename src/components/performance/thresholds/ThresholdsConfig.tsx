@@ -171,6 +171,9 @@ export function ThresholdsConfig({ perfProjectId, perfFormId, perfFormName }: Pr
     }
   };
 
+  const isFormLocked = !!lockedFormId;
+  const lockedDisplayFormName = lockedFormName || forms.find(f => f.id === lockedFormId)?.name || 'Linked Form';
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -197,9 +200,9 @@ export function ThresholdsConfig({ perfProjectId, perfFormId, perfFormName }: Pr
               {/* Form Selection */}
               <div>
                 <Label>Source Form</Label>
-                {perfFormId ? (
+                {isFormLocked ? (
                   <Input
-                    value={perfFormName || 'Linked Form'}
+                    value={lockedDisplayFormName}
                     readOnly
                     disabled
                     className="bg-muted cursor-not-allowed"
