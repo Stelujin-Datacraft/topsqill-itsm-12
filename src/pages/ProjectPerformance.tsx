@@ -76,6 +76,14 @@ export default function ProjectPerformance() {
             <LineChart className="h-4 w-4" />
             Reports Analytics
           </TabsTrigger>
+          <TabsTrigger value="scenarios" className="gap-2">
+            <FlaskConical className="h-4 w-4" />
+            What-If
+          </TabsTrigger>
+          <TabsTrigger value="data-quality" className="gap-2">
+            <ShieldCheck className="h-4 w-4" />
+            Data Quality
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview">
