@@ -56,9 +56,6 @@ export default function ProjectPerformance() {
         <TabsContent value="data-sources">
           <DataSourceConfig />
         </TabsContent>
-        <TabsContent value="snapshots">
-          <SnapshotManager />
-        </TabsContent>
         <TabsContent value="alerts">
           <AlertsPanel />
         </TabsContent>
