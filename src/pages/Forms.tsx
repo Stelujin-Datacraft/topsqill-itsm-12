@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/DashboardLayout';
 import { FormsList } from '@/components/FormsList';
@@ -14,11 +14,13 @@ import {
 import { useUnifiedAccessControl } from '@/hooks/useUnifiedAccessControl';
 import { useProject } from '@/contexts/ProjectContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { BarChart3, History, FileText, Timer, MoreVertical } from 'lucide-react';
+import { BarChart3, History, FileText, Timer, MoreVertical, Database } from 'lucide-react';
 import NoProjectSelected from '@/components/NoProjectSelected';
 import { AIFormGenerator } from '@/components/ai/AIFormGenerator';
 import { ExcelFormImporter } from '@/components/ExcelFormImporter';
 import { useFormsData } from '@/hooks/useFormsData';
+import { seedProjectKPIsForm } from '@/utils/seedProjectKPIs';
+import { toast } from 'sonner';
 
 const Forms = () => {
   const navigate = useNavigate();
