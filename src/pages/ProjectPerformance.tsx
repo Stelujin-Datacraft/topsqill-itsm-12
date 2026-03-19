@@ -14,8 +14,8 @@ import { AlertTriangle, ArrowLeft, BarChart3, Brain, Database, Settings2 } from 
 interface SelectedPerfProject {
   id: string;
   name: string;
-  form_id: string;
-  form_name: string;
+  form_id?: string | null;
+  form_name?: string | null;
 }
 
 export default function ProjectPerformance() {
@@ -44,9 +44,11 @@ export default function ProjectPerformance() {
         </Button>
         <div>
           <h1 className="text-2xl font-bold text-foreground">{selectedPerfProject.name}</h1>
-          <p className="text-muted-foreground text-sm mt-0.5">
-            Analyzing: <span className="font-medium text-foreground">{selectedPerfProject.form_name}</span>
-          </p>
+          {selectedPerfProject.form_name && (
+            <p className="text-muted-foreground text-sm mt-0.5">
+              Analyzing: <span className="font-medium text-foreground">{selectedPerfProject.form_name}</span>
+            </p>
+          )}
         </div>
       </div>
 
@@ -78,7 +80,7 @@ export default function ProjectPerformance() {
           <PerformanceOverview perfProjectId={selectedPerfProject.id} />
         </TabsContent>
         <TabsContent value="data-sources">
-          <DataSourceConfig perfProjectId={selectedPerfProject.id} perfFormId={selectedPerfProject.form_id} />
+          <DataSourceConfig perfProjectId={selectedPerfProject.id} perfFormId={selectedPerfProject.form_id || undefined} />
         </TabsContent>
         <TabsContent value="alerts">
           <AlertsPanel perfProjectId={selectedPerfProject.id} />
@@ -87,7 +89,7 @@ export default function ProjectPerformance() {
           <PredictionsPanel perfProjectId={selectedPerfProject.id} />
         </TabsContent>
         <TabsContent value="thresholds">
-          <ThresholdsConfig perfProjectId={selectedPerfProject.id} perfFormId={selectedPerfProject.form_id} perfFormName={selectedPerfProject.form_name} />
+          <ThresholdsConfig perfProjectId={selectedPerfProject.id} perfFormId={selectedPerfProject.form_id || undefined} perfFormName={selectedPerfProject.form_name || undefined} />
         </TabsContent>
       </Tabs>
     </div>
