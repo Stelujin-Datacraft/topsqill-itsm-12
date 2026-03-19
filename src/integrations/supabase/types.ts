@@ -3591,6 +3591,9 @@ export type Database = {
           form_id: string | null
           form_name: string | null
           id: string
+          latitude: number | null
+          location_name: string | null
+          longitude: number | null
           name: string
           organization_id: string | null
           project_id: string
@@ -3604,6 +3607,9 @@ export type Database = {
           form_id?: string | null
           form_name?: string | null
           id?: string
+          latitude?: number | null
+          location_name?: string | null
+          longitude?: number | null
           name: string
           organization_id?: string | null
           project_id: string
@@ -3617,6 +3623,9 @@ export type Database = {
           form_id?: string | null
           form_name?: string | null
           id?: string
+          latitude?: number | null
+          location_name?: string | null
+          longitude?: number | null
           name?: string
           organization_id?: string | null
           project_id?: string
@@ -3640,6 +3649,76 @@ export type Database = {
           },
           {
             foreignKeyName: "performance_projects_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      performance_questionnaire_responses: {
+        Row: {
+          category: string
+          created_at: string
+          id: string
+          notes: string | null
+          organization_id: string | null
+          performance_project_id: string | null
+          project_id: string
+          question_key: string
+          question_text: string
+          respondent_id: string
+          response: string | null
+          score: number | null
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          organization_id?: string | null
+          performance_project_id?: string | null
+          project_id: string
+          question_key: string
+          question_text: string
+          respondent_id: string
+          response?: string | null
+          score?: number | null
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          organization_id?: string | null
+          performance_project_id?: string | null
+          project_id?: string
+          question_key?: string
+          question_text?: string
+          respondent_id?: string
+          response?: string | null
+          score?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "performance_questionnaire_responses_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "performance_questionnaire_responses_performance_project_id_fkey"
+            columns: ["performance_project_id"]
+            isOneToOne: false
+            referencedRelation: "performance_projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "performance_questionnaire_responses_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
