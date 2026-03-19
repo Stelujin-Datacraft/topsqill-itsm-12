@@ -99,6 +99,7 @@ const EvidenceLockerPage = lazy(() => import("./pages/EvidenceLockerPage"));
 
 // IT Asset Management
 const ITAssets = lazy(() => import("./pages/ITAssets"));
+const ProjectPerformance = lazy(() => import("./pages/ProjectPerformance"));
 
 // Performance-optimized React Query configuration
 const queryClient = new QueryClient({
@@ -237,6 +238,7 @@ const App = () => (
                         <Route path="/api-integration" element={<ApiIntegration />} />
                         <Route path="/api-docs" element={<ApiDocs />} />
                         <Route path="/it-assets" element={<ITAssets />} />
+                        <Route path="/project-performance" element={<ProjectPerformance />} />
                       </Route>
                       
                       {/* Catch-all */}
