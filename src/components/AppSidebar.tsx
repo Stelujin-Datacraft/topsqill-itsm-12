@@ -97,6 +97,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         isDisabled: !currentProject,
       },
       {
+        title: "Performance",
+        url: "/project-performance",
+        icon: Gauge,
+        isDisabled: !currentProject,
+      },
+      {
         title: "Knowledge Base",
         url: "/knowledge-base",
         icon: ScrollText,

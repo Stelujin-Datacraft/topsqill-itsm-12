@@ -65,3 +65,6 @@ verify_jwt = false
 
 [functions.asset-agent-report]
 verify_jwt = false
+
+[functions.analyze-performance]
+verify_jwt = false
