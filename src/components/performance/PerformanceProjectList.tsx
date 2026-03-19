@@ -64,15 +64,21 @@ export function PerformanceProjectList({ onSelectProject }: Props) {
   // Create performance project (simple — no form required)
   const createProject = useMutation({
     mutationFn: async () => {
-      if (!projectId || !userProfile) throw new Error('Missing data');
+      if (!projectId) throw new Error('Project is required');
+
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      if (authError || !authData.user) {
+        throw new Error('Please log in again and retry');
+      }
+
       const { data, error } = await supabase
         .from('performance_projects')
         .insert({
           name: newName,
           description: newDescription || null,
           project_id: projectId,
-          organization_id: userProfile.organization_id,
-          created_by: userProfile.id,
+          organization_id: userProfile?.organization_id || null,
+          created_by: authData.user.id,
         })
         .select()
         .single();
