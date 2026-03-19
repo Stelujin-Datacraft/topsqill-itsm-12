@@ -113,14 +113,17 @@ export function DataSourceConfig({ perfProjectId, perfFormId }: DataSourceConfig
 
   // Fetch existing data sources
   const { data: dataSources = [], isLoading } = useQuery({
-    queryKey: ['performance-data-sources', projectId],
+    queryKey: ['performance-data-sources', projectId, perfProjectId],
     queryFn: async () => {
       if (!projectId) return [];
-      const { data, error } = await supabase
+      let query = supabase
         .from('performance_data_sources')
         .select('*')
         .eq('project_id', projectId)
         .order('created_at', { ascending: false });
+      if (perfProjectId) {
+        query = query.eq('performance_project_id', perfProjectId);
+      }
       if (error) throw error;
       return (data || []).map((d: any) => ({
         ...d,
