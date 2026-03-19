@@ -106,23 +106,31 @@ export function PerformanceProjectList({ onSelectProject }: Props) {
         })
         .select()
         .single();
-      if (error) throw error;
+      if (error) {
+        console.error('Performance project insert error:', error);
+        throw error;
+      }
 
       // Auto-create a data source for this form
-      await supabase
-        .from('performance_data_sources')
-        .insert({
-          project_id: projectId,
-          organization_id: userProfile.organization_id,
-          created_by: userProfile.id,
-          source_form_id: selectedFormId,
-          source_form_name: selectedForm?.name || '',
-          field_mappings: [],
-          linked_forms: [],
-          data_limit: 500,
-          is_active: true,
-          performance_project_id: data.id,
-        });
+      try {
+        const { error: dsError } = await supabase
+          .from('performance_data_sources')
+          .insert({
+            project_id: projectId,
+            organization_id: userProfile.organization_id || null,
+            created_by: userProfile.id,
+            source_form_id: selectedFormId,
+            source_form_name: selectedForm?.name || '',
+            field_mappings: [],
+            linked_forms: [],
+            data_limit: 500,
+            is_active: true,
+            performance_project_id: data.id,
+          });
+        if (dsError) console.error('Auto data source creation error:', dsError);
+      } catch (e) {
+        console.error('Data source auto-create failed:', e);
+      }
 
       return data;
     },
