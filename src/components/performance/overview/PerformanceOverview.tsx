@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -12,6 +12,35 @@ interface Props {
 export function PerformanceOverview({ perfProjectId }: Props) {
   const { alerts, predictions, loading, runAnalysis } = usePerformanceMonitoring(perfProjectId);
   const [aiResult, setAiResult] = useState<AIAnalysis | null>(null);
+
+  // Reconstruct last analysis from persisted alerts & predictions
+  useEffect(() => {
+    if (!aiResult && (alerts.length > 0 || predictions.length > 0)) {
+      const latestAlerts = alerts.filter(a => a.ai_generated);
+      const riskScore = latestAlerts.length > 3 ? 65 : latestAlerts.length > 1 ? 40 : latestAlerts.length > 0 ? 20 : 0;
+      const healthStatus = riskScore > 70 ? 'red' : riskScore > 40 ? 'orange' : riskScore > 20 ? 'yellow' : 'green';
+
+      setAiResult({
+        risk_score: riskScore,
+        health_status: healthStatus,
+        summary: `Last analysis detected ${latestAlerts.length} anomalies and generated ${predictions.length} predictions.`,
+        anomalies: latestAlerts.map(a => ({
+          metric: a.metric_name || 'Unknown',
+          description: a.description || '',
+          severity: a.severity,
+          value: a.actual_value ?? undefined,
+          expected_value: a.threshold_value ?? undefined,
+        })),
+        predictions: predictions.map(p => ({
+          type: p.prediction_type,
+          description: p.reasoning || '',
+          predicted_value: p.predicted_value ?? undefined,
+          confidence: (p.confidence_level ?? 0) > 1 ? (p.confidence_level ?? 0) / 100 : (p.confidence_level ?? 0),
+        })),
+        recommendations: [],
+      });
+    }
+  }, [alerts, predictions]);
 
   const activeAlerts = alerts.filter(a => a.status === 'active');
 
@@ -114,7 +143,7 @@ export function PerformanceOverview({ perfProjectId }: Props) {
               <CardContent className="space-y-2">
                 {aiResult.predictions.map((p, i) => (
                   <div key={i} className="flex items-start gap-2 p-3 rounded-lg bg-muted/50">
-                    <Badge variant="outline" className="text-xs mt-0.5">{Math.round(p.confidence * 100)}%</Badge>
+                    <Badge variant="outline" className="text-xs mt-0.5">{Math.round((p.confidence > 1 ? p.confidence : p.confidence * 100))}%</Badge>
                     <div>
                       <p className="font-medium text-sm">{p.type}</p>
                       <p className="text-xs text-muted-foreground">{p.description}</p>

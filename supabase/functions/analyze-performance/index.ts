@@ -360,13 +360,16 @@ Analyze using:
           ai_reasoning: a.description,
           ai_recommendation: analysis.recommendations?.[0]?.description || null,
           metric_name: a.metric,
-          threshold_value: a.expected_value,
-          actual_value: a.value,
+          threshold_value: a.expected_value ?? null,
+          actual_value: a.value ?? null,
           status: "active",
           ...(performance_project_id ? { performance_project_id } : {}),
         }));
 
-        await supabase.from("performance_alerts").insert(alertInserts);
+        const { error: alertError } = await supabase.from("performance_alerts").insert(alertInserts);
+        if (alertError) {
+          console.error("Error saving alerts:", alertError);
+        }
       }
 
       // Store predictions
@@ -375,16 +378,19 @@ Analyze using:
         const predInserts = analysis.predictions.map((p: any) => ({
           project_id,
           organization_id: orgId,
-          prediction_type: p.type,
-          predicted_value: p.predicted_value || 0,
-          confidence_level: p.confidence,
+          prediction_type: p.type || 'general',
+          predicted_value: p.predicted_value ?? null,
+          confidence_level: p.confidence ?? null,
           reasoning: p.description,
-          model_used: "gemini-2.5-flash-preview",
+          model_used: "gemini-3-flash-preview",
           input_data_points: formDataSections.length,
           ...(performance_project_id ? { performance_project_id } : {}),
         }));
 
-        await supabase.from("performance_predictions").insert(predInserts);
+        const { error: predError } = await supabase.from("performance_predictions").insert(predInserts);
+        if (predError) {
+          console.error("Error saving predictions:", predError);
+        }
       }
 
       return new Response(JSON.stringify(analysis), {

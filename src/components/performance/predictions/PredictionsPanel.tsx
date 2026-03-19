@@ -35,8 +35,9 @@ export function PredictionsPanel({ perfProjectId }: Props) {
   };
 
   const confidenceColor = (confidence: number) => {
-    if (confidence >= 80) return 'bg-emerald-500/10 text-emerald-600';
-    if (confidence >= 60) return 'bg-yellow-500/10 text-yellow-600';
+    const pct = confidence > 1 ? confidence : confidence * 100;
+    if (pct >= 80) return 'bg-emerald-500/10 text-emerald-600';
+    if (pct >= 60) return 'bg-yellow-500/10 text-yellow-600';
     return 'bg-red-500/10 text-red-600';
   };
 
@@ -60,9 +61,9 @@ export function PredictionsPanel({ perfProjectId }: Props) {
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
                     <p className="font-medium text-sm text-foreground">{typeLabel(prediction.prediction_type)}</p>
-                    {prediction.confidence_level && (
+                    {prediction.confidence_level != null && (
                       <Badge className={confidenceColor(Number(prediction.confidence_level))}>
-                        {Number(prediction.confidence_level).toFixed(0)}% confidence
+                        {Math.round(Number(prediction.confidence_level) > 1 ? Number(prediction.confidence_level) : Number(prediction.confidence_level) * 100)}% confidence
                       </Badge>
                     )}
                   </div>
