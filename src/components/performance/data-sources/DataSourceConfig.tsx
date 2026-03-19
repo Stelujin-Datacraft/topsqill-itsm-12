@@ -73,7 +73,12 @@ const AGGREGATIONS = [
   { value: 'latest', label: 'Latest Value' },
 ];
 
-export function DataSourceConfig() {
+interface DataSourceConfigProps {
+  perfProjectId?: string;
+  perfFormId?: string;
+}
+
+export function DataSourceConfig({ perfProjectId, perfFormId }: DataSourceConfigProps) {
   const { currentProject } = useProject();
   const { userProfile } = useAuth();
   const queryClient = useQueryClient();
