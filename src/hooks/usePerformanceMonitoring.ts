@@ -77,6 +77,10 @@ export interface PerformanceThreshold {
   severity: string;
   is_active: boolean;
   send_email: boolean;
+  data_source_id?: string;
+  form_field_id?: string;
+  form_field_label?: string;
+  data_limit?: number;
 }
 
 export interface AIAnalysis {
@@ -259,7 +263,7 @@ export function usePerformanceMonitoring() {
   const createThreshold = useMutation({
     mutationFn: async (thresholdData: Partial<PerformanceThreshold>) => {
       if (!projectId || !userProfile) throw new Error('Project required');
-      const insertData = {
+      const insertData: any = {
         metric_name: thresholdData.metric_name || '',
         operator: thresholdData.operator || '>',
         threshold_value: thresholdData.threshold_value || 0,
@@ -270,6 +274,10 @@ export function usePerformanceMonitoring() {
         organization_id: userProfile.organization_id,
         created_by: userProfile.id,
       };
+      if (thresholdData.data_source_id) insertData.data_source_id = thresholdData.data_source_id;
+      if (thresholdData.form_field_id) insertData.form_field_id = thresholdData.form_field_id;
+      if (thresholdData.form_field_label) insertData.form_field_label = thresholdData.form_field_label;
+      if (thresholdData.data_limit) insertData.data_limit = thresholdData.data_limit;
       const { data, error } = await supabase
         .from('performance_thresholds')
         .insert(insertData)

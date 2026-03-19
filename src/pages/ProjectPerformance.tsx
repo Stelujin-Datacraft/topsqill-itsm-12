@@ -1,4 +1,3 @@
-// Project Performance Monitoring - AI-driven analytics
 import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useProject } from '@/contexts/ProjectContext';
@@ -8,7 +7,8 @@ import { SnapshotManager } from '@/components/performance/SnapshotManager';
 import { AlertsPanel } from '@/components/performance/AlertsPanel';
 import { PredictionsPanel } from '@/components/performance/PredictionsPanel';
 import { ThresholdsConfig } from '@/components/performance/ThresholdsConfig';
-import { Activity, AlertTriangle, BarChart3, Brain, Settings2 } from 'lucide-react';
+import { DataSourceConfig } from '@/components/performance/DataSourceConfig';
+import { Activity, AlertTriangle, BarChart3, Brain, Database, Settings2 } from 'lucide-react';
 
 export default function ProjectPerformance() {
   const { currentProject } = useProject();
@@ -33,6 +33,10 @@ export default function ProjectPerformance() {
             <BarChart3 className="h-4 w-4" />
             Overview
           </TabsTrigger>
+          <TabsTrigger value="data-sources" className="gap-2">
+            <Database className="h-4 w-4" />
+            Data Sources
+          </TabsTrigger>
           <TabsTrigger value="snapshots" className="gap-2">
             <Activity className="h-4 w-4" />
             Snapshots
@@ -53,6 +57,9 @@ export default function ProjectPerformance() {
 
         <TabsContent value="overview">
           <PerformanceOverview />
+        </TabsContent>
+        <TabsContent value="data-sources">
+          <DataSourceConfig />
         </TabsContent>
         <TabsContent value="snapshots">
           <SnapshotManager />

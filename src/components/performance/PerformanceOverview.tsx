@@ -55,11 +55,11 @@ export function PerformanceOverview() {
             <div>
               <p className="font-semibold text-foreground">AI Performance Analysis</p>
               <p className="text-sm text-muted-foreground">
-                Run anomaly detection, trend analysis, and predictive insights
+                Run anomaly detection, trend analysis, and predictive insights on snapshots and connected form data
               </p>
             </div>
           </div>
-          <Button onClick={handleRunAnalysis} disabled={runAnalysis.isPending || snapshots.length < 2}>
+          <Button onClick={handleRunAnalysis} disabled={runAnalysis.isPending}>
             {runAnalysis.isPending ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Analyzing...</> : 'Run AI Analysis'}
           </Button>
         </CardContent>
