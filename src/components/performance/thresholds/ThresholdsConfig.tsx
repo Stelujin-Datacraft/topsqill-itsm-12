@@ -6,17 +6,12 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { usePerformanceMonitoring } from '@/hooks/usePerformanceMonitoring';
 import { useProject } from '@/contexts/ProjectContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import { Plus, Trash2, Loader2, Settings2, FileText } from 'lucide-react';
-
-interface FormOption {
-  id: string;
-  name: string;
-}
 
 interface FormFieldOption {
   id: string;
@@ -24,13 +19,18 @@ interface FormFieldOption {
   field_type: string;
 }
 
-export function ThresholdsConfig() {
-  const { thresholds, loading, createThreshold, deleteThreshold } = usePerformanceMonitoring();
+interface Props {
+  perfProjectId?: string;
+  perfFormId?: string;
+  perfFormName?: string;
+}
+
+export function ThresholdsConfig({ perfProjectId, perfFormId, perfFormName }: Props) {
+  const { thresholds, loading, createThreshold, deleteThreshold } = usePerformanceMonitoring(perfProjectId);
   const { currentProject } = useProject();
   const projectId = currentProject?.id;
 
   const [open, setOpen] = useState(false);
-  const [selectedFormId, setSelectedFormId] = useState('');
   const [formData, setFormData] = useState({
     operator: '>',
     threshold_value: 0,
@@ -41,52 +41,50 @@ export function ThresholdsConfig() {
     data_limit: 100,
   });
 
-  // Fetch all forms in this project
-  const { data: forms = [] } = useQuery({
-    queryKey: ['project-forms-for-thresholds', projectId],
-    queryFn: async () => {
-      if (!projectId) return [];
-      const { data, error } = await supabase
-        .from('forms')
-        .select('id, name')
-        .eq('project_id', projectId)
-        .order('name');
-      if (error) throw error;
-      return data as FormOption[];
-    },
-    enabled: !!projectId,
-  });
-
-  // Fetch numeric fields for the selected form
+  // Fetch numeric fields for the performance project's form (auto-selected)
   const { data: formFields = [] } = useQuery({
-    queryKey: ['form-fields-for-thresholds', selectedFormId],
+    queryKey: ['form-fields-for-thresholds', perfFormId],
     queryFn: async () => {
-      if (!selectedFormId) return [];
+      if (!perfFormId) return [];
       const { data, error } = await supabase
         .from('form_fields')
         .select('id, label, field_type')
-        .eq('form_id', selectedFormId)
+        .eq('form_id', perfFormId)
         .in('field_type', ['number', 'slider', 'calculated', 'currency'])
         .order('field_order');
       if (error) throw error;
       return data as FormFieldOption[];
     },
-    enabled: !!selectedFormId,
+    enabled: !!perfFormId,
   });
 
-  const selectedFormName = forms.find(f => f.id === selectedFormId)?.name || '';
+  // Get data source ID for this perf project (to properly link threshold)
+  const { data: dataSourceId } = useQuery({
+    queryKey: ['perf-data-source-id', perfProjectId],
+    queryFn: async () => {
+      if (!perfProjectId || !projectId) return null;
+      const { data } = await supabase
+        .from('performance_data_sources')
+        .select('id')
+        .eq('performance_project_id', perfProjectId)
+        .limit(1)
+        .maybeSingle();
+      return data?.id || null;
+    },
+    enabled: !!perfProjectId && !!projectId,
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.form_field_id || !selectedFormId) return;
+    if (!formData.form_field_id) return;
 
     await createThreshold.mutateAsync({
-      metric_name: `${selectedFormName} → ${formData.form_field_label}`,
+      metric_name: `${perfFormName || 'Form'} → ${formData.form_field_label}`,
       operator: formData.operator,
       threshold_value: formData.threshold_value,
       severity: formData.severity,
       send_email: formData.send_email,
-      data_source_id: selectedFormId,
+      data_source_id: dataSourceId || undefined,
       form_field_id: formData.form_field_id,
       form_field_label: formData.form_field_label,
       data_limit: formData.data_limit,
@@ -96,7 +94,6 @@ export function ThresholdsConfig() {
   };
 
   const resetForm = () => {
-    setSelectedFormId('');
     setFormData({
       operator: '>', threshold_value: 0, severity: 'medium',
       send_email: false, form_field_id: '', form_field_label: '', data_limit: 100,
@@ -119,66 +116,53 @@ export function ThresholdsConfig() {
         <div>
           <h2 className="text-lg font-semibold text-foreground">Alert Thresholds</h2>
           <p className="text-sm text-muted-foreground">
-            Configure automatic alert triggers based on form field values
+            Configure automatic alert triggers for <span className="font-medium text-foreground">{perfFormName || 'form'}</span> fields
           </p>
         </div>
         <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}>
           <DialogTrigger asChild>
-            <Button><Plus className="mr-2 h-4 w-4" />Add Threshold</Button>
+            <Button disabled={formFields.length === 0}>
+              <Plus className="mr-2 h-4 w-4" />Add Threshold
+            </Button>
           </DialogTrigger>
           <DialogContent className="max-w-lg">
             <DialogHeader>
               <DialogTitle>Create Alert Threshold</DialogTitle>
+              <DialogDescription>
+                Set threshold for a numeric field in "{perfFormName}"
+              </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Form Selection */}
+              {/* Field Selection - auto-scoped to perf project form */}
               <div>
-                <Label>Source Form</Label>
-                <Select value={selectedFormId} onValueChange={(v) => {
-                  setSelectedFormId(v);
-                  setFormData(p => ({ ...p, form_field_id: '', form_field_label: '' }));
-                }}>
-                  <SelectTrigger><SelectValue placeholder="Select a form..." /></SelectTrigger>
-                  <SelectContent>
-                    {forms.map(f => (
-                      <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label>Numeric Field</Label>
+                {formFields.length > 0 ? (
+                  <Select
+                    value={formData.form_field_id}
+                    onValueChange={v => {
+                      const field = formFields.find(f => f.id === v);
+                      setFormData(p => ({
+                        ...p,
+                        form_field_id: v,
+                        form_field_label: field?.label || '',
+                      }));
+                    }}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Select field..." /></SelectTrigger>
+                    <SelectContent>
+                      {formFields.map(f => (
+                        <SelectItem key={f.id} value={f.id}>
+                          {f.label} <span className="text-muted-foreground ml-1">({f.field_type})</span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    No numeric fields found in this form.
+                  </p>
+                )}
               </div>
-
-              {/* Field Selection */}
-              {selectedFormId && (
-                <div>
-                  <Label>Numeric Field</Label>
-                  {formFields.length > 0 ? (
-                    <Select
-                      value={formData.form_field_id}
-                      onValueChange={v => {
-                        const field = formFields.find(f => f.id === v);
-                        setFormData(p => ({
-                          ...p,
-                          form_field_id: v,
-                          form_field_label: field?.label || '',
-                        }));
-                      }}
-                    >
-                      <SelectTrigger><SelectValue placeholder="Select field..." /></SelectTrigger>
-                      <SelectContent>
-                        {formFields.map(f => (
-                          <SelectItem key={f.id} value={f.id}>
-                            {f.label} <span className="text-muted-foreground ml-1">({f.field_type})</span>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      No numeric fields found in this form. Only number, slider, calculated, and currency fields are supported.
-                    </p>
-                  )}
-                </div>
-              )}
 
               {/* Operator & Value */}
               <div className="grid grid-cols-2 gap-3">
@@ -273,11 +257,6 @@ export function ThresholdsConfig() {
                     <Badge variant={threshold.is_active ? 'default' : 'secondary'} className="text-xs">
                       {threshold.is_active ? 'Active' : 'Inactive'}
                     </Badge>
-                    {threshold.form_field_label && (
-                      <Badge variant="outline" className="text-xs">
-                        <FileText className="h-3 w-3 mr-1" /> {threshold.metric_name}
-                      </Badge>
-                    )}
                     {threshold.data_limit && (
                       <Badge variant="outline" className="text-xs">
                         Limit: {threshold.data_limit}
@@ -301,7 +280,7 @@ export function ThresholdsConfig() {
           <Card className="border-dashed">
             <CardContent className="flex flex-col items-center justify-center py-8">
               <p className="text-sm text-muted-foreground">
-                No thresholds configured. Add thresholds to trigger automatic alerts when form field values exceed limits.
+                No thresholds configured. Add thresholds to trigger automatic alerts when field values exceed limits.
               </p>
             </CardContent>
           </Card>

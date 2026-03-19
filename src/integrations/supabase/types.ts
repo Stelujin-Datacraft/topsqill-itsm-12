@@ -3325,6 +3325,7 @@ export type Database = {
           id: string
           metric_name: string | null
           organization_id: string | null
+          performance_project_id: string | null
           project_id: string
           resolved_at: string | null
           resolved_by: string | null
@@ -3351,6 +3352,7 @@ export type Database = {
           id?: string
           metric_name?: string | null
           organization_id?: string | null
+          performance_project_id?: string | null
           project_id: string
           resolved_at?: string | null
           resolved_by?: string | null
@@ -3377,6 +3379,7 @@ export type Database = {
           id?: string
           metric_name?: string | null
           organization_id?: string | null
+          performance_project_id?: string | null
           project_id?: string
           resolved_at?: string | null
           resolved_by?: string | null
@@ -3393,6 +3396,13 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "performance_alerts_performance_project_id_fkey"
+            columns: ["performance_project_id"]
+            isOneToOne: false
+            referencedRelation: "performance_projects"
             referencedColumns: ["id"]
           },
           {
@@ -3422,6 +3432,7 @@ export type Database = {
           is_active: boolean
           linked_forms: Json
           organization_id: string | null
+          performance_project_id: string | null
           project_id: string
           source_form_id: string
           source_form_name: string
@@ -3437,6 +3448,7 @@ export type Database = {
           is_active?: boolean
           linked_forms?: Json
           organization_id?: string | null
+          performance_project_id?: string | null
           project_id: string
           source_form_id: string
           source_form_name?: string
@@ -3452,6 +3464,7 @@ export type Database = {
           is_active?: boolean
           linked_forms?: Json
           organization_id?: string | null
+          performance_project_id?: string | null
           project_id?: string
           source_form_id?: string
           source_form_name?: string
@@ -3463,6 +3476,13 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "performance_data_sources_performance_project_id_fkey"
+            columns: ["performance_project_id"]
+            isOneToOne: false
+            referencedRelation: "performance_projects"
             referencedColumns: ["id"]
           },
           {
@@ -3491,6 +3511,7 @@ export type Database = {
           input_data_points: number | null
           model_used: string | null
           organization_id: string | null
+          performance_project_id: string | null
           predicted_value: number | null
           prediction_date: string
           prediction_range_high: number | null
@@ -3509,6 +3530,7 @@ export type Database = {
           input_data_points?: number | null
           model_used?: string | null
           organization_id?: string | null
+          performance_project_id?: string | null
           predicted_value?: number | null
           prediction_date?: string
           prediction_range_high?: number | null
@@ -3527,6 +3549,7 @@ export type Database = {
           input_data_points?: number | null
           model_used?: string | null
           organization_id?: string | null
+          performance_project_id?: string | null
           predicted_value?: number | null
           prediction_date?: string
           prediction_range_high?: number | null
@@ -3545,7 +3568,78 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "performance_predictions_performance_project_id_fkey"
+            columns: ["performance_project_id"]
+            isOneToOne: false
+            referencedRelation: "performance_projects"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "performance_predictions_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      performance_projects: {
+        Row: {
+          created_at: string
+          created_by: string
+          description: string | null
+          form_id: string
+          form_name: string
+          id: string
+          name: string
+          organization_id: string | null
+          project_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          description?: string | null
+          form_id: string
+          form_name: string
+          id?: string
+          name: string
+          organization_id?: string | null
+          project_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          form_id?: string
+          form_name?: string
+          id?: string
+          name?: string
+          organization_id?: string | null
+          project_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "performance_projects_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "forms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "performance_projects_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "performance_projects_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
@@ -3680,6 +3774,7 @@ export type Database = {
           metric_name: string
           operator: string
           organization_id: string | null
+          performance_project_id: string | null
           project_id: string
           send_email: boolean | null
           severity: string
@@ -3698,6 +3793,7 @@ export type Database = {
           metric_name: string
           operator: string
           organization_id?: string | null
+          performance_project_id?: string | null
           project_id: string
           send_email?: boolean | null
           severity?: string
@@ -3716,6 +3812,7 @@ export type Database = {
           metric_name?: string
           operator?: string
           organization_id?: string | null
+          performance_project_id?: string | null
           project_id?: string
           send_email?: boolean | null
           severity?: string
@@ -3735,6 +3832,13 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "performance_thresholds_performance_project_id_fkey"
+            columns: ["performance_project_id"]
+            isOneToOne: false
+            referencedRelation: "performance_projects"
             referencedColumns: ["id"]
           },
           {

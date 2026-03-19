@@ -73,7 +73,12 @@ const AGGREGATIONS = [
   { value: 'latest', label: 'Latest Value' },
 ];
 
-export function DataSourceConfig() {
+interface DataSourceConfigProps {
+  perfProjectId?: string;
+  perfFormId?: string;
+}
+
+export function DataSourceConfig({ perfProjectId, perfFormId }: DataSourceConfigProps) {
   const { currentProject } = useProject();
   const { userProfile } = useAuth();
   const queryClient = useQueryClient();
@@ -108,14 +113,18 @@ export function DataSourceConfig() {
 
   // Fetch existing data sources
   const { data: dataSources = [], isLoading } = useQuery({
-    queryKey: ['performance-data-sources', projectId],
+    queryKey: ['performance-data-sources', projectId, perfProjectId],
     queryFn: async () => {
       if (!projectId) return [];
-      const { data, error } = await supabase
+      let query = supabase
         .from('performance_data_sources')
         .select('*')
         .eq('project_id', projectId)
         .order('created_at', { ascending: false });
+      if (perfProjectId) {
+        query = query.eq('performance_project_id', perfProjectId);
+      }
+      const { data, error } = await query;
       if (error) throw error;
       return (data || []).map((d: any) => ({
         ...d,
@@ -225,6 +234,7 @@ export function DataSourceConfig() {
           data_limit: dataLimit,
           date_field_id: dateFieldId || null,
           is_active: true,
+          ...(perfProjectId ? { performance_project_id: perfProjectId } : {}),
         })
         .select()
         .single();
@@ -232,7 +242,7 @@ export function DataSourceConfig() {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['performance-data-sources', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['performance-data-sources', projectId, perfProjectId] });
       toast({ title: 'Data Source Created', description: 'Form data source configured for analysis.' });
       setOpen(false);
       resetForm();
@@ -251,7 +261,7 @@ export function DataSourceConfig() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['performance-data-sources', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['performance-data-sources', projectId, perfProjectId] });
       toast({ title: 'Data Source Removed' });
     },
   });
@@ -265,7 +275,7 @@ export function DataSourceConfig() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['performance-data-sources', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['performance-data-sources', projectId, perfProjectId] });
     },
   });
 

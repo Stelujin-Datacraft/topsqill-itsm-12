@@ -5,8 +5,12 @@ import { usePerformanceMonitoring } from '@/hooks/usePerformanceMonitoring';
 import { Brain, TrendingUp, Calendar, Users, DollarSign, AlertTriangle, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 
-export function PredictionsPanel() {
-  const { predictions, loading } = usePerformanceMonitoring();
+interface Props {
+  perfProjectId?: string;
+}
+
+export function PredictionsPanel({ perfProjectId }: Props) {
+  const { predictions, loading } = usePerformanceMonitoring(perfProjectId);
 
   const typeIcon = (type: string) => {
     switch (type) {
