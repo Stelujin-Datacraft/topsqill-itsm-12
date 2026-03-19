@@ -235,12 +235,10 @@ export function usePerformanceMonitoring() {
   });
 
   return {
-    snapshots,
     alerts,
     predictions,
     thresholds,
-    loading: loadingSnapshots || loadingAlerts || loadingPredictions || loadingThresholds,
-    createSnapshot,
+    loading: loadingAlerts || loadingPredictions || loadingThresholds,
     updateAlertStatus,
     createThreshold,
     deleteThreshold,
