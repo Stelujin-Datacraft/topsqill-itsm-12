@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { usePerformanceMonitoring } from '@/hooks/usePerformanceMonitoring';
@@ -11,6 +11,7 @@ import {
 } from 'recharts';
 import { Loader2, BarChart3, PieChart as PieChartIcon, TrendingUp, Activity, Brain } from 'lucide-react';
 import { format, subDays, startOfDay } from 'date-fns';
+import { ChartExportButton } from '@/components/reports/ChartExportButton';
 
 const COLORS = ['hsl(var(--primary))', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16'];
 
@@ -21,6 +22,7 @@ interface Props {
 export function AnalyticsPanel({ perfProjectId }: Props) {
   const { alerts, predictions, thresholds, loading } = usePerformanceMonitoring(perfProjectId);
   const { currentProject } = useProject();
+  const chartContainerRef = useRef<HTMLDivElement>(null);
 
   // Fetch data sources to get form submission data
   const { data: dataSources = [] } = useQuery({
@@ -160,15 +162,22 @@ export function AnalyticsPanel({ perfProjectId }: Props) {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-          <BarChart3 className="h-5 w-5 text-primary" />
-          Reports Analytics
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          Visual insights from your performance data — all charts are based on saved data
-        </p>
+    <div className="space-y-6" ref={chartContainerRef}>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+            <BarChart3 className="h-5 w-5 text-primary" />
+            Reports Analytics
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Visual insights from your performance data — all charts are based on saved data
+          </p>
+        </div>
+        <ChartExportButton
+          chartRef={chartContainerRef as React.RefObject<HTMLDivElement>}
+          filename="performance-analytics-report"
+          title="Performance Analytics Report"
+        />
       </div>
 
       {/* Summary Cards */}
