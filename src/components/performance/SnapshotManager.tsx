@@ -8,7 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { usePerformanceMonitoring } from '@/hooks/usePerformanceMonitoring';
-import { Plus, Calendar, DollarSign, Users, CheckSquare, Milestone, Loader2 } from 'lucide-react';
+import { Plus, Calendar, DollarSign, Users, CheckSquare, Milestone, Loader2, Database } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 
 export function SnapshotManager() {
