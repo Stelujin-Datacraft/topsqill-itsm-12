@@ -14,6 +14,8 @@ import { format } from 'date-fns';
 
 export function SnapshotManager() {
   const { snapshots, loading, createSnapshot } = usePerformanceMonitoring();
+  const { toast } = useToast();
+  const [loadingDemo, setLoadingDemo] = useState(false);
   const [open, setOpen] = useState(false);
   const [formData, setFormData] = useState({
     snapshot_date: new Date().toISOString().split('T')[0],
