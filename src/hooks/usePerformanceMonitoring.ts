@@ -4,38 +4,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useProject } from '@/contexts/ProjectContext';
 import { useToast } from '@/hooks/use-toast';
 
-export interface PerformanceSnapshot {
-  id: string;
-  project_id: string;
-  organization_id?: string;
-  created_by: string;
-  snapshot_date: string;
-  planned_budget: number;
-  actual_budget: number;
-  budget_variance: number;
-  planned_start_date?: string;
-  planned_end_date?: string;
-  actual_start_date?: string;
-  projected_end_date?: string;
-  schedule_variance_days: number;
-  planned_resources: number;
-  actual_resources: number;
-  resource_utilization_pct: number;
-  total_tasks: number;
-  completed_tasks: number;
-  in_progress_tasks: number;
-  blocked_tasks: number;
-  completion_pct: number;
-  total_milestones: number;
-  completed_milestones: number;
-  overdue_milestones: number;
-  risk_score: number;
-  health_status: 'green' | 'yellow' | 'orange' | 'red';
-  custom_metrics?: Record<string, any>;
-  notes?: string;
-  created_at: string;
-  updated_at: string;
-}
 
 export interface PerformanceAlert {
   id: string;
