@@ -17,6 +17,7 @@ interface Props {
   loading: boolean;
   runAnalysis: UseMutationResult<AIAnalysis, Error, void, unknown>;
   onNavigateToThresholds?: () => void;
+  perfProjectId?: string;
 }
 
 /** Compute dynamic health scores from real module data */
