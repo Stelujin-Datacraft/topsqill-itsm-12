@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,10 +19,6 @@ interface FormFieldOption {
   field_type: string;
 }
 
-interface FormOption {
-  id: string;
-  name: string;
-}
 
 interface DataSourceLink {
   id: string;
@@ -42,8 +38,9 @@ export function ThresholdsConfig({ perfProjectId, perfFormId, perfFormName }: Pr
   const projectId = currentProject?.id;
 
   const [open, setOpen] = useState(false);
-  const [selectedFormId, setSelectedFormId] = useState(perfFormId || '');
-  const [selectedFormName, setSelectedFormName] = useState(perfFormName || '');
+  const [selectedFormId, setSelectedFormId] = useState('');
+  const [selectedFormName, setSelectedFormName] = useState('');
+  const [selectedDataSourceId, setSelectedDataSourceId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     operator: '>',
     threshold_value: 0,
@@ -54,59 +51,23 @@ export function ThresholdsConfig({ perfProjectId, perfFormId, perfFormName }: Pr
     data_limit: 100,
   });
 
-  // Fetch all forms in the project so user can pick one
-  const { data: forms = [] } = useQuery({
-    queryKey: ['project-forms-for-thresholds', projectId],
+  // Fetch data sources linked to this performance project
+  const { data: dataSources = [] } = useQuery({
+    queryKey: ['perf-data-sources-for-thresholds', perfProjectId, projectId],
     queryFn: async () => {
-      if (!projectId) return [];
-      const { data, error } = await supabase
-        .from('forms')
-        .select('id, name')
-        .eq('project_id', projectId)
-        .order('name');
-      if (error) throw error;
-      return data as FormOption[];
-    },
-    enabled: !!projectId,
-  });
-
-  // Get active data source (if any) for this perf project
-  const { data: linkedDataSource } = useQuery({
-    queryKey: ['perf-data-source-link', perfProjectId, projectId],
-    queryFn: async () => {
-      if (!perfProjectId || !projectId) return null;
+      if (!perfProjectId || !projectId) return [];
       const { data, error } = await supabase
         .from('performance_data_sources')
         .select('id, source_form_id, source_form_name')
         .eq('performance_project_id', perfProjectId)
         .eq('project_id', projectId)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .eq('is_active', true)
+        .order('created_at', { ascending: false });
       if (error) throw error;
-      return (data as DataSourceLink | null) || null;
+      return (data || []) as DataSourceLink[];
     },
     enabled: !!perfProjectId && !!projectId,
   });
-
-  const lockedFormId = perfFormId || linkedDataSource?.source_form_id || '';
-  const lockedFormName = perfFormName || linkedDataSource?.source_form_name || '';
-  const dataSourceId = linkedDataSource?.id || null;
-
-  useEffect(() => {
-    if (!lockedFormId) return;
-
-    const resolvedLockedFormName = lockedFormName || forms.find(f => f.id === lockedFormId)?.name || '';
-
-    if (selectedFormId !== lockedFormId) {
-      setSelectedFormId(lockedFormId);
-      setFormData(prev => ({ ...prev, form_field_id: '', form_field_label: '' }));
-    }
-
-    if (resolvedLockedFormName && selectedFormName !== resolvedLockedFormName) {
-      setSelectedFormName(resolvedLockedFormName);
-    }
-  }, [forms, lockedFormId, lockedFormName, selectedFormId, selectedFormName]);
 
   // Fetch numeric fields for the selected form
   const { data: formFields = [] } = useQuery({
@@ -135,7 +96,7 @@ export function ThresholdsConfig({ perfProjectId, perfFormId, perfFormName }: Pr
       threshold_value: formData.threshold_value,
       severity: formData.severity,
       send_email: formData.send_email,
-      data_source_id: dataSourceId || undefined,
+      data_source_id: selectedDataSourceId || undefined,
       form_field_id: formData.form_field_id,
       form_field_label: formData.form_field_label,
       data_limit: formData.data_limit,
@@ -149,16 +110,9 @@ export function ThresholdsConfig({ perfProjectId, perfFormId, perfFormName }: Pr
       operator: '>', threshold_value: 0, severity: 'medium',
       send_email: false, form_field_id: '', form_field_label: '', data_limit: 100,
     });
-
-    if (lockedFormId) {
-      const resolvedLockedFormName = lockedFormName || forms.find(f => f.id === lockedFormId)?.name || '';
-      setSelectedFormId(lockedFormId);
-      setSelectedFormName(resolvedLockedFormName);
-      return;
-    }
-
     setSelectedFormId('');
     setSelectedFormName('');
+    setSelectedDataSourceId(null);
   };
 
   const severityColor = (severity: string) => {
@@ -171,9 +125,6 @@ export function ThresholdsConfig({ perfProjectId, perfFormId, perfFormName }: Pr
     }
   };
 
-  const isFormLocked = !!lockedFormId;
-  const lockedDisplayFormName = lockedFormName || forms.find(f => f.id === lockedFormId)?.name || 'Linked Form';
-
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -185,7 +136,7 @@ export function ThresholdsConfig({ perfProjectId, perfFormId, perfFormName }: Pr
         </div>
         <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}>
           <DialogTrigger asChild>
-            <Button>
+            <Button disabled={dataSources.length === 0}>
               <Plus className="mr-2 h-4 w-4" />Add Threshold
             </Button>
           </DialogTrigger>
@@ -193,37 +144,36 @@ export function ThresholdsConfig({ perfProjectId, perfFormId, perfFormName }: Pr
             <DialogHeader>
               <DialogTitle>Create Alert Threshold</DialogTitle>
               <DialogDescription>
-                Select a form and numeric field to set up an alert threshold.
+                Select a data source form and numeric field to set up an alert threshold.
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Form Selection */}
+              {/* Form Selection - only shows forms from Data Sources */}
               <div>
-                <Label>Source Form</Label>
-                {isFormLocked ? (
-                  <Input
-                    value={lockedDisplayFormName}
-                    readOnly
-                    disabled
-                    className="bg-muted cursor-not-allowed"
-                  />
-                ) : (
-                  <Select
-                    value={selectedFormId}
-                    onValueChange={v => {
-                      setSelectedFormId(v);
-                      const form = forms.find(f => f.id === v);
-                      setSelectedFormName(form?.name || '');
-                      setFormData(p => ({ ...p, form_field_id: '', form_field_label: '' }));
-                    }}
-                  >
-                    <SelectTrigger><SelectValue placeholder="Select a form..." /></SelectTrigger>
-                    <SelectContent>
-                      {forms.map(f => (
-                        <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <Label>Source Form (from Data Sources)</Label>
+                <Select
+                  value={selectedFormId}
+                  onValueChange={v => {
+                    const ds = dataSources.find(d => d.source_form_id === v);
+                    setSelectedFormId(v);
+                    setSelectedFormName(ds?.source_form_name || '');
+                    setSelectedDataSourceId(ds?.id || null);
+                    setFormData(p => ({ ...p, form_field_id: '', form_field_label: '' }));
+                  }}
+                >
+                  <SelectTrigger><SelectValue placeholder="Select a data source form..." /></SelectTrigger>
+                  <SelectContent>
+                    {dataSources.map(ds => (
+                      <SelectItem key={ds.id} value={ds.source_form_id}>
+                        {ds.source_form_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {dataSources.length === 0 && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    No data sources configured. Add a data source in the Data Sources tab first.
+                  </p>
                 )}
               </div>
 
