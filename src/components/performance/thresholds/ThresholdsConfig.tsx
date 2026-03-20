@@ -42,8 +42,9 @@ export function ThresholdsConfig({ perfProjectId, perfFormId, perfFormName }: Pr
   const projectId = currentProject?.id;
 
   const [open, setOpen] = useState(false);
-  const [selectedFormId, setSelectedFormId] = useState(perfFormId || '');
-  const [selectedFormName, setSelectedFormName] = useState(perfFormName || '');
+  const [selectedFormId, setSelectedFormId] = useState('');
+  const [selectedFormName, setSelectedFormName] = useState('');
+  const [selectedDataSourceId, setSelectedDataSourceId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     operator: '>',
     threshold_value: 0,
@@ -54,59 +55,23 @@ export function ThresholdsConfig({ perfProjectId, perfFormId, perfFormName }: Pr
     data_limit: 100,
   });
 
-  // Fetch all forms in the project so user can pick one
-  const { data: forms = [] } = useQuery({
-    queryKey: ['project-forms-for-thresholds', projectId],
+  // Fetch data sources linked to this performance project
+  const { data: dataSources = [] } = useQuery({
+    queryKey: ['perf-data-sources-for-thresholds', perfProjectId, projectId],
     queryFn: async () => {
-      if (!projectId) return [];
-      const { data, error } = await supabase
-        .from('forms')
-        .select('id, name')
-        .eq('project_id', projectId)
-        .order('name');
-      if (error) throw error;
-      return data as FormOption[];
-    },
-    enabled: !!projectId,
-  });
-
-  // Get active data source (if any) for this perf project
-  const { data: linkedDataSource } = useQuery({
-    queryKey: ['perf-data-source-link', perfProjectId, projectId],
-    queryFn: async () => {
-      if (!perfProjectId || !projectId) return null;
+      if (!perfProjectId || !projectId) return [];
       const { data, error } = await supabase
         .from('performance_data_sources')
         .select('id, source_form_id, source_form_name')
         .eq('performance_project_id', perfProjectId)
         .eq('project_id', projectId)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .eq('is_active', true)
+        .order('created_at', { ascending: false });
       if (error) throw error;
-      return (data as DataSourceLink | null) || null;
+      return (data || []) as DataSourceLink[];
     },
     enabled: !!perfProjectId && !!projectId,
   });
-
-  const lockedFormId = perfFormId || linkedDataSource?.source_form_id || '';
-  const lockedFormName = perfFormName || linkedDataSource?.source_form_name || '';
-  const dataSourceId = linkedDataSource?.id || null;
-
-  useEffect(() => {
-    if (!lockedFormId) return;
-
-    const resolvedLockedFormName = lockedFormName || forms.find(f => f.id === lockedFormId)?.name || '';
-
-    if (selectedFormId !== lockedFormId) {
-      setSelectedFormId(lockedFormId);
-      setFormData(prev => ({ ...prev, form_field_id: '', form_field_label: '' }));
-    }
-
-    if (resolvedLockedFormName && selectedFormName !== resolvedLockedFormName) {
-      setSelectedFormName(resolvedLockedFormName);
-    }
-  }, [forms, lockedFormId, lockedFormName, selectedFormId, selectedFormName]);
 
   // Fetch numeric fields for the selected form
   const { data: formFields = [] } = useQuery({
