@@ -302,7 +302,7 @@ Be SPECIFIC — reference actual field values, dollar amounts, dates, and percen
                     items: {
                       type: "object",
                       properties: {
-                        type: { type: "string", enum: ["budget_forecast", "completion_date", "resource_need", "risk_trend", "milestone_delay", "cost_overrun", "schedule_slip"] },
+                        type: { type: "string", enum: ["budget_forecast", "completion_date", "resource_need", "risk_trend", "milestone_delay"] },
                         description: { type: "string" },
                         predicted_value: { type: "number" },
                         confidence: { type: "number", description: "Value between 0 and 1" },
