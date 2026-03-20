@@ -115,9 +115,9 @@ export function PerformanceOverview({ alerts, predictions, thresholds, loading, 
       // Find a name-like field from field_mappings to use as display label
       const fieldMappings = Array.isArray(ds.field_mappings) ? ds.field_mappings : [];
       const nameFieldMapping = fieldMappings.find((m: any) => 
-        m.formFieldLabel?.toLowerCase().includes('name') && !m.formFieldLabel?.toLowerCase().includes('schedule')
-      );
-      const nameFieldId = nameFieldMapping?.formFieldId;
+        (m as any)?.formFieldLabel?.toLowerCase().includes('name') && !(m as any)?.formFieldLabel?.toLowerCase().includes('schedule')
+      ) as any;
+      const nameFieldId = nameFieldMapping?.formFieldId as string | undefined;
 
       return subs.map((s: any) => {
         const subData = s.submission_data || {};
