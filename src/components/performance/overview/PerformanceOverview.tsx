@@ -84,16 +84,20 @@ export function PerformanceOverview({ alerts, predictions, thresholds, loading, 
       if (!projectId || !perfProjectId) return [];
 
       // First get the data source to find the form
-      const { data: ds } = await supabase
+      const { data: dsList, error: dsError } = await supabase
         .from('performance_data_sources')
         .select('source_form_id, source_form_name, field_mappings')
         .eq('project_id', projectId)
         .eq('performance_project_id', perfProjectId)
         .eq('is_active', true)
-        .limit(1)
-        .single();
+        .limit(1);
 
-      if (!ds) return [];
+      if (dsError || !dsList || dsList.length === 0) {
+        console.warn('No active data source found for performance project', { projectId, perfProjectId, dsError });
+        return [];
+      }
+
+      const ds = dsList[0];
 
       // Fetch submissions for that form
       const { data: subs, error } = await supabase
@@ -103,21 +107,35 @@ export function PerformanceOverview({ alerts, predictions, thresholds, loading, 
         .order('submitted_at', { ascending: false })
         .limit(500);
 
-      if (error || !subs) return [];
+      if (error || !subs) {
+        console.warn('Failed to fetch submissions', error);
+        return [];
+      }
 
-      // Try to extract a project name from submission data for display
+      // Find a name-like field from field_mappings to use as display label
       const fieldMappings = Array.isArray(ds.field_mappings) ? ds.field_mappings : [];
+      const nameFieldMapping = fieldMappings.find((m: any) => 
+        m.formFieldLabel?.toLowerCase().includes('name') && !m.formFieldLabel?.toLowerCase().includes('schedule')
+      );
+      const nameFieldId = nameFieldMapping?.formFieldId;
 
       return subs.map((s: any) => {
-        // Look for a name-like field in submission data
-        const projectName = s.submission_data?.['Project Name'] 
-          || s.submission_data?.['project_name']
-          || Object.values(s.submission_data || {}).find((v: any) => typeof v === 'string' && v.length > 3 && v.length < 100);
+        const subData = s.submission_data || {};
+        // Use mapped name field, fallback to searching all values
+        let projectName = nameFieldId ? subData[nameFieldId] : null;
+        if (!projectName) {
+          projectName = Object.values(subData).find((v: any) => typeof v === 'string' && v.length > 3 && v.length < 100);
+        }
+        // Unwrap wrapped values
+        if (typeof projectName === 'object' && projectName !== null && 'value' in projectName) {
+          projectName = projectName.value;
+        }
         
+        const refId = s.submission_ref_id || s.id.slice(0, 8);
         return {
           id: s.id,
-          submission_ref_id: s.submission_ref_id || s.id.slice(0, 8),
-          label: projectName ? `${s.submission_ref_id || s.id.slice(0, 8)} — ${projectName}` : (s.submission_ref_id || s.id.slice(0, 8)),
+          submission_ref_id: refId,
+          label: projectName ? `${refId} — ${projectName}` : refId,
           submitted_at: s.submitted_at,
         } as SubmissionOption;
       });
