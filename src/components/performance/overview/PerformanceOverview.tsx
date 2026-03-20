@@ -2,15 +2,19 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { usePerformanceMonitoring, AIAnalysis } from '@/hooks/usePerformanceMonitoring';
-import { Brain, AlertTriangle, Loader2, Lightbulb, ShieldAlert, TrendingUp } from 'lucide-react';
+import { type PerformanceAlert, type PerformancePrediction, type AIAnalysis } from '@/hooks/usePerformanceMonitoring';
+import { getSeverityBadgeVariant, getHealthColorClass } from '@/components/performance/utils/severityUtils';
+import { Brain, Loader2, Lightbulb, TrendingUp } from 'lucide-react';
+import { UseMutationResult } from '@tanstack/react-query';
 
 interface Props {
-  perfProjectId?: string;
+  alerts: PerformanceAlert[];
+  predictions: PerformancePrediction[];
+  loading: boolean;
+  runAnalysis: UseMutationResult<AIAnalysis, Error, void, unknown>;
 }
 
-export function PerformanceOverview({ perfProjectId }: Props) {
-  const { alerts, predictions, loading, runAnalysis } = usePerformanceMonitoring(perfProjectId);
+export function PerformanceOverview({ alerts, predictions, loading, runAnalysis }: Props) {
   const [aiResult, setAiResult] = useState<AIAnalysis | null>(null);
 
   // Reconstruct last analysis from persisted alerts & predictions
@@ -42,29 +46,9 @@ export function PerformanceOverview({ perfProjectId }: Props) {
     }
   }, [alerts, predictions]);
 
-  const activeAlerts = alerts.filter(a => a.status === 'active');
-
   const handleRunAnalysis = async () => {
     const result = await runAnalysis.mutateAsync();
     setAiResult(result);
-  };
-
-  const healthColor = (status?: string) => {
-    switch (status) {
-      case 'green': return 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20';
-      case 'yellow': return 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20';
-      case 'orange': return 'bg-orange-500/10 text-orange-600 border-orange-500/20';
-      case 'red': return 'bg-red-500/10 text-red-600 border-red-500/20';
-      default: return 'bg-muted text-muted-foreground';
-    }
-  };
-
-  const severityColor = (severity: string) => {
-    switch (severity) {
-      case 'critical': return 'destructive' as const;
-      case 'high': return 'destructive' as const;
-      default: return 'secondary' as const;
-    }
   };
 
   if (loading) {
@@ -73,6 +57,7 @@ export function PerformanceOverview({ perfProjectId }: Props) {
 
   return (
     <div className="space-y-6">
+      {/* AI Analysis Trigger */}
       <Card className="border-primary/20 bg-primary/5">
         <CardContent className="flex items-center justify-between py-4">
           <div className="flex items-center gap-3">
@@ -90,6 +75,48 @@ export function PerformanceOverview({ perfProjectId }: Props) {
         </CardContent>
       </Card>
 
+      {/* Health Status Summary */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Health Status</p>
+                <p className="text-2xl font-bold text-foreground">
+                  {aiResult ? aiResult.health_status?.toUpperCase() : '—'}
+                </p>
+              </div>
+              <Brain className="h-8 w-8 text-primary" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Risk Score</p>
+                <p className="text-2xl font-bold text-foreground">
+                  {aiResult ? `${aiResult.risk_score}/100` : '—'}
+                </p>
+              </div>
+              <TrendingUp className="h-8 w-8 text-primary" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">AI Predictions</p>
+                <p className="text-2xl font-bold text-foreground">{predictions.length}</p>
+              </div>
+              <TrendingUp className="h-8 w-8 text-primary" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* AI Results — Health + Recommendations only (no alerts duplication) */}
       {aiResult && (
         <div className="space-y-4">
           <Card className="border-primary/30">
@@ -100,37 +127,15 @@ export function PerformanceOverview({ perfProjectId }: Props) {
               </CardTitle>
               <CardDescription>{aiResult.summary}</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent>
               <div className="flex items-center gap-4">
-                <Badge className={healthColor(aiResult.health_status)}>
+                <Badge className={getHealthColorClass(aiResult.health_status)}>
                   Health: {aiResult.health_status?.toUpperCase()}
                 </Badge>
                 <Badge variant="outline">Risk Score: {aiResult.risk_score}/100</Badge>
               </div>
             </CardContent>
           </Card>
-
-          {aiResult.anomalies?.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2">
-                  <ShieldAlert className="h-4 w-4 text-destructive" />
-                  Detected Anomalies ({aiResult.anomalies.length})
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {aiResult.anomalies.map((a, i) => (
-                  <div key={i} className="flex items-start gap-2 p-3 rounded-lg bg-muted/50">
-                    <Badge variant={severityColor(a.severity)} className="text-xs mt-0.5">{a.severity}</Badge>
-                    <div>
-                      <p className="font-medium text-sm">{a.metric}</p>
-                      <p className="text-xs text-muted-foreground">{a.description}</p>
-                    </div>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          )}
 
           {aiResult.predictions?.length > 0 && (
             <Card>
@@ -166,7 +171,7 @@ export function PerformanceOverview({ perfProjectId }: Props) {
               <CardContent className="space-y-2">
                 {aiResult.recommendations.map((rec, i) => (
                   <div key={i} className="flex items-start gap-2 p-3 rounded-lg bg-muted/50">
-                    <Badge variant={severityColor(rec.priority)} className="text-xs mt-0.5">{rec.priority}</Badge>
+                    <Badge variant={getSeverityBadgeVariant(rec.priority)} className="text-xs mt-0.5">{rec.priority}</Badge>
                     <div>
                       <p className="font-medium text-sm">{rec.title}</p>
                       <p className="text-xs text-muted-foreground">{rec.description}</p>
@@ -178,44 +183,6 @@ export function PerformanceOverview({ perfProjectId }: Props) {
           )}
         </div>
       )}
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Active Alerts</p>
-                <p className="text-2xl font-bold text-foreground">{activeAlerts.length}</p>
-              </div>
-              <AlertTriangle className={`h-8 w-8 ${activeAlerts.length > 0 ? 'text-orange-500' : 'text-muted-foreground'}`} />
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">AI Predictions</p>
-                <p className="text-2xl font-bold text-foreground">{predictions.length}</p>
-              </div>
-              <TrendingUp className="h-8 w-8 text-primary" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Health Status</p>
-                <p className="text-2xl font-bold text-foreground">
-                  {aiResult ? aiResult.health_status?.toUpperCase() : '—'}
-                </p>
-              </div>
-              <Brain className="h-8 w-8 text-primary" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
 
       {!aiResult && alerts.length === 0 && (
         <Card className="border-dashed">

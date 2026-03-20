@@ -1,28 +1,20 @@
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { usePerformanceMonitoring } from '@/hooks/usePerformanceMonitoring';
+import { type PerformanceAlert } from '@/hooks/usePerformanceMonitoring';
+import { getSeverityColorClass } from '@/components/performance/utils/severityUtils';
 import { AlertTriangle, Brain, CheckCircle2, Eye, XCircle, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
+import { UseMutationResult } from '@tanstack/react-query';
 
 interface Props {
-  perfProjectId?: string;
+  alerts: PerformanceAlert[];
+  loading: boolean;
+  updateAlertStatus: UseMutationResult<void, Error, { alertId: string; status: string }, unknown>;
 }
 
-export function AlertsPanel({ perfProjectId }: Props) {
-  const { alerts, loading, updateAlertStatus } = usePerformanceMonitoring(perfProjectId);
-
-  const severityColor = (severity: string) => {
-    switch (severity) {
-      case 'critical': return 'bg-red-500/10 text-red-600 border-red-500/20';
-      case 'high': return 'bg-orange-500/10 text-orange-600 border-orange-500/20';
-      case 'medium': return 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20';
-      case 'low': return 'bg-blue-500/10 text-blue-600 border-blue-500/20';
-      default: return '';
-    }
-  };
-
+export function AlertsPanel({ alerts, loading, updateAlertStatus }: Props) {
   const statusIcon = (status: string) => {
     switch (status) {
       case 'active': return <AlertTriangle className="h-4 w-4 text-orange-500" />;
@@ -59,7 +51,7 @@ export function AlertsPanel({ perfProjectId }: Props) {
                     <div>
                       <div className="flex items-center gap-2">
                         <p className="font-medium text-sm text-foreground">{alert.title}</p>
-                        <Badge className={severityColor(alert.severity)}>{alert.severity}</Badge>
+                        <Badge className={getSeverityColorClass(alert.severity)}>{alert.severity}</Badge>
                         {alert.ai_generated && <Badge variant="outline" className="text-xs">AI</Badge>}
                       </div>
                       <p className="text-sm text-muted-foreground mt-1">{alert.description}</p>

@@ -7,10 +7,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { usePerformanceMonitoring } from '@/hooks/usePerformanceMonitoring';
+import { type PerformanceThreshold } from '@/hooks/usePerformanceMonitoring';
+import { getSeverityColorClass } from '@/components/performance/utils/severityUtils';
 import { useProject } from '@/contexts/ProjectContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
+import { UseMutationResult } from '@tanstack/react-query';
 import { Plus, Trash2, Loader2, Settings2 } from 'lucide-react';
 
 interface FormFieldOption {
@@ -18,7 +20,6 @@ interface FormFieldOption {
   label: string;
   field_type: string;
 }
-
 
 interface DataSourceLink {
   id: string;
@@ -28,12 +29,13 @@ interface DataSourceLink {
 
 interface Props {
   perfProjectId?: string;
-  perfFormId?: string;
-  perfFormName?: string;
+  thresholds: PerformanceThreshold[];
+  loading: boolean;
+  createThreshold: UseMutationResult<any, Error, Partial<PerformanceThreshold>, unknown>;
+  deleteThreshold: UseMutationResult<void, Error, string, unknown>;
 }
 
-export function ThresholdsConfig({ perfProjectId, perfFormId, perfFormName }: Props) {
-  const { thresholds, loading, createThreshold, deleteThreshold } = usePerformanceMonitoring(perfProjectId);
+export function ThresholdsConfig({ perfProjectId, thresholds, loading, createThreshold, deleteThreshold }: Props) {
   const { currentProject } = useProject();
   const projectId = currentProject?.id;
 
@@ -113,16 +115,6 @@ export function ThresholdsConfig({ perfProjectId, perfFormId, perfFormName }: Pr
     setSelectedFormId('');
     setSelectedFormName('');
     setSelectedDataSourceId(null);
-  };
-
-  const severityColor = (severity: string) => {
-    switch (severity) {
-      case 'critical': return 'bg-red-500/10 text-red-600';
-      case 'high': return 'bg-orange-500/10 text-orange-600';
-      case 'medium': return 'bg-yellow-500/10 text-yellow-600';
-      case 'low': return 'bg-blue-500/10 text-blue-600';
-      default: return '';
-    }
   };
 
   return (
@@ -298,7 +290,7 @@ export function ThresholdsConfig({ perfProjectId, perfFormId, perfFormName }: Pr
                     {threshold.form_field_label || threshold.metric_name} {threshold.operator} {Number(threshold.threshold_value).toLocaleString()}
                   </p>
                   <div className="flex items-center gap-2 mt-1 flex-wrap">
-                    <Badge className={severityColor(threshold.severity)}>{threshold.severity}</Badge>
+                    <Badge className={getSeverityColorClass(threshold.severity)}>{threshold.severity}</Badge>
                     {threshold.send_email && <Badge variant="outline" className="text-xs">📧 Email</Badge>}
                     <Badge variant={threshold.is_active ? 'default' : 'secondary'} className="text-xs">
                       {threshold.is_active ? 'Active' : 'Inactive'}

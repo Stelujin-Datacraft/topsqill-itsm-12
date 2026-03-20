@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { useProject } from '@/contexts/ProjectContext';
+import { usePerformanceMonitoring } from '@/hooks/usePerformanceMonitoring';
 import NoProjectSelected from '@/components/NoProjectSelected';
 import { PerformanceProjectList } from '@/components/performance/PerformanceProjectList';
 import { PortfolioDashboard } from '@/components/performance/portfolio/PortfolioDashboard';
@@ -27,6 +28,9 @@ export default function ProjectPerformance() {
   const { currentProject } = useProject();
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedPerfProject, setSelectedPerfProject] = useState<SelectedPerfProject | null>(null);
+
+  // Lift hook to parent — single source of truth for all child tabs
+  const perfData = usePerformanceMonitoring(selectedPerfProject?.id);
 
   if (!currentProject) {
     return <NoProjectSelected />;
@@ -90,16 +94,31 @@ export default function ProjectPerformance() {
         </TabsList>
 
         <TabsContent value="overview">
-          <PerformanceOverview perfProjectId={selectedPerfProject.id} />
+          <PerformanceOverview
+            alerts={perfData.alerts}
+            predictions={perfData.predictions}
+            loading={perfData.loading}
+            runAnalysis={perfData.runAnalysis}
+          />
         </TabsContent>
         <TabsContent value="data-sources">
           <DataSourceConfig perfProjectId={selectedPerfProject.id} perfFormId={selectedPerfProject.form_id || undefined} />
         </TabsContent>
         <TabsContent value="alerts">
-          <AlertsPanel perfProjectId={selectedPerfProject.id} />
+          <AlertsPanel
+            alerts={perfData.alerts}
+            loading={perfData.loading}
+            updateAlertStatus={perfData.updateAlertStatus}
+          />
         </TabsContent>
         <TabsContent value="thresholds">
-          <ThresholdsConfig perfProjectId={selectedPerfProject.id} perfFormId={selectedPerfProject.form_id || undefined} perfFormName={selectedPerfProject.form_name || undefined} />
+          <ThresholdsConfig
+            perfProjectId={selectedPerfProject.id}
+            thresholds={perfData.thresholds}
+            loading={perfData.loading}
+            createThreshold={perfData.createThreshold}
+            deleteThreshold={perfData.deleteThreshold}
+          />
         </TabsContent>
         <TabsContent value="analytics">
           <AnalyticsPanel perfProjectId={selectedPerfProject.id} />
