@@ -19,10 +19,6 @@ interface FormFieldOption {
   field_type: string;
 }
 
-interface FormOption {
-  id: string;
-  name: string;
-}
 
 interface DataSourceLink {
   id: string;
