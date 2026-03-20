@@ -85,21 +85,10 @@ export function PortfolioDashboard() {
   const healthyCount = portfolioData.filter(p => p.criticalAlerts === 0).length;
   const atRiskCount = portfolioData.filter(p => p.criticalAlerts > 0).length;
 
-  // Risk matrix data
-  const riskMatrix = [
-    { impact: 'Critical', high: 0, medium: 0, low: 0 },
-    { impact: 'High', high: 0, medium: 0, low: 0 },
-    { impact: 'Medium', high: 0, medium: 0, low: 0 },
-    { impact: 'Low', high: 0, medium: 0, low: 0 },
-  ];
-
-  allAlerts.forEach(a => {
-    const sev = a.severity;
-    if (sev === 'critical') riskMatrix[0].high++;
-    else if (sev === 'high') riskMatrix[1].medium++;
-    else if (sev === 'medium') riskMatrix[2].medium++;
-    else riskMatrix[3].low++;
-  });
+  // Simplified health distribution counts
+  const criticalProjectCount = portfolioData.filter(p => p.criticalAlerts > 2).length;
+  const warningProjectCount = portfolioData.filter(p => p.criticalAlerts > 0 && p.criticalAlerts <= 2).length;
+  const moderateProjectCount = portfolioData.filter(p => p.criticalAlerts === 0 && p.alertCount > 0).length;
 
   if (loadingProjects) {
     return <div className="flex items-center justify-center h-32"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
