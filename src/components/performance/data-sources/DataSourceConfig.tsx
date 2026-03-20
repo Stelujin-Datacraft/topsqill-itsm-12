@@ -506,7 +506,6 @@ export function DataSourceConfig({ perfProjectId, perfFormId }: DataSourceConfig
                       </Badge>
                       {(ds.linked_forms || []).length > 0 && (
                         <Badge variant="secondary" className="text-xs">
-                          <Link2 className="h-3 w-3 mr-1" />
                           {(ds.linked_forms || []).length} linked form(s)
                         </Badge>
                       )}
