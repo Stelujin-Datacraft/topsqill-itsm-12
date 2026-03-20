@@ -5,6 +5,7 @@ import { useProject } from '@/contexts/ProjectContext';
 import { usePerformanceMonitoring } from '@/hooks/usePerformanceMonitoring';
 import NoProjectSelected from '@/components/NoProjectSelected';
 import { PerformanceProjectList } from '@/components/performance/PerformanceProjectList';
+import { PerformanceActivityLog } from '@/components/performance/activity/PerformanceActivityLog';
 import { PortfolioDashboard } from '@/components/performance/portfolio/PortfolioDashboard';
 import { PerformanceOverview } from '@/components/performance/overview/PerformanceOverview';
 import { AlertsPanel } from '@/components/performance/alerts/AlertsPanel';
@@ -15,7 +16,7 @@ import { ScenarioSimulator } from '@/components/performance/scenarios/ScenarioSi
 import { DataQualityPanel } from '@/components/performance/data-quality/DataQualityPanel';
 import { TechnicalQuestionnaire } from '@/components/performance/questionnaire/TechnicalQuestionnaire';
 import { ProjectLocationMap } from '@/components/performance/gis/ProjectLocationMap';
-import { AlertTriangle, ArrowLeft, BarChart3, ClipboardCheck, Database, FlaskConical, LineChart, MapPin, Settings2, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, BarChart3, ClipboardCheck, Clock, Database, FlaskConical, LineChart, MapPin, Settings2, ShieldCheck } from 'lucide-react';
 
 interface SelectedPerfProject {
   id: string;
@@ -29,14 +30,12 @@ export default function ProjectPerformance() {
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedPerfProject, setSelectedPerfProject] = useState<SelectedPerfProject | null>(null);
 
-  // Lift hook to parent — single source of truth for all child tabs
   const perfData = usePerformanceMonitoring(selectedPerfProject?.id);
 
   if (!currentProject) {
     return <NoProjectSelected />;
   }
 
-  // If no performance project selected, show portfolio + list
   if (!selectedPerfProject) {
     return (
       <div className="flex-1 overflow-auto p-6">
@@ -91,12 +90,16 @@ export default function ProjectPerformance() {
           <TabsTrigger value="questionnaire" className="gap-1.5 text-xs">
             <ClipboardCheck className="h-3.5 w-3.5" />Assessment
           </TabsTrigger>
+          <TabsTrigger value="activity-log" className="gap-1.5 text-xs">
+            <Clock className="h-3.5 w-3.5" />Activity
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview">
           <PerformanceOverview
             alerts={perfData.alerts}
             predictions={perfData.predictions}
+            thresholds={perfData.thresholds}
             loading={perfData.loading}
             runAnalysis={perfData.runAnalysis}
             onNavigateToThresholds={() => setActiveTab('thresholds')}
@@ -135,6 +138,13 @@ export default function ProjectPerformance() {
         </TabsContent>
         <TabsContent value="questionnaire">
           <TechnicalQuestionnaire perfProjectId={selectedPerfProject.id} />
+        </TabsContent>
+        <TabsContent value="activity-log">
+          <PerformanceActivityLog
+            alerts={perfData.alerts}
+            thresholds={perfData.thresholds}
+            loading={perfData.loading}
+          />
         </TabsContent>
       </Tabs>
     </div>
