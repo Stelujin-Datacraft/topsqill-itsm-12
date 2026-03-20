@@ -59,10 +59,11 @@ function useHealthMetrics(alerts: PerformanceAlert[], predictions: PerformancePr
   }, [alerts, predictions, thresholds]);
 }
 
-export function PerformanceOverview({ alerts, predictions, thresholds, loading, runAnalysis, onNavigateToThresholds }: Props) {
+export function PerformanceOverview({ alerts, predictions, thresholds, loading, runAnalysis, onNavigateToThresholds, perfProjectId }: Props) {
   const [aiResult, setAiResult] = useState<AIAnalysis | null>(null);
   const [dismissedPredictions, setDismissedPredictions] = useState<Set<number>>(new Set());
   const { toast } = useToast();
+  const { logAction } = usePerformanceAuditLog(perfProjectId);
   const health = useHealthMetrics(alerts, predictions, thresholds);
 
   useEffect(() => {
