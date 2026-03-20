@@ -104,6 +104,10 @@ const Forms = () => {
     }>;
   }) => {
     if (!currentProject?.id || !userProfile?.id || !userProfile?.organization_id) return;
+    if (!Array.isArray(generatedForm.fields) || generatedForm.fields.length === 0) {
+      console.error('AI form generator returned no fields');
+      return;
+    }
     
     try {
       // Create the form first
