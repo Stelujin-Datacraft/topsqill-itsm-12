@@ -7,6 +7,7 @@ import { getSeverityBadgeVariant, getHealthColorClass } from '@/components/perfo
 import { Brain, Loader2, Lightbulb, TrendingUp, EyeOff, Settings2, ShieldAlert, CalendarClock, DollarSign, Activity } from 'lucide-react';
 import { UseMutationResult } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
+import { usePerformanceAuditLog } from '@/hooks/usePerformanceAuditLog';
 import { formatDistanceToNow } from 'date-fns';
 
 interface Props {
