@@ -109,7 +109,12 @@ export function AIFormGenerator({
 
   const handleApply = () => {
     if (generatedForm) {
-      onApply(generatedForm);
+      // Ensure fields is always an array before passing to parent
+      const safeForm = {
+        ...generatedForm,
+        fields: Array.isArray(generatedForm.fields) ? generatedForm.fields : [],
+      };
+      onApply(safeForm);
       setIsOpen(false);
       resetForm();
       toast.success('Form schema applied');
