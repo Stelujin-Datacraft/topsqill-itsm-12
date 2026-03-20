@@ -1,25 +1,67 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { type PerformanceAlert, type PerformancePrediction, type AIAnalysis } from '@/hooks/usePerformanceMonitoring';
+import { type PerformanceAlert, type PerformancePrediction, type PerformanceThreshold, type AIAnalysis } from '@/hooks/usePerformanceMonitoring';
 import { getSeverityBadgeVariant, getHealthColorClass } from '@/components/performance/utils/severityUtils';
-import { Brain, Loader2, Lightbulb, TrendingUp, EyeOff, Settings2 } from 'lucide-react';
+import { Brain, Loader2, Lightbulb, TrendingUp, EyeOff, Settings2, ShieldAlert, CalendarClock, DollarSign, Activity } from 'lucide-react';
 import { UseMutationResult } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
+import { formatDistanceToNow } from 'date-fns';
 
 interface Props {
   alerts: PerformanceAlert[];
   predictions: PerformancePrediction[];
+  thresholds: PerformanceThreshold[];
   loading: boolean;
   runAnalysis: UseMutationResult<AIAnalysis, Error, void, unknown>;
   onNavigateToThresholds?: () => void;
 }
 
-export function PerformanceOverview({ alerts, predictions, loading, runAnalysis, onNavigateToThresholds }: Props) {
+/** Compute dynamic health scores from real module data */
+function useHealthMetrics(alerts: PerformanceAlert[], predictions: PerformancePrediction[], thresholds: PerformanceThreshold[]) {
+  return useMemo(() => {
+    const activeAlerts = alerts.filter(a => a.status === 'active');
+    const criticalCount = activeAlerts.filter(a => a.severity === 'critical' || a.severity === 'high').length;
+    const totalActive = activeAlerts.length;
+
+    // Alert Health: inverse of active alert severity weight
+    const alertWeight = criticalCount * 25 + (totalActive - criticalCount) * 10;
+    const alertHealth = Math.max(0, 100 - Math.min(alertWeight, 100));
+    const alertLabel = alertHealth >= 80 ? 'Healthy' : alertHealth >= 50 ? 'At Risk' : 'Critical';
+    const alertColor = alertHealth >= 80 ? 'text-emerald-600' : alertHealth >= 50 ? 'text-yellow-600' : 'text-red-600';
+
+    // Threshold Coverage: how well monitored the project is
+    const activeThresholds = thresholds.filter(t => t.is_active).length;
+    const coverageScore = Math.min(activeThresholds * 20, 100);
+    const coverageLabel = coverageScore >= 60 ? 'Good' : coverageScore >= 20 ? 'Partial' : 'None';
+    const coverageColor = coverageScore >= 60 ? 'text-emerald-600' : coverageScore >= 20 ? 'text-yellow-600' : 'text-muted-foreground';
+
+    // Data Freshness: time since last alert or prediction
+    const timestamps = [
+      ...alerts.map(a => new Date(a.created_at).getTime()),
+      ...predictions.map(p => new Date(p.created_at).getTime()),
+    ];
+    const latestTimestamp = timestamps.length > 0 ? Math.max(...timestamps) : null;
+    const freshnessLabel = latestTimestamp
+      ? formatDistanceToNow(new Date(latestTimestamp), { addSuffix: true })
+      : 'No data';
+
+    return {
+      alertHealth, alertLabel, alertColor,
+      coverageScore, coverageLabel, coverageColor,
+      activeThresholds,
+      totalActive, criticalCount,
+      freshnessLabel, latestTimestamp,
+    };
+  }, [alerts, predictions, thresholds]);
+}
+
+export function PerformanceOverview({ alerts, predictions, thresholds, loading, runAnalysis, onNavigateToThresholds }: Props) {
   const [aiResult, setAiResult] = useState<AIAnalysis | null>(null);
   const [dismissedPredictions, setDismissedPredictions] = useState<Set<number>>(new Set());
   const { toast } = useToast();
+  const health = useHealthMetrics(alerts, predictions, thresholds);
 
   useEffect(() => {
     if (!aiResult && (alerts.length > 0 || predictions.length > 0)) {
@@ -96,41 +138,74 @@ export function PerformanceOverview({ alerts, predictions, loading, runAnalysis,
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {/* Dynamic Health Dashboard */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Health Status</p>
+                <p className="text-sm text-muted-foreground">Overall Risk Score</p>
                 <p className="text-2xl font-bold text-foreground">
-                  {aiResult ? aiResult.health_status?.toUpperCase() : '—'}
+                  {aiResult ? `${aiResult.risk_score}/100` : '—'}
                 </p>
+                {aiResult && (
+                  <Badge className={`mt-1 ${getHealthColorClass(aiResult.health_status)}`}>
+                    {aiResult.health_status?.toUpperCase()}
+                  </Badge>
+                )}
               </div>
               <Brain className="h-8 w-8 text-primary" />
             </div>
           </CardContent>
         </Card>
+
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Risk Score</p>
-                <p className="text-2xl font-bold text-foreground">
-                  {aiResult ? `${aiResult.risk_score}/100` : '—'}
+                <p className="text-sm text-muted-foreground">Alert Health</p>
+                <p className={`text-2xl font-bold ${health.alertColor}`}>
+                  {health.alertLabel}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {health.totalActive} active ({health.criticalCount} critical)
                 </p>
               </div>
-              <TrendingUp className="h-8 w-8 text-primary" />
+              <ShieldAlert className="h-8 w-8 text-muted-foreground" />
             </div>
           </CardContent>
         </Card>
+
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">AI Predictions</p>
-                <p className="text-2xl font-bold text-foreground">{visiblePredictions.length}</p>
+                <p className="text-sm text-muted-foreground">Threshold Coverage</p>
+                <p className={`text-2xl font-bold ${health.coverageColor}`}>
+                  {health.coverageLabel}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {health.activeThresholds} active rule{health.activeThresholds !== 1 ? 's' : ''}
+                </p>
               </div>
-              <TrendingUp className="h-8 w-8 text-primary" />
+              <Settings2 className="h-8 w-8 text-muted-foreground" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Last Activity</p>
+                <p className="text-lg font-semibold text-foreground truncate">
+                  {health.freshnessLabel}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {visiblePredictions.length} prediction{visiblePredictions.length !== 1 ? 's' : ''}
+                </p>
+              </div>
+              <Activity className="h-8 w-8 text-muted-foreground" />
             </div>
           </CardContent>
         </Card>
