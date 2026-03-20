@@ -144,6 +144,7 @@ export default function ProjectPerformance() {
             alerts={perfData.alerts}
             thresholds={perfData.thresholds}
             loading={perfData.loading}
+            perfProjectId={selectedPerfProject.id}
           />
         </TabsContent>
       </Tabs>
