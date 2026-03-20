@@ -300,19 +300,25 @@ export function DataSourceConfig({ perfProjectId, perfFormId }: DataSourceConfig
     !['cross-reference', 'child-cross-reference', 'section', 'divider', 'heading', 'spacer'].includes(f.type)
   );
 
+  const hasDataSource = dataSources.length > 0;
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold text-foreground">Data Sources</h2>
           <p className="text-sm text-muted-foreground">
-            Connect forms to analyze their submission data with AI-powered insights
+            {hasDataSource
+              ? 'One form is connected as a data source for this performance project.'
+              : 'Connect a form to analyze its submission data with AI-powered insights'}
           </p>
         </div>
         <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}>
-          <DialogTrigger asChild>
-            <Button><Plus className="mr-2 h-4 w-4" />Add Data Source</Button>
-          </DialogTrigger>
+          {!hasDataSource && (
+            <DialogTrigger asChild>
+              <Button><Plus className="mr-2 h-4 w-4" />Add Data Source</Button>
+            </DialogTrigger>
+          )}
           <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Configure Form Data Source</DialogTitle>
@@ -460,58 +466,6 @@ export function DataSourceConfig({ perfProjectId, perfFormId }: DataSourceConfig
                       </div>
                     )}
                   </div>
-
-                  {/* Step 4: Cross-Reference Linked Forms */}
-                  {crossRefFields.length > 0 && (
-                    <div className="space-y-3">
-                      <Label className="text-sm font-medium">4. Include Linked Forms (Cross-References)</Label>
-                      <p className="text-xs text-muted-foreground">
-                        Pull data from forms linked via cross-reference fields for deeper analysis.
-                      </p>
-                      <div className="flex flex-wrap gap-2">
-                        {crossRefFields
-                          .filter(f => !linkedForms.find(lf => lf.crossRefFieldId === f.id))
-                          .map(f => (
-                            <Button
-                              key={f.id}
-                              variant="outline"
-                              size="sm"
-                              onClick={() => addLinkedForm(f)}
-                              className="text-xs"
-                            >
-                              <Link2 className="h-3 w-3 mr-1" />
-                              {f.label}
-                            </Button>
-                          ))}
-                      </div>
-
-                      {linkedForms.map(lf => (
-                        <Card key={lf.crossRefFieldId} className="border-primary/20">
-                          <CardContent className="py-3 px-4">
-                            <div className="flex items-center justify-between mb-2">
-                              <div className="flex items-center gap-2">
-                                <Link2 className="h-4 w-4 text-primary" />
-                                <span className="text-sm font-medium text-foreground">{lf.crossRefFieldLabel}</span>
-                                <ArrowRight className="h-3 w-3 text-muted-foreground" />
-                                <Badge variant="secondary">{lf.formName}</Badge>
-                              </div>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7 text-destructive"
-                                onClick={() => removeLinkedForm(lf.crossRefFieldId)}
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </Button>
-                            </div>
-                            <p className="text-xs text-muted-foreground">
-                              Data from "{lf.formName}" will be included via the "{lf.crossRefFieldLabel}" relationship.
-                            </p>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  )}
 
                   {/* Submit */}
                   <Button
