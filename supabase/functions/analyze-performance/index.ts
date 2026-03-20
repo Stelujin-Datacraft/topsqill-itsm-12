@@ -393,8 +393,15 @@ Be SPECIFIC — reference actual field values, dollar amounts, dates, and percen
       analysis.predictions = Array.isArray(analysis.predictions) ? analysis.predictions : [];
       analysis.recommendations = Array.isArray(analysis.recommendations) ? analysis.recommendations : [];
 
+      const VALID_PREDICTION_TYPES = ["budget_forecast", "completion_date", "resource_need", "risk_trend", "milestone_delay"];
+      const PREDICTION_TYPE_MAP: Record<string, string> = {
+        cost_overrun: "budget_forecast",
+        schedule_slip: "milestone_delay",
+        general: "risk_trend",
+      };
       analysis.predictions = analysis.predictions.map((p: any) => ({
         ...p,
+        type: VALID_PREDICTION_TYPES.includes(p.type) ? p.type : (PREDICTION_TYPE_MAP[p.type] || "risk_trend"),
         confidence: p.confidence > 1 ? p.confidence / 100 : p.confidence,
       }));
 
