@@ -134,36 +134,33 @@ export function PortfolioDashboard() {
         </Card>
       </div>
 
-      {/* Risk Matrix */}
+      {/* Health Distribution + Per-Project Health */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Risk Matrix</CardTitle>
-            <CardDescription className="text-xs">Impact vs Likelihood distribution</CardDescription>
+            <CardTitle className="text-sm">Health Distribution</CardTitle>
+            <CardDescription className="text-xs">Projects grouped by health status</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="border rounded-lg overflow-hidden">
-              <div className="grid grid-cols-4 text-xs font-medium">
-                <div className="p-2 bg-muted text-muted-foreground">Impact ↓</div>
-                <div className="p-2 bg-muted text-center text-red-600">High</div>
-                <div className="p-2 bg-muted text-center text-orange-500">Medium</div>
-                <div className="p-2 bg-muted text-center text-green-600">Low</div>
-              </div>
-              {riskMatrix.map((row, i) => (
-                <div key={i} className="grid grid-cols-4 text-xs border-t">
-                  <div className="p-2 font-medium text-muted-foreground bg-muted/50">{row.impact}</div>
-                  <div className={`p-2 text-center font-bold ${row.high > 0 ? 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400' : ''}`}>
-                    {row.high || '-'}
-                  </div>
-                  <div className={`p-2 text-center font-bold ${row.medium > 0 ? 'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-400' : ''}`}>
-                    {row.medium || '-'}
-                  </div>
-                  <div className={`p-2 text-center font-bold ${row.low > 0 ? 'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-400' : ''}`}>
-                    {row.low || '-'}
-                  </div>
+          <CardContent className="space-y-3">
+            {[
+              { label: 'Healthy', count: healthyCount, color: 'bg-emerald-500', total: portfolioData.length },
+              { label: 'Moderate', count: moderateProjectCount, color: 'bg-yellow-500', total: portfolioData.length },
+              { label: 'Warning', count: warningProjectCount, color: 'bg-orange-500', total: portfolioData.length },
+              { label: 'Critical', count: criticalProjectCount, color: 'bg-red-500', total: portfolioData.length },
+            ].map(item => (
+              <div key={item.label} className="space-y-1">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">{item.label}</span>
+                  <span className="font-medium text-foreground">{item.count}</span>
                 </div>
-              ))}
-            </div>
+                <div className="h-2 rounded-full bg-muted overflow-hidden">
+                  <div
+                    className={`h-full rounded-full ${item.color} transition-all`}
+                    style={{ width: item.total > 0 ? `${(item.count / item.total) * 100}%` : '0%' }}
+                  />
+                </div>
+              </div>
+            ))}
           </CardContent>
         </Card>
 
