@@ -3421,6 +3421,73 @@ export type Database = {
           },
         ]
       }
+      performance_audit_logs: {
+        Row: {
+          action_category: string
+          action_type: string
+          created_at: string
+          description: string | null
+          id: string
+          ip_address: string | null
+          metadata: Json | null
+          organization_id: string | null
+          performance_project_id: string | null
+          project_id: string
+          title: string
+          user_id: string | null
+        }
+        Insert: {
+          action_category?: string
+          action_type: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          ip_address?: string | null
+          metadata?: Json | null
+          organization_id?: string | null
+          performance_project_id?: string | null
+          project_id: string
+          title: string
+          user_id?: string | null
+        }
+        Update: {
+          action_category?: string
+          action_type?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          ip_address?: string | null
+          metadata?: Json | null
+          organization_id?: string | null
+          performance_project_id?: string | null
+          project_id?: string
+          title?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "performance_audit_logs_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "performance_audit_logs_performance_project_id_fkey"
+            columns: ["performance_project_id"]
+            isOneToOne: false
+            referencedRelation: "performance_projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "performance_audit_logs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       performance_data_sources: {
         Row: {
           created_at: string

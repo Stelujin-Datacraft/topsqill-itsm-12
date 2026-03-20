@@ -103,6 +103,7 @@ export default function ProjectPerformance() {
             loading={perfData.loading}
             runAnalysis={perfData.runAnalysis}
             onNavigateToThresholds={() => setActiveTab('thresholds')}
+            perfProjectId={selectedPerfProject.id}
           />
         </TabsContent>
         <TabsContent value="data-sources">
@@ -144,6 +145,7 @@ export default function ProjectPerformance() {
             alerts={perfData.alerts}
             thresholds={perfData.thresholds}
             loading={perfData.loading}
+            perfProjectId={selectedPerfProject.id}
           />
         </TabsContent>
       </Tabs>

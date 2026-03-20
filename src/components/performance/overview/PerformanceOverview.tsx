@@ -7,6 +7,7 @@ import { getSeverityBadgeVariant, getHealthColorClass } from '@/components/perfo
 import { Brain, Loader2, Lightbulb, TrendingUp, EyeOff, Settings2, ShieldAlert, CalendarClock, DollarSign, Activity } from 'lucide-react';
 import { UseMutationResult } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
+import { usePerformanceAuditLog } from '@/hooks/usePerformanceAuditLog';
 import { formatDistanceToNow } from 'date-fns';
 
 interface Props {
@@ -16,6 +17,7 @@ interface Props {
   loading: boolean;
   runAnalysis: UseMutationResult<AIAnalysis, Error, void, unknown>;
   onNavigateToThresholds?: () => void;
+  perfProjectId?: string;
 }
 
 /** Compute dynamic health scores from real module data */
@@ -57,10 +59,11 @@ function useHealthMetrics(alerts: PerformanceAlert[], predictions: PerformancePr
   }, [alerts, predictions, thresholds]);
 }
 
-export function PerformanceOverview({ alerts, predictions, thresholds, loading, runAnalysis, onNavigateToThresholds }: Props) {
+export function PerformanceOverview({ alerts, predictions, thresholds, loading, runAnalysis, onNavigateToThresholds, perfProjectId }: Props) {
   const [aiResult, setAiResult] = useState<AIAnalysis | null>(null);
   const [dismissedPredictions, setDismissedPredictions] = useState<Set<number>>(new Set());
   const { toast } = useToast();
+  const { logAction } = usePerformanceAuditLog(perfProjectId);
   const health = useHealthMetrics(alerts, predictions, thresholds);
 
   useEffect(() => {
@@ -95,6 +98,13 @@ export function PerformanceOverview({ alerts, predictions, thresholds, loading, 
     const result = await runAnalysis.mutateAsync();
     setAiResult(result);
     setDismissedPredictions(new Set());
+    logAction.mutate({
+      action_type: 'analysis_run',
+      action_category: 'analysis',
+      title: 'AI Analysis executed',
+      description: `Risk score: ${result.risk_score}/100, Health: ${result.health_status}, Anomalies: ${result.anomalies?.length || 0}`,
+      metadata: { risk_score: result.risk_score, health_status: result.health_status },
+    });
   };
 
   const handleDismissPrediction = (index: number) => {
