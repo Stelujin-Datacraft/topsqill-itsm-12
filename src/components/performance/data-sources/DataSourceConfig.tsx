@@ -12,7 +12,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Trash2, Loader2, Database, Link2, ArrowRight, Settings2, FileText } from 'lucide-react';
+import { Plus, Trash2, Loader2, Database, Settings2, FileText } from 'lucide-react';
 
 interface FormOption {
   id: string;
