@@ -82,8 +82,8 @@ export function PerformanceOverview({ alerts, predictions, thresholds, loading, 
     queryKey: ['perf-analysis-result', projectId, perfProjectId],
     queryFn: async () => {
       if (!projectId || !perfProjectId) return null;
-      const { data, error } = await supabase
-        .from('performance_analysis_results' as any)
+      const { data, error } = await (supabase as any)
+        .from('performance_analysis_results')
         .select('analysis_data, submission_id, created_at')
         .eq('project_id', projectId)
         .eq('performance_project_id', perfProjectId)
