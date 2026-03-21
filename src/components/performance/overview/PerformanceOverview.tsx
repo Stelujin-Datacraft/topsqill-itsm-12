@@ -77,6 +77,34 @@ export function PerformanceOverview({ alerts, predictions, thresholds, loading, 
   const { currentProject } = useProject();
   const projectId = currentProject?.id;
 
+  // Load persisted analysis result from database
+  const { data: savedAnalysis } = useQuery({
+    queryKey: ['perf-analysis-result', projectId, perfProjectId],
+    queryFn: async () => {
+      if (!projectId || !perfProjectId) return null;
+      const { data, error } = await supabase
+        .from('performance_analysis_results' as any)
+        .select('analysis_data, submission_id, created_at')
+        .eq('project_id', projectId)
+        .eq('performance_project_id', perfProjectId)
+        .order('created_at', { ascending: false })
+        .limit(1);
+      if (error || !data || data.length === 0) return null;
+      return data[0] as { analysis_data: any; submission_id: string | null; created_at: string };
+    },
+    enabled: !!projectId && !!perfProjectId,
+  });
+
+  // Restore saved analysis on mount (only if no fresh aiResult is set)
+  useEffect(() => {
+    if (savedAnalysis && !aiResult) {
+      setAiResult(savedAnalysis.analysis_data as AIAnalysis);
+      if (savedAnalysis.submission_id) {
+        setSelectedSubmissionId(savedAnalysis.submission_id);
+      }
+    }
+  }, [savedAnalysis]);
+
   // Fetch submissions for the connected data source form
   const { data: submissions = [], isLoading: loadingSubmissions } = useQuery({
     queryKey: ['perf-submissions', projectId, perfProjectId],
