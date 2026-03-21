@@ -75,6 +75,8 @@ export function PerformanceOverview({ alerts, predictions, thresholds, loading, 
   const { logAction } = usePerformanceAuditLog(perfProjectId);
   const health = useHealthMetrics(alerts, predictions, thresholds);
   const { currentProject } = useProject();
+  const { userProfile } = useAuth();
+  const queryClient = useQueryClient();
   const projectId = currentProject?.id;
 
   // Load persisted analysis result from database
