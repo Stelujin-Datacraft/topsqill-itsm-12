@@ -6,13 +6,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { type PerformanceAlert, type PerformancePrediction, type PerformanceThreshold, type AIAnalysis } from '@/hooks/usePerformanceMonitoring';
 import { getSeverityBadgeVariant, getHealthColorClass } from '@/components/performance/utils/severityUtils';
 import { Brain, Loader2, Lightbulb, TrendingUp, EyeOff, Settings2, ShieldAlert, Activity, FileText } from 'lucide-react';
-import { UseMutationResult } from '@tanstack/react-query';
+import { UseMutationResult, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { usePerformanceAuditLog } from '@/hooks/usePerformanceAuditLog';
 import { formatDistanceToNow } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
-import { useQuery } from '@tanstack/react-query';
 import { useProject } from '@/contexts/ProjectContext';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Props {
   alerts: PerformanceAlert[];
