@@ -173,34 +173,6 @@ export function PerformanceOverview({ alerts, predictions, thresholds, loading, 
     enabled: !!projectId && !!perfProjectId,
   });
 
-  useEffect(() => {
-    if (!aiResult && (alerts.length > 0 || predictions.length > 0)) {
-      const latestAlerts = alerts.filter(a => a.ai_generated);
-      const riskScore = latestAlerts.length > 3 ? 65 : latestAlerts.length > 1 ? 40 : latestAlerts.length > 0 ? 20 : 0;
-      const healthStatus = riskScore > 70 ? 'red' : riskScore > 40 ? 'orange' : riskScore > 20 ? 'yellow' : 'green';
-
-      setAiResult({
-        risk_score: riskScore,
-        health_status: healthStatus,
-        summary: `Last analysis detected ${latestAlerts.length} anomalies and generated ${predictions.length} predictions.`,
-        anomalies: latestAlerts.map(a => ({
-          metric: a.metric_name || 'Unknown',
-          description: a.description || '',
-          severity: a.severity,
-          value: a.actual_value ?? undefined,
-          expected_value: a.threshold_value ?? undefined,
-        })),
-        predictions: predictions.map(p => ({
-          type: p.prediction_type,
-          description: p.reasoning || '',
-          predicted_value: p.predicted_value ?? undefined,
-          confidence: (p.confidence_level ?? 0) > 1 ? (p.confidence_level ?? 0) / 100 : (p.confidence_level ?? 0),
-        })),
-        recommendations: [],
-      });
-    }
-  }, [alerts, predictions]);
-
   const handleRunAnalysis = async () => {
     if (!selectedSubmissionId) {
       toast({ title: 'Select a Record', description: 'Please select a submission record to analyze.', variant: 'destructive' });
@@ -208,7 +180,6 @@ export function PerformanceOverview({ alerts, predictions, thresholds, loading, 
     }
 
     try {
-      // We override the mutation to pass submission_id via the edge function
       const { data, error } = await supabase.functions.invoke('analyze-performance', {
         body: {
           project_id: projectId,
@@ -224,6 +195,30 @@ export function PerformanceOverview({ alerts, predictions, thresholds, loading, 
       const result = data as AIAnalysis;
       setAiResult(result);
       setDismissedPredictions(new Set());
+
+      // Persist the analysis result to the database
+      if (projectId && perfProjectId) {
+        // Delete previous results for this perf project, then insert new one
+        await (supabase as any)
+          .from('performance_analysis_results')
+          .delete()
+          .eq('project_id', projectId)
+          .eq('performance_project_id', perfProjectId);
+
+        await (supabase as any)
+          .from('performance_analysis_results')
+          .insert({
+            project_id: projectId,
+            performance_project_id: perfProjectId,
+            submission_id: selectedSubmissionId,
+            analysis_data: result,
+            created_by: userProfile?.id,
+          });
+
+        // Invalidate the saved analysis query so it stays in sync
+        queryClient.invalidateQueries({ queryKey: ['perf-analysis-result', projectId, perfProjectId] });
+      }
+
       logAction.mutate({
         action_type: 'analysis_run',
         action_category: 'analysis',
