@@ -3421,6 +3421,51 @@ export type Database = {
           },
         ]
       }
+      performance_analysis_results: {
+        Row: {
+          analysis_data: Json
+          created_at: string
+          created_by: string | null
+          id: string
+          performance_project_id: string | null
+          project_id: string
+          submission_id: string | null
+        }
+        Insert: {
+          analysis_data: Json
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          performance_project_id?: string | null
+          project_id: string
+          submission_id?: string | null
+        }
+        Update: {
+          analysis_data?: Json
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          performance_project_id?: string | null
+          project_id?: string
+          submission_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "performance_analysis_results_performance_project_id_fkey"
+            columns: ["performance_project_id"]
+            isOneToOne: false
+            referencedRelation: "performance_projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "performance_analysis_results_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       performance_audit_logs: {
         Row: {
           action_category: string

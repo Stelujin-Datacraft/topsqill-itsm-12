@@ -6,13 +6,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { type PerformanceAlert, type PerformancePrediction, type PerformanceThreshold, type AIAnalysis } from '@/hooks/usePerformanceMonitoring';
 import { getSeverityBadgeVariant, getHealthColorClass } from '@/components/performance/utils/severityUtils';
 import { Brain, Loader2, Lightbulb, TrendingUp, EyeOff, Settings2, ShieldAlert, Activity, FileText } from 'lucide-react';
-import { UseMutationResult } from '@tanstack/react-query';
+import { UseMutationResult, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { usePerformanceAuditLog } from '@/hooks/usePerformanceAuditLog';
 import { formatDistanceToNow } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
-import { useQuery } from '@tanstack/react-query';
 import { useProject } from '@/contexts/ProjectContext';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Props {
   alerts: PerformanceAlert[];
@@ -75,7 +75,37 @@ export function PerformanceOverview({ alerts, predictions, thresholds, loading, 
   const { logAction } = usePerformanceAuditLog(perfProjectId);
   const health = useHealthMetrics(alerts, predictions, thresholds);
   const { currentProject } = useProject();
+  const { userProfile } = useAuth();
+  const queryClient = useQueryClient();
   const projectId = currentProject?.id;
+
+  // Load persisted analysis result from database
+  const { data: savedAnalysis } = useQuery({
+    queryKey: ['perf-analysis-result', projectId, perfProjectId],
+    queryFn: async () => {
+      if (!projectId || !perfProjectId) return null;
+      const { data, error } = await (supabase as any)
+        .from('performance_analysis_results')
+        .select('analysis_data, submission_id, created_at')
+        .eq('project_id', projectId)
+        .eq('performance_project_id', perfProjectId)
+        .order('created_at', { ascending: false })
+        .limit(1);
+      if (error || !data || data.length === 0) return null;
+      return data[0] as { analysis_data: any; submission_id: string | null; created_at: string };
+    },
+    enabled: !!projectId && !!perfProjectId,
+  });
+
+  // Restore saved analysis on mount (only if no fresh aiResult is set)
+  useEffect(() => {
+    if (savedAnalysis && !aiResult) {
+      setAiResult(savedAnalysis.analysis_data as AIAnalysis);
+      if (savedAnalysis.submission_id) {
+        setSelectedSubmissionId(savedAnalysis.submission_id);
+      }
+    }
+  }, [savedAnalysis]);
 
   // Fetch submissions for the connected data source form
   const { data: submissions = [], isLoading: loadingSubmissions } = useQuery({
@@ -143,34 +173,6 @@ export function PerformanceOverview({ alerts, predictions, thresholds, loading, 
     enabled: !!projectId && !!perfProjectId,
   });
 
-  useEffect(() => {
-    if (!aiResult && (alerts.length > 0 || predictions.length > 0)) {
-      const latestAlerts = alerts.filter(a => a.ai_generated);
-      const riskScore = latestAlerts.length > 3 ? 65 : latestAlerts.length > 1 ? 40 : latestAlerts.length > 0 ? 20 : 0;
-      const healthStatus = riskScore > 70 ? 'red' : riskScore > 40 ? 'orange' : riskScore > 20 ? 'yellow' : 'green';
-
-      setAiResult({
-        risk_score: riskScore,
-        health_status: healthStatus,
-        summary: `Last analysis detected ${latestAlerts.length} anomalies and generated ${predictions.length} predictions.`,
-        anomalies: latestAlerts.map(a => ({
-          metric: a.metric_name || 'Unknown',
-          description: a.description || '',
-          severity: a.severity,
-          value: a.actual_value ?? undefined,
-          expected_value: a.threshold_value ?? undefined,
-        })),
-        predictions: predictions.map(p => ({
-          type: p.prediction_type,
-          description: p.reasoning || '',
-          predicted_value: p.predicted_value ?? undefined,
-          confidence: (p.confidence_level ?? 0) > 1 ? (p.confidence_level ?? 0) / 100 : (p.confidence_level ?? 0),
-        })),
-        recommendations: [],
-      });
-    }
-  }, [alerts, predictions]);
-
   const handleRunAnalysis = async () => {
     if (!selectedSubmissionId) {
       toast({ title: 'Select a Record', description: 'Please select a submission record to analyze.', variant: 'destructive' });
@@ -178,7 +180,6 @@ export function PerformanceOverview({ alerts, predictions, thresholds, loading, 
     }
 
     try {
-      // We override the mutation to pass submission_id via the edge function
       const { data, error } = await supabase.functions.invoke('analyze-performance', {
         body: {
           project_id: projectId,
@@ -194,6 +195,30 @@ export function PerformanceOverview({ alerts, predictions, thresholds, loading, 
       const result = data as AIAnalysis;
       setAiResult(result);
       setDismissedPredictions(new Set());
+
+      // Persist the analysis result to the database
+      if (projectId && perfProjectId) {
+        // Delete previous results for this perf project, then insert new one
+        await (supabase as any)
+          .from('performance_analysis_results')
+          .delete()
+          .eq('project_id', projectId)
+          .eq('performance_project_id', perfProjectId);
+
+        await (supabase as any)
+          .from('performance_analysis_results')
+          .insert({
+            project_id: projectId,
+            performance_project_id: perfProjectId,
+            submission_id: selectedSubmissionId,
+            analysis_data: result,
+            created_by: userProfile?.id,
+          });
+
+        // Invalidate the saved analysis query so it stays in sync
+        queryClient.invalidateQueries({ queryKey: ['perf-analysis-result', projectId, perfProjectId] });
+      }
+
       logAction.mutate({
         action_type: 'analysis_run',
         action_category: 'analysis',
