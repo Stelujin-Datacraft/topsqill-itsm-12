@@ -308,31 +308,8 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
               </Select>
             </div>
 
-            {/* Unified Record Selector */}
-            <div className="flex flex-col gap-1 flex-1 min-w-[260px]">
-              <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                <FileText className="h-3.5 w-3.5" />
-                Analyze Record (KPI + AI)
-              </label>
-              <Select value={selectedRecordId} onValueChange={handleRecordChange}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a record to analyze..." />
-                </SelectTrigger>
-                <SelectContent className="max-h-64">
-                  {recordOptions.map((opt) => (
-                    <SelectItem key={opt.id} value={opt.id}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
             {/* Info badges */}
             <div className="flex items-center gap-2 mb-0.5">
-              <Badge variant="outline" className="text-xs">
-                {selectedRecordId ? 'Single record' : `${submissions.length} records available`}
-              </Badge>
               {aiRunning && (
                 <Badge variant="secondary" className="text-xs animate-pulse gap-1">
                   <Loader2 className="h-3 w-3 animate-spin" />
