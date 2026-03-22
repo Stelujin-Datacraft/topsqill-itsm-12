@@ -327,7 +327,7 @@ export function calculateDisciplineEngineerKPIs(submissions: any[], mappings: Fi
     pendingTasks: pending,
     blockedTasks: blocked,
     taskDelayDays: totalDelay,
-    averageTaskDelay: delayCount > 0 ? totalDelay / delayCount : 0,
+    averageTaskDelay: assigned > 0 ? totalDelay / assigned : 0,
     resourceUtilization: totalPlannedHours > 0 ? (totalActualHours / totalPlannedHours) * 100 : 0,
     productivityScore: totalActualHours > 0 ? totalPlannedHours / totalActualHours : 0,
     overtimeHours: Math.max(totalActualHours - totalPlannedHours, 0),
