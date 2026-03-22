@@ -130,11 +130,14 @@ export function PortfolioDashboard() {
     };
   }), [perfProjects, allAlerts, allThresholds, allPredictions, allDataSources]);
 
-  // Portfolio-level aggregations
+  // Portfolio-level aggregations - only consider configured projects
+  const configuredProjects = useMemo(() => portfolioData.filter(p => p.hasDataSource), [portfolioData]);
+  const notConfiguredCount = useMemo(() => portfolioData.filter(p => !p.hasDataSource).length, [portfolioData]);
+
   const portfolioRiskScore = useMemo(() => {
-    if (portfolioData.length === 0) return 0;
-    return Math.round(portfolioData.reduce((s, p) => s + p.riskScore, 0) / portfolioData.length);
-  }, [portfolioData]);
+    if (configuredProjects.length === 0) return 0;
+    return Math.round(configuredProjects.reduce((s, p) => s + p.riskScore, 0) / configuredProjects.length);
+  }, [configuredProjects]);
 
   const totalAlerts = allAlerts.length;
   const criticalCount = allAlerts.filter(a => a.severity === 'critical' || a.severity === 'high').length;
@@ -143,10 +146,11 @@ export function PortfolioDashboard() {
     moderate: portfolioData.filter(p => p.health === 'moderate').length,
     warning: portfolioData.filter(p => p.health === 'warning').length,
     critical: portfolioData.filter(p => p.health === 'critical').length,
+    not_configured: portfolioData.filter(p => p.health === 'not_configured').length,
   }), [portfolioData]);
 
-  // Governance: projects without monitoring coverage
-  const unmonitoredCount = portfolioData.filter(p => p.thresholdCount === 0).length;
+  // Governance: projects without monitoring coverage (only from configured ones)
+  const unmonitoredCount = configuredProjects.filter(p => p.thresholdCount === 0).length;
 
   if (loadingProjects) {
     return <div className="flex items-center justify-center h-32"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
