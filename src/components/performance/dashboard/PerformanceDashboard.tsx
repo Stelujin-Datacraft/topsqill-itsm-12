@@ -28,6 +28,8 @@ interface Props {
   thresholds: PerformanceThreshold[];
   loading: boolean;
   onNavigateToThresholds?: () => void;
+  selectedRecordId?: string;
+  onRecordChange?: (id: string) => void;
 }
 
 const ROLE_LABELS: Record<PerformanceRoleType, string> = {
