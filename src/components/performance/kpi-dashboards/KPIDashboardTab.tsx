@@ -191,9 +191,6 @@ export function KPIDashboardTab({ perfProjectId }: Props) {
                   <SelectValue placeholder="Select a record..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">
-                    <span className="font-medium">All Records (Aggregated)</span>
-                  </SelectItem>
                   {recordOptions.map((opt) => (
                     <SelectItem key={opt.id} value={opt.id}>
                       {opt.label}
@@ -206,9 +203,7 @@ export function KPIDashboardTab({ perfProjectId }: Props) {
             {/* Info badge */}
             <div className="flex items-center gap-2 mt-auto">
               <Badge variant="outline" className="text-xs">
-                {selectedRecordId === 'all'
-                  ? `${submissions.length} records`
-                  : 'Single record'}
+                {selectedRecordId ? 'Single record' : `${submissions.length} records available`}
               </Badge>
               <Badge variant="outline" className="text-xs text-muted-foreground">
                 {ROLE_DESCRIPTIONS[activeRole]}
