@@ -43,7 +43,7 @@ export function KPIDashboardTab({ perfProjectId }: Props) {
   const { userRole, loading, submissions, mappings, seniorKPIs, pmKPIs, engineerKPIs, financeKPIs, riskKPIs, alerts } = usePerformanceKPI(perfProjectId);
   const [selectedRole, setSelectedRole] = useState<PerformanceRoleType | null>(null);
   const [showRoleAssignment, setShowRoleAssignment] = useState(false);
-  const [selectedRecordId, setSelectedRecordId] = useState<string>('all');
+  const [selectedRecordId, setSelectedRecordId] = useState<string>('');
 
   const activeRole = selectedRole || userRole || 'senior_management';
   const isAdmin = userProfile?.role === 'admin';
@@ -76,20 +76,8 @@ export function KPIDashboardTab({ perfProjectId }: Props) {
 
   // Compute KPIs based on selected record
   const computedKPIs = useMemo(() => {
-    if (submissions.length === 0) return null;
+    if (submissions.length === 0 || !selectedRecordId) return null;
 
-    if (selectedRecordId === 'all') {
-      return {
-        seniorKPIs: calculateSeniorManagementKPIs(submissions, mappings),
-        pmKPIs: aggregateProjectManagerKPIs(submissions, mappings),
-        engineerKPIs: calculateDisciplineEngineerKPIs(submissions, mappings, userProfile?.id),
-        financeKPIs: calculateFinanceKPIs(submissions, mappings),
-        riskKPIs: calculateRiskGovernanceKPIs(submissions, mappings),
-        alerts: generateKPIAlerts(submissions, mappings),
-      };
-    }
-
-    // Single record selected
     const selectedSub = submissions.find((s: any) => s.id === selectedRecordId);
     if (!selectedSub) return null;
     const singleArr = [selectedSub];
@@ -203,9 +191,6 @@ export function KPIDashboardTab({ perfProjectId }: Props) {
                   <SelectValue placeholder="Select a record..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">
-                    <span className="font-medium">All Records (Aggregated)</span>
-                  </SelectItem>
                   {recordOptions.map((opt) => (
                     <SelectItem key={opt.id} value={opt.id}>
                       {opt.label}
@@ -218,9 +203,7 @@ export function KPIDashboardTab({ perfProjectId }: Props) {
             {/* Info badge */}
             <div className="flex items-center gap-2 mt-auto">
               <Badge variant="outline" className="text-xs">
-                {selectedRecordId === 'all'
-                  ? `${submissions.length} records`
-                  : 'Single record'}
+                {selectedRecordId ? 'Single record' : `${submissions.length} records available`}
               </Badge>
               <Badge variant="outline" className="text-xs text-muted-foreground">
                 {ROLE_DESCRIPTIONS[activeRole]}
@@ -229,6 +212,21 @@ export function KPIDashboardTab({ perfProjectId }: Props) {
           </div>
         </CardContent>
       </Card>
+
+      {/* Empty state when no record selected */}
+      {!selectedRecordId && (
+        <Card className="border-dashed">
+          <CardContent className="p-8 text-center space-y-3">
+            <FileText className="h-10 w-10 mx-auto text-muted-foreground" />
+            <div>
+              <p className="font-medium text-foreground">Select a Record to Analyze</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Choose a record from the dropdown above to view KPI calculations.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Dashboard Content */}
       {computedKPIs && (

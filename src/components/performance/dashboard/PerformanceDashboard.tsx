@@ -141,17 +141,7 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
 
   // Compute KPIs based on selected record
   const computedKPIs = useMemo(() => {
-    if (submissions.length === 0) return null;
-    if (!selectedRecordId || selectedRecordId === 'all') {
-      return {
-        seniorKPIs: calculateSeniorManagementKPIs(submissions, mappings),
-        pmKPIs: aggregateProjectManagerKPIs(submissions, mappings),
-        engineerKPIs: calculateDisciplineEngineerKPIs(submissions, mappings, userProfile?.id),
-        financeKPIs: calculateFinanceKPIs(submissions, mappings),
-        riskKPIs: calculateRiskGovernanceKPIs(submissions, mappings),
-        alerts: generateKPIAlerts(submissions, mappings),
-      };
-    }
+    if (submissions.length === 0 || !selectedRecordId) return null;
     const selectedSub = submissions.find((s: any) => s.id === selectedRecordId);
     if (!selectedSub) return null;
     const singleArr = [selectedSub];
@@ -167,7 +157,7 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
 
   // Run AI analysis automatically when a specific record is selected
   const runAIAnalysis = async (submissionId: string) => {
-    if (!submissionId || submissionId === 'all' || !projectId || !perfProjectId) return;
+    if (!submissionId || !projectId || !perfProjectId) return;
     setAiRunning(true);
     try {
       const { data, error } = await supabase.functions.invoke('analyze-performance', {
@@ -327,9 +317,6 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
                   <SelectValue placeholder="Select a record to analyze..." />
                 </SelectTrigger>
                 <SelectContent className="max-h-64">
-                  <SelectItem value="all">
-                    <span className="font-medium">All Records (Aggregated — KPI Only)</span>
-                  </SelectItem>
                   {recordOptions.map((opt) => (
                     <SelectItem key={opt.id} value={opt.id}>
                       {opt.label}
@@ -342,9 +329,7 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
             {/* Info badges */}
             <div className="flex items-center gap-2 mb-0.5">
               <Badge variant="outline" className="text-xs">
-                {!selectedRecordId || selectedRecordId === 'all'
-                  ? `${submissions.length} records`
-                  : 'Single record'}
+                {selectedRecordId ? 'Single record' : `${submissions.length} records available`}
               </Badge>
               {aiRunning && (
                 <Badge variant="secondary" className="text-xs animate-pulse gap-1">
@@ -352,7 +337,7 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
                   AI Analyzing...
                 </Badge>
               )}
-              {selectedRecordId && selectedRecordId !== 'all' && !aiRunning && (
+              {selectedRecordId && !aiRunning && (
                 <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => runAIAnalysis(selectedRecordId)}>
                   <Brain className="h-3.5 w-3.5 mr-1" />
                   Re-run AI
@@ -362,13 +347,13 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
           </div>
           <p className="text-xs text-muted-foreground mt-2">
             {ROLE_DESCRIPTIONS[activeRole]}
-            {selectedRecordId && selectedRecordId !== 'all' && ' • AI analysis runs automatically when a record is selected.'}
+            {selectedRecordId && ' • AI analysis runs automatically when a record is selected.'}
           </p>
         </CardContent>
       </Card>
 
       {/* AI Health Overview (only when a specific record is selected) */}
-      {selectedRecordId && selectedRecordId !== 'all' && (
+      {selectedRecordId && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <Card>
             <CardContent className="pt-6">
@@ -427,6 +412,21 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
         </div>
       )}
 
+      {/* Empty state when no record selected */}
+      {!selectedRecordId && (
+        <Card className="border-dashed">
+          <CardContent className="p-8 text-center space-y-3">
+            <FileText className="h-10 w-10 mx-auto text-muted-foreground" />
+            <div>
+              <p className="font-medium text-foreground">Select a Record to Analyze</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Choose a record from the dropdown above to view KPI calculations and AI analysis.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* KPI Dashboard Content */}
       {computedKPIs && (
         <>
@@ -449,7 +449,7 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
       )}
 
       {/* AI Analysis Results Section */}
-      {selectedRecordId && selectedRecordId !== 'all' && aiResult && (
+      {selectedRecordId && aiResult && (
         <div className="space-y-4">
           <Card className="border-primary/30">
             <CardHeader>
