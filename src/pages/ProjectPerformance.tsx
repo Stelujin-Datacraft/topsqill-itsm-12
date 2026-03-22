@@ -63,11 +63,8 @@ export default function ProjectPerformance() {
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="bg-muted/50 flex-wrap h-auto gap-1 p-1">
-          <TabsTrigger value="kpi-dashboards" className="gap-1.5 text-xs">
-            <Gauge className="h-3.5 w-3.5" />KPI Dashboards
-          </TabsTrigger>
-          <TabsTrigger value="overview" className="gap-1.5 text-xs">
-            <BarChart3 className="h-3.5 w-3.5" />Overview
+          <TabsTrigger value="dashboard" className="gap-1.5 text-xs">
+            <Gauge className="h-3.5 w-3.5" />Performance Dashboard
           </TabsTrigger>
           <TabsTrigger value="data-sources" className="gap-1.5 text-xs">
             <Database className="h-3.5 w-3.5" />Data Sources
@@ -98,18 +95,14 @@ export default function ProjectPerformance() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="kpi-dashboards">
-          <KPIDashboardTab perfProjectId={selectedPerfProject.id} />
-        </TabsContent>
-        <TabsContent value="overview">
-          <PerformanceOverview
+        <TabsContent value="dashboard">
+          <PerformanceDashboard
+            perfProjectId={selectedPerfProject.id}
             alerts={perfData.alerts}
             predictions={perfData.predictions}
             thresholds={perfData.thresholds}
             loading={perfData.loading}
-            runAnalysis={perfData.runAnalysis}
             onNavigateToThresholds={() => setActiveTab('thresholds')}
-            perfProjectId={selectedPerfProject.id}
           />
         </TabsContent>
         <TabsContent value="data-sources">
