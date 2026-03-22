@@ -193,9 +193,9 @@ export function PortfolioDashboard() {
         </Card>
         <Card>
           <CardContent className="pt-4 pb-3">
-            <p className="text-xs text-muted-foreground">Unmonitored</p>
-            <p className={`text-2xl font-bold ${unmonitoredCount > 0 ? 'text-orange-500' : 'text-emerald-600'}`}>{unmonitoredCount}</p>
-            <p className="text-[10px] text-muted-foreground">no threshold rules</p>
+            <p className="text-xs text-muted-foreground">Not Configured</p>
+            <p className={`text-2xl font-bold ${notConfiguredCount > 0 ? 'text-muted-foreground' : 'text-emerald-600'}`}>{notConfiguredCount}</p>
+            <p className="text-[10px] text-muted-foreground">no data source</p>
           </CardContent>
         </Card>
         <Card>
