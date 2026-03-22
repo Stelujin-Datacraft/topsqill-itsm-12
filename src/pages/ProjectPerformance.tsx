@@ -16,7 +16,8 @@ import { ScenarioSimulator } from '@/components/performance/scenarios/ScenarioSi
 import { DataQualityPanel } from '@/components/performance/data-quality/DataQualityPanel';
 import { TechnicalQuestionnaire } from '@/components/performance/questionnaire/TechnicalQuestionnaire';
 import { ProjectLocationMap } from '@/components/performance/gis/ProjectLocationMap';
-import { AlertTriangle, ArrowLeft, BarChart3, ClipboardCheck, Clock, Database, FlaskConical, LineChart, MapPin, Settings2, ShieldCheck } from 'lucide-react';
+import { KPIDashboardTab } from '@/components/performance/kpi-dashboards/KPIDashboardTab';
+import { AlertTriangle, ArrowLeft, BarChart3, ClipboardCheck, Clock, Database, FlaskConical, Gauge, LineChart, MapPin, Settings2, ShieldCheck } from 'lucide-react';
 
 interface SelectedPerfProject {
   id: string;
