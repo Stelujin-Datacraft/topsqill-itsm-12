@@ -4,22 +4,18 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { usePerformanceMonitoring } from '@/hooks/usePerformanceMonitoring';
 import { supabase } from '@/integrations/supabase/client';
 import { useProject } from '@/contexts/ProjectContext';
 import { useQuery } from '@tanstack/react-query';
 import {
-  LineChart, Line, BarChart, Bar, AreaChart, Area,
+  BarChart, Bar, AreaChart, Area,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
 import {
-  FlaskConical, TrendingUp, TrendingDown, AlertTriangle, ArrowRight,
-  Loader2, RefreshCw, Plus, Trash2, BarChart3,
+  FlaskConical, TrendingUp, AlertTriangle, ArrowRight,
+  Loader2, RefreshCw, BarChart3,
 } from 'lucide-react';
-
-const COLORS = ['hsl(var(--primary))', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
 
 interface ScenarioVariable {
   id: string;
@@ -44,6 +40,12 @@ interface Props {
   perfProjectId?: string;
 }
 
+// Known numeric fields for metric projections
+const METRIC_LABELS = [
+  'Planned Budget', 'Actual Cost', 'Earned Value (EV)', 'Actual Cost Value (AC)',
+  'Planned Value (PV)', 'Risk Score', 'Predicted Delay Days',
+];
+
 const DEFAULT_VARIABLES: ScenarioVariable[] = [
   { id: 'budget', name: 'Budget Allocation', baseValue: 100, adjustedValue: 100, unit: '%', min: 50, max: 200, step: 5 },
   { id: 'timeline', name: 'Timeline Extension', baseValue: 0, adjustedValue: 0, unit: 'days', min: -30, max: 90, step: 5 },
@@ -52,13 +54,12 @@ const DEFAULT_VARIABLES: ScenarioVariable[] = [
 ];
 
 export function ScenarioSimulator({ perfProjectId }: Props) {
-  const { alerts, predictions, thresholds } = usePerformanceMonitoring(perfProjectId);
+  const { alerts } = usePerformanceMonitoring(perfProjectId);
   const { currentProject } = useProject();
   const [variables, setVariables] = useState<ScenarioVariable[]>(DEFAULT_VARIABLES);
   const [isSimulating, setIsSimulating] = useState(false);
   const [result, setResult] = useState<ScenarioResult | null>(null);
 
-  // Fetch submission data for baseline metrics
   const { data: dataSources = [] } = useQuery({
     queryKey: ['scenario-data-sources', currentProject?.id, perfProjectId],
     queryFn: async () => {
@@ -73,9 +74,6 @@ export function ScenarioSimulator({ perfProjectId }: Props) {
   });
 
   const formId = dataSources[0]?.source_form_id;
-  const fieldMappings: any[] = dataSources[0]?.field_mappings
-    ? (Array.isArray(dataSources[0].field_mappings) ? dataSources[0].field_mappings : [])
-    : [];
 
   const { data: submissions = [] } = useQuery({
     queryKey: ['scenario-submissions', formId],
@@ -91,7 +89,35 @@ export function ScenarioSimulator({ perfProjectId }: Props) {
     enabled: !!formId,
   });
 
-  const numericMappings = fieldMappings.filter((m: any) => m.metricRole === 'numeric_metric');
+  // Fetch form fields to resolve IDs
+  const { data: formFields = [] } = useQuery({
+    queryKey: ['scenario-form-fields', formId],
+    queryFn: async () => {
+      if (!formId) return [];
+      const { data } = await supabase.from('form_fields')
+        .select('id, label, field_type')
+        .eq('form_id', formId);
+      return data || [];
+    },
+    enabled: !!formId,
+  });
+
+  // Build label->id lookup
+  const fieldLookup = useMemo(() => {
+    const map: Record<string, string> = {};
+    formFields.forEach((f: any) => { map[f.label] = f.id; });
+    return map;
+  }, [formFields]);
+
+  const resolveValue = (data: any, label: string): number => {
+    const id = fieldLookup[label];
+    if (!id) return 0;
+    const raw = data?.[id];
+    if (raw == null) return 0;
+    const v = typeof raw === 'object' && raw.value !== undefined ? raw.value : raw;
+    const n = Number(v);
+    return isNaN(n) ? 0 : n;
+  };
 
   const updateVariable = (id: string, value: number) => {
     setVariables(prev => prev.map(v => v.id === id ? { ...v, adjustedValue: value } : v));
@@ -105,8 +131,6 @@ export function ScenarioSimulator({ perfProjectId }: Props) {
 
   const runSimulation = async () => {
     setIsSimulating(true);
-
-    // Simulate processing delay
     await new Promise(r => setTimeout(r, 800));
 
     const budgetVar = variables.find(v => v.id === 'budget')!;
@@ -115,54 +139,57 @@ export function ScenarioSimulator({ perfProjectId }: Props) {
     const scopeVar = variables.find(v => v.id === 'scope')!;
 
     const budgetFactor = budgetVar.adjustedValue / 100;
-    const timelineFactor = 1 + (timelineVar.adjustedValue / 100);
     const resourceFactor = resourceVar.adjustedValue / 100;
     const scopeFactor = 1 + (scopeVar.adjustedValue / 100);
 
-    // Calculate base risk from existing alerts
+    // Base risk from alerts
     const activeAlerts = alerts.filter(a => a.status === 'active');
     const baseRisk = activeAlerts.length > 5 ? 75 : activeAlerts.length > 2 ? 50 : activeAlerts.length > 0 ? 30 : 10;
 
-    // Project risk based on variable changes
     const riskReduction = (budgetFactor - 1) * 20 + (resourceFactor - 1) * 25 + (timelineVar.adjustedValue > 0 ? -10 : 5);
     const riskIncrease = (scopeFactor - 1) * 30;
     const projectedRisk = Math.max(0, Math.min(100, Math.round(baseRisk - riskReduction + riskIncrease)));
-
     const projectedHealth = projectedRisk > 70 ? 'Critical' : projectedRisk > 50 ? 'At Risk' : projectedRisk > 25 ? 'Fair' : 'Healthy';
 
-    // Build projected outcomes from numeric metrics
-    const projectedOutcomes = numericMappings.slice(0, 5).map((m: any) => {
-      const values = submissions.map((s: any) => Number(s.submission_data?.[m.formFieldId] || 0)).filter(v => !isNaN(v));
-      const baseline = values.length > 0 ? values.reduce((a: number, b: number) => a + b, 0) / values.length : 100;
+    // Build projected outcomes from actual form data
+    const projectedOutcomes: { metric: string; baseline: number; projected: number; change: number }[] = [];
+
+    METRIC_LABELS.forEach(label => {
+      if (!fieldLookup[label]) return;
+      const values = submissions.map((s: any) => resolveValue(s.submission_data, label)).filter(v => v !== 0);
+      if (!values.length) return;
+      const baseline = Math.round((values.reduce((a, b) => a + b, 0) / values.length) * 100) / 100;
       const projectedChange = (budgetFactor * 0.3 + resourceFactor * 0.4 + (1 / scopeFactor) * 0.3 - 1) * baseline;
       const projected = Math.round((baseline + projectedChange) * 100) / 100;
-      return {
-        metric: m.label || m.formFieldLabel || 'Metric',
-        baseline: Math.round(baseline * 100) / 100,
+      projectedOutcomes.push({
+        metric: label,
+        baseline,
         projected,
         change: Math.round(((projected - baseline) / (baseline || 1)) * 10000) / 100,
-      };
+      });
     });
 
-    // If no numeric mappings, use default outcomes
+    // Fallback if no data
     if (projectedOutcomes.length === 0) {
-      projectedOutcomes.push(
-        { metric: 'Delivery Rate', baseline: 85, projected: Math.round(85 * budgetFactor * resourceFactor / scopeFactor), change: 0 },
-        { metric: 'Quality Score', baseline: 78, projected: Math.round(78 * (resourceFactor * 0.7 + budgetFactor * 0.3)), change: 0 },
-        { metric: 'Efficiency Index', baseline: 72, projected: Math.round(72 * resourceFactor * (1 / scopeFactor)), change: 0 },
-      );
-      projectedOutcomes.forEach(o => { o.change = Math.round(((o.projected - o.baseline) / o.baseline) * 10000) / 100; });
+      const defaults = [
+        { metric: 'Delivery Rate', baseline: 85 },
+        { metric: 'Quality Score', baseline: 78 },
+        { metric: 'Efficiency Index', baseline: 72 },
+      ];
+      defaults.forEach(d => {
+        const projected = Math.round(d.baseline * budgetFactor * resourceFactor / scopeFactor);
+        projectedOutcomes.push({ ...d, projected, change: Math.round(((projected - d.baseline) / d.baseline) * 10000) / 100 });
+      });
     }
 
-    // Timeline projection (6 periods)
-    const timelineData = Array.from({ length: 6 }, (_, i) => {
-      const period = `Period ${i + 1}`;
-      const baseline = baseRisk + (i * 2);
-      const projected = projectedRisk + (i * (projectedRisk > baseRisk ? 3 : -1));
-      return { period, baseline: Math.min(100, baseline), projected: Math.max(0, Math.min(100, projected)) };
-    });
+    // Timeline projection
+    const timelineData = Array.from({ length: 6 }, (_, i) => ({
+      period: `Period ${i + 1}`,
+      baseline: Math.min(100, baseRisk + (i * 2)),
+      projected: Math.max(0, Math.min(100, projectedRisk + (i * (projectedRisk > baseRisk ? 3 : -1)))),
+    }));
 
-    // Generate recommendations
+    // Recommendations
     const recommendations: string[] = [];
     if (budgetFactor < 0.8) recommendations.push('⚠️ Budget reduction exceeds 20% — high risk of delayed deliverables.');
     if (budgetFactor > 1.2) recommendations.push('✅ Budget increase will allow for better quality assurance and contingency planning.');
@@ -249,7 +276,6 @@ export function ScenarioSimulator({ perfProjectId }: Props) {
       {/* Results */}
       {result && (
         <>
-          {/* Risk Impact Summary */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card>
               <CardContent className="pt-4 pb-3 text-center">
@@ -278,7 +304,6 @@ export function ScenarioSimulator({ perfProjectId }: Props) {
             </Card>
           </div>
 
-          {/* Metric Impact */}
           {result.projectedOutcomes.length > 0 && (
             <Card>
               <CardHeader className="pb-2">
@@ -293,9 +318,9 @@ export function ScenarioSimulator({ perfProjectId }: Props) {
                     <div key={i} className="flex items-center justify-between p-2.5 rounded-lg bg-muted/50">
                       <span className="text-sm font-medium">{o.metric}</span>
                       <div className="flex items-center gap-3">
-                        <span className="text-xs text-muted-foreground">{o.baseline}</span>
+                        <span className="text-xs text-muted-foreground">{o.baseline.toLocaleString()}</span>
                         <ArrowRight className="h-3 w-3 text-muted-foreground" />
-                        <span className="text-sm font-semibold">{o.projected}</span>
+                        <span className="text-sm font-semibold">{o.projected.toLocaleString()}</span>
                         <Badge variant={o.change >= 0 ? 'default' : 'destructive'} className="text-xs">
                           {o.change >= 0 ? '+' : ''}{o.change}%
                         </Badge>
@@ -307,7 +332,7 @@ export function ScenarioSimulator({ perfProjectId }: Props) {
                   <BarChart data={result.projectedOutcomes} layout="vertical">
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                     <XAxis type="number" tick={{ fontSize: 11 }} />
-                    <YAxis type="category" dataKey="metric" width={100} tick={{ fontSize: 10 }} />
+                    <YAxis type="category" dataKey="metric" width={140} tick={{ fontSize: 10 }} />
                     <Tooltip />
                     <Legend />
                     <Bar dataKey="baseline" fill="hsl(var(--muted-foreground))" fillOpacity={0.4} name="Baseline" radius={[0, 2, 2, 0]} />
@@ -318,7 +343,6 @@ export function ScenarioSimulator({ perfProjectId }: Props) {
             </Card>
           )}
 
-          {/* Risk Timeline Projection */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm flex items-center gap-2">
@@ -342,7 +366,6 @@ export function ScenarioSimulator({ perfProjectId }: Props) {
             </CardContent>
           </Card>
 
-          {/* AI Recommendations */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm flex items-center gap-2">

@@ -20,7 +20,21 @@ interface FieldQuality {
   filledRecords: number;
   uniqueValues: number;
   hasOutliers: boolean;
+  isNumeric: boolean;
 }
+
+// Known fields from the Performance Analytics Tracker form
+const KNOWN_NUMERIC_LABELS = [
+  'Planned Budget', 'Actual Cost', 'Earned Value (EV)', 'Actual Cost Value (AC)',
+  'Planned Value (PV)', 'Risk Score', 'Predicted Delay Days', 'Predicted Cost Overrun (%)',
+  'Planned Hours', 'Actual Hours', 'Defect Count', 'Forecasted Cost',
+  'Passed Controls', 'Total Controls', 'Task Delay Days', 'Overtime Hours',
+  'Risk Prediction Score',
+];
+
+const KNOWN_CATEGORY_LABELS = [
+  'Project Status', 'Task Status', 'Risk Status', 'Priority',
+];
 
 export function DataQualityPanel({ perfProjectId }: Props) {
   const { currentProject } = useProject();
@@ -39,9 +53,6 @@ export function DataQualityPanel({ perfProjectId }: Props) {
   });
 
   const formId = dataSources[0]?.source_form_id;
-  const fieldMappings: any[] = dataSources[0]?.field_mappings
-    ? (Array.isArray(dataSources[0].field_mappings) ? dataSources[0].field_mappings : [])
-    : [];
 
   const { data: submissions = [], isLoading } = useQuery({
     queryKey: ['dq-submissions', formId],
@@ -57,46 +68,72 @@ export function DataQualityPanel({ perfProjectId }: Props) {
     enabled: !!formId,
   });
 
+  // Fetch form fields directly
+  const { data: formFields = [] } = useQuery({
+    queryKey: ['dq-form-fields', formId],
+    queryFn: async () => {
+      if (!formId) return [];
+      const { data } = await supabase.from('form_fields')
+        .select('id, label, field_type')
+        .eq('form_id', formId);
+      return data || [];
+    },
+    enabled: !!formId,
+  });
+
+  // Build quality scores from form fields directly
   const qualityScores = useMemo(() => {
-    if (!submissions.length || !fieldMappings.length) return [];
+    if (!submissions.length || !formFields.length) return [];
 
-    return fieldMappings.map((m: any): FieldQuality => {
-      const values = submissions.map((s: any) => s.submission_data?.[m.formFieldId]);
-      const filled = values.filter(v => v != null && v !== '' && v !== undefined);
-      const completeness = Math.round((filled.length / values.length) * 100);
+    // Analyze all known fields (numeric + category)
+    const allKnownLabels = [...KNOWN_NUMERIC_LABELS, ...KNOWN_CATEGORY_LABELS];
 
-      // Consistency: check how many unique values exist (low unique ratio = high consistency for categories)
-      const uniqueValues = new Set(filled.map(String)).size;
+    return formFields
+      .filter((f: any) => allKnownLabels.includes(f.label))
+      .map((f: any): FieldQuality => {
+        const isNumeric = KNOWN_NUMERIC_LABELS.includes(f.label);
+        const values = submissions.map((s: any) => {
+          const raw = s.submission_data?.[f.id];
+          if (raw == null) return undefined;
+          if (typeof raw === 'object' && raw.value !== undefined) return raw.value;
+          return raw;
+        });
+        const filled = values.filter(v => v != null && v !== '' && v !== undefined);
+        const completeness = Math.round((filled.length / values.length) * 100);
 
-      // Outlier detection for numeric fields
-      let hasOutliers = false;
-      if (m.metricRole === 'numeric_metric') {
-        const nums = filled.map(Number).filter(n => !isNaN(n));
-        if (nums.length > 3) {
-          const mean = nums.reduce((a, b) => a + b, 0) / nums.length;
-          const stdDev = Math.sqrt(nums.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / nums.length);
-          hasOutliers = nums.some(n => Math.abs(n - mean) > 3 * stdDev);
+        const uniqueValues = new Set(filled.map(String)).size;
+
+        // Outlier detection for numeric fields
+        let hasOutliers = false;
+        if (isNumeric) {
+          const nums = filled.map(Number).filter(n => !isNaN(n));
+          if (nums.length > 3) {
+            const mean = nums.reduce((a, b) => a + b, 0) / nums.length;
+            const stdDev = Math.sqrt(nums.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / nums.length);
+            hasOutliers = stdDev > 0 && nums.some(n => Math.abs(n - mean) > 3 * stdDev);
+          }
         }
-      }
 
-      // Consistency score: for categories, penalize if too many unique values relative to total
-      const uniqueRatio = uniqueValues / Math.max(filled.length, 1);
-      const consistency = m.metricRole === 'category' || m.metricRole === 'status'
-        ? Math.round(Math.max(0, (1 - uniqueRatio) * 100))
-        : completeness; // For numeric fields, consistency ≈ completeness
+        // Consistency
+        const uniqueRatio = uniqueValues / Math.max(filled.length, 1);
+        const consistency = !isNumeric
+          ? Math.round(Math.max(0, (1 - uniqueRatio) * 100))
+          : completeness;
 
-      return {
-        fieldId: m.formFieldId,
-        label: m.label || m.formFieldLabel || 'Unknown',
-        completeness,
-        consistency,
-        totalRecords: values.length,
-        filledRecords: filled.length,
-        uniqueValues,
-        hasOutliers,
-      };
-    });
-  }, [submissions, fieldMappings]);
+        return {
+          fieldId: f.id,
+          label: f.label,
+          completeness,
+          consistency,
+          totalRecords: values.length,
+          filledRecords: filled.length,
+          uniqueValues,
+          hasOutliers,
+          isNumeric,
+        };
+      })
+      .sort((a, b) => a.completeness - b.completeness); // Show worst first
+  }, [submissions, formFields]);
 
   const overallScore = useMemo(() => {
     if (!qualityScores.length) return 0;
@@ -111,13 +148,25 @@ export function DataQualityPanel({ perfProjectId }: Props) {
     return <div className="flex items-center justify-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   }
 
-  if (!formId || !fieldMappings.length) {
+  if (!formId) {
     return (
       <Card className="border-dashed">
         <CardContent className="flex flex-col items-center justify-center py-12">
           <Database className="h-12 w-12 text-muted-foreground mb-4" />
           <p className="font-medium text-foreground">No data source configured</p>
-          <p className="text-sm text-muted-foreground mt-1">Link a form and map fields in the Data Sources tab to see quality scores.</p>
+          <p className="text-sm text-muted-foreground mt-1">Link a form in the Data Sources tab to see quality scores.</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!qualityScores.length) {
+    return (
+      <Card className="border-dashed">
+        <CardContent className="flex flex-col items-center justify-center py-12">
+          <ShieldCheck className="h-12 w-12 text-muted-foreground mb-4" />
+          <p className="font-medium text-foreground">No submission data found</p>
+          <p className="text-sm text-muted-foreground mt-1">Submit records to the linked form to analyze data quality.</p>
         </CardContent>
       </Card>
     );
@@ -131,12 +180,12 @@ export function DataQualityPanel({ perfProjectId }: Props) {
           Data Quality Scoring
         </h2>
         <p className="text-sm text-muted-foreground">
-          Automated assessment of data completeness, consistency, and reliability
+          Automated assessment of data completeness, consistency, and reliability across {submissions.length} submissions
         </p>
       </div>
 
       {/* Overall Score */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card className="md:col-span-1">
           <CardContent className="pt-5 pb-4 flex flex-col items-center">
             <p className="text-xs text-muted-foreground mb-1">Overall Quality Grade</p>
@@ -170,7 +219,7 @@ export function DataQualityPanel({ perfProjectId }: Props) {
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm">Field-Level Quality Breakdown</CardTitle>
-          <CardDescription className="text-xs">Completeness and consistency for each mapped field</CardDescription>
+          <CardDescription className="text-xs">Completeness and consistency for each tracked field</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {qualityScores.map(q => (
@@ -185,6 +234,7 @@ export function DataQualityPanel({ perfProjectId }: Props) {
                     <AlertCircle className="h-4 w-4 text-orange-500" />
                   )}
                   <span className="text-sm font-medium">{q.label}</span>
+                  <Badge variant="outline" className="text-[10px]">{q.isNumeric ? 'Numeric' : 'Category'}</Badge>
                 </div>
                 <div className="flex items-center gap-2">
                   {q.hasOutliers && (
