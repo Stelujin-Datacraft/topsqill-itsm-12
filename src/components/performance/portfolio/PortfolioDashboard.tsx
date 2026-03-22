@@ -39,6 +39,21 @@ export function PortfolioDashboard() {
     enabled: !!projectId,
   });
 
+  // Fetch data sources to know which projects are configured
+  const { data: allDataSources = [] } = useQuery({
+    queryKey: ['portfolio-data-sources', projectId],
+    queryFn: async () => {
+      if (!projectId) return [];
+      const { data } = await supabase
+        .from('performance_data_sources')
+        .select('id, performance_project_id, is_active')
+        .eq('project_id', projectId)
+        .eq('is_active', true);
+      return data || [];
+    },
+    enabled: !!projectId,
+  });
+
   const { data: allAlerts = [] } = useQuery({
     queryKey: ['portfolio-alerts', projectId],
     queryFn: async () => {
