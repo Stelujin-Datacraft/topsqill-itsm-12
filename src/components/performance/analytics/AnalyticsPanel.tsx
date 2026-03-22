@@ -1,6 +1,5 @@
 import React, { useMemo, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { usePerformanceMonitoring } from '@/hooks/usePerformanceMonitoring';
 import { supabase } from '@/integrations/supabase/client';
 import { useProject } from '@/contexts/ProjectContext';
@@ -15,6 +14,19 @@ import { ChartExportButton } from '@/components/reports/ChartExportButton';
 
 const COLORS = ['hsl(var(--primary))', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16'];
 
+// Known numeric fields from the form
+const NUMERIC_FIELD_LABELS = [
+  'Planned Budget', 'Actual Cost', 'Earned Value (EV)', 'Actual Cost Value (AC)',
+  'Planned Value (PV)', 'Risk Score', 'Predicted Delay Days', 'Predicted Cost Overrun (%)',
+  'Planned Hours', 'Actual Hours', 'Defect Count', 'Forecasted Cost',
+  'Passed Controls', 'Total Controls', 'Task Delay Days', 'Overtime Hours',
+  'Risk Prediction Score',
+];
+
+const CATEGORY_FIELD_LABELS = [
+  'Project Status', 'Task Status', 'Risk Status', 'Priority',
+];
+
 interface Props {
   perfProjectId?: string;
 }
@@ -24,7 +36,6 @@ export function AnalyticsPanel({ perfProjectId }: Props) {
   const { currentProject } = useProject();
   const chartContainerRef = useRef<HTMLDivElement>(null);
 
-  // Fetch data sources to get form submission data
   const { data: dataSources = [] } = useQuery({
     queryKey: ['performance-data-sources', currentProject?.id, perfProjectId],
     queryFn: async () => {
@@ -42,12 +53,9 @@ export function AnalyticsPanel({ perfProjectId }: Props) {
     enabled: !!currentProject?.id,
   });
 
-  // Fetch submission data for the linked form
   const formId = dataSources[0]?.source_form_id;
-  const fieldMappings: any[] = dataSources[0]?.field_mappings
-    ? (Array.isArray(dataSources[0].field_mappings) ? dataSources[0].field_mappings : [])
-    : [];
 
+  // Fetch ALL submissions for the linked form
   const { data: submissions = [] } = useQuery({
     queryKey: ['perf-analytics-submissions', formId],
     queryFn: async () => {
@@ -57,12 +65,82 @@ export function AnalyticsPanel({ perfProjectId }: Props) {
         .select('id, submission_data, submitted_at')
         .eq('form_id', formId)
         .order('submitted_at', { ascending: true })
-        .limit(dataSources[0]?.data_limit || 500);
+        .limit(500);
       if (error) throw error;
       return data || [];
     },
     enabled: !!formId,
   });
+
+  // Fetch form fields to map IDs to labels
+  const { data: formFields = [] } = useQuery({
+    queryKey: ['perf-analytics-form-fields', formId],
+    queryFn: async () => {
+      if (!formId) return [];
+      const { data, error } = await supabase
+        .from('form_fields')
+        .select('id, label, field_type')
+        .eq('form_id', formId);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!formId,
+  });
+
+  // Build field lookup: label -> fieldId
+  const fieldLookup = useMemo(() => {
+    const map: Record<string, { id: string; label: string }> = {};
+    formFields.forEach((f: any) => {
+      map[f.label] = { id: f.id, label: f.label };
+    });
+    return map;
+  }, [formFields]);
+
+  // Resolve value from submission_data by field label
+  const resolveValue = (submissionData: any, label: string): any => {
+    const field = fieldLookup[label];
+    if (!field) return undefined;
+    const raw = submissionData?.[field.id];
+    if (raw == null) return undefined;
+    if (typeof raw === 'object' && raw.value !== undefined) return raw.value;
+    return raw;
+  };
+
+  // Auto-detect numeric fields present in submissions
+  const detectedNumericFields = useMemo(() => {
+    if (!submissions.length || !formFields.length) return [];
+    const found: { label: string; fieldId: string }[] = [];
+    const sample = submissions.slice(0, 5);
+
+    NUMERIC_FIELD_LABELS.forEach(label => {
+      const field = fieldLookup[label];
+      if (!field) return;
+      const hasData = sample.some((s: any) => {
+        const v = resolveValue(s.submission_data, label);
+        return v != null && !isNaN(Number(v));
+      });
+      if (hasData) found.push({ label, fieldId: field.id });
+    });
+    return found;
+  }, [submissions, formFields, fieldLookup]);
+
+  // Auto-detect category fields
+  const detectedCategoryFields = useMemo(() => {
+    if (!submissions.length || !formFields.length) return [];
+    const found: { label: string; fieldId: string }[] = [];
+    const sample = submissions.slice(0, 5);
+
+    CATEGORY_FIELD_LABELS.forEach(label => {
+      const field = fieldLookup[label];
+      if (!field) return;
+      const hasData = sample.some((s: any) => {
+        const v = resolveValue(s.submission_data, label);
+        return v != null && String(v).trim() !== '';
+      });
+      if (hasData) found.push({ label, fieldId: field.id });
+    });
+    return found;
+  }, [submissions, formFields, fieldLookup]);
 
   // 1. Alert Severity Distribution (Pie)
   const severityData = useMemo(() => {
@@ -96,40 +174,38 @@ export function AnalyticsPanel({ perfProjectId }: Props) {
     }));
   }, [predictions]);
 
-  // 4. Numeric Metrics from Submissions (Line/Bar)
-  const numericMappings = fieldMappings.filter((m: any) => m.metricRole === 'numeric_metric');
-
+  // 4. Numeric Metric Trends across ALL submissions
   const metricTrendData = useMemo(() => {
-    if (!submissions.length || !numericMappings.length) return [];
+    if (!submissions.length || !detectedNumericFields.length) return [];
+    // Pick top 6 numeric fields for readability
+    const fields = detectedNumericFields.slice(0, 6);
     return submissions.map((s: any, idx: number) => {
       const row: any = {
         index: idx + 1,
         date: s.submitted_at ? format(new Date(s.submitted_at), 'MMM dd') : `#${idx + 1}`,
       };
-      numericMappings.forEach((m: any) => {
-        const val = s.submission_data?.[m.formFieldId];
-        row[m.label || m.formFieldLabel] = val != null ? Number(val) : 0;
+      fields.forEach(f => {
+        const val = resolveValue(s.submission_data, f.label);
+        row[f.label] = val != null ? Number(val) : 0;
       });
       return row;
     });
-  }, [submissions, numericMappings]);
+  }, [submissions, detectedNumericFields]);
 
-  // 5. Category Distribution (Bar)
-  const categoryMappings = fieldMappings.filter((m: any) => m.metricRole === 'category' || m.metricRole === 'status');
-
+  // 5. Category Distribution across ALL submissions
   const categoryData = useMemo(() => {
-    if (!submissions.length || !categoryMappings.length) return [];
-    const firstCat = categoryMappings[0];
+    if (!submissions.length || !detectedCategoryFields.length) return [];
+    const firstCat = detectedCategoryFields[0];
     const counts: Record<string, number> = {};
     submissions.forEach((s: any) => {
-      const val = String(s.submission_data?.[firstCat.formFieldId] || 'Unknown');
+      const val = String(resolveValue(s.submission_data, firstCat.label) || 'Unknown');
       counts[val] = (counts[val] || 0) + 1;
     });
     return Object.entries(counts)
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value)
       .slice(0, 12);
-  }, [submissions, categoryMappings]);
+  }, [submissions, detectedCategoryFields]);
 
   // 6. Threshold Status (Radar)
   const thresholdRadar = useMemo(() => {
@@ -140,6 +216,22 @@ export function AnalyticsPanel({ perfProjectId }: Props) {
       severity: t.severity === 'critical' ? 100 : t.severity === 'high' ? 75 : t.severity === 'medium' ? 50 : 25,
     }));
   }, [thresholds]);
+
+  // 7. Summary stats across all submissions
+  const summaryStats = useMemo(() => {
+    if (!submissions.length || !detectedNumericFields.length) return [];
+    return detectedNumericFields.slice(0, 8).map(f => {
+      const values = submissions.map((s: any) => {
+        const v = resolveValue(s.submission_data, f.label);
+        return v != null ? Number(v) : NaN;
+      }).filter(v => !isNaN(v));
+
+      const avg = values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0;
+      const max = values.length ? Math.max(...values) : 0;
+      const min = values.length ? Math.min(...values) : 0;
+      return { label: f.label, avg: Math.round(avg * 100) / 100, max, min, count: values.length };
+    });
+  }, [submissions, detectedNumericFields]);
 
   if (loading) {
     return <div className="flex items-center justify-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
@@ -154,12 +246,14 @@ export function AnalyticsPanel({ perfProjectId }: Props) {
           <BarChart3 className="h-12 w-12 text-muted-foreground mb-4" />
           <p className="font-medium text-foreground">No analytics data yet</p>
           <p className="text-sm text-muted-foreground mt-1">
-            Configure data sources and run AI Analysis to generate charts.
+            Configure data sources and submit form data to generate reports.
           </p>
         </CardContent>
       </Card>
     );
   }
+
+  const trendFields = detectedNumericFields.slice(0, 6);
 
   return (
     <div className="space-y-6" ref={chartContainerRef}>
@@ -167,10 +261,10 @@ export function AnalyticsPanel({ perfProjectId }: Props) {
         <div>
           <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
             <BarChart3 className="h-5 w-5 text-primary" />
-            Reports Analytics
+            Reports & Analytics
           </h2>
           <p className="text-sm text-muted-foreground">
-            Visual insights from your performance data — all charts are based on saved data
+            Aggregated insights across all {submissions.length} submissions
           </p>
         </div>
         <ChartExportButton
@@ -184,31 +278,94 @@ export function AnalyticsPanel({ perfProjectId }: Props) {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="pt-4 pb-3">
+            <p className="text-xs text-muted-foreground">Total Submissions</p>
+            <p className="text-2xl font-bold text-foreground">{submissions.length}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4 pb-3">
             <p className="text-xs text-muted-foreground">Total Alerts</p>
-            <p className="text-2xl font-bold text-foreground">{alerts.length}</p>
+            <p className="text-2xl font-bold text-orange-500">{alerts.length}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-4 pb-3">
-            <p className="text-xs text-muted-foreground">Active Alerts</p>
-            <p className="text-2xl font-bold text-orange-500">{alerts.filter(a => a.status === 'active').length}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4 pb-3">
-            <p className="text-xs text-muted-foreground">Predictions</p>
+            <p className="text-xs text-muted-foreground">AI Predictions</p>
             <p className="text-2xl font-bold text-primary">{predictions.length}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-4 pb-3">
-            <p className="text-xs text-muted-foreground">Data Points</p>
-            <p className="text-2xl font-bold text-foreground">{submissions.length}</p>
+            <p className="text-xs text-muted-foreground">Metrics Detected</p>
+            <p className="text-2xl font-bold text-foreground">{detectedNumericFields.length}</p>
           </CardContent>
         </Card>
       </div>
 
+      {/* Numeric Summary Table */}
+      {summaryStats.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-primary" />
+              Key Metrics Summary (All Submissions)
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className="text-left py-2 px-3 text-muted-foreground font-medium">Metric</th>
+                    <th className="text-right py-2 px-3 text-muted-foreground font-medium">Average</th>
+                    <th className="text-right py-2 px-3 text-muted-foreground font-medium">Min</th>
+                    <th className="text-right py-2 px-3 text-muted-foreground font-medium">Max</th>
+                    <th className="text-right py-2 px-3 text-muted-foreground font-medium">Records</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {summaryStats.map(s => (
+                    <tr key={s.label} className="border-b border-border/50">
+                      <td className="py-2 px-3 font-medium text-foreground">{s.label}</td>
+                      <td className="py-2 px-3 text-right text-foreground">{s.avg.toLocaleString()}</td>
+                      <td className="py-2 px-3 text-right text-muted-foreground">{s.min.toLocaleString()}</td>
+                      <td className="py-2 px-3 text-right text-muted-foreground">{s.max.toLocaleString()}</td>
+                      <td className="py-2 px-3 text-right text-muted-foreground">{s.count}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Category Distribution */}
+        {categoryData.length > 0 && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <PieChartIcon className="h-4 w-4 text-primary" />
+                {detectedCategoryFields[0]?.label || 'Category'} Distribution
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={250}>
+                <PieChart>
+                  <Pie data={categoryData} cx="50%" cy="50%" outerRadius={90} dataKey="value" label={({ name, value }) => `${name}: ${value}`}>
+                    {categoryData.map((_, i) => (
+                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Alert Severity Distribution */}
         {severityData.length > 0 && (
           <Card>
@@ -280,29 +437,6 @@ export function AnalyticsPanel({ perfProjectId }: Props) {
           </Card>
         )}
 
-        {/* Category Distribution */}
-        {categoryData.length > 0 && (
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <BarChart3 className="h-4 w-4 text-primary" />
-                {categoryMappings[0]?.label || 'Category'} Distribution
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={250}>
-                <BarChart data={categoryData}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis dataKey="name" tick={{ fontSize: 10 }} height={50} />
-                  <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
-                  <Tooltip />
-                  <Bar dataKey="value" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} name="Count" />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        )}
-
         {/* Threshold Radar */}
         {thresholdRadar.length > 0 && (
           <Card>
@@ -328,15 +462,15 @@ export function AnalyticsPanel({ perfProjectId }: Props) {
       </div>
 
       {/* Metric Trends - Full Width */}
-      {metricTrendData.length > 0 && numericMappings.length > 0 && (
+      {metricTrendData.length > 0 && trendFields.length > 0 && (
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-primary" />
-              Metric Trends Over Submissions
+              Metric Trends Across All Submissions
             </CardTitle>
             <CardDescription className="text-xs">
-              Numeric field values across {submissions.length} submissions
+              Tracking {trendFields.length} numeric fields across {submissions.length} records
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -347,16 +481,8 @@ export function AnalyticsPanel({ perfProjectId }: Props) {
                 <YAxis tick={{ fontSize: 11 }} />
                 <Tooltip />
                 <Legend />
-                {numericMappings.map((m: any, i: number) => (
-                  <Line
-                    key={m.formFieldId}
-                    type="monotone"
-                    dataKey={m.label || m.formFieldLabel}
-                    stroke={COLORS[i % COLORS.length]}
-                    strokeWidth={2}
-                    dot={{ r: 2 }}
-                    name={m.label || m.formFieldLabel}
-                  />
+                {trendFields.map((f, i) => (
+                  <Line key={f.fieldId} type="monotone" dataKey={f.label} stroke={COLORS[i % COLORS.length]} strokeWidth={2} dot={{ r: 2 }} name={f.label} />
                 ))}
               </LineChart>
             </ResponsiveContainer>
@@ -365,16 +491,13 @@ export function AnalyticsPanel({ perfProjectId }: Props) {
       )}
 
       {/* Metric Comparison Bar Chart */}
-      {metricTrendData.length > 0 && numericMappings.length > 1 && (
+      {metricTrendData.length > 0 && trendFields.length > 1 && (
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
               <BarChart3 className="h-4 w-4 text-primary" />
-              Metric Comparison
+              Metric Comparison (Latest 20)
             </CardTitle>
-            <CardDescription className="text-xs">
-              Side-by-side comparison of numeric metrics
-            </CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
@@ -384,14 +507,8 @@ export function AnalyticsPanel({ perfProjectId }: Props) {
                 <YAxis tick={{ fontSize: 11 }} />
                 <Tooltip />
                 <Legend />
-                {numericMappings.map((m: any, i: number) => (
-                  <Bar
-                    key={m.formFieldId}
-                    dataKey={m.label || m.formFieldLabel}
-                    fill={COLORS[i % COLORS.length]}
-                    radius={[2, 2, 0, 0]}
-                    name={m.label || m.formFieldLabel}
-                  />
+                {trendFields.map((f, i) => (
+                  <Bar key={f.fieldId} dataKey={f.label} fill={COLORS[i % COLORS.length]} radius={[2, 2, 0, 0]} name={f.label} />
                 ))}
               </BarChart>
             </ResponsiveContainer>
