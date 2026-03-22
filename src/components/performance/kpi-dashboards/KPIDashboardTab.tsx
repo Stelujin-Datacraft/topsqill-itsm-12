@@ -213,6 +213,21 @@ export function KPIDashboardTab({ perfProjectId }: Props) {
         </CardContent>
       </Card>
 
+      {/* Empty state when no record selected */}
+      {!selectedRecordId && (
+        <Card className="border-dashed">
+          <CardContent className="p-8 text-center space-y-3">
+            <FileText className="h-10 w-10 mx-auto text-muted-foreground" />
+            <div>
+              <p className="font-medium text-foreground">Select a Record to Analyze</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Choose a record from the dropdown above to view KPI calculations.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Dashboard Content */}
       {computedKPIs && (
         <>
