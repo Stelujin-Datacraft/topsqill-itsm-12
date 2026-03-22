@@ -17,7 +17,8 @@ interface PortfolioProject {
   thresholdCount: number;
   predictionCount: number;
   riskScore: number;
-  health: 'healthy' | 'moderate' | 'warning' | 'critical';
+  hasDataSource: boolean;
+  health: 'healthy' | 'moderate' | 'warning' | 'critical' | 'not_configured';
 }
 
 export function PortfolioDashboard() {
