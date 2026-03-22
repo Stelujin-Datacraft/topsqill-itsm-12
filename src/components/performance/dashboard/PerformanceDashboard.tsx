@@ -434,7 +434,7 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
       )}
 
       {/* AI Analysis Results Section */}
-      {selectedRecordId && selectedRecordId !== 'all' && aiResult && (
+      {selectedRecordId && aiResult && (
         <div className="space-y-4">
           <Card className="border-primary/30">
             <CardHeader>
