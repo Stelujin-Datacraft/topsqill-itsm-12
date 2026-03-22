@@ -116,7 +116,7 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
     if (savedAnalysis && !aiResult) {
       setAiResult(savedAnalysis.analysis_data as AIAnalysis);
       if (savedAnalysis.submission_id) {
-        setSelectedRecordId(savedAnalysis.submission_id);
+        onRecordChange?.(savedAnalysis.submission_id);
       }
     }
   }, [savedAnalysis]);
