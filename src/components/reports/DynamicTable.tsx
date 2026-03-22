@@ -1262,8 +1262,8 @@ export function DynamicTable({
                 </div>
               </div>
 
-<div className="flex-1 min-h-0 border rounded-md overflow-hidden">
-  <div className="h-full w-full overflow-x-auto overflow-y-auto [&]:overflow-x-scroll">
+<div className="flex-1 min-h-0 border rounded-md overflow-x-auto">
+  <div className="h-full w-full overflow-y-auto">
     <Table className="min-w-full">
 
                 <TableHeader className="sticky top-0 z-[5] bg-primary border-b-2 border-primary/80">
