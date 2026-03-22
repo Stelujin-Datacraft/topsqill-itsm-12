@@ -5,25 +5,22 @@ import { Progress } from '@/components/ui/progress';
 import { supabase } from '@/integrations/supabase/client';
 import { useProject } from '@/contexts/ProjectContext';
 import { useQuery } from '@tanstack/react-query';
-import { ShieldCheck, AlertCircle, CheckCircle2, XCircle, Loader2, Database } from 'lucide-react';
+import { ShieldCheck, AlertCircle, CheckCircle2, XCircle, Loader2, Database, FileText } from 'lucide-react';
 
 interface Props {
   perfProjectId?: string;
+  selectedRecordId?: string;
 }
 
 interface FieldQuality {
   fieldId: string;
   label: string;
-  completeness: number;
-  consistency: number;
-  totalRecords: number;
-  filledRecords: number;
-  uniqueValues: number;
-  hasOutliers: boolean;
+  completeness: string;
+  value: any;
+  hasValue: boolean;
   isNumeric: boolean;
 }
 
-// Known fields from the Performance Analytics Tracker form
 const KNOWN_NUMERIC_LABELS = [
   'Planned Budget', 'Actual Cost', 'Earned Value (EV)', 'Actual Cost Value (AC)',
   'Planned Value (PV)', 'Risk Score', 'Predicted Delay Days', 'Predicted Cost Overrun (%)',
@@ -36,7 +33,7 @@ const KNOWN_CATEGORY_LABELS = [
   'Project Status', 'Task Status', 'Risk Status', 'Priority',
 ];
 
-export function DataQualityPanel({ perfProjectId }: Props) {
+export function DataQualityPanel({ perfProjectId, selectedRecordId }: Props) {
   const { currentProject } = useProject();
 
   const { data: dataSources = [] } = useQuery({
@@ -54,21 +51,21 @@ export function DataQualityPanel({ perfProjectId }: Props) {
 
   const formId = dataSources[0]?.source_form_id;
 
-  const { data: submissions = [], isLoading } = useQuery({
-    queryKey: ['dq-submissions', formId],
+  // Fetch the specific selected submission
+  const { data: submission, isLoading } = useQuery({
+    queryKey: ['dq-submission', selectedRecordId],
     queryFn: async () => {
-      if (!formId) return [];
+      if (!selectedRecordId) return null;
       const { data } = await supabase.from('form_submissions')
-        .select('id, submission_data, submitted_at')
-        .eq('form_id', formId)
-        .order('submitted_at', { ascending: true })
-        .limit(500);
-      return data || [];
+        .select('id, submission_data, submitted_at, submission_ref_id')
+        .eq('id', selectedRecordId)
+        .single();
+      return data || null;
     },
-    enabled: !!formId,
+    enabled: !!selectedRecordId,
   });
 
-  // Fetch form fields directly
+  // Fetch form fields
   const { data: formFields = [] } = useQuery({
     queryKey: ['dq-form-fields', formId],
     queryFn: async () => {
@@ -81,68 +78,37 @@ export function DataQualityPanel({ perfProjectId }: Props) {
     enabled: !!formId,
   });
 
-  // Build quality scores from form fields directly
+  // Analyze the single record's field quality
   const qualityScores = useMemo(() => {
-    if (!submissions.length || !formFields.length) return [];
-
-    // Analyze all known fields (numeric + category)
+    if (!submission || !formFields.length) return [];
     const allKnownLabels = [...KNOWN_NUMERIC_LABELS, ...KNOWN_CATEGORY_LABELS];
+    const submissionData = submission.submission_data || {};
 
     return formFields
       .filter((f: any) => allKnownLabels.includes(f.label))
       .map((f: any): FieldQuality => {
         const isNumeric = KNOWN_NUMERIC_LABELS.includes(f.label);
-        const values = submissions.map((s: any) => {
-          const raw = s.submission_data?.[f.id];
-          if (raw == null) return undefined;
-          if (typeof raw === 'object' && raw.value !== undefined) return raw.value;
-          return raw;
-        });
-        const filled = values.filter(v => v != null && v !== '' && v !== undefined);
-        const completeness = Math.round((filled.length / values.length) * 100);
+        let raw = submissionData[f.id];
+        if (typeof raw === 'object' && raw !== null && 'value' in raw) raw = raw.value;
 
-        const uniqueValues = new Set(filled.map(String)).size;
-
-        // Outlier detection for numeric fields
-        let hasOutliers = false;
-        if (isNumeric) {
-          const nums = filled.map(Number).filter(n => !isNaN(n));
-          if (nums.length > 3) {
-            const mean = nums.reduce((a, b) => a + b, 0) / nums.length;
-            const stdDev = Math.sqrt(nums.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / nums.length);
-            hasOutliers = stdDev > 0 && nums.some(n => Math.abs(n - mean) > 3 * stdDev);
-          }
-        }
-
-        // Consistency
-        const uniqueRatio = uniqueValues / Math.max(filled.length, 1);
-        const consistency = !isNumeric
-          ? Math.round(Math.max(0, (1 - uniqueRatio) * 100))
-          : completeness;
-
+        const hasValue = raw != null && raw !== '' && raw !== undefined;
         return {
           fieldId: f.id,
           label: f.label,
-          completeness,
-          consistency,
-          totalRecords: values.length,
-          filledRecords: filled.length,
-          uniqueValues,
-          hasOutliers,
+          completeness: hasValue ? 'Complete' : 'Missing',
+          value: hasValue ? raw : null,
+          hasValue,
           isNumeric,
         };
       })
-      .sort((a, b) => a.completeness - b.completeness); // Show worst first
-  }, [submissions, formFields]);
+      .sort((a, b) => (a.hasValue === b.hasValue ? 0 : a.hasValue ? 1 : -1));
+  }, [submission, formFields]);
 
-  const overallScore = useMemo(() => {
-    if (!qualityScores.length) return 0;
-    const avg = qualityScores.reduce((sum, q) => sum + (q.completeness + q.consistency) / 2, 0) / qualityScores.length;
-    return Math.round(avg);
-  }, [qualityScores]);
-
-  const overallGrade = overallScore >= 90 ? 'A' : overallScore >= 75 ? 'B' : overallScore >= 60 ? 'C' : overallScore >= 40 ? 'D' : 'F';
-  const gradeColor = overallScore >= 90 ? 'text-green-600' : overallScore >= 75 ? 'text-primary' : overallScore >= 60 ? 'text-orange-500' : 'text-red-500';
+  const filledCount = qualityScores.filter(q => q.hasValue).length;
+  const totalFields = qualityScores.length;
+  const completenessPercent = totalFields > 0 ? Math.round((filledCount / totalFields) * 100) : 0;
+  const overallGrade = completenessPercent >= 90 ? 'A' : completenessPercent >= 75 ? 'B' : completenessPercent >= 60 ? 'C' : completenessPercent >= 40 ? 'D' : 'F';
+  const gradeColor = completenessPercent >= 90 ? 'text-green-600' : completenessPercent >= 75 ? 'text-primary' : completenessPercent >= 60 ? 'text-orange-500' : 'text-red-500';
 
   if (isLoading) {
     return <div className="flex items-center justify-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
@@ -154,19 +120,30 @@ export function DataQualityPanel({ perfProjectId }: Props) {
         <CardContent className="flex flex-col items-center justify-center py-12">
           <Database className="h-12 w-12 text-muted-foreground mb-4" />
           <p className="font-medium text-foreground">No data source configured</p>
-          <p className="text-sm text-muted-foreground mt-1">Link a form in the Data Sources tab to see quality scores.</p>
+          <p className="text-sm text-muted-foreground mt-1">Link a form in the Data Sources tab first.</p>
         </CardContent>
       </Card>
     );
   }
 
-  if (!qualityScores.length) {
+  if (!selectedRecordId) {
+    return (
+      <Card className="border-dashed">
+        <CardContent className="flex flex-col items-center justify-center py-12">
+          <FileText className="h-12 w-12 text-muted-foreground mb-4" />
+          <p className="font-medium text-foreground">Select a Record</p>
+          <p className="text-sm text-muted-foreground mt-1">Choose a record from the selector above to view its data quality.</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!submission) {
     return (
       <Card className="border-dashed">
         <CardContent className="flex flex-col items-center justify-center py-12">
           <ShieldCheck className="h-12 w-12 text-muted-foreground mb-4" />
-          <p className="font-medium text-foreground">No submission data found</p>
-          <p className="text-sm text-muted-foreground mt-1">Submit records to the linked form to analyze data quality.</p>
+          <p className="font-medium text-foreground">Record not found</p>
         </CardContent>
       </Card>
     );
@@ -177,40 +154,38 @@ export function DataQualityPanel({ perfProjectId }: Props) {
       <div>
         <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
           <ShieldCheck className="h-5 w-5 text-primary" />
-          Data Quality Scoring
+          Data Quality — Selected Record
         </h2>
         <p className="text-sm text-muted-foreground">
-          Automated assessment of data completeness, consistency, and reliability across {submissions.length} submissions
+          Field completeness analysis for record {submission.submission_ref_id || submission.id.slice(0, 8)}
         </p>
       </div>
 
       {/* Overall Score */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="md:col-span-1">
+        <Card>
           <CardContent className="pt-5 pb-4 flex flex-col items-center">
-            <p className="text-xs text-muted-foreground mb-1">Overall Quality Grade</p>
+            <p className="text-xs text-muted-foreground mb-1">Quality Grade</p>
             <p className={`text-5xl font-black ${gradeColor}`}>{overallGrade}</p>
-            <p className="text-sm font-medium text-foreground mt-1">{overallScore}%</p>
+            <p className="text-sm font-medium text-foreground mt-1">{completenessPercent}%</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-4 pb-3">
-            <p className="text-xs text-muted-foreground">Total Records</p>
-            <p className="text-2xl font-bold text-foreground">{submissions.length}</p>
+            <p className="text-xs text-muted-foreground">Fields Tracked</p>
+            <p className="text-2xl font-bold text-foreground">{totalFields}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-4 pb-3">
-            <p className="text-xs text-muted-foreground">Fields Analyzed</p>
-            <p className="text-2xl font-bold text-primary">{qualityScores.length}</p>
+            <p className="text-xs text-muted-foreground">Fields Filled</p>
+            <p className="text-2xl font-bold text-primary">{filledCount}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-4 pb-3">
-            <p className="text-xs text-muted-foreground">Fields with Issues</p>
-            <p className="text-2xl font-bold text-orange-500">
-              {qualityScores.filter(q => q.completeness < 80 || q.hasOutliers).length}
-            </p>
+            <p className="text-xs text-muted-foreground">Fields Missing</p>
+            <p className="text-2xl font-bold text-orange-500">{totalFields - filledCount}</p>
           </CardContent>
         </Card>
       </div>
@@ -218,51 +193,29 @@ export function DataQualityPanel({ perfProjectId }: Props) {
       {/* Per-Field Quality */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm">Field-Level Quality Breakdown</CardTitle>
-          <CardDescription className="text-xs">Completeness and consistency for each tracked field</CardDescription>
+          <CardTitle className="text-sm">Field-Level Data Review</CardTitle>
+          <CardDescription className="text-xs">Each tracked field and its value in the selected record</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-3">
           {qualityScores.map(q => (
-            <div key={q.fieldId} className="p-3 rounded-lg border bg-card space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  {q.completeness >= 90 && !q.hasOutliers ? (
-                    <CheckCircle2 className="h-4 w-4 text-green-600" />
-                  ) : q.completeness < 60 || q.hasOutliers ? (
-                    <XCircle className="h-4 w-4 text-red-500" />
-                  ) : (
-                    <AlertCircle className="h-4 w-4 text-orange-500" />
-                  )}
-                  <span className="text-sm font-medium">{q.label}</span>
-                  <Badge variant="outline" className="text-[10px]">{q.isNumeric ? 'Numeric' : 'Category'}</Badge>
-                </div>
-                <div className="flex items-center gap-2">
-                  {q.hasOutliers && (
-                    <Badge variant="destructive" className="text-[10px]">Outliers</Badge>
-                  )}
-                  <Badge variant="secondary" className="text-[10px]">
-                    {q.filledRecords}/{q.totalRecords} filled
-                  </Badge>
-                  <Badge variant="secondary" className="text-[10px]">
-                    {q.uniqueValues} unique
-                  </Badge>
-                </div>
+            <div key={q.fieldId} className="flex items-center justify-between p-3 rounded-lg border bg-card">
+              <div className="flex items-center gap-2">
+                {q.hasValue ? (
+                  <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
+                ) : (
+                  <XCircle className="h-4 w-4 text-red-500 shrink-0" />
+                )}
+                <span className="text-sm font-medium">{q.label}</span>
+                <Badge variant="outline" className="text-[10px]">{q.isNumeric ? 'Numeric' : 'Category'}</Badge>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs text-muted-foreground">Completeness</span>
-                    <span className="text-xs font-medium">{q.completeness}%</span>
-                  </div>
-                  <Progress value={q.completeness} className="h-2" />
-                </div>
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs text-muted-foreground">Consistency</span>
-                    <span className="text-xs font-medium">{q.consistency}%</span>
-                  </div>
-                  <Progress value={q.consistency} className="h-2" />
-                </div>
+              <div className="flex items-center gap-2">
+                {q.hasValue ? (
+                  <span className="text-sm text-foreground font-mono">
+                    {typeof q.value === 'number' ? q.value.toLocaleString() : String(q.value)}
+                  </span>
+                ) : (
+                  <Badge variant="destructive" className="text-[10px]">Missing</Badge>
+                )}
               </div>
             </div>
           ))}

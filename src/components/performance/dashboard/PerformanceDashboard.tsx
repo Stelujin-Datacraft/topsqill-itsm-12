@@ -28,6 +28,8 @@ interface Props {
   thresholds: PerformanceThreshold[];
   loading: boolean;
   onNavigateToThresholds?: () => void;
+  selectedRecordId?: string;
+  onRecordChange?: (id: string) => void;
 }
 
 const ROLE_LABELS: Record<PerformanceRoleType, string> = {
@@ -71,7 +73,7 @@ function useHealthMetrics(alerts: PerformanceAlert[], predictions: PerformancePr
   }, [alerts, predictions, thresholds]);
 }
 
-export function PerformanceDashboard({ perfProjectId, alerts, predictions, thresholds, loading, onNavigateToThresholds }: Props) {
+export function PerformanceDashboard({ perfProjectId, alerts, predictions, thresholds, loading, onNavigateToThresholds, selectedRecordId: propSelectedRecordId, onRecordChange }: Props) {
   const { userProfile } = useAuth();
   const { currentProject } = useProject();
   const { toast } = useToast();
@@ -83,7 +85,7 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
   const { userRole, loading: kpiLoading, submissions, mappings } = usePerformanceKPI(perfProjectId);
   const [selectedRole, setSelectedRole] = useState<PerformanceRoleType | null>(null);
   const [showRoleAssignment, setShowRoleAssignment] = useState(false);
-  const [selectedRecordId, setSelectedRecordId] = useState<string>('');
+  const selectedRecordId = propSelectedRecordId || '';
   const [aiResult, setAiResult] = useState<AIAnalysis | null>(null);
   const [aiRunning, setAiRunning] = useState(false);
   const [dismissedPredictions, setDismissedPredictions] = useState<Set<number>>(new Set());
@@ -113,11 +115,19 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
   useEffect(() => {
     if (savedAnalysis && !aiResult) {
       setAiResult(savedAnalysis.analysis_data as AIAnalysis);
-      if (savedAnalysis.submission_id) {
-        setSelectedRecordId(savedAnalysis.submission_id);
+      if (savedAnalysis.submission_id && !propSelectedRecordId) {
+        onRecordChange?.(savedAnalysis.submission_id);
       }
     }
   }, [savedAnalysis]);
+
+  // Auto-trigger AI when record changes from page level
+  useEffect(() => {
+    if (propSelectedRecordId && propSelectedRecordId !== savedAnalysis?.submission_id) {
+      setAiResult(null);
+      runAIAnalysis(propSelectedRecordId);
+    }
+  }, [propSelectedRecordId]);
 
   // Build record options
   const recordOptions = useMemo(() => {
@@ -200,7 +210,7 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
   };
 
   const handleRecordChange = (value: string) => {
-    setSelectedRecordId(value);
+    onRecordChange?.(value);
     setAiResult(null);
     // Auto-trigger AI for specific records
     if (value && value !== 'all') {
@@ -306,31 +316,8 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
               </Select>
             </div>
 
-            {/* Unified Record Selector */}
-            <div className="flex flex-col gap-1 flex-1 min-w-[260px]">
-              <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                <FileText className="h-3.5 w-3.5" />
-                Analyze Record (KPI + AI)
-              </label>
-              <Select value={selectedRecordId} onValueChange={handleRecordChange}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a record to analyze..." />
-                </SelectTrigger>
-                <SelectContent className="max-h-64">
-                  {recordOptions.map((opt) => (
-                    <SelectItem key={opt.id} value={opt.id}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
             {/* Info badges */}
             <div className="flex items-center gap-2 mb-0.5">
-              <Badge variant="outline" className="text-xs">
-                {selectedRecordId ? 'Single record' : `${submissions.length} records available`}
-              </Badge>
               {aiRunning && (
                 <Badge variant="secondary" className="text-xs animate-pulse gap-1">
                   <Loader2 className="h-3 w-3 animate-spin" />

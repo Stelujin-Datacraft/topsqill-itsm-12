@@ -14,7 +14,7 @@ import {
 } from 'recharts';
 import {
   FlaskConical, TrendingUp, AlertTriangle, ArrowRight,
-  Loader2, RefreshCw, BarChart3,
+  Loader2, RefreshCw, BarChart3, FileText,
 } from 'lucide-react';
 
 interface ScenarioVariable {
@@ -38,9 +38,9 @@ interface ScenarioResult {
 
 interface Props {
   perfProjectId?: string;
+  selectedRecordId?: string;
 }
 
-// Known numeric fields for metric projections
 const METRIC_LABELS = [
   'Planned Budget', 'Actual Cost', 'Earned Value (EV)', 'Actual Cost Value (AC)',
   'Planned Value (PV)', 'Risk Score', 'Predicted Delay Days',
@@ -53,7 +53,7 @@ const DEFAULT_VARIABLES: ScenarioVariable[] = [
   { id: 'scope', name: 'Scope Change', baseValue: 0, adjustedValue: 0, unit: '%', min: -30, max: 50, step: 5 },
 ];
 
-export function ScenarioSimulator({ perfProjectId }: Props) {
+export function ScenarioSimulator({ perfProjectId, selectedRecordId }: Props) {
   const { alerts } = usePerformanceMonitoring(perfProjectId);
   const { currentProject } = useProject();
   const [variables, setVariables] = useState<ScenarioVariable[]>(DEFAULT_VARIABLES);
@@ -75,21 +75,21 @@ export function ScenarioSimulator({ perfProjectId }: Props) {
 
   const formId = dataSources[0]?.source_form_id;
 
-  const { data: submissions = [] } = useQuery({
-    queryKey: ['scenario-submissions', formId],
+  // Fetch the selected submission
+  const { data: submission } = useQuery({
+    queryKey: ['scenario-submission', selectedRecordId],
     queryFn: async () => {
-      if (!formId) return [];
+      if (!selectedRecordId) return null;
       const { data } = await supabase.from('form_submissions')
-        .select('id, submission_data, submitted_at')
-        .eq('form_id', formId)
-        .order('submitted_at', { ascending: true })
-        .limit(200);
-      return data || [];
+        .select('id, submission_data, submitted_at, submission_ref_id')
+        .eq('id', selectedRecordId)
+        .single();
+      return data || null;
     },
-    enabled: !!formId,
+    enabled: !!selectedRecordId,
   });
 
-  // Fetch form fields to resolve IDs
+  // Fetch form fields
   const { data: formFields = [] } = useQuery({
     queryKey: ['scenario-form-fields', formId],
     queryFn: async () => {
@@ -102,7 +102,6 @@ export function ScenarioSimulator({ perfProjectId }: Props) {
     enabled: !!formId,
   });
 
-  // Build label->id lookup
   const fieldLookup = useMemo(() => {
     const map: Record<string, string> = {};
     formFields.forEach((f: any) => { map[f.label] = f.id; });
@@ -130,9 +129,11 @@ export function ScenarioSimulator({ perfProjectId }: Props) {
   };
 
   const runSimulation = async () => {
+    if (!submission) return;
     setIsSimulating(true);
     await new Promise(r => setTimeout(r, 800));
 
+    const submissionData = submission.submission_data || {};
     const budgetVar = variables.find(v => v.id === 'budget')!;
     const timelineVar = variables.find(v => v.id === 'timeline')!;
     const resourceVar = variables.find(v => v.id === 'resources')!;
@@ -142,34 +143,30 @@ export function ScenarioSimulator({ perfProjectId }: Props) {
     const resourceFactor = resourceVar.adjustedValue / 100;
     const scopeFactor = 1 + (scopeVar.adjustedValue / 100);
 
-    // Base risk from alerts
     const activeAlerts = alerts.filter(a => a.status === 'active');
-    const baseRisk = activeAlerts.length > 5 ? 75 : activeAlerts.length > 2 ? 50 : activeAlerts.length > 0 ? 30 : 10;
+    const riskScore = resolveValue(submissionData, 'Risk Score');
+    const baseRisk = riskScore > 0 ? riskScore : (activeAlerts.length > 5 ? 75 : activeAlerts.length > 2 ? 50 : activeAlerts.length > 0 ? 30 : 10);
 
     const riskReduction = (budgetFactor - 1) * 20 + (resourceFactor - 1) * 25 + (timelineVar.adjustedValue > 0 ? -10 : 5);
     const riskIncrease = (scopeFactor - 1) * 30;
     const projectedRisk = Math.max(0, Math.min(100, Math.round(baseRisk - riskReduction + riskIncrease)));
     const projectedHealth = projectedRisk > 70 ? 'Critical' : projectedRisk > 50 ? 'At Risk' : projectedRisk > 25 ? 'Fair' : 'Healthy';
 
-    // Build projected outcomes from actual form data
+    // Build projected outcomes from the selected record's data
     const projectedOutcomes: { metric: string; baseline: number; projected: number; change: number }[] = [];
-
     METRIC_LABELS.forEach(label => {
-      if (!fieldLookup[label]) return;
-      const values = submissions.map((s: any) => resolveValue(s.submission_data, label)).filter(v => v !== 0);
-      if (!values.length) return;
-      const baseline = Math.round((values.reduce((a, b) => a + b, 0) / values.length) * 100) / 100;
-      const projectedChange = (budgetFactor * 0.3 + resourceFactor * 0.4 + (1 / scopeFactor) * 0.3 - 1) * baseline;
+      const baseline = resolveValue(submissionData, label);
+      if (baseline === 0 && !fieldLookup[label]) return;
+      const projectedChange = (budgetFactor * 0.3 + resourceFactor * 0.4 + (1 / scopeFactor) * 0.3 - 1) * (baseline || 100);
       const projected = Math.round((baseline + projectedChange) * 100) / 100;
       projectedOutcomes.push({
         metric: label,
-        baseline,
+        baseline: Math.round(baseline * 100) / 100,
         projected,
-        change: Math.round(((projected - baseline) / (baseline || 1)) * 10000) / 100,
+        change: Math.round(((projected - (baseline || 1)) / (baseline || 1)) * 10000) / 100,
       });
     });
 
-    // Fallback if no data
     if (projectedOutcomes.length === 0) {
       const defaults = [
         { metric: 'Delivery Rate', baseline: 85 },
@@ -182,31 +179,41 @@ export function ScenarioSimulator({ perfProjectId }: Props) {
       });
     }
 
-    // Timeline projection
     const timelineData = Array.from({ length: 6 }, (_, i) => ({
       period: `Period ${i + 1}`,
       baseline: Math.min(100, baseRisk + (i * 2)),
       projected: Math.max(0, Math.min(100, projectedRisk + (i * (projectedRisk > baseRisk ? 3 : -1)))),
     }));
 
-    // Recommendations
     const recommendations: string[] = [];
     if (budgetFactor < 0.8) recommendations.push('⚠️ Budget reduction exceeds 20% — high risk of delayed deliverables.');
-    if (budgetFactor > 1.2) recommendations.push('✅ Budget increase will allow for better quality assurance and contingency planning.');
-    if (resourceFactor < 0.8) recommendations.push('⚠️ Reducing resources below 80% may cause bottlenecks in critical tasks.');
-    if (resourceFactor > 1.3) recommendations.push('✅ Additional resources will accelerate delivery and reduce burnout risk.');
+    if (budgetFactor > 1.2) recommendations.push('✅ Budget increase will allow for better quality assurance.');
+    if (resourceFactor < 0.8) recommendations.push('⚠️ Reducing resources below 80% may cause bottlenecks.');
+    if (resourceFactor > 1.3) recommendations.push('✅ Additional resources will accelerate delivery.');
     if (scopeVar.adjustedValue > 20) recommendations.push('⚠️ Scope increase >20% without matching resources will likely cause delays.');
-    if (timelineVar.adjustedValue > 30) recommendations.push('✅ Extended timeline provides buffer for risk mitigation and quality checks.');
-    if (timelineVar.adjustedValue < -15) recommendations.push('⚠️ Compressing timeline by >15 days increases defect probability by ~25%.');
-    if (projectedRisk < baseRisk) recommendations.push(`📉 Scenario reduces risk from ${baseRisk}% to ${projectedRisk}% — a net improvement.`);
-    if (projectedRisk > baseRisk) recommendations.push(`📈 Scenario increases risk from ${baseRisk}% to ${projectedRisk}% — consider adjustments.`);
-    if (recommendations.length === 0) recommendations.push('✅ Current scenario maintains baseline performance with no significant risk changes.');
+    if (timelineVar.adjustedValue > 30) recommendations.push('✅ Extended timeline provides buffer for risk mitigation.');
+    if (timelineVar.adjustedValue < -15) recommendations.push('⚠️ Compressing timeline by >15 days increases defect probability.');
+    if (projectedRisk < baseRisk) recommendations.push(`📉 Risk reduced from ${baseRisk}% to ${projectedRisk}%.`);
+    if (projectedRisk > baseRisk) recommendations.push(`📈 Risk increased from ${baseRisk}% to ${projectedRisk}% — consider adjustments.`);
+    if (recommendations.length === 0) recommendations.push('✅ Current scenario maintains baseline performance.');
 
     setResult({ projectedRisk, projectedHealth, projectedOutcomes, timelineData, recommendations });
     setIsSimulating(false);
   };
 
   const hasChanges = variables.some(v => v.adjustedValue !== v.baseValue);
+
+  if (!selectedRecordId) {
+    return (
+      <Card className="border-dashed">
+        <CardContent className="flex flex-col items-center justify-center py-12">
+          <FileText className="h-12 w-12 text-muted-foreground mb-4" />
+          <p className="font-medium text-foreground">Select a Record</p>
+          <p className="text-sm text-muted-foreground mt-1">Choose a record from the selector above to run what-if simulations.</p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -216,11 +223,10 @@ export function ScenarioSimulator({ perfProjectId }: Props) {
           What-If Scenario Simulator
         </h2>
         <p className="text-sm text-muted-foreground">
-          Adjust project variables to see projected outcomes and risk impact
+          Adjust variables to project outcomes for record: {submission?.submission_ref_id || selectedRecordId.slice(0, 8)}
         </p>
       </div>
 
-      {/* Variable Controls */}
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
@@ -263,7 +269,7 @@ export function ScenarioSimulator({ perfProjectId }: Props) {
             </div>
           ))}
 
-          <Button onClick={runSimulation} disabled={isSimulating} className="w-full gap-2 mt-2">
+          <Button onClick={runSimulation} disabled={isSimulating || !submission} className="w-full gap-2 mt-2">
             {isSimulating ? (
               <><Loader2 className="h-4 w-4 animate-spin" /> Simulating...</>
             ) : (
@@ -273,7 +279,6 @@ export function ScenarioSimulator({ perfProjectId }: Props) {
         </CardContent>
       </Card>
 
-      {/* Results */}
       {result && (
         <>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -349,7 +354,6 @@ export function ScenarioSimulator({ perfProjectId }: Props) {
                 <TrendingUp className="h-4 w-4 text-primary" />
                 Risk Trajectory Projection
               </CardTitle>
-              <CardDescription className="text-xs">Projected risk over future periods vs. baseline</CardDescription>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={250}>
@@ -370,7 +374,7 @@ export function ScenarioSimulator({ perfProjectId }: Props) {
             <CardHeader className="pb-2">
               <CardTitle className="text-sm flex items-center gap-2">
                 <AlertTriangle className="h-4 w-4 text-primary" />
-                Scenario Insights & Recommendations
+                Scenario Insights
               </CardTitle>
             </CardHeader>
             <CardContent>
