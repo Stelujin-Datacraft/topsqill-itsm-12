@@ -27,7 +27,7 @@ interface SelectedPerfProject {
 
 export default function ProjectPerformance() {
   const { currentProject } = useProject();
-  const [activeTab, setActiveTab] = useState('kpi-dashboards');
+  const [activeTab, setActiveTab] = useState('dashboard');
   const [selectedPerfProject, setSelectedPerfProject] = useState<SelectedPerfProject | null>(null);
 
   const perfData = usePerformanceMonitoring(selectedPerfProject?.id);
