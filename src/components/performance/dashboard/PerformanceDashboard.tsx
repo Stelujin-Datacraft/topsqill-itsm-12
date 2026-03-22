@@ -85,7 +85,7 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
   const { userRole, loading: kpiLoading, submissions, mappings } = usePerformanceKPI(perfProjectId);
   const [selectedRole, setSelectedRole] = useState<PerformanceRoleType | null>(null);
   const [showRoleAssignment, setShowRoleAssignment] = useState(false);
-  const [selectedRecordId, setSelectedRecordId] = useState<string>('');
+  const selectedRecordId = propSelectedRecordId || '';
   const [aiResult, setAiResult] = useState<AIAnalysis | null>(null);
   const [aiRunning, setAiRunning] = useState(false);
   const [dismissedPredictions, setDismissedPredictions] = useState<Set<number>>(new Set());
