@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { useProject } from '@/contexts/ProjectContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
-import { Loader2, Shield, AlertTriangle, CheckCircle2, XCircle, TrendingUp, BarChart3, ShieldAlert } from 'lucide-react';
+import { Loader2, Shield, AlertTriangle, CheckCircle2, XCircle, TrendingUp, BarChart3, ShieldAlert, Settings } from 'lucide-react';
 
 interface PortfolioProject {
   id: string;
@@ -17,7 +17,8 @@ interface PortfolioProject {
   thresholdCount: number;
   predictionCount: number;
   riskScore: number;
-  health: 'healthy' | 'moderate' | 'warning' | 'critical';
+  hasDataSource: boolean;
+  health: 'healthy' | 'moderate' | 'warning' | 'critical' | 'not_configured';
 }
 
 export function PortfolioDashboard() {
@@ -33,6 +34,21 @@ export function PortfolioDashboard() {
         .select('*')
         .eq('project_id', projectId)
         .eq('status', 'active');
+      return data || [];
+    },
+    enabled: !!projectId,
+  });
+
+  // Fetch data sources to know which projects are configured
+  const { data: allDataSources = [] } = useQuery({
+    queryKey: ['portfolio-data-sources', projectId],
+    queryFn: async () => {
+      if (!projectId) return [];
+      const { data } = await supabase
+        .from('performance_data_sources')
+        .select('id, performance_project_id, is_active')
+        .eq('project_id', projectId)
+        .eq('is_active', true);
       return data || [];
     },
     enabled: !!projectId,
@@ -85,8 +101,19 @@ export function PortfolioDashboard() {
     const criticalAlerts = projectAlerts.filter(a => a.severity === 'critical' || a.severity === 'high').length;
     const thresholdCount = allThresholds.filter(t => t.performance_project_id === p.id).length;
     const predictionCount = allPredictions.filter(pr => pr.performance_project_id === p.id).length;
+    const hasDataSource = allDataSources.some(ds => ds.performance_project_id === p.id);
 
-    // Calculate risk score: 0-100
+    // If no data source is configured, don't assign any risk score
+    if (!hasDataSource) {
+      return {
+        id: p.id, name: p.name, description: p.description, form_name: p.form_name,
+        created_at: p.created_at, alertCount: 0, criticalAlerts: 0,
+        thresholdCount: 0, predictionCount: 0, riskScore: 0, hasDataSource: false,
+        health: 'not_configured' as const,
+      };
+    }
+
+    // Calculate risk score only for configured projects
     const alertWeight = criticalAlerts * 25 + (projectAlerts.length - criticalAlerts) * 10;
     const coveragePenalty = thresholdCount === 0 ? 15 : 0;
     const riskScore = Math.min(alertWeight + coveragePenalty, 100);
@@ -99,15 +126,18 @@ export function PortfolioDashboard() {
     return {
       id: p.id, name: p.name, description: p.description, form_name: p.form_name,
       created_at: p.created_at, alertCount: projectAlerts.length, criticalAlerts,
-      thresholdCount, predictionCount, riskScore, health,
+      thresholdCount, predictionCount, riskScore, hasDataSource, health,
     };
-  }), [perfProjects, allAlerts, allThresholds, allPredictions]);
+  }), [perfProjects, allAlerts, allThresholds, allPredictions, allDataSources]);
 
-  // Portfolio-level aggregations
+  // Portfolio-level aggregations - only consider configured projects
+  const configuredProjects = useMemo(() => portfolioData.filter(p => p.hasDataSource), [portfolioData]);
+  const notConfiguredCount = useMemo(() => portfolioData.filter(p => !p.hasDataSource).length, [portfolioData]);
+
   const portfolioRiskScore = useMemo(() => {
-    if (portfolioData.length === 0) return 0;
-    return Math.round(portfolioData.reduce((s, p) => s + p.riskScore, 0) / portfolioData.length);
-  }, [portfolioData]);
+    if (configuredProjects.length === 0) return 0;
+    return Math.round(configuredProjects.reduce((s, p) => s + p.riskScore, 0) / configuredProjects.length);
+  }, [configuredProjects]);
 
   const totalAlerts = allAlerts.length;
   const criticalCount = allAlerts.filter(a => a.severity === 'critical' || a.severity === 'high').length;
@@ -116,10 +146,11 @@ export function PortfolioDashboard() {
     moderate: portfolioData.filter(p => p.health === 'moderate').length,
     warning: portfolioData.filter(p => p.health === 'warning').length,
     critical: portfolioData.filter(p => p.health === 'critical').length,
+    not_configured: portfolioData.filter(p => p.health === 'not_configured').length,
   }), [portfolioData]);
 
-  // Governance: projects without monitoring coverage
-  const unmonitoredCount = portfolioData.filter(p => p.thresholdCount === 0).length;
+  // Governance: projects without monitoring coverage (only from configured ones)
+  const unmonitoredCount = configuredProjects.filter(p => p.thresholdCount === 0).length;
 
   if (loadingProjects) {
     return <div className="flex items-center justify-center h-32"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
@@ -162,9 +193,9 @@ export function PortfolioDashboard() {
         </Card>
         <Card>
           <CardContent className="pt-4 pb-3">
-            <p className="text-xs text-muted-foreground">Unmonitored</p>
-            <p className={`text-2xl font-bold ${unmonitoredCount > 0 ? 'text-orange-500' : 'text-emerald-600'}`}>{unmonitoredCount}</p>
-            <p className="text-[10px] text-muted-foreground">no threshold rules</p>
+            <p className="text-xs text-muted-foreground">Not Configured</p>
+            <p className={`text-2xl font-bold ${notConfiguredCount > 0 ? 'text-muted-foreground' : 'text-emerald-600'}`}>{notConfiguredCount}</p>
+            <p className="text-[10px] text-muted-foreground">no data source</p>
           </CardContent>
         </Card>
         <Card>
@@ -188,7 +219,8 @@ export function PortfolioDashboard() {
               { label: 'Moderate', count: healthCounts.moderate, color: 'bg-yellow-500' },
               { label: 'Warning', count: healthCounts.warning, color: 'bg-orange-500' },
               { label: 'Critical', count: healthCounts.critical, color: 'bg-red-500' },
-            ].map(item => (
+              { label: 'Not Configured', count: healthCounts.not_configured, color: 'bg-gray-400' },
+            ].filter(item => item.count > 0).map(item => (
               <div key={item.label} className="space-y-1">
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-muted-foreground">{item.label}</span>
@@ -285,23 +317,29 @@ export function PortfolioDashboard() {
         <CardContent className="space-y-2">
           {portfolioData.map(p => (
             <div key={p.id} className="flex items-center gap-3 p-2.5 rounded-lg border bg-card">
-              {p.health === 'healthy' ? <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" /> :
+              {p.health === 'not_configured' ? <Settings className="h-4 w-4 text-muted-foreground shrink-0" /> :
+               p.health === 'healthy' ? <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" /> :
                p.health === 'critical' ? <XCircle className="h-4 w-4 text-red-500 shrink-0" /> :
                p.health === 'warning' ? <AlertTriangle className="h-4 w-4 text-orange-500 shrink-0" /> :
                <TrendingUp className="h-4 w-4 text-yellow-500 shrink-0" />}
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium truncate">{p.name}</p>
                 <p className="text-[10px] text-muted-foreground">
-                  {p.alertCount} alerts · {p.thresholdCount} rules · {p.predictionCount} predictions · Risk: {p.riskScore}/100
+                  {p.hasDataSource 
+                    ? `${p.alertCount} alerts · ${p.thresholdCount} rules · ${p.predictionCount} predictions · Risk: ${p.riskScore}/100`
+                    : 'No data source configured — open project to set up'}
                 </p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                {p.thresholdCount === 0 && (
+                {p.hasDataSource && p.thresholdCount === 0 && (
                   <Badge variant="outline" className="text-[10px] border-orange-500/30 text-orange-600">Unmonitored</Badge>
                 )}
-                <Badge variant={p.health === 'healthy' ? 'default' : p.health === 'critical' ? 'destructive' : 'secondary'}
-                  className="text-[10px]">
-                  {p.health.charAt(0).toUpperCase() + p.health.slice(1)}
+                <Badge variant={
+                  p.health === 'not_configured' ? 'outline' :
+                  p.health === 'healthy' ? 'default' : 
+                  p.health === 'critical' ? 'destructive' : 'secondary'
+                } className="text-[10px]">
+                  {p.health === 'not_configured' ? 'Not Configured' : p.health.charAt(0).toUpperCase() + p.health.slice(1)}
                 </Badge>
               </div>
             </div>

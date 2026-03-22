@@ -35,7 +35,7 @@ const ROLE_DESCRIPTIONS: Record<PerformanceRoleType, string> = {
 
 export function KPIDashboardTab({ perfProjectId }: Props) {
   const { userProfile } = useAuth();
-  const { userRole, loading, seniorKPIs, pmKPIs, engineerKPIs, financeKPIs, riskKPIs, alerts, submissions } = usePerformanceKPI(perfProjectId);
+  const { userRole, loading, seniorKPIs, pmKPIs, engineerKPIs, financeKPIs, riskKPIs, alerts, submissions, mappings } = usePerformanceKPI(perfProjectId);
   const [selectedRole, setSelectedRole] = useState<PerformanceRoleType | null>(null);
   const [showRoleAssignment, setShowRoleAssignment] = useState(false);
 
@@ -50,11 +50,23 @@ export function KPIDashboardTab({ perfProjectId }: Props) {
     );
   }
 
+  // No data source configured
+  if (mappings.length === 0) {
+    return (
+      <Card>
+        <CardContent className="p-8 text-center">
+          <p className="text-muted-foreground">No data source configured for this project. Please go to the <strong>Data Sources</strong> tab to configure a form data source with field mappings first.</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Data source exists but no submissions
   if (submissions.length === 0) {
     return (
       <Card>
         <CardContent className="p-8 text-center">
-          <p className="text-muted-foreground">No submission data found. Please ensure a data source is configured and has submissions.</p>
+          <p className="text-muted-foreground">Data source is configured but no form submissions found. Please ensure the linked form has submission data for KPI calculations.</p>
         </CardContent>
       </Card>
     );
