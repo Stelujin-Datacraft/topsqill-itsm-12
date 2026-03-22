@@ -157,7 +157,7 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
 
   // Run AI analysis automatically when a specific record is selected
   const runAIAnalysis = async (submissionId: string) => {
-    if (!submissionId || submissionId === 'all' || !projectId || !perfProjectId) return;
+    if (!submissionId || !projectId || !perfProjectId) return;
     setAiRunning(true);
     try {
       const { data, error } = await supabase.functions.invoke('analyze-performance', {
