@@ -76,20 +76,8 @@ export function KPIDashboardTab({ perfProjectId }: Props) {
 
   // Compute KPIs based on selected record
   const computedKPIs = useMemo(() => {
-    if (submissions.length === 0) return null;
+    if (submissions.length === 0 || !selectedRecordId) return null;
 
-    if (selectedRecordId === 'all') {
-      return {
-        seniorKPIs: calculateSeniorManagementKPIs(submissions, mappings),
-        pmKPIs: aggregateProjectManagerKPIs(submissions, mappings),
-        engineerKPIs: calculateDisciplineEngineerKPIs(submissions, mappings, userProfile?.id),
-        financeKPIs: calculateFinanceKPIs(submissions, mappings),
-        riskKPIs: calculateRiskGovernanceKPIs(submissions, mappings),
-        alerts: generateKPIAlerts(submissions, mappings),
-      };
-    }
-
-    // Single record selected
     const selectedSub = submissions.find((s: any) => s.id === selectedRecordId);
     if (!selectedSub) return null;
     const singleArr = [selectedSub];
