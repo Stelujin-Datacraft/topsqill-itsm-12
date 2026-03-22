@@ -99,6 +99,9 @@ export default function ProjectPerformance() {
           </TabsTrigger>
         </TabsList>
 
+        <TabsContent value="kpi-dashboards">
+          <KPIDashboardTab perfProjectId={selectedPerfProject.id} />
+        </TabsContent>
         <TabsContent value="overview">
           <PerformanceOverview
             alerts={perfData.alerts}
