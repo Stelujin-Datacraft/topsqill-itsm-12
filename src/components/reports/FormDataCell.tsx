@@ -498,17 +498,19 @@ const COUNTRIES = [
   }
 
   // Handle currency fields
-if (fieldType === 'currency' && value) {
+if (fieldType === 'currency' && (value || value === 0)) {
   let parsed: { currency: string; amount: number | string } = { currency: '', amount: 0 };
 
-  if (typeof value === 'string') {
+  if (typeof value === 'number') {
+    parsed = { currency: 'USD', amount: value };
+  } else if (typeof value === 'string') {
     try {
       parsed = JSON.parse(value);
     } catch {
       parsed = { currency: '', amount: value };
     }
   } else if (typeof value === 'object') {
-    parsed = { currency: value.currency || '', amount: value.amount || value.value || 0 };
+    parsed = { currency: value.currency || '', amount: value.amount ?? value.value ?? 0 };
   }
 
   const { currency, amount } = parsed;
