@@ -48,7 +48,7 @@ export default function ProjectPerformance() {
   return (
     <div className="flex-1 overflow-auto p-6 space-y-6">
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => { setSelectedPerfProject(null); setActiveTab('kpi-dashboards'); }}>
+        <Button variant="ghost" size="icon" onClick={() => { setSelectedPerfProject(null); setActiveTab('dashboard'); }}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>
