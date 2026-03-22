@@ -101,8 +101,19 @@ export function PortfolioDashboard() {
     const criticalAlerts = projectAlerts.filter(a => a.severity === 'critical' || a.severity === 'high').length;
     const thresholdCount = allThresholds.filter(t => t.performance_project_id === p.id).length;
     const predictionCount = allPredictions.filter(pr => pr.performance_project_id === p.id).length;
+    const hasDataSource = allDataSources.some(ds => ds.performance_project_id === p.id);
 
-    // Calculate risk score: 0-100
+    // If no data source is configured, don't assign any risk score
+    if (!hasDataSource) {
+      return {
+        id: p.id, name: p.name, description: p.description, form_name: p.form_name,
+        created_at: p.created_at, alertCount: 0, criticalAlerts: 0,
+        thresholdCount: 0, predictionCount: 0, riskScore: 0, hasDataSource: false,
+        health: 'not_configured' as const,
+      };
+    }
+
+    // Calculate risk score only for configured projects
     const alertWeight = criticalAlerts * 25 + (projectAlerts.length - criticalAlerts) * 10;
     const coveragePenalty = thresholdCount === 0 ? 15 : 0;
     const riskScore = Math.min(alertWeight + coveragePenalty, 100);
@@ -115,9 +126,9 @@ export function PortfolioDashboard() {
     return {
       id: p.id, name: p.name, description: p.description, form_name: p.form_name,
       created_at: p.created_at, alertCount: projectAlerts.length, criticalAlerts,
-      thresholdCount, predictionCount, riskScore, health,
+      thresholdCount, predictionCount, riskScore, hasDataSource, health,
     };
-  }), [perfProjects, allAlerts, allThresholds, allPredictions]);
+  }), [perfProjects, allAlerts, allThresholds, allPredictions, allDataSources]);
 
   // Portfolio-level aggregations
   const portfolioRiskScore = useMemo(() => {
