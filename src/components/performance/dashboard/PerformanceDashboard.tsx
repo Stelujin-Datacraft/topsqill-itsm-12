@@ -329,9 +329,7 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
             {/* Info badges */}
             <div className="flex items-center gap-2 mb-0.5">
               <Badge variant="outline" className="text-xs">
-                {!selectedRecordId || selectedRecordId === 'all'
-                  ? `${submissions.length} records`
-                  : 'Single record'}
+                {selectedRecordId ? 'Single record' : `${submissions.length} records available`}
               </Badge>
               {aiRunning && (
                 <Badge variant="secondary" className="text-xs animate-pulse gap-1">
@@ -339,7 +337,7 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
                   AI Analyzing...
                 </Badge>
               )}
-              {selectedRecordId && selectedRecordId !== 'all' && !aiRunning && (
+              {selectedRecordId && !aiRunning && (
                 <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => runAIAnalysis(selectedRecordId)}>
                   <Brain className="h-3.5 w-3.5 mr-1" />
                   Re-run AI
@@ -349,7 +347,7 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
           </div>
           <p className="text-xs text-muted-foreground mt-2">
             {ROLE_DESCRIPTIONS[activeRole]}
-            {selectedRecordId && selectedRecordId !== 'all' && ' • AI analysis runs automatically when a record is selected.'}
+            {selectedRecordId && ' • AI analysis runs automatically when a record is selected.'}
           </p>
         </CardContent>
       </Card>
