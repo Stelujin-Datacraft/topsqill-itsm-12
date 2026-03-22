@@ -4041,6 +4041,54 @@ export type Database = {
           },
         ]
       }
+      performance_user_roles: {
+        Row: {
+          assigned_by: string | null
+          created_at: string
+          id: string
+          performance_project_id: string | null
+          project_id: string
+          role_type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          assigned_by?: string | null
+          created_at?: string
+          id?: string
+          performance_project_id?: string | null
+          project_id: string
+          role_type: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          assigned_by?: string | null
+          created_at?: string
+          id?: string
+          performance_project_id?: string | null
+          project_id?: string
+          role_type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "performance_user_roles_performance_project_id_fkey"
+            columns: ["performance_project_id"]
+            isOneToOne: false
+            referencedRelation: "performance_projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "performance_user_roles_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       permission_audit_log: {
         Row: {
           action: string
