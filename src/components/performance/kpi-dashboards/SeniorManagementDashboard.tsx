@@ -38,9 +38,9 @@ export function SeniorManagementDashboard({ kpis, alerts }: Props) {
         <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Project Status</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <KPIMetricCard title="Total Projects" value={kpis.totalProjects} icon={Briefcase} />
-          <KPIMetricCard title="Active" value={kpis.activeProjects} icon={Activity} variant="success" />
-          <KPIMetricCard title="Completed" value={kpis.completedProjects} icon={Target} />
-          <KPIMetricCard title="Delayed" value={kpis.delayedProjects} icon={AlertTriangle} variant={kpis.delayedProjects > 0 ? 'danger' : 'default'} />
+          <KPIMetricCard title="Active Projects" value={kpis.activeProjects} icon={Activity} variant="success" />
+          <KPIMetricCard title="Completed Projects" value={kpis.completedProjects} icon={Target} />
+          <KPIMetricCard title="Delayed Projects" value={kpis.delayedProjects} icon={AlertTriangle} variant={kpis.delayedProjects > 0 ? 'danger' : 'default'} />
         </div>
       </div>
 
@@ -49,7 +49,7 @@ export function SeniorManagementDashboard({ kpis, alerts }: Props) {
         <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Delivery & Performance</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <KPIMetricCard
-            title="On-Time Delivery"
+            title="On-Time Delivery (%)"
             value={`${kpis.onTimeDeliveryRate.toFixed(1)}%`}
             variant={kpis.onTimeDeliveryRate >= 80 ? 'success' : kpis.onTimeDeliveryRate >= 60 ? 'warning' : 'danger'}
             icon={TrendingUp}
@@ -80,26 +80,23 @@ export function SeniorManagementDashboard({ kpis, alerts }: Props) {
       {/* Financial Overview */}
       <div>
         <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Financial Overview</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <KPIMetricCard title="Planned Budget" value={kpis.portfolioPlannedBudget} icon={DollarSign} />
-          <KPIMetricCard title="Actual Cost" value={kpis.portfolioActualCost} icon={DollarSign} />
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          <KPIMetricCard title="Portfolio Planned Budget" value={kpis.portfolioPlannedBudget} icon={DollarSign} />
+          <KPIMetricCard title="Portfolio Actual Cost" value={kpis.portfolioActualCost} icon={DollarSign} />
           <KPIMetricCard
-            title="Budget Utilization"
+            title="Budget Utilization (%)"
             value={`${kpis.budgetUtilization.toFixed(1)}%`}
             variant={kpis.budgetUtilization > 100 ? 'danger' : kpis.budgetUtilization > 90 ? 'warning' : 'success'}
           />
-          <KPIMetricCard title="Earned Value" value={kpis.portfolioEV} />
         </div>
       </div>
 
-      {/* AI Predictions */}
+      {/* Predictions */}
       <div>
-        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">AI Predictions & Risk</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <KPIMetricCard title="High Risk Projects" value={kpis.highRiskProjects} variant={kpis.highRiskProjects > 0 ? 'danger' : 'success'} icon={ShieldAlert} />
+        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Predictions</h3>
+        <div className="grid grid-cols-2 gap-3">
           <KPIMetricCard title="Avg Predicted Delay" value={`${kpis.averagePredictedDelay.toFixed(1)} days`} variant={kpis.averagePredictedDelay > 5 ? 'warning' : 'default'} />
-          <KPIMetricCard title="Avg Cost Overrun" value={`${kpis.averagePredictedCostOverrun.toFixed(1)}%`} variant={kpis.averagePredictedCostOverrun > 10 ? 'danger' : 'default'} />
-          <KPIMetricCard title="Anomaly Projects" value={kpis.anomalyProjects} variant={kpis.anomalyProjects > 0 ? 'warning' : 'success'} icon={AlertTriangle} />
+          <KPIMetricCard title="Avg Predicted Cost Overrun (%)" value={`${kpis.averagePredictedCostOverrun.toFixed(1)}%`} variant={kpis.averagePredictedCostOverrun > 10 ? 'danger' : 'default'} />
         </div>
       </div>
 

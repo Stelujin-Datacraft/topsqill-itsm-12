@@ -11,7 +11,10 @@ export interface FieldMapping {
   mappedTo?: string;
 }
 
-// Helper to safely extract numeric value from submission data
+// ========================
+// HELPERS
+// ========================
+
 function num(val: any): number {
   if (val === null || val === undefined || val === '') return 0;
   if (typeof val === 'number') return val;
@@ -39,27 +42,24 @@ function dateDiffDays(a: string | null, b: string | null): number {
   return Math.round((da.getTime() - db.getTime()) / (1000 * 60 * 60 * 24));
 }
 
-// Resolve a field value from submission data using field_mappings
-function resolveField(data: Record<string, any>, mappings: FieldMapping[], labelPattern: string | RegExp): any {
-  const mapping = mappings.find(m => {
-    const label = m.formFieldLabel.toLowerCase();
-    if (typeof labelPattern === 'string') {
-      return label === labelPattern.toLowerCase() || label.includes(labelPattern.toLowerCase());
-    }
-    return labelPattern.test(label);
-  });
+/**
+ * Resolve a field value from submission data using EXACT label matching.
+ * Falls back to includes-based matching if exact match not found.
+ */
+function resolveField(data: Record<string, any>, mappings: FieldMapping[], label: string): any {
+  // Exact match first
+  let mapping = mappings.find(m => m.formFieldLabel === label);
+  // Fallback: case-insensitive exact
+  if (!mapping) mapping = mappings.find(m => m.formFieldLabel.toLowerCase() === label.toLowerCase());
+  // Fallback: includes
+  if (!mapping) mapping = mappings.find(m => m.formFieldLabel.toLowerCase().includes(label.toLowerCase()));
   if (!mapping) return undefined;
   return data[mapping.formFieldId];
 }
 
-function resolveFieldId(mappings: FieldMapping[], labelPattern: string | RegExp): string | null {
-  const mapping = mappings.find(m => {
-    const label = m.formFieldLabel.toLowerCase();
-    if (typeof labelPattern === 'string') {
-      return label === labelPattern.toLowerCase() || label.includes(labelPattern.toLowerCase());
-    }
-    return labelPattern.test(label);
-  });
+function resolveFieldId(mappings: FieldMapping[], label: string): string | null {
+  let mapping = mappings.find(m => m.formFieldLabel === label);
+  if (!mapping) mapping = mappings.find(m => m.formFieldLabel.toLowerCase() === label.toLowerCase());
   return mapping?.formFieldId || null;
 }
 
@@ -75,16 +75,11 @@ export interface SeniorManagementKPIs {
   portfolioPlannedBudget: number;
   portfolioActualCost: number;
   budgetUtilization: number;
-  portfolioEV: number;
-  portfolioPV: number;
-  portfolioAC: number;
   portfolioCPI: number;
   portfolioSPI: number;
   averageRiskScore: number;
-  highRiskProjects: number;
   averagePredictedDelay: number;
   averagePredictedCostOverrun: number;
-  anomalyProjects: number;
   projectList: Array<{ id: string; name: string; status: string; riskScore: number; cpi: number; spi: number; }>;
 }
 
@@ -92,45 +87,45 @@ export function calculateSeniorManagementKPIs(submissions: any[], mappings: Fiel
   const total = submissions.length;
   let active = 0, completed = 0, delayed = 0, onTime = 0;
   let sumBudget = 0, sumActualCost = 0, sumEV = 0, sumPV = 0, sumAC = 0;
-  let sumRisk = 0, highRisk = 0, sumPredDelay = 0, sumPredCostOverrun = 0, anomalyCount = 0;
-  let riskCount = 0;
+  let sumRisk = 0, riskCount = 0, sumPredDelay = 0, sumPredCostOverrun = 0;
   const projectList: SeniorManagementKPIs['projectList'] = [];
 
   for (const sub of submissions) {
     const d = sub.submission_data || {};
-    
-    const status = str(resolveField(d, mappings, 'project_status'));
-    const plannedEnd = str(resolveField(d, mappings, /end.*planned|planned.*end/));
-    const actualEnd = str(resolveField(d, mappings, /end.*actual|actual.*end/));
-    const plannedBudget = num(resolveField(d, mappings, 'planned_budget'));
-    const actualCost = num(resolveField(d, mappings, 'actual_cost'));
-    const ev = num(resolveField(d, mappings, /earned.*value/));
-    const pv = num(resolveField(d, mappings, /planned.*value/));
-    const ac = num(resolveField(d, mappings, /actual.*cost.*value/));
-    const riskScore = num(resolveField(d, mappings, 'risk_score'));
-    const predDelay = num(resolveField(d, mappings, /predicted.*delay/));
-    const predCostOverrun = num(resolveField(d, mappings, /predicted.*cost.*overrun/));
-    const anomalyFlag = str(resolveField(d, mappings, /anomaly.*flag/));
-    const projectName = str(resolveField(d, mappings, 'project_name'));
 
+    // Exact field labels from form
+    const status = str(resolveField(d, mappings, 'Project Status'));
+    const plannedEnd = str(resolveField(d, mappings, 'End Date (Planned)'));
+    const actualEnd = str(resolveField(d, mappings, 'End Date (Actual)'));
+    const plannedBudget = num(resolveField(d, mappings, 'Planned Budget'));
+    const actualCost = num(resolveField(d, mappings, 'Actual Cost'));
+    const ev = num(resolveField(d, mappings, 'Earned Value (EV)'));
+    const pv = num(resolveField(d, mappings, 'Planned Value (PV)'));
+    const ac = num(resolveField(d, mappings, 'Actual Cost Value (AC)'));
+    const riskScore = num(resolveField(d, mappings, 'Risk Score'));
+    const predDelay = num(resolveField(d, mappings, 'Predicted Delay Days'));
+    const predCostOverrun = num(resolveField(d, mappings, 'Predicted Cost Overrun (%)'));
+    const projectName = str(resolveField(d, mappings, 'Project Name'));
+
+    // COUNT(Project_Status = "In Progress")
     if (status.toLowerCase().includes('in progress')) active++;
-    if (status.toLowerCase().includes('completed')) {
-      completed++;
-      if (actualEnd && plannedEnd && dateDiffDays(actualEnd, plannedEnd) <= 0) onTime++;
-    }
+    // COUNT(Project_Status = "Completed")
+    if (status.toLowerCase().includes('completed')) completed++;
+    // COUNT(End_Date(Actual) > End_Date(Planned))
     if (actualEnd && plannedEnd && dateDiffDays(actualEnd, plannedEnd) > 0) delayed++;
+    // On-time: End_Date(Actual) <= End_Date(Planned)
+    if (actualEnd && plannedEnd && dateDiffDays(actualEnd, plannedEnd) <= 0) onTime++;
 
+    // SUM aggregations
     sumBudget += plannedBudget;
     sumActualCost += actualCost;
     sumEV += ev;
     sumPV += pv;
     sumAC += ac;
-    
+
     if (riskScore > 0) { sumRisk += riskScore; riskCount++; }
-    if (riskScore > 70) highRisk++;
     sumPredDelay += predDelay;
     sumPredCostOverrun += predCostOverrun;
-    if (anomalyFlag.toLowerCase() === 'yes') anomalyCount++;
 
     projectList.push({
       id: sub.id,
@@ -147,20 +142,24 @@ export function calculateSeniorManagementKPIs(submissions: any[], mappings: Fiel
     activeProjects: active,
     completedProjects: completed,
     delayedProjects: delayed,
-    onTimeDeliveryRate: completed > 0 ? (onTime / completed) * 100 : 0,
+    // On_Time_Delivery (%) = (COUNT(End_Date(Actual) ≤ End_Date(Planned)) / COUNT(Project_ID)) × 100
+    onTimeDeliveryRate: total > 0 ? (onTime / total) * 100 : 0,
+    // Portfolio_Planned_Budget = SUM(Planned_Budget)
     portfolioPlannedBudget: sumBudget,
+    // Portfolio_Actual_Cost = SUM(Actual_Cost)
     portfolioActualCost: sumActualCost,
+    // Budget_Utilization (%) = (SUM(Actual_Cost) / SUM(Planned_Budget)) × 100
     budgetUtilization: sumBudget > 0 ? (sumActualCost / sumBudget) * 100 : 0,
-    portfolioEV: sumEV,
-    portfolioPV: sumPV,
-    portfolioAC: sumAC,
+    // Portfolio_CPI = SUM(Earned_Value(EV)) / SUM(Actual_Cost_Value(AC))
     portfolioCPI: sumAC > 0 ? sumEV / sumAC : 0,
+    // Portfolio_SPI = SUM(Earned_Value(EV)) / SUM(Planned_Value(PV))
     portfolioSPI: sumPV > 0 ? sumEV / sumPV : 0,
+    // Average_Risk_Score = AVG(Risk_Score)
     averageRiskScore: riskCount > 0 ? sumRisk / riskCount : 0,
-    highRiskProjects: highRisk,
+    // Average_Predicted_Delay = AVG(Predicted_Delay_Days)
     averagePredictedDelay: total > 0 ? sumPredDelay / total : 0,
+    // Average_Predicted_Cost_Overrun (%) = AVG(Predicted_Cost_Overrun(%))
     averagePredictedCostOverrun: total > 0 ? sumPredCostOverrun / total : 0,
-    anomalyProjects: anomalyCount,
     projectList,
   };
 }
@@ -170,108 +169,106 @@ export function calculateSeniorManagementKPIs(submissions: any[], mappings: Fiel
 // ========================
 export interface ProjectManagerKPIs {
   projectProgress: number;
-  totalTasks: number;
-  completedTasks: number;
   delayedTasks: number;
-  scheduleVariance: number;
-  spi: number;
+  scheduleVariancePercent: number;
   costVariance: number;
+  costVariancePercent: number;
   cpi: number;
-  milestoneCompletionRate: number;
-  milestoneDelayDays: number;
+  spi: number;
   burnRate: number;
-  projectDuration: number;
-  riskExposure: number;
-  predictedDelay: number;
-  predictedCostOverrun: number;
-  openIssues: number;
+  milestoneDelayDays: number;
+  predictedDelayDays: number;
+  predictedCostOverrunPercent: number;
 }
 
 export function calculateProjectManagerKPIs(submission: Record<string, any>, mappings: FieldMapping[]): ProjectManagerKPIs {
   const d = submission;
 
-  const totalTasks = num(resolveField(d, mappings, 'total_tasks'));
-  const completedTasks = num(resolveField(d, mappings, 'completed_tasks'));
-  const taskDelayDays = num(resolveField(d, mappings, /task.*delay.*days/));
-  const delayedTasks = num(resolveField(d, mappings, 'delayed_tasks'));
-  const ev = num(resolveField(d, mappings, /earned.*value/));
-  const pv = num(resolveField(d, mappings, /planned.*value/));
-  const ac = num(resolveField(d, mappings, /actual.*cost.*value/));
-  const actualCost = num(resolveField(d, mappings, 'actual_cost'));
-  const actualStart = str(resolveField(d, mappings, /actual.*start/));
-  const riskScore = num(resolveField(d, mappings, 'risk_score'));
-  const predDelay = num(resolveField(d, mappings, /predicted.*delay/));
-  const predCostOverrun = num(resolveField(d, mappings, /predicted.*cost.*overrun/));
-  const burnRate = num(resolveField(d, mappings, 'burn_rate'));
+  const taskStatus = str(resolveField(d, mappings, 'Task Status'));
+  const taskDelayDays = num(resolveField(d, mappings, 'Task Delay Days'));
+  const ev = num(resolveField(d, mappings, 'Earned Value (EV)'));
+  const pv = num(resolveField(d, mappings, 'Planned Value (PV)'));
+  const ac = num(resolveField(d, mappings, 'Actual Cost Value (AC)'));
+  const actualCost = num(resolveField(d, mappings, 'Actual Cost'));
+  const plannedBudget = num(resolveField(d, mappings, 'Planned Budget'));
+  const actualStart = str(resolveField(d, mappings, 'Actual Start Date'));
+  const actualEnd = str(resolveField(d, mappings, 'Actual End Date'));
+  const plannedEnd = str(resolveField(d, mappings, 'Planned End Date'));
+  const plannedStart = str(resolveField(d, mappings, 'Planned Start Date'));
+  const milestonePlanned = str(resolveField(d, mappings, 'Milestone Planned Date'));
+  const milestoneActual = str(resolveField(d, mappings, 'Milestone Actual Date'));
+  const predDelay = num(resolveField(d, mappings, 'Predicted Delay Days'));
+  const forecastedCost = num(resolveField(d, mappings, 'Forecasted Cost'));
+  const burnRateField = num(resolveField(d, mappings, 'Burn Rate'));
 
-  // Milestone fields
-  const completedMilestones = num(resolveField(d, mappings, 'completed_milestones'));
-  const totalMilestones = num(resolveField(d, mappings, 'total_milestones'));
-  const milestonePlanned = str(resolveField(d, mappings, /milestone.*planned/));
-  const milestoneActual = str(resolveField(d, mappings, /milestone.*actual/));
-
-  // Open issues
-  const openIssues = num(resolveField(d, mappings, 'open_issues'));
-
-  const spi = pv > 0 ? ev / pv : 0;
+  // CPI = EV / AC
   const cpi = ac > 0 ? ev / ac : 0;
+  // SPI = EV / PV
+  const spi = pv > 0 ? ev / pv : 0;
+  // Cost_Variance = EV - AC
+  const costVariance = ev - ac;
+  // Cost_Variance (%) = ((EV - AC) / Planned_Budget) × 100
+  const costVariancePercent = plannedBudget > 0 ? ((ev - ac) / plannedBudget) * 100 : 0;
 
-  const projectDuration = actualStart ? dateDiffDays(new Date().toISOString(), actualStart) : 0;
-  const effectiveBurnRate = burnRate > 0 ? burnRate : (projectDuration > 0 ? actualCost / projectDuration : 0);
+  // Schedule_Variance (%) = ((Actual_End_Date - Planned_End_Date) / (Planned_End_Date - Planned_Start_Date)) × 100
+  const actualDelay = dateDiffDays(actualEnd, plannedEnd);
+  const plannedDuration = dateDiffDays(plannedEnd, plannedStart);
+  const scheduleVariancePercent = plannedDuration > 0 ? (actualDelay / plannedDuration) * 100 : 0;
 
-  // Project_Progress = (Completed_Tasks / Total_Tasks) × 100
-  const projectProgress = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
+  // Burn_Rate = Actual_Cost / (Current_Date - Actual_Start_Date)
+  const projectDuration = actualStart ? Math.max(dateDiffDays(new Date().toISOString(), actualStart), 1) : 1;
+  const burnRate = burnRateField > 0 ? burnRateField : (actualCost / projectDuration);
 
-  // Milestone_Completion = (Completed_Milestones / Total_Milestones) × 100
-  const milestoneCompletionRate = totalMilestones > 0 ? (completedMilestones / totalMilestones) * 100 : 0;
+  // Milestone_Delay_Days = Milestone_Actual_Date - Milestone_Planned_Date
+  const milestoneDelayDays = dateDiffDays(milestoneActual, milestonePlanned);
+
+  // Predicted_Cost_Overrun (%) = ((Forecasted_Cost - Planned_Budget) / Planned_Budget) × 100
+  const predictedCostOverrunPercent = plannedBudget > 0 && forecastedCost > 0
+    ? ((forecastedCost - plannedBudget) / plannedBudget) * 100
+    : num(resolveField(d, mappings, 'Predicted Cost Overrun (%)'));
+
+  // Project_Progress (%) - for single record: check if task is completed
+  const isCompleted = taskStatus.toLowerCase().includes('completed') ? 1 : 0;
+  // Delayed_Tasks = COUNT(Task_Delay_Days > 0)
+  const delayedTasks = taskDelayDays > 0 ? 1 : 0;
 
   return {
-    projectProgress,
-    totalTasks,
-    completedTasks,
-    delayedTasks: delayedTasks || (taskDelayDays > 0 ? 1 : 0),
-    scheduleVariance: ev - pv,
-    spi,
-    costVariance: ev - ac,
+    projectProgress: isCompleted * 100,
+    delayedTasks,
+    scheduleVariancePercent,
+    costVariance,
+    costVariancePercent,
     cpi,
-    milestoneCompletionRate,
-    milestoneDelayDays: dateDiffDays(milestoneActual, milestonePlanned),
-    burnRate: effectiveBurnRate,
-    projectDuration: Math.max(projectDuration, 0),
-    riskExposure: riskScore,
-    predictedDelay: predDelay,
-    predictedCostOverrun: predCostOverrun,
-    openIssues,
+    spi,
+    burnRate,
+    milestoneDelayDays,
+    predictedDelayDays: predDelay,
+    predictedCostOverrunPercent,
   };
 }
 
-// Aggregate PM KPIs across all submissions (portfolio of tasks within a project)
+// Aggregate PM KPIs across all submissions
 export function aggregateProjectManagerKPIs(submissions: any[], mappings: FieldMapping[]): ProjectManagerKPIs {
   const all = submissions.map(s => calculateProjectManagerKPIs(s.submission_data || {}, mappings));
   const total = all.length;
   if (total === 0) return calculateProjectManagerKPIs({}, mappings);
 
-  const completedTasks = all.reduce((s, k) => s + k.completedTasks, 0);
-  const totalTasks = total;
-  const sumEV = all.reduce((s, k) => s + (k.spi * (k.costVariance + k.cpi > 0 ? 1 : 0)), 0);
+  // Count completed tasks and total tasks across submissions
+  const completedCount = all.filter(k => k.projectProgress === 100).length;
 
   return {
-    projectProgress: totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0,
-    totalTasks,
-    completedTasks,
+    // Project_Progress (%) = (Completed_Tasks / Total_Tasks) × 100
+    projectProgress: total > 0 ? (completedCount / total) * 100 : 0,
     delayedTasks: all.reduce((s, k) => s + k.delayedTasks, 0),
-    scheduleVariance: all.reduce((s, k) => s + k.scheduleVariance, 0),
-    spi: all.reduce((s, k) => s + k.spi, 0) / total,
+    scheduleVariancePercent: total > 0 ? all.reduce((s, k) => s + k.scheduleVariancePercent, 0) / total : 0,
     costVariance: all.reduce((s, k) => s + k.costVariance, 0),
-    cpi: all.reduce((s, k) => s + k.cpi, 0) / total,
-    milestoneCompletionRate: all.reduce((s, k) => s + k.milestoneCompletionRate, 0) / total,
-    milestoneDelayDays: all.reduce((s, k) => s + k.milestoneDelayDays, 0) / total,
-    burnRate: all.reduce((s, k) => s + k.burnRate, 0) / total,
-    projectDuration: Math.max(...all.map(k => k.projectDuration), 0),
-    riskExposure: all.reduce((s, k) => s + k.riskExposure, 0) / total,
-    predictedDelay: all.reduce((s, k) => s + k.predictedDelay, 0) / total,
-    predictedCostOverrun: all.reduce((s, k) => s + k.predictedCostOverrun, 0) / total,
-    openIssues: all.reduce((s, k) => s + k.openIssues, 0),
+    costVariancePercent: total > 0 ? all.reduce((s, k) => s + k.costVariancePercent, 0) / total : 0,
+    cpi: total > 0 ? all.reduce((s, k) => s + k.cpi, 0) / total : 0,
+    spi: total > 0 ? all.reduce((s, k) => s + k.spi, 0) / total : 0,
+    burnRate: total > 0 ? all.reduce((s, k) => s + k.burnRate, 0) / total : 0,
+    milestoneDelayDays: total > 0 ? all.reduce((s, k) => s + k.milestoneDelayDays, 0) / total : 0,
+    predictedDelayDays: total > 0 ? all.reduce((s, k) => s + k.predictedDelayDays, 0) / total : 0,
+    predictedCostOverrunPercent: total > 0 ? all.reduce((s, k) => s + k.predictedCostOverrunPercent, 0) / total : 0,
   };
 }
 
@@ -282,56 +279,86 @@ export interface DisciplineEngineerKPIs {
   assignedTasks: number;
   completedTasks: number;
   taskCompletionRate: number;
-  pendingTasks: number;
-  blockedTasks: number;
   taskDelayDays: number;
-  averageTaskDelay: number;
   resourceUtilization: number;
   productivityScore: number;
   overtimeHours: number;
   engineeringRiskCount: number;
+  qualityScore: number;
 }
 
 export function calculateDisciplineEngineerKPIs(submissions: any[], mappings: FieldMapping[], userId?: string): DisciplineEngineerKPIs {
-  let assigned = 0, completed = 0, pending = 0, blocked = 0;
-  let totalDelay = 0, delayCount = 0;
+  let assigned = 0, completed = 0;
+  let totalDelay = 0;
   let totalActualHours = 0, totalPlannedHours = 0;
+  let totalOvertimeHours = 0;
   let engRisks = 0;
+  let totalDefects = 0;
+  let totalTasks = 0;
+  let sumQualityScore = 0;
+  let qualityCount = 0;
 
   for (const sub of submissions) {
     const d = sub.submission_data || {};
-    const taskStatus = str(resolveField(d, mappings, 'task_status')).toLowerCase();
-    const delayDays = num(resolveField(d, mappings, /task.*delay/));
-    const actualHours = num(resolveField(d, mappings, 'actual_hours'));
-    const plannedHours = num(resolveField(d, mappings, 'planned_hours'));
-    const riskOwner = str(resolveField(d, mappings, 'risk_owner'));
 
-    assigned++;
+    const taskStatus = str(resolveField(d, mappings, 'Task Status')).toLowerCase();
+    const taskDelayDays = num(resolveField(d, mappings, 'Task Delay Days'));
+    const actualHours = num(resolveField(d, mappings, 'Actual Hours'));
+    const plannedHours = num(resolveField(d, mappings, 'Planned Hours'));
+    const overtimeHours = num(resolveField(d, mappings, 'Overtime Hours'));
+    const riskOwner = str(resolveField(d, mappings, 'Risk Owner'));
+    const resourceId = str(resolveField(d, mappings, 'Resource ID'));
+    const defectCount = num(resolveField(d, mappings, 'Defect Count'));
+    const qualityScoreField = num(resolveField(d, mappings, 'Quality Score'));
+
+    // Assigned_Tasks = COUNT(Task_ID WHERE Resource_ID = Logged_In_User)
+    // If no userId filter, count all
+    if (!userId || resourceId.toLowerCase().includes(userId.toLowerCase())) {
+      assigned++;
+    }
+
+    // Completed_Tasks = COUNT(Task_Status = "Completed")
     if (taskStatus.includes('completed')) completed++;
-    if (taskStatus.includes('pending')) pending++;
-    if (taskStatus.includes('blocked')) blocked++;
-    totalDelay += delayDays; delayCount++;
+
+    // Task_Delay_Days = Actual_End_Date - Planned_End_Date (using field directly)
+    totalDelay += taskDelayDays;
+
     totalActualHours += actualHours;
     totalPlannedHours += plannedHours;
-    
-    // Check if risk owner matches current user (simple check)
+    // Overtime_Hours = Actual_Hours - Planned_Hours (use field value if available)
+    totalOvertimeHours += overtimeHours > 0 ? overtimeHours : Math.max(actualHours - plannedHours, 0);
+
+    totalDefects += defectCount;
+    totalTasks++;
+
+    // Quality_Score from form field
+    if (qualityScoreField > 0) { sumQualityScore += qualityScoreField; qualityCount++; }
+
+    // Engineering_Risk_Count = COUNT(Risk_Owner = Logged_In_User)
     if (userId && riskOwner && riskOwner.toLowerCase().includes(userId.toLowerCase())) {
       engRisks++;
     }
   }
 
+  // Quality_Score = 100 - ((Defect_Count / COUNT(Task_ID)) × 100)
+  // Use form field average if available, otherwise calculate from defects
+  const calculatedQuality = totalTasks > 0 ? 100 - ((totalDefects / totalTasks) * 100) : 100;
+  const qualityScore = qualityCount > 0 ? sumQualityScore / qualityCount : calculatedQuality;
+
   return {
     assignedTasks: assigned,
     completedTasks: completed,
+    // Task_Completion_Rate (%) = (Completed / Assigned) × 100
     taskCompletionRate: assigned > 0 ? (completed / assigned) * 100 : 0,
-    pendingTasks: pending,
-    blockedTasks: blocked,
     taskDelayDays: totalDelay,
-    averageTaskDelay: assigned > 0 ? totalDelay / assigned : 0,
+    // Resource_Utilization (%) = (Actual_Hours / Planned_Hours) × 100
     resourceUtilization: totalPlannedHours > 0 ? (totalActualHours / totalPlannedHours) * 100 : 0,
+    // Productivity_Score = Planned_Hours / Actual_Hours
     productivityScore: totalActualHours > 0 ? totalPlannedHours / totalActualHours : 0,
-    overtimeHours: Math.max(totalActualHours - totalPlannedHours, 0),
+    // Overtime_Hours = Actual_Hours - Planned_Hours
+    overtimeHours: totalOvertimeHours,
     engineeringRiskCount: engRisks,
+    qualityScore,
   };
 }
 
@@ -343,53 +370,60 @@ export interface FinanceKPIs {
   actualCost: number;
   budgetUtilization: number;
   costVariance: number;
-  costVariancePercent: number;
+  costPerTask: number;
   cpi: number;
   eac: number;
   etc: number;
   vac: number;
-  burnRate: number;
-  forecastCostOverrun: number;
+  predictedCostOverrunPercent: number;
 }
 
 export function calculateFinanceKPIs(submissions: any[], mappings: FieldMapping[]): FinanceKPIs {
   let sumBudget = 0, sumActual = 0, sumEV = 0, sumAC = 0;
-  let totalDuration = 0, durationCount = 0;
+  let totalTasks = 0;
+  let sumForecastedCost = 0;
 
   for (const sub of submissions) {
     const d = sub.submission_data || {};
-    sumBudget += num(resolveField(d, mappings, 'planned_budget'));
-    sumActual += num(resolveField(d, mappings, 'actual_cost'));
-    sumEV += num(resolveField(d, mappings, /earned.*value/));
-    sumAC += num(resolveField(d, mappings, /actual.*cost.*value/));
-    
-    const actualStart = str(resolveField(d, mappings, /actual.*start/));
-    if (actualStart) {
-      const dur = dateDiffDays(new Date().toISOString(), actualStart);
-      if (dur > 0) { totalDuration += dur; durationCount++; }
-    }
+    sumBudget += num(resolveField(d, mappings, 'Planned Budget'));
+    sumActual += num(resolveField(d, mappings, 'Actual Cost'));
+    sumEV += num(resolveField(d, mappings, 'Earned Value (EV)'));
+    sumAC += num(resolveField(d, mappings, 'Actual Cost Value (AC)'));
+    sumForecastedCost += num(resolveField(d, mappings, 'Forecasted Cost'));
+    const taskId = str(resolveField(d, mappings, 'Task ID'));
+    if (taskId) totalTasks++;
   }
 
-  const bac = sumBudget;
+  // CPI = EV / AC
   const cpi = sumAC > 0 ? sumEV / sumAC : 0;
-  const eac = cpi > 0 ? bac / cpi : 0;
+  // EAC = Planned_Budget / CPI
+  const eac = cpi > 0 ? sumBudget / cpi : 0;
+  // ETC = EAC - Actual_Cost
   const etc = eac - sumActual;
-  const vac = bac - eac;
-  const avgDuration = durationCount > 0 ? totalDuration / durationCount : 1;
-  const burnRate = avgDuration > 0 ? sumActual / avgDuration : 0;
+  // VAC = Planned_Budget - EAC
+  const vac = sumBudget - eac;
+  // Cost_Per_Task = Actual_Cost / COUNT(Task_ID)
+  const costPerTask = totalTasks > 0 ? sumActual / totalTasks : 0;
+  // Predicted_Cost_Overrun (%) = ((Forecasted_Cost - Planned_Budget) / Planned_Budget) × 100
+  const predictedCostOverrunPercent = sumBudget > 0 && sumForecastedCost > 0
+    ? ((sumForecastedCost - sumBudget) / sumBudget) * 100
+    : 0;
 
   return {
+    // Planned_Budget = SUM(Planned_Budget)
     plannedBudget: sumBudget,
+    // Actual_Cost = SUM(Actual_Cost)
     actualCost: sumActual,
+    // Budget_Utilization (%) = (Actual_Cost / Planned_Budget) × 100
     budgetUtilization: sumBudget > 0 ? (sumActual / sumBudget) * 100 : 0,
+    // Cost_Variance = EV - AC
     costVariance: sumEV - sumAC,
-    costVariancePercent: sumBudget > 0 ? ((sumEV - sumAC) / sumBudget) * 100 : 0,
+    costPerTask,
     cpi,
     eac,
     etc: Math.max(etc, 0),
     vac,
-    burnRate,
-    forecastCostOverrun: eac - bac,
+    predictedCostOverrunPercent,
   };
 }
 
@@ -400,13 +434,15 @@ export interface RiskGovernanceKPIs {
   totalRisks: number;
   openRisks: number;
   highRisks: number;
-  mediumRisks: number;
-  lowRisks: number;
   averageRiskScore: number;
   totalIssues: number;
   avgResolutionTime: number;
-  complianceScore: number;
+  complianceStatus: number;
   auditFindingsCount: number;
+  anomalyFlag: string;
+  // Keep distribution for UI
+  mediumRisks: number;
+  lowRisks: number;
 }
 
 export function calculateRiskGovernanceKPIs(submissions: any[], mappings: FieldMapping[]): RiskGovernanceKPIs {
@@ -415,38 +451,60 @@ export function calculateRiskGovernanceKPIs(submissions: any[], mappings: FieldM
   let totalIssues = 0, resolutionTimeSum = 0, resolvedCount = 0;
   let passedControls = 0, totalControls = 0;
   let auditFindingsCount = 0;
+  let hasAnomaly = false;
 
   for (const sub of submissions) {
     const d = sub.submission_data || {};
-    const riskId = str(resolveField(d, mappings, 'risk_id'));
-    const riskStatus = str(resolveField(d, mappings, 'risk_status')).toLowerCase();
-    const riskScore = num(resolveField(d, mappings, 'risk_score'));
-    const issueId = str(resolveField(d, mappings, 'issue_id'));
-    const createdDate = str(resolveField(d, mappings, 'created_date'));
-    const resolvedDate = str(resolveField(d, mappings, 'resolved_date'));
-    const complianceStatus = str(resolveField(d, mappings, /compliance.*status/)).toLowerCase();
-    const auditFindings = str(resolveField(d, mappings, 'audit_findings'));
 
+    const riskId = str(resolveField(d, mappings, 'Risk ID'));
+    const riskStatus = str(resolveField(d, mappings, 'Risk Status')).toLowerCase();
+    const riskScore = num(resolveField(d, mappings, 'Risk Score'));
+    const issueId = str(resolveField(d, mappings, 'Issue ID'));
+    const createdDate = str(resolveField(d, mappings, 'Created Date'));
+    const resolvedDate = str(resolveField(d, mappings, 'Resolved Date'));
+    const complianceStatus = str(resolveField(d, mappings, 'Compliance Status')).toLowerCase();
+    const auditFindings = str(resolveField(d, mappings, 'Audit Findings'));
+    const predDelay = num(resolveField(d, mappings, 'Predicted Delay Days'));
+    const predCostOverrun = num(resolveField(d, mappings, 'Predicted Cost Overrun (%)'));
+    const riskPredictionScore = num(resolveField(d, mappings, 'Risk Prediction Score'));
+
+    // Total_Risks = COUNT(Risk_ID)
     if (riskId) {
       totalRisks++;
+      // Open_Risks = COUNT(Risk_Status = "Open")
       if (riskStatus.includes('open')) openRisks++;
+      // High_Risks = COUNT(Risk_Score > 70)
       if (riskScore > 70) highRisks++;
       else if (riskScore >= 40) mediumRisks++;
       else if (riskScore > 0) lowRisks++;
       if (riskScore > 0) { sumRiskScore += riskScore; riskCount++; }
     }
 
+    // Total_Issues = COUNT(Issue_ID)
     if (issueId) {
       totalIssues++;
+      // Average_Resolution_Time = AVG(Resolved_Date - Created_Date)
       if (createdDate && resolvedDate) {
         const days = dateDiffDays(resolvedDate, createdDate);
         if (days >= 0) { resolutionTimeSum += days; resolvedCount++; }
       }
     }
 
-    totalControls++;
-    if (complianceStatus.includes('pass') || complianceStatus.includes('compliant')) passedControls++;
-    if (auditFindings && auditFindings.length > 0) auditFindingsCount++;
+    // Compliance_Status (%) = (Passed_Controls / Total_Controls) × 100
+    if (complianceStatus) {
+      totalControls++;
+      if (complianceStatus.includes('pass') || complianceStatus.includes('compliant') || complianceStatus.includes('met')) {
+        passedControls++;
+      }
+    }
+
+    // Audit_Findings_Count = COUNT(Audit_Findings)
+    if (auditFindings && auditFindings.trim().length > 0) auditFindingsCount++;
+
+    // Anomaly_Flag logic
+    if (predDelay > 7 || predCostOverrun > 15 || riskPredictionScore > 75) {
+      hasAnomaly = true;
+    }
   }
 
   return {
@@ -455,11 +513,16 @@ export function calculateRiskGovernanceKPIs(submissions: any[], mappings: FieldM
     highRisks,
     mediumRisks,
     lowRisks,
+    // Average_Risk_Score = AVG(Risk_Score)
     averageRiskScore: riskCount > 0 ? sumRiskScore / riskCount : 0,
     totalIssues,
+    // Average_Resolution_Time = AVG(Resolved_Date - Created_Date)
     avgResolutionTime: resolvedCount > 0 ? resolutionTimeSum / resolvedCount : 0,
-    complianceScore: totalControls > 0 ? (passedControls / totalControls) * 100 : 0,
+    // Compliance_Status (%) = (Passed_Controls / Total_Controls) × 100
+    complianceStatus: totalControls > 0 ? (passedControls / totalControls) * 100 : 0,
     auditFindingsCount,
+    // Anomaly_Flag
+    anomalyFlag: hasAnomaly ? 'Yes' : 'No',
   };
 }
 
@@ -479,23 +542,30 @@ export function generateKPIAlerts(submissions: any[], mappings: FieldMapping[]):
   const alerts: KPIAlert[] = [];
   const senior = calculateSeniorManagementKPIs(submissions, mappings);
 
+  // SPI < 0.9 → Schedule Risk
   if (senior.portfolioSPI > 0 && senior.portfolioSPI < 0.9) {
     alerts.push({ type: 'schedule_risk', severity: 'critical', title: 'Schedule Risk', description: `Portfolio SPI is ${senior.portfolioSPI.toFixed(2)} (below 0.9)`, value: senior.portfolioSPI, threshold: 0.9 });
   }
+  // CPI < 0.9 → Cost Overrun Risk
   if (senior.portfolioCPI > 0 && senior.portfolioCPI < 0.9) {
     alerts.push({ type: 'cost_overrun', severity: 'critical', title: 'Cost Overrun Risk', description: `Portfolio CPI is ${senior.portfolioCPI.toFixed(2)} (below 0.9)`, value: senior.portfolioCPI, threshold: 0.9 });
   }
-  if (senior.highRiskProjects > 0) {
-    alerts.push({ type: 'high_risk', severity: 'critical', title: 'High Risk Alert', description: `${senior.highRiskProjects} project(s) have Risk Score > 70`, value: senior.highRiskProjects, threshold: 70 });
+  // Risk_Score > 70 → High Risk Alert
+  if (senior.averageRiskScore > 70) {
+    alerts.push({ type: 'high_risk', severity: 'critical', title: 'High Risk Alert', description: `Average Risk Score is ${senior.averageRiskScore.toFixed(1)} (above 70)`, value: senior.averageRiskScore, threshold: 70 });
   }
+  // Predicted_Delay_Days > 5 → Delay Warning
   if (senior.averagePredictedDelay > 5) {
     alerts.push({ type: 'delay_warning', severity: 'warning', title: 'Delay Warning', description: `Average predicted delay is ${senior.averagePredictedDelay.toFixed(1)} days`, value: senior.averagePredictedDelay, threshold: 5 });
   }
+  // Predicted_Cost_Overrun > 10% → Cost Overrun Warning
   if (senior.averagePredictedCostOverrun > 10) {
     alerts.push({ type: 'cost_overrun_warning', severity: 'warning', title: 'Cost Overrun Warning', description: `Average predicted cost overrun is ${senior.averagePredictedCostOverrun.toFixed(1)}%`, value: senior.averagePredictedCostOverrun, threshold: 10 });
   }
-  if (senior.anomalyProjects > 0) {
-    alerts.push({ type: 'anomaly', severity: 'warning', title: 'AI Anomaly Detection', description: `${senior.anomalyProjects} project(s) flagged as anomalies`, value: senior.anomalyProjects, threshold: 0 });
+  // Anomaly_Flag = Yes → AI Anomaly Detection Alert
+  const riskKpis = calculateRiskGovernanceKPIs(submissions, mappings);
+  if (riskKpis.anomalyFlag === 'Yes') {
+    alerts.push({ type: 'anomaly', severity: 'warning', title: 'AI Anomaly Detection', description: 'Anomaly detected based on prediction thresholds', value: 1, threshold: 0 });
   }
 
   return alerts;
@@ -514,10 +584,6 @@ export function usePerformanceKPI(perfProjectId?: string) {
     queryKey: ['perf-user-role', projectId, perfProjectId, userProfile?.id],
     queryFn: async () => {
       if (!projectId || !userProfile?.id) return null;
-      const query: any = {
-        user_id: userProfile.id,
-        project_id: projectId,
-      };
       let q = supabase
         .from('performance_user_roles')
         .select('role_type')
@@ -525,7 +591,7 @@ export function usePerformanceKPI(perfProjectId?: string) {
         .eq('project_id', projectId);
       if (perfProjectId) q = q.eq('performance_project_id', perfProjectId);
       else q = q.is('performance_project_id', null);
-      
+
       const { data, error } = await q.maybeSingle();
       if (error) console.warn('Failed to fetch performance role', error);
       return (data?.role_type as PerformanceRoleType) || null;
@@ -539,7 +605,6 @@ export function usePerformanceKPI(perfProjectId?: string) {
     queryFn: async () => {
       if (!projectId) return null;
 
-      // Get data source with field mappings
       let dsQuery = supabase
         .from('performance_data_sources')
         .select('source_form_id, field_mappings')
@@ -560,7 +625,6 @@ export function usePerformanceKPI(perfProjectId?: string) {
           }))
         : [];
 
-      // Fetch all submissions
       const { data: subs } = await supabase
         .from('form_submissions')
         .select('id, submission_ref_id, submission_data, submitted_at')

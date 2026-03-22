@@ -1,8 +1,9 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { KPIMetricCard } from './KPIMetricCard';
 import { RiskGovernanceKPIs } from '@/hooks/usePerformanceKPI';
-import { ShieldAlert, ShieldCheck, AlertTriangle, Bug, Clock, CheckCircle2, FileText } from 'lucide-react';
+import { ShieldAlert, ShieldCheck, AlertTriangle, Bug, Clock, FileText } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 
 interface Props {
@@ -15,9 +16,10 @@ export function RiskGovernanceDashboard({ kpis }: Props) {
       {/* Risk Overview */}
       <div>
         <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Risk Overview</h3>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <KPIMetricCard title="Total Risks" value={kpis.totalRisks} icon={ShieldAlert} />
           <KPIMetricCard title="Open Risks" value={kpis.openRisks} variant={kpis.openRisks > 0 ? 'warning' : 'success'} />
+          <KPIMetricCard title="High Risks" value={kpis.highRisks} variant={kpis.highRisks > 0 ? 'danger' : 'success'} icon={AlertTriangle} />
           <KPIMetricCard title="Avg Risk Score" value={kpis.averageRiskScore.toFixed(1)}
             variant={kpis.averageRiskScore > 70 ? 'danger' : kpis.averageRiskScore > 40 ? 'warning' : 'success'} icon={AlertTriangle} />
         </div>
@@ -51,7 +53,7 @@ export function RiskGovernanceDashboard({ kpis }: Props) {
       <div>
         <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Issues & Resolution</h3>
         <div className="grid grid-cols-2 gap-3">
-          <KPIMetricCard title="Issues Raised" value={kpis.totalIssues} icon={Bug} />
+          <KPIMetricCard title="Total Issues" value={kpis.totalIssues} icon={Bug} />
           <KPIMetricCard title="Avg Resolution Time" value={`${kpis.avgResolutionTime.toFixed(1)} days`} icon={Clock} />
         </div>
       </div>
@@ -59,12 +61,16 @@ export function RiskGovernanceDashboard({ kpis }: Props) {
       {/* Compliance & Audit */}
       <div>
         <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Compliance & Audit</h3>
-        <div className="grid grid-cols-2 gap-3">
-          <KPIMetricCard title="Compliance Score" value={`${kpis.complianceScore.toFixed(1)}%`}
-            variant={kpis.complianceScore >= 80 ? 'success' : kpis.complianceScore >= 60 ? 'warning' : 'danger'}
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          <KPIMetricCard title="Compliance Status (%)" value={`${kpis.complianceStatus.toFixed(1)}%`}
+            variant={kpis.complianceStatus >= 80 ? 'success' : kpis.complianceStatus >= 60 ? 'warning' : 'danger'}
             icon={ShieldCheck} />
-          <KPIMetricCard title="Audit Findings" value={kpis.auditFindingsCount} icon={FileText}
+          <KPIMetricCard title="Audit Findings Count" value={kpis.auditFindingsCount} icon={FileText}
             variant={kpis.auditFindingsCount > 0 ? 'warning' : 'success'} />
+          <KPIMetricCard title="Anomaly Flag" value={kpis.anomalyFlag}
+            variant={kpis.anomalyFlag === 'Yes' ? 'danger' : 'success'}
+            subtitle={kpis.anomalyFlag === 'Yes' ? 'Anomaly detected' : 'No anomalies'}
+            icon={AlertTriangle} />
         </div>
       </div>
     </div>
