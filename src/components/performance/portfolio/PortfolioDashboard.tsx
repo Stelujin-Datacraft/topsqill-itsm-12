@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { useProject } from '@/contexts/ProjectContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
-import { Loader2, Shield, AlertTriangle, CheckCircle2, XCircle, TrendingUp, BarChart3, ShieldAlert } from 'lucide-react';
+import { Loader2, Shield, AlertTriangle, CheckCircle2, XCircle, TrendingUp, BarChart3, ShieldAlert, Settings } from 'lucide-react';
 
 interface PortfolioProject {
   id: string;
