@@ -115,11 +115,19 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
   useEffect(() => {
     if (savedAnalysis && !aiResult) {
       setAiResult(savedAnalysis.analysis_data as AIAnalysis);
-      if (savedAnalysis.submission_id) {
+      if (savedAnalysis.submission_id && !propSelectedRecordId) {
         onRecordChange?.(savedAnalysis.submission_id);
       }
     }
   }, [savedAnalysis]);
+
+  // Auto-trigger AI when record changes from page level
+  useEffect(() => {
+    if (propSelectedRecordId && propSelectedRecordId !== savedAnalysis?.submission_id) {
+      setAiResult(null);
+      runAIAnalysis(propSelectedRecordId);
+    }
+  }, [propSelectedRecordId]);
 
   // Build record options
   const recordOptions = useMemo(() => {
