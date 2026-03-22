@@ -7,7 +7,7 @@ import NoProjectSelected from '@/components/NoProjectSelected';
 import { PerformanceProjectList } from '@/components/performance/PerformanceProjectList';
 import { PerformanceActivityLog } from '@/components/performance/activity/PerformanceActivityLog';
 import { PortfolioDashboard } from '@/components/performance/portfolio/PortfolioDashboard';
-import { PerformanceOverview } from '@/components/performance/overview/PerformanceOverview';
+import { PerformanceDashboard } from '@/components/performance/dashboard/PerformanceDashboard';
 import { AlertsPanel } from '@/components/performance/alerts/AlertsPanel';
 import { ThresholdsConfig } from '@/components/performance/thresholds/ThresholdsConfig';
 import { DataSourceConfig } from '@/components/performance/data-sources/DataSourceConfig';
@@ -16,7 +16,6 @@ import { ScenarioSimulator } from '@/components/performance/scenarios/ScenarioSi
 import { DataQualityPanel } from '@/components/performance/data-quality/DataQualityPanel';
 import { TechnicalQuestionnaire } from '@/components/performance/questionnaire/TechnicalQuestionnaire';
 import { ProjectLocationMap } from '@/components/performance/gis/ProjectLocationMap';
-import { KPIDashboardTab } from '@/components/performance/kpi-dashboards/KPIDashboardTab';
 import { AlertTriangle, ArrowLeft, BarChart3, ClipboardCheck, Clock, Database, FlaskConical, Gauge, LineChart, MapPin, Settings2, ShieldCheck } from 'lucide-react';
 
 interface SelectedPerfProject {
