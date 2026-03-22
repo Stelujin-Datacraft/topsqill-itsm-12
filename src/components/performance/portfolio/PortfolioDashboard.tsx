@@ -219,7 +219,8 @@ export function PortfolioDashboard() {
               { label: 'Moderate', count: healthCounts.moderate, color: 'bg-yellow-500' },
               { label: 'Warning', count: healthCounts.warning, color: 'bg-orange-500' },
               { label: 'Critical', count: healthCounts.critical, color: 'bg-red-500' },
-            ].map(item => (
+              { label: 'Not Configured', count: healthCounts.not_configured, color: 'bg-gray-400' },
+            ].filter(item => item.count > 0).map(item => (
               <div key={item.label} className="space-y-1">
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-muted-foreground">{item.label}</span>
