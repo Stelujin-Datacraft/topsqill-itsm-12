@@ -16,7 +16,8 @@ import { ScenarioSimulator } from '@/components/performance/scenarios/ScenarioSi
 import { DataQualityPanel } from '@/components/performance/data-quality/DataQualityPanel';
 import { TechnicalQuestionnaire } from '@/components/performance/questionnaire/TechnicalQuestionnaire';
 import { ProjectLocationMap } from '@/components/performance/gis/ProjectLocationMap';
-import { AlertTriangle, ArrowLeft, BarChart3, ClipboardCheck, Clock, Database, FlaskConical, LineChart, MapPin, Settings2, ShieldCheck } from 'lucide-react';
+import { KPIDashboardTab } from '@/components/performance/kpi-dashboards/KPIDashboardTab';
+import { AlertTriangle, ArrowLeft, BarChart3, ClipboardCheck, Clock, Database, FlaskConical, Gauge, LineChart, MapPin, Settings2, ShieldCheck } from 'lucide-react';
 
 interface SelectedPerfProject {
   id: string;
@@ -27,7 +28,7 @@ interface SelectedPerfProject {
 
 export default function ProjectPerformance() {
   const { currentProject } = useProject();
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState('kpi-dashboards');
   const [selectedPerfProject, setSelectedPerfProject] = useState<SelectedPerfProject | null>(null);
 
   const perfData = usePerformanceMonitoring(selectedPerfProject?.id);
@@ -48,7 +49,7 @@ export default function ProjectPerformance() {
   return (
     <div className="flex-1 overflow-auto p-6 space-y-6">
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => { setSelectedPerfProject(null); setActiveTab('overview'); }}>
+        <Button variant="ghost" size="icon" onClick={() => { setSelectedPerfProject(null); setActiveTab('kpi-dashboards'); }}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>
@@ -63,6 +64,9 @@ export default function ProjectPerformance() {
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="bg-muted/50 flex-wrap h-auto gap-1 p-1">
+          <TabsTrigger value="kpi-dashboards" className="gap-1.5 text-xs">
+            <Gauge className="h-3.5 w-3.5" />KPI Dashboards
+          </TabsTrigger>
           <TabsTrigger value="overview" className="gap-1.5 text-xs">
             <BarChart3 className="h-3.5 w-3.5" />Overview
           </TabsTrigger>
@@ -95,6 +99,9 @@ export default function ProjectPerformance() {
           </TabsTrigger>
         </TabsList>
 
+        <TabsContent value="kpi-dashboards">
+          <KPIDashboardTab perfProjectId={selectedPerfProject.id} />
+        </TabsContent>
         <TabsContent value="overview">
           <PerformanceOverview
             alerts={perfData.alerts}
