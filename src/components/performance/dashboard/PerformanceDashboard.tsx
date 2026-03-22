@@ -3,8 +3,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Brain, UserCog, Database, FileText, BarChart3, Lightbulb, TrendingUp, EyeOff, Settings2, ShieldAlert, Activity } from 'lucide-react';
-import { usePerformanceKPI, PerformanceRoleType, calculateSeniorManagementKPIs, aggregateProjectManagerKPIs, calculateProjectManagerKPIs, calculateDisciplineEngineerKPIs, calculateFinanceKPIs, calculateRiskGovernanceKPIs, generateKPIAlerts } from '@/hooks/usePerformanceKPI';
+import { Loader2, Brain, UserCog, Database, FileText, BarChart3, Lightbulb, TrendingUp, EyeOff, Settings2, ShieldAlert, Activity, Zap, Target, AlertCircle } from 'lucide-react';
+import { usePerformanceKPI, PerformanceRoleType, calculateSeniorManagementKPIs, calculateProjectManagerKPIs, calculateDisciplineEngineerKPIs, calculateFinanceKPIs, calculateRiskGovernanceKPIs, generateKPIAlerts } from '@/hooks/usePerformanceKPI';
 import { type PerformanceAlert, type PerformancePrediction, type PerformanceThreshold, type AIAnalysis } from '@/hooks/usePerformanceMonitoring';
 import { getSeverityBadgeVariant, getHealthColorClass } from '@/components/performance/utils/severityUtils';
 import { SeniorManagementDashboard } from '../kpi-dashboards/SeniorManagementDashboard';
@@ -40,12 +40,12 @@ const ROLE_LABELS: Record<PerformanceRoleType, string> = {
   risk_governance: 'Risk / Governance',
 };
 
-const ROLE_DESCRIPTIONS: Record<PerformanceRoleType, string> = {
-  senior_management: 'Portfolio-level view with cross-project analytics',
-  project_manager: 'Project schedule, milestones, cost, and task control',
-  discipline_engineer: 'Task execution, productivity, and resource utilization',
-  finance_contract: 'Budget control, variance analysis, and cost forecasting',
-  risk_governance: 'Risk exposure, compliance status, and audit findings',
+const ROLE_ICONS: Record<PerformanceRoleType, string> = {
+  senior_management: '👔',
+  project_manager: '📋',
+  discipline_engineer: '⚙️',
+  finance_contract: '💰',
+  risk_governance: '🛡️',
 };
 
 function useHealthMetrics(alerts: PerformanceAlert[], predictions: PerformancePrediction[], thresholds: PerformanceThreshold[]) {
@@ -93,7 +93,6 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
   const activeRole = selectedRole || userRole || 'senior_management';
   const isAdmin = userProfile?.role === 'admin';
 
-  // Load persisted analysis result
   const { data: savedAnalysis } = useQuery({
     queryKey: ['perf-analysis-result', projectId, perfProjectId],
     queryFn: async () => {
@@ -111,7 +110,6 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
     enabled: !!projectId && !!perfProjectId,
   });
 
-  // Restore saved analysis
   useEffect(() => {
     if (savedAnalysis && !aiResult) {
       setAiResult(savedAnalysis.analysis_data as AIAnalysis);
@@ -121,7 +119,6 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
     }
   }, [savedAnalysis]);
 
-  // Auto-trigger AI when record changes from page level
   useEffect(() => {
     if (propSelectedRecordId && propSelectedRecordId !== savedAnalysis?.submission_id) {
       setAiResult(null);
@@ -129,7 +126,6 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
     }
   }, [propSelectedRecordId]);
 
-  // Build record options
   const recordOptions = useMemo(() => {
     return submissions.map((sub: any) => {
       const data = sub.submission_data || {};
@@ -149,7 +145,6 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
     });
   }, [submissions, mappings]);
 
-  // Compute KPIs based on selected record
   const computedKPIs = useMemo(() => {
     if (submissions.length === 0 || !selectedRecordId) return null;
     const selectedSub = submissions.find((s: any) => s.id === selectedRecordId);
@@ -165,38 +160,25 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
     };
   }, [submissions, mappings, selectedRecordId, userProfile?.id]);
 
-  // Run AI analysis automatically when a specific record is selected
   const runAIAnalysis = async (submissionId: string) => {
     if (!submissionId || !projectId || !perfProjectId) return;
     setAiRunning(true);
     try {
       const { data, error } = await supabase.functions.invoke('analyze-performance', {
-        body: {
-          project_id: projectId,
-          action: 'analyze',
-          performance_project_id: perfProjectId,
-          submission_id: submissionId,
-        },
+        body: { project_id: projectId, action: 'analyze', performance_project_id: perfProjectId, submission_id: submissionId },
       });
       if (error) throw new Error(error.message || 'Analysis failed');
       if (data?.error) throw new Error(data.error);
       const result = data as AIAnalysis;
       setAiResult(result);
       setDismissedPredictions(new Set());
-
-      // Persist
       await (supabase as any).from('performance_analysis_results').delete().eq('project_id', projectId).eq('performance_project_id', perfProjectId);
       await (supabase as any).from('performance_analysis_results').insert({
-        project_id: projectId,
-        performance_project_id: perfProjectId,
-        submission_id: submissionId,
-        analysis_data: result,
-        created_by: userProfile?.id,
+        project_id: projectId, performance_project_id: perfProjectId, submission_id: submissionId, analysis_data: result, created_by: userProfile?.id,
       });
       queryClient.invalidateQueries({ queryKey: ['perf-analysis-result', projectId, perfProjectId] });
       logAction.mutate({
-        action_type: 'analysis_run',
-        action_category: 'analysis',
+        action_type: 'analysis_run', action_category: 'analysis',
         title: 'AI Analysis executed for record',
         description: `Record: ${submissionId}, Risk score: ${result.risk_score}/100`,
         metadata: { risk_score: result.risk_score, health_status: result.health_status, submission_id: submissionId },
@@ -212,10 +194,7 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
   const handleRecordChange = (value: string) => {
     onRecordChange?.(value);
     setAiResult(null);
-    // Auto-trigger AI for specific records
-    if (value && value !== 'all') {
-      runAIAnalysis(value);
-    }
+    if (value) runAIAnalysis(value);
   };
 
   const handleDismissPrediction = (index: number) => {
@@ -233,35 +212,25 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
     );
   }
 
-  // No data source configured
   if (mappings.length === 0) {
     return (
       <Card className="border-dashed">
         <CardContent className="p-8 text-center space-y-3">
           <Database className="h-10 w-10 mx-auto text-muted-foreground" />
-          <div>
-            <p className="font-medium text-foreground">No Data Source Configured</p>
-            <p className="text-sm text-muted-foreground mt-1">
-              Go to the <strong>Data Sources</strong> tab to configure a form data source with field mappings first.
-            </p>
-          </div>
+          <p className="font-medium text-foreground">No Data Source Configured</p>
+          <p className="text-sm text-muted-foreground">Go to the <strong>Data Sources</strong> tab to configure field mappings first.</p>
         </CardContent>
       </Card>
     );
   }
 
-  // No submissions
   if (submissions.length === 0) {
     return (
       <Card className="border-dashed">
         <CardContent className="p-8 text-center space-y-3">
           <FileText className="h-10 w-10 mx-auto text-muted-foreground" />
-          <div>
-            <p className="font-medium text-foreground">No Submission Data Found</p>
-            <p className="text-sm text-muted-foreground mt-1">
-              Data source is configured but no form submissions found.
-            </p>
-          </div>
+          <p className="font-medium text-foreground">No Submission Data Found</p>
+          <p className="text-sm text-muted-foreground">Data source is configured but no form submissions found.</p>
         </CardContent>
       </Card>
     );
@@ -269,29 +238,34 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
 
   return (
     <div className="space-y-6">
-      {/* Unified Control Header */}
-      <Card>
-        <CardHeader className="pb-4">
+      {/* Header with Record & Role Selectors */}
+      <Card className="border-primary/20 bg-gradient-to-r from-primary/5 via-background to-background">
+        <CardHeader className="pb-3">
           <div className="flex items-center justify-between flex-wrap gap-3">
-            <div>
-              <CardTitle className="text-lg flex items-center gap-2">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
                 <BarChart3 className="h-5 w-5 text-primary" />
-                Performance Dashboard
-              </CardTitle>
-              <CardDescription>
-                KPI metrics & AI-powered analysis — select a record to analyze
-              </CardDescription>
+              </div>
+              <div>
+                <CardTitle className="text-lg">Performance Dashboard</CardTitle>
+                <CardDescription className="text-xs">KPI metrics & AI-powered analysis</CardDescription>
+              </div>
             </div>
             <div className="flex items-center gap-2">
+              {aiRunning && (
+                <Badge className="bg-primary/10 text-primary border-primary/20 animate-pulse gap-1.5">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  AI Analyzing...
+                </Badge>
+              )}
               {userRole && (
-                <Badge variant="secondary" className="text-xs">
-                  Assigned: {ROLE_LABELS[userRole]}
+                <Badge variant="secondary" className="gap-1">
+                  {ROLE_ICONS[userRole]} {ROLE_LABELS[userRole]}
                 </Badge>
               )}
               {isAdmin && (
                 <Button variant="outline" size="sm" onClick={() => setShowRoleAssignment(true)}>
-                  <UserCog className="h-4 w-4 mr-1" />
-                  Manage Roles
+                  <UserCog className="h-4 w-4 mr-1" />Roles
                 </Button>
               )}
             </div>
@@ -299,189 +273,212 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
         </CardHeader>
         <CardContent className="pt-0">
           <div className="flex items-end gap-3 flex-wrap">
-            {/* Role Selector */}
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-muted-foreground">Dashboard View</label>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                <Target className="h-3 w-3" /> Analyze Record
+              </label>
+              <Select value={selectedRecordId} onValueChange={handleRecordChange}>
+                <SelectTrigger className="w-[320px] border-primary/30 focus:ring-primary/20">
+                  <SelectValue placeholder="Select a record to analyze..." />
+                </SelectTrigger>
+                <SelectContent className="max-h-64">
+                  {recordOptions.map((opt) => (
+                    <SelectItem key={opt.id} value={opt.id}>{opt.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                <Zap className="h-3 w-3" /> Dashboard View
+              </label>
               <Select value={activeRole} onValueChange={(v) => setSelectedRole(v as PerformanceRoleType)}>
-                <SelectTrigger className="w-[220px]">
+                <SelectTrigger className="w-[200px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {(Object.keys(ROLE_LABELS) as PerformanceRoleType[]).map((role) => (
                     <SelectItem key={role} value={role}>
-                      {ROLE_LABELS[role]}
+                      <span className="flex items-center gap-2">
+                        <span>{ROLE_ICONS[role]}</span>{ROLE_LABELS[role]}
+                      </span>
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-
-            {/* Info badges */}
             <div className="flex items-center gap-2 mb-0.5">
-              {aiRunning && (
-                <Badge variant="secondary" className="text-xs animate-pulse gap-1">
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                  AI Analyzing...
-                </Badge>
-              )}
               {selectedRecordId && !aiRunning && (
-                <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => runAIAnalysis(selectedRecordId)}>
-                  <Brain className="h-3.5 w-3.5 mr-1" />
-                  Re-run AI
+                <Button variant="outline" size="sm" className="gap-1.5 border-primary/30 text-primary hover:bg-primary/10" onClick={() => runAIAnalysis(selectedRecordId)}>
+                  <Brain className="h-3.5 w-3.5" />Re-run AI
                 </Button>
               )}
+              <Badge variant="outline" className="text-xs">
+                {selectedRecordId ? '1 record selected' : `${submissions.length} records`}
+              </Badge>
             </div>
           </div>
-          <p className="text-xs text-muted-foreground mt-2">
-            {ROLE_DESCRIPTIONS[activeRole]}
-            {selectedRecordId && ' • AI analysis runs automatically when a record is selected.'}
-          </p>
         </CardContent>
       </Card>
 
-      {/* AI Health Overview (only when a specific record is selected) */}
+      {/* Empty state */}
+      {!selectedRecordId && (
+        <Card className="border-dashed border-2">
+          <CardContent className="flex flex-col items-center justify-center py-16">
+            <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+              <FileText className="h-8 w-8 text-primary" />
+            </div>
+            <p className="font-semibold text-lg text-foreground">Select a Record to Begin</p>
+            <p className="text-sm text-muted-foreground mt-1 max-w-md text-center">
+              Choose a submission record from the dropdown above to view KPI calculations, AI-powered analysis, predictions, and recommendations.
+            </p>
+            <Badge variant="secondary" className="mt-4 gap-1.5">
+              <AlertCircle className="h-3 w-3" />
+              {submissions.length} record{submissions.length !== 1 ? 's' : ''} available
+            </Badge>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Health Overview Cards */}
       {selectedRecordId && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="pt-6">
+          <Card className="relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-1 h-full bg-primary" />
+            <CardContent className="pt-5 pb-4 pl-5">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Overall Risk Score</p>
-                  <p className="text-2xl font-bold text-foreground">
-                    {aiRunning ? '...' : aiResult ? `${aiResult.risk_score}/100` : '—'}
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Risk Score</p>
+                  <p className="text-3xl font-bold text-foreground mt-1">
+                    {aiRunning ? '...' : aiResult ? aiResult.risk_score : '—'}
                   </p>
                   {aiResult && (
-                    <Badge className={`mt-1 ${getHealthColorClass(aiResult.health_status)}`}>
+                    <Badge className={`mt-1.5 text-[10px] ${getHealthColorClass(aiResult.health_status)}`}>
                       {aiResult.health_status?.toUpperCase()}
                     </Badge>
                   )}
                 </div>
-                <Brain className="h-8 w-8 text-primary" />
+                <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                  <Brain className="h-6 w-6 text-primary" />
+                </div>
               </div>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="pt-6">
+          <Card className="relative overflow-hidden">
+            <div className={`absolute top-0 left-0 w-1 h-full ${health.alertHealth >= 80 ? 'bg-emerald-500' : health.alertHealth >= 50 ? 'bg-yellow-500' : 'bg-destructive'}`} />
+            <CardContent className="pt-5 pb-4 pl-5">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Alert Health</p>
-                  <p className={`text-2xl font-bold ${health.alertColor}`}>{health.alertLabel}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{health.totalActive} active ({health.criticalCount} critical)</p>
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Alert Health</p>
+                  <p className={`text-3xl font-bold mt-1 ${health.alertColor}`}>{health.alertLabel}</p>
+                  <p className="text-[10px] text-muted-foreground mt-1">{health.totalActive} active · {health.criticalCount} critical</p>
                 </div>
-                <ShieldAlert className="h-8 w-8 text-muted-foreground" />
+                <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center">
+                  <ShieldAlert className="h-6 w-6 text-muted-foreground" />
+                </div>
               </div>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="pt-6">
+          <Card className="relative overflow-hidden">
+            <div className={`absolute top-0 left-0 w-1 h-full ${health.coverageScore >= 60 ? 'bg-emerald-500' : health.coverageScore >= 20 ? 'bg-yellow-500' : 'bg-muted'}`} />
+            <CardContent className="pt-5 pb-4 pl-5">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Threshold Coverage</p>
-                  <p className={`text-2xl font-bold ${health.coverageColor}`}>{health.coverageLabel}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{health.activeThresholds} active rule{health.activeThresholds !== 1 ? 's' : ''}</p>
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Threshold Coverage</p>
+                  <p className={`text-3xl font-bold mt-1 ${health.coverageColor}`}>{health.coverageLabel}</p>
+                  <p className="text-[10px] text-muted-foreground mt-1">{health.activeThresholds} active rule{health.activeThresholds !== 1 ? 's' : ''}</p>
                 </div>
-                <Settings2 className="h-8 w-8 text-muted-foreground" />
+                <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center">
+                  <Settings2 className="h-6 w-6 text-muted-foreground" />
+                </div>
               </div>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="pt-6">
+          <Card className="relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-1 h-full bg-muted" />
+            <CardContent className="pt-5 pb-4 pl-5">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Last Activity</p>
-                  <p className="text-lg font-semibold text-foreground truncate">{health.freshnessLabel}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{visiblePredictions.length} prediction{visiblePredictions.length !== 1 ? 's' : ''}</p>
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Last Activity</p>
+                  <p className="text-lg font-bold text-foreground mt-1 truncate">{health.freshnessLabel}</p>
+                  <p className="text-[10px] text-muted-foreground mt-1">{visiblePredictions.length} prediction{visiblePredictions.length !== 1 ? 's' : ''}</p>
                 </div>
-                <Activity className="h-8 w-8 text-muted-foreground" />
+                <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center">
+                  <Activity className="h-6 w-6 text-muted-foreground" />
+                </div>
               </div>
             </CardContent>
           </Card>
         </div>
       )}
 
-      {/* Empty state when no record selected */}
-      {!selectedRecordId && (
-        <Card className="border-dashed">
-          <CardContent className="p-8 text-center space-y-3">
-            <FileText className="h-10 w-10 mx-auto text-muted-foreground" />
-            <div>
-              <p className="font-medium text-foreground">Select a Record to Analyze</p>
-              <p className="text-sm text-muted-foreground mt-1">
-                Choose a record from the dropdown above to view KPI calculations and AI analysis.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* KPI Dashboard Content */}
+      {/* KPI Dashboard */}
       {computedKPIs && (
         <>
-          {activeRole === 'senior_management' && computedKPIs.seniorKPIs && (
-            <SeniorManagementDashboard kpis={computedKPIs.seniorKPIs} alerts={computedKPIs.alerts} />
-          )}
-          {activeRole === 'project_manager' && computedKPIs.pmKPIs && (
-            <ProjectManagerDashboard kpis={computedKPIs.pmKPIs} />
-          )}
-          {activeRole === 'discipline_engineer' && computedKPIs.engineerKPIs && (
-            <DisciplineEngineerDashboard kpis={computedKPIs.engineerKPIs} />
-          )}
-          {activeRole === 'finance_contract' && computedKPIs.financeKPIs && (
-            <FinanceDashboard kpis={computedKPIs.financeKPIs} />
-          )}
-          {activeRole === 'risk_governance' && computedKPIs.riskKPIs && (
-            <RiskGovernanceDashboard kpis={computedKPIs.riskKPIs} />
-          )}
+          {activeRole === 'senior_management' && computedKPIs.seniorKPIs && <SeniorManagementDashboard kpis={computedKPIs.seniorKPIs} alerts={computedKPIs.alerts} />}
+          {activeRole === 'project_manager' && computedKPIs.pmKPIs && <ProjectManagerDashboard kpis={computedKPIs.pmKPIs} />}
+          {activeRole === 'discipline_engineer' && computedKPIs.engineerKPIs && <DisciplineEngineerDashboard kpis={computedKPIs.engineerKPIs} />}
+          {activeRole === 'finance_contract' && computedKPIs.financeKPIs && <FinanceDashboard kpis={computedKPIs.financeKPIs} />}
+          {activeRole === 'risk_governance' && computedKPIs.riskKPIs && <RiskGovernanceDashboard kpis={computedKPIs.riskKPIs} />}
         </>
       )}
 
-      {/* AI Analysis Results Section */}
+      {/* AI Analysis Results */}
       {selectedRecordId && aiResult && (
         <div className="space-y-4">
-          <Card className="border-primary/30">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Brain className="h-5 w-5 text-primary" />
-                AI Analysis Results
-              </CardTitle>
-              <CardDescription>{aiResult.summary}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-4">
-                <Badge className={getHealthColorClass(aiResult.health_status)}>
-                  Health: {aiResult.health_status?.toUpperCase()}
-                </Badge>
-                <Badge variant="outline">Risk Score: {aiResult.risk_score}/100</Badge>
+          <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-background">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <Brain className="h-4 w-4 text-primary" />
+                  </div>
+                  AI Analysis Summary
+                </CardTitle>
+                <div className="flex items-center gap-2">
+                  <Badge className={getHealthColorClass(aiResult.health_status)}>{aiResult.health_status?.toUpperCase()}</Badge>
+                  <Badge variant="outline" className="font-mono">Score: {aiResult.risk_score}/100</Badge>
+                </div>
               </div>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <p className="text-sm text-muted-foreground leading-relaxed">{aiResult.summary}</p>
             </CardContent>
           </Card>
 
           {visiblePredictions.length > 0 && (
             <Card>
-              <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm flex items-center gap-2">
                   <TrendingUp className="h-4 w-4 text-primary" />
-                  Predictions ({visiblePredictions.length})
+                  Predictions
+                  <Badge variant="secondary" className="text-[10px] ml-1">{visiblePredictions.length}</Badge>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
                 {aiResult.predictions.map((p, i) => {
                   if (dismissedPredictions.has(i)) return null;
                   return (
-                    <div key={i} className="flex items-start gap-2 p-3 rounded-lg bg-muted/50 group">
-                      <Badge variant="outline" className="text-xs mt-0.5">{Math.round((p.confidence > 1 ? p.confidence : p.confidence * 100))}%</Badge>
+                    <div key={i} className="flex items-start gap-3 p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors group">
+                      <Badge className="bg-primary/10 text-primary border-primary/20 text-[10px] mt-0.5 shrink-0">
+                        {Math.round((p.confidence > 1 ? p.confidence : p.confidence * 100))}%
+                      </Badge>
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm">{p.type}</p>
-                        <p className="text-xs text-muted-foreground">{p.description}</p>
-                        {p.timeframe && <p className="text-xs text-muted-foreground mt-1">Timeframe: {p.timeframe}</p>}
+                        <p className="font-medium text-sm text-foreground">{p.type}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">{p.description}</p>
+                        {p.timeframe && (
+                          <Badge variant="outline" className="text-[10px] mt-1.5 gap-1">
+                            <Activity className="h-2.5 w-2.5" /> {p.timeframe}
+                          </Badge>
+                        )}
                       </div>
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                         {onNavigateToThresholds && (
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onNavigateToThresholds} title="Create threshold rule">
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onNavigateToThresholds} title="Create threshold">
                             <Settings2 className="h-3.5 w-3.5" />
                           </Button>
                         )}
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDismissPrediction(i)} title="Dismiss prediction">
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDismissPrediction(i)} title="Dismiss">
                           <EyeOff className="h-3.5 w-3.5" />
                         </Button>
                       </div>
@@ -494,19 +491,20 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
 
           {aiResult.recommendations?.length > 0 && (
             <Card>
-              <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm flex items-center gap-2">
                   <Lightbulb className="h-4 w-4 text-yellow-500" />
-                  Recommendations ({aiResult.recommendations.length})
+                  Recommendations
+                  <Badge variant="secondary" className="text-[10px] ml-1">{aiResult.recommendations.length}</Badge>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
                 {aiResult.recommendations.map((rec, i) => (
-                  <div key={i} className="flex items-start gap-2 p-3 rounded-lg bg-muted/50">
-                    <Badge variant={getSeverityBadgeVariant(rec.priority)} className="text-xs mt-0.5">{rec.priority}</Badge>
+                  <div key={i} className="flex items-start gap-3 p-3 rounded-lg border bg-card">
+                    <Badge variant={getSeverityBadgeVariant(rec.priority)} className="text-[10px] mt-0.5 shrink-0 uppercase">{rec.priority}</Badge>
                     <div>
-                      <p className="font-medium text-sm">{rec.title}</p>
-                      <p className="text-xs text-muted-foreground">{rec.description}</p>
+                      <p className="font-medium text-sm text-foreground">{rec.title}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{rec.description}</p>
                     </div>
                   </div>
                 ))}
@@ -516,26 +514,8 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
         </div>
       )}
 
-      {/* Empty state when no record selected yet */}
-      {!selectedRecordId && (
-        <Card className="border-dashed">
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <Brain className="h-12 w-12 text-muted-foreground mb-4" />
-            <p className="font-medium text-foreground">Select a record to begin analysis</p>
-            <p className="text-sm text-muted-foreground mt-1">
-              Choose a record above to view KPI metrics and trigger automatic AI analysis.
-            </p>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Role Assignment Dialog */}
       {isAdmin && (
-        <RoleAssignmentDialog
-          open={showRoleAssignment}
-          onOpenChange={setShowRoleAssignment}
-          perfProjectId={perfProjectId}
-        />
+        <RoleAssignmentDialog open={showRoleAssignment} onOpenChange={setShowRoleAssignment} perfProjectId={perfProjectId} />
       )}
     </div>
   );

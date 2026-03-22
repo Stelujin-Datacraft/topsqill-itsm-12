@@ -1,9 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { useProject } from '@/contexts/ProjectContext';
 import { usePerformanceMonitoring } from '@/hooks/usePerformanceMonitoring';
 import { usePerformanceKPI } from '@/hooks/usePerformanceKPI';
@@ -20,7 +17,7 @@ import { ScenarioSimulator } from '@/components/performance/scenarios/ScenarioSi
 import { DataQualityPanel } from '@/components/performance/data-quality/DataQualityPanel';
 import { TechnicalQuestionnaire } from '@/components/performance/questionnaire/TechnicalQuestionnaire';
 import { ProjectLocationMap } from '@/components/performance/gis/ProjectLocationMap';
-import { AlertTriangle, ArrowLeft, ClipboardCheck, Clock, Database, FileText, FlaskConical, Gauge, LineChart, MapPin, Settings2, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, ClipboardCheck, Clock, Database, FlaskConical, Gauge, LineChart, MapPin, Settings2, ShieldCheck } from 'lucide-react';
 
 interface SelectedPerfProject {
   id: string;
@@ -36,36 +33,7 @@ export default function ProjectPerformance() {
   const [selectedRecordId, setSelectedRecordId] = useState<string>('');
 
   const perfData = usePerformanceMonitoring(selectedPerfProject?.id);
-  const { submissions, mappings, loading: kpiLoading } = usePerformanceKPI(selectedPerfProject?.id);
 
-  // Build record options from submissions
-  const recordOptions = useMemo(() => {
-    return submissions.map((sub: any) => {
-      const data = sub.submission_data || {};
-      const nameMapping = mappings.find(m =>
-        m.formFieldLabel.toLowerCase().includes('project_name') ||
-        m.formFieldLabel.toLowerCase().includes('project name')
-      );
-      let label = nameMapping ? String(data[nameMapping.formFieldId] || '') : '';
-      if (!label) {
-        label = Object.values(data).find((v: any) => typeof v === 'string' && v.length > 3 && v.length < 100) as string || '';
-      }
-      if (typeof label === 'object' && label !== null && 'value' in (label as any)) {
-        label = (label as any).value;
-      }
-      const refId = sub.submission_ref_id || sub.id?.slice(0, 8) || '';
-      return { id: sub.id, label: label ? `${refId} — ${label}` : refId };
-    });
-  }, [submissions, mappings]);
-
-  // Get selected submission data
-  const selectedSubmissionData = useMemo(() => {
-    if (!selectedRecordId) return null;
-    const sub = submissions.find((s: any) => s.id === selectedRecordId);
-    return sub?.submission_data || null;
-  }, [selectedRecordId, submissions]);
-
-  // Reset record selection when changing perf project
   useEffect(() => {
     setSelectedRecordId('');
   }, [selectedPerfProject?.id]);
@@ -99,53 +67,6 @@ export default function ProjectPerformance() {
         </div>
       </div>
 
-      {/* Global Record Selector */}
-      {submissions.length > 0 && (
-        <Card>
-          <CardContent className="py-3 px-4">
-            <div className="flex items-center gap-3 flex-wrap">
-              <div className="flex items-center gap-2">
-                <FileText className="h-4 w-4 text-primary" />
-                <span className="text-sm font-medium text-foreground">Record:</span>
-              </div>
-              <div className="flex-1 min-w-[280px]">
-                <Select value={selectedRecordId} onValueChange={setSelectedRecordId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a record to analyze..." />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-64">
-                    {recordOptions.map((opt) => (
-                      <SelectItem key={opt.id} value={opt.id}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <Badge variant="outline" className="text-xs">
-                {selectedRecordId ? 'Single record' : `${submissions.length} records available`}
-              </Badge>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Empty state when no record selected */}
-      {!selectedRecordId && submissions.length > 0 && (
-        <Card className="border-dashed">
-          <CardContent className="p-8 text-center space-y-3">
-            <FileText className="h-10 w-10 mx-auto text-muted-foreground" />
-            <div>
-              <p className="font-medium text-foreground">Select a Record to Analyze</p>
-              <p className="text-sm text-muted-foreground mt-1">
-                Choose a record from above to view KPIs, reports, quality scores, and run simulations.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Tabs - only show when a record is selected or for config-only tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="bg-muted/50 flex-wrap h-auto gap-1 p-1">
           <TabsTrigger value="dashboard" className="gap-1.5 text-xs">
@@ -196,20 +117,10 @@ export default function ProjectPerformance() {
           <DataSourceConfig perfProjectId={selectedPerfProject.id} perfFormId={selectedPerfProject.form_id || undefined} />
         </TabsContent>
         <TabsContent value="alerts">
-          <AlertsPanel
-            alerts={perfData.alerts}
-            loading={perfData.loading}
-            updateAlertStatus={perfData.updateAlertStatus}
-          />
+          <AlertsPanel alerts={perfData.alerts} loading={perfData.loading} updateAlertStatus={perfData.updateAlertStatus} />
         </TabsContent>
         <TabsContent value="thresholds">
-          <ThresholdsConfig
-            perfProjectId={selectedPerfProject.id}
-            thresholds={perfData.thresholds}
-            loading={perfData.loading}
-            createThreshold={perfData.createThreshold}
-            deleteThreshold={perfData.deleteThreshold}
-          />
+          <ThresholdsConfig perfProjectId={selectedPerfProject.id} thresholds={perfData.thresholds} loading={perfData.loading} createThreshold={perfData.createThreshold} deleteThreshold={perfData.deleteThreshold} />
         </TabsContent>
         <TabsContent value="analytics">
           <AnalyticsPanel perfProjectId={selectedPerfProject?.id} selectedRecordId={selectedRecordId} />
@@ -227,12 +138,7 @@ export default function ProjectPerformance() {
           <TechnicalQuestionnaire perfProjectId={selectedPerfProject.id} />
         </TabsContent>
         <TabsContent value="activity-log">
-          <PerformanceActivityLog
-            alerts={perfData.alerts}
-            thresholds={perfData.thresholds}
-            loading={perfData.loading}
-            perfProjectId={selectedPerfProject.id}
-          />
+          <PerformanceActivityLog alerts={perfData.alerts} thresholds={perfData.thresholds} loading={perfData.loading} perfProjectId={selectedPerfProject.id} />
         </TabsContent>
       </Tabs>
     </div>
