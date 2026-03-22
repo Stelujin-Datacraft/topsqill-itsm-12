@@ -470,6 +470,7 @@ export function FormPreview({ form, showNavigation = false }: FormPreviewProps) 
                       onPageChange={handlePageChange}
                       onPrevious={handlePrevious}
                       onNext={handleNext}
+                      readOnly={true}
                     />
                   </div>
                 </div>
@@ -552,6 +553,7 @@ export function FormPreview({ form, showNavigation = false }: FormPreviewProps) 
                 onPageChange={handlePageChange}
                 onPrevious={handlePrevious}
                 onNext={handleNext}
+                readOnly={true}
               />
             </div>
           </div>
