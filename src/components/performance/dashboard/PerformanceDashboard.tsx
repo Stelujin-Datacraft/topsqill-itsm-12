@@ -353,7 +353,7 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
       </Card>
 
       {/* AI Health Overview (only when a specific record is selected) */}
-      {selectedRecordId && selectedRecordId !== 'all' && (
+      {selectedRecordId && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <Card>
             <CardContent className="pt-6">
