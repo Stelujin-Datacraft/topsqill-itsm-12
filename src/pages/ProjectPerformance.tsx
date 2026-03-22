@@ -64,6 +64,9 @@ export default function ProjectPerformance() {
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="bg-muted/50 flex-wrap h-auto gap-1 p-1">
+          <TabsTrigger value="kpi-dashboards" className="gap-1.5 text-xs">
+            <Gauge className="h-3.5 w-3.5" />KPI Dashboards
+          </TabsTrigger>
           <TabsTrigger value="overview" className="gap-1.5 text-xs">
             <BarChart3 className="h-3.5 w-3.5" />Overview
           </TabsTrigger>
