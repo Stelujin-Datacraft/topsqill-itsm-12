@@ -202,7 +202,7 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
   };
 
   const handleRecordChange = (value: string) => {
-    setSelectedRecordId(value);
+    onRecordChange?.(value);
     setAiResult(null);
     // Auto-trigger AI for specific records
     if (value && value !== 'all') {
