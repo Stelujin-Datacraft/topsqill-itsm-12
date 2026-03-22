@@ -612,6 +612,7 @@ export function FormViewLayoutRenderer({
                     onPageChange={handlePageChange}
                     onPrevious={handlePrevious}
                     onNext={handleNext}
+                    readOnly={true}
                   />
                 </div>
               </div>
