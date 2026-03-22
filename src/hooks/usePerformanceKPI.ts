@@ -310,7 +310,7 @@ export function calculateDisciplineEngineerKPIs(submissions: any[], mappings: Fi
     if (taskStatus.includes('completed')) completed++;
     if (taskStatus.includes('pending')) pending++;
     if (taskStatus.includes('blocked')) blocked++;
-    if (delayDays > 0) { totalDelay += delayDays; delayCount++; }
+    totalDelay += delayDays; delayCount++;
     totalActualHours += actualHours;
     totalPlannedHours += plannedHours;
     
