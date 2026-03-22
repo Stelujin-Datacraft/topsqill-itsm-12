@@ -190,9 +190,10 @@ export interface ProjectManagerKPIs {
 export function calculateProjectManagerKPIs(submission: Record<string, any>, mappings: FieldMapping[]): ProjectManagerKPIs {
   const d = submission;
 
-  // These fields may come from related or aggregated fields within the single submission
-  const taskStatus = str(resolveField(d, mappings, 'task_status'));
+  const totalTasks = num(resolveField(d, mappings, 'total_tasks'));
+  const completedTasks = num(resolveField(d, mappings, 'completed_tasks'));
   const taskDelayDays = num(resolveField(d, mappings, /task.*delay.*days/));
+  const delayedTasks = num(resolveField(d, mappings, 'delayed_tasks'));
   const ev = num(resolveField(d, mappings, /earned.*value/));
   const pv = num(resolveField(d, mappings, /planned.*value/));
   const ac = num(resolveField(d, mappings, /actual.*cost.*value/));
@@ -201,45 +202,46 @@ export function calculateProjectManagerKPIs(submission: Record<string, any>, map
   const riskScore = num(resolveField(d, mappings, 'risk_score'));
   const predDelay = num(resolveField(d, mappings, /predicted.*delay/));
   const predCostOverrun = num(resolveField(d, mappings, /predicted.*cost.*overrun/));
-  const scheduleVar = num(resolveField(d, mappings, /schedule.*variance/));
-  const costVar = num(resolveField(d, mappings, 'cost_variance'));
   const burnRate = num(resolveField(d, mappings, 'burn_rate'));
-  
+
   // Milestone fields
+  const completedMilestones = num(resolveField(d, mappings, 'completed_milestones'));
+  const totalMilestones = num(resolveField(d, mappings, 'total_milestones'));
   const milestonePlanned = str(resolveField(d, mappings, /milestone.*planned/));
   const milestoneActual = str(resolveField(d, mappings, /milestone.*actual/));
-  
-  // Task counts - use numeric fields from the form
-  const defectCount = num(resolveField(d, mappings, 'defect_count'));
-  const qualityScore = num(resolveField(d, mappings, 'quality_score'));
-  const reworkHours = num(resolveField(d, mappings, 'rework_hours'));
-  
-  // Issue status
-  const issueStatus = str(resolveField(d, mappings, /^status$/));
-  
+
+  // Open issues
+  const openIssues = num(resolveField(d, mappings, 'open_issues'));
+
   const spi = pv > 0 ? ev / pv : 0;
   const cpi = ac > 0 ? ev / ac : 0;
-  
+
   const projectDuration = actualStart ? dateDiffDays(new Date().toISOString(), actualStart) : 0;
   const effectiveBurnRate = burnRate > 0 ? burnRate : (projectDuration > 0 ? actualCost / projectDuration : 0);
 
+  // Project_Progress = (Completed_Tasks / Total_Tasks) × 100
+  const projectProgress = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
+
+  // Milestone_Completion = (Completed_Milestones / Total_Milestones) × 100
+  const milestoneCompletionRate = totalMilestones > 0 ? (completedMilestones / totalMilestones) * 100 : 0;
+
   return {
-    projectProgress: qualityScore, // fallback to quality score as a progress proxy
-    totalTasks: 1,
-    completedTasks: taskStatus.toLowerCase().includes('completed') ? 1 : 0,
-    delayedTasks: taskDelayDays > 0 ? 1 : 0,
-    scheduleVariance: scheduleVar || (ev - pv),
+    projectProgress,
+    totalTasks,
+    completedTasks,
+    delayedTasks: delayedTasks || (taskDelayDays > 0 ? 1 : 0),
+    scheduleVariance: ev - pv,
     spi,
-    costVariance: costVar || (ev - ac),
+    costVariance: ev - ac,
     cpi,
-    milestoneCompletionRate: milestoneActual ? 100 : 0,
+    milestoneCompletionRate,
     milestoneDelayDays: dateDiffDays(milestoneActual, milestonePlanned),
     burnRate: effectiveBurnRate,
     projectDuration: Math.max(projectDuration, 0),
     riskExposure: riskScore,
     predictedDelay: predDelay,
     predictedCostOverrun: predCostOverrun,
-    openIssues: issueStatus && !issueStatus.toLowerCase().includes('resolved') ? 1 : 0,
+    openIssues,
   };
 }
 
@@ -308,7 +310,7 @@ export function calculateDisciplineEngineerKPIs(submissions: any[], mappings: Fi
     if (taskStatus.includes('completed')) completed++;
     if (taskStatus.includes('pending')) pending++;
     if (taskStatus.includes('blocked')) blocked++;
-    if (delayDays > 0) { totalDelay += delayDays; delayCount++; }
+    totalDelay += delayDays; delayCount++;
     totalActualHours += actualHours;
     totalPlannedHours += plannedHours;
     
@@ -325,7 +327,7 @@ export function calculateDisciplineEngineerKPIs(submissions: any[], mappings: Fi
     pendingTasks: pending,
     blockedTasks: blocked,
     taskDelayDays: totalDelay,
-    averageTaskDelay: delayCount > 0 ? totalDelay / delayCount : 0,
+    averageTaskDelay: assigned > 0 ? totalDelay / assigned : 0,
     resourceUtilization: totalPlannedHours > 0 ? (totalActualHours / totalPlannedHours) * 100 : 0,
     productivityScore: totalActualHours > 0 ? totalPlannedHours / totalActualHours : 0,
     overtimeHours: Math.max(totalActualHours - totalPlannedHours, 0),
