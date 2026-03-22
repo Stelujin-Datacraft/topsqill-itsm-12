@@ -96,7 +96,7 @@ export function KPIDashboardTab({ perfProjectId }: Props) {
 
     return {
       seniorKPIs: calculateSeniorManagementKPIs(singleArr, mappings),
-      pmKPIs: calculateProjectManagerKPIs(selectedSub.submission_data || {}, mappings),
+      pmKPIs: calculateProjectManagerKPIs((selectedSub.submission_data || {}) as Record<string, any>, mappings),
       engineerKPIs: calculateDisciplineEngineerKPIs(singleArr, mappings, userProfile?.id),
       financeKPIs: calculateFinanceKPIs(singleArr, mappings),
       riskKPIs: calculateRiskGovernanceKPIs(singleArr, mappings),
