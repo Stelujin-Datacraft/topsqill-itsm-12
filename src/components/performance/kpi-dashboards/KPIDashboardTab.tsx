@@ -43,7 +43,7 @@ export function KPIDashboardTab({ perfProjectId }: Props) {
   const { userRole, loading, submissions, mappings, seniorKPIs, pmKPIs, engineerKPIs, financeKPIs, riskKPIs, alerts } = usePerformanceKPI(perfProjectId);
   const [selectedRole, setSelectedRole] = useState<PerformanceRoleType | null>(null);
   const [showRoleAssignment, setShowRoleAssignment] = useState(false);
-  const [selectedRecordId, setSelectedRecordId] = useState<string>('all');
+  const [selectedRecordId, setSelectedRecordId] = useState<string>('');
 
   const activeRole = selectedRole || userRole || 'senior_management';
   const isAdmin = userProfile?.role === 'admin';
