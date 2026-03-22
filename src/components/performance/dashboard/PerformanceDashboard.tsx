@@ -73,7 +73,7 @@ function useHealthMetrics(alerts: PerformanceAlert[], predictions: PerformancePr
   }, [alerts, predictions, thresholds]);
 }
 
-export function PerformanceDashboard({ perfProjectId, alerts, predictions, thresholds, loading, onNavigateToThresholds }: Props) {
+export function PerformanceDashboard({ perfProjectId, alerts, predictions, thresholds, loading, onNavigateToThresholds, selectedRecordId: propSelectedRecordId, onRecordChange }: Props) {
   const { userProfile } = useAuth();
   const { currentProject } = useProject();
   const { toast } = useToast();
