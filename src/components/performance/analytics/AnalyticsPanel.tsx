@@ -963,7 +963,7 @@ export function AnalyticsPanel({ perfProjectId, selectedRecordId }: Props) {
 
       {/* EVM Comparison + Radar side by side */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* EVM Bar Chart */}
+        {/* EVM — Area Chart */}
         {singleEVMData.length > 0 && (
           <Card>
             <CardHeader className="pb-2">
@@ -974,17 +974,13 @@ export function AnalyticsPanel({ perfProjectId, selectedRecordId }: Props) {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={260}>
-                <BarChart data={singleEVMData}>
+                <AreaChart data={singleEVMData}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis dataKey="name" tick={{ fontSize: 9 }} angle={-15} textAnchor="end" height={50} />
+                  <XAxis dataKey="name" tick={{ fontSize: 10 }} />
                   <YAxis tick={{ fontSize: 11 }} />
                   <Tooltip formatter={(v: number) => v.toLocaleString()} />
-                  <Bar dataKey="value" name="Value" radius={[4, 4, 0, 0]}>
-                    <Cell fill="#8b5cf6" />
-                    <Cell fill="#10b981" />
-                    <Cell fill="#ef4444" />
-                  </Bar>
-                </BarChart>
+                  <Area type="monotone" dataKey="value" name="Value" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.2} strokeWidth={2} />
+                </AreaChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
