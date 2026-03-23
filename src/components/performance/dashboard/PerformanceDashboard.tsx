@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, Brain, UserCog, Database, FileText, BarChart3, Lightbulb, TrendingUp, EyeOff, Settings2, ShieldAlert, Activity, Zap, Target, AlertCircle } from 'lucide-react';
-import { usePerformanceKPI, PerformanceRoleType, calculateSeniorManagementKPIs, calculateProjectManagerKPIs, calculateDisciplineEngineerKPIs, calculateFinanceKPIs, calculateRiskGovernanceKPIs, generateKPIAlerts } from '@/hooks/usePerformanceKPI';
+import { usePerformanceKPI, PerformanceRoleType, calculateSeniorManagementKPIs, calculateProjectManagerKPIs, aggregateProjectManagerKPIs, calculateDisciplineEngineerKPIs, calculateFinanceKPIs, calculateRiskGovernanceKPIs, generateKPIAlerts } from '@/hooks/usePerformanceKPI';
 import { type PerformanceAlert, type PerformancePrediction, type PerformanceThreshold, type AIAnalysis } from '@/hooks/usePerformanceMonitoring';
 import { getSeverityBadgeVariant, getHealthColorClass } from '@/components/performance/utils/severityUtils';
 import { SeniorManagementDashboard } from '../kpi-dashboards/SeniorManagementDashboard';
@@ -127,7 +127,7 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
   }, [propSelectedRecordId]);
 
   const recordOptions = useMemo(() => {
-    return submissions.map((sub: any) => {
+    const options = submissions.map((sub: any) => {
       const data = sub.submission_data || {};
       const nameMapping = mappings.find(m =>
         m.formFieldLabel.toLowerCase().includes('project_name') ||
@@ -143,10 +143,26 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
       const refId = sub.submission_ref_id || sub.id?.slice(0, 8) || '';
       return { id: sub.id, label: label ? `${refId} — ${label}` : refId };
     });
+    return options;
   }, [submissions, mappings]);
+
+  const isAllRecords = selectedRecordId === '__all__';
 
   const computedKPIs = useMemo(() => {
     if (submissions.length === 0 || !selectedRecordId) return null;
+
+    if (isAllRecords) {
+      // Aggregated KPIs across all submissions
+      return {
+        seniorKPIs: calculateSeniorManagementKPIs(submissions, mappings),
+        pmKPIs: aggregateProjectManagerKPIs(submissions, mappings),
+        engineerKPIs: calculateDisciplineEngineerKPIs(submissions, mappings, userProfile?.id),
+        financeKPIs: calculateFinanceKPIs(submissions, mappings),
+        riskKPIs: calculateRiskGovernanceKPIs(submissions, mappings),
+        alerts: generateKPIAlerts(submissions, mappings),
+      };
+    }
+
     const selectedSub = submissions.find((s: any) => s.id === selectedRecordId);
     if (!selectedSub) return null;
     const singleArr = [selectedSub];
@@ -158,14 +174,21 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
       riskKPIs: calculateRiskGovernanceKPIs(singleArr, mappings),
       alerts: generateKPIAlerts(singleArr, mappings),
     };
-  }, [submissions, mappings, selectedRecordId, userProfile?.id]);
+  }, [submissions, mappings, selectedRecordId, userProfile?.id, isAllRecords]);
 
   const runAIAnalysis = async (submissionId: string) => {
     if (!submissionId || !projectId || !perfProjectId) return;
+    // For "all records", send a special flag to the edge function
+    const isAll = submissionId === '__all__';
     setAiRunning(true);
     try {
       const { data, error } = await supabase.functions.invoke('analyze-performance', {
-        body: { project_id: projectId, action: 'analyze', performance_project_id: perfProjectId, submission_id: submissionId },
+        body: {
+          project_id: projectId,
+          action: 'analyze',
+          performance_project_id: perfProjectId,
+          submission_id: isAll ? '__all__' : submissionId,
+        },
       });
       if (error) throw new Error(error.message || 'Analysis failed');
       if (data?.error) throw new Error(data.error);
@@ -174,16 +197,18 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
       setDismissedPredictions(new Set());
       await (supabase as any).from('performance_analysis_results').delete().eq('project_id', projectId).eq('performance_project_id', perfProjectId);
       await (supabase as any).from('performance_analysis_results').insert({
-        project_id: projectId, performance_project_id: perfProjectId, submission_id: submissionId, analysis_data: result, created_by: userProfile?.id,
+        project_id: projectId, performance_project_id: perfProjectId, submission_id: isAll ? null : submissionId, analysis_data: result, created_by: userProfile?.id,
       });
       queryClient.invalidateQueries({ queryKey: ['perf-analysis-result', projectId, perfProjectId] });
+      queryClient.invalidateQueries({ queryKey: ['performance-alerts', projectId, perfProjectId] });
+      queryClient.invalidateQueries({ queryKey: ['performance-predictions', projectId, perfProjectId] });
       logAction.mutate({
         action_type: 'analysis_run', action_category: 'analysis',
-        title: 'AI Analysis executed for record',
-        description: `Record: ${submissionId}, Risk score: ${result.risk_score}/100`,
+        title: isAll ? 'AI Analysis executed for all records' : 'AI Analysis executed for record',
+        description: isAll ? `All ${submissions.length} records, Risk score: ${result.risk_score}/100` : `Record: ${submissionId}, Risk score: ${result.risk_score}/100`,
         metadata: { risk_score: result.risk_score, health_status: result.health_status, submission_id: submissionId },
       });
-      toast({ title: 'AI Analysis Complete', description: 'Insights generated for the selected record.' });
+      toast({ title: 'AI Analysis Complete', description: isAll ? 'Portfolio-wide insights generated.' : 'Insights generated for the selected record.' });
     } catch (err: any) {
       toast({ title: 'Analysis Failed', description: err.message, variant: 'destructive' });
     } finally {
@@ -282,6 +307,9 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
                   <SelectValue placeholder="Select a record to analyze..." />
                 </SelectTrigger>
                 <SelectContent className="max-h-64">
+                  <SelectItem value="__all__">
+                    <span className="flex items-center gap-2 font-medium">📊 All Records (Aggregated)</span>
+                  </SelectItem>
                   {recordOptions.map((opt) => (
                     <SelectItem key={opt.id} value={opt.id}>{opt.label}</SelectItem>
                   ))}
@@ -314,7 +342,7 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
                 </Button>
               )}
               <Badge variant="outline" className="text-xs">
-                {selectedRecordId ? '1 record selected' : `${submissions.length} records`}
+                {isAllRecords ? `All ${submissions.length} records` : selectedRecordId ? '1 record selected' : `${submissions.length} records`}
               </Badge>
             </div>
           </div>

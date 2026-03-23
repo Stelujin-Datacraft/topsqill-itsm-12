@@ -82,13 +82,58 @@ ANALYSIS RULES FOR THIS FORM:
 8. EAC vs Budget: If Estimate At Completion > Budget Cost, flag potential overrun
 `;
 
+async function fetchAllRecordsData(supabase: any, dataSources: any[]) {
+  if (!dataSources || dataSources.length === 0) return null;
+  const ds = dataSources[0];
+  const fieldMappings = Array.isArray(ds.field_mappings) ? ds.field_mappings : [];
+
+  const { data: allSubs } = await supabase
+    .from("form_submissions")
+    .select("id, submission_data, submitted_at, submission_ref_id")
+    .eq("form_id", ds.source_form_id)
+    .order("submitted_at", { ascending: false })
+    .limit(500);
+
+  if (!allSubs || allSubs.length === 0) return null;
+
+  // Aggregate numeric fields
+  const aggregated: Record<string, any> = {};
+  for (const mapping of fieldMappings) {
+    if (mapping.metricRole !== 'numeric_metric') continue;
+    const label = mapping.label || mapping.formFieldLabel;
+    const values = allSubs
+      .map((s: any) => parseFloat(s.submission_data?.[mapping.formFieldId]))
+      .filter((v: number) => !isNaN(v));
+    if (values.length === 0) continue;
+    const sum = values.reduce((a: number, b: number) => a + b, 0);
+    const avg = sum / values.length;
+    aggregated[label] = { avg: Math.round(avg * 100) / 100, sum: Math.round(sum * 100) / 100, min: Math.min(...values), max: Math.max(...values), count: values.length };
+  }
+
+  // Collect all record data summaries
+  const recordSummaries = allSubs.slice(0, 20).map((s: any) => {
+    const mapped: Record<string, any> = {};
+    for (const m of fieldMappings) {
+      const val = s.submission_data?.[m.formFieldId];
+      if (val != null) mapped[m.label || m.formFieldLabel] = val;
+    }
+    return { ref: s.submission_ref_id, data: mapped };
+  });
+
+  return {
+    formName: ds.source_form_name,
+    totalRecords: allSubs.length,
+    aggregatedMetrics: aggregated,
+    recordSummaries,
+  };
+}
+
 async function fetchSingleRecordData(supabase: any, dataSources: any[], submissionId: string) {
   if (!dataSources || dataSources.length === 0) return null;
 
-  const ds = dataSources[0]; // Only one data source per performance project
+  const ds = dataSources[0];
   const fieldMappings = Array.isArray(ds.field_mappings) ? ds.field_mappings : [];
 
-  // Fetch the specific submission
   const { data: submission, error } = await supabase
     .from("form_submissions")
     .select("id, submission_data, submitted_at, submission_ref_id")
@@ -98,10 +143,7 @@ async function fetchSingleRecordData(supabase: any, dataSources: any[], submissi
 
   if (error || !submission) return null;
 
-  // Extract ALL data from the submission (not just mapped fields)
   const allData = submission.submission_data || {};
-  
-  // Also extract mapped fields with their roles
   const mappedData: Record<string, any> = {};
   for (const mapping of fieldMappings) {
     const val = allData[mapping.formFieldId];
@@ -113,7 +155,6 @@ async function fetchSingleRecordData(supabase: any, dataSources: any[], submissi
     };
   }
 
-  // Fetch portfolio-level statistics for comparison (all submissions of this form)
   const { data: allSubs } = await supabase
     .from("form_submissions")
     .select("submission_data")
@@ -121,7 +162,6 @@ async function fetchSingleRecordData(supabase: any, dataSources: any[], submissi
     .order("submitted_at", { ascending: false })
     .limit(500);
 
-  // Compute portfolio averages for numeric fields
   const portfolioStats: Record<string, any> = {};
   if (allSubs && allSubs.length > 0) {
     for (const mapping of fieldMappings) {
@@ -129,22 +169,13 @@ async function fetchSingleRecordData(supabase: any, dataSources: any[], submissi
       const values = allSubs
         .map((s: any) => parseFloat(s.submission_data?.[mapping.formFieldId]))
         .filter((v: number) => !isNaN(v));
-      
       if (values.length === 0) continue;
       const label = mapping.label || mapping.formFieldLabel;
       const sum = values.reduce((a: number, b: number) => a + b, 0);
       const avg = sum / values.length;
       const variance = values.reduce((a: number, b: number) => a + Math.pow(b - avg, 2), 0) / values.length;
       const stdDev = Math.sqrt(variance);
-
-      portfolioStats[label] = {
-        count: values.length,
-        avg: Math.round(avg * 100) / 100,
-        min: Math.min(...values),
-        max: Math.max(...values),
-        stdDev: Math.round(stdDev * 100) / 100,
-        sum: Math.round(sum * 100) / 100,
-      };
+      portfolioStats[label] = { count: values.length, avg: Math.round(avg * 100) / 100, min: Math.min(...values), max: Math.max(...values), stdDev: Math.round(stdDev * 100) / 100, sum: Math.round(sum * 100) / 100 };
     }
   }
 
@@ -157,6 +188,100 @@ async function fetchSingleRecordData(supabase: any, dataSources: any[], submissi
     portfolioStats,
     totalRecords: allSubs?.length || 0,
   };
+}
+
+async function sendAlertNotifications(supabase: any, projectId: string, perfProjectId: string | null, alerts: any[], userId: string) {
+  try {
+    // In-app notifications for all org members
+    const { data: orgMembers } = await supabase
+      .from('profiles')
+      .select('id, email, organization_id')
+      .eq('id', userId)
+      .single();
+
+    if (!orgMembers) return;
+
+    // Get project members
+    const { data: members } = await supabase
+      .from('project_members')
+      .select('user_id')
+      .eq('project_id', projectId);
+
+    const memberIds = members?.map((m: any) => m.user_id) || [userId];
+    const uniqueIds = [...new Set(memberIds)];
+
+    // Create in-app notifications
+    const criticalAlerts = alerts.filter((a: any) => a.severity === 'high' || a.severity === 'critical');
+    if (criticalAlerts.length > 0) {
+      const notifInserts = uniqueIds.map((uid: string) => ({
+        user_id: uid,
+        type: 'workflow_notification',
+        title: `⚠️ Performance Alert: ${criticalAlerts.length} issue${criticalAlerts.length > 1 ? 's' : ''} detected`,
+        message: criticalAlerts.map((a: any) => `${a.severity.toUpperCase()}: ${a.title}`).join(' | '),
+        data: { source: 'performance_monitoring', project_id: projectId, performance_project_id: perfProjectId, alert_count: criticalAlerts.length },
+        read: false,
+      }));
+      await supabase.from('notifications').insert(notifInserts);
+    }
+
+    // Send email via SMTP for critical/high alerts
+    if (criticalAlerts.length > 0 && orgMembers.organization_id) {
+      const { data: smtpConfigs } = await supabase
+        .from('smtp_configs')
+        .select('*')
+        .eq('organization_id', orgMembers.organization_id)
+        .eq('is_active', true)
+        .limit(1);
+
+      if (smtpConfigs && smtpConfigs.length > 0) {
+        // Get emails of members
+        const { data: memberProfiles } = await supabase
+          .from('profiles')
+          .select('email')
+          .in('id', uniqueIds);
+
+        const emails = memberProfiles?.map((p: any) => p.email).filter(Boolean) || [];
+        if (emails.length > 0) {
+          const smtpConfig = smtpConfigs[0];
+          const alertSummary = criticalAlerts.map((a: any) => `• ${a.severity.toUpperCase()}: ${a.title} — ${a.description}`).join('\n');
+          const htmlAlerts = criticalAlerts.map((a: any) =>
+            `<tr><td style="padding:8px;border:1px solid #e5e7eb;"><span style="color:${a.severity === 'critical' ? '#ef4444' : '#f59e0b'};font-weight:bold;">${a.severity.toUpperCase()}</span></td><td style="padding:8px;border:1px solid #e5e7eb;">${a.title}</td><td style="padding:8px;border:1px solid #e5e7eb;">${a.description || ''}</td></tr>`
+          ).join('');
+
+          try {
+            const { SMTPClient } = await import("https://deno.land/x/denomailer@1.6.0/mod.ts");
+            const client = new SMTPClient({
+              connection: {
+                hostname: smtpConfig.host,
+                port: smtpConfig.port,
+                tls: smtpConfig.use_tls,
+                auth: { username: smtpConfig.username, password: smtpConfig.password },
+              },
+            });
+
+            for (const email of emails) {
+              try {
+                await client.send({
+                  from: smtpConfig.from_name ? `${smtpConfig.from_name} <${smtpConfig.from_email}>` : smtpConfig.from_email,
+                  to: email,
+                  subject: `🚨 Performance Alert: ${criticalAlerts.length} issue${criticalAlerts.length > 1 ? 's' : ''} detected`,
+                  content: `Performance Monitoring Alert\n\n${alertSummary}\n\nPlease review the Performance Dashboard for details.`,
+                  html: `<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;padding:20px;"><h2 style="color:#ef4444;">🚨 Performance Alert</h2><p>${criticalAlerts.length} issue${criticalAlerts.length > 1 ? 's' : ''} detected in your project performance monitoring.</p><table style="width:100%;border-collapse:collapse;margin:16px 0;"><thead><tr style="background:#f3f4f6;"><th style="padding:8px;border:1px solid #e5e7eb;text-align:left;">Severity</th><th style="padding:8px;border:1px solid #e5e7eb;text-align:left;">Alert</th><th style="padding:8px;border:1px solid #e5e7eb;text-align:left;">Details</th></tr></thead><tbody>${htmlAlerts}</tbody></table><p style="color:#6b7280;font-size:12px;">This is an automated alert from your Performance Monitoring system.</p></body></html>`,
+                });
+              } catch (emailErr) {
+                console.error('Email send failed for', email, emailErr);
+              }
+            }
+            await client.close();
+          } catch (smtpErr) {
+            console.error('SMTP connection failed (non-blocking):', smtpErr);
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Alert notification error (non-blocking):', err);
+  }
 }
 
 serve(async (req) => {
@@ -183,17 +308,15 @@ serve(async (req) => {
     if (action === "analyze") {
       if (!submission_id) throw new Error("submission_id is required — select a record to analyze");
 
-      // Fetch data sources (limited to 1 per performance project)
+      const isAllRecords = submission_id === '__all__';
+
+      // Fetch data sources
       let dsQuery = supabase
         .from("performance_data_sources")
         .select("*")
         .eq("project_id", project_id)
         .eq("is_active", true);
-      
-      if (performance_project_id) {
-        dsQuery = dsQuery.eq("performance_project_id", performance_project_id);
-      }
-      
+      if (performance_project_id) dsQuery = dsQuery.eq("performance_project_id", performance_project_id);
       const { data: dataSources } = await dsQuery;
 
       // Fetch thresholds
@@ -202,62 +325,103 @@ serve(async (req) => {
         .select("*")
         .eq("project_id", project_id)
         .eq("is_active", true);
-      
-      if (performance_project_id) {
-        thQuery = thQuery.eq("performance_project_id", performance_project_id);
-      }
-      
+      if (performance_project_id) thQuery = thQuery.eq("performance_project_id", performance_project_id);
       const { data: thresholds } = await thQuery;
 
-      // Fetch single record data with portfolio context
-      const recordAnalysis = await fetchSingleRecordData(supabase, dataSources || [], submission_id);
-
-      if (!recordAnalysis) {
-        return new Response(JSON.stringify({
-          summary: "Could not find the selected record. Ensure the data source is configured and the record exists.",
-          anomalies: [],
-          predictions: [],
-          risk_score: 0,
-          health_status: "green",
-          recommendations: [{
-            priority: "high",
-            title: "Configure Data Source",
-            description: "Go to the Data Sources tab, map your form fields, then select a record to analyze.",
-          }],
-        }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      // CLEAR old alerts and predictions for this perf project before generating fresh ones
+      let delAlertQuery = supabase.from("performance_alerts").delete().eq("project_id", project_id).eq("ai_generated", true);
+      let delPredQuery = supabase.from("performance_predictions").delete().eq("project_id", project_id);
+      if (performance_project_id) {
+        delAlertQuery = delAlertQuery.eq("performance_project_id", performance_project_id);
+        delPredQuery = delPredQuery.eq("performance_project_id", performance_project_id);
       }
+      await delAlertQuery;
+      await delPredQuery;
 
-      const prompt = `You are an expert project performance analyst conducting a DETAILED SINGLE RECORD ANALYSIS.
+      let prompt: string;
+      let analysisContext: any;
+
+      if (isAllRecords) {
+        // Aggregated analysis across all records
+        analysisContext = await fetchAllRecordsData(supabase, dataSources || []);
+        if (!analysisContext) {
+          return new Response(JSON.stringify({
+            summary: "No records found. Ensure the data source is configured and submissions exist.",
+            anomalies: [], predictions: [], risk_score: 0, health_status: "green",
+            recommendations: [{ priority: "high", title: "Add Data", description: "Submit data through your form first." }],
+          }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+
+        prompt = `You are an expert project performance analyst conducting a PORTFOLIO-WIDE AGGREGATED ANALYSIS across ${analysisContext.totalRecords} records.
 
 ${ENTERPRISE_PORTFOLIO_TRACKER_CONTEXT}
 
-SELECTED RECORD FOR ANALYSIS:
-Form: "${recordAnalysis.formName}"
-Record Reference: ${recordAnalysis.submissionRefId}
-Submitted At: ${recordAnalysis.submittedAt}
+PORTFOLIO ANALYSIS:
+Form: "${analysisContext.formName}"
+Total Records: ${analysisContext.totalRecords}
 
-FULL RECORD DATA (all fields):
-${JSON.stringify(recordAnalysis.recordData, null, 2)}
+AGGREGATED METRICS (avg, sum, min, max across all records):
+${JSON.stringify(analysisContext.aggregatedMetrics, null, 2)}
 
-MAPPED FIELD DETAILS (with roles and types):
-${JSON.stringify(recordAnalysis.mappedFields, null, 2)}
-
-PORTFOLIO CONTEXT (statistics from ${recordAnalysis.totalRecords} total records for comparison):
-${JSON.stringify(recordAnalysis.portfolioStats, null, 2)}
+SAMPLE RECORDS (first 20):
+${JSON.stringify(analysisContext.recordSummaries, null, 2)}
 
 CONFIGURED ALERT THRESHOLDS:
 ${JSON.stringify(thresholds || [], null, 2)}
 
 ANALYSIS INSTRUCTIONS:
-1. ANOMALY DETECTION: Compare this record's values against the portfolio averages. Flag any value that deviates >2 standard deviations. Also apply the Enterprise Portfolio Tracker rules (schedule variance, cost variance, ROI checks, etc.).
-2. FINANCIAL HEALTH: Analyze cost performance (Actual vs Planned), ROI, NPV, IRR vs Discount Rate. Provide specific dollar amounts.
-3. SCHEDULE HEALTH: Compare Actual Duration vs Planned Duration, Actual Effort vs Planned Effort. Calculate SPI and variance %.
+1. ANOMALY DETECTION: Identify outliers and unusual patterns across the portfolio.
+2. FINANCIAL HEALTH: Analyze aggregate cost performance, budget utilization, ROI trends.
+3. SCHEDULE HEALTH: Evaluate overall schedule performance across projects.
+4. RISK ASSESSMENT: Score the overall portfolio risk (0-100).
+5. PREDICTIONS: Based on portfolio trends, predict future performance.
+6. THRESHOLD VIOLATIONS: Check configured thresholds against aggregated values.
+7. RECOMMENDATIONS: Provide strategic recommendations for portfolio-level improvements.
+
+Be SPECIFIC — reference actual aggregated values, averages, and trends.`;
+      } else {
+        // Single record analysis
+        analysisContext = await fetchSingleRecordData(supabase, dataSources || [], submission_id);
+        if (!analysisContext) {
+          return new Response(JSON.stringify({
+            summary: "Could not find the selected record.",
+            anomalies: [], predictions: [], risk_score: 0, health_status: "green",
+            recommendations: [{ priority: "high", title: "Configure Data Source", description: "Go to the Data Sources tab." }],
+          }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+
+        prompt = `You are an expert project performance analyst conducting a DETAILED SINGLE RECORD ANALYSIS.
+
+${ENTERPRISE_PORTFOLIO_TRACKER_CONTEXT}
+
+SELECTED RECORD FOR ANALYSIS:
+Form: "${analysisContext.formName}"
+Record Reference: ${analysisContext.submissionRefId}
+Submitted At: ${analysisContext.submittedAt}
+
+FULL RECORD DATA (all fields):
+${JSON.stringify(analysisContext.recordData, null, 2)}
+
+MAPPED FIELD DETAILS (with roles and types):
+${JSON.stringify(analysisContext.mappedFields, null, 2)}
+
+PORTFOLIO CONTEXT (statistics from ${analysisContext.totalRecords} total records for comparison):
+${JSON.stringify(analysisContext.portfolioStats, null, 2)}
+
+CONFIGURED ALERT THRESHOLDS:
+${JSON.stringify(thresholds || [], null, 2)}
+
+ANALYSIS INSTRUCTIONS:
+1. ANOMALY DETECTION: Compare this record's values against the portfolio averages. Flag any value that deviates >2 standard deviations.
+2. FINANCIAL HEALTH: Analyze cost performance (Actual vs Planned), ROI, NPV, IRR vs Discount Rate.
+3. SCHEDULE HEALTH: Compare Actual Duration vs Planned Duration, Actual Effort vs Planned Effort.
 4. RISK ASSESSMENT: Use the Risk Score, Size Score, Value Score to evaluate risk-value balance. Score 0-100 overall.
 5. PREDICTIONS: Based on current trajectory, predict likely completion date, final cost, and resource needs.
 6. THRESHOLD VIOLATIONS: Check configured thresholds against this record's values.
-7. RECOMMENDATIONS: Provide actionable, specific recommendations referencing actual values from this record.
+7. RECOMMENDATIONS: Provide actionable, specific recommendations referencing actual values.
 
 Be SPECIFIC — reference actual field values, dollar amounts, dates, and percentages from the record data.`;
+      }
 
       const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
@@ -405,7 +569,8 @@ Be SPECIFIC — reference actual field values, dollar amounts, dates, and percen
         confidence: p.confidence > 1 ? p.confidence / 100 : p.confidence,
       }));
 
-      // Store anomalies as alerts
+      // Store anomalies as fresh alerts
+      const recordRef = isAllRecords ? 'All Records' : (analysisContext.submissionRefId || submission_id.slice(0, 8));
       if (analysis.anomalies?.length > 0) {
         const orgId = dataSources?.[0]?.organization_id;
         const alertInserts = analysis.anomalies.map((a: any) => ({
@@ -413,7 +578,7 @@ Be SPECIFIC — reference actual field values, dollar amounts, dates, and percen
           organization_id: orgId,
           alert_type: "anomaly",
           severity: a.severity,
-          title: `Anomaly: ${a.metric} (Record: ${recordAnalysis.submissionRefId})`,
+          title: `Anomaly: ${a.metric} (${recordRef})`,
           description: a.description,
           ai_generated: true,
           ai_confidence: a.expected_value ? 85 : 70,
@@ -428,6 +593,9 @@ Be SPECIFIC — reference actual field values, dollar amounts, dates, and percen
 
         const { error: alertError } = await supabase.from("performance_alerts").insert(alertInserts);
         if (alertError) console.error("Error saving alerts:", alertError);
+
+        // Send in-app and email notifications for alerts
+        await sendAlertNotifications(supabase, project_id, performance_project_id || null, alertInserts, user.id);
       }
 
       // Store predictions
@@ -439,9 +607,9 @@ Be SPECIFIC — reference actual field values, dollar amounts, dates, and percen
           prediction_type: p.type || 'general',
           predicted_value: p.predicted_value ?? null,
           confidence_level: p.confidence ?? null,
-          reasoning: `[Record: ${recordAnalysis.submissionRefId}] ${p.description}`,
+          reasoning: `[${recordRef}] ${p.description}`,
           model_used: "gemini-3-flash-preview",
-          input_data_points: 1,
+          input_data_points: isAllRecords ? analysisContext.totalRecords : 1,
           ...(performance_project_id ? { performance_project_id } : {}),
         }));
 
