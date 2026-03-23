@@ -6,7 +6,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useProject } from '@/contexts/ProjectContext';
 import { useQuery } from '@tanstack/react-query';
 import {
-  BarChart, Bar, PieChart, Pie, Cell, LineChart, Line,
+  BarChart, Bar, PieChart, Pie, Cell, LineChart, Line, AreaChart, Area,
+  RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
 import { Loader2, BarChart3, TrendingUp, FileText, DollarSign, Clock, AlertTriangle, CheckCircle2, Activity } from 'lucide-react';
@@ -234,6 +235,63 @@ export function AnalyticsPanel({ perfProjectId, selectedRecordId }: Props) {
     });
   }, [isAllRecords, submissions, fieldLookup]);
 
+  // EV / AC / PV Area chart data (per record)
+  const evTrendData = useMemo(() => {
+    if (!isAllRecords || submissions.length === 0) return [];
+    return submissions.slice(0, 20).map((s: any, i: number) => {
+      const data = s.submission_data || {};
+      const name = s.submission_ref_id || `R${i + 1}`;
+      return {
+        name: name.length > 10 ? name.slice(0, 10) + '…' : name,
+        EV: Number(resolveValue(data, 'Earned Value (EV)') || 0),
+        AC: Number(resolveValue(data, 'Actual Cost Value (AC)') || 0),
+        PV: Number(resolveValue(data, 'Planned Value (PV)') || 0),
+      };
+    });
+  }, [isAllRecords, submissions, fieldLookup]);
+
+  // Hours comparison (stacked bar)
+  const hoursData = useMemo(() => {
+    if (!isAllRecords || submissions.length === 0) return [];
+    return submissions.slice(0, 20).map((s: any, i: number) => {
+      const data = s.submission_data || {};
+      const name = s.submission_ref_id || `R${i + 1}`;
+      return {
+        name: name.length > 10 ? name.slice(0, 10) + '…' : name,
+        'Planned Hours': Number(resolveValue(data, 'Planned Hours') || 0),
+        'Actual Hours': Number(resolveValue(data, 'Actual Hours') || 0),
+        'Overtime': Number(resolveValue(data, 'Overtime Hours') || 0),
+      };
+    });
+  }, [isAllRecords, submissions, fieldLookup]);
+
+  // Risk & prediction line chart per record
+  const riskLineData = useMemo(() => {
+    if (!isAllRecords || submissions.length === 0) return [];
+    return submissions.slice(0, 30).map((s: any, i: number) => {
+      const data = s.submission_data || {};
+      const name = s.submission_ref_id || `R${i + 1}`;
+      return {
+        name: name.length > 8 ? name.slice(0, 8) + '…' : name,
+        'Risk Score': Number(resolveValue(data, 'Risk Score') || 0),
+        'Delay Days': Number(resolveValue(data, 'Predicted Delay Days') || 0),
+        'Cost Overrun %': Number(resolveValue(data, 'Predicted Cost Overrun (%)') || 0),
+      };
+    });
+  }, [isAllRecords, submissions, fieldLookup]);
+
+  // Radar chart - portfolio performance indices
+  const radarData = useMemo(() => {
+    if (!isAllRecords || !portfolioKPIs) return [];
+    return [
+      { metric: 'CPI', value: Math.min(portfolioKPIs.portfolioCPI * 100, 150), fullMark: 150 },
+      { metric: 'SPI', value: Math.min(portfolioKPIs.portfolioSPI * 100, 150), fullMark: 150 },
+      { metric: 'Budget Util', value: Math.min(portfolioKPIs.budgetUtilization, 150), fullMark: 150 },
+      { metric: 'Risk (inv)', value: Math.max(100 - portfolioKPIs.avgRiskScore, 0), fullMark: 100 },
+      { metric: 'On-time (inv)', value: Math.max(100 - portfolioKPIs.avgPredictedDelay * 2, 0), fullMark: 100 },
+    ];
+  }, [isAllRecords, portfolioKPIs]);
+
   // Risk distribution for all records
   const riskDistribution = useMemo(() => {
     if (!isAllRecords || submissions.length === 0) return [];
@@ -457,7 +515,111 @@ export function AnalyticsPanel({ perfProjectId, selectedRecordId }: Props) {
           </Card>
         )}
 
-        {/* Risk Distribution */}
+        {/* EV / AC / PV Area Chart */}
+        {evTrendData.length > 0 && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-primary" />
+                Earned Value Analysis (EV vs AC vs PV)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <AreaChart data={evTrendData}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis dataKey="name" tick={{ fontSize: 10 }} angle={-35} textAnchor="end" height={60} />
+                  <YAxis tick={{ fontSize: 11 }} />
+                  <Tooltip formatter={(v: number) => v.toLocaleString()} />
+                  <Legend />
+                  <Area type="monotone" dataKey="PV" stroke="#8b5cf6" fill="#8b5cf6" fillOpacity={0.15} strokeWidth={2} name="Planned Value" />
+                  <Area type="monotone" dataKey="EV" stroke="#10b981" fill="#10b981" fillOpacity={0.15} strokeWidth={2} name="Earned Value" />
+                  <Area type="monotone" dataKey="AC" stroke="#ef4444" fill="#ef4444" fillOpacity={0.15} strokeWidth={2} name="Actual Cost" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Risk & Prediction Line Chart + Radar side by side */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Risk Line Chart */}
+          {riskLineData.length > 0 && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-primary" />
+                  Risk & Predictions per Record
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={280}>
+                  <LineChart data={riskLineData}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis dataKey="name" tick={{ fontSize: 9 }} angle={-35} textAnchor="end" height={50} />
+                    <YAxis tick={{ fontSize: 11 }} />
+                    <Tooltip />
+                    <Legend />
+                    <Line type="monotone" dataKey="Risk Score" stroke="#ef4444" strokeWidth={2} dot={{ r: 3 }} />
+                    <Line type="monotone" dataKey="Delay Days" stroke="#f59e0b" strokeWidth={2} dot={{ r: 3 }} />
+                    <Line type="monotone" dataKey="Cost Overrun %" stroke="#8b5cf6" strokeWidth={2} dot={{ r: 3 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Radar Chart - Performance Health */}
+          {radarData.length > 0 && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Activity className="h-4 w-4 text-primary" />
+                  Portfolio Health Radar
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={280}>
+                  <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="70%">
+                    <PolarGrid className="stroke-muted" />
+                    <PolarAngleAxis dataKey="metric" tick={{ fontSize: 11 }} />
+                    <PolarRadiusAxis tick={{ fontSize: 9 }} />
+                    <Radar name="Performance" dataKey="value" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.3} strokeWidth={2} />
+                    <Tooltip />
+                  </RadarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+
+        {/* Hours Comparison Stacked Bar */}
+        {hoursData.length > 0 && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Clock className="h-4 w-4 text-primary" />
+                Resource Hours Comparison
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={hoursData}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis dataKey="name" tick={{ fontSize: 10 }} angle={-35} textAnchor="end" height={60} />
+                  <YAxis tick={{ fontSize: 11 }} />
+                  <Tooltip formatter={(v: number) => v.toLocaleString()} />
+                  <Legend />
+                  <Bar dataKey="Planned Hours" stackId="hours" fill="#3b82f6" radius={[0, 0, 0, 0]} />
+                  <Bar dataKey="Actual Hours" stackId="hours" fill="#10b981" radius={[0, 0, 0, 0]} />
+                  <Bar dataKey="Overtime" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Risk Distribution Pie */}
         {riskDistribution.length > 0 && (
           <Card>
             <CardHeader className="pb-2">
