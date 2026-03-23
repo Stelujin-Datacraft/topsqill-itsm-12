@@ -618,20 +618,20 @@ export function usePerformanceKPI(perfProjectId?: string) {
 
       const ds = dsList[0];
 
-      // AUTO-DETECT: Fetch form definition to get field labels directly
-      const { data: formData } = await supabase
-        .from('forms')
-        .select('fields')
-        .eq('id', ds.source_form_id)
-        .single();
+      // AUTO-DETECT: Fetch form field definitions to get field labels directly
+      const { data: formFields } = await supabase
+        .from('form_fields')
+        .select('id, label')
+        .eq('form_id', ds.source_form_id)
+        .order('field_order', { ascending: true });
 
       let fieldMappings: FieldMapping[] = [];
 
-      if (formData?.fields && Array.isArray(formData.fields)) {
-        // Auto-generate mappings from form field definitions
-        fieldMappings = (formData.fields as any[]).map((field: any) => ({
-          formFieldId: field.id || '',
-          formFieldLabel: field.label || '',
+      if (formFields && formFields.length > 0) {
+        // Auto-generate mappings from form field definitions - no manual mapping needed
+        fieldMappings = formFields.map((field) => ({
+          formFieldId: field.id,
+          formFieldLabel: field.label,
         }));
       }
 
