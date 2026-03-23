@@ -176,15 +176,6 @@ export default function ProjectPerformance() {
         <TabsContent value="scenarios">
           <ScenarioSimulator perfProjectId={selectedPerfProject.id} selectedRecordId={selectedRecordId} />
         </TabsContent>
-        <TabsContent value="data-quality">
-          <DataQualityPanel perfProjectId={selectedPerfProject.id} selectedRecordId={selectedRecordId} />
-        </TabsContent>
-        <TabsContent value="gis">
-          <ProjectLocationMap perfProjectId={selectedPerfProject.id} />
-        </TabsContent>
-        <TabsContent value="questionnaire">
-          <TechnicalQuestionnaire perfProjectId={selectedPerfProject.id} />
-        </TabsContent>
         <TabsContent value="activity-log">
           <PerformanceActivityLog alerts={perfData.alerts} thresholds={perfData.thresholds} loading={perfData.loading} perfProjectId={selectedPerfProject.id} />
         </TabsContent>
