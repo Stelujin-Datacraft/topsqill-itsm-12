@@ -871,70 +871,51 @@ export function AnalyticsPanel({ perfProjectId, selectedRecordId }: Props) {
         </div>
       )}
 
-      {/* Financial Details Row */}
+
+      {/* Financial & Prediction Details */}
       {singleRecordKPIs && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
           <Card>
-            <CardContent className="pt-4 pb-3">
+            <CardContent className="pt-3 pb-2">
               <p className="text-xs text-muted-foreground">Planned Budget</p>
-              <p className="text-lg font-bold text-foreground font-mono">{singleRecordKPIs.plannedBudget.toLocaleString()}</p>
+              <p className="text-base font-bold text-foreground font-mono">{singleRecordKPIs.plannedBudget.toLocaleString()}</p>
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="pt-4 pb-3">
+            <CardContent className="pt-3 pb-2">
               <p className="text-xs text-muted-foreground">Actual Cost</p>
-              <p className="text-lg font-bold text-foreground font-mono">{singleRecordKPIs.actualCost.toLocaleString()}</p>
+              <p className="text-base font-bold text-foreground font-mono">{singleRecordKPIs.actualCost.toLocaleString()}</p>
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="pt-4 pb-3">
-              <p className="text-xs text-muted-foreground">EAC (Est. at Completion)</p>
-              <p className="text-lg font-bold text-foreground font-mono">{singleRecordKPIs.eac.toLocaleString()}</p>
+            <CardContent className="pt-3 pb-2">
+              <p className="text-xs text-muted-foreground">EAC</p>
+              <p className="text-base font-bold text-foreground font-mono">{singleRecordKPIs.eac.toLocaleString()}</p>
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="pt-4 pb-3">
+            <CardContent className="pt-3 pb-2">
               <p className="text-xs text-muted-foreground">Budget Variance</p>
-              <p className={`text-lg font-bold font-mono ${singleRecordKPIs.budgetVariance <= 0 ? 'text-green-600' : 'text-destructive'}`}>
+              <p className={`text-base font-bold font-mono ${singleRecordKPIs.budgetVariance <= 0 ? 'text-green-600' : 'text-destructive'}`}>
                 {singleRecordKPIs.budgetVariance > 0 ? '+' : ''}{singleRecordKPIs.budgetVariance}%
               </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-3 pb-2">
+              <p className="text-xs text-muted-foreground">Predicted Delay</p>
+              <p className="text-base font-bold text-foreground">{singleRecordKPIs.delayDays} days</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-3 pb-2">
+              <p className="text-xs text-muted-foreground">Cost Overrun</p>
+              <p className="text-base font-bold text-foreground">{singleRecordKPIs.costOverrun}%</p>
             </CardContent>
           </Card>
         </div>
       )}
 
-      {/* Prediction Row */}
-      {singleRecordKPIs && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card>
-            <CardContent className="pt-4 pb-3">
-              <div className="flex items-center gap-2 mb-1">
-                <Clock className="h-4 w-4 text-muted-foreground" />
-                <p className="text-xs text-muted-foreground">Predicted Delay</p>
-              </div>
-              <p className="text-xl font-bold text-foreground">{singleRecordKPIs.delayDays} days</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-4 pb-3">
-              <div className="flex items-center gap-2 mb-1">
-                <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                <p className="text-xs text-muted-foreground">Cost Overrun</p>
-              </div>
-              <p className="text-xl font-bold text-foreground">{singleRecordKPIs.costOverrun}%</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-4 pb-3">
-              <div className="flex items-center gap-2 mb-1">
-                <Activity className="h-4 w-4 text-muted-foreground" />
-                <p className="text-xs text-muted-foreground">Defect Count</p>
-              </div>
-              <p className="text-xl font-bold text-foreground">{singleRecordKPIs.defectCount}</p>
-            </CardContent>
-          </Card>
-        </div>
-      )}
 
       {/* Category Fields */}
       {categoryData.length > 0 && (
@@ -1083,60 +1064,8 @@ export function AnalyticsPanel({ perfProjectId, selectedRecordId }: Props) {
         )}
       </div>
 
-      {/* Full Metrics Table */}
-      {numericData.length > 0 && (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-primary" />
-              All Numeric Metrics
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border">
-                    <th className="text-left py-2 px-3 text-muted-foreground font-medium">Metric</th>
-                    <th className="text-right py-2 px-3 text-muted-foreground font-medium">Value</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {numericData.map(d => (
-                    <tr key={d.label} className="border-b border-border/50">
-                      <td className="py-2 px-3 font-medium text-foreground">{d.label}</td>
-                      <td className="py-2 px-3 text-right text-foreground font-mono">{d.value.toLocaleString()}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
-      {/* Horizontal Bar Chart of all metrics */}
-      {numericData.length > 0 && (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-2">
-              <BarChart3 className="h-4 w-4 text-primary" />
-              Metric Values Overview
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={Math.max(300, numericData.length * 30)}>
-              <BarChart data={numericData} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis type="number" tick={{ fontSize: 11 }} />
-                <YAxis type="category" dataKey="label" width={180} tick={{ fontSize: 10 }} />
-                <Tooltip formatter={(v: number) => v.toLocaleString()} />
-                <Bar dataKey="value" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} name="Value" />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      )}
+
     </div>
   );
 }
