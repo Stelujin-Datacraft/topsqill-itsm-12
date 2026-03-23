@@ -178,10 +178,17 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
 
   const runAIAnalysis = async (submissionId: string) => {
     if (!submissionId || !projectId || !perfProjectId) return;
+    // For "all records", send a special flag to the edge function
+    const isAll = submissionId === '__all__';
     setAiRunning(true);
     try {
       const { data, error } = await supabase.functions.invoke('analyze-performance', {
-        body: { project_id: projectId, action: 'analyze', performance_project_id: perfProjectId, submission_id: submissionId },
+        body: {
+          project_id: projectId,
+          action: 'analyze',
+          performance_project_id: perfProjectId,
+          submission_id: isAll ? '__all__' : submissionId,
+        },
       });
       if (error) throw new Error(error.message || 'Analysis failed');
       if (data?.error) throw new Error(data.error);
@@ -190,16 +197,18 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
       setDismissedPredictions(new Set());
       await (supabase as any).from('performance_analysis_results').delete().eq('project_id', projectId).eq('performance_project_id', perfProjectId);
       await (supabase as any).from('performance_analysis_results').insert({
-        project_id: projectId, performance_project_id: perfProjectId, submission_id: submissionId, analysis_data: result, created_by: userProfile?.id,
+        project_id: projectId, performance_project_id: perfProjectId, submission_id: isAll ? null : submissionId, analysis_data: result, created_by: userProfile?.id,
       });
       queryClient.invalidateQueries({ queryKey: ['perf-analysis-result', projectId, perfProjectId] });
+      queryClient.invalidateQueries({ queryKey: ['performance-alerts', projectId, perfProjectId] });
+      queryClient.invalidateQueries({ queryKey: ['performance-predictions', projectId, perfProjectId] });
       logAction.mutate({
         action_type: 'analysis_run', action_category: 'analysis',
-        title: 'AI Analysis executed for record',
-        description: `Record: ${submissionId}, Risk score: ${result.risk_score}/100`,
+        title: isAll ? 'AI Analysis executed for all records' : 'AI Analysis executed for record',
+        description: isAll ? `All ${submissions.length} records, Risk score: ${result.risk_score}/100` : `Record: ${submissionId}, Risk score: ${result.risk_score}/100`,
         metadata: { risk_score: result.risk_score, health_status: result.health_status, submission_id: submissionId },
       });
-      toast({ title: 'AI Analysis Complete', description: 'Insights generated for the selected record.' });
+      toast({ title: 'AI Analysis Complete', description: isAll ? 'Portfolio-wide insights generated.' : 'Insights generated for the selected record.' });
     } catch (err: any) {
       toast({ title: 'Analysis Failed', description: err.message, variant: 'destructive' });
     } finally {
