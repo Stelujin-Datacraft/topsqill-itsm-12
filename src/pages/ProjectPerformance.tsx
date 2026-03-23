@@ -56,9 +56,9 @@ export default function ProjectPerformance() {
       }
 
       // Check if the perf project's data source still exists
-      const { data: dataSources } = await supabase
+      const { data: dataSources } = await (supabase
         .from('performance_data_sources')
-        .select('id')
+        .select('id') as any)
         .eq('perf_project_id', selectedPerfProject.id)
         .limit(1);
 
