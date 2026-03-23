@@ -25,33 +25,52 @@ export function KPIMetricCard({
   className,
 }: KPIMetricCardProps) {
   const variantStyles = {
-    default: 'border-border',
-    success: 'border-green-500/30 bg-green-50/50 dark:bg-green-950/20',
-    warning: 'border-yellow-500/30 bg-yellow-50/50 dark:bg-yellow-950/20',
-    danger: 'border-red-500/30 bg-red-50/50 dark:bg-red-950/20',
+    default: 'border-border/70 bg-gradient-to-br from-card via-card to-muted/40',
+    success: 'border-success/35 bg-gradient-to-br from-success/10 via-card to-card',
+    warning: 'border-warning/35 bg-gradient-to-br from-warning/15 via-card to-card',
+    danger: 'border-destructive/35 bg-gradient-to-br from-destructive/10 via-card to-card',
+  };
+
+  const accentStyles = {
+    default: 'from-primary/60 to-primary/20',
+    success: 'from-success to-success/40',
+    warning: 'from-warning to-warning/40',
+    danger: 'from-destructive to-destructive/40',
+  };
+
+  const iconStyles = {
+    default: 'border-primary/20 bg-primary/10 text-primary',
+    success: 'border-success/20 bg-success/10 text-success',
+    warning: 'border-warning/20 bg-warning/10 text-warning',
+    danger: 'border-destructive/20 bg-destructive/10 text-destructive',
   };
 
   const TrendIcon = trend === 'up' ? TrendingUp : trend === 'down' ? TrendingDown : Minus;
-  const trendColor = trend === 'up' ? 'text-green-600' : trend === 'down' ? 'text-red-600' : 'text-muted-foreground';
+  const trendColor = trend === 'up'
+    ? 'text-success bg-success/10 border-success/20'
+    : trend === 'down'
+      ? 'text-destructive bg-destructive/10 border-destructive/20'
+      : 'text-muted-foreground bg-muted border-border';
 
   return (
-    <Card className={cn('transition-all hover:shadow-md', variantStyles[variant], className)}>
+    <Card className={cn('group relative overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg', variantStyles[variant], className)}>
+      <div className={cn('pointer-events-none absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r', accentStyles[variant])} />
       <CardContent className="p-4">
-        <div className="flex items-start justify-between">
-          <div className="space-y-1 flex-1">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{title}</p>
-            <p className="text-2xl font-bold text-foreground">{typeof value === 'number' ? formatValue(value) : value}</p>
+        <div className="flex items-start justify-between gap-3">
+          <div className="space-y-1.5 flex-1 min-w-0">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-[0.12em] truncate">{title}</p>
+            <p className="text-2xl font-bold text-foreground leading-none">{typeof value === 'number' ? formatValue(value) : value}</p>
             {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
             {trend && (
-              <div className={cn('flex items-center gap-1 text-xs', trendColor)}>
+              <div className={cn('inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium', trendColor)}>
                 <TrendIcon className="h-3 w-3" />
                 {trendLabel && <span>{trendLabel}</span>}
               </div>
             )}
           </div>
           {Icon && (
-            <div className="p-2 rounded-lg bg-primary/10">
-              <Icon className="h-5 w-5 text-primary" />
+            <div className={cn('rounded-xl border p-2.5 transition-transform duration-200 group-hover:scale-105', iconStyles[variant])}>
+              <Icon className="h-4 w-4" />
             </div>
           )}
         </div>
