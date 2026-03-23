@@ -871,70 +871,51 @@ export function AnalyticsPanel({ perfProjectId, selectedRecordId }: Props) {
         </div>
       )}
 
-      {/* Financial Details Row */}
+
+      {/* Financial & Prediction Details */}
       {singleRecordKPIs && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
           <Card>
-            <CardContent className="pt-4 pb-3">
+            <CardContent className="pt-3 pb-2">
               <p className="text-xs text-muted-foreground">Planned Budget</p>
-              <p className="text-lg font-bold text-foreground font-mono">{singleRecordKPIs.plannedBudget.toLocaleString()}</p>
+              <p className="text-base font-bold text-foreground font-mono">{singleRecordKPIs.plannedBudget.toLocaleString()}</p>
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="pt-4 pb-3">
+            <CardContent className="pt-3 pb-2">
               <p className="text-xs text-muted-foreground">Actual Cost</p>
-              <p className="text-lg font-bold text-foreground font-mono">{singleRecordKPIs.actualCost.toLocaleString()}</p>
+              <p className="text-base font-bold text-foreground font-mono">{singleRecordKPIs.actualCost.toLocaleString()}</p>
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="pt-4 pb-3">
-              <p className="text-xs text-muted-foreground">EAC (Est. at Completion)</p>
-              <p className="text-lg font-bold text-foreground font-mono">{singleRecordKPIs.eac.toLocaleString()}</p>
+            <CardContent className="pt-3 pb-2">
+              <p className="text-xs text-muted-foreground">EAC</p>
+              <p className="text-base font-bold text-foreground font-mono">{singleRecordKPIs.eac.toLocaleString()}</p>
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="pt-4 pb-3">
+            <CardContent className="pt-3 pb-2">
               <p className="text-xs text-muted-foreground">Budget Variance</p>
-              <p className={`text-lg font-bold font-mono ${singleRecordKPIs.budgetVariance <= 0 ? 'text-green-600' : 'text-destructive'}`}>
+              <p className={`text-base font-bold font-mono ${singleRecordKPIs.budgetVariance <= 0 ? 'text-green-600' : 'text-destructive'}`}>
                 {singleRecordKPIs.budgetVariance > 0 ? '+' : ''}{singleRecordKPIs.budgetVariance}%
               </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-3 pb-2">
+              <p className="text-xs text-muted-foreground">Predicted Delay</p>
+              <p className="text-base font-bold text-foreground">{singleRecordKPIs.delayDays} days</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-3 pb-2">
+              <p className="text-xs text-muted-foreground">Cost Overrun</p>
+              <p className="text-base font-bold text-foreground">{singleRecordKPIs.costOverrun}%</p>
             </CardContent>
           </Card>
         </div>
       )}
 
-      {/* Prediction Row */}
-      {singleRecordKPIs && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card>
-            <CardContent className="pt-4 pb-3">
-              <div className="flex items-center gap-2 mb-1">
-                <Clock className="h-4 w-4 text-muted-foreground" />
-                <p className="text-xs text-muted-foreground">Predicted Delay</p>
-              </div>
-              <p className="text-xl font-bold text-foreground">{singleRecordKPIs.delayDays} days</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-4 pb-3">
-              <div className="flex items-center gap-2 mb-1">
-                <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                <p className="text-xs text-muted-foreground">Cost Overrun</p>
-              </div>
-              <p className="text-xl font-bold text-foreground">{singleRecordKPIs.costOverrun}%</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-4 pb-3">
-              <div className="flex items-center gap-2 mb-1">
-                <Activity className="h-4 w-4 text-muted-foreground" />
-                <p className="text-xs text-muted-foreground">Defect Count</p>
-              </div>
-              <p className="text-xl font-bold text-foreground">{singleRecordKPIs.defectCount}</p>
-            </CardContent>
-          </Card>
-        </div>
-      )}
 
       {/* Category Fields */}
       {categoryData.length > 0 && (
