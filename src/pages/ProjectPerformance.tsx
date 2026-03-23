@@ -28,14 +28,42 @@ interface SelectedPerfProject {
 
 export default function ProjectPerformance() {
   const { currentProject } = useProject();
-  const [activeTab, setActiveTab] = useState('dashboard');
-  const [selectedPerfProject, setSelectedPerfProject] = useState<SelectedPerfProject | null>(null);
-  const [selectedRecordId, setSelectedRecordId] = useState<string>('');
+  const storageKey = currentProject?.id ? `perf-state-${currentProject.id}` : null;
+
+  // Restore persisted state
+  const getPersistedState = () => {
+    if (!storageKey) return { tab: 'dashboard', project: null, record: '' };
+    try {
+      const raw = localStorage.getItem(storageKey);
+      if (raw) return JSON.parse(raw);
+    } catch {}
+    return { tab: 'dashboard', project: null, record: '' };
+  };
+
+  const persisted = getPersistedState();
+  const [activeTab, setActiveTab] = useState<string>(persisted.tab || 'dashboard');
+  const [selectedPerfProject, setSelectedPerfProject] = useState<SelectedPerfProject | null>(persisted.project || null);
+  const [selectedRecordId, setSelectedRecordId] = useState<string>(persisted.record || '');
+
+  // Persist state changes
+  useEffect(() => {
+    if (!storageKey) return;
+    localStorage.setItem(storageKey, JSON.stringify({
+      tab: activeTab,
+      project: selectedPerfProject,
+      record: selectedRecordId,
+    }));
+  }, [storageKey, activeTab, selectedPerfProject, selectedRecordId]);
 
   const perfData = usePerformanceMonitoring(selectedPerfProject?.id);
 
+  // Only clear record when perf project actually changes (not on mount from persisted)
+  const prevPerfProjectRef = React.useRef(selectedPerfProject?.id);
   useEffect(() => {
-    setSelectedRecordId('');
+    if (prevPerfProjectRef.current && prevPerfProjectRef.current !== selectedPerfProject?.id) {
+      setSelectedRecordId('');
+    }
+    prevPerfProjectRef.current = selectedPerfProject?.id;
   }, [selectedPerfProject?.id]);
 
   if (!currentProject) {
