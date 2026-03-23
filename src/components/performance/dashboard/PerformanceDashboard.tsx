@@ -224,8 +224,16 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
 
   const handleRecordChange = (value: string) => {
     onRecordChange?.(value);
-    setAiResult(null);
-    if (value) runAIAnalysis(value);
+    // Check if we already have a saved analysis for this record
+    const savedMatchesRecord = value === '__all__'
+      ? savedAnalysis?.submission_id === null
+      : savedAnalysis?.submission_id === value;
+    if (savedMatchesRecord && savedAnalysis) {
+      setAiResult(savedAnalysis.analysis_data as AIAnalysis);
+    } else {
+      setAiResult(null);
+      runAIAnalysis(value);
+    }
   };
 
   const handleDismissPrediction = (index: number) => {
