@@ -569,7 +569,8 @@ Be SPECIFIC — reference actual field values, dollar amounts, dates, and percen
         confidence: p.confidence > 1 ? p.confidence / 100 : p.confidence,
       }));
 
-      // Store anomalies as alerts
+      // Store anomalies as fresh alerts
+      const recordRef = isAllRecords ? 'All Records' : (analysisContext.submissionRefId || submission_id.slice(0, 8));
       if (analysis.anomalies?.length > 0) {
         const orgId = dataSources?.[0]?.organization_id;
         const alertInserts = analysis.anomalies.map((a: any) => ({
@@ -577,7 +578,7 @@ Be SPECIFIC — reference actual field values, dollar amounts, dates, and percen
           organization_id: orgId,
           alert_type: "anomaly",
           severity: a.severity,
-          title: `Anomaly: ${a.metric} (Record: ${recordAnalysis.submissionRefId})`,
+          title: `Anomaly: ${a.metric} (${recordRef})`,
           description: a.description,
           ai_generated: true,
           ai_confidence: a.expected_value ? 85 : 70,
@@ -592,6 +593,9 @@ Be SPECIFIC — reference actual field values, dollar amounts, dates, and percen
 
         const { error: alertError } = await supabase.from("performance_alerts").insert(alertInserts);
         if (alertError) console.error("Error saving alerts:", alertError);
+
+        // Send in-app and email notifications for alerts
+        await sendAlertNotifications(supabase, project_id, performance_project_id || null, alertInserts, user.id);
       }
 
       // Store predictions
@@ -603,9 +607,9 @@ Be SPECIFIC — reference actual field values, dollar amounts, dates, and percen
           prediction_type: p.type || 'general',
           predicted_value: p.predicted_value ?? null,
           confidence_level: p.confidence ?? null,
-          reasoning: `[Record: ${recordAnalysis.submissionRefId}] ${p.description}`,
+          reasoning: `[${recordRef}] ${p.description}`,
           model_used: "gemini-3-flash-preview",
-          input_data_points: 1,
+          input_data_points: isAllRecords ? analysisContext.totalRecords : 1,
           ...(performance_project_id ? { performance_project_id } : {}),
         }));
 
