@@ -144,15 +144,6 @@ export default function ProjectPerformance() {
           <TabsTrigger value="scenarios" className="gap-1.5 text-xs">
             <FlaskConical className="h-3.5 w-3.5" />What-If
           </TabsTrigger>
-          <TabsTrigger value="data-quality" className="gap-1.5 text-xs">
-            <ShieldCheck className="h-3.5 w-3.5" />Quality
-          </TabsTrigger>
-          <TabsTrigger value="gis" className="gap-1.5 text-xs">
-            <MapPin className="h-3.5 w-3.5" />GIS
-          </TabsTrigger>
-          <TabsTrigger value="questionnaire" className="gap-1.5 text-xs">
-            <ClipboardCheck className="h-3.5 w-3.5" />Assessment
-          </TabsTrigger>
           <TabsTrigger value="activity-log" className="gap-1.5 text-xs">
             <Clock className="h-3.5 w-3.5" />Activity
           </TabsTrigger>
