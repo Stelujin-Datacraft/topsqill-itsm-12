@@ -48,17 +48,6 @@ const ROLE_ICONS: Record<PerformanceRoleType, string> = {
   risk_governance: '🛡️',
 };
 
-type SavedAnalysisRow = {
-  analysis_data: any;
-  submission_id: string | null;
-  created_at: string;
-};
-
-const doesSavedAnalysisMatchRecord = (recordId: string | undefined, savedAnalysis: SavedAnalysisRow | null | undefined) => {
-  if (!recordId || !savedAnalysis) return false;
-  return recordId === '__all__' ? savedAnalysis.submission_id === null : savedAnalysis.submission_id === recordId;
-};
-
 function useHealthMetrics(alerts: PerformanceAlert[], predictions: PerformancePrediction[], thresholds: PerformanceThreshold[]) {
   return useMemo(() => {
     const activeAlerts = alerts.filter(a => a.status === 'active');
@@ -104,7 +93,7 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
   const activeRole = selectedRole || userRole || 'senior_management';
   const isAdmin = userProfile?.role === 'admin';
 
-  const { data: savedAnalysis, isFetched: savedAnalysisFetched } = useQuery({
+  const { data: savedAnalysis } = useQuery({
     queryKey: ['perf-analysis-result', projectId, perfProjectId],
     queryFn: async () => {
       if (!projectId || !perfProjectId) return null;
@@ -116,35 +105,32 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
         .order('created_at', { ascending: false })
         .limit(1);
       if (error || !data || data.length === 0) return null;
-      return data[0] as SavedAnalysisRow;
+      return data[0] as { analysis_data: any; submission_id: string | null; created_at: string };
     },
     enabled: !!projectId && !!perfProjectId,
   });
 
   useEffect(() => {
-    if (!savedAnalysis) return;
-
-    if (!propSelectedRecordId) {
+    if (savedAnalysis && !aiResult) {
       setAiResult(savedAnalysis.analysis_data as AIAnalysis);
       if (savedAnalysis.submission_id && !propSelectedRecordId) {
         onRecordChange?.(savedAnalysis.submission_id);
       }
-      return;
     }
-
-    if (doesSavedAnalysisMatchRecord(propSelectedRecordId, savedAnalysis)) {
-      setAiResult(savedAnalysis.analysis_data as AIAnalysis);
-    }
-  }, [savedAnalysis, propSelectedRecordId, onRecordChange]);
+  }, [savedAnalysis]);
 
   useEffect(() => {
-    // Wait for saved-analysis lookup before deciding to run analysis.
-    if (!propSelectedRecordId || !savedAnalysisFetched) return;
-    if (doesSavedAnalysisMatchRecord(propSelectedRecordId, savedAnalysis)) return;
-
-    setAiResult(null);
-    runAIAnalysis(propSelectedRecordId);
-  }, [propSelectedRecordId, savedAnalysis, savedAnalysisFetched]);
+    // Only run AI analysis if the selected record changed AND we don't already have a saved result for it
+    if (
+      propSelectedRecordId &&
+      propSelectedRecordId !== savedAnalysis?.submission_id &&
+      // For "all records", saved submission_id is null
+      !(propSelectedRecordId === '__all__' && savedAnalysis?.submission_id === null)
+    ) {
+      setAiResult(null);
+      runAIAnalysis(propSelectedRecordId);
+    }
+  }, [propSelectedRecordId, savedAnalysis]);
 
   const recordOptions = useMemo(() => {
     const options = submissions.map((sub: any) => {
@@ -238,11 +224,15 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
 
   const handleRecordChange = (value: string) => {
     onRecordChange?.(value);
-
-    if (doesSavedAnalysisMatchRecord(value, savedAnalysis)) {
+    // Check if we already have a saved analysis for this record
+    const savedMatchesRecord = value === '__all__'
+      ? savedAnalysis?.submission_id === null
+      : savedAnalysis?.submission_id === value;
+    if (savedMatchesRecord && savedAnalysis) {
       setAiResult(savedAnalysis.analysis_data as AIAnalysis);
     } else {
       setAiResult(null);
+      runAIAnalysis(value);
     }
   };
 
