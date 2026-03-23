@@ -9,8 +9,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { useProject } from '@/contexts/ProjectContext';
 import { useQuery } from '@tanstack/react-query';
 import {
+  BarChart, Bar, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell,
+  ReferenceLine,
+} from 'recharts';
+import {
   FlaskConical, Loader2, RefreshCw, FileText,
-  TrendingUp, TrendingDown, Minus, ArrowRight,
+  TrendingUp, TrendingDown, Minus,
 } from 'lucide-react';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -356,6 +361,77 @@ export function ScenarioSimulator({ perfProjectId, selectedRecordId }: Props) {
           </CardContent>
         </Card>
       </div>
+      {results && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Base vs Scenario Bar Chart */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Base vs Scenario Comparison</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={results} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis type="number" tick={{ fontSize: 10 }} />
+                  <YAxis type="category" dataKey="metric" width={120} tick={{ fontSize: 9 }} />
+                  <Tooltip formatter={(value: number) => value.toLocaleString()} />
+                  <Legend />
+                  <Bar dataKey="baseValue" fill="hsl(var(--muted-foreground))" fillOpacity={0.5} name="Base" radius={[0, 2, 2, 0]} />
+                  <Bar dataKey="scenarioValue" fill="hsl(var(--primary))" name="Scenario" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* Change % Waterfall Chart */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Impact Analysis (Change %)</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={results} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis type="number" tick={{ fontSize: 10 }} domain={['auto', 'auto']} />
+                  <YAxis type="category" dataKey="metric" width={120} tick={{ fontSize: 9 }} />
+                  <Tooltip formatter={(value: number) => `${value > 0 ? '+' : ''}${value}%`} />
+                  <ReferenceLine x={0} stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3" />
+                  <Bar dataKey="changePct" name="Change %" radius={[0, 4, 4, 0]}>
+                    {results.map((r, i) => (
+                      <Cell key={i} fill={r.changePct >= 0 ? 'hsl(142, 71%, 45%)' : 'hsl(0, 84%, 60%)'} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* Radar Chart - Normalized Health */}
+          <Card className="lg:col-span-2">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Scenario Health Radar</CardTitle>
+              <CardDescription className="text-xs">Normalized comparison (base = 100%)</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={320}>
+                <RadarChart data={results.map(r => ({
+                  metric: r.metric.length > 15 ? r.metric.slice(0, 14) + '…' : r.metric,
+                  base: 100,
+                  scenario: r.baseValue !== 0 ? round2((r.scenarioValue / r.baseValue) * 100) : 100,
+                }))}>
+                  <PolarGrid className="stroke-muted" />
+                  <PolarAngleAxis dataKey="metric" tick={{ fontSize: 9 }} />
+                  <PolarRadiusAxis angle={90} domain={[0, 'auto']} tick={{ fontSize: 9 }} />
+                  <Radar name="Base (100%)" dataKey="base" stroke="hsl(var(--muted-foreground))" fill="hsl(var(--muted-foreground))" fillOpacity={0.1} strokeDasharray="5 5" />
+                  <Radar name="Scenario" dataKey="scenario" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.2} />
+                  <Legend />
+                  <Tooltip formatter={(value: number) => `${value}%`} />
+                </RadarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
