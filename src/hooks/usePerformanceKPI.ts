@@ -44,7 +44,7 @@ function dateDiffDays(a: string | null, b: string | null): number {
 
 /**
  * Resolve a field value from submission data using EXACT label matching.
- * Labels match the "Project Performance Analytics Tracker" form exactly.
+ * Falls back to includes-based matching if exact match not found.
  */
 function resolveField(data: Record<string, any>, mappings: FieldMapping[], label: string): any {
   // Exact match first
@@ -62,22 +62,6 @@ function resolveFieldId(mappings: FieldMapping[], label: string): string | null 
   if (!mapping) mapping = mappings.find(m => m.formFieldLabel.toLowerCase() === label.toLowerCase());
   return mapping?.formFieldId || null;
 }
-
-// ========================
-// EXACT FORM FIELD LABELS
-// (Project Performance Analytics Tracker)
-// ========================
-// Page 1 - Basic Info: Project ID, Project Name, Project Type, Business Unit, Client Name, Project Manager, Start Date, End Date (Planned), End Date (Actual), Project Status
-// Page 2 - Schedule: Planned Start Date, Planned End Date, Actual Start Date, Actual End Date, Milestone Name, Milestone Planned Date, Milestone Actual Date, Task ID, Task Name, Task Status, Task Delay Days, Schedule Variance (%)
-// Page 3 - Cost: Planned Budget, Actual Cost, Cost Variance, Cost Variance (%), Forecasted Cost, Cost Per Task, Resource Cost, Infrastructure Cost, Burn Rate, Earned Value (EV), Planned Value (PV), Actual Cost Value (AC)
-// Page 4 - Resource: Resource ID, Resource Name, Role, Skill Set, Allocation (%), Planned Hours, Actual Hours, Utilization (%), Overtime Hours, Productivity Score
-// Page 5 - Risk: Risk ID, Risk Description, Risk Category, Risk Probability (%), Risk Impact, Risk Score, Risk Status, Mitigation Plan, Risk Owner
-// Page 6 - Issues: Issue ID, Issue Description, Severity, Priority, Issue Status, Created Date, Resolved Date, Resolution Time, Root Cause
-// Page 7 - Quality: Defect ID, Defect Type, Defect Severity, Defect Status, Detected Phase, Resolved Phase, Defect Count, Rework Hours, Quality Score
-// Page 8 - Change Mgmt: Change Request ID, Change Description, Change Type, Approval Status, Impact on Cost, Impact on Timeline, Change Date
-// Page 9 - KPIs: CPI (Cost Performance Index), SPI (Schedule Performance Index), Variance at Completion (VAC), Estimate at Completion (EAC), Estimate to Complete (ETC), On Time Delivery (%), Budget Utilization (%)
-// Page 10 - AI: Predicted Delay Days, Predicted Cost Overrun (%), Risk Prediction Score, Anomaly Flag (toggle), Anomaly Type, Confidence Score, Recommendation, Pattern Category
-// Page 11 - Audit: Control ID, Compliance Status, Audit Status, Audit Findings, Reviewer Comments, Governance Approval Status, Last Reviewed Date
 
 // ========================
 // SENIOR MANAGEMENT KPIs
@@ -109,7 +93,7 @@ export function calculateSeniorManagementKPIs(submissions: any[], mappings: Fiel
   for (const sub of submissions) {
     const d = sub.submission_data || {};
 
-    // Exact form field labels
+    // Exact field labels from form
     const status = str(resolveField(d, mappings, 'Project Status'));
     const plannedEnd = str(resolveField(d, mappings, 'End Date (Planned)'));
     const actualEnd = str(resolveField(d, mappings, 'End Date (Actual)'));
@@ -124,10 +108,9 @@ export function calculateSeniorManagementKPIs(submissions: any[], mappings: Fiel
     const projectName = str(resolveField(d, mappings, 'Project Name'));
 
     // COUNT(Project_Status = "In Progress")
-    const statusLower = status.toLowerCase();
-    if (statusLower === 'in progress' || statusLower === 'in-progress') active++;
+    if (status.toLowerCase().includes('in progress')) active++;
     // COUNT(Project_Status = "Completed")
-    if (statusLower === 'completed') completed++;
+    if (status.toLowerCase().includes('completed')) completed++;
     // COUNT(End_Date(Actual) > End_Date(Planned))
     if (actualEnd && plannedEnd && dateDiffDays(actualEnd, plannedEnd) > 0) delayed++;
     // On-time: End_Date(Actual) <= End_Date(Planned)
@@ -144,17 +127,13 @@ export function calculateSeniorManagementKPIs(submissions: any[], mappings: Fiel
     sumPredDelay += predDelay;
     sumPredCostOverrun += predCostOverrun;
 
-    // Use form's CPI/SPI fields for per-project list, fallback to calculation
-    const formCPI = num(resolveField(d, mappings, 'CPI (Cost Performance Index)'));
-    const formSPI = num(resolveField(d, mappings, 'SPI (Schedule Performance Index)'));
-
     projectList.push({
       id: sub.id,
       name: projectName || sub.submission_ref_id || sub.id.slice(0, 8),
       status,
       riskScore,
-      cpi: formCPI > 0 ? formCPI : (ac > 0 ? ev / ac : 0),
-      spi: formSPI > 0 ? formSPI : (pv > 0 ? ev / pv : 0),
+      cpi: ac > 0 ? ev / ac : 0,
+      spi: pv > 0 ? ev / pv : 0,
     });
   }
 
@@ -165,13 +144,15 @@ export function calculateSeniorManagementKPIs(submissions: any[], mappings: Fiel
     delayedProjects: delayed,
     // On_Time_Delivery (%) = (COUNT(End_Date(Actual) ≤ End_Date(Planned)) / COUNT(Project_ID)) × 100
     onTimeDeliveryRate: total > 0 ? (onTime / total) * 100 : 0,
+    // Portfolio_Planned_Budget = SUM(Planned_Budget)
     portfolioPlannedBudget: sumBudget,
+    // Portfolio_Actual_Cost = SUM(Actual_Cost)
     portfolioActualCost: sumActualCost,
     // Budget_Utilization (%) = (SUM(Actual_Cost) / SUM(Planned_Budget)) × 100
     budgetUtilization: sumBudget > 0 ? (sumActualCost / sumBudget) * 100 : 0,
-    // Portfolio_CPI = SUM(EV) / SUM(AC)
+    // Portfolio_CPI = SUM(Earned_Value(EV)) / SUM(Actual_Cost_Value(AC))
     portfolioCPI: sumAC > 0 ? sumEV / sumAC : 0,
-    // Portfolio_SPI = SUM(EV) / SUM(PV)
+    // Portfolio_SPI = SUM(Earned_Value(EV)) / SUM(Planned_Value(PV))
     portfolioSPI: sumPV > 0 ? sumEV / sumPV : 0,
     // Average_Risk_Score = AVG(Risk_Score)
     averageRiskScore: riskCount > 0 ? sumRisk / riskCount : 0,
@@ -218,51 +199,36 @@ export function calculateProjectManagerKPIs(submission: Record<string, any>, map
   const milestoneActual = str(resolveField(d, mappings, 'Milestone Actual Date'));
   const predDelay = num(resolveField(d, mappings, 'Predicted Delay Days'));
   const forecastedCost = num(resolveField(d, mappings, 'Forecasted Cost'));
-  const predCostOverrunField = num(resolveField(d, mappings, 'Predicted Cost Overrun (%)'));
+  const burnRateField = num(resolveField(d, mappings, 'Burn Rate'));
 
-  // Use form's pre-calculated fields first, fallback to formula
-  const formCPI = num(resolveField(d, mappings, 'CPI (Cost Performance Index)'));
-  const formSPI = num(resolveField(d, mappings, 'SPI (Schedule Performance Index)'));
-  const formScheduleVar = num(resolveField(d, mappings, 'Schedule Variance (%)'));
-  const formCostVar = num(resolveField(d, mappings, 'Cost Variance'));
-  const formCostVarPct = num(resolveField(d, mappings, 'Cost Variance (%)'));
-  const formBurnRate = num(resolveField(d, mappings, 'Burn Rate'));
-
-  // CPI = EV / AC (prefer form field)
-  const cpi = formCPI > 0 ? formCPI : (ac > 0 ? ev / ac : 0);
-  // SPI = EV / PV (prefer form field)
-  const spi = formSPI > 0 ? formSPI : (pv > 0 ? ev / pv : 0);
-  // Cost_Variance = EV - AC (prefer form field)
-  const costVariance = formCostVar !== 0 ? formCostVar : (ev - ac);
-  // Cost_Variance (%) = ((EV - AC) / Planned_Budget) × 100 (prefer form field)
-  const costVariancePercent = formCostVarPct !== 0 ? formCostVarPct : (plannedBudget > 0 ? ((ev - ac) / plannedBudget) * 100 : 0);
+  // CPI = EV / AC
+  const cpi = ac > 0 ? ev / ac : 0;
+  // SPI = EV / PV
+  const spi = pv > 0 ? ev / pv : 0;
+  // Cost_Variance = EV - AC
+  const costVariance = ev - ac;
+  // Cost_Variance (%) = ((EV - AC) / Planned_Budget) × 100
+  const costVariancePercent = plannedBudget > 0 ? ((ev - ac) / plannedBudget) * 100 : 0;
 
   // Schedule_Variance (%) = ((Actual_End_Date - Planned_End_Date) / (Planned_End_Date - Planned_Start_Date)) × 100
-  let scheduleVariancePercent = formScheduleVar;
-  if (scheduleVariancePercent === 0 && actualEnd && plannedEnd) {
-    const actualDelay = dateDiffDays(actualEnd, plannedEnd);
-    const plannedDuration = dateDiffDays(plannedEnd, plannedStart);
-    scheduleVariancePercent = plannedDuration > 0 ? (actualDelay / plannedDuration) * 100 : 0;
-  }
+  const actualDelay = dateDiffDays(actualEnd, plannedEnd);
+  const plannedDuration = dateDiffDays(plannedEnd, plannedStart);
+  const scheduleVariancePercent = plannedDuration > 0 ? (actualDelay / plannedDuration) * 100 : 0;
 
-  // Burn_Rate = Actual_Cost / (Current_Date - Actual_Start_Date) (prefer form field)
-  let burnRate = formBurnRate;
-  if (burnRate === 0 && actualCost > 0 && actualStart) {
-    const projectDuration = Math.max(dateDiffDays(new Date().toISOString(), actualStart), 1);
-    burnRate = actualCost / projectDuration;
-  }
+  // Burn_Rate = Actual_Cost / (Current_Date - Actual_Start_Date)
+  const projectDuration = actualStart ? Math.max(dateDiffDays(new Date().toISOString(), actualStart), 1) : 1;
+  const burnRate = burnRateField > 0 ? burnRateField : (actualCost / projectDuration);
 
   // Milestone_Delay_Days = Milestone_Actual_Date - Milestone_Planned_Date
   const milestoneDelayDays = dateDiffDays(milestoneActual, milestonePlanned);
 
   // Predicted_Cost_Overrun (%) = ((Forecasted_Cost - Planned_Budget) / Planned_Budget) × 100
-  let predictedCostOverrunPercent = predCostOverrunField;
-  if (predictedCostOverrunPercent === 0 && forecastedCost > 0 && plannedBudget > 0) {
-    predictedCostOverrunPercent = ((forecastedCost - plannedBudget) / plannedBudget) * 100;
-  }
+  const predictedCostOverrunPercent = plannedBudget > 0 && forecastedCost > 0
+    ? ((forecastedCost - plannedBudget) / plannedBudget) * 100
+    : num(resolveField(d, mappings, 'Predicted Cost Overrun (%)'));
 
-  // Project_Progress (%) - single record: check task status
-  const isCompleted = taskStatus.toLowerCase() === 'completed' ? 1 : 0;
+  // Project_Progress (%) - for single record: check if task is completed
+  const isCompleted = taskStatus.toLowerCase().includes('completed') ? 1 : 0;
   // Delayed_Tasks = COUNT(Task_Delay_Days > 0)
   const delayedTasks = taskDelayDays > 0 ? 1 : 0;
 
@@ -287,10 +253,11 @@ export function aggregateProjectManagerKPIs(submissions: any[], mappings: FieldM
   const total = all.length;
   if (total === 0) return calculateProjectManagerKPIs({}, mappings);
 
+  // Count completed tasks and total tasks across submissions
   const completedCount = all.filter(k => k.projectProgress === 100).length;
 
   return {
-    // Project_Progress (%) = (COUNT(Task_Status = "Completed") / COUNT(Task_ID)) × 100
+    // Project_Progress (%) = (Completed_Tasks / Total_Tasks) × 100
     projectProgress: total > 0 ? (completedCount / total) * 100 : 0,
     delayedTasks: all.reduce((s, k) => s + k.delayedTasks, 0),
     scheduleVariancePercent: total > 0 ? all.reduce((s, k) => s + k.scheduleVariancePercent, 0) / total : 0,
@@ -330,8 +297,6 @@ export function calculateDisciplineEngineerKPIs(submissions: any[], mappings: Fi
   let totalTasks = 0;
   let sumQualityScore = 0;
   let qualityCount = 0;
-  let sumUtilization = 0, utilizationCount = 0;
-  let sumProductivity = 0, productivityCount = 0;
 
   for (const sub of submissions) {
     const d = sub.submission_data || {};
@@ -340,30 +305,27 @@ export function calculateDisciplineEngineerKPIs(submissions: any[], mappings: Fi
     const taskDelayDays = num(resolveField(d, mappings, 'Task Delay Days'));
     const actualHours = num(resolveField(d, mappings, 'Actual Hours'));
     const plannedHours = num(resolveField(d, mappings, 'Planned Hours'));
-    // Form field is "Overtime Hours" — exact match
     const overtimeHours = num(resolveField(d, mappings, 'Overtime Hours'));
     const riskOwner = str(resolveField(d, mappings, 'Risk Owner'));
     const resourceId = str(resolveField(d, mappings, 'Resource ID'));
     const defectCount = num(resolveField(d, mappings, 'Defect Count'));
-    // Form field is "Quality Score" — exact match (number type)
     const qualityScoreField = num(resolveField(d, mappings, 'Quality Score'));
-    // Form field is "Utilization (%)" — NOT "Resource Utilization (%)"
-    const utilizationField = num(resolveField(d, mappings, 'Utilization (%)'));
-    // Form field is "Productivity Score" — rating type (1-5)
-    const productivityField = num(resolveField(d, mappings, 'Productivity Score'));
 
     // Assigned_Tasks = COUNT(Task_ID WHERE Resource_ID = Logged_In_User)
+    // If no userId filter, count all
     if (!userId || resourceId.toLowerCase().includes(userId.toLowerCase())) {
       assigned++;
     }
 
     // Completed_Tasks = COUNT(Task_Status = "Completed")
-    if (taskStatus === 'completed') completed++;
+    if (taskStatus.includes('completed')) completed++;
 
+    // Task_Delay_Days = Actual_End_Date - Planned_End_Date (using field directly)
     totalDelay += taskDelayDays;
+
     totalActualHours += actualHours;
     totalPlannedHours += plannedHours;
-    // Overtime_Hours = Actual_Hours - Planned_Hours (prefer form field)
+    // Overtime_Hours = Actual_Hours - Planned_Hours (use field value if available)
     totalOvertimeHours += overtimeHours > 0 ? overtimeHours : Math.max(actualHours - plannedHours, 0);
 
     totalDefects += defectCount;
@@ -371,12 +333,6 @@ export function calculateDisciplineEngineerKPIs(submissions: any[], mappings: Fi
 
     // Quality_Score from form field
     if (qualityScoreField > 0) { sumQualityScore += qualityScoreField; qualityCount++; }
-
-    // Utilization (%) from form field
-    if (utilizationField > 0) { sumUtilization += utilizationField; utilizationCount++; }
-
-    // Productivity Score from form field
-    if (productivityField > 0) { sumProductivity += productivityField; productivityCount++; }
 
     // Engineering_Risk_Count = COUNT(Risk_Owner = Logged_In_User)
     if (userId && riskOwner && riskOwner.toLowerCase().includes(userId.toLowerCase())) {
@@ -389,25 +345,17 @@ export function calculateDisciplineEngineerKPIs(submissions: any[], mappings: Fi
   const calculatedQuality = totalTasks > 0 ? 100 - ((totalDefects / totalTasks) * 100) : 100;
   const qualityScore = qualityCount > 0 ? sumQualityScore / qualityCount : calculatedQuality;
 
-  // Resource_Utilization (%) = (Actual_Hours / Planned_Hours) × 100
-  // Prefer form's "Utilization (%)" field
-  const resourceUtilization = utilizationCount > 0
-    ? sumUtilization / utilizationCount
-    : (totalPlannedHours > 0 ? (totalActualHours / totalPlannedHours) * 100 : 0);
-
-  // Productivity_Score = Planned_Hours / Actual_Hours
-  // Prefer form's "Productivity Score" field (rating 1-5, scale to percentage)
-  const productivityScore = productivityCount > 0
-    ? sumProductivity / productivityCount
-    : (totalActualHours > 0 ? totalPlannedHours / totalActualHours : 0);
-
   return {
     assignedTasks: assigned,
     completedTasks: completed,
+    // Task_Completion_Rate (%) = (Completed / Assigned) × 100
     taskCompletionRate: assigned > 0 ? (completed / assigned) * 100 : 0,
     taskDelayDays: totalDelay,
-    resourceUtilization,
-    productivityScore,
+    // Resource_Utilization (%) = (Actual_Hours / Planned_Hours) × 100
+    resourceUtilization: totalPlannedHours > 0 ? (totalActualHours / totalPlannedHours) * 100 : 0,
+    // Productivity_Score = Planned_Hours / Actual_Hours
+    productivityScore: totalActualHours > 0 ? totalPlannedHours / totalActualHours : 0,
+    // Overtime_Hours = Actual_Hours - Planned_Hours
     overtimeHours: totalOvertimeHours,
     engineeringRiskCount: engRisks,
     qualityScore,
@@ -434,10 +382,6 @@ export function calculateFinanceKPIs(submissions: any[], mappings: FieldMapping[
   let sumBudget = 0, sumActual = 0, sumEV = 0, sumAC = 0;
   let totalTasks = 0;
   let sumForecastedCost = 0;
-  let sumFormCPI = 0, formCPICount = 0;
-  let sumFormEAC = 0, sumFormETC = 0, sumFormVAC = 0;
-  let formFinancialCount = 0;
-  let sumFormCostPerTask = 0, costPerTaskCount = 0;
 
   for (const sub of submissions) {
     const d = sub.submission_data || {};
@@ -446,44 +390,29 @@ export function calculateFinanceKPIs(submissions: any[], mappings: FieldMapping[
     sumEV += num(resolveField(d, mappings, 'Earned Value (EV)'));
     sumAC += num(resolveField(d, mappings, 'Actual Cost Value (AC)'));
     sumForecastedCost += num(resolveField(d, mappings, 'Forecasted Cost'));
-
-    // Form has pre-calculated fields
-    const formCPI = num(resolveField(d, mappings, 'CPI (Cost Performance Index)'));
-    const formEAC = num(resolveField(d, mappings, 'Estimate at Completion (EAC)'));
-    const formETC = num(resolveField(d, mappings, 'Estimate to Complete (ETC)'));
-    const formVAC = num(resolveField(d, mappings, 'Variance at Completion (VAC)'));
-    const formCostPerTask = num(resolveField(d, mappings, 'Cost Per Task'));
-
-    if (formCPI > 0) { sumFormCPI += formCPI; formCPICount++; }
-    if (formEAC > 0 || formETC > 0 || formVAC !== 0) {
-      sumFormEAC += formEAC;
-      sumFormETC += formETC;
-      sumFormVAC += formVAC;
-      formFinancialCount++;
-    }
-    if (formCostPerTask > 0) { sumFormCostPerTask += formCostPerTask; costPerTaskCount++; }
-
     const taskId = str(resolveField(d, mappings, 'Task ID'));
     if (taskId) totalTasks++;
   }
 
-  // CPI = EV / AC (prefer form's CPI average)
-  const cpi = formCPICount > 0 ? sumFormCPI / formCPICount : (sumAC > 0 ? sumEV / sumAC : 0);
-  // EAC = Planned_Budget / CPI (prefer form's EAC)
-  const eac = formFinancialCount > 0 ? sumFormEAC : (cpi > 0 ? sumBudget / cpi : 0);
-  // ETC = EAC - Actual_Cost (prefer form's ETC)
-  const etc = formFinancialCount > 0 ? sumFormETC : Math.max(eac - sumActual, 0);
-  // VAC = Planned_Budget - EAC (prefer form's VAC)
-  const vac = formFinancialCount > 0 ? sumFormVAC : (sumBudget - eac);
-  // Cost_Per_Task = Actual_Cost / COUNT(Task_ID) (prefer form field)
-  const costPerTask = costPerTaskCount > 0 ? sumFormCostPerTask / costPerTaskCount : (totalTasks > 0 ? sumActual / totalTasks : 0);
+  // CPI = EV / AC
+  const cpi = sumAC > 0 ? sumEV / sumAC : 0;
+  // EAC = Planned_Budget / CPI
+  const eac = cpi > 0 ? sumBudget / cpi : 0;
+  // ETC = EAC - Actual_Cost
+  const etc = eac - sumActual;
+  // VAC = Planned_Budget - EAC
+  const vac = sumBudget - eac;
+  // Cost_Per_Task = Actual_Cost / COUNT(Task_ID)
+  const costPerTask = totalTasks > 0 ? sumActual / totalTasks : 0;
   // Predicted_Cost_Overrun (%) = ((Forecasted_Cost - Planned_Budget) / Planned_Budget) × 100
   const predictedCostOverrunPercent = sumBudget > 0 && sumForecastedCost > 0
     ? ((sumForecastedCost - sumBudget) / sumBudget) * 100
     : 0;
 
   return {
+    // Planned_Budget = SUM(Planned_Budget)
     plannedBudget: sumBudget,
+    // Actual_Cost = SUM(Actual_Cost)
     actualCost: sumActual,
     // Budget_Utilization (%) = (Actual_Cost / Planned_Budget) × 100
     budgetUtilization: sumBudget > 0 ? (sumActual / sumBudget) * 100 : 0,
@@ -492,7 +421,7 @@ export function calculateFinanceKPIs(submissions: any[], mappings: FieldMapping[
     costPerTask,
     cpi,
     eac,
-    etc,
+    etc: Math.max(etc, 0),
     vac,
     predictedCostOverrunPercent,
   };
@@ -511,6 +440,7 @@ export interface RiskGovernanceKPIs {
   complianceStatus: number;
   auditFindingsCount: number;
   anomalyFlag: string;
+  // Keep distribution for UI
   mediumRisks: number;
   lowRisks: number;
 }
@@ -527,30 +457,22 @@ export function calculateRiskGovernanceKPIs(submissions: any[], mappings: FieldM
     const d = sub.submission_data || {};
 
     const riskId = str(resolveField(d, mappings, 'Risk ID'));
-    // Form field: "Risk Status" (select)
     const riskStatus = str(resolveField(d, mappings, 'Risk Status')).toLowerCase();
     const riskScore = num(resolveField(d, mappings, 'Risk Score'));
     const issueId = str(resolveField(d, mappings, 'Issue ID'));
-    // Form fields: "Created Date", "Resolved Date" (date)
     const createdDate = str(resolveField(d, mappings, 'Created Date'));
     const resolvedDate = str(resolveField(d, mappings, 'Resolved Date'));
-    // Form field: "Resolution Time" (number) — direct value in days
-    const resolutionTime = num(resolveField(d, mappings, 'Resolution Time'));
-    // Form field: "Compliance Status" (select) — e.g., "Compliant", "Non-Compliant", "Partial"
     const complianceStatus = str(resolveField(d, mappings, 'Compliance Status')).toLowerCase();
-    // Form field: "Audit Findings" (textarea)
     const auditFindings = str(resolveField(d, mappings, 'Audit Findings'));
     const predDelay = num(resolveField(d, mappings, 'Predicted Delay Days'));
     const predCostOverrun = num(resolveField(d, mappings, 'Predicted Cost Overrun (%)'));
     const riskPredictionScore = num(resolveField(d, mappings, 'Risk Prediction Score'));
-    // Form field: "Anomaly Flag" (toggle-switch — boolean true/false)
-    const anomalyFlagField = resolveField(d, mappings, 'Anomaly Flag');
 
     // Total_Risks = COUNT(Risk_ID)
     if (riskId) {
       totalRisks++;
       // Open_Risks = COUNT(Risk_Status = "Open")
-      if (riskStatus === 'open') openRisks++;
+      if (riskStatus.includes('open')) openRisks++;
       // High_Risks = COUNT(Risk_Score > 70)
       if (riskScore > 70) highRisks++;
       else if (riskScore >= 40) mediumRisks++;
@@ -561,22 +483,17 @@ export function calculateRiskGovernanceKPIs(submissions: any[], mappings: FieldM
     // Total_Issues = COUNT(Issue_ID)
     if (issueId) {
       totalIssues++;
-      // Average_Resolution_Time = AVG(Resolution_Time) or AVG(Resolved_Date - Created_Date)
-      // Prefer the direct "Resolution Time" field
-      if (resolutionTime > 0) {
-        resolutionTimeSum += resolutionTime;
-        resolvedCount++;
-      } else if (createdDate && resolvedDate) {
+      // Average_Resolution_Time = AVG(Resolved_Date - Created_Date)
+      if (createdDate && resolvedDate) {
         const days = dateDiffDays(resolvedDate, createdDate);
         if (days >= 0) { resolutionTimeSum += days; resolvedCount++; }
       }
     }
 
     // Compliance_Status (%) = (Passed_Controls / Total_Controls) × 100
-    // Form has "Compliance Status" as select — "Compliant"/"Non-Compliant"/"Partial"
     if (complianceStatus) {
       totalControls++;
-      if (complianceStatus === 'compliant' || complianceStatus === 'pass' || complianceStatus === 'passed' || complianceStatus === 'met') {
+      if (complianceStatus.includes('pass') || complianceStatus.includes('compliant') || complianceStatus.includes('met')) {
         passedControls++;
       }
     }
@@ -584,14 +501,8 @@ export function calculateRiskGovernanceKPIs(submissions: any[], mappings: FieldM
     // Audit_Findings_Count = COUNT(Audit_Findings)
     if (auditFindings && auditFindings.trim().length > 0) auditFindingsCount++;
 
-    // Anomaly_Flag logic:
-    // If Predicted_Delay_Days > 7 OR Predicted_Cost_Overrun (%) > 15 OR Risk_Prediction_Score > 75
-    // Also check the form's toggle-switch Anomaly Flag
+    // Anomaly_Flag logic
     if (predDelay > 7 || predCostOverrun > 15 || riskPredictionScore > 75) {
-      hasAnomaly = true;
-    }
-    // Handle toggle-switch boolean
-    if (anomalyFlagField === true || anomalyFlagField === 'true' || anomalyFlagField === 'Yes') {
       hasAnomaly = true;
     }
   }
@@ -602,11 +513,15 @@ export function calculateRiskGovernanceKPIs(submissions: any[], mappings: FieldM
     highRisks,
     mediumRisks,
     lowRisks,
+    // Average_Risk_Score = AVG(Risk_Score)
     averageRiskScore: riskCount > 0 ? sumRiskScore / riskCount : 0,
     totalIssues,
+    // Average_Resolution_Time = AVG(Resolved_Date - Created_Date)
     avgResolutionTime: resolvedCount > 0 ? resolutionTimeSum / resolvedCount : 0,
+    // Compliance_Status (%) = (Passed_Controls / Total_Controls) × 100
     complianceStatus: totalControls > 0 ? (passedControls / totalControls) * 100 : 0,
     auditFindingsCount,
+    // Anomaly_Flag
     anomalyFlag: hasAnomaly ? 'Yes' : 'No',
   };
 }
@@ -647,7 +562,7 @@ export function generateKPIAlerts(submissions: any[], mappings: FieldMapping[]):
   if (senior.averagePredictedCostOverrun > 10) {
     alerts.push({ type: 'cost_overrun_warning', severity: 'warning', title: 'Cost Overrun Warning', description: `Average predicted cost overrun is ${senior.averagePredictedCostOverrun.toFixed(1)}%`, value: senior.averagePredictedCostOverrun, threshold: 10 });
   }
-  // Anomaly_Flag = Yes
+  // Anomaly_Flag = Yes → AI Anomaly Detection Alert
   const riskKpis = calculateRiskGovernanceKPIs(submissions, mappings);
   if (riskKpis.anomalyFlag === 'Yes') {
     alerts.push({ type: 'anomaly', severity: 'warning', title: 'AI Anomaly Detection', description: 'Anomaly detected based on prediction thresholds', value: 1, threshold: 0 });
@@ -684,7 +599,7 @@ export function usePerformanceKPI(perfProjectId?: string) {
     enabled: !!projectId && !!userProfile?.id,
   });
 
-  // Fetch submissions and AUTO-DETECT field mappings from form_fields table
+  // Fetch submissions and field mappings
   const { data: kpiData, isLoading } = useQuery({
     queryKey: ['perf-kpi-data', projectId, perfProjectId],
     queryFn: async () => {
@@ -702,32 +617,13 @@ export function usePerformanceKPI(perfProjectId?: string) {
       if (!dsList || dsList.length === 0) return null;
 
       const ds = dsList[0];
-
-      // AUTO-DETECT: Fetch form field definitions to get field labels directly
-      const { data: formFields } = await supabase
-        .from('form_fields')
-        .select('id, label')
-        .eq('form_id', ds.source_form_id)
-        .order('field_order', { ascending: true });
-
-      let fieldMappings: FieldMapping[] = [];
-
-      if (formFields && formFields.length > 0) {
-        // Auto-generate mappings from form field definitions
-        fieldMappings = formFields.map((field) => ({
-          formFieldId: field.id,
-          formFieldLabel: field.label,
-        }));
-      }
-
-      // Fallback to manual mappings if form fields not available
-      if (fieldMappings.length === 0 && Array.isArray(ds.field_mappings)) {
-        fieldMappings = (ds.field_mappings as any[]).map((m: any) => ({
-          formFieldId: m.formFieldId || '',
-          formFieldLabel: m.formFieldLabel || '',
-          mappedTo: m.mappedTo,
-        }));
-      }
+      const fieldMappings: FieldMapping[] = Array.isArray(ds.field_mappings)
+        ? (ds.field_mappings as any[]).map((m: any) => ({
+            formFieldId: m.formFieldId || '',
+            formFieldLabel: m.formFieldLabel || '',
+            mappedTo: m.mappedTo,
+          }))
+        : [];
 
       const { data: subs } = await supabase
         .from('form_submissions')
