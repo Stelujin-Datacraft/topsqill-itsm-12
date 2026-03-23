@@ -1012,7 +1012,7 @@ export function AnalyticsPanel({ perfProjectId, selectedRecordId }: Props) {
 
       {/* Variance Analysis + Hours Breakdown side by side */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Variance Bar Chart */}
+        {/* Variance — Line Chart with markers */}
         {varianceData.some(d => d.value !== 0) && (
           <Card>
             <CardHeader className="pb-2">
@@ -1023,15 +1023,13 @@ export function AnalyticsPanel({ perfProjectId, selectedRecordId }: Props) {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={260}>
-                <BarChart data={varianceData}>
+                <LineChart data={varianceData}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                   <XAxis dataKey="name" tick={{ fontSize: 10 }} />
                   <YAxis tick={{ fontSize: 11 }} />
                   <Tooltip formatter={(v: number) => v.toLocaleString()} />
-                  <Bar dataKey="value" name="Variance" radius={[4, 4, 0, 0]}>
-                    {varianceData.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
-                  </Bar>
-                </BarChart>
+                  <Line type="monotone" dataKey="value" name="Variance" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 5, fill: 'hsl(var(--primary))' }} activeDot={{ r: 7 }} />
+                </LineChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
