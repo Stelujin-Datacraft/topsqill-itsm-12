@@ -397,23 +397,7 @@ export function DataSourceConfig({ perfProjectId, perfFormId }: DataSourceConfig
                     </div>
                   </div>
 
-                  {/* Auto-mapped fields summary */}
-                  {fieldMappings.length > 0 && (
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium">3. Fields Auto-Mapped</Label>
-                      <p className="text-xs text-muted-foreground">
-                        All {fieldMappings.length} fields from this form have been automatically selected for analysis.
-                      </p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {fieldMappings.map(mapping => (
-                          <Badge key={mapping.formFieldId} variant="secondary" className="text-xs">
-                            {mapping.formFieldLabel}
-                            <span className="ml-1 text-muted-foreground">({mapping.formFieldType})</span>
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                  {/* Fields are auto-mapped internally - no UI needed */}
 
                   {/* Submit */}
                   <Button
