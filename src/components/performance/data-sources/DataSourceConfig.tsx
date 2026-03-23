@@ -271,15 +271,25 @@ export function DataSourceConfig({ perfProjectId, perfFormId }: DataSourceConfig
 
   const deleteDataSource = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('performance_data_sources')
-        .delete()
-        .eq('id', id);
+      // Delete all related data first, then the data source
+      await (supabase.from('performance_analysis_results').delete() as any).eq('data_source_id', id);
+      await (supabase.from('performance_alerts').delete() as any).eq('data_source_id', id);
+      await (supabase.from('performance_thresholds').delete() as any).eq('data_source_id', id);
+      const { error } = await supabase.from('performance_data_sources').delete().eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['performance-data-sources', projectId, perfProjectId] });
-      toast({ title: 'Data Source Removed' });
+      // Invalidate all performance-related queries so UI refreshes
+      queryClient.invalidateQueries({ queryKey: ['performance-data-sources'] });
+      queryClient.invalidateQueries({ queryKey: ['performance-analysis'] });
+      queryClient.invalidateQueries({ queryKey: ['performance-alerts'] });
+      queryClient.invalidateQueries({ queryKey: ['performance-thresholds'] });
+      queryClient.invalidateQueries({ queryKey: ['performance-submissions'] });
+      // Clear persisted state so stale record selection is removed
+      if (projectId) {
+        localStorage.removeItem(`perf-state-${projectId}`);
+      }
+      toast({ title: 'Data Source Removed', description: 'All related analysis data, alerts, and thresholds have been deleted.' });
     },
   });
 
