@@ -82,13 +82,58 @@ ANALYSIS RULES FOR THIS FORM:
 8. EAC vs Budget: If Estimate At Completion > Budget Cost, flag potential overrun
 `;
 
+async function fetchAllRecordsData(supabase: any, dataSources: any[]) {
+  if (!dataSources || dataSources.length === 0) return null;
+  const ds = dataSources[0];
+  const fieldMappings = Array.isArray(ds.field_mappings) ? ds.field_mappings : [];
+
+  const { data: allSubs } = await supabase
+    .from("form_submissions")
+    .select("id, submission_data, submitted_at, submission_ref_id")
+    .eq("form_id", ds.source_form_id)
+    .order("submitted_at", { ascending: false })
+    .limit(500);
+
+  if (!allSubs || allSubs.length === 0) return null;
+
+  // Aggregate numeric fields
+  const aggregated: Record<string, any> = {};
+  for (const mapping of fieldMappings) {
+    if (mapping.metricRole !== 'numeric_metric') continue;
+    const label = mapping.label || mapping.formFieldLabel;
+    const values = allSubs
+      .map((s: any) => parseFloat(s.submission_data?.[mapping.formFieldId]))
+      .filter((v: number) => !isNaN(v));
+    if (values.length === 0) continue;
+    const sum = values.reduce((a: number, b: number) => a + b, 0);
+    const avg = sum / values.length;
+    aggregated[label] = { avg: Math.round(avg * 100) / 100, sum: Math.round(sum * 100) / 100, min: Math.min(...values), max: Math.max(...values), count: values.length };
+  }
+
+  // Collect all record data summaries
+  const recordSummaries = allSubs.slice(0, 20).map((s: any) => {
+    const mapped: Record<string, any> = {};
+    for (const m of fieldMappings) {
+      const val = s.submission_data?.[m.formFieldId];
+      if (val != null) mapped[m.label || m.formFieldLabel] = val;
+    }
+    return { ref: s.submission_ref_id, data: mapped };
+  });
+
+  return {
+    formName: ds.source_form_name,
+    totalRecords: allSubs.length,
+    aggregatedMetrics: aggregated,
+    recordSummaries,
+  };
+}
+
 async function fetchSingleRecordData(supabase: any, dataSources: any[], submissionId: string) {
   if (!dataSources || dataSources.length === 0) return null;
 
-  const ds = dataSources[0]; // Only one data source per performance project
+  const ds = dataSources[0];
   const fieldMappings = Array.isArray(ds.field_mappings) ? ds.field_mappings : [];
 
-  // Fetch the specific submission
   const { data: submission, error } = await supabase
     .from("form_submissions")
     .select("id, submission_data, submitted_at, submission_ref_id")
@@ -98,10 +143,7 @@ async function fetchSingleRecordData(supabase: any, dataSources: any[], submissi
 
   if (error || !submission) return null;
 
-  // Extract ALL data from the submission (not just mapped fields)
   const allData = submission.submission_data || {};
-  
-  // Also extract mapped fields with their roles
   const mappedData: Record<string, any> = {};
   for (const mapping of fieldMappings) {
     const val = allData[mapping.formFieldId];
@@ -113,7 +155,6 @@ async function fetchSingleRecordData(supabase: any, dataSources: any[], submissi
     };
   }
 
-  // Fetch portfolio-level statistics for comparison (all submissions of this form)
   const { data: allSubs } = await supabase
     .from("form_submissions")
     .select("submission_data")
@@ -121,7 +162,6 @@ async function fetchSingleRecordData(supabase: any, dataSources: any[], submissi
     .order("submitted_at", { ascending: false })
     .limit(500);
 
-  // Compute portfolio averages for numeric fields
   const portfolioStats: Record<string, any> = {};
   if (allSubs && allSubs.length > 0) {
     for (const mapping of fieldMappings) {
@@ -129,22 +169,13 @@ async function fetchSingleRecordData(supabase: any, dataSources: any[], submissi
       const values = allSubs
         .map((s: any) => parseFloat(s.submission_data?.[mapping.formFieldId]))
         .filter((v: number) => !isNaN(v));
-      
       if (values.length === 0) continue;
       const label = mapping.label || mapping.formFieldLabel;
       const sum = values.reduce((a: number, b: number) => a + b, 0);
       const avg = sum / values.length;
       const variance = values.reduce((a: number, b: number) => a + Math.pow(b - avg, 2), 0) / values.length;
       const stdDev = Math.sqrt(variance);
-
-      portfolioStats[label] = {
-        count: values.length,
-        avg: Math.round(avg * 100) / 100,
-        min: Math.min(...values),
-        max: Math.max(...values),
-        stdDev: Math.round(stdDev * 100) / 100,
-        sum: Math.round(sum * 100) / 100,
-      };
+      portfolioStats[label] = { count: values.length, avg: Math.round(avg * 100) / 100, min: Math.min(...values), max: Math.max(...values), stdDev: Math.round(stdDev * 100) / 100, sum: Math.round(sum * 100) / 100 };
     }
   }
 
@@ -157,6 +188,100 @@ async function fetchSingleRecordData(supabase: any, dataSources: any[], submissi
     portfolioStats,
     totalRecords: allSubs?.length || 0,
   };
+}
+
+async function sendAlertNotifications(supabase: any, projectId: string, perfProjectId: string | null, alerts: any[], userId: string) {
+  try {
+    // In-app notifications for all org members
+    const { data: orgMembers } = await supabase
+      .from('profiles')
+      .select('id, email, organization_id')
+      .eq('id', userId)
+      .single();
+
+    if (!orgMembers) return;
+
+    // Get project members
+    const { data: members } = await supabase
+      .from('project_members')
+      .select('user_id')
+      .eq('project_id', projectId);
+
+    const memberIds = members?.map((m: any) => m.user_id) || [userId];
+    const uniqueIds = [...new Set(memberIds)];
+
+    // Create in-app notifications
+    const criticalAlerts = alerts.filter((a: any) => a.severity === 'high' || a.severity === 'critical');
+    if (criticalAlerts.length > 0) {
+      const notifInserts = uniqueIds.map((uid: string) => ({
+        user_id: uid,
+        type: 'workflow_notification',
+        title: `⚠️ Performance Alert: ${criticalAlerts.length} issue${criticalAlerts.length > 1 ? 's' : ''} detected`,
+        message: criticalAlerts.map((a: any) => `${a.severity.toUpperCase()}: ${a.title}`).join(' | '),
+        data: { source: 'performance_monitoring', project_id: projectId, performance_project_id: perfProjectId, alert_count: criticalAlerts.length },
+        read: false,
+      }));
+      await supabase.from('notifications').insert(notifInserts);
+    }
+
+    // Send email via SMTP for critical/high alerts
+    if (criticalAlerts.length > 0 && orgMembers.organization_id) {
+      const { data: smtpConfigs } = await supabase
+        .from('smtp_configs')
+        .select('*')
+        .eq('organization_id', orgMembers.organization_id)
+        .eq('is_active', true)
+        .limit(1);
+
+      if (smtpConfigs && smtpConfigs.length > 0) {
+        // Get emails of members
+        const { data: memberProfiles } = await supabase
+          .from('profiles')
+          .select('email')
+          .in('id', uniqueIds);
+
+        const emails = memberProfiles?.map((p: any) => p.email).filter(Boolean) || [];
+        if (emails.length > 0) {
+          const smtpConfig = smtpConfigs[0];
+          const alertSummary = criticalAlerts.map((a: any) => `• ${a.severity.toUpperCase()}: ${a.title} — ${a.description}`).join('\n');
+          const htmlAlerts = criticalAlerts.map((a: any) =>
+            `<tr><td style="padding:8px;border:1px solid #e5e7eb;"><span style="color:${a.severity === 'critical' ? '#ef4444' : '#f59e0b'};font-weight:bold;">${a.severity.toUpperCase()}</span></td><td style="padding:8px;border:1px solid #e5e7eb;">${a.title}</td><td style="padding:8px;border:1px solid #e5e7eb;">${a.description || ''}</td></tr>`
+          ).join('');
+
+          try {
+            const { SMTPClient } = await import("https://deno.land/x/denomailer@1.6.0/mod.ts");
+            const client = new SMTPClient({
+              connection: {
+                hostname: smtpConfig.host,
+                port: smtpConfig.port,
+                tls: smtpConfig.use_tls,
+                auth: { username: smtpConfig.username, password: smtpConfig.password },
+              },
+            });
+
+            for (const email of emails) {
+              try {
+                await client.send({
+                  from: smtpConfig.from_name ? `${smtpConfig.from_name} <${smtpConfig.from_email}>` : smtpConfig.from_email,
+                  to: email,
+                  subject: `🚨 Performance Alert: ${criticalAlerts.length} issue${criticalAlerts.length > 1 ? 's' : ''} detected`,
+                  content: `Performance Monitoring Alert\n\n${alertSummary}\n\nPlease review the Performance Dashboard for details.`,
+                  html: `<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;padding:20px;"><h2 style="color:#ef4444;">🚨 Performance Alert</h2><p>${criticalAlerts.length} issue${criticalAlerts.length > 1 ? 's' : ''} detected in your project performance monitoring.</p><table style="width:100%;border-collapse:collapse;margin:16px 0;"><thead><tr style="background:#f3f4f6;"><th style="padding:8px;border:1px solid #e5e7eb;text-align:left;">Severity</th><th style="padding:8px;border:1px solid #e5e7eb;text-align:left;">Alert</th><th style="padding:8px;border:1px solid #e5e7eb;text-align:left;">Details</th></tr></thead><tbody>${htmlAlerts}</tbody></table><p style="color:#6b7280;font-size:12px;">This is an automated alert from your Performance Monitoring system.</p></body></html>`,
+                });
+              } catch (emailErr) {
+                console.error('Email send failed for', email, emailErr);
+              }
+            }
+            await client.close();
+          } catch (smtpErr) {
+            console.error('SMTP connection failed (non-blocking):', smtpErr);
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Alert notification error (non-blocking):', err);
+  }
 }
 
 serve(async (req) => {
