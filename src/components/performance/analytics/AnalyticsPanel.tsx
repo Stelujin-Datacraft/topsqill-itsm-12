@@ -169,7 +169,7 @@ export function AnalyticsPanel({ perfProjectId, selectedRecordId }: Props) {
     );
   }
 
-  if (!submission) {
+  if (submissions.length === 0 && selectedRecordId) {
     return (
       <Card className="border-dashed">
         <CardContent className="flex flex-col items-center justify-center py-12">
@@ -186,10 +186,13 @@ export function AnalyticsPanel({ perfProjectId, selectedRecordId }: Props) {
         <div>
           <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
             <BarChart3 className="h-5 w-5 text-primary" />
-            Record Report
+            {isAllRecords ? 'Portfolio Report' : 'Record Report'}
           </h2>
           <p className="text-sm text-muted-foreground">
-            Data for record: {submission.submission_ref_id || submission.id.slice(0, 8)}
+            {isAllRecords
+              ? `Aggregated data across ${submissions.length} records (averages)`
+              : `Data for record: ${submissions[0]?.submission_ref_id || submissions[0]?.id?.slice(0, 8)}`
+            }
           </p>
         </div>
         <ChartExportButton
