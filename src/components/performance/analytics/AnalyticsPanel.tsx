@@ -1064,60 +1064,8 @@ export function AnalyticsPanel({ perfProjectId, selectedRecordId }: Props) {
         )}
       </div>
 
-      {/* Full Metrics Table */}
-      {numericData.length > 0 && (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-primary" />
-              All Numeric Metrics
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border">
-                    <th className="text-left py-2 px-3 text-muted-foreground font-medium">Metric</th>
-                    <th className="text-right py-2 px-3 text-muted-foreground font-medium">Value</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {numericData.map(d => (
-                    <tr key={d.label} className="border-b border-border/50">
-                      <td className="py-2 px-3 font-medium text-foreground">{d.label}</td>
-                      <td className="py-2 px-3 text-right text-foreground font-mono">{d.value.toLocaleString()}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
-      {/* Horizontal Bar Chart of all metrics */}
-      {numericData.length > 0 && (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-2">
-              <BarChart3 className="h-4 w-4 text-primary" />
-              Metric Values Overview
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={Math.max(300, numericData.length * 30)}>
-              <BarChart data={numericData} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis type="number" tick={{ fontSize: 11 }} />
-                <YAxis type="category" dataKey="label" width={180} tick={{ fontSize: 10 }} />
-                <Tooltip formatter={(v: number) => v.toLocaleString()} />
-                <Bar dataKey="value" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} name="Value" />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      )}
+
     </div>
   );
 }
