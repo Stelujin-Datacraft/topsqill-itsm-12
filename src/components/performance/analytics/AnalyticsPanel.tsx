@@ -235,6 +235,63 @@ export function AnalyticsPanel({ perfProjectId, selectedRecordId }: Props) {
     });
   }, [isAllRecords, submissions, fieldLookup]);
 
+  // EV / AC / PV Area chart data (per record)
+  const evTrendData = useMemo(() => {
+    if (!isAllRecords || submissions.length === 0) return [];
+    return submissions.slice(0, 20).map((s: any, i: number) => {
+      const data = s.submission_data || {};
+      const name = s.submission_ref_id || `R${i + 1}`;
+      return {
+        name: name.length > 10 ? name.slice(0, 10) + '…' : name,
+        EV: Number(resolveValue(data, 'Earned Value (EV)') || 0),
+        AC: Number(resolveValue(data, 'Actual Cost Value (AC)') || 0),
+        PV: Number(resolveValue(data, 'Planned Value (PV)') || 0),
+      };
+    });
+  }, [isAllRecords, submissions, fieldLookup]);
+
+  // Hours comparison (stacked bar)
+  const hoursData = useMemo(() => {
+    if (!isAllRecords || submissions.length === 0) return [];
+    return submissions.slice(0, 20).map((s: any, i: number) => {
+      const data = s.submission_data || {};
+      const name = s.submission_ref_id || `R${i + 1}`;
+      return {
+        name: name.length > 10 ? name.slice(0, 10) + '…' : name,
+        'Planned Hours': Number(resolveValue(data, 'Planned Hours') || 0),
+        'Actual Hours': Number(resolveValue(data, 'Actual Hours') || 0),
+        'Overtime': Number(resolveValue(data, 'Overtime Hours') || 0),
+      };
+    });
+  }, [isAllRecords, submissions, fieldLookup]);
+
+  // Risk & prediction line chart per record
+  const riskLineData = useMemo(() => {
+    if (!isAllRecords || submissions.length === 0) return [];
+    return submissions.slice(0, 30).map((s: any, i: number) => {
+      const data = s.submission_data || {};
+      const name = s.submission_ref_id || `R${i + 1}`;
+      return {
+        name: name.length > 8 ? name.slice(0, 8) + '…' : name,
+        'Risk Score': Number(resolveValue(data, 'Risk Score') || 0),
+        'Delay Days': Number(resolveValue(data, 'Predicted Delay Days') || 0),
+        'Cost Overrun %': Number(resolveValue(data, 'Predicted Cost Overrun (%)') || 0),
+      };
+    });
+  }, [isAllRecords, submissions, fieldLookup]);
+
+  // Radar chart - portfolio performance indices
+  const radarData = useMemo(() => {
+    if (!isAllRecords || !portfolioKPIs) return [];
+    return [
+      { metric: 'CPI', value: Math.min(portfolioKPIs.portfolioCPI * 100, 150), fullMark: 150 },
+      { metric: 'SPI', value: Math.min(portfolioKPIs.portfolioSPI * 100, 150), fullMark: 150 },
+      { metric: 'Budget Util', value: Math.min(portfolioKPIs.budgetUtilization, 150), fullMark: 150 },
+      { metric: 'Risk (inv)', value: Math.max(100 - portfolioKPIs.avgRiskScore, 0), fullMark: 100 },
+      { metric: 'On-time (inv)', value: Math.max(100 - portfolioKPIs.avgPredictedDelay * 2, 0), fullMark: 100 },
+    ];
+  }, [isAllRecords, portfolioKPIs]);
+
   // Risk distribution for all records
   const riskDistribution = useMemo(() => {
     if (!isAllRecords || submissions.length === 0) return [];
