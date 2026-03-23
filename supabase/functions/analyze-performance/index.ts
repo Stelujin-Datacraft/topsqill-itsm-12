@@ -308,17 +308,15 @@ serve(async (req) => {
     if (action === "analyze") {
       if (!submission_id) throw new Error("submission_id is required — select a record to analyze");
 
-      // Fetch data sources (limited to 1 per performance project)
+      const isAllRecords = submission_id === '__all__';
+
+      // Fetch data sources
       let dsQuery = supabase
         .from("performance_data_sources")
         .select("*")
         .eq("project_id", project_id)
         .eq("is_active", true);
-      
-      if (performance_project_id) {
-        dsQuery = dsQuery.eq("performance_project_id", performance_project_id);
-      }
-      
+      if (performance_project_id) dsQuery = dsQuery.eq("performance_project_id", performance_project_id);
       const { data: dataSources } = await dsQuery;
 
       // Fetch thresholds
@@ -327,62 +325,103 @@ serve(async (req) => {
         .select("*")
         .eq("project_id", project_id)
         .eq("is_active", true);
-      
-      if (performance_project_id) {
-        thQuery = thQuery.eq("performance_project_id", performance_project_id);
-      }
-      
+      if (performance_project_id) thQuery = thQuery.eq("performance_project_id", performance_project_id);
       const { data: thresholds } = await thQuery;
 
-      // Fetch single record data with portfolio context
-      const recordAnalysis = await fetchSingleRecordData(supabase, dataSources || [], submission_id);
-
-      if (!recordAnalysis) {
-        return new Response(JSON.stringify({
-          summary: "Could not find the selected record. Ensure the data source is configured and the record exists.",
-          anomalies: [],
-          predictions: [],
-          risk_score: 0,
-          health_status: "green",
-          recommendations: [{
-            priority: "high",
-            title: "Configure Data Source",
-            description: "Go to the Data Sources tab, map your form fields, then select a record to analyze.",
-          }],
-        }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      // CLEAR old alerts and predictions for this perf project before generating fresh ones
+      let delAlertQuery = supabase.from("performance_alerts").delete().eq("project_id", project_id).eq("ai_generated", true);
+      let delPredQuery = supabase.from("performance_predictions").delete().eq("project_id", project_id);
+      if (performance_project_id) {
+        delAlertQuery = delAlertQuery.eq("performance_project_id", performance_project_id);
+        delPredQuery = delPredQuery.eq("performance_project_id", performance_project_id);
       }
+      await delAlertQuery;
+      await delPredQuery;
 
-      const prompt = `You are an expert project performance analyst conducting a DETAILED SINGLE RECORD ANALYSIS.
+      let prompt: string;
+      let analysisContext: any;
+
+      if (isAllRecords) {
+        // Aggregated analysis across all records
+        analysisContext = await fetchAllRecordsData(supabase, dataSources || []);
+        if (!analysisContext) {
+          return new Response(JSON.stringify({
+            summary: "No records found. Ensure the data source is configured and submissions exist.",
+            anomalies: [], predictions: [], risk_score: 0, health_status: "green",
+            recommendations: [{ priority: "high", title: "Add Data", description: "Submit data through your form first." }],
+          }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+
+        prompt = `You are an expert project performance analyst conducting a PORTFOLIO-WIDE AGGREGATED ANALYSIS across ${analysisContext.totalRecords} records.
 
 ${ENTERPRISE_PORTFOLIO_TRACKER_CONTEXT}
 
-SELECTED RECORD FOR ANALYSIS:
-Form: "${recordAnalysis.formName}"
-Record Reference: ${recordAnalysis.submissionRefId}
-Submitted At: ${recordAnalysis.submittedAt}
+PORTFOLIO ANALYSIS:
+Form: "${analysisContext.formName}"
+Total Records: ${analysisContext.totalRecords}
 
-FULL RECORD DATA (all fields):
-${JSON.stringify(recordAnalysis.recordData, null, 2)}
+AGGREGATED METRICS (avg, sum, min, max across all records):
+${JSON.stringify(analysisContext.aggregatedMetrics, null, 2)}
 
-MAPPED FIELD DETAILS (with roles and types):
-${JSON.stringify(recordAnalysis.mappedFields, null, 2)}
-
-PORTFOLIO CONTEXT (statistics from ${recordAnalysis.totalRecords} total records for comparison):
-${JSON.stringify(recordAnalysis.portfolioStats, null, 2)}
+SAMPLE RECORDS (first 20):
+${JSON.stringify(analysisContext.recordSummaries, null, 2)}
 
 CONFIGURED ALERT THRESHOLDS:
 ${JSON.stringify(thresholds || [], null, 2)}
 
 ANALYSIS INSTRUCTIONS:
-1. ANOMALY DETECTION: Compare this record's values against the portfolio averages. Flag any value that deviates >2 standard deviations. Also apply the Enterprise Portfolio Tracker rules (schedule variance, cost variance, ROI checks, etc.).
-2. FINANCIAL HEALTH: Analyze cost performance (Actual vs Planned), ROI, NPV, IRR vs Discount Rate. Provide specific dollar amounts.
-3. SCHEDULE HEALTH: Compare Actual Duration vs Planned Duration, Actual Effort vs Planned Effort. Calculate SPI and variance %.
+1. ANOMALY DETECTION: Identify outliers and unusual patterns across the portfolio.
+2. FINANCIAL HEALTH: Analyze aggregate cost performance, budget utilization, ROI trends.
+3. SCHEDULE HEALTH: Evaluate overall schedule performance across projects.
+4. RISK ASSESSMENT: Score the overall portfolio risk (0-100).
+5. PREDICTIONS: Based on portfolio trends, predict future performance.
+6. THRESHOLD VIOLATIONS: Check configured thresholds against aggregated values.
+7. RECOMMENDATIONS: Provide strategic recommendations for portfolio-level improvements.
+
+Be SPECIFIC — reference actual aggregated values, averages, and trends.`;
+      } else {
+        // Single record analysis
+        analysisContext = await fetchSingleRecordData(supabase, dataSources || [], submission_id);
+        if (!analysisContext) {
+          return new Response(JSON.stringify({
+            summary: "Could not find the selected record.",
+            anomalies: [], predictions: [], risk_score: 0, health_status: "green",
+            recommendations: [{ priority: "high", title: "Configure Data Source", description: "Go to the Data Sources tab." }],
+          }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+
+        prompt = `You are an expert project performance analyst conducting a DETAILED SINGLE RECORD ANALYSIS.
+
+${ENTERPRISE_PORTFOLIO_TRACKER_CONTEXT}
+
+SELECTED RECORD FOR ANALYSIS:
+Form: "${analysisContext.formName}"
+Record Reference: ${analysisContext.submissionRefId}
+Submitted At: ${analysisContext.submittedAt}
+
+FULL RECORD DATA (all fields):
+${JSON.stringify(analysisContext.recordData, null, 2)}
+
+MAPPED FIELD DETAILS (with roles and types):
+${JSON.stringify(analysisContext.mappedFields, null, 2)}
+
+PORTFOLIO CONTEXT (statistics from ${analysisContext.totalRecords} total records for comparison):
+${JSON.stringify(analysisContext.portfolioStats, null, 2)}
+
+CONFIGURED ALERT THRESHOLDS:
+${JSON.stringify(thresholds || [], null, 2)}
+
+ANALYSIS INSTRUCTIONS:
+1. ANOMALY DETECTION: Compare this record's values against the portfolio averages. Flag any value that deviates >2 standard deviations.
+2. FINANCIAL HEALTH: Analyze cost performance (Actual vs Planned), ROI, NPV, IRR vs Discount Rate.
+3. SCHEDULE HEALTH: Compare Actual Duration vs Planned Duration, Actual Effort vs Planned Effort.
 4. RISK ASSESSMENT: Use the Risk Score, Size Score, Value Score to evaluate risk-value balance. Score 0-100 overall.
 5. PREDICTIONS: Based on current trajectory, predict likely completion date, final cost, and resource needs.
 6. THRESHOLD VIOLATIONS: Check configured thresholds against this record's values.
-7. RECOMMENDATIONS: Provide actionable, specific recommendations referencing actual values from this record.
+7. RECOMMENDATIONS: Provide actionable, specific recommendations referencing actual values.
 
 Be SPECIFIC — reference actual field values, dollar amounts, dates, and percentages from the record data.`;
+      }
 
       const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
