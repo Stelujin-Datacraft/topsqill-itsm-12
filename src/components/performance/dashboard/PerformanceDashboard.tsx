@@ -120,11 +120,17 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
   }, [savedAnalysis]);
 
   useEffect(() => {
-    if (propSelectedRecordId && propSelectedRecordId !== savedAnalysis?.submission_id) {
+    // Only run AI analysis if the selected record changed AND we don't already have a saved result for it
+    if (
+      propSelectedRecordId &&
+      propSelectedRecordId !== savedAnalysis?.submission_id &&
+      // For "all records", saved submission_id is null
+      !(propSelectedRecordId === '__all__' && savedAnalysis?.submission_id === null)
+    ) {
       setAiResult(null);
       runAIAnalysis(propSelectedRecordId);
     }
-  }, [propSelectedRecordId]);
+  }, [propSelectedRecordId, savedAnalysis]);
 
   const recordOptions = useMemo(() => {
     const options = submissions.map((sub: any) => {
@@ -218,8 +224,16 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
 
   const handleRecordChange = (value: string) => {
     onRecordChange?.(value);
-    setAiResult(null);
-    if (value) runAIAnalysis(value);
+    // Check if we already have a saved analysis for this record
+    const savedMatchesRecord = value === '__all__'
+      ? savedAnalysis?.submission_id === null
+      : savedAnalysis?.submission_id === value;
+    if (savedMatchesRecord && savedAnalysis) {
+      setAiResult(savedAnalysis.analysis_data as AIAnalysis);
+    } else {
+      setAiResult(null);
+      runAIAnalysis(value);
+    }
   };
 
   const handleDismissPrediction = (index: number) => {
