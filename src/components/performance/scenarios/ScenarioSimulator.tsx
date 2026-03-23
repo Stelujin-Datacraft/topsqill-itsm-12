@@ -9,8 +9,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { useProject } from '@/contexts/ProjectContext';
 import { useQuery } from '@tanstack/react-query';
 import {
+  BarChart, Bar, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell,
+  ReferenceLine,
+} from 'recharts';
+import {
   FlaskConical, Loader2, RefreshCw, FileText,
-  TrendingUp, TrendingDown, Minus, ArrowRight,
+  TrendingUp, TrendingDown, Minus,
 } from 'lucide-react';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
