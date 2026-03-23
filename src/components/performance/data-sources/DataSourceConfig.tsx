@@ -135,11 +135,12 @@ export function DataSourceConfig({ perfProjectId, perfFormId }: DataSourceConfig
     enabled: !!projectId,
   });
 
-  // Load form fields when form is selected
+  // Load form fields when form is selected - auto-select all fields
   useEffect(() => {
     if (!selectedFormId) {
       setFormFields([]);
       setCrossRefFields([]);
+      setFieldMappings([]);
       return;
     }
     setLoadingFields(true);
@@ -161,6 +162,22 @@ export function DataSourceConfig({ perfProjectId, perfFormId }: DataSourceConfig
         setCrossRefFields(fields.filter(f =>
           f.type === 'cross-reference' || f.type === 'child-cross-reference'
         ));
+        // Auto-select all non-layout fields
+        const autoMappings = fields
+          .filter(f => !['cross-reference', 'child-cross-reference', 'section', 'divider', 'heading', 'spacer'].includes(f.type))
+          .map(f => {
+            const isNumeric = ['number', 'slider', 'currency'].includes(f.type);
+            const isDate = ['date', 'datetime', 'time'].includes(f.type);
+            return {
+              formFieldId: f.id,
+              formFieldLabel: f.label,
+              formFieldType: f.type,
+              metricRole: isDate ? 'date_field' : isNumeric ? 'numeric_metric' : 'category',
+              aggregation: isNumeric ? 'sum' : 'count',
+              label: f.label,
+            };
+          });
+        setFieldMappings(autoMappings);
       });
   }, [selectedFormId]);
 
