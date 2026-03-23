@@ -15,10 +15,7 @@ import { ThresholdsConfig } from '@/components/performance/thresholds/Thresholds
 import { DataSourceConfig } from '@/components/performance/data-sources/DataSourceConfig';
 import { AnalyticsPanel } from '@/components/performance/analytics/AnalyticsPanel';
 import { ScenarioSimulator } from '@/components/performance/scenarios/ScenarioSimulator';
-import { DataQualityPanel } from '@/components/performance/data-quality/DataQualityPanel';
-import { TechnicalQuestionnaire } from '@/components/performance/questionnaire/TechnicalQuestionnaire';
-import { ProjectLocationMap } from '@/components/performance/gis/ProjectLocationMap';
-import { AlertTriangle, ArrowLeft, ClipboardCheck, Clock, Database, FlaskConical, Gauge, LineChart, MapPin, Settings2, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Clock, Database, FlaskConical, Gauge, LineChart, Settings2 } from 'lucide-react';
 
 interface SelectedPerfProject {
   id: string;
