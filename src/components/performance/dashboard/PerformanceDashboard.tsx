@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, Brain, UserCog, Database, FileText, BarChart3, Lightbulb, TrendingUp, EyeOff, Settings2, ShieldAlert, Activity, Zap, Target, AlertCircle } from 'lucide-react';
-import { usePerformanceKPI, PerformanceRoleType, calculateSeniorManagementKPIs, calculateProjectManagerKPIs, calculateDisciplineEngineerKPIs, calculateFinanceKPIs, calculateRiskGovernanceKPIs, generateKPIAlerts } from '@/hooks/usePerformanceKPI';
+import { usePerformanceKPI, PerformanceRoleType, calculateSeniorManagementKPIs, calculateProjectManagerKPIs, aggregateProjectManagerKPIs, calculateDisciplineEngineerKPIs, calculateFinanceKPIs, calculateRiskGovernanceKPIs, generateKPIAlerts } from '@/hooks/usePerformanceKPI';
 import { type PerformanceAlert, type PerformancePrediction, type PerformanceThreshold, type AIAnalysis } from '@/hooks/usePerformanceMonitoring';
 import { getSeverityBadgeVariant, getHealthColorClass } from '@/components/performance/utils/severityUtils';
 import { SeniorManagementDashboard } from '../kpi-dashboards/SeniorManagementDashboard';
