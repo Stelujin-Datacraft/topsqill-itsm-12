@@ -116,10 +116,22 @@ export function AnalyticsPanel({ perfProjectId, selectedRecordId }: Props) {
     return raw;
   };
 
-  // Build record data for display
+  // Build record data for display - aggregate across all submissions if "all"
   const numericData = useMemo(() => {
-    if (!submission) return [];
-    const submissionData = submission.submission_data || {};
+    if (submissions.length === 0) return [];
+    if (isAllRecords) {
+      // Aggregate: compute averages across all submissions
+      return NUMERIC_FIELD_LABELS.map(label => {
+        const values = submissions.map((s: any) => {
+          const val = resolveValue(s.submission_data || {}, label);
+          return val != null && !isNaN(Number(val)) ? Number(val) : null;
+        }).filter((v): v is number => v !== null);
+        if (values.length === 0) return null;
+        const avg = values.reduce((a, b) => a + b, 0) / values.length;
+        return { label, value: Math.round(avg * 100) / 100 };
+      }).filter(Boolean) as { label: string; value: number }[];
+    }
+    const submissionData = submissions[0]?.submission_data || {};
     return NUMERIC_FIELD_LABELS
       .map(label => {
         const val = resolveValue(submissionData, label);
@@ -127,11 +139,11 @@ export function AnalyticsPanel({ perfProjectId, selectedRecordId }: Props) {
         return { label, value: Number(val) };
       })
       .filter(Boolean) as { label: string; value: number }[];
-  }, [submission, fieldLookup]);
+  }, [submissions, fieldLookup, isAllRecords]);
 
   const categoryData = useMemo(() => {
-    if (!submission) return [];
-    const submissionData = submission.submission_data || {};
+    if (submissions.length === 0) return [];
+    const submissionData = isAllRecords ? submissions[0]?.submission_data || {} : submissions[0]?.submission_data || {};
     return CATEGORY_FIELD_LABELS
       .map(label => {
         const val = resolveValue(submissionData, label);
@@ -139,7 +151,7 @@ export function AnalyticsPanel({ perfProjectId, selectedRecordId }: Props) {
         return { label, value: String(val) };
       })
       .filter(Boolean) as { label: string; value: string }[];
-  }, [submission, fieldLookup]);
+  }, [submissions, fieldLookup, isAllRecords]);
 
   if (loading) {
     return <div className="flex items-center justify-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
