@@ -272,9 +272,9 @@ export function DataSourceConfig({ perfProjectId, perfFormId }: DataSourceConfig
   const deleteDataSource = useMutation({
     mutationFn: async (id: string) => {
       // Delete all related data first, then the data source
-      await supabase.from('performance_analysis_results').delete().eq('data_source_id', id);
-      await supabase.from('performance_alerts').delete().eq('data_source_id', id);
-      await supabase.from('performance_thresholds').delete().eq('data_source_id', id);
+      await (supabase.from('performance_analysis_results').delete() as any).eq('data_source_id', id);
+      await (supabase.from('performance_alerts').delete() as any).eq('data_source_id', id);
+      await (supabase.from('performance_thresholds').delete() as any).eq('data_source_id', id);
       const { error } = await supabase.from('performance_data_sources').delete().eq('id', id);
       if (error) throw error;
     },
