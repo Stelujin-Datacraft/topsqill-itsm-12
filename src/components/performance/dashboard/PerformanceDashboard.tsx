@@ -307,6 +307,9 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
                   <SelectValue placeholder="Select a record to analyze..." />
                 </SelectTrigger>
                 <SelectContent className="max-h-64">
+                  <SelectItem value="__all__">
+                    <span className="flex items-center gap-2 font-medium">📊 All Records (Aggregated)</span>
+                  </SelectItem>
                   {recordOptions.map((opt) => (
                     <SelectItem key={opt.id} value={opt.id}>{opt.label}</SelectItem>
                   ))}
