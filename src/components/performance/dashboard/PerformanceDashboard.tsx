@@ -342,7 +342,7 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
                 </Button>
               )}
               <Badge variant="outline" className="text-xs">
-                {selectedRecordId ? '1 record selected' : `${submissions.length} records`}
+                {isAllRecords ? `All ${submissions.length} records` : selectedRecordId ? '1 record selected' : `${submissions.length} records`}
               </Badge>
             </div>
           </div>
