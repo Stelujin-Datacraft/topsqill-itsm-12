@@ -308,6 +308,94 @@ export function AnalyticsPanel({ perfProjectId, selectedRecordId }: Props) {
     return Object.entries(buckets).filter(([, v]) => v > 0).map(([name, value]) => ({ name, value }));
   }, [isAllRecords, submissions, fieldLookup]);
 
+  // Derived KPIs for single record (must be before any returns)
+  const singleRecordKPIs = useMemo(() => {
+    if (isAllRecords || numericData.length === 0) return null;
+    const getVal = (label: string) => numericData.find(d => d.label === label)?.value || 0;
+    const plannedBudget = getVal('Planned Budget');
+    const actualCost = getVal('Actual Cost');
+    const ev = getVal('Earned Value (EV)');
+    const ac = getVal('Actual Cost Value (AC)');
+    const pv = getVal('Planned Value (PV)');
+    const riskScore = getVal('Risk Score');
+    const delayDays = getVal('Predicted Delay Days');
+    const costOverrun = getVal('Predicted Cost Overrun (%)');
+    const plannedHours = getVal('Planned Hours');
+    const actualHours = getVal('Actual Hours');
+    const defectCount = getVal('Defect Count');
+    const cpi = ac > 0 ? ev / ac : 0;
+    const spi = pv > 0 ? ev / pv : 0;
+    const cv = ev - ac;
+    const sv = ev - pv;
+    const budgetVariance = plannedBudget > 0 ? ((actualCost - plannedBudget) / plannedBudget) * 100 : 0;
+    const eac = cpi > 0 ? plannedBudget / cpi : plannedBudget;
+    const etc = eac - actualCost;
+    const vac = plannedBudget - eac;
+    const resourceUtil = plannedHours > 0 ? (actualHours / plannedHours) * 100 : 0;
+    return {
+      plannedBudget, actualCost, ev, ac, pv, riskScore, delayDays, costOverrun,
+      plannedHours, actualHours, defectCount,
+      cpi: Math.round(cpi * 1000) / 1000, spi: Math.round(spi * 1000) / 1000,
+      cv: Math.round(cv * 100) / 100, sv: Math.round(sv * 100) / 100,
+      budgetVariance: Math.round(budgetVariance * 100) / 100,
+      eac: Math.round(eac * 100) / 100, etc: Math.round(etc * 100) / 100,
+      vac: Math.round(vac * 100) / 100, resourceUtil: Math.round(resourceUtil * 100) / 100,
+    };
+  }, [isAllRecords, numericData]);
+
+  const singleBudgetData = useMemo(() => {
+    if (!singleRecordKPIs) return [];
+    return [
+      { name: 'Planned Budget', value: singleRecordKPIs.plannedBudget, fill: 'hsl(var(--primary))' },
+      { name: 'Actual Cost', value: singleRecordKPIs.actualCost, fill: '#f59e0b' },
+      { name: 'EAC', value: singleRecordKPIs.eac, fill: '#8b5cf6' },
+      { name: 'ETC', value: singleRecordKPIs.etc, fill: '#06b6d4' },
+    ].filter(d => d.value > 0);
+  }, [singleRecordKPIs]);
+
+  const singleEVMData = useMemo(() => {
+    if (!singleRecordKPIs) return [];
+    return [
+      { name: 'Planned Value (PV)', value: singleRecordKPIs.pv },
+      { name: 'Earned Value (EV)', value: singleRecordKPIs.ev },
+      { name: 'Actual Cost (AC)', value: singleRecordKPIs.ac },
+    ].filter(d => d.value > 0);
+  }, [singleRecordKPIs]);
+
+  const singleRadarData = useMemo(() => {
+    if (!singleRecordKPIs) return [];
+    return [
+      { metric: 'CPI', value: Math.min(singleRecordKPIs.cpi * 100, 150), fullMark: 150 },
+      { metric: 'SPI', value: Math.min(singleRecordKPIs.spi * 100, 150), fullMark: 150 },
+      { metric: 'Budget Health', value: Math.max(100 - Math.abs(singleRecordKPIs.budgetVariance), 0), fullMark: 100 },
+      { metric: 'Risk (inv)', value: Math.max(100 - singleRecordKPIs.riskScore, 0), fullMark: 100 },
+      { metric: 'Resource Util', value: Math.min(singleRecordKPIs.resourceUtil, 150), fullMark: 150 },
+      { metric: 'Quality', value: Math.max(100 - singleRecordKPIs.defectCount * 5, 0), fullMark: 100 },
+    ];
+  }, [singleRecordKPIs]);
+
+  const varianceData = useMemo(() => {
+    if (!singleRecordKPIs) return [];
+    return [
+      { name: 'Cost Variance', value: singleRecordKPIs.cv, fill: singleRecordKPIs.cv >= 0 ? '#10b981' : '#ef4444' },
+      { name: 'Schedule Variance', value: singleRecordKPIs.sv, fill: singleRecordKPIs.sv >= 0 ? '#10b981' : '#ef4444' },
+      { name: 'VAC', value: singleRecordKPIs.vac, fill: singleRecordKPIs.vac >= 0 ? '#10b981' : '#ef4444' },
+    ];
+  }, [singleRecordKPIs]);
+
+  const hoursBreakdown = useMemo(() => {
+    if (!singleRecordKPIs) return [];
+    const overtime = numericData.find(d => d.label === 'Overtime Hours')?.value || 0;
+    const regularHours = Math.max(singleRecordKPIs.actualHours - overtime, 0);
+    const result: { name: string; value: number }[] = [];
+    if (regularHours > 0) result.push({ name: 'Regular Hours', value: regularHours });
+    if (overtime > 0) result.push({ name: 'Overtime Hours', value: overtime });
+    if (singleRecordKPIs.plannedHours > singleRecordKPIs.actualHours) {
+      result.push({ name: 'Remaining', value: singleRecordKPIs.plannedHours - singleRecordKPIs.actualHours });
+    }
+    return result;
+  }, [singleRecordKPIs, numericData]);
+
   if (loading) {
     return <div className="flex items-center justify-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   }
@@ -706,105 +794,6 @@ export function AnalyticsPanel({ perfProjectId, selectedRecordId }: Props) {
   }
 
   // ========== SINGLE RECORD REPORT ==========
-  // Derived KPIs for single record
-  const singleRecordKPIs = useMemo(() => {
-    if (isAllRecords || numericData.length === 0) return null;
-    const getVal = (label: string) => numericData.find(d => d.label === label)?.value || 0;
-    const plannedBudget = getVal('Planned Budget');
-    const actualCost = getVal('Actual Cost');
-    const ev = getVal('Earned Value (EV)');
-    const ac = getVal('Actual Cost Value (AC)');
-    const pv = getVal('Planned Value (PV)');
-    const riskScore = getVal('Risk Score');
-    const delayDays = getVal('Predicted Delay Days');
-    const costOverrun = getVal('Predicted Cost Overrun (%)');
-    const plannedHours = getVal('Planned Hours');
-    const actualHours = getVal('Actual Hours');
-    const defectCount = getVal('Defect Count');
-
-    const cpi = ac > 0 ? ev / ac : 0;
-    const spi = pv > 0 ? ev / pv : 0;
-    const cv = ev - ac;
-    const sv = ev - pv;
-    const budgetVariance = plannedBudget > 0 ? ((actualCost - plannedBudget) / plannedBudget) * 100 : 0;
-    const eac = cpi > 0 ? plannedBudget / cpi : plannedBudget;
-    const etc = eac - actualCost;
-    const vac = plannedBudget - eac;
-    const resourceUtil = plannedHours > 0 ? (actualHours / plannedHours) * 100 : 0;
-
-    return {
-      plannedBudget, actualCost, ev, ac, pv, riskScore, delayDays, costOverrun,
-      plannedHours, actualHours, defectCount,
-      cpi: Math.round(cpi * 1000) / 1000,
-      spi: Math.round(spi * 1000) / 1000,
-      cv: Math.round(cv * 100) / 100,
-      sv: Math.round(sv * 100) / 100,
-      budgetVariance: Math.round(budgetVariance * 100) / 100,
-      eac: Math.round(eac * 100) / 100,
-      etc: Math.round(etc * 100) / 100,
-      vac: Math.round(vac * 100) / 100,
-      resourceUtil: Math.round(resourceUtil * 100) / 100,
-    };
-  }, [isAllRecords, numericData]);
-
-  // Budget breakdown for bar chart
-  const singleBudgetData = useMemo(() => {
-    if (!singleRecordKPIs) return [];
-    return [
-      { name: 'Planned Budget', value: singleRecordKPIs.plannedBudget, fill: 'hsl(var(--primary))' },
-      { name: 'Actual Cost', value: singleRecordKPIs.actualCost, fill: '#f59e0b' },
-      { name: 'EAC', value: singleRecordKPIs.eac, fill: '#8b5cf6' },
-      { name: 'ETC', value: singleRecordKPIs.etc, fill: '#06b6d4' },
-    ].filter(d => d.value > 0);
-  }, [singleRecordKPIs]);
-
-  // EVM data for area chart
-  const singleEVMData = useMemo(() => {
-    if (!singleRecordKPIs) return [];
-    return [
-      { name: 'Planned Value (PV)', value: singleRecordKPIs.pv },
-      { name: 'Earned Value (EV)', value: singleRecordKPIs.ev },
-      { name: 'Actual Cost (AC)', value: singleRecordKPIs.ac },
-    ].filter(d => d.value > 0);
-  }, [singleRecordKPIs]);
-
-  // Radar data for single record
-  const singleRadarData = useMemo(() => {
-    if (!singleRecordKPIs) return [];
-    return [
-      { metric: 'CPI', value: Math.min(singleRecordKPIs.cpi * 100, 150), fullMark: 150 },
-      { metric: 'SPI', value: Math.min(singleRecordKPIs.spi * 100, 150), fullMark: 150 },
-      { metric: 'Budget Health', value: Math.max(100 - Math.abs(singleRecordKPIs.budgetVariance), 0), fullMark: 100 },
-      { metric: 'Risk (inv)', value: Math.max(100 - singleRecordKPIs.riskScore, 0), fullMark: 100 },
-      { metric: 'Resource Util', value: Math.min(singleRecordKPIs.resourceUtil, 150), fullMark: 150 },
-      { metric: 'Quality', value: Math.max(100 - singleRecordKPIs.defectCount * 5, 0), fullMark: 100 },
-    ];
-  }, [singleRecordKPIs]);
-
-  // Variance data for bar chart
-  const varianceData = useMemo(() => {
-    if (!singleRecordKPIs) return [];
-    return [
-      { name: 'Cost Variance', value: singleRecordKPIs.cv, fill: singleRecordKPIs.cv >= 0 ? '#10b981' : '#ef4444' },
-      { name: 'Schedule Variance', value: singleRecordKPIs.sv, fill: singleRecordKPIs.sv >= 0 ? '#10b981' : '#ef4444' },
-      { name: 'VAC', value: singleRecordKPIs.vac, fill: singleRecordKPIs.vac >= 0 ? '#10b981' : '#ef4444' },
-    ];
-  }, [singleRecordKPIs]);
-
-  // Hours breakdown for pie chart
-  const hoursBreakdown = useMemo(() => {
-    if (!singleRecordKPIs) return [];
-    const overtime = numericData.find(d => d.label === 'Overtime Hours')?.value || 0;
-    const regularHours = Math.max(singleRecordKPIs.actualHours - overtime, 0);
-    const result = [];
-    if (regularHours > 0) result.push({ name: 'Regular Hours', value: regularHours });
-    if (overtime > 0) result.push({ name: 'Overtime Hours', value: overtime });
-    if (singleRecordKPIs.plannedHours > singleRecordKPIs.actualHours) {
-      result.push({ name: 'Remaining', value: singleRecordKPIs.plannedHours - singleRecordKPIs.actualHours });
-    }
-    return result;
-  }, [singleRecordKPIs, numericData]);
-
   return (
     <div className="space-y-6" ref={chartContainerRef}>
       <div className="flex items-center justify-between">
