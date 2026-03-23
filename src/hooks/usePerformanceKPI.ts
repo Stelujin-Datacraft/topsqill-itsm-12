@@ -599,7 +599,7 @@ export function usePerformanceKPI(perfProjectId?: string) {
     enabled: !!projectId && !!userProfile?.id,
   });
 
-  // Fetch submissions and field mappings
+  // Fetch submissions and AUTO-DETECT field mappings from form fields
   const { data: kpiData, isLoading } = useQuery({
     queryKey: ['perf-kpi-data', projectId, perfProjectId],
     queryFn: async () => {
@@ -617,13 +617,32 @@ export function usePerformanceKPI(perfProjectId?: string) {
       if (!dsList || dsList.length === 0) return null;
 
       const ds = dsList[0];
-      const fieldMappings: FieldMapping[] = Array.isArray(ds.field_mappings)
-        ? (ds.field_mappings as any[]).map((m: any) => ({
-            formFieldId: m.formFieldId || '',
-            formFieldLabel: m.formFieldLabel || '',
-            mappedTo: m.mappedTo,
-          }))
-        : [];
+
+      // AUTO-DETECT: Fetch form field definitions to get field labels directly
+      const { data: formFields } = await supabase
+        .from('form_fields')
+        .select('id, label')
+        .eq('form_id', ds.source_form_id)
+        .order('field_order', { ascending: true });
+
+      let fieldMappings: FieldMapping[] = [];
+
+      if (formFields && formFields.length > 0) {
+        // Auto-generate mappings from form field definitions - no manual mapping needed
+        fieldMappings = formFields.map((field) => ({
+          formFieldId: field.id,
+          formFieldLabel: field.label,
+        }));
+      }
+
+      // Fallback to manual mappings if form fields not available
+      if (fieldMappings.length === 0 && Array.isArray(ds.field_mappings)) {
+        fieldMappings = (ds.field_mappings as any[]).map((m: any) => ({
+          formFieldId: m.formFieldId || '',
+          formFieldLabel: m.formFieldLabel || '',
+          mappedTo: m.mappedTo,
+        }));
+      }
 
       const { data: subs } = await supabase
         .from('form_submissions')
