@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { useProject } from '@/contexts/ProjectContext';
@@ -44,16 +45,44 @@ export default function ProjectPerformance() {
   const [activeTab, setActiveTab] = useState<string>(persisted.tab || 'dashboard');
   const [selectedPerfProject, setSelectedPerfProject] = useState<SelectedPerfProject | null>(persisted.project || null);
   const [selectedRecordId, setSelectedRecordId] = useState<string>(persisted.record || '');
+  const [stateValidated, setStateValidated] = useState(false);
 
-  // Persist state changes
+  // Validate persisted state: check if the data source still exists
   useEffect(() => {
-    if (!storageKey) return;
+    const validatePersistedState = async () => {
+      if (!selectedPerfProject?.id) {
+        setStateValidated(true);
+        return;
+      }
+
+      // Check if the perf project's data source still exists
+      const { data: dataSources } = await (supabase
+        .from('performance_data_sources')
+        .select('id') as any)
+        .eq('perf_project_id', selectedPerfProject.id)
+        .limit(1);
+
+      if (!dataSources || dataSources.length === 0) {
+        // Data source was deleted — reset to fresh state
+        setSelectedRecordId('');
+        setActiveTab('data-sources');
+        if (storageKey) localStorage.removeItem(storageKey);
+      }
+      setStateValidated(true);
+    };
+
+    validatePersistedState();
+  }, []); // Only on mount
+
+  // Persist state changes (only after validation)
+  useEffect(() => {
+    if (!storageKey || !stateValidated) return;
     localStorage.setItem(storageKey, JSON.stringify({
       tab: activeTab,
       project: selectedPerfProject,
       record: selectedRecordId,
     }));
-  }, [storageKey, activeTab, selectedPerfProject, selectedRecordId]);
+  }, [storageKey, activeTab, selectedPerfProject, selectedRecordId, stateValidated]);
 
   const perfData = usePerformanceMonitoring(selectedPerfProject?.id);
 
