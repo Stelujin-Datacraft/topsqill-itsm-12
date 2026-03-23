@@ -936,7 +936,7 @@ export function AnalyticsPanel({ perfProjectId, selectedRecordId }: Props) {
         </Card>
       )}
 
-      {/* Budget Comparison Bar Chart */}
+      {/* Financial Breakdown — Horizontal Bar */}
       {singleBudgetData.length > 0 && (
         <Card>
           <CardHeader className="pb-2">
@@ -947,12 +947,12 @@ export function AnalyticsPanel({ perfProjectId, selectedRecordId }: Props) {
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={singleBudgetData}>
+              <BarChart data={singleBudgetData} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                <YAxis tick={{ fontSize: 11 }} />
+                <XAxis type="number" tick={{ fontSize: 11 }} />
+                <YAxis type="category" dataKey="name" width={130} tick={{ fontSize: 11 }} />
                 <Tooltip formatter={(v: number) => v.toLocaleString()} />
-                <Bar dataKey="value" name="Amount" radius={[4, 4, 0, 0]}>
+                <Bar dataKey="value" name="Amount" radius={[0, 4, 4, 0]}>
                   {singleBudgetData.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
                 </Bar>
               </BarChart>
