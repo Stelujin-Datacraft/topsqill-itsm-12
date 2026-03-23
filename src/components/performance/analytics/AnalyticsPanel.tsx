@@ -706,6 +706,105 @@ export function AnalyticsPanel({ perfProjectId, selectedRecordId }: Props) {
   }
 
   // ========== SINGLE RECORD REPORT ==========
+  // Derived KPIs for single record
+  const singleRecordKPIs = useMemo(() => {
+    if (isAllRecords || numericData.length === 0) return null;
+    const getVal = (label: string) => numericData.find(d => d.label === label)?.value || 0;
+    const plannedBudget = getVal('Planned Budget');
+    const actualCost = getVal('Actual Cost');
+    const ev = getVal('Earned Value (EV)');
+    const ac = getVal('Actual Cost Value (AC)');
+    const pv = getVal('Planned Value (PV)');
+    const riskScore = getVal('Risk Score');
+    const delayDays = getVal('Predicted Delay Days');
+    const costOverrun = getVal('Predicted Cost Overrun (%)');
+    const plannedHours = getVal('Planned Hours');
+    const actualHours = getVal('Actual Hours');
+    const defectCount = getVal('Defect Count');
+
+    const cpi = ac > 0 ? ev / ac : 0;
+    const spi = pv > 0 ? ev / pv : 0;
+    const cv = ev - ac;
+    const sv = ev - pv;
+    const budgetVariance = plannedBudget > 0 ? ((actualCost - plannedBudget) / plannedBudget) * 100 : 0;
+    const eac = cpi > 0 ? plannedBudget / cpi : plannedBudget;
+    const etc = eac - actualCost;
+    const vac = plannedBudget - eac;
+    const resourceUtil = plannedHours > 0 ? (actualHours / plannedHours) * 100 : 0;
+
+    return {
+      plannedBudget, actualCost, ev, ac, pv, riskScore, delayDays, costOverrun,
+      plannedHours, actualHours, defectCount,
+      cpi: Math.round(cpi * 1000) / 1000,
+      spi: Math.round(spi * 1000) / 1000,
+      cv: Math.round(cv * 100) / 100,
+      sv: Math.round(sv * 100) / 100,
+      budgetVariance: Math.round(budgetVariance * 100) / 100,
+      eac: Math.round(eac * 100) / 100,
+      etc: Math.round(etc * 100) / 100,
+      vac: Math.round(vac * 100) / 100,
+      resourceUtil: Math.round(resourceUtil * 100) / 100,
+    };
+  }, [isAllRecords, numericData]);
+
+  // Budget breakdown for bar chart
+  const singleBudgetData = useMemo(() => {
+    if (!singleRecordKPIs) return [];
+    return [
+      { name: 'Planned Budget', value: singleRecordKPIs.plannedBudget, fill: 'hsl(var(--primary))' },
+      { name: 'Actual Cost', value: singleRecordKPIs.actualCost, fill: '#f59e0b' },
+      { name: 'EAC', value: singleRecordKPIs.eac, fill: '#8b5cf6' },
+      { name: 'ETC', value: singleRecordKPIs.etc, fill: '#06b6d4' },
+    ].filter(d => d.value > 0);
+  }, [singleRecordKPIs]);
+
+  // EVM data for area chart
+  const singleEVMData = useMemo(() => {
+    if (!singleRecordKPIs) return [];
+    return [
+      { name: 'Planned Value (PV)', value: singleRecordKPIs.pv },
+      { name: 'Earned Value (EV)', value: singleRecordKPIs.ev },
+      { name: 'Actual Cost (AC)', value: singleRecordKPIs.ac },
+    ].filter(d => d.value > 0);
+  }, [singleRecordKPIs]);
+
+  // Radar data for single record
+  const singleRadarData = useMemo(() => {
+    if (!singleRecordKPIs) return [];
+    return [
+      { metric: 'CPI', value: Math.min(singleRecordKPIs.cpi * 100, 150), fullMark: 150 },
+      { metric: 'SPI', value: Math.min(singleRecordKPIs.spi * 100, 150), fullMark: 150 },
+      { metric: 'Budget Health', value: Math.max(100 - Math.abs(singleRecordKPIs.budgetVariance), 0), fullMark: 100 },
+      { metric: 'Risk (inv)', value: Math.max(100 - singleRecordKPIs.riskScore, 0), fullMark: 100 },
+      { metric: 'Resource Util', value: Math.min(singleRecordKPIs.resourceUtil, 150), fullMark: 150 },
+      { metric: 'Quality', value: Math.max(100 - singleRecordKPIs.defectCount * 5, 0), fullMark: 100 },
+    ];
+  }, [singleRecordKPIs]);
+
+  // Variance data for bar chart
+  const varianceData = useMemo(() => {
+    if (!singleRecordKPIs) return [];
+    return [
+      { name: 'Cost Variance', value: singleRecordKPIs.cv, fill: singleRecordKPIs.cv >= 0 ? '#10b981' : '#ef4444' },
+      { name: 'Schedule Variance', value: singleRecordKPIs.sv, fill: singleRecordKPIs.sv >= 0 ? '#10b981' : '#ef4444' },
+      { name: 'VAC', value: singleRecordKPIs.vac, fill: singleRecordKPIs.vac >= 0 ? '#10b981' : '#ef4444' },
+    ];
+  }, [singleRecordKPIs]);
+
+  // Hours breakdown for pie chart
+  const hoursBreakdown = useMemo(() => {
+    if (!singleRecordKPIs) return [];
+    const overtime = numericData.find(d => d.label === 'Overtime Hours')?.value || 0;
+    const regularHours = Math.max(singleRecordKPIs.actualHours - overtime, 0);
+    const result = [];
+    if (regularHours > 0) result.push({ name: 'Regular Hours', value: regularHours });
+    if (overtime > 0) result.push({ name: 'Overtime Hours', value: overtime });
+    if (singleRecordKPIs.plannedHours > singleRecordKPIs.actualHours) {
+      result.push({ name: 'Remaining', value: singleRecordKPIs.plannedHours - singleRecordKPIs.actualHours });
+    }
+    return result;
+  }, [singleRecordKPIs, numericData]);
+
   return (
     <div className="space-y-6" ref={chartContainerRef}>
       <div className="flex items-center justify-between">
@@ -725,33 +824,128 @@ export function AnalyticsPanel({ perfProjectId, selectedRecordId }: Props) {
         />
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="pt-4 pb-3">
-            <p className="text-xs text-muted-foreground">Numeric Fields</p>
-            <p className="text-2xl font-bold text-foreground">{numericData.length}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4 pb-3">
-            <p className="text-xs text-muted-foreground">Category Fields</p>
-            <p className="text-2xl font-bold text-primary">{categoryData.length}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4 pb-3">
-            <p className="text-xs text-muted-foreground">Alerts</p>
-            <p className="text-2xl font-bold text-orange-500">{alerts.length}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4 pb-3">
-            <p className="text-xs text-muted-foreground">AI Predictions</p>
-            <p className="text-2xl font-bold text-foreground">{predictions.length}</p>
-          </CardContent>
-        </Card>
-      </div>
+      {/* KPI Summary Cards */}
+      {singleRecordKPIs && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Card className="border-l-4 border-l-primary">
+            <CardContent className="pt-4 pb-3">
+              <div className="flex items-center gap-2 mb-1">
+                <DollarSign className="h-4 w-4 text-primary" />
+                <p className="text-xs text-muted-foreground">CPI</p>
+              </div>
+              <p className={`text-2xl font-bold ${singleRecordKPIs.cpi >= 1 ? 'text-green-600' : 'text-destructive'}`}>
+                {singleRecordKPIs.cpi}
+              </p>
+              <Badge variant={singleRecordKPIs.cpi >= 1 ? 'secondary' : 'destructive'} className="text-xs mt-1">
+                {singleRecordKPIs.cpi >= 1 ? 'Under Budget' : 'Over Budget'}
+              </Badge>
+            </CardContent>
+          </Card>
+          <Card className="border-l-4 border-l-blue-500">
+            <CardContent className="pt-4 pb-3">
+              <div className="flex items-center gap-2 mb-1">
+                <Clock className="h-4 w-4 text-blue-500" />
+                <p className="text-xs text-muted-foreground">SPI</p>
+              </div>
+              <p className={`text-2xl font-bold ${singleRecordKPIs.spi >= 1 ? 'text-green-600' : 'text-destructive'}`}>
+                {singleRecordKPIs.spi}
+              </p>
+              <Badge variant={singleRecordKPIs.spi >= 1 ? 'secondary' : 'destructive'} className="text-xs mt-1">
+                {singleRecordKPIs.spi >= 1 ? 'On Schedule' : 'Behind Schedule'}
+              </Badge>
+            </CardContent>
+          </Card>
+          <Card className="border-l-4 border-l-amber-500">
+            <CardContent className="pt-4 pb-3">
+              <div className="flex items-center gap-2 mb-1">
+                <AlertTriangle className="h-4 w-4 text-amber-500" />
+                <p className="text-xs text-muted-foreground">Risk Score</p>
+              </div>
+              <p className="text-2xl font-bold text-foreground">{singleRecordKPIs.riskScore}</p>
+              <Badge variant={singleRecordKPIs.riskScore > 70 ? 'destructive' : singleRecordKPIs.riskScore > 40 ? 'secondary' : 'outline'} className="text-xs mt-1">
+                {singleRecordKPIs.riskScore > 70 ? 'High Risk' : singleRecordKPIs.riskScore > 40 ? 'Medium' : 'Low Risk'}
+              </Badge>
+            </CardContent>
+          </Card>
+          <Card className="border-l-4 border-l-green-500">
+            <CardContent className="pt-4 pb-3">
+              <div className="flex items-center gap-2 mb-1">
+                <Activity className="h-4 w-4 text-green-500" />
+                <p className="text-xs text-muted-foreground">Resource Util</p>
+              </div>
+              <p className="text-2xl font-bold text-foreground">{singleRecordKPIs.resourceUtil}%</p>
+              <Badge variant={singleRecordKPIs.resourceUtil > 100 ? 'destructive' : 'outline'} className="text-xs mt-1">
+                {singleRecordKPIs.resourceUtil > 100 ? 'Overloaded' : 'Normal'}
+              </Badge>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Financial Details Row */}
+      {singleRecordKPIs && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Card>
+            <CardContent className="pt-4 pb-3">
+              <p className="text-xs text-muted-foreground">Planned Budget</p>
+              <p className="text-lg font-bold text-foreground font-mono">{singleRecordKPIs.plannedBudget.toLocaleString()}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-4 pb-3">
+              <p className="text-xs text-muted-foreground">Actual Cost</p>
+              <p className="text-lg font-bold text-foreground font-mono">{singleRecordKPIs.actualCost.toLocaleString()}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-4 pb-3">
+              <p className="text-xs text-muted-foreground">EAC (Est. at Completion)</p>
+              <p className="text-lg font-bold text-foreground font-mono">{singleRecordKPIs.eac.toLocaleString()}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-4 pb-3">
+              <p className="text-xs text-muted-foreground">Budget Variance</p>
+              <p className={`text-lg font-bold font-mono ${singleRecordKPIs.budgetVariance <= 0 ? 'text-green-600' : 'text-destructive'}`}>
+                {singleRecordKPIs.budgetVariance > 0 ? '+' : ''}{singleRecordKPIs.budgetVariance}%
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Prediction Row */}
+      {singleRecordKPIs && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card>
+            <CardContent className="pt-4 pb-3">
+              <div className="flex items-center gap-2 mb-1">
+                <Clock className="h-4 w-4 text-muted-foreground" />
+                <p className="text-xs text-muted-foreground">Predicted Delay</p>
+              </div>
+              <p className="text-xl font-bold text-foreground">{singleRecordKPIs.delayDays} days</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-4 pb-3">
+              <div className="flex items-center gap-2 mb-1">
+                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                <p className="text-xs text-muted-foreground">Cost Overrun</p>
+              </div>
+              <p className="text-xl font-bold text-foreground">{singleRecordKPIs.costOverrun}%</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-4 pb-3">
+              <div className="flex items-center gap-2 mb-1">
+                <Activity className="h-4 w-4 text-muted-foreground" />
+                <p className="text-xs text-muted-foreground">Defect Count</p>
+              </div>
+              <p className="text-xl font-bold text-foreground">{singleRecordKPIs.defectCount}</p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Category Fields */}
       {categoryData.length > 0 && (
@@ -772,13 +966,141 @@ export function AnalyticsPanel({ perfProjectId, selectedRecordId }: Props) {
         </Card>
       )}
 
-      {/* Numeric Data Table */}
+      {/* Budget Comparison Bar Chart */}
+      {singleBudgetData.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <DollarSign className="h-4 w-4 text-primary" />
+              Financial Breakdown
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart data={singleBudgetData}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                <YAxis tick={{ fontSize: 11 }} />
+                <Tooltip formatter={(v: number) => v.toLocaleString()} />
+                <Bar dataKey="value" name="Amount" radius={[4, 4, 0, 0]}>
+                  {singleBudgetData.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* EVM Comparison + Radar side by side */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* EVM Bar Chart */}
+        {singleEVMData.length > 0 && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-primary" />
+                Earned Value Metrics
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart data={singleEVMData}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis dataKey="name" tick={{ fontSize: 9 }} angle={-15} textAnchor="end" height={50} />
+                  <YAxis tick={{ fontSize: 11 }} />
+                  <Tooltip formatter={(v: number) => v.toLocaleString()} />
+                  <Bar dataKey="value" name="Value" radius={[4, 4, 0, 0]}>
+                    <Cell fill="#8b5cf6" />
+                    <Cell fill="#10b981" />
+                    <Cell fill="#ef4444" />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Radar Chart - Record Health */}
+        {singleRadarData.length > 0 && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Activity className="h-4 w-4 text-primary" />
+                Record Health Radar
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={260}>
+                <RadarChart data={singleRadarData} cx="50%" cy="50%" outerRadius="65%">
+                  <PolarGrid className="stroke-muted" />
+                  <PolarAngleAxis dataKey="metric" tick={{ fontSize: 10 }} />
+                  <PolarRadiusAxis tick={{ fontSize: 9 }} />
+                  <Radar name="Health" dataKey="value" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.3} strokeWidth={2} />
+                  <Tooltip />
+                </RadarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      {/* Variance Analysis + Hours Breakdown side by side */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Variance Bar Chart */}
+        {varianceData.some(d => d.value !== 0) && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <BarChart3 className="h-4 w-4 text-primary" />
+                Variance Analysis
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart data={varianceData}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis dataKey="name" tick={{ fontSize: 10 }} />
+                  <YAxis tick={{ fontSize: 11 }} />
+                  <Tooltip formatter={(v: number) => v.toLocaleString()} />
+                  <Bar dataKey="value" name="Variance" radius={[4, 4, 0, 0]}>
+                    {varianceData.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Hours Breakdown Pie Chart */}
+        {hoursBreakdown.length > 0 && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Clock className="h-4 w-4 text-primary" />
+                Resource Hours Breakdown
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={260}>
+                <PieChart>
+                  <Pie data={hoursBreakdown} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={85} label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}>
+                    {hoursBreakdown.map((_, i) => <Cell key={i} fill={['#10b981', '#ef4444', '#3b82f6'][i]} />)}
+                  </Pie>
+                  <Tooltip formatter={(v: number) => v.toLocaleString()} />
+                </PieChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      {/* Full Metrics Table */}
       {numericData.length > 0 && (
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-primary" />
-              Numeric Metrics
+              All Numeric Metrics
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -804,17 +1126,17 @@ export function AnalyticsPanel({ perfProjectId, selectedRecordId }: Props) {
         </Card>
       )}
 
-      {/* Bar Chart */}
+      {/* Horizontal Bar Chart of all metrics */}
       {numericData.length > 0 && (
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
               <BarChart3 className="h-4 w-4 text-primary" />
-              Metric Values Chart
+              Metric Values Overview
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height={Math.max(300, numericData.length * 30)}>
               <BarChart data={numericData} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                 <XAxis type="number" tick={{ fontSize: 11 }} />

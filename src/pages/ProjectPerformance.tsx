@@ -15,10 +15,7 @@ import { ThresholdsConfig } from '@/components/performance/thresholds/Thresholds
 import { DataSourceConfig } from '@/components/performance/data-sources/DataSourceConfig';
 import { AnalyticsPanel } from '@/components/performance/analytics/AnalyticsPanel';
 import { ScenarioSimulator } from '@/components/performance/scenarios/ScenarioSimulator';
-import { DataQualityPanel } from '@/components/performance/data-quality/DataQualityPanel';
-import { TechnicalQuestionnaire } from '@/components/performance/questionnaire/TechnicalQuestionnaire';
-import { ProjectLocationMap } from '@/components/performance/gis/ProjectLocationMap';
-import { AlertTriangle, ArrowLeft, ClipboardCheck, Clock, Database, FlaskConical, Gauge, LineChart, MapPin, Settings2, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Clock, Database, FlaskConical, Gauge, LineChart, Settings2 } from 'lucide-react';
 
 interface SelectedPerfProject {
   id: string;
@@ -144,15 +141,6 @@ export default function ProjectPerformance() {
           <TabsTrigger value="scenarios" className="gap-1.5 text-xs">
             <FlaskConical className="h-3.5 w-3.5" />What-If
           </TabsTrigger>
-          <TabsTrigger value="data-quality" className="gap-1.5 text-xs">
-            <ShieldCheck className="h-3.5 w-3.5" />Quality
-          </TabsTrigger>
-          <TabsTrigger value="gis" className="gap-1.5 text-xs">
-            <MapPin className="h-3.5 w-3.5" />GIS
-          </TabsTrigger>
-          <TabsTrigger value="questionnaire" className="gap-1.5 text-xs">
-            <ClipboardCheck className="h-3.5 w-3.5" />Assessment
-          </TabsTrigger>
           <TabsTrigger value="activity-log" className="gap-1.5 text-xs">
             <Clock className="h-3.5 w-3.5" />Activity
           </TabsTrigger>
@@ -184,15 +172,6 @@ export default function ProjectPerformance() {
         </TabsContent>
         <TabsContent value="scenarios">
           <ScenarioSimulator perfProjectId={selectedPerfProject.id} selectedRecordId={selectedRecordId} />
-        </TabsContent>
-        <TabsContent value="data-quality">
-          <DataQualityPanel perfProjectId={selectedPerfProject.id} selectedRecordId={selectedRecordId} />
-        </TabsContent>
-        <TabsContent value="gis">
-          <ProjectLocationMap perfProjectId={selectedPerfProject.id} />
-        </TabsContent>
-        <TabsContent value="questionnaire">
-          <TechnicalQuestionnaire perfProjectId={selectedPerfProject.id} />
         </TabsContent>
         <TabsContent value="activity-log">
           <PerformanceActivityLog alerts={perfData.alerts} thresholds={perfData.thresholds} loading={perfData.loading} perfProjectId={selectedPerfProject.id} />
