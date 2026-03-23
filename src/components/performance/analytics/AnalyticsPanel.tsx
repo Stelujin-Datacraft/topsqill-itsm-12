@@ -54,22 +54,37 @@ export function AnalyticsPanel({ perfProjectId, selectedRecordId }: Props) {
   });
 
   const formId = dataSources[0]?.source_form_id;
+  const isAllRecords = selectedRecordId === '__all__';
 
-  // Fetch selected submission only
-  const { data: submission } = useQuery({
-    queryKey: ['perf-analytics-submission', selectedRecordId],
+  // Fetch submissions - single or all
+  const { data: submissions = [] } = useQuery({
+    queryKey: ['perf-analytics-submissions', selectedRecordId, formId],
     queryFn: async () => {
-      if (!selectedRecordId) return null;
-      const { data, error } = await supabase
-        .from('form_submissions')
-        .select('id, submission_data, submitted_at, submission_ref_id')
-        .eq('id', selectedRecordId)
-        .single();
-      if (error) throw error;
-      return data;
+      if (!formId) return [];
+      if (isAllRecords) {
+        const { data, error } = await supabase
+          .from('form_submissions')
+          .select('id, submission_data, submitted_at, submission_ref_id')
+          .eq('form_id', formId)
+          .order('submitted_at', { ascending: false })
+          .limit(500);
+        if (error) throw error;
+        return data || [];
+      } else {
+        if (!selectedRecordId) return [];
+        const { data, error } = await supabase
+          .from('form_submissions')
+          .select('id, submission_data, submitted_at, submission_ref_id')
+          .eq('id', selectedRecordId)
+          .single();
+        if (error) throw error;
+        return data ? [data] : [];
+      }
     },
-    enabled: !!selectedRecordId,
+    enabled: !!formId && !!selectedRecordId,
   });
+
+  const submission = submissions.length === 1 ? submissions[0] : null;
 
   // Fetch form fields
   const { data: formFields = [] } = useQuery({
