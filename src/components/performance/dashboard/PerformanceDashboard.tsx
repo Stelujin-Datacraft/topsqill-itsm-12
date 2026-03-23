@@ -127,7 +127,7 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
   }, [propSelectedRecordId]);
 
   const recordOptions = useMemo(() => {
-    return submissions.map((sub: any) => {
+    const options = submissions.map((sub: any) => {
       const data = sub.submission_data || {};
       const nameMapping = mappings.find(m =>
         m.formFieldLabel.toLowerCase().includes('project_name') ||
@@ -143,10 +143,26 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
       const refId = sub.submission_ref_id || sub.id?.slice(0, 8) || '';
       return { id: sub.id, label: label ? `${refId} — ${label}` : refId };
     });
+    return options;
   }, [submissions, mappings]);
+
+  const isAllRecords = selectedRecordId === '__all__';
 
   const computedKPIs = useMemo(() => {
     if (submissions.length === 0 || !selectedRecordId) return null;
+
+    if (isAllRecords) {
+      // Aggregated KPIs across all submissions
+      return {
+        seniorKPIs: calculateSeniorManagementKPIs(submissions, mappings),
+        pmKPIs: aggregateProjectManagerKPIs(submissions, mappings),
+        engineerKPIs: calculateDisciplineEngineerKPIs(submissions, mappings, userProfile?.id),
+        financeKPIs: calculateFinanceKPIs(submissions, mappings),
+        riskKPIs: calculateRiskGovernanceKPIs(submissions, mappings),
+        alerts: generateKPIAlerts(submissions, mappings),
+      };
+    }
+
     const selectedSub = submissions.find((s: any) => s.id === selectedRecordId);
     if (!selectedSub) return null;
     const singleArr = [selectedSub];
@@ -158,7 +174,7 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
       riskKPIs: calculateRiskGovernanceKPIs(singleArr, mappings),
       alerts: generateKPIAlerts(singleArr, mappings),
     };
-  }, [submissions, mappings, selectedRecordId, userProfile?.id]);
+  }, [submissions, mappings, selectedRecordId, userProfile?.id, isAllRecords]);
 
   const runAIAnalysis = async (submissionId: string) => {
     if (!submissionId || !projectId || !perfProjectId) return;
