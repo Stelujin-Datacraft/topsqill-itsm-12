@@ -936,7 +936,7 @@ export function AnalyticsPanel({ perfProjectId, selectedRecordId }: Props) {
         </Card>
       )}
 
-      {/* Budget Comparison Bar Chart */}
+      {/* Financial Breakdown — Horizontal Bar */}
       {singleBudgetData.length > 0 && (
         <Card>
           <CardHeader className="pb-2">
@@ -947,12 +947,12 @@ export function AnalyticsPanel({ perfProjectId, selectedRecordId }: Props) {
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={singleBudgetData}>
+              <BarChart data={singleBudgetData} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                <YAxis tick={{ fontSize: 11 }} />
+                <XAxis type="number" tick={{ fontSize: 11 }} />
+                <YAxis type="category" dataKey="name" width={130} tick={{ fontSize: 11 }} />
                 <Tooltip formatter={(v: number) => v.toLocaleString()} />
-                <Bar dataKey="value" name="Amount" radius={[4, 4, 0, 0]}>
+                <Bar dataKey="value" name="Amount" radius={[0, 4, 4, 0]}>
                   {singleBudgetData.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
                 </Bar>
               </BarChart>
@@ -963,7 +963,7 @@ export function AnalyticsPanel({ perfProjectId, selectedRecordId }: Props) {
 
       {/* EVM Comparison + Radar side by side */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* EVM Bar Chart */}
+        {/* EVM — Area Chart */}
         {singleEVMData.length > 0 && (
           <Card>
             <CardHeader className="pb-2">
@@ -974,17 +974,13 @@ export function AnalyticsPanel({ perfProjectId, selectedRecordId }: Props) {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={260}>
-                <BarChart data={singleEVMData}>
+                <AreaChart data={singleEVMData}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis dataKey="name" tick={{ fontSize: 9 }} angle={-15} textAnchor="end" height={50} />
+                  <XAxis dataKey="name" tick={{ fontSize: 10 }} />
                   <YAxis tick={{ fontSize: 11 }} />
                   <Tooltip formatter={(v: number) => v.toLocaleString()} />
-                  <Bar dataKey="value" name="Value" radius={[4, 4, 0, 0]}>
-                    <Cell fill="#8b5cf6" />
-                    <Cell fill="#10b981" />
-                    <Cell fill="#ef4444" />
-                  </Bar>
-                </BarChart>
+                  <Area type="monotone" dataKey="value" name="Value" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.2} strokeWidth={2} />
+                </AreaChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
@@ -1016,7 +1012,7 @@ export function AnalyticsPanel({ perfProjectId, selectedRecordId }: Props) {
 
       {/* Variance Analysis + Hours Breakdown side by side */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Variance Bar Chart */}
+        {/* Variance — Line Chart with markers */}
         {varianceData.some(d => d.value !== 0) && (
           <Card>
             <CardHeader className="pb-2">
@@ -1027,15 +1023,13 @@ export function AnalyticsPanel({ perfProjectId, selectedRecordId }: Props) {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={260}>
-                <BarChart data={varianceData}>
+                <LineChart data={varianceData}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                   <XAxis dataKey="name" tick={{ fontSize: 10 }} />
                   <YAxis tick={{ fontSize: 11 }} />
                   <Tooltip formatter={(v: number) => v.toLocaleString()} />
-                  <Bar dataKey="value" name="Variance" radius={[4, 4, 0, 0]}>
-                    {varianceData.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
-                  </Bar>
-                </BarChart>
+                  <Line type="monotone" dataKey="value" name="Variance" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 5, fill: 'hsl(var(--primary))' }} activeDot={{ r: 7 }} />
+                </LineChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
