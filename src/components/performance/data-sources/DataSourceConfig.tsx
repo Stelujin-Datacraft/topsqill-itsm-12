@@ -135,11 +135,12 @@ export function DataSourceConfig({ perfProjectId, perfFormId }: DataSourceConfig
     enabled: !!projectId,
   });
 
-  // Load form fields when form is selected
+  // Load form fields when form is selected - auto-select all fields
   useEffect(() => {
     if (!selectedFormId) {
       setFormFields([]);
       setCrossRefFields([]);
+      setFieldMappings([]);
       return;
     }
     setLoadingFields(true);
@@ -161,6 +162,22 @@ export function DataSourceConfig({ perfProjectId, perfFormId }: DataSourceConfig
         setCrossRefFields(fields.filter(f =>
           f.type === 'cross-reference' || f.type === 'child-cross-reference'
         ));
+        // Auto-select all non-layout fields
+        const autoMappings = fields
+          .filter(f => !['cross-reference', 'child-cross-reference', 'section', 'divider', 'heading', 'spacer'].includes(f.type))
+          .map(f => {
+            const isNumeric = ['number', 'slider', 'currency'].includes(f.type);
+            const isDate = ['date', 'datetime', 'time'].includes(f.type);
+            return {
+              formFieldId: f.id,
+              formFieldLabel: f.label,
+              formFieldType: f.type,
+              metricRole: isDate ? 'date_field' : isNumeric ? 'numeric_metric' : 'category',
+              aggregation: isNumeric ? 'sum' : 'count',
+              label: f.label,
+            };
+          });
+        setFieldMappings(autoMappings);
       });
   }, [selectedFormId]);
 
@@ -380,92 +397,23 @@ export function DataSourceConfig({ perfProjectId, perfFormId }: DataSourceConfig
                     </div>
                   </div>
 
-                  {/* Step 3: Map Fields */}
-                  <div className="space-y-3">
-                    <Label className="text-sm font-medium">3. Map Fields for Analysis</Label>
-                    <p className="text-xs text-muted-foreground">
-                      Select which form fields should be analyzed. Numeric fields become metrics, text fields become categories.
-                    </p>
-
-                    {/* Available fields */}
-                    {unmappedFields.length > 0 && (
-                      <div className="flex flex-wrap gap-2">
-                        {unmappedFields.map(f => (
-                          <Button
-                            key={f.id}
-                            variant="outline"
-                            size="sm"
-                            onClick={() => addFieldMapping(f)}
-                            className="text-xs"
-                          >
-                            <Plus className="h-3 w-3 mr-1" />
-                            {f.label}
-                            <Badge variant="secondary" className="ml-1 text-[10px]">{f.type}</Badge>
-                          </Button>
-                          ))}
-                      </div>
-                    )}
-
-                    {/* Mapped fields */}
-                    {fieldMappings.length > 0 && (
-                      <div className="space-y-2">
+                  {/* Auto-mapped fields summary */}
+                  {fieldMappings.length > 0 && (
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">3. Fields Auto-Mapped</Label>
+                      <p className="text-xs text-muted-foreground">
+                        All {fieldMappings.length} fields from this form have been automatically selected for analysis.
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
                         {fieldMappings.map(mapping => (
-                          <Card key={mapping.formFieldId} className="bg-muted/30">
-                            <CardContent className="py-3 px-4">
-                              <div className="flex items-center gap-3">
-                                <div className="flex-1 grid grid-cols-4 gap-2 items-center">
-                                  <div>
-                                    <p className="text-xs font-medium text-foreground">{mapping.formFieldLabel}</p>
-                                    <Badge variant="secondary" className="text-[10px]">{mapping.formFieldType}</Badge>
-                                  </div>
-                                  <Select
-                                    value={mapping.metricRole}
-                                    onValueChange={v => updateMapping(mapping.formFieldId, 'metricRole', v)}
-                                  >
-                                    <SelectTrigger className="h-8 text-xs">
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {METRIC_ROLES.map(r => (
-                                        <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                  <Select
-                                    value={mapping.aggregation}
-                                    onValueChange={v => updateMapping(mapping.formFieldId, 'aggregation', v)}
-                                  >
-                                    <SelectTrigger className="h-8 text-xs">
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {AGGREGATIONS.map(a => (
-                                        <SelectItem key={a.value} value={a.value}>{a.label}</SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                  <Input
-                                    className="h-8 text-xs"
-                                    value={mapping.label}
-                                    onChange={e => updateMapping(mapping.formFieldId, 'label', e.target.value)}
-                                    placeholder="Display label"
-                                  />
-                                </div>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-7 w-7 text-destructive"
-                                  onClick={() => removeFieldMapping(mapping.formFieldId)}
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </Button>
-                              </div>
-                            </CardContent>
-                          </Card>
+                          <Badge key={mapping.formFieldId} variant="secondary" className="text-xs">
+                            {mapping.formFieldLabel}
+                            <span className="ml-1 text-muted-foreground">({mapping.formFieldType})</span>
+                          </Badge>
                         ))}
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
 
                   {/* Submit */}
                   <Button

@@ -97,11 +97,11 @@ export default function ProjectPerformance() {
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="bg-muted/50 flex-wrap h-auto gap-1 p-1">
-          <TabsTrigger value="dashboard" className="gap-1.5 text-xs">
-            <Gauge className="h-3.5 w-3.5" />Performance Dashboard
-          </TabsTrigger>
           <TabsTrigger value="data-sources" className="gap-1.5 text-xs">
             <Database className="h-3.5 w-3.5" />Data Sources
+          </TabsTrigger>
+          <TabsTrigger value="dashboard" className="gap-1.5 text-xs">
+            <Gauge className="h-3.5 w-3.5" />Performance Dashboard
           </TabsTrigger>
           <TabsTrigger value="alerts" className="gap-1.5 text-xs">
             <AlertTriangle className="h-3.5 w-3.5" />Alerts
