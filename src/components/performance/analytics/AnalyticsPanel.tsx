@@ -792,8 +792,7 @@ export function AnalyticsPanel({ perfProjectId, selectedRecordId }: Props) {
     );
   }
 
-
-
+  // ========== SINGLE RECORD REPORT ==========
   return (
     <div className="space-y-6" ref={chartContainerRef}>
       <div className="flex items-center justify-between">
