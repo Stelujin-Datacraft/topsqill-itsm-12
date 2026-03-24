@@ -271,8 +271,8 @@ export function RecordDetailView({
       const etc = eac > 0 ? eac - actual : 0;
       const vac = eac > 0 ? budget - eac : 0;
       const costVariance = ev - ac;
-      const costVariancePct = budget > 0 ? ((ev - ac) / budget) * 100 : 0;
-      const scheduleVariancePct = pv > 0 ? ((ev - pv) / pv) * 100 : 0;
+      const costVariancePct = ev > 0 ? ((ev - ac) / ev) * 100 : 0;
+      const scheduleVariancePct = ev > 0 ? ((ev - pv) / ev) * 100 : 0;
       const onTimeRate = totalTasks > 0 ? ((totalTasks - delayedTasks) / totalTasks) * 100 : 0;
       const forecastForOverrun = forecast > 0 ? forecast : eac;
       const predictedCostOverrun = budget > 0 && forecastForOverrun > 0 ? ((forecastForOverrun - budget) / budget) * 100 : 0;
