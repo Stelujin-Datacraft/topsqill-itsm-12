@@ -507,7 +507,7 @@ export function RecordDetailView({
           { metric: 'Task %', value: taskProgress },
           { metric: 'Utilization', value: Math.min(util, 100) },
           { metric: 'Productivity', value: Math.min(productivity * 50, 100) },
-          { metric: 'Quality', value: wbsTasks.length > 0 ? Math.max(0, 100 - (totalDefects / wbsTasks.length) * 100) : 100 },
+          { metric: 'Quality', value: (wbsTasks.length + totalDefects) > 0 ? (1 - (totalDefects / (wbsTasks.length + totalDefects))) * 100 : 100 },
         ],
       });
     }
