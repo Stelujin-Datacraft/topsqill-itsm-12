@@ -51,6 +51,7 @@ export interface PerformanceThreshold {
   form_field_id?: string;
   form_field_label?: string;
   data_limit?: number;
+  notify_role_ids?: string[];
 }
 
 export interface AIAnalysis {
