@@ -597,7 +597,7 @@ export function useHierarchyKPI(selectedProjectId?: string) {
   const kpis = useMemo(() => {
     if (projects.length === 0) return null;
 
-    const selectedProject = selectedProjectId
+    const selectedProject = (selectedProjectId && selectedProjectId !== '__all__')
       ? projects.find(p => p.id === selectedProjectId)
       : null;
 
