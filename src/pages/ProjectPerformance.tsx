@@ -127,10 +127,7 @@ export default function ProjectPerformance() {
             <Database className="h-3.5 w-3.5" />Data Sources
           </TabsTrigger>
           <TabsTrigger value="dashboard" className="gap-1.5 text-xs">
-            <Gauge className="h-3.5 w-3.5" />Performance Dashboard
-          </TabsTrigger>
-          <TabsTrigger value="hierarchy-kpi" className="gap-1.5 text-xs">
-            <Network className="h-3.5 w-3.5" />Hierarchy KPI
+            <Gauge className="h-3.5 w-3.5" />KPI Dashboard
           </TabsTrigger>
           <TabsTrigger value="alerts" className="gap-1.5 text-xs">
             <AlertTriangle className="h-3.5 w-3.5" />Alerts
@@ -150,19 +147,15 @@ export default function ProjectPerformance() {
         </TabsList>
 
         <TabsContent value="dashboard">
-          <PerformanceDashboard
+          <KPIDashboardTab
             perfProjectId={selectedPerfProject.id}
             alerts={perfData.alerts}
             predictions={perfData.predictions}
             thresholds={perfData.thresholds}
-            loading={perfData.loading}
-            onNavigateToThresholds={() => setActiveTab('thresholds')}
             selectedRecordId={selectedRecordId}
             onRecordChange={setSelectedRecordId}
+            onNavigateToThresholds={() => setActiveTab('thresholds')}
           />
-        </TabsContent>
-        <TabsContent value="hierarchy-kpi">
-          <KPIDashboardTab perfProjectId={selectedPerfProject.id} />
         </TabsContent>
         <TabsContent value="data-sources">
           <DataSourceConfig perfProjectId={selectedPerfProject.id} perfFormId={selectedPerfProject.form_id || undefined} />
