@@ -142,9 +142,9 @@ export function CurrencyField({ field, value, onChange, error, disabled }: Curre
       </div>
 
       {/* Currency conversion info */}
-      {baseAmount > 0 && currency !== 'USD' && (
+      {baseAmount > 0 && currency !== 'INR' && (
         <p className="text-xs text-gray-500 mt-1">
-          ≈ ${formatAmount(baseAmount)} USD
+          ≈ ₹{formatAmount(baseAmount * (CURRENCIES.find(c => c.code === 'INR')?.rate || 74))} INR
         </p>
       )}
 
