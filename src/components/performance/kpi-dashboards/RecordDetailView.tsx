@@ -427,8 +427,8 @@ export function RecordDetailView({
         totalPlanned += asNum(a.submission_data?.[FIELDS.activityPlannedHours]);
         totalActual += asNum(a.submission_data?.[FIELDS.activityActualHours]);
       });
-      const util = totalPlanned > 0 ? (totalActual / totalPlanned) * 100 : 0;
-      const productivity = totalActual > 0 ? totalPlanned / totalActual : 0;
+      const util = (totalActual / (totalPlanned + 0.0001)) * 100;
+      const productivity = totalPlanned > 0 ? totalActual / totalPlanned : 0;
 
       // Aggregate tasks under this WBS's activities
       const activityRefs = new Set(childRecords.map(a => a.submission_ref_id));
