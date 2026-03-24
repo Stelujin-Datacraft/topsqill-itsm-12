@@ -1,0 +1,606 @@
+import React, { useMemo } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { ChevronRight, TrendingUp, TrendingDown, DollarSign, Clock, Users, CheckCircle2, AlertTriangle, BarChart3 } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, AreaChart, Area, CartesianGrid, Legend } from 'recharts';
+import { CROSSREF_FIELDS } from '@/hooks/useHierarchyKPI';
+
+// ========================
+// FIELD IDS (same as HierarchyDrilldownPanel)
+// ========================
+const FIELDS = {
+  projectName: 'b1000001-0002-0000-0000-000000000001',
+  projectStatus: 'b1000001-0010-0000-0000-000000000001',
+  plannedBudget: 'b1000001-0011-0000-0000-000000000001',
+  actualCost: 'b1000001-0012-0000-0000-000000000001',
+  forecastedCost: 'b1000001-0013-0000-0000-000000000001',
+  earnedValue: 'b1000001-0014-0000-0000-000000000001',
+  plannedValue: 'b1000001-0015-0000-0000-000000000001',
+  actualCostValue: 'b1000001-0016-0000-0000-000000000001',
+  riskScore: 'b1000001-0017-0000-0000-000000000001',
+  predictedDelay: 'b1000001-0018-0000-0000-000000000001',
+  startDate: 'b1000001-0007-0000-0000-000000000001',
+  endDatePlanned: 'b1000001-0008-0000-0000-000000000001',
+  endDateActual: 'b1000001-0009-0000-0000-000000000001',
+  wbsName: 'b2000001-0004-0000-0000-000000000001',
+  wbsStatus: 'b2000001-0011-0000-0000-000000000001',
+  activityName: 'b3000001-0003-0000-0000-000000000001',
+  activityStatus: 'b3000001-0010-0000-0000-000000000001',
+  activityPlannedHours: 'b3000001-0011-0000-0000-000000000001',
+  activityActualHours: 'b3000001-0012-0000-0000-000000000001',
+  taskName: 'b4000001-0003-0000-0000-000000000001',
+  taskStatus: 'b4000001-0005-0000-0000-000000000001',
+  taskPlannedEnd: 'b4000001-0007-0000-0000-000000000001',
+  taskActualEnd: 'b4000001-0009-0000-0000-000000000001',
+  taskPlannedHours: 'b4000001-0010-0000-0000-000000000001',
+  taskActualHours: 'b4000001-0011-0000-0000-000000000001',
+  taskDefectCount: 'b4000001-0015-0000-0000-000000000001',
+  resourceName: 'b5000001-0004-0000-0000-000000000001',
+  resourceRole: 'b5000001-0005-0000-0000-000000000001',
+  plannedHours: 'b5000001-0008-0000-0000-000000000001',
+  actualHours: 'b5000001-0009-0000-0000-000000000001',
+  overtimeHours: 'b5000001-0010-0000-0000-000000000001',
+};
+
+type HierarchyLevel = 'project' | 'wbs' | 'activity' | 'task' | 'resource';
+
+interface RecordDetailViewProps {
+  record: any;
+  level: HierarchyLevel;
+  childRecords: any[];
+  childLevel: HierarchyLevel | null;
+  onSelectChild: (record: any, level: HierarchyLevel) => void;
+  // For resolving grandchild counts
+  allActivities?: any[];
+  allTasks?: any[];
+  allResources?: any[];
+}
+
+// ========================
+// HELPERS
+// ========================
+function asText(v: any): string {
+  if (v == null) return '';
+  if (typeof v === 'object') return String(v.label || v.value || '');
+  return String(v);
+}
+
+function asNum(v: any): number {
+  if (v == null || v === '') return 0;
+  if (typeof v === 'number') return v;
+  if (typeof v === 'object') return Number(v.amount || v.value || 0) || 0;
+  return Number(v) || 0;
+}
+
+function isCompleted(s: any): boolean {
+  const n = asText(s).toLowerCase().replace(/[\s_-]+/g, '');
+  return n === 'completed' || n === 'complete' || n === 'done' || n === 'closed';
+}
+
+function dateDiff(a: string, b: string): number {
+  if (!a || !b) return 0;
+  const da = new Date(a), db = new Date(b);
+  if (isNaN(da.getTime()) || isNaN(db.getTime())) return 0;
+  return Math.round((da.getTime() - db.getTime()) / 86400000);
+}
+
+function extractRefIds(v: any): string[] {
+  if (!v) return [];
+  if (Array.isArray(v)) return v.map((i: any) => i?.submission_ref_id || (typeof i === 'string' ? i : null)).filter(Boolean);
+  if (typeof v === 'string') return v.split(',').map(s => s.trim()).filter(Boolean);
+  return [];
+}
+
+const CHART_COLORS = [
+  'hsl(var(--primary))',
+  'hsl(var(--chart-2, 150 60% 45%))',
+  'hsl(var(--chart-3, 45 90% 55%))',
+  'hsl(var(--chart-4, 0 70% 55%))',
+  'hsl(var(--chart-5, 270 60% 55%))',
+  'hsl(var(--accent))',
+];
+
+// ========================
+// KPI CARD
+// ========================
+function KPICard({ label, value, unit, icon: Icon, trend }: {
+  label: string; value: string | number; unit?: string;
+  icon?: any; trend?: 'up' | 'down' | 'neutral';
+}) {
+  return (
+    <Card className="relative overflow-hidden">
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">{label}</p>
+            <p className="text-2xl font-bold text-foreground mt-1">
+              {typeof value === 'number' ? (Number.isInteger(value) ? value.toLocaleString() : value.toFixed(2)) : value}
+              {unit && <span className="text-sm font-normal text-muted-foreground ml-0.5">{unit}</span>}
+            </p>
+          </div>
+          {Icon && (
+            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+              <Icon className="h-5 w-5 text-primary" />
+            </div>
+          )}
+        </div>
+        {trend && (
+          <div className={`absolute top-0 left-0 w-1 h-full ${trend === 'up' ? 'bg-emerald-500' : trend === 'down' ? 'bg-destructive' : 'bg-muted'}`} />
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ========================
+// CHILD RECORD ROW
+// ========================
+function ChildRecordRow({ record, level, onClick, metrics }: {
+  record: any; level: HierarchyLevel; onClick: () => void;
+  metrics: { label: string; value: string; variant?: string }[];
+}) {
+  const d = record.submission_data || {};
+  const nameFieldMap: Record<HierarchyLevel, string> = {
+    project: FIELDS.projectName,
+    wbs: FIELDS.wbsName,
+    activity: FIELDS.activityName,
+    task: FIELDS.taskName,
+    resource: FIELDS.resourceName,
+  };
+  const statusFieldMap: Record<HierarchyLevel, string> = {
+    project: FIELDS.projectStatus,
+    wbs: FIELDS.wbsStatus,
+    activity: FIELDS.activityStatus,
+    task: FIELDS.taskStatus,
+    resource: FIELDS.resourceRole,
+  };
+
+  const name = asText(d[nameFieldMap[level]]) || record.submission_ref_id || 'Record';
+  const status = asText(d[statusFieldMap[level]]);
+  const isLeaf = level === 'resource';
+
+  return (
+    <div
+      className={`group flex items-center justify-between gap-3 p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors ${isLeaf ? '' : 'cursor-pointer'}`}
+      onClick={isLeaf ? undefined : onClick}
+    >
+      <div className="flex items-center gap-3 min-w-0">
+        <div className="flex flex-col min-w-0">
+          <p className="font-medium text-sm text-foreground truncate">
+            <span className="text-muted-foreground font-mono text-xs mr-1.5">{record.submission_ref_id}</span>
+            {name}
+          </p>
+          {status && <Badge variant="outline" className="w-fit mt-1 text-[10px]">{status}</Badge>}
+        </div>
+      </div>
+      <div className="flex items-center gap-2 shrink-0">
+        {metrics.map((m, i) => (
+          <div key={i} className={`text-right ${m.variant === 'danger' ? 'text-destructive' : m.variant === 'success' ? 'text-emerald-600' : 'text-muted-foreground'}`}>
+            <p className="text-[10px] text-muted-foreground">{m.label}</p>
+            <p className="text-xs font-bold">{m.value}</p>
+          </div>
+        ))}
+        {!isLeaf && (
+          <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ========================
+// MAIN COMPONENT
+// ========================
+export function RecordDetailView({
+  record, level, childRecords, childLevel, onSelectChild,
+  allActivities = [], allTasks = [], allResources = [],
+}: RecordDetailViewProps) {
+  const d = record.submission_data || {};
+
+  // Compute level-specific KPIs and charts
+  const { kpiCards, charts, childMetrics } = useMemo(() => {
+    const kpiCards: { label: string; value: any; unit?: string; icon?: any; trend?: 'up' | 'down' | 'neutral' }[] = [];
+    const charts: { title: string; type: string; data: any[]; dataKeys?: string[] }[] = [];
+
+    if (level === 'project') {
+      const budget = asNum(d[FIELDS.plannedBudget]);
+      const actual = asNum(d[FIELDS.actualCost]);
+      const ev = asNum(d[FIELDS.earnedValue]);
+      const pv = asNum(d[FIELDS.plannedValue]);
+      const ac = asNum(d[FIELDS.actualCostValue]);
+      const forecast = asNum(d[FIELDS.forecastedCost]);
+      const risk = asNum(d[FIELDS.riskScore]);
+      const predDelay = asNum(d[FIELDS.predictedDelay]);
+      const cpi = ac > 0 ? ev / ac : 0;
+      const spi = pv > 0 ? ev / pv : 0;
+      const budgetUtil = budget > 0 ? (actual / budget) * 100 : 0;
+      const eac = cpi > 0 ? budget / cpi : 0;
+
+      // Count child stats
+      const totalWbs = childRecords.length;
+      const totalActivities = allActivities.length;
+      const totalTasks = allTasks.length;
+      const completedTasks = allTasks.filter(t => isCompleted(t.submission_data?.[FIELDS.taskStatus])).length;
+      const progress = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
+
+      kpiCards.push(
+        { label: 'Budget', value: budget, icon: DollarSign },
+        { label: 'Actual Cost', value: actual, icon: DollarSign, trend: actual > budget ? 'down' : 'up' },
+        { label: 'CPI', value: cpi, icon: TrendingUp, trend: cpi >= 1 ? 'up' : cpi >= 0.9 ? 'neutral' : 'down' },
+        { label: 'SPI', value: spi, icon: TrendingUp, trend: spi >= 1 ? 'up' : spi >= 0.9 ? 'neutral' : 'down' },
+        { label: 'Progress', value: progress, unit: '%', icon: CheckCircle2, trend: progress >= 75 ? 'up' : progress >= 50 ? 'neutral' : 'down' },
+        { label: 'Budget Util', value: budgetUtil, unit: '%', icon: BarChart3 },
+        { label: 'EAC', value: eac, icon: DollarSign },
+        { label: 'Risk Score', value: risk, icon: AlertTriangle, trend: risk > 70 ? 'down' : risk > 40 ? 'neutral' : 'up' },
+        { label: 'Pred. Delay', value: predDelay, unit: 'd', icon: Clock },
+      );
+
+      // Budget vs Cost chart
+      charts.push({
+        title: 'Budget vs Actual vs Forecast',
+        type: 'bar',
+        data: [
+          { name: 'Planned', value: budget },
+          { name: 'Actual', value: actual },
+          { name: 'Forecast', value: forecast },
+          { name: 'EAC', value: eac },
+        ],
+      });
+
+      // EVM chart
+      charts.push({
+        title: 'Earned Value Metrics',
+        type: 'bar',
+        data: [
+          { name: 'EV', value: ev },
+          { name: 'PV', value: pv },
+          { name: 'AC', value: ac },
+        ],
+      });
+
+      // WBS Progress chart
+      if (childRecords.length > 0) {
+        const activitiesByRef = new Map(allActivities.map(a => [a.submission_ref_id, a]));
+        const wbsChartData = childRecords.map(wbs => {
+          const wd = wbs.submission_data || {};
+          const refs = extractRefIds(wd[CROSSREF_FIELDS.WBS_TO_ACTIVITIES]);
+          const linked = refs.map(r => activitiesByRef.get(r)).filter(Boolean);
+          const comp = linked.filter(a => isCompleted(a.submission_data?.[FIELDS.activityStatus])).length;
+          return {
+            name: asText(wd[FIELDS.wbsName]) || wbs.submission_ref_id || 'WBS',
+            completed: comp,
+            total: linked.length,
+            progress: linked.length > 0 ? Math.round((comp / linked.length) * 100) : 0,
+          };
+        });
+        charts.push({ title: 'WBS Progress', type: 'progress-bar', data: wbsChartData, dataKeys: ['progress'] });
+      }
+
+      // Task status distribution
+      if (allTasks.length > 0) {
+        const statusMap: Record<string, number> = {};
+        allTasks.forEach(t => {
+          const s = asText(t.submission_data?.[FIELDS.taskStatus]) || 'Unknown';
+          statusMap[s] = (statusMap[s] || 0) + 1;
+        });
+        charts.push({
+          title: 'Task Status Distribution',
+          type: 'pie',
+          data: Object.entries(statusMap).map(([name, value]) => ({ name, value })),
+        });
+      }
+    }
+
+    if (level === 'wbs') {
+      const completedAct = childRecords.filter(a => isCompleted(a.submission_data?.[FIELDS.activityStatus])).length;
+      const progress = childRecords.length > 0 ? (completedAct / childRecords.length) * 100 : 0;
+      let totalPlanned = 0, totalActual = 0;
+      childRecords.forEach(a => {
+        totalPlanned += asNum(a.submission_data?.[FIELDS.activityPlannedHours]);
+        totalActual += asNum(a.submission_data?.[FIELDS.activityActualHours]);
+      });
+      const util = totalPlanned > 0 ? (totalActual / totalPlanned) * 100 : 0;
+
+      kpiCards.push(
+        { label: 'Activities', value: childRecords.length, icon: BarChart3 },
+        { label: 'Completed', value: completedAct, icon: CheckCircle2, trend: 'up' },
+        { label: 'Progress', value: progress, unit: '%', icon: TrendingUp, trend: progress >= 75 ? 'up' : 'neutral' },
+        { label: 'Planned Hours', value: totalPlanned, icon: Clock },
+        { label: 'Actual Hours', value: totalActual, icon: Clock, trend: totalActual > totalPlanned ? 'down' : 'up' },
+        { label: 'Utilization', value: util, unit: '%', icon: Users },
+      );
+
+      // Activity hours comparison
+      if (childRecords.length > 0) {
+        charts.push({
+          title: 'Activity Hours: Planned vs Actual',
+          type: 'bar-compare',
+          data: childRecords.map(a => ({
+            name: asText(a.submission_data?.[FIELDS.activityName]) || a.submission_ref_id,
+            planned: asNum(a.submission_data?.[FIELDS.activityPlannedHours]),
+            actual: asNum(a.submission_data?.[FIELDS.activityActualHours]),
+          })),
+          dataKeys: ['planned', 'actual'],
+        });
+      }
+    }
+
+    if (level === 'activity') {
+      const completedTasks = childRecords.filter(t => isCompleted(t.submission_data?.[FIELDS.taskStatus])).length;
+      const progress = childRecords.length > 0 ? (completedTasks / childRecords.length) * 100 : 0;
+      let totalDefects = 0, totalDelay = 0, tPlanned = 0, tActual = 0;
+      childRecords.forEach(t => {
+        const td = t.submission_data || {};
+        totalDefects += asNum(td[FIELDS.taskDefectCount]);
+        tPlanned += asNum(td[FIELDS.taskPlannedHours]);
+        tActual += asNum(td[FIELDS.taskActualHours]);
+        const pe = asText(td[FIELDS.taskPlannedEnd]);
+        const ae = asText(td[FIELDS.taskActualEnd]);
+        if (pe && ae) { const diff = dateDiff(ae, pe); if (diff > 0) totalDelay += diff; }
+      });
+      const quality = childRecords.length > 0 ? Math.max(0, 100 - (totalDefects / childRecords.length) * 100) : 100;
+
+      kpiCards.push(
+        { label: 'Tasks', value: childRecords.length, icon: BarChart3 },
+        { label: 'Completed', value: completedTasks, icon: CheckCircle2, trend: 'up' },
+        { label: 'Progress', value: progress, unit: '%', icon: TrendingUp },
+        { label: 'Delay Days', value: totalDelay, unit: 'd', icon: Clock, trend: totalDelay > 0 ? 'down' : 'up' },
+        { label: 'Quality Score', value: quality, unit: '%', icon: CheckCircle2, trend: quality >= 90 ? 'up' : 'neutral' },
+        { label: 'Defects', value: totalDefects, icon: AlertTriangle, trend: totalDefects > 0 ? 'down' : 'up' },
+      );
+
+      if (childRecords.length > 0) {
+        charts.push({
+          title: 'Task Hours: Planned vs Actual',
+          type: 'bar-compare',
+          data: childRecords.map(t => ({
+            name: asText(t.submission_data?.[FIELDS.taskName]) || t.submission_ref_id,
+            planned: asNum(t.submission_data?.[FIELDS.taskPlannedHours]),
+            actual: asNum(t.submission_data?.[FIELDS.taskActualHours]),
+          })),
+          dataKeys: ['planned', 'actual'],
+        });
+
+        // Defect distribution
+        const defectData = childRecords
+          .map(t => ({ name: asText(t.submission_data?.[FIELDS.taskName]) || t.submission_ref_id, defects: asNum(t.submission_data?.[FIELDS.taskDefectCount]) }))
+          .filter(d => d.defects > 0);
+        if (defectData.length > 0) {
+          charts.push({ title: 'Defects by Task', type: 'bar', data: defectData.map(d => ({ name: d.name, value: d.defects })) });
+        }
+      }
+    }
+
+    if (level === 'task') {
+      const tPlanned = asNum(d[FIELDS.taskPlannedHours]);
+      const tActual = asNum(d[FIELDS.taskActualHours]);
+      const tDefects = asNum(d[FIELDS.taskDefectCount]);
+      const pe = asText(d[FIELDS.taskPlannedEnd]);
+      const ae = asText(d[FIELDS.taskActualEnd]);
+      const delay = pe && ae ? dateDiff(ae, pe) : 0;
+      const util = tPlanned > 0 ? (tActual / tPlanned) * 100 : 0;
+      const productivity = tActual > 0 ? tPlanned / tActual : 0;
+
+      kpiCards.push(
+        { label: 'Planned Hours', value: tPlanned, icon: Clock },
+        { label: 'Actual Hours', value: tActual, icon: Clock, trend: tActual > tPlanned ? 'down' : 'up' },
+        { label: 'Utilization', value: util, unit: '%', icon: Users },
+        { label: 'Productivity', value: productivity, icon: TrendingUp, trend: productivity >= 1 ? 'up' : 'down' },
+        { label: 'Delay', value: delay, unit: 'd', icon: Clock, trend: delay > 0 ? 'down' : 'up' },
+        { label: 'Defects', value: tDefects, icon: AlertTriangle, trend: tDefects > 0 ? 'down' : 'up' },
+      );
+
+      // Resource utilization chart
+      if (childRecords.length > 0) {
+        charts.push({
+          title: 'Resource Hours',
+          type: 'bar-compare',
+          data: childRecords.map(r => ({
+            name: asText(r.submission_data?.[FIELDS.resourceName]) || r.submission_ref_id,
+            planned: asNum(r.submission_data?.[FIELDS.plannedHours]),
+            actual: asNum(r.submission_data?.[FIELDS.actualHours]),
+          })),
+          dataKeys: ['planned', 'actual'],
+        });
+      }
+    }
+
+    if (level === 'resource') {
+      const rPlanned = asNum(d[FIELDS.plannedHours]);
+      const rActual = asNum(d[FIELDS.actualHours]);
+      const rOvertime = asNum(d[FIELDS.overtimeHours]);
+      const util = rPlanned > 0 ? (rActual / rPlanned) * 100 : 0;
+      const productivity = rActual > 0 ? rPlanned / rActual : 0;
+
+      kpiCards.push(
+        { label: 'Planned Hours', value: rPlanned, icon: Clock },
+        { label: 'Actual Hours', value: rActual, icon: Clock },
+        { label: 'Overtime', value: rOvertime, unit: 'h', icon: AlertTriangle, trend: rOvertime > 0 ? 'down' : 'up' },
+        { label: 'Utilization', value: util, unit: '%', icon: Users },
+        { label: 'Productivity', value: productivity, icon: TrendingUp },
+      );
+    }
+
+    // Per-child metrics for the list
+    const childMetricsFn = (child: any): { label: string; value: string; variant?: string }[] => {
+      const cd = child.submission_data || {};
+      if (childLevel === 'wbs') {
+        const refs = extractRefIds(cd[CROSSREF_FIELDS.WBS_TO_ACTIVITIES]);
+        return [{ label: 'Activities', value: String(refs.length) }];
+      }
+      if (childLevel === 'activity') {
+        const ph = asNum(cd[FIELDS.activityPlannedHours]);
+        const ah = asNum(cd[FIELDS.activityActualHours]);
+        return [
+          { label: 'Hours', value: `${ah}/${ph}` },
+          ...(ah > ph ? [{ label: 'Over', value: `+${ah - ph}h`, variant: 'danger' }] : []),
+        ];
+      }
+      if (childLevel === 'task') {
+        const ph = asNum(cd[FIELDS.taskPlannedHours]);
+        const ah = asNum(cd[FIELDS.taskActualHours]);
+        const def = asNum(cd[FIELDS.taskDefectCount]);
+        return [
+          { label: 'Hours', value: `${ah}/${ph}` },
+          ...(def > 0 ? [{ label: 'Defects', value: String(def), variant: 'danger' }] : []),
+        ];
+      }
+      if (childLevel === 'resource') {
+        const ph = asNum(cd[FIELDS.plannedHours]);
+        const ah = asNum(cd[FIELDS.actualHours]);
+        const util = ph > 0 ? Math.round((ah / ph) * 100) : 0;
+        return [{ label: 'Util', value: `${util}%`, variant: util > 110 ? 'danger' : util >= 80 ? 'success' : undefined }];
+      }
+      return [];
+    };
+
+    return { kpiCards, charts, childMetrics: childMetricsFn };
+  }, [record, level, childRecords, childLevel, allActivities, allTasks, allResources]);
+
+  const renderChart = (chart: typeof charts[0], index: number) => {
+    if (chart.type === 'bar') {
+      return (
+        <Card key={index}>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">{chart.title}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={chart.data}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                <XAxis dataKey="name" tick={{ fontSize: 11 }} className="fill-muted-foreground" />
+                <YAxis tick={{ fontSize: 11 }} className="fill-muted-foreground" />
+                <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: 12 }} />
+                <Bar dataKey="value" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      );
+    }
+
+    if (chart.type === 'bar-compare') {
+      return (
+        <Card key={index}>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">{chart.title}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={chart.data}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                <XAxis dataKey="name" tick={{ fontSize: 10 }} className="fill-muted-foreground" angle={-20} textAnchor="end" height={50} />
+                <YAxis tick={{ fontSize: 11 }} className="fill-muted-foreground" />
+                <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: 12 }} />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                <Bar dataKey="planned" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="actual" fill="hsl(var(--chart-2, 150 60% 45%))" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      );
+    }
+
+    if (chart.type === 'progress-bar') {
+      return (
+        <Card key={index}>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">{chart.title}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={chart.data} layout="vertical">
+                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 11 }} className="fill-muted-foreground" />
+                <YAxis dataKey="name" type="category" tick={{ fontSize: 10 }} width={80} className="fill-muted-foreground" />
+                <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: 12 }} formatter={(v: number) => `${v}%`} />
+                <Bar dataKey="progress" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      );
+    }
+
+    if (chart.type === 'pie') {
+      return (
+        <Card key={index}>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">{chart.title}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={220}>
+              <PieChart>
+                <Pie data={chart.data} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name, value }) => `${name}: ${value}`} labelLine={false}>
+                  {chart.data.map((_, i) => (
+                    <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: 12 }} />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+              </PieChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      );
+    }
+
+    return null;
+  };
+
+  const levelLabel: Record<HierarchyLevel, string> = { project: 'Project', wbs: 'WBS', activity: 'Activity', task: 'Task', resource: 'Resource' };
+  const childLevelLabel: Record<HierarchyLevel, string> = { project: 'Projects', wbs: 'WBS Items', activity: 'Activities', task: 'Tasks', resource: 'Resources' };
+
+  return (
+    <div className="space-y-6">
+      {/* KPI Cards Grid */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+        {kpiCards.map((kpi, i) => (
+          <KPICard key={i} {...kpi} />
+        ))}
+      </div>
+
+      {/* Charts */}
+      {charts.length > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {charts.map((chart, i) => renderChart(chart, i))}
+        </div>
+      )}
+
+      {/* Child Records */}
+      {childLevel && childRecords.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm flex items-center gap-2">
+                {childLevelLabel[childLevel]}
+                <Badge variant="secondary" className="text-[10px]">{childRecords.length}</Badge>
+              </CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {childRecords.map(child => (
+              <ChildRecordRow
+                key={child.id}
+                record={child}
+                level={childLevel}
+                onClick={() => onSelectChild(child, childLevel)}
+                metrics={childMetrics(child)}
+              />
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {childLevel && childRecords.length === 0 && (
+        <Card className="border-dashed">
+          <CardContent className="p-6 text-center text-sm text-muted-foreground">
+            No {childLevelLabel[childLevel || 'project']?.toLowerCase()} linked to this {levelLabel[level]?.toLowerCase()}.
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
