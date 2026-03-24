@@ -486,7 +486,28 @@ export function RecordDetailView({
           })),
           dataKeys: ['planned', 'actual'],
         });
+
+        // Activity status pie
+        const actStatusMap: Record<string, number> = {};
+        childRecords.forEach(a => {
+          const s = asText(a.submission_data?.[FIELDS.activityStatus]) || 'Unknown';
+          actStatusMap[s] = (actStatusMap[s] || 0) + 1;
+        });
+        charts.push({ title: 'Activity Status', type: 'pie', data: Object.entries(actStatusMap).map(([name, value]) => ({ name, value })) });
       }
+
+      // WBS Health Radar
+      charts.push({
+        title: 'WBS Health Overview',
+        type: 'radar',
+        data: [
+          { metric: 'Activity %', value: progress },
+          { metric: 'Task %', value: taskProgress },
+          { metric: 'Utilization', value: Math.min(util, 100) },
+          { metric: 'Productivity', value: Math.min(productivity * 50, 100) },
+          { metric: 'Quality', value: wbsTasks.length > 0 ? Math.max(0, 100 - (totalDefects / wbsTasks.length) * 100) : 100 },
+        ],
+      });
     }
 
     if (level === 'activity') {
