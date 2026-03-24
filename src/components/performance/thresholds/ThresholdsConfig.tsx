@@ -328,7 +328,7 @@ export function ThresholdsConfig({ perfProjectId, thresholds, loading, createThr
                     </div>
                   )}
                   {selectedRoleIds.length === 0 && (
-                    <p className="text-xs text-amber-600">
+                    <p className="text-xs text-warning">
                       ⚠ No roles selected — no email notifications will be sent.
                     </p>
                   )}
