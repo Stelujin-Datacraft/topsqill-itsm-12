@@ -55,8 +55,8 @@ export function SeniorManagementDashboard({ kpis }: Props) {
       <div>
         <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Financial Overview</h3>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          <KPIMetricCard title="Portfolio Planned Budget" value={kpis.portfolioPlannedBudget.toLocaleString()} icon={IndianRupee} />
-          <KPIMetricCard title="Portfolio Actual Cost" value={kpis.portfolioActualCost.toLocaleString()} icon={IndianRupee} />
+          <KPIMetricCard title="Portfolio Planned Budget" value={`₹${kpis.portfolioPlannedBudget.toLocaleString('en-IN')}`} icon={IndianRupee} />
+          <KPIMetricCard title="Portfolio Actual Cost" value={`₹${kpis.portfolioActualCost.toLocaleString('en-IN')}`} icon={IndianRupee} />
           <KPIMetricCard
             title="Budget Utilization (%)"
             value={`${kpis.budgetUtilization.toFixed(1)}%`}
