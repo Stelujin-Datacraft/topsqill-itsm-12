@@ -104,8 +104,8 @@ export function SeniorManagementDashboard({ kpis }: Props) {
                           {p.status || 'Unknown'}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-right">{(p.plannedBudget ?? 0).toLocaleString()}</TableCell>
-                      <TableCell className="text-right">{(p.actualCost ?? 0).toLocaleString()}</TableCell>
+                      <TableCell className="text-right">₹{(p.plannedBudget ?? 0).toLocaleString('en-IN')}</TableCell>
+                      <TableCell className="text-right">₹{(p.actualCost ?? 0).toLocaleString('en-IN')}</TableCell>
                       <TableCell className="text-right">
                         <span className={(p.cpi ?? 0) < 0.9 ? 'text-destructive' : (p.cpi ?? 0) >= 1 ? 'text-green-600' : ''}>
                           {(p.cpi ?? 0).toFixed(2)}

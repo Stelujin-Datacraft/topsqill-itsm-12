@@ -43,11 +43,11 @@ export function FinanceDashboard({ kpis }: Props) {
       <div>
         <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Forecasting</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <KPIMetricCard title="EAC" value={kpis.eac.toLocaleString()}
+          <KPIMetricCard title="EAC" value={`₹${kpis.eac.toLocaleString('en-IN')}`}
             subtitle="Estimate At Completion" icon={Calculator} />
-          <KPIMetricCard title="ETC" value={kpis.etc.toLocaleString()}
+          <KPIMetricCard title="ETC" value={`₹${kpis.etc.toLocaleString('en-IN')}`}
             subtitle="Estimate To Complete" icon={Calculator} />
-          <KPIMetricCard title="VAC" value={kpis.vac.toLocaleString()}
+          <KPIMetricCard title="VAC" value={`₹${kpis.vac.toLocaleString('en-IN')}`}
             subtitle={kpis.vac >= 0 ? 'Under budget forecast' : 'Over budget forecast'}
             variant={kpis.vac >= 0 ? 'success' : 'danger'} />
           <KPIMetricCard title="Predicted Cost Overrun (%)" value={`${kpis.predictedCostOverrunPercent.toFixed(1)}%`}

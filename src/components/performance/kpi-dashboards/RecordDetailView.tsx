@@ -121,8 +121,9 @@ interface KPICardData {
 }
 
 function KPICard({ label, value, unit, icon: Icon, trend, formula }: KPICardData) {
+  const isCurrency = label.includes('Budget') || label.includes('Cost') || label.includes('EAC') || label.includes('ETC') || label.includes('VAC') || label.includes('Variance') && !unit;
   const displayValue = typeof value === 'number'
-    ? (Number.isInteger(value) ? value.toLocaleString() : value.toFixed(2))
+    ? (isCurrency ? `₹${value.toLocaleString('en-IN')}` : Number.isInteger(value) ? value.toLocaleString('en-IN') : value.toFixed(2))
     : value;
 
   return (

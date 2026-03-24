@@ -34,7 +34,7 @@ export function ProjectManagerDashboard({ kpis, hasHierarchy }: Props) {
       <div>
         <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Cost Performance</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <KPIMetricCard title="Cost Variance" value={kpis.costVariance.toLocaleString()}
+          <KPIMetricCard title="Cost Variance" value={`₹${kpis.costVariance.toLocaleString('en-IN')}`}
             subtitle={kpis.costVariance >= 0 ? 'Under budget' : 'Over budget'}
             variant={kpis.costVariance >= 0 ? 'success' : 'danger'} icon={IndianRupee} />
           <KPIMetricCard title="Cost Variance (%)" value={`${kpis.costVariancePercent.toFixed(1)}%`}
