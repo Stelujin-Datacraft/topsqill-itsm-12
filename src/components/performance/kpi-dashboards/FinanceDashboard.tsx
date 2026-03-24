@@ -14,8 +14,8 @@ export function FinanceDashboard({ kpis }: Props) {
       <div>
         <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Budget Overview</h3>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          <KPIMetricCard title="Planned Budget" value={kpis.plannedBudget.toLocaleString()} icon={DollarSign} />
-          <KPIMetricCard title="Actual Cost" value={kpis.actualCost.toLocaleString()} icon={DollarSign} />
+          <KPIMetricCard title="Planned Budget" value={kpis.plannedBudget.toLocaleString()} icon={IndianRupee} />
+          <KPIMetricCard title="Actual Cost" value={kpis.actualCost.toLocaleString()} icon={IndianRupee} />
           <KPIMetricCard title="Budget Utilization (%)" value={`${kpis.budgetUtilization.toFixed(1)}%`}
             variant={kpis.budgetUtilization > 100 ? 'danger' : kpis.budgetUtilization > 90 ? 'warning' : 'success'}
             icon={BarChart3} />
