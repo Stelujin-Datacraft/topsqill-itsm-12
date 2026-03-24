@@ -616,10 +616,10 @@ export function RecordDetailView({
       const pe = asText(d[FIELDS.taskPlannedEnd]);
       const ae = asText(d[FIELDS.taskActualEnd]);
       const delay = pe && ae ? Math.max(0, dateDiff(ae, pe)) : 0;
-      const util = tPlanned > 0 ? (tActual / tPlanned) * 100 : 0;
-      const productivity = tActual > 0 ? tPlanned / tActual : 0;
+      const util = (tActual / (tPlanned + 0.0001)) * 100;
+      const productivity = tPlanned > 0 ? tActual / tPlanned : 0;
       const overtime = Math.max(0, tActual - tPlanned);
-      const quality = Math.max(0, 100 - tDefects * 10); // Each defect costs 10 points
+      const quality = (1 + tDefects) > 0 ? (1 - (tDefects / (1 + tDefects))) * 100 : 100;
 
       // Aggregate resource hours
       let rPlanned = 0, rActual = 0, rOvertime = 0;
