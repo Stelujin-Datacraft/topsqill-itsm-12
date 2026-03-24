@@ -9,7 +9,6 @@ import NoProjectSelected from '@/components/NoProjectSelected';
 import { PerformanceProjectList } from '@/components/performance/PerformanceProjectList';
 import { PerformanceActivityLog } from '@/components/performance/activity/PerformanceActivityLog';
 import { PortfolioDashboard } from '@/components/performance/portfolio/PortfolioDashboard';
-import { PerformanceDashboard } from '@/components/performance/dashboard/PerformanceDashboard';
 import { KPIDashboardTab } from '@/components/performance/kpi-dashboards/KPIDashboardTab';
 import { AlertsPanel } from '@/components/performance/alerts/AlertsPanel';
 import { ThresholdsConfig } from '@/components/performance/thresholds/ThresholdsConfig';
