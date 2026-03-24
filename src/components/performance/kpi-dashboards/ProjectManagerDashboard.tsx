@@ -2,7 +2,7 @@ import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { KPIMetricCard } from './KPIMetricCard';
 import { HierarchyPMKPIs } from '@/hooks/useHierarchyKPI';
-import { Clock, AlertTriangle, DollarSign, Target, Flame, TrendingUp, Calendar, ListChecks } from 'lucide-react';
+import { Clock, AlertTriangle, IndianRupee, Target, Flame, TrendingUp, Calendar, ListChecks } from 'lucide-react';
 
 interface Props {
   kpis: HierarchyPMKPIs;
@@ -34,14 +34,14 @@ export function ProjectManagerDashboard({ kpis, hasHierarchy }: Props) {
       <div>
         <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Cost Performance</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <KPIMetricCard title="Cost Variance" value={kpis.costVariance.toLocaleString()}
+          <KPIMetricCard title="Cost Variance" value={`₹${kpis.costVariance.toLocaleString('en-IN')}`}
             subtitle={kpis.costVariance >= 0 ? 'Under budget' : 'Over budget'}
-            variant={kpis.costVariance >= 0 ? 'success' : 'danger'} icon={DollarSign} />
+            variant={kpis.costVariance >= 0 ? 'success' : 'danger'} icon={IndianRupee} />
           <KPIMetricCard title="Cost Variance (%)" value={`${kpis.costVariancePercent.toFixed(1)}%`}
             variant={kpis.costVariancePercent >= 0 ? 'success' : 'danger'} />
           <KPIMetricCard title="CPI" value={kpis.cpi.toFixed(2)}
             subtitle={kpis.cpi >= 1 ? 'Cost efficient' : 'Cost overrun'}
-            variant={kpis.cpi >= 1 ? 'success' : kpis.cpi >= 0.9 ? 'warning' : 'danger'} icon={DollarSign} />
+            variant={kpis.cpi >= 1 ? 'success' : kpis.cpi >= 0.9 ? 'warning' : 'danger'} icon={IndianRupee} />
           <KPIMetricCard title="SPI" value={kpis.spi.toFixed(2)}
             subtitle={kpis.spi >= 1 ? 'Ahead of schedule' : 'Behind schedule'}
             variant={kpis.spi >= 1 ? 'success' : kpis.spi >= 0.9 ? 'warning' : 'danger'} icon={TrendingUp} />

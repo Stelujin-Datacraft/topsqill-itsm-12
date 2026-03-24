@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { KPIMetricCard } from './KPIMetricCard';
 import { HierarchySeniorKPIs } from '@/hooks/useHierarchyKPI';
-import { Briefcase, TrendingUp, DollarSign, AlertTriangle, Target, Activity, BarChart3 } from 'lucide-react';
+import { Briefcase, TrendingUp, IndianRupee, AlertTriangle, Target, Activity, BarChart3 } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 interface Props {
@@ -39,7 +39,7 @@ export function SeniorManagementDashboard({ kpis }: Props) {
             value={kpis.portfolioCPI.toFixed(2)}
             subtitle={kpis.portfolioCPI >= 1 ? 'Under budget' : 'Over budget'}
             variant={kpis.portfolioCPI >= 1 ? 'success' : kpis.portfolioCPI >= 0.9 ? 'warning' : 'danger'}
-            icon={DollarSign}
+            icon={IndianRupee}
           />
           <KPIMetricCard
             title="Portfolio SPI"
@@ -55,8 +55,8 @@ export function SeniorManagementDashboard({ kpis }: Props) {
       <div>
         <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Financial Overview</h3>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          <KPIMetricCard title="Portfolio Planned Budget" value={kpis.portfolioPlannedBudget.toLocaleString()} icon={DollarSign} />
-          <KPIMetricCard title="Portfolio Actual Cost" value={kpis.portfolioActualCost.toLocaleString()} icon={DollarSign} />
+          <KPIMetricCard title="Portfolio Planned Budget" value={`₹${kpis.portfolioPlannedBudget.toLocaleString('en-IN')}`} icon={IndianRupee} />
+          <KPIMetricCard title="Portfolio Actual Cost" value={`₹${kpis.portfolioActualCost.toLocaleString('en-IN')}`} icon={IndianRupee} />
           <KPIMetricCard
             title="Budget Utilization (%)"
             value={`${kpis.budgetUtilization.toFixed(1)}%`}
@@ -104,8 +104,8 @@ export function SeniorManagementDashboard({ kpis }: Props) {
                           {p.status || 'Unknown'}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-right">{(p.plannedBudget ?? 0).toLocaleString()}</TableCell>
-                      <TableCell className="text-right">{(p.actualCost ?? 0).toLocaleString()}</TableCell>
+                      <TableCell className="text-right">₹{(p.plannedBudget ?? 0).toLocaleString('en-IN')}</TableCell>
+                      <TableCell className="text-right">₹{(p.actualCost ?? 0).toLocaleString('en-IN')}</TableCell>
                       <TableCell className="text-right">
                         <span className={(p.cpi ?? 0) < 0.9 ? 'text-destructive' : (p.cpi ?? 0) >= 1 ? 'text-green-600' : ''}>
                           {(p.cpi ?? 0).toFixed(2)}

@@ -10,7 +10,7 @@ import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
-import { Loader2, BarChart3, TrendingUp, FileText, DollarSign, Clock, AlertTriangle, CheckCircle2, Activity } from 'lucide-react';
+import { Loader2, BarChart3, TrendingUp, FileText, IndianRupee, Clock, AlertTriangle, CheckCircle2, Activity } from 'lucide-react';
 import { ChartExportButton } from '@/components/reports/ChartExportButton';
 
 const COLORS = ['hsl(var(--primary))', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16'];
@@ -468,7 +468,7 @@ export function AnalyticsPanel({ perfProjectId, selectedRecordId }: Props) {
           <Card className="border-l-4 border-l-blue-500">
             <CardContent className="pt-4 pb-3">
               <div className="flex items-center gap-2 mb-1">
-                <DollarSign className="h-4 w-4 text-blue-500" />
+                <IndianRupee className="h-4 w-4 text-blue-500" />
                 <p className="text-xs text-muted-foreground">Budget Utilization</p>
               </div>
               <p className="text-2xl font-bold text-foreground">{portfolioKPIs.budgetUtilization}%</p>
@@ -583,7 +583,7 @@ export function AnalyticsPanel({ perfProjectId, selectedRecordId }: Props) {
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm flex items-center gap-2">
-                <DollarSign className="h-4 w-4 text-primary" />
+                <IndianRupee className="h-4 w-4 text-primary" />
                 Budget vs Actual Cost (per record)
               </CardTitle>
             </CardHeader>
@@ -819,7 +819,7 @@ export function AnalyticsPanel({ perfProjectId, selectedRecordId }: Props) {
           <Card className="border-l-4 border-l-primary">
             <CardContent className="pt-4 pb-3">
               <div className="flex items-center gap-2 mb-1">
-                <DollarSign className="h-4 w-4 text-primary" />
+                <IndianRupee className="h-4 w-4 text-primary" />
                 <p className="text-xs text-muted-foreground">CPI</p>
               </div>
               <p className={`text-2xl font-bold ${singleRecordKPIs.cpi >= 1 ? 'text-green-600' : 'text-destructive'}`}>
@@ -941,7 +941,7 @@ export function AnalyticsPanel({ perfProjectId, selectedRecordId }: Props) {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
-              <DollarSign className="h-4 w-4 text-primary" />
+              <IndianRupee className="h-4 w-4 text-primary" />
               Financial Breakdown
             </CardTitle>
           </CardHeader>

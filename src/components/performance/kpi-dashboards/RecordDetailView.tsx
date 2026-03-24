@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { ChevronRight, TrendingUp, TrendingDown, DollarSign, Clock, Users, CheckCircle2, AlertTriangle, BarChart3, Info, Target, Zap } from 'lucide-react';
+import { ChevronRight, TrendingUp, TrendingDown, IndianRupee, Clock, Users, CheckCircle2, AlertTriangle, BarChart3, Info, Target, Zap } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell, CartesianGrid, Legend, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, AreaChart, Area, LineChart, Line } from 'recharts';
 import { CROSSREF_FIELDS } from '@/hooks/useHierarchyKPI';
 
@@ -121,8 +121,9 @@ interface KPICardData {
 }
 
 function KPICard({ label, value, unit, icon: Icon, trend, formula }: KPICardData) {
+  const isCurrency = label.includes('Budget') || label.includes('Cost') || label.includes('EAC') || label.includes('ETC') || label.includes('VAC') || label.includes('Variance') && !unit;
   const displayValue = typeof value === 'number'
-    ? (Number.isInteger(value) ? value.toLocaleString() : value.toFixed(2))
+    ? (isCurrency ? `₹${value.toLocaleString('en-IN')}` : Number.isInteger(value) ? value.toLocaleString('en-IN') : value.toFixed(2))
     : value;
 
   return (
@@ -287,8 +288,8 @@ export function RecordDetailView({
       kpiCards.push(
         { label: 'Progress', value: progress, unit: '%', icon: Target, trend: progress >= 75 ? 'up' : progress >= 50 ? 'neutral' : 'down',
           formula: '(Completed_Tasks / Total_Tasks) × 100' },
-        { label: 'Planned Budget', value: budget, icon: DollarSign, formula: 'SUM(Planned_Budget)' },
-        { label: 'Actual Cost', value: actual, icon: DollarSign, trend: actual > budget ? 'down' : 'up',
+        { label: 'Planned Budget', value: budget, icon: IndianRupee, formula: 'SUM(Planned_Budget)' },
+        { label: 'Actual Cost', value: actual, icon: IndianRupee, trend: actual > budget ? 'down' : 'up',
           formula: 'SUM(Actual_Cost)' },
         { label: 'Budget Utilization', value: budgetUtil, unit: '%', icon: BarChart3,
           formula: '(Actual_Cost / Planned_Budget) × 100' },
@@ -296,13 +297,13 @@ export function RecordDetailView({
           formula: 'Earned_Value / Actual_Cost_Value' },
         { label: 'SPI', value: spi, icon: TrendingUp, trend: spi >= 1 ? 'up' : spi >= 0.9 ? 'neutral' : 'down',
           formula: 'Earned_Value / Planned_Value' },
-        { label: 'Cost Variance', value: costVariance, icon: DollarSign, trend: costVariance >= 0 ? 'up' : 'down',
+        { label: 'Cost Variance', value: costVariance, icon: IndianRupee, trend: costVariance >= 0 ? 'up' : 'down',
           formula: 'EV - AC' },
         { label: 'Schedule Var.', value: scheduleVariancePct, unit: '%', icon: Clock,
           trend: scheduleVariancePct >= 0 ? 'up' : 'down', formula: '((EV - PV) / PV) × 100' },
-        { label: 'EAC', value: eac, icon: DollarSign, formula: 'Budget / CPI' },
-        { label: 'ETC', value: etc, icon: DollarSign, formula: 'EAC - Actual_Cost', hideIfZero: true },
-        { label: 'VAC', value: vac, icon: DollarSign, trend: vac >= 0 ? 'up' : 'down',
+        { label: 'EAC', value: eac, icon: IndianRupee, formula: 'Budget / CPI' },
+        { label: 'ETC', value: etc, icon: IndianRupee, formula: 'EAC - Actual_Cost', hideIfZero: true },
+        { label: 'VAC', value: vac, icon: IndianRupee, trend: vac >= 0 ? 'up' : 'down',
           formula: 'Budget - EAC', hideIfZero: true },
         { label: 'On-Time Rate', value: onTimeRate, unit: '%', icon: CheckCircle2,
           trend: onTimeRate >= 80 ? 'up' : onTimeRate >= 60 ? 'neutral' : 'down',
