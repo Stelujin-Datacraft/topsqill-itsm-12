@@ -347,9 +347,11 @@ export function calcProjectManagerKPIs(projectData: any, tasks: any[]): Hierarch
   const projectDuration = startDate ? Math.max(dateDiffDays(new Date().toISOString(), startDate), 1) : 1;
   const burnRate = actualCost / projectDuration;
 
-  // Predicted_Cost_Overrun (%) = ((Forecasted_Cost - Planned_Budget) / Planned_Budget) * 100
-  const predictedCostOverrunPercent = plannedBudget > 0 && forecastedCost > 0
-    ? ((forecastedCost - plannedBudget) / plannedBudget) * 100
+  // Predicted_Cost_Overrun (%) = ((Forecasted_Cost or EAC - Planned_Budget) / Planned_Budget) * 100
+  const eacVal = cpi > 0 ? plannedBudget / cpi : 0;
+  const forecastForOverrun = forecastedCost > 0 ? forecastedCost : eacVal;
+  const predictedCostOverrunPercent = plannedBudget > 0 && forecastForOverrun > 0
+    ? ((forecastForOverrun - plannedBudget) / plannedBudget) * 100
     : 0;
 
   return {
@@ -447,9 +449,10 @@ export function calcFinanceKPIs(projects: any[], tasks: any[]): HierarchyFinance
   const vac = sumBudget - eac;
   // Cost_Per_Task = SUM(Actual_Cost) / COUNT(Tasks.Task_ID)
   const costPerTask = totalTasks > 0 ? sumActual / totalTasks : 0;
-  // Predicted_Cost_Overrun (%) = ((Forecasted_Cost - Planned_Budget) / Planned_Budget) * 100
-  const predictedCostOverrunPercent = sumBudget > 0 && sumForecastedCost > 0
-    ? ((sumForecastedCost - sumBudget) / sumBudget) * 100
+  // Predicted_Cost_Overrun (%) = ((Forecasted_Cost or EAC - Planned_Budget) / Planned_Budget) * 100
+  const forecastForOverrun = sumForecastedCost > 0 ? sumForecastedCost : eac;
+  const predictedCostOverrunPercent = sumBudget > 0 && forecastForOverrun > 0
+    ? ((forecastForOverrun - sumBudget) / sumBudget) * 100
     : 0;
 
   return {

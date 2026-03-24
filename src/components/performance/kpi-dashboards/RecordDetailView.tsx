@@ -274,7 +274,8 @@ export function RecordDetailView({
       const costVariancePct = budget > 0 ? ((ev - ac) / budget) * 100 : 0;
       const scheduleVariancePct = pv > 0 ? ((ev - pv) / pv) * 100 : 0;
       const onTimeRate = totalTasks > 0 ? ((totalTasks - delayedTasks) / totalTasks) * 100 : 0;
-      const predictedCostOverrun = budget > 0 && forecast > 0 ? ((forecast - budget) / budget) * 100 : 0;
+      const forecastForOverrun = forecast > 0 ? forecast : eac;
+      const predictedCostOverrun = budget > 0 && forecastForOverrun > 0 ? ((forecastForOverrun - budget) / budget) * 100 : 0;
 
       // Formula-based Risk Score
       let riskScore = 0;
@@ -298,13 +299,13 @@ export function RecordDetailView({
         { label: 'SPI', value: spi, icon: TrendingUp, trend: spi >= 1 ? 'up' : spi >= 0.9 ? 'neutral' : 'down',
           formula: 'Earned_Value / Planned_Value' },
         { label: 'Cost Variance', value: costVariance, icon: IndianRupee, trend: costVariance >= 0 ? 'up' : 'down',
-          formula: 'EV - AC' },
+          formula: '((EV - AC) / Planned_Budget) × 100' },
         { label: 'Schedule Var.', value: scheduleVariancePct, unit: '%', icon: Clock,
           trend: scheduleVariancePct >= 0 ? 'up' : 'down', formula: '((EV - PV) / PV) × 100' },
-        { label: 'EAC', value: eac, icon: IndianRupee, formula: 'Budget / CPI' },
+        { label: 'EAC', value: eac, icon: IndianRupee, formula: 'Planned_Budget / CPI' },
         { label: 'ETC', value: etc, icon: IndianRupee, formula: 'EAC - Actual_Cost', hideIfZero: true },
         { label: 'VAC', value: vac, icon: IndianRupee, trend: vac >= 0 ? 'up' : 'down',
-          formula: 'Budget - EAC', hideIfZero: true },
+          formula: 'Planned_Budget - EAC', hideIfZero: true },
         { label: 'On-Time Rate', value: onTimeRate, unit: '%', icon: CheckCircle2,
           trend: onTimeRate >= 80 ? 'up' : onTimeRate >= 60 ? 'neutral' : 'down',
           formula: '(Tasks_On_Time / Total_Tasks) × 100' },

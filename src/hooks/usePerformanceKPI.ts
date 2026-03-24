@@ -210,10 +210,8 @@ export function calculateProjectManagerKPIs(submission: Record<string, any>, map
   // Cost_Variance (%) = ((EV - AC) / Planned_Budget) × 100
   const costVariancePercent = plannedBudget > 0 ? ((ev - ac) / plannedBudget) * 100 : 0;
 
-  // Schedule_Variance (%) = ((Actual_End_Date - Planned_End_Date) / (Planned_End_Date - Planned_Start_Date)) × 100
-  const actualDelay = dateDiffDays(actualEnd, plannedEnd);
-  const plannedDuration = dateDiffDays(plannedEnd, plannedStart);
-  const scheduleVariancePercent = plannedDuration > 0 ? (actualDelay / plannedDuration) * 100 : 0;
+  // Schedule_Variance (%) = ((EV - PV) / PV) × 100
+  const scheduleVariancePercent = pv > 0 ? ((ev - pv) / pv) * 100 : 0;
 
   // Burn_Rate = Actual_Cost / (Current_Date - Actual_Start_Date)
   const projectDuration = actualStart ? Math.max(dateDiffDays(new Date().toISOString(), actualStart), 1) : 1;
@@ -222,9 +220,11 @@ export function calculateProjectManagerKPIs(submission: Record<string, any>, map
   // Milestone_Delay_Days = Milestone_Actual_Date - Milestone_Planned_Date
   const milestoneDelayDays = dateDiffDays(milestoneActual, milestonePlanned);
 
-  // Predicted_Cost_Overrun (%) = ((Forecasted_Cost - Planned_Budget) / Planned_Budget) × 100
-  const predictedCostOverrunPercent = plannedBudget > 0 && forecastedCost > 0
-    ? ((forecastedCost - plannedBudget) / plannedBudget) * 100
+  // Predicted_Cost_Overrun (%) = ((Forecasted_Cost or EAC - Planned_Budget) / Planned_Budget) × 100
+  const eacForOverrun = cpi > 0 ? plannedBudget / cpi : 0;
+  const forecastForOverrun = forecastedCost > 0 ? forecastedCost : eacForOverrun;
+  const predictedCostOverrunPercent = plannedBudget > 0 && forecastForOverrun > 0
+    ? ((forecastForOverrun - plannedBudget) / plannedBudget) * 100
     : num(resolveField(d, mappings, 'Predicted Cost Overrun (%)'));
 
   // Project_Progress (%) - for single record: check if task is completed
@@ -405,8 +405,10 @@ export function calculateFinanceKPIs(submissions: any[], mappings: FieldMapping[
   // Cost_Per_Task = Actual_Cost / COUNT(Task_ID)
   const costPerTask = totalTasks > 0 ? sumActual / totalTasks : 0;
   // Predicted_Cost_Overrun (%) = ((Forecasted_Cost - Planned_Budget) / Planned_Budget) × 100
-  const predictedCostOverrunPercent = sumBudget > 0 && sumForecastedCost > 0
-    ? ((sumForecastedCost - sumBudget) / sumBudget) * 100
+  // Falls back to EAC if Forecasted_Cost is not available
+  const forecastForOverrun = sumForecastedCost > 0 ? sumForecastedCost : eac;
+  const predictedCostOverrunPercent = sumBudget > 0 && forecastForOverrun > 0
+    ? ((forecastForOverrun - sumBudget) / sumBudget) * 100
     : 0;
 
   return {
