@@ -163,9 +163,6 @@ export default function ProjectPerformance() {
         <TabsContent value="thresholds">
           <ThresholdsConfig perfProjectId={selectedPerfProject.id} thresholds={perfData.thresholds} loading={perfData.loading} createThreshold={perfData.createThreshold} deleteThreshold={perfData.deleteThreshold} />
         </TabsContent>
-        <TabsContent value="analytics">
-          <AnalyticsPanel perfProjectId={selectedPerfProject?.id} selectedRecordId={selectedRecordId} />
-        </TabsContent>
         <TabsContent value="scenarios">
           <ScenarioSimulator perfProjectId={selectedPerfProject.id} selectedRecordId={selectedRecordId} />
         </TabsContent>
