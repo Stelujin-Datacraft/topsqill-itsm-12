@@ -328,8 +328,8 @@ export function calcProjectManagerKPIs(projectData: any, tasks: any[]): Hierarch
   // Project_Progress (%) = (COUNT(Tasks.Task_Status = "Completed") / COUNT(Tasks.Task_ID)) * 100
   const projectProgress = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
 
-  // Schedule_Variance (%) = ((EV - PV) / PV) * 100
-  const scheduleVariancePercent = pv > 0 ? ((ev - pv) / pv) * 100 : 0;
+  // Schedule_Variance (%) = ((EV - PV) / EV) * 100
+  const scheduleVariancePercent = ev > 0 ? ((ev - pv) / ev) * 100 : 0;
 
   // Cost_Variance = EV - AC
   const costVariance = ev - ac;
