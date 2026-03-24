@@ -4,18 +4,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { useProject } from '@/contexts/ProjectContext';
 import { usePerformanceMonitoring } from '@/hooks/usePerformanceMonitoring';
-import { usePerformanceKPI } from '@/hooks/usePerformanceKPI';
 import NoProjectSelected from '@/components/NoProjectSelected';
 import { PerformanceProjectList } from '@/components/performance/PerformanceProjectList';
 import { PerformanceActivityLog } from '@/components/performance/activity/PerformanceActivityLog';
-import { PortfolioDashboard } from '@/components/performance/portfolio/PortfolioDashboard';
 import { PerformanceDashboard } from '@/components/performance/dashboard/PerformanceDashboard';
 import { AlertsPanel } from '@/components/performance/alerts/AlertsPanel';
 import { ThresholdsConfig } from '@/components/performance/thresholds/ThresholdsConfig';
 import { DataSourceConfig } from '@/components/performance/data-sources/DataSourceConfig';
 import { AnalyticsPanel } from '@/components/performance/analytics/AnalyticsPanel';
 import { ScenarioSimulator } from '@/components/performance/scenarios/ScenarioSimulator';
-import { AlertTriangle, ArrowLeft, Clock, Database, FlaskConical, Gauge, LineChart, Settings2 } from 'lucide-react';
+import { HierarchyDrillDown } from '@/components/performance/hierarchy/HierarchyDrillDown';
+import { AlertTriangle, ArrowLeft, Clock, Database, FlaskConical, FolderTree, Gauge, LineChart, Settings2 } from 'lucide-react';
 
 interface SelectedPerfProject {
   id: string;
@@ -30,21 +29,21 @@ export default function ProjectPerformance() {
 
   // Restore persisted state
   const getPersistedState = () => {
-    if (!storageKey) return { tab: 'dashboard', project: null, record: '' };
+    if (!storageKey) return { tab: 'drill-down', project: null, record: '' };
     try {
       const raw = localStorage.getItem(storageKey);
       if (raw) return JSON.parse(raw);
     } catch {}
-    return { tab: 'dashboard', project: null, record: '' };
+    return { tab: 'drill-down', project: null, record: '' };
   };
 
   const persisted = getPersistedState();
-  const [activeTab, setActiveTab] = useState<string>(persisted.tab || 'dashboard');
+  const [activeTab, setActiveTab] = useState<string>(persisted.tab || 'drill-down');
   const [selectedPerfProject, setSelectedPerfProject] = useState<SelectedPerfProject | null>(persisted.project || null);
   const [selectedRecordId, setSelectedRecordId] = useState<string>(persisted.record || '');
   const [stateValidated, setStateValidated] = useState(false);
 
-  // Validate persisted state: check if the data source still exists
+  // Validate persisted state
   useEffect(() => {
     const validatePersistedState = async () => {
       if (!selectedPerfProject?.id) {
@@ -52,7 +51,6 @@ export default function ProjectPerformance() {
         return;
       }
 
-      // Check if the perf project's data source still exists
       const { data: dataSources } = await (supabase
         .from('performance_data_sources')
         .select('id') as any)
@@ -60,7 +58,6 @@ export default function ProjectPerformance() {
         .limit(1);
 
       if (!dataSources || dataSources.length === 0) {
-        // Data source was deleted — reset to fresh state
         setSelectedRecordId('');
         setActiveTab('data-sources');
         if (storageKey) localStorage.removeItem(storageKey);
@@ -69,9 +66,9 @@ export default function ProjectPerformance() {
     };
 
     validatePersistedState();
-  }, []); // Only on mount
+  }, []);
 
-  // Persist state changes (only after validation)
+  // Persist state changes
   useEffect(() => {
     if (!storageKey || !stateValidated) return;
     localStorage.setItem(storageKey, JSON.stringify({
@@ -83,7 +80,6 @@ export default function ProjectPerformance() {
 
   const perfData = usePerformanceMonitoring(selectedPerfProject?.id);
 
-  // Only clear record when perf project actually changes (not on mount from persisted)
   const prevPerfProjectRef = React.useRef(selectedPerfProject?.id);
   useEffect(() => {
     if (prevPerfProjectRef.current && prevPerfProjectRef.current !== selectedPerfProject?.id) {
@@ -98,9 +94,15 @@ export default function ProjectPerformance() {
 
   if (!selectedPerfProject) {
     return (
-      <div className="flex-1 overflow-auto p-6">
-        <PortfolioDashboard />
-        <PerformanceProjectList onSelectProject={(p) => setSelectedPerfProject({ id: p.id, name: p.name, form_id: p.form_id, form_name: p.form_name })} />
+      <div className="flex-1 overflow-auto p-6 space-y-6">
+        {/* Hierarchy Drill-Down as primary view */}
+        <HierarchyDrillDown />
+        
+        {/* Legacy perf project list below */}
+        <div className="border-t pt-6 mt-6">
+          <h2 className="text-lg font-semibold mb-4 text-muted-foreground">Data Source Analysis (Legacy)</h2>
+          <PerformanceProjectList onSelectProject={(p) => setSelectedPerfProject({ id: p.id, name: p.name, form_id: p.form_id, form_name: p.form_name })} />
+        </div>
       </div>
     );
   }
@@ -108,7 +110,7 @@ export default function ProjectPerformance() {
   return (
     <div className="flex-1 overflow-auto p-6 space-y-6">
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => { setSelectedPerfProject(null); setActiveTab('dashboard'); setSelectedRecordId(''); }}>
+        <Button variant="ghost" size="icon" onClick={() => { setSelectedPerfProject(null); setActiveTab('drill-down'); setSelectedRecordId(''); }}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div className="flex-1">
