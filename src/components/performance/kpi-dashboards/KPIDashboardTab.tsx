@@ -163,6 +163,7 @@ export function KPIDashboardTab({ perfProjectId, alerts = [], predictions = [], 
   );
 
   const health = useHealthMetrics(alerts, predictions, thresholds);
+  const formulaRisk = useFormulaRiskScore(kpis);
   const isAdmin = userProfile?.role === 'admin';
   const selectedProject = useMemo(
     () => projects.find((project) => project.id === selectedProjectId) ?? null,
