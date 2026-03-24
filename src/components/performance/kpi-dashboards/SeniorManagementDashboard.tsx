@@ -2,37 +2,17 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { KPIMetricCard } from './KPIMetricCard';
-import { SeniorManagementKPIs, KPIAlert } from '@/hooks/usePerformanceKPI';
-import { Briefcase, TrendingUp, DollarSign, AlertTriangle, Target, Activity, BarChart3, ShieldAlert } from 'lucide-react';
+import { HierarchySeniorKPIs } from '@/hooks/useHierarchyKPI';
+import { Briefcase, TrendingUp, DollarSign, AlertTriangle, Target, Activity, BarChart3 } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 interface Props {
-  kpis: SeniorManagementKPIs;
-  alerts: KPIAlert[];
+  kpis: HierarchySeniorKPIs;
 }
 
-export function SeniorManagementDashboard({ kpis, alerts }: Props) {
+export function SeniorManagementDashboard({ kpis }: Props) {
   return (
     <div className="space-y-6">
-      {/* Alert Banner */}
-      {alerts.length > 0 && (
-        <Card className="border-destructive/50 bg-destructive/5">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <ShieldAlert className="h-5 w-5 text-destructive" />
-              <h3 className="font-semibold text-destructive">Active Alerts ({alerts.length})</h3>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {alerts.map((a, i) => (
-                <Badge key={i} variant={a.severity === 'critical' ? 'destructive' : 'secondary'}>
-                  {a.title}: {a.description}
-                </Badge>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Project Status Overview */}
       <div>
         <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Project Status</h3>
@@ -47,7 +27,7 @@ export function SeniorManagementDashboard({ kpis, alerts }: Props) {
       {/* Delivery & Performance */}
       <div>
         <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Delivery & Performance</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           <KPIMetricCard
             title="On-Time Delivery (%)"
             value={`${kpis.onTimeDeliveryRate.toFixed(1)}%`}
@@ -68,12 +48,6 @@ export function SeniorManagementDashboard({ kpis, alerts }: Props) {
             variant={kpis.portfolioSPI >= 1 ? 'success' : kpis.portfolioSPI >= 0.9 ? 'warning' : 'danger'}
             icon={BarChart3}
           />
-          <KPIMetricCard
-            title="Avg Risk Score"
-            value={kpis.averageRiskScore.toFixed(1)}
-            variant={kpis.averageRiskScore > 70 ? 'danger' : kpis.averageRiskScore > 40 ? 'warning' : 'success'}
-            icon={AlertTriangle}
-          />
         </div>
       </div>
 
@@ -81,8 +55,8 @@ export function SeniorManagementDashboard({ kpis, alerts }: Props) {
       <div>
         <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Financial Overview</h3>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          <KPIMetricCard title="Portfolio Planned Budget" value={kpis.portfolioPlannedBudget} icon={DollarSign} />
-          <KPIMetricCard title="Portfolio Actual Cost" value={kpis.portfolioActualCost} icon={DollarSign} />
+          <KPIMetricCard title="Portfolio Planned Budget" value={kpis.portfolioPlannedBudget.toLocaleString()} icon={DollarSign} />
+          <KPIMetricCard title="Portfolio Actual Cost" value={kpis.portfolioActualCost.toLocaleString()} icon={DollarSign} />
           <KPIMetricCard
             title="Budget Utilization (%)"
             value={`${kpis.budgetUtilization.toFixed(1)}%`}
@@ -111,9 +85,11 @@ export function SeniorManagementDashboard({ kpis, alerts }: Props) {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>Ref ID</TableHead>
                     <TableHead>Project</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Risk Score</TableHead>
+                    <TableHead className="text-right">Planned Budget</TableHead>
+                    <TableHead className="text-right">Actual Cost</TableHead>
                     <TableHead className="text-right">CPI</TableHead>
                     <TableHead className="text-right">SPI</TableHead>
                   </TableRow>
@@ -121,17 +97,15 @@ export function SeniorManagementDashboard({ kpis, alerts }: Props) {
                 <TableBody>
                   {kpis.projectList.map((p) => (
                     <TableRow key={p.id}>
+                      <TableCell className="text-xs text-muted-foreground">{p.refId}</TableCell>
                       <TableCell className="font-medium">{p.name}</TableCell>
                       <TableCell>
                         <Badge variant={p.status.toLowerCase().includes('completed') ? 'default' : p.status.toLowerCase().includes('progress') ? 'secondary' : 'outline'}>
                           {p.status || 'Unknown'}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-right">
-                        <span className={p.riskScore > 70 ? 'text-destructive font-semibold' : p.riskScore > 40 ? 'text-yellow-600 font-medium' : ''}>
-                          {p.riskScore.toFixed(0)}
-                        </span>
-                      </TableCell>
+                      <TableCell className="text-right">{p.plannedBudget.toLocaleString()}</TableCell>
+                      <TableCell className="text-right">{p.actualCost.toLocaleString()}</TableCell>
                       <TableCell className="text-right">
                         <span className={p.cpi < 0.9 ? 'text-destructive' : p.cpi >= 1 ? 'text-green-600' : ''}>
                           {p.cpi.toFixed(2)}

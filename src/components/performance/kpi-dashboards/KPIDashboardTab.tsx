@@ -1,10 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, UserCog, Database, FileText, BarChart3 } from 'lucide-react';
-import { usePerformanceKPI, PerformanceRoleType, calculateSeniorManagementKPIs, aggregateProjectManagerKPIs, calculateProjectManagerKPIs, calculateDisciplineEngineerKPIs, calculateFinanceKPIs, calculateRiskGovernanceKPIs, generateKPIAlerts } from '@/hooks/usePerformanceKPI';
+import { useHierarchyKPI } from '@/hooks/useHierarchyKPI';
 import { SeniorManagementDashboard } from './SeniorManagementDashboard';
 import { ProjectManagerDashboard } from './ProjectManagerDashboard';
 import { DisciplineEngineerDashboard } from './DisciplineEngineerDashboard';
@@ -17,7 +17,9 @@ interface Props {
   perfProjectId: string;
 }
 
-const ROLE_LABELS: Record<PerformanceRoleType, string> = {
+type RoleType = 'senior_management' | 'project_manager' | 'discipline_engineer' | 'finance_contract' | 'risk_governance';
+
+const ROLE_LABELS: Record<RoleType, string> = {
   senior_management: 'Senior Management',
   project_manager: 'Project Manager',
   discipline_engineer: 'Discipline Engineer',
@@ -25,7 +27,7 @@ const ROLE_LABELS: Record<PerformanceRoleType, string> = {
   risk_governance: 'Risk / Governance',
 };
 
-const ROLE_DESCRIPTIONS: Record<PerformanceRoleType, string> = {
+const ROLE_DESCRIPTIONS: Record<RoleType, string> = {
   senior_management: 'Portfolio-level view with cross-project analytics',
   project_manager: 'Project schedule, milestones, cost, and task control',
   discipline_engineer: 'Task execution, productivity, and resource utilization',
@@ -33,64 +35,17 @@ const ROLE_DESCRIPTIONS: Record<PerformanceRoleType, string> = {
   risk_governance: 'Risk exposure, compliance status, and audit findings',
 };
 
-interface SubmissionOption {
-  id: string;
-  label: string;
-}
-
 export function KPIDashboardTab({ perfProjectId }: Props) {
   const { userProfile } = useAuth();
-  const { userRole, loading, submissions, mappings, seniorKPIs, pmKPIs, engineerKPIs, financeKPIs, riskKPIs, alerts } = usePerformanceKPI(perfProjectId);
-  const [selectedRole, setSelectedRole] = useState<PerformanceRoleType | null>(null);
+  const [selectedRole, setSelectedRole] = useState<RoleType>('senior_management');
   const [showRoleAssignment, setShowRoleAssignment] = useState(false);
   const [selectedRecordId, setSelectedRecordId] = useState<string>('');
 
-  const activeRole = selectedRole || userRole || 'senior_management';
+  const { projects, hierarchy, loading, hierarchyLoading, kpis, recordOptions } = useHierarchyKPI(
+    selectedRecordId || undefined
+  );
+
   const isAdmin = userProfile?.role === 'admin';
-
-  // Build submission options for the record selector
-  const recordOptions: SubmissionOption[] = useMemo(() => {
-    return submissions.map((sub: any) => {
-      const data = sub.submission_data || {};
-      // Try to find a project name from field mappings
-      const nameMapping = mappings.find(m =>
-        m.formFieldLabel.toLowerCase().includes('project_name') ||
-        m.formFieldLabel.toLowerCase().includes('project name')
-      );
-      let label = nameMapping ? String(data[nameMapping.formFieldId] || '') : '';
-      if (!label) {
-        // Fallback: find a string value that looks like a name
-        label = Object.values(data).find((v: any) => typeof v === 'string' && v.length > 3 && v.length < 100) as string || '';
-      }
-      // Unwrap wrapped values
-      if (typeof label === 'object' && label !== null && 'value' in (label as any)) {
-        label = (label as any).value;
-      }
-      const refId = sub.submission_ref_id || sub.id?.slice(0, 8) || '';
-      return {
-        id: sub.id,
-        label: label ? `${refId} — ${label}` : refId,
-      };
-    });
-  }, [submissions, mappings]);
-
-  // Compute KPIs based on selected record
-  const computedKPIs = useMemo(() => {
-    if (submissions.length === 0 || !selectedRecordId) return null;
-
-    const selectedSub = submissions.find((s: any) => s.id === selectedRecordId);
-    if (!selectedSub) return null;
-    const singleArr = [selectedSub];
-
-    return {
-      seniorKPIs: calculateSeniorManagementKPIs(singleArr, mappings),
-      pmKPIs: calculateProjectManagerKPIs((selectedSub.submission_data || {}) as Record<string, any>, mappings),
-      engineerKPIs: calculateDisciplineEngineerKPIs(singleArr, mappings, userProfile?.id),
-      financeKPIs: calculateFinanceKPIs(singleArr, mappings),
-      riskKPIs: calculateRiskGovernanceKPIs(singleArr, mappings),
-      alerts: generateKPIAlerts(singleArr, mappings),
-    };
-  }, [submissions, mappings, selectedRecordId, userProfile?.id]);
 
   if (loading) {
     return (
@@ -100,33 +55,15 @@ export function KPIDashboardTab({ perfProjectId }: Props) {
     );
   }
 
-  // No data source configured
-  if (mappings.length === 0) {
-    return (
-      <Card className="border-dashed">
-        <CardContent className="p-8 text-center space-y-3">
-          <Database className="h-10 w-10 mx-auto text-muted-foreground" />
-          <div>
-            <p className="font-medium text-foreground">No Data Source Configured</p>
-            <p className="text-sm text-muted-foreground mt-1">
-              Go to the <strong>Data Sources</strong> tab to configure a form data source with field mappings first.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  // Data source exists but no submissions
-  if (submissions.length === 0) {
+  if (projects.length === 0) {
     return (
       <Card className="border-dashed">
         <CardContent className="p-8 text-center space-y-3">
           <FileText className="h-10 w-10 mx-auto text-muted-foreground" />
           <div>
-            <p className="font-medium text-foreground">No Submission Data Found</p>
+            <p className="font-medium text-foreground">No Project Records Found</p>
             <p className="text-sm text-muted-foreground mt-1">
-              Data source is configured but no form submissions found. Ensure the linked form has submission data for KPI calculations.
+              No submissions found in the Projects form. Add project records to see KPI calculations.
             </p>
           </div>
         </CardContent>
@@ -143,18 +80,13 @@ export function KPIDashboardTab({ perfProjectId }: Props) {
             <div>
               <CardTitle className="text-lg flex items-center gap-2">
                 <BarChart3 className="h-5 w-5 text-primary" />
-                KPI Dashboards
+                KPI Dashboards — Hierarchy Drill-Down
               </CardTitle>
               <CardDescription>
-                Role-based performance metrics calculated from form submission data
+                Role-based metrics from linked forms: Projects → WBS → Activities → Tasks → Resources
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">
-              {userRole && (
-                <Badge variant="secondary" className="text-xs">
-                  Assigned: {ROLE_LABELS[userRole]}
-                </Badge>
-              )}
               {isAdmin && (
                 <Button variant="outline" size="sm" onClick={() => setShowRoleAssignment(true)}>
                   <UserCog className="h-4 w-4 mr-1" />
@@ -169,12 +101,12 @@ export function KPIDashboardTab({ perfProjectId }: Props) {
             {/* Role Selector */}
             <div className="flex flex-col gap-1">
               <label className="text-xs font-medium text-muted-foreground">Dashboard View</label>
-              <Select value={activeRole} onValueChange={(v) => setSelectedRole(v as PerformanceRoleType)}>
+              <Select value={selectedRole} onValueChange={(v) => setSelectedRole(v as RoleType)}>
                 <SelectTrigger className="w-[240px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {(Object.keys(ROLE_LABELS) as PerformanceRoleType[]).map((role) => (
+                  {(Object.keys(ROLE_LABELS) as RoleType[]).map((role) => (
                     <SelectItem key={role} value={role}>
                       {ROLE_LABELS[role]}
                     </SelectItem>
@@ -185,12 +117,13 @@ export function KPIDashboardTab({ perfProjectId }: Props) {
 
             {/* Record Selector */}
             <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-muted-foreground">Analyze Record</label>
+              <label className="text-xs font-medium text-muted-foreground">Select Project</label>
               <Select value={selectedRecordId} onValueChange={setSelectedRecordId}>
                 <SelectTrigger className="w-[300px]">
-                  <SelectValue placeholder="Select a record..." />
+                  <SelectValue placeholder="All Projects (Portfolio)" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="__all__">All Projects (Portfolio)</SelectItem>
                   {recordOptions.map((opt) => (
                     <SelectItem key={opt.id} value={opt.id}>
                       {opt.label}
@@ -200,53 +133,66 @@ export function KPIDashboardTab({ perfProjectId }: Props) {
               </Select>
             </div>
 
-            {/* Info badge */}
+            {/* Info badges */}
             <div className="flex items-center gap-2 mt-auto">
               <Badge variant="outline" className="text-xs">
-                {selectedRecordId ? 'Single record' : `${submissions.length} records available`}
+                {selectedRecordId && selectedRecordId !== '__all__'
+                  ? '1 project selected'
+                  : `${projects.length} projects`}
               </Badge>
+              {hierarchyLoading && (
+                <Badge variant="secondary" className="text-xs gap-1">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Loading linked records...
+                </Badge>
+              )}
+              {hierarchy && !hierarchyLoading && (
+                <Badge variant="outline" className="text-xs text-muted-foreground">
+                  {hierarchy.wbs.length} WBS · {hierarchy.activities.length} Activities · {hierarchy.tasks.length} Tasks · {hierarchy.resources.length} Resources
+                </Badge>
+              )}
               <Badge variant="outline" className="text-xs text-muted-foreground">
-                {ROLE_DESCRIPTIONS[activeRole]}
+                {ROLE_DESCRIPTIONS[selectedRole]}
               </Badge>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Empty state when no record selected */}
-      {!selectedRecordId && (
+      {/* Dashboard Content */}
+      {kpis && (
+        <>
+          {selectedRole === 'senior_management' && kpis.seniorKPIs && (
+            <SeniorManagementDashboard kpis={kpis.seniorKPIs} />
+          )}
+          {selectedRole === 'project_manager' && kpis.pmKPIs && (
+            <ProjectManagerDashboard kpis={kpis.pmKPIs} hasHierarchy={!!hierarchy} />
+          )}
+          {selectedRole === 'discipline_engineer' && kpis.engineerKPIs && (
+            <DisciplineEngineerDashboard kpis={kpis.engineerKPIs} hasHierarchy={!!hierarchy} />
+          )}
+          {selectedRole === 'finance_contract' && kpis.financeKPIs && (
+            <FinanceDashboard kpis={kpis.financeKPIs} />
+          )}
+          {selectedRole === 'risk_governance' && kpis.riskKPIs && (
+            <RiskGovernanceDashboard kpis={kpis.riskKPIs} />
+          )}
+        </>
+      )}
+
+      {/* Prompt to select project for drill-down roles */}
+      {!selectedRecordId && (selectedRole === 'project_manager' || selectedRole === 'discipline_engineer') && (
         <Card className="border-dashed">
           <CardContent className="p-8 text-center space-y-3">
-            <FileText className="h-10 w-10 mx-auto text-muted-foreground" />
+            <Database className="h-10 w-10 mx-auto text-muted-foreground" />
             <div>
-              <p className="font-medium text-foreground">Select a Record to Analyze</p>
+              <p className="font-medium text-foreground">Select a Project for Drill-Down</p>
               <p className="text-sm text-muted-foreground mt-1">
-                Choose a record from the dropdown above to view KPI calculations.
+                This dashboard requires linked Task and Resource data. Select a specific project above to load the full hierarchy.
               </p>
             </div>
           </CardContent>
         </Card>
-      )}
-
-      {/* Dashboard Content */}
-      {computedKPIs && (
-        <>
-          {activeRole === 'senior_management' && computedKPIs.seniorKPIs && (
-            <SeniorManagementDashboard kpis={computedKPIs.seniorKPIs} alerts={computedKPIs.alerts} />
-          )}
-          {activeRole === 'project_manager' && computedKPIs.pmKPIs && (
-            <ProjectManagerDashboard kpis={computedKPIs.pmKPIs} />
-          )}
-          {activeRole === 'discipline_engineer' && computedKPIs.engineerKPIs && (
-            <DisciplineEngineerDashboard kpis={computedKPIs.engineerKPIs} />
-          )}
-          {activeRole === 'finance_contract' && computedKPIs.financeKPIs && (
-            <FinanceDashboard kpis={computedKPIs.financeKPIs} />
-          )}
-          {activeRole === 'risk_governance' && computedKPIs.riskKPIs && (
-            <RiskGovernanceDashboard kpis={computedKPIs.riskKPIs} />
-          )}
-        </>
       )}
 
       {/* Role Assignment Dialog */}

@@ -1,26 +1,32 @@
 import React from 'react';
+import { Card, CardContent } from '@/components/ui/card';
 import { KPIMetricCard } from './KPIMetricCard';
-import { ProjectManagerKPIs } from '@/hooks/usePerformanceKPI';
-import { Clock, AlertTriangle, DollarSign, Target, Flame, TrendingUp, Calendar } from 'lucide-react';
+import { HierarchyPMKPIs } from '@/hooks/useHierarchyKPI';
+import { Clock, AlertTriangle, DollarSign, Target, Flame, TrendingUp, Calendar, ListChecks } from 'lucide-react';
 
 interface Props {
-  kpis: ProjectManagerKPIs;
+  kpis: HierarchyPMKPIs;
+  hasHierarchy?: boolean;
 }
 
-export function ProjectManagerDashboard({ kpis }: Props) {
+export function ProjectManagerDashboard({ kpis, hasHierarchy }: Props) {
   return (
     <div className="space-y-6">
       {/* Progress & Tasks */}
       <div>
         <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Progress & Tasks</h3>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <KPIMetricCard title="Project Progress (%)" value={`${kpis.projectProgress.toFixed(1)}%`} icon={Target}
+            subtitle={`${kpis.totalTasks} total tasks`}
             variant={kpis.projectProgress >= 80 ? 'success' : kpis.projectProgress >= 50 ? 'warning' : 'danger'} />
           <KPIMetricCard title="Delayed Tasks" value={kpis.delayedTasks} icon={Clock}
+            subtitle={`of ${kpis.totalTasks} tasks`}
             variant={kpis.delayedTasks > 0 ? 'danger' : 'default'} />
           <KPIMetricCard title="Schedule Variance (%)" value={`${kpis.scheduleVariancePercent.toFixed(1)}%`}
-            subtitle={kpis.scheduleVariancePercent <= 0 ? 'On/Ahead of schedule' : 'Behind schedule'}
-            variant={kpis.scheduleVariancePercent <= 0 ? 'success' : 'danger'} icon={Calendar} />
+            subtitle={kpis.scheduleVariancePercent >= 0 ? 'Ahead of schedule' : 'Behind schedule'}
+            variant={kpis.scheduleVariancePercent >= 0 ? 'success' : 'danger'} icon={Calendar} />
+          <KPIMetricCard title="Total Tasks" value={kpis.totalTasks} icon={ListChecks}
+            subtitle={hasHierarchy ? 'From linked hierarchy' : 'No hierarchy loaded'} />
         </div>
       </div>
 
@@ -28,7 +34,7 @@ export function ProjectManagerDashboard({ kpis }: Props) {
       <div>
         <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Cost Performance</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <KPIMetricCard title="Cost Variance" value={kpis.costVariance}
+          <KPIMetricCard title="Cost Variance" value={kpis.costVariance.toLocaleString()}
             subtitle={kpis.costVariance >= 0 ? 'Under budget' : 'Over budget'}
             variant={kpis.costVariance >= 0 ? 'success' : 'danger'} icon={DollarSign} />
           <KPIMetricCard title="Cost Variance (%)" value={`${kpis.costVariancePercent.toFixed(1)}%`}
@@ -42,26 +48,29 @@ export function ProjectManagerDashboard({ kpis }: Props) {
         </div>
       </div>
 
-      {/* Milestones & Burn Rate */}
+      {/* Expenditure & Predictions */}
       <div>
-        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Milestones & Expenditure</h3>
+        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Expenditure & Predictions</h3>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          <KPIMetricCard title="Burn Rate" value={`${kpis.burnRate.toFixed(0)}/day`} icon={Flame} />
-          <KPIMetricCard title="Milestone Delay Days" value={`${kpis.milestoneDelayDays.toFixed(0)} days`}
-            variant={kpis.milestoneDelayDays > 0 ? 'danger' : 'success'} />
+          <KPIMetricCard title="Burn Rate" value={`${kpis.burnRate.toFixed(0)}/day`} icon={Flame}
+            subtitle="Actual Cost / Project Duration" />
           <KPIMetricCard title="Predicted Delay Days" value={`${kpis.predictedDelayDays.toFixed(1)} days`}
             variant={kpis.predictedDelayDays > 5 ? 'warning' : 'default'} />
-        </div>
-      </div>
-
-      {/* Predictions */}
-      <div>
-        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Predictions</h3>
-        <div className="grid grid-cols-2 gap-3">
           <KPIMetricCard title="Predicted Cost Overrun (%)" value={`${kpis.predictedCostOverrunPercent.toFixed(1)}%`}
             variant={kpis.predictedCostOverrunPercent > 10 ? 'danger' : 'default'} icon={AlertTriangle} />
         </div>
       </div>
+
+      {/* No hierarchy warning */}
+      {!hasHierarchy && (
+        <Card className="border-dashed border-yellow-500/50">
+          <CardContent className="p-4 text-center">
+            <p className="text-sm text-muted-foreground">
+              ⚠️ Task-based metrics (Progress, Delayed Tasks) require a specific project selection to load linked data.
+            </p>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
