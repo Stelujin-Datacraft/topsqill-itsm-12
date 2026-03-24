@@ -9,14 +9,13 @@ import NoProjectSelected from '@/components/NoProjectSelected';
 import { PerformanceProjectList } from '@/components/performance/PerformanceProjectList';
 import { PerformanceActivityLog } from '@/components/performance/activity/PerformanceActivityLog';
 import { PortfolioDashboard } from '@/components/performance/portfolio/PortfolioDashboard';
-import { PerformanceDashboard } from '@/components/performance/dashboard/PerformanceDashboard';
 import { KPIDashboardTab } from '@/components/performance/kpi-dashboards/KPIDashboardTab';
 import { AlertsPanel } from '@/components/performance/alerts/AlertsPanel';
 import { ThresholdsConfig } from '@/components/performance/thresholds/ThresholdsConfig';
 import { DataSourceConfig } from '@/components/performance/data-sources/DataSourceConfig';
 import { AnalyticsPanel } from '@/components/performance/analytics/AnalyticsPanel';
 import { ScenarioSimulator } from '@/components/performance/scenarios/ScenarioSimulator';
-import { AlertTriangle, ArrowLeft, Clock, Database, FlaskConical, Gauge, LineChart, Network, Settings2 } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Clock, Database, FlaskConical, Gauge, LineChart, Settings2 } from 'lucide-react';
 
 interface SelectedPerfProject {
   id: string;
@@ -128,10 +127,7 @@ export default function ProjectPerformance() {
             <Database className="h-3.5 w-3.5" />Data Sources
           </TabsTrigger>
           <TabsTrigger value="dashboard" className="gap-1.5 text-xs">
-            <Gauge className="h-3.5 w-3.5" />Performance Dashboard
-          </TabsTrigger>
-          <TabsTrigger value="hierarchy-kpi" className="gap-1.5 text-xs">
-            <Network className="h-3.5 w-3.5" />Hierarchy KPI
+            <Gauge className="h-3.5 w-3.5" />KPI Dashboard
           </TabsTrigger>
           <TabsTrigger value="alerts" className="gap-1.5 text-xs">
             <AlertTriangle className="h-3.5 w-3.5" />Alerts
@@ -151,19 +147,15 @@ export default function ProjectPerformance() {
         </TabsList>
 
         <TabsContent value="dashboard">
-          <PerformanceDashboard
+          <KPIDashboardTab
             perfProjectId={selectedPerfProject.id}
             alerts={perfData.alerts}
             predictions={perfData.predictions}
             thresholds={perfData.thresholds}
-            loading={perfData.loading}
-            onNavigateToThresholds={() => setActiveTab('thresholds')}
             selectedRecordId={selectedRecordId}
             onRecordChange={setSelectedRecordId}
+            onNavigateToThresholds={() => setActiveTab('thresholds')}
           />
-        </TabsContent>
-        <TabsContent value="hierarchy-kpi">
-          <KPIDashboardTab perfProjectId={selectedPerfProject.id} />
         </TabsContent>
         <TabsContent value="data-sources">
           <DataSourceConfig perfProjectId={selectedPerfProject.id} perfFormId={selectedPerfProject.form_id || undefined} />
