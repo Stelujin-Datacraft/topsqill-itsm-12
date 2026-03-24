@@ -518,9 +518,9 @@ export function KPIDashboardTab({ perfProjectId, alerts = [], predictions = [], 
                   <div key={i} className="flex items-start gap-3 p-3 rounded-lg border bg-card">
                     <Badge variant="outline" className="text-[10px] mt-0.5 shrink-0 capitalize">{rec.priority}</Badge>
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm text-foreground">{rec.area}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">{rec.action}</p>
-                      {rec.expected_impact && <p className="text-xs text-primary mt-1">Impact: {rec.expected_impact}</p>}
+                      <p className="font-medium text-sm text-foreground">{rec.title}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{rec.description}</p>
+                      {rec.impact && <p className="text-xs text-primary mt-1">Impact: {rec.impact}</p>}
                     </div>
                   </div>
                 ))}
