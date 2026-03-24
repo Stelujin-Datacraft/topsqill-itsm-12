@@ -135,9 +135,6 @@ export default function ProjectPerformance() {
           <TabsTrigger value="thresholds" className="gap-1.5 text-xs">
             <Settings2 className="h-3.5 w-3.5" />Thresholds
           </TabsTrigger>
-          <TabsTrigger value="analytics" className="gap-1.5 text-xs">
-            <LineChart className="h-3.5 w-3.5" />Reports
-          </TabsTrigger>
           <TabsTrigger value="scenarios" className="gap-1.5 text-xs">
             <FlaskConical className="h-3.5 w-3.5" />What-If
           </TabsTrigger>

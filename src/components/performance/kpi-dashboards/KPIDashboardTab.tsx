@@ -58,6 +58,58 @@ const ROLE_DESCRIPTIONS: Record<RoleType, string> = {
   risk_governance: 'Formula-based risk, delay, and governance metrics',
 };
 
+// Formula-based Risk Score calculation (no AI)
+function useFormulaRiskScore(kpis: any) {
+  return useMemo(() => {
+    if (!kpis) return { riskScore: 0, healthStatus: 'Unknown' };
+
+    let score = 0;
+    let factors = 0;
+
+    // From senior KPIs: delayed projects ratio
+    if (kpis.seniorKPIs) {
+      const s = kpis.seniorKPIs;
+      if (s.totalProjects > 0) {
+        const delayRatio = s.delayedProjects / s.totalProjects;
+        score += delayRatio * 100 * 0.25; // 25% weight
+        factors++;
+      }
+      // CPI/SPI deviation
+      if (s.portfolioCPI > 0) {
+        const cpiRisk = Math.max(0, (1 - s.portfolioCPI) * 100);
+        score += Math.min(cpiRisk, 100) * 0.2; // 20% weight
+        factors++;
+      }
+      if (s.portfolioSPI > 0) {
+        const spiRisk = Math.max(0, (1 - s.portfolioSPI) * 100);
+        score += Math.min(spiRisk, 100) * 0.2; // 20% weight
+        factors++;
+      }
+      // Budget overrun
+      if (s.portfolioPlannedBudget > 0) {
+        const budgetOverrun = Math.max(0, ((s.portfolioActualCost - s.portfolioPlannedBudget) / s.portfolioPlannedBudget) * 100);
+        score += Math.min(budgetOverrun, 100) * 0.15; // 15% weight
+        factors++;
+      }
+      // Predicted delay
+      if (s.averagePredictedDelay > 0) {
+        score += Math.min(s.averagePredictedDelay * 3, 100) * 0.1; // 10% weight - 3 points per day
+        factors++;
+      }
+      // Predicted cost overrun
+      if (s.averagePredictedCostOverrun > 0) {
+        score += Math.min(s.averagePredictedCostOverrun, 100) * 0.1; // 10% weight
+        factors++;
+      }
+    }
+
+    const finalScore = factors > 0 ? Math.round(Math.min(score, 100)) : 0;
+    const healthStatus = finalScore <= 25 ? 'Healthy' : finalScore <= 50 ? 'At Risk' : finalScore <= 75 ? 'Warning' : 'Critical';
+
+    return { riskScore: finalScore, healthStatus };
+  }, [kpis]);
+}
+
 function useHealthMetrics(alerts: PerformanceAlert[], predictions: PerformancePrediction[], thresholds: PerformanceThreshold[]) {
   return useMemo(() => {
     const activeAlerts = alerts.filter(a => a.status === 'active');
