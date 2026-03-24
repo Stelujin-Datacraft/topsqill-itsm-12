@@ -58,6 +58,58 @@ const ROLE_DESCRIPTIONS: Record<RoleType, string> = {
   risk_governance: 'Formula-based risk, delay, and governance metrics',
 };
 
+// Formula-based Risk Score calculation (no AI)
+function useFormulaRiskScore(kpis: any) {
+  return useMemo(() => {
+    if (!kpis) return { riskScore: 0, healthStatus: 'Unknown' };
+
+    let score = 0;
+    let factors = 0;
+
+    // From senior KPIs: delayed projects ratio
+    if (kpis.seniorKPIs) {
+      const s = kpis.seniorKPIs;
+      if (s.totalProjects > 0) {
+        const delayRatio = s.delayedProjects / s.totalProjects;
+        score += delayRatio * 100 * 0.25; // 25% weight
+        factors++;
+      }
+      // CPI/SPI deviation
+      if (s.portfolioCPI > 0) {
+        const cpiRisk = Math.max(0, (1 - s.portfolioCPI) * 100);
+        score += Math.min(cpiRisk, 100) * 0.2; // 20% weight
+        factors++;
+      }
+      if (s.portfolioSPI > 0) {
+        const spiRisk = Math.max(0, (1 - s.portfolioSPI) * 100);
+        score += Math.min(spiRisk, 100) * 0.2; // 20% weight
+        factors++;
+      }
+      // Budget overrun
+      if (s.portfolioPlannedBudget > 0) {
+        const budgetOverrun = Math.max(0, ((s.portfolioActualCost - s.portfolioPlannedBudget) / s.portfolioPlannedBudget) * 100);
+        score += Math.min(budgetOverrun, 100) * 0.15; // 15% weight
+        factors++;
+      }
+      // Predicted delay
+      if (s.averagePredictedDelay > 0) {
+        score += Math.min(s.averagePredictedDelay * 3, 100) * 0.1; // 10% weight - 3 points per day
+        factors++;
+      }
+      // Predicted cost overrun
+      if (s.averagePredictedCostOverrun > 0) {
+        score += Math.min(s.averagePredictedCostOverrun, 100) * 0.1; // 10% weight
+        factors++;
+      }
+    }
+
+    const finalScore = factors > 0 ? Math.round(Math.min(score, 100)) : 0;
+    const healthStatus = finalScore <= 25 ? 'Healthy' : finalScore <= 50 ? 'At Risk' : finalScore <= 75 ? 'Warning' : 'Critical';
+
+    return { riskScore: finalScore, healthStatus };
+  }, [kpis]);
+}
+
 function useHealthMetrics(alerts: PerformanceAlert[], predictions: PerformancePrediction[], thresholds: PerformanceThreshold[]) {
   return useMemo(() => {
     const activeAlerts = alerts.filter(a => a.status === 'active');
@@ -111,6 +163,7 @@ export function KPIDashboardTab({ perfProjectId, alerts = [], predictions = [], 
   );
 
   const health = useHealthMetrics(alerts, predictions, thresholds);
+  const formulaRisk = useFormulaRiskScore(kpis);
   const isAdmin = userProfile?.role === 'admin';
   const selectedProject = useMemo(
     () => projects.find((project) => project.id === selectedProjectId) ?? null,
@@ -335,24 +388,23 @@ export function KPIDashboardTab({ perfProjectId, alerts = [], predictions = [], 
       {selectedRecordId && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <Card className="relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-1 h-full bg-primary" />
+            <div className={`absolute top-0 left-0 w-1 h-full ${formulaRisk.riskScore <= 25 ? 'bg-emerald-500' : formulaRisk.riskScore <= 50 ? 'bg-yellow-500' : formulaRisk.riskScore <= 75 ? 'bg-orange-500' : 'bg-destructive'}`} />
             <CardContent className="pt-5 pb-4 pl-5">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Risk Score</p>
                   <p className="text-3xl font-bold text-foreground mt-1">
-                    {aiRunning ? '...' : aiResult ? aiResult.risk_score : '—'}
+                    {formulaRisk.riskScore}
                   </p>
-                  {aiResult && (
-                    <Badge className={`mt-1.5 text-[10px] ${getHealthColorClass(aiResult.health_status)}`}>
-                      {aiResult.health_status?.toUpperCase()}
-                    </Badge>
-                  )}
+                  <Badge className={`mt-1.5 text-[10px] ${formulaRisk.healthStatus === 'Healthy' ? 'bg-emerald-100 text-emerald-700' : formulaRisk.healthStatus === 'At Risk' ? 'bg-yellow-100 text-yellow-700' : formulaRisk.healthStatus === 'Warning' ? 'bg-orange-100 text-orange-700' : 'bg-red-100 text-red-700'}`}>
+                    {formulaRisk.healthStatus.toUpperCase()}
+                  </Badge>
                 </div>
                 <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                  <Brain className="h-6 w-6 text-primary" />
+                  <ShieldAlert className="h-6 w-6 text-primary" />
                 </div>
               </div>
+              <p className="text-[9px] text-muted-foreground mt-2">Based on CPI, SPI, delays & budget</p>
             </CardContent>
           </Card>
           <Card className="relative overflow-hidden">

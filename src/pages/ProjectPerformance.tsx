@@ -13,9 +13,8 @@ import { KPIDashboardTab } from '@/components/performance/kpi-dashboards/KPIDash
 import { AlertsPanel } from '@/components/performance/alerts/AlertsPanel';
 import { ThresholdsConfig } from '@/components/performance/thresholds/ThresholdsConfig';
 import { DataSourceConfig } from '@/components/performance/data-sources/DataSourceConfig';
-import { AnalyticsPanel } from '@/components/performance/analytics/AnalyticsPanel';
 import { ScenarioSimulator } from '@/components/performance/scenarios/ScenarioSimulator';
-import { AlertTriangle, ArrowLeft, Clock, Database, FlaskConical, Gauge, LineChart, Settings2 } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Clock, Database, FlaskConical, Gauge, Settings2 } from 'lucide-react';
 
 interface SelectedPerfProject {
   id: string;
@@ -135,9 +134,6 @@ export default function ProjectPerformance() {
           <TabsTrigger value="thresholds" className="gap-1.5 text-xs">
             <Settings2 className="h-3.5 w-3.5" />Thresholds
           </TabsTrigger>
-          <TabsTrigger value="analytics" className="gap-1.5 text-xs">
-            <LineChart className="h-3.5 w-3.5" />Reports
-          </TabsTrigger>
           <TabsTrigger value="scenarios" className="gap-1.5 text-xs">
             <FlaskConical className="h-3.5 w-3.5" />What-If
           </TabsTrigger>
@@ -165,9 +161,6 @@ export default function ProjectPerformance() {
         </TabsContent>
         <TabsContent value="thresholds">
           <ThresholdsConfig perfProjectId={selectedPerfProject.id} thresholds={perfData.thresholds} loading={perfData.loading} createThreshold={perfData.createThreshold} deleteThreshold={perfData.deleteThreshold} />
-        </TabsContent>
-        <TabsContent value="analytics">
-          <AnalyticsPanel perfProjectId={selectedPerfProject?.id} selectedRecordId={selectedRecordId} />
         </TabsContent>
         <TabsContent value="scenarios">
           <ScenarioSimulator perfProjectId={selectedPerfProject.id} selectedRecordId={selectedRecordId} />
