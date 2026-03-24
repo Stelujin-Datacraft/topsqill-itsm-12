@@ -220,9 +220,11 @@ export function calculateProjectManagerKPIs(submission: Record<string, any>, map
   // Milestone_Delay_Days = Milestone_Actual_Date - Milestone_Planned_Date
   const milestoneDelayDays = dateDiffDays(milestoneActual, milestonePlanned);
 
-  // Predicted_Cost_Overrun (%) = ((Forecasted_Cost - Planned_Budget) / Planned_Budget) × 100
-  const predictedCostOverrunPercent = plannedBudget > 0 && forecastedCost > 0
-    ? ((forecastedCost - plannedBudget) / plannedBudget) * 100
+  // Predicted_Cost_Overrun (%) = ((Forecasted_Cost or EAC - Planned_Budget) / Planned_Budget) × 100
+  const eacForOverrun = cpi > 0 ? plannedBudget / cpi : 0;
+  const forecastForOverrun = forecastedCost > 0 ? forecastedCost : eacForOverrun;
+  const predictedCostOverrunPercent = plannedBudget > 0 && forecastForOverrun > 0
+    ? ((forecastForOverrun - plannedBudget) / plannedBudget) * 100
     : num(resolveField(d, mappings, 'Predicted Cost Overrun (%)'));
 
   // Project_Progress (%) - for single record: check if task is completed
