@@ -340,9 +340,9 @@ export function calculateDisciplineEngineerKPIs(submissions: any[], mappings: Fi
     }
   }
 
-  // Quality_Score = 100 - ((Defect_Count / COUNT(Task_ID)) × 100)
+  // Quality_Score = (1 - (SUM(Defect_Count) / (COUNT(Task_ID) + SUM(Defect_Count)))) × 100
   // Use form field average if available, otherwise calculate from defects
-  const calculatedQuality = totalTasks > 0 ? 100 - ((totalDefects / totalTasks) * 100) : 100;
+  const calculatedQuality = (totalTasks + totalDefects) > 0 ? (1 - (totalDefects / (totalTasks + totalDefects))) * 100 : 100;
   const qualityScore = qualityCount > 0 ? sumQualityScore / qualityCount : calculatedQuality;
 
   return {
