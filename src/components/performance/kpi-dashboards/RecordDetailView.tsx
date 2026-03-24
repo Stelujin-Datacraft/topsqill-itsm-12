@@ -336,15 +336,42 @@ export function RecordDetailView({
 
       if (ev > 0 || pv > 0 || ac > 0) {
         charts.push({
-          title: 'Earned Value Metrics',
-          type: 'bar',
+          title: 'Earned Value Analysis',
+          type: 'area',
           data: [
-            { name: 'EV', value: ev },
-            { name: 'PV', value: pv },
-            { name: 'AC', value: ac },
-          ].filter(d => d.value > 0),
+            { name: 'Planned Value', EV: 0, PV: 0, AC: 0 },
+            { name: 'Current', EV: ev, PV: pv, AC: ac },
+            { name: 'At Completion', EV: budget, PV: budget, AC: eac },
+          ],
+          dataKeys: ['EV', 'PV', 'AC'],
         });
       }
+
+      // Health Radar
+      charts.push({
+        title: 'Project Health Radar',
+        type: 'radar',
+        data: [
+          { metric: 'CPI', value: Math.min(cpi * 50, 100) },
+          { metric: 'SPI', value: Math.min(spi * 50, 100) },
+          { metric: 'On-Time', value: onTimeRate },
+          { metric: 'Budget', value: Math.max(0, 100 - budgetUtil + 100) > 100 ? 100 : Math.max(0, 200 - budgetUtil) },
+          { metric: 'Quality', value: totalTasks > 0 ? Math.max(0, 100 - (allTasks.reduce((s, t) => s + asNum(t.submission_data?.[FIELDS.taskDefectCount]), 0) / totalTasks) * 100) : 100 },
+          { metric: 'Risk', value: Math.max(0, 100 - riskScore) },
+        ],
+      });
+
+      // Cost Variance breakdown
+      charts.push({
+        title: 'Cost & Schedule Variance',
+        type: 'bar',
+        data: [
+          { name: 'Cost Var', value: costVariance },
+          { name: 'Schedule Var %', value: scheduleVariancePct },
+          { name: 'Budget Util %', value: budgetUtil },
+          { name: 'Overrun %', value: predictedCostOverrun },
+        ],
+      });
 
       if (childRecords.length > 0) {
         const activitiesByRef = new Map(allActivities.map(a => [a.submission_ref_id, a]));
@@ -374,6 +401,17 @@ export function RecordDetailView({
           type: 'pie',
           data: Object.entries(statusMap).map(([name, value]) => ({ name, value })),
         });
+      }
+
+      // Resource utilization pie
+      if (allResources.length > 0) {
+        const resData = allResources.map(r => ({
+          name: asText(r.submission_data?.[FIELDS.resourceName]) || r.submission_ref_id,
+          value: asNum(r.submission_data?.[FIELDS.actualHours]),
+        })).filter(d => d.value > 0).slice(0, 10);
+        if (resData.length > 0) {
+          charts.push({ title: 'Resource Hours Distribution', type: 'pie', data: resData });
+        }
       }
     }
 
