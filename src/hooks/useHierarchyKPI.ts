@@ -334,8 +334,8 @@ export function calcProjectManagerKPIs(projectData: any, tasks: any[]): Hierarch
   // Cost_Variance = EV - AC
   const costVariance = ev - ac;
 
-  // Cost_Variance (%) = ((EV - AC) / Planned_Budget) * 100
-  const costVariancePercent = plannedBudget > 0 ? ((ev - ac) / plannedBudget) * 100 : 0;
+  // Cost_Variance (%) = ((EV - AC) / EV) * 100
+  const costVariancePercent = ev > 0 ? ((ev - ac) / ev) * 100 : 0;
 
   // CPI = EV / AC
   const cpi = ac > 0 ? ev / ac : 0;
