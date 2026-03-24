@@ -646,7 +646,7 @@ export function RecordDetailView({
           formula: 'Actual_Hours - Planned_Hours', hideIfZero: true },
         { label: 'Quality', value: quality, unit: '%', icon: CheckCircle2,
           trend: quality >= 90 ? 'up' : 'neutral',
-          formula: '100 - (Defects × 10)' },
+          formula: '(1 - (Defects / (1 + Defects))) × 100' },
         { label: 'Defects', value: tDefects, icon: AlertTriangle,
           trend: tDefects > 0 ? 'down' : 'up', formula: 'Defect_Count' },
         { label: 'Resources', value: childRecords.length, icon: Users, formula: 'COUNT(Resource_ID)' },
