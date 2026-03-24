@@ -403,8 +403,10 @@ export function calculateFinanceKPIs(submissions: any[], mappings: FieldMapping[
   // Cost_Per_Task = Actual_Cost / COUNT(Task_ID)
   const costPerTask = totalTasks > 0 ? sumActual / totalTasks : 0;
   // Predicted_Cost_Overrun (%) = ((Forecasted_Cost - Planned_Budget) / Planned_Budget) × 100
-  const predictedCostOverrunPercent = sumBudget > 0 && sumForecastedCost > 0
-    ? ((sumForecastedCost - sumBudget) / sumBudget) * 100
+  // Falls back to EAC if Forecasted_Cost is not available
+  const forecastForOverrun = sumForecastedCost > 0 ? sumForecastedCost : eac;
+  const predictedCostOverrunPercent = sumBudget > 0 && forecastForOverrun > 0
+    ? ((forecastForOverrun - sumBudget) / sumBudget) * 100
     : 0;
 
   return {
