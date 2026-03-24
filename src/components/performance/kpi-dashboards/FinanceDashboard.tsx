@@ -26,11 +26,11 @@ export function FinanceDashboard({ kpis }: Props) {
       <div>
         <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Variance & Performance</h3>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          <KPIMetricCard title="Cost Variance" value={kpis.costVariance.toLocaleString()}
+          <KPIMetricCard title="Cost Variance" value={`₹${kpis.costVariance.toLocaleString('en-IN')}`}
             subtitle={kpis.costVariance >= 0 ? 'Under budget' : 'Over budget'}
             variant={kpis.costVariance >= 0 ? 'success' : 'danger'}
             icon={kpis.costVariance >= 0 ? TrendingUp : TrendingDown} />
-          <KPIMetricCard title="Cost Per Task" value={kpis.costPerTask.toLocaleString()}
+          <KPIMetricCard title="Cost Per Task" value={`₹${kpis.costPerTask.toLocaleString('en-IN')}`}
             subtitle="Actual Cost / Task Count" icon={Calculator} />
           <KPIMetricCard title="CPI" value={kpis.cpi.toFixed(3)}
             subtitle={kpis.cpi >= 1 ? 'Cost efficient' : 'Cost overrun'}
