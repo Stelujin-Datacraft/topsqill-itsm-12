@@ -335,7 +335,7 @@ export function useHierarchyFormGenerator() {
       
       // Cleanup: delete any forms that were created
       for (const key of Object.keys(formIds)) {
-        await supabase.from('forms').delete().eq('id', formIds[key]).catch(() => {});
+        try { await supabase.from('forms').delete().eq('id', formIds[key]); } catch {}
       }
       return null;
     } finally {
