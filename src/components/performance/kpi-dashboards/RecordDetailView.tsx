@@ -525,9 +525,9 @@ export function RecordDetailView({
         const ae = asText(td[FIELDS.taskActualEnd]);
         if (pe && ae) { const diff = dateDiff(ae, pe); if (diff > 0) totalDelay += diff; }
       });
-      const quality = childRecords.length > 0 ? Math.max(0, 100 - (totalDefects / childRecords.length) * 100) : 100;
-      const util = tPlanned > 0 ? (tActual / tPlanned) * 100 : 0;
-      const productivity = tActual > 0 ? tPlanned / tActual : 0;
+      const quality = (childRecords.length + totalDefects) > 0 ? (1 - (totalDefects / (childRecords.length + totalDefects))) * 100 : 100;
+      const util = (tActual / (tPlanned + 0.0001)) * 100;
+      const productivity = tPlanned > 0 ? tActual / tPlanned : 0;
       const delayedCount = childRecords.filter(t => {
         const pe = asText(t.submission_data?.[FIELDS.taskPlannedEnd]);
         const ae = asText(t.submission_data?.[FIELDS.taskActualEnd]);
