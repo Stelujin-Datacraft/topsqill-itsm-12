@@ -3963,6 +3963,7 @@ export type Database = {
           id: string
           is_active: boolean | null
           metric_name: string
+          notify_role_ids: string[] | null
           operator: string
           organization_id: string | null
           performance_project_id: string | null
@@ -3982,6 +3983,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           metric_name: string
+          notify_role_ids?: string[] | null
           operator: string
           organization_id?: string | null
           performance_project_id?: string | null
@@ -4001,6 +4003,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           metric_name?: string
+          notify_role_ids?: string[] | null
           operator?: string
           organization_id?: string | null
           performance_project_id?: string | null
