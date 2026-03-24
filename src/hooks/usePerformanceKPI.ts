@@ -210,10 +210,8 @@ export function calculateProjectManagerKPIs(submission: Record<string, any>, map
   // Cost_Variance (%) = ((EV - AC) / Planned_Budget) × 100
   const costVariancePercent = plannedBudget > 0 ? ((ev - ac) / plannedBudget) * 100 : 0;
 
-  // Schedule_Variance (%) = ((Actual_End_Date - Planned_End_Date) / (Planned_End_Date - Planned_Start_Date)) × 100
-  const actualDelay = dateDiffDays(actualEnd, plannedEnd);
-  const plannedDuration = dateDiffDays(plannedEnd, plannedStart);
-  const scheduleVariancePercent = plannedDuration > 0 ? (actualDelay / plannedDuration) * 100 : 0;
+  // Schedule_Variance (%) = ((EV - PV) / PV) × 100
+  const scheduleVariancePercent = pv > 0 ? ((ev - pv) / pv) * 100 : 0;
 
   // Burn_Rate = Actual_Cost / (Current_Date - Actual_Start_Date)
   const projectDuration = actualStart ? Math.max(dateDiffDays(new Date().toISOString(), actualStart), 1) : 1;
