@@ -13,7 +13,7 @@ export const FORM_IDS = {
 } as const;
 
 // Cross-reference field IDs (parent → child link)
-const CROSSREF_FIELDS = {
+export const CROSSREF_FIELDS = {
   PROJECT_TO_WBS: '0340bb1c-a584-44fb-a96e-1beadc4a0ed2',
   WBS_TO_ACTIVITIES: '9a4fe57f-e14c-4840-a39a-7a9e5d17829c',
   ACTIVITY_TO_TASKS: '0678c0b5-38bd-4bdb-987a-1584730c1567',
@@ -22,6 +22,7 @@ const CROSSREF_FIELDS = {
 
 // Project field IDs
 const PF = {
+  Project_ID: 'b1000001-0001-0000-0000-000000000001',
   Project_Name: 'b1000001-0002-0000-0000-000000000001',
   Project_Type: 'b1000001-0003-0000-0000-000000000001',
   Business_Unit: 'b1000001-0004-0000-0000-000000000001',
@@ -43,6 +44,7 @@ const PF = {
 
 // Task field IDs
 const TF = {
+  Task_ID: 'b4000001-0001-0000-0000-000000000001',
   Task_Name: 'b4000001-0003-0000-0000-000000000001',
   Task_Status: 'b4000001-0005-0000-0000-000000000001',
   Planned_Start_Date: 'b4000001-0006-0000-0000-000000000001',
@@ -94,6 +96,20 @@ function str(val: any): string {
   if (typeof val === 'object' && 'value' in val) return String(val.value);
   if (typeof val === 'object' && 'label' in val) return String(val.label);
   return String(val);
+}
+
+function normalizeStatus(val: any): string {
+  return str(val).toLowerCase().replace(/[\s_-]+/g, '');
+}
+
+function isInProgressStatus(val: any): boolean {
+  const normalized = normalizeStatus(val);
+  return normalized === 'inprogress' || normalized === 'active' || normalized === 'ongoing';
+}
+
+function isCompletedStatus(val: any): boolean {
+  const normalized = normalizeStatus(val);
+  return normalized === 'completed' || normalized === 'complete' || normalized === 'done' || normalized === 'closed' || normalized === 'finished';
 }
 
 function dateDiffDays(a: string | null, b: string | null): number {
@@ -221,7 +237,7 @@ export function calcSeniorManagementKPIs(projects: any[]): HierarchySeniorKPIs {
 
   for (const sub of projects) {
     const d = sub.submission_data || {};
-    const status = str(d[PF.Project_Status]).toLowerCase();
+    const status = d[PF.Project_Status];
     const plannedEnd = str(d[PF.End_Date_Planned]);
     const actualEnd = str(d[PF.End_Date_Actual]);
     const plannedBudget = num(d[PF.Planned_Budget]);
@@ -233,9 +249,10 @@ export function calcSeniorManagementKPIs(projects: any[]): HierarchySeniorKPIs {
     const predDelay = num(d[PF.Predicted_Delay_Days]);
     const forecastedCost = num(d[PF.Forecasted_Cost]);
     const projectName = str(d[PF.Project_Name]);
+    const projectIdValue = str(d[PF.Project_ID]);
 
-    if (status.includes('in progress')) active++;
-    if (status.includes('completed')) completed++;
+    if (isInProgressStatus(status)) active++;
+    if (isCompletedStatus(status)) completed++;
     if (actualEnd && plannedEnd && dateDiffDays(actualEnd, plannedEnd) > 0) delayed++;
     if (actualEnd && plannedEnd && dateDiffDays(actualEnd, plannedEnd) <= 0) onTime++;
 
@@ -255,7 +272,7 @@ export function calcSeniorManagementKPIs(projects: any[]): HierarchySeniorKPIs {
     projectList.push({
       id: sub.id,
       refId: sub.submission_ref_id || sub.id.slice(0, 8),
-      name: projectName || sub.submission_ref_id || sub.id.slice(0, 8),
+      name: projectName || projectIdValue || sub.submission_ref_id || sub.id.slice(0, 8),
       status: str(d[PF.Project_Status]),
       riskScore,
       cpi: ac > 0 ? ev / ac : 0,
@@ -300,11 +317,11 @@ export function calcProjectManagerKPIs(projectData: any, tasks: any[]): Hierarch
 
   for (const task of tasks) {
     const td = task.submission_data || {};
-    const taskStatus = str(td[TF.Task_Status]).toLowerCase();
+    const taskStatus = td[TF.Task_Status];
     const actualEnd = str(td[TF.Actual_End_Date]);
     const plannedEnd = str(td[TF.Planned_End_Date]);
 
-    if (taskStatus.includes('completed')) completedTasks++;
+    if (isCompletedStatus(taskStatus)) completedTasks++;
     if (actualEnd && plannedEnd && dateDiffDays(actualEnd, plannedEnd) > 0) delayedTasks++;
   }
 
@@ -358,34 +375,29 @@ export function calcEngineerKPIs(tasks: any[], resources: any[]): HierarchyEngin
 
   for (const task of tasks) {
     const td = task.submission_data || {};
-    const status = str(td[TF.Task_Status]).toLowerCase();
+    const status = td[TF.Task_Status];
     const actualEnd = str(td[TF.Actual_End_Date]);
     const plannedEnd = str(td[TF.Planned_End_Date]);
     const defects = num(td[TF.Defect_Count]);
 
-    if (status.includes('completed')) completedTasks++;
-    // Task_Delay_Days = Actual_End_Date - Planned_End_Date
-    if (actualEnd && plannedEnd) {
-      const delay = dateDiffDays(actualEnd, plannedEnd);
-      if (delay > 0) totalDelayDays += delay;
-    }
+    if (isCompletedStatus(status)) completedTasks++;
+    if (actualEnd && plannedEnd) totalDelayDays += dateDiffDays(actualEnd, plannedEnd);
     totalDefects += defects;
   }
 
-  // Assigned_Tasks = COUNT(Task_ID WHERE Task_Status != "Completed")
-  const assignedTasks = totalTasks - completedTasks;
+  // Assigned_Tasks = COUNT(Task_ID)
+  const assignedTasks = totalTasks;
 
   // Task_Completion_Rate (%) = (Completed / Total) * 100
   const taskCompletionRate = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
 
   // Resource metrics from Resource Assignments
-  let totalActualHours = 0, totalPlannedHours = 0, totalOvertimeHours = 0;
+  let totalActualHours = 0, totalPlannedHours = 0;
 
   for (const res of resources) {
     const rd = res.submission_data || {};
     totalActualHours += num(rd[RF.Actual_Hours]);
     totalPlannedHours += num(rd[RF.Planned_Hours]);
-    totalOvertimeHours += num(rd[RF.Overtime_Hours]);
   }
 
   // Resource_Utilization (%) = (Actual_Hours / Planned_Hours) * 100
@@ -393,6 +405,9 @@ export function calcEngineerKPIs(tasks: any[], resources: any[]): HierarchyEngin
 
   // Productivity_Score = Planned_Hours / Actual_Hours
   const productivityScore = totalActualHours > 0 ? totalPlannedHours / totalActualHours : 0;
+
+  // Overtime_Hours = Actual_Hours - Planned_Hours
+  const overtimeHours = totalActualHours - totalPlannedHours;
 
   // Quality_Score = 100 - ((SUM(Defect_Count) / COUNT(Task_ID)) * 100)
   const qualityScore = totalTasks > 0 ? 100 - ((totalDefects / totalTasks) * 100) : 100;
@@ -404,7 +419,7 @@ export function calcEngineerKPIs(tasks: any[], resources: any[]): HierarchyEngin
     taskDelayDays: totalDelayDays,
     resourceUtilization,
     productivityScore,
-    overtimeHours: totalOvertimeHours,
+    overtimeHours,
     qualityScore: Math.max(qualityScore, 0),
   };
 }
@@ -427,7 +442,7 @@ export function calcFinanceKPIs(projects: any[], tasks: any[]): HierarchyFinance
   // EAC = Planned_Budget / CPI
   const eac = cpi > 0 ? sumBudget / cpi : 0;
   // ETC = EAC - Actual_Cost
-  const etc = Math.max(eac - sumActual, 0);
+  const etc = eac - sumActual;
   // VAC = Planned_Budget - EAC
   const vac = sumBudget - eac;
   // Cost_Per_Task = SUM(Actual_Cost) / COUNT(Tasks.Task_ID)
