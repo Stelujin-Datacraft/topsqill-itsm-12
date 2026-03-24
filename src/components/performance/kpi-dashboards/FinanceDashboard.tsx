@@ -1,7 +1,7 @@
 import React from 'react';
 import { KPIMetricCard } from './KPIMetricCard';
 import { HierarchyFinanceKPIs } from '@/hooks/useHierarchyKPI';
-import { DollarSign, TrendingUp, TrendingDown, Calculator, Target, BarChart3 } from 'lucide-react';
+import { IndianRupee, TrendingUp, TrendingDown, Calculator, Target, BarChart3 } from 'lucide-react';
 
 interface Props {
   kpis: HierarchyFinanceKPIs;

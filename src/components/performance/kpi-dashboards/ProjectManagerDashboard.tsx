@@ -2,7 +2,7 @@ import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { KPIMetricCard } from './KPIMetricCard';
 import { HierarchyPMKPIs } from '@/hooks/useHierarchyKPI';
-import { Clock, AlertTriangle, DollarSign, Target, Flame, TrendingUp, Calendar, ListChecks } from 'lucide-react';
+import { Clock, AlertTriangle, IndianRupee, Target, Flame, TrendingUp, Calendar, ListChecks } from 'lucide-react';
 
 interface Props {
   kpis: HierarchyPMKPIs;

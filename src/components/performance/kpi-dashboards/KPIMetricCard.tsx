@@ -80,8 +80,8 @@ export function KPIMetricCard({
 }
 
 function formatValue(val: number): string {
-  if (val >= 1_000_000) return `${(val / 1_000_000).toFixed(1)}M`;
-  if (val >= 1_000) return `${(val / 1_000).toFixed(1)}K`;
-  if (Number.isInteger(val)) return val.toString();
+  if (val >= 1_000_000) return `₹${(val / 1_000_000).toFixed(1)}M`;
+  if (val >= 1_000) return `₹${(val / 1_000).toFixed(1)}K`;
+  if (Number.isInteger(val)) return val.toLocaleString('en-IN');
   return val.toFixed(2);
 }

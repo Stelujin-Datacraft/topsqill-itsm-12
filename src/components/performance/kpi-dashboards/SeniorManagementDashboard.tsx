@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { KPIMetricCard } from './KPIMetricCard';
 import { HierarchySeniorKPIs } from '@/hooks/useHierarchyKPI';
-import { Briefcase, TrendingUp, DollarSign, AlertTriangle, Target, Activity, BarChart3 } from 'lucide-react';
+import { Briefcase, TrendingUp, IndianRupee, AlertTriangle, Target, Activity, BarChart3 } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 interface Props {
