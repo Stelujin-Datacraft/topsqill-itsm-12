@@ -583,7 +583,28 @@ export function RecordDetailView({
         if (defectData.length > 0) {
           charts.push({ title: 'Defects by Task', type: 'bar', data: defectData.map(d => ({ name: d.name, value: d.defects })) });
         }
+
+        // Task status pie
+        const taskStatusMap: Record<string, number> = {};
+        childRecords.forEach(t => {
+          const s = asText(t.submission_data?.[FIELDS.taskStatus]) || 'Unknown';
+          taskStatusMap[s] = (taskStatusMap[s] || 0) + 1;
+        });
+        charts.push({ title: 'Task Status', type: 'pie', data: Object.entries(taskStatusMap).map(([name, value]) => ({ name, value })) });
       }
+
+      // Activity Health Radar
+      charts.push({
+        title: 'Activity Health',
+        type: 'radar',
+        data: [
+          { metric: 'Completion', value: progress },
+          { metric: 'Utilization', value: Math.min(util, 100) },
+          { metric: 'Quality', value: quality },
+          { metric: 'Productivity', value: Math.min(productivity * 50, 100) },
+          { metric: 'On-Time', value: childRecords.length > 0 ? ((childRecords.length - delayedCount) / childRecords.length) * 100 : 100 },
+        ],
+      });
     }
 
     if (level === 'task') {
