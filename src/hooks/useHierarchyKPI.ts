@@ -402,11 +402,11 @@ export function calcEngineerKPIs(tasks: any[], resources: any[]): HierarchyEngin
     totalPlannedHours += num(rd[RF.Planned_Hours]);
   }
 
-  // Resource_Utilization (%) = (Actual_Hours / Planned_Hours) * 100
-  const resourceUtilization = totalPlannedHours > 0 ? (totalActualHours / totalPlannedHours) * 100 : 0;
+  // Resource_Utilization (%) = (Actual_Hours / (Planned_Hours + 0.0001)) * 100
+  const resourceUtilization = (totalActualHours / (totalPlannedHours + 0.0001)) * 100;
 
-  // Productivity_Score = Planned_Hours / Actual_Hours
-  const productivityScore = totalActualHours > 0 ? totalPlannedHours / totalActualHours : 0;
+  // Productivity_Score = Actual_Hours / Planned_Hours
+  const productivityScore = totalPlannedHours > 0 ? totalActualHours / totalPlannedHours : 0;
 
   // Overtime_Hours = Actual_Hours - Planned_Hours
   const overtimeHours = totalActualHours - totalPlannedHours;
