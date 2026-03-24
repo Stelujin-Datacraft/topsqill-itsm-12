@@ -566,7 +566,7 @@ export function useHierarchyKPI(selectedProjectId?: string) {
 
   // Fetch hierarchy when a project is selected
   useEffect(() => {
-    if (!selectedProjectId) {
+    if (!selectedProjectId || selectedProjectId === '__all__') {
       setHierarchy(null);
       return;
     }

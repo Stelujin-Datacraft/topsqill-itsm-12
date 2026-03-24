@@ -55,7 +55,7 @@ export function DisciplineEngineerDashboard({ kpis, hasHierarchy }: Props) {
 
       {/* No hierarchy warning */}
       {!hasHierarchy && (
-        <Card className="border-dashed border-yellow-500/50">
+        <Card className="border-dashed border-yellow-500/30">
           <CardContent className="p-4 text-center">
             <p className="text-sm text-muted-foreground">
               ⚠️ All metrics require a specific project selection to load linked Tasks and Resource Assignments.
