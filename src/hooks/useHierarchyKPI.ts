@@ -343,8 +343,8 @@ export function calcProjectManagerKPIs(projectData: any, tasks: any[]): Hierarch
   // SPI = EV / PV
   const spi = pv > 0 ? ev / pv : 0;
 
-  // Burn_Rate = Actual_Cost / (Current_Date - Start_Date)
-  const projectDuration = startDate ? Math.max(dateDiffDays(new Date().toISOString(), startDate), 1) : 1;
+  // Burn_Rate = Actual_Cost / (DAYS_BETWEEN(Current_Date, Start_Date) + 1)
+  const projectDuration = startDate ? Math.max(dateDiffDays(new Date().toISOString(), startDate), 0) + 1 : 1;
   const burnRate = actualCost / projectDuration;
 
   // Predicted_Cost_Overrun (%) = ((Forecasted_Cost or EAC - Planned_Budget) / Planned_Budget) * 100
