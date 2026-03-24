@@ -718,6 +718,29 @@ export function RecordDetailView({
           trend: productivity >= 1 ? 'up' : 'down',
           formula: 'Planned_Hours / Actual_Hours' },
       );
+
+      // Resource hours breakdown
+      if (rPlanned > 0 || rActual > 0) {
+        charts.push({
+          title: 'Hours Breakdown',
+          type: 'pie',
+          data: [
+            { name: 'Regular', value: Math.max(0, rActual - rOvertime) },
+            ...(rOvertime > 0 ? [{ name: 'Overtime', value: rOvertime }] : []),
+            ...(rPlanned > rActual ? [{ name: 'Remaining', value: rPlanned - rActual }] : []),
+          ].filter(d => d.value > 0),
+        });
+
+        charts.push({
+          title: 'Resource Performance',
+          type: 'radar',
+          data: [
+            { metric: 'Utilization', value: Math.min(util, 100) },
+            { metric: 'Productivity', value: Math.min(productivity * 50, 100) },
+            { metric: 'Efficiency', value: rOvertime > 0 ? Math.max(0, 100 - (rOvertime / rActual) * 100) : 100 },
+          ],
+        });
+      }
     }
 
     // Per-child metrics for the list
