@@ -674,7 +674,29 @@ export function RecordDetailView({
           })),
           dataKeys: ['planned', 'actual'],
         });
+
+        // Resource overtime stacked
+        const overtimeData = childRecords.map(r => ({
+          name: asText(r.submission_data?.[FIELDS.resourceName]) || r.submission_ref_id,
+          regular: asNum(r.submission_data?.[FIELDS.plannedHours]),
+          overtime: asNum(r.submission_data?.[FIELDS.overtimeHours]),
+        })).filter(d => d.regular > 0 || d.overtime > 0);
+        if (overtimeData.length > 0) {
+          charts.push({ title: 'Regular vs Overtime Hours', type: 'stacked-bar', data: overtimeData, dataKeys: ['regular', 'overtime'] });
+        }
       }
+
+      // Task KPI Radar
+      charts.push({
+        title: 'Task Performance',
+        type: 'radar',
+        data: [
+          { metric: 'Utilization', value: Math.min(util, 100) },
+          { metric: 'Productivity', value: Math.min(productivity * 50, 100) },
+          { metric: 'Quality', value: quality },
+          { metric: 'On-Time', value: delay <= 0 ? 100 : Math.max(0, 100 - delay * 5) },
+        ],
+      });
     }
 
     if (level === 'resource') {
