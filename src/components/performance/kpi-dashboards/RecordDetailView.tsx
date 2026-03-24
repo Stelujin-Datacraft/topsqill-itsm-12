@@ -705,8 +705,8 @@ export function RecordDetailView({
       const rPlanned = asNum(d[FIELDS.plannedHours]);
       const rActual = asNum(d[FIELDS.actualHours]);
       const rOvertime = asNum(d[FIELDS.overtimeHours]);
-      const util = rPlanned > 0 ? (rActual / rPlanned) * 100 : 0;
-      const productivity = rActual > 0 ? rPlanned / rActual : 0;
+      const util = (rActual / (rPlanned + 0.0001)) * 100;
+      const productivity = rPlanned > 0 ? rActual / rPlanned : 0;
       const role = asText(d[FIELDS.resourceRole]);
 
       kpiCards.push(
@@ -715,10 +715,10 @@ export function RecordDetailView({
         { label: 'Overtime', value: rOvertime, unit: 'h', icon: AlertTriangle,
           trend: rOvertime > 0 ? 'down' : 'up', formula: 'Actual_Hours - Planned_Hours' },
         { label: 'Utilization', value: util, unit: '%', icon: Users,
-          formula: '(Actual_Hours / Planned_Hours) × 100' },
+          formula: '(Actual_Hours / (Planned_Hours + 0.0001)) × 100' },
         { label: 'Productivity', value: productivity, icon: Zap,
           trend: productivity >= 1 ? 'up' : 'down',
-          formula: 'Planned_Hours / Actual_Hours' },
+          formula: 'Actual_Hours / Planned_Hours' },
       );
 
       // Resource hours breakdown

@@ -53,7 +53,7 @@ export function ProjectManagerDashboard({ kpis, hasHierarchy }: Props) {
         <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Expenditure & Predictions</h3>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           <KPIMetricCard title="Burn Rate" value={`${kpis.burnRate.toFixed(0)}/day`} icon={Flame}
-            subtitle="Actual Cost / Project Duration" />
+            subtitle="Actual Cost / (Days Since Start + 1)" />
           <KPIMetricCard title="Predicted Delay Days" value={`${kpis.predictedDelayDays.toFixed(1)} days`}
             variant={kpis.predictedDelayDays > 5 ? 'warning' : 'default'} />
           <KPIMetricCard title="Predicted Cost Overrun (%)" value={`${kpis.predictedCostOverrunPercent.toFixed(1)}%`}

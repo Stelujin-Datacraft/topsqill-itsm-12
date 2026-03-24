@@ -39,16 +39,16 @@ export function DisciplineEngineerDashboard({ kpis, hasHierarchy }: Props) {
         <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Productivity & Utilization</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <KPIMetricCard title="Resource Utilization (%)" value={`${kpis.resourceUtilization.toFixed(1)}%`}
-            subtitle="Actual / Planned Hours"
+            subtitle="Actual / (Planned + 0.0001) Hours"
             variant={kpis.resourceUtilization > 110 ? 'danger' : kpis.resourceUtilization >= 80 ? 'success' : 'warning'} icon={Gauge} />
           <KPIMetricCard title="Productivity Score" value={kpis.productivityScore.toFixed(2)}
-            subtitle={kpis.productivityScore >= 1 ? 'Efficient' : 'Below target'}
+            subtitle="Actual Hours / Planned Hours"
             variant={kpis.productivityScore >= 1 ? 'success' : 'warning'} icon={Zap} />
           <KPIMetricCard title="Overtime Hours" value={`${kpis.overtimeHours.toFixed(0)} hrs`}
             subtitle="From Resource Assignments"
             variant={kpis.overtimeHours > 0 ? 'warning' : 'success'} icon={Clock} />
           <KPIMetricCard title="Quality Score" value={kpis.qualityScore.toFixed(1)}
-            subtitle="100 - (Defects/Tasks × 100)"
+            subtitle="(1 - Defects/(Tasks+Defects)) × 100"
             variant={kpis.qualityScore >= 80 ? 'success' : kpis.qualityScore >= 60 ? 'warning' : 'danger'} icon={Star} />
         </div>
       </div>
