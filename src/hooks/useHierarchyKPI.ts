@@ -328,14 +328,14 @@ export function calcProjectManagerKPIs(projectData: any, tasks: any[]): Hierarch
   // Project_Progress (%) = (COUNT(Tasks.Task_Status = "Completed") / COUNT(Tasks.Task_ID)) * 100
   const projectProgress = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
 
-  // Schedule_Variance (%) = ((EV - PV) / PV) * 100
-  const scheduleVariancePercent = pv > 0 ? ((ev - pv) / pv) * 100 : 0;
+  // Schedule_Variance (%) = ((EV - PV) / EV) * 100
+  const scheduleVariancePercent = ev > 0 ? ((ev - pv) / ev) * 100 : 0;
 
   // Cost_Variance = EV - AC
   const costVariance = ev - ac;
 
-  // Cost_Variance (%) = ((EV - AC) / Planned_Budget) * 100
-  const costVariancePercent = plannedBudget > 0 ? ((ev - ac) / plannedBudget) * 100 : 0;
+  // Cost_Variance (%) = ((EV - AC) / EV) * 100
+  const costVariancePercent = ev > 0 ? ((ev - ac) / ev) * 100 : 0;
 
   // CPI = EV / AC
   const cpi = ac > 0 ? ev / ac : 0;
@@ -343,8 +343,8 @@ export function calcProjectManagerKPIs(projectData: any, tasks: any[]): Hierarch
   // SPI = EV / PV
   const spi = pv > 0 ? ev / pv : 0;
 
-  // Burn_Rate = Actual_Cost / (Current_Date - Start_Date)
-  const projectDuration = startDate ? Math.max(dateDiffDays(new Date().toISOString(), startDate), 1) : 1;
+  // Burn_Rate = Actual_Cost / (DAYS_BETWEEN(Current_Date, Start_Date) + 1)
+  const projectDuration = startDate ? Math.max(dateDiffDays(new Date().toISOString(), startDate), 0) + 1 : 1;
   const burnRate = actualCost / projectDuration;
 
   // Predicted_Cost_Overrun (%) = ((Forecasted_Cost or EAC - Planned_Budget) / Planned_Budget) * 100
@@ -402,17 +402,17 @@ export function calcEngineerKPIs(tasks: any[], resources: any[]): HierarchyEngin
     totalPlannedHours += num(rd[RF.Planned_Hours]);
   }
 
-  // Resource_Utilization (%) = (Actual_Hours / Planned_Hours) * 100
-  const resourceUtilization = totalPlannedHours > 0 ? (totalActualHours / totalPlannedHours) * 100 : 0;
+  // Resource_Utilization (%) = (Actual_Hours / (Planned_Hours + 0.0001)) * 100
+  const resourceUtilization = (totalActualHours / (totalPlannedHours + 0.0001)) * 100;
 
-  // Productivity_Score = Planned_Hours / Actual_Hours
-  const productivityScore = totalActualHours > 0 ? totalPlannedHours / totalActualHours : 0;
+  // Productivity_Score = Actual_Hours / Planned_Hours
+  const productivityScore = totalPlannedHours > 0 ? totalActualHours / totalPlannedHours : 0;
 
   // Overtime_Hours = Actual_Hours - Planned_Hours
   const overtimeHours = totalActualHours - totalPlannedHours;
 
-  // Quality_Score = 100 - ((SUM(Defect_Count) / COUNT(Task_ID)) * 100)
-  const qualityScore = totalTasks > 0 ? 100 - ((totalDefects / totalTasks) * 100) : 100;
+  // Quality_Score = (1 - (SUM(Defect_Count) / (COUNT(Task_ID) + SUM(Defect_Count)))) * 100
+  const qualityScore = (totalTasks + totalDefects) > 0 ? (1 - (totalDefects / (totalTasks + totalDefects))) * 100 : 100;
 
   return {
     assignedTasks,

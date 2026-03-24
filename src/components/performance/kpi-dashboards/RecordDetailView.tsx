@@ -271,8 +271,8 @@ export function RecordDetailView({
       const etc = eac > 0 ? eac - actual : 0;
       const vac = eac > 0 ? budget - eac : 0;
       const costVariance = ev - ac;
-      const costVariancePct = budget > 0 ? ((ev - ac) / budget) * 100 : 0;
-      const scheduleVariancePct = pv > 0 ? ((ev - pv) / pv) * 100 : 0;
+      const costVariancePct = ev > 0 ? ((ev - ac) / ev) * 100 : 0;
+      const scheduleVariancePct = ev > 0 ? ((ev - pv) / ev) * 100 : 0;
       const onTimeRate = totalTasks > 0 ? ((totalTasks - delayedTasks) / totalTasks) * 100 : 0;
       const forecastForOverrun = forecast > 0 ? forecast : eac;
       const predictedCostOverrun = budget > 0 && forecastForOverrun > 0 ? ((forecastForOverrun - budget) / budget) * 100 : 0;
@@ -299,9 +299,9 @@ export function RecordDetailView({
         { label: 'SPI', value: spi, icon: TrendingUp, trend: spi >= 1 ? 'up' : spi >= 0.9 ? 'neutral' : 'down',
           formula: 'Earned_Value / Planned_Value' },
         { label: 'Cost Variance', value: costVariance, icon: IndianRupee, trend: costVariance >= 0 ? 'up' : 'down',
-          formula: '((EV - AC) / Planned_Budget) × 100' },
+          formula: '((EV - AC) / EV) × 100' },
         { label: 'Schedule Var.', value: scheduleVariancePct, unit: '%', icon: Clock,
-          trend: scheduleVariancePct >= 0 ? 'up' : 'down', formula: '((EV - PV) / PV) × 100' },
+          trend: scheduleVariancePct >= 0 ? 'up' : 'down', formula: '((EV - PV) / EV) × 100' },
         { label: 'EAC', value: eac, icon: IndianRupee, formula: 'Planned_Budget / CPI' },
         { label: 'ETC', value: etc, icon: IndianRupee, formula: 'EAC - Actual_Cost', hideIfZero: true },
         { label: 'VAC', value: vac, icon: IndianRupee, trend: vac >= 0 ? 'up' : 'down',
@@ -427,8 +427,8 @@ export function RecordDetailView({
         totalPlanned += asNum(a.submission_data?.[FIELDS.activityPlannedHours]);
         totalActual += asNum(a.submission_data?.[FIELDS.activityActualHours]);
       });
-      const util = totalPlanned > 0 ? (totalActual / totalPlanned) * 100 : 0;
-      const productivity = totalActual > 0 ? totalPlanned / totalActual : 0;
+      const util = (totalActual / (totalPlanned + 0.0001)) * 100;
+      const productivity = totalPlanned > 0 ? totalActual / totalPlanned : 0;
 
       // Aggregate tasks under this WBS's activities
       const activityRefs = new Set(childRecords.map(a => a.submission_ref_id));
@@ -465,10 +465,10 @@ export function RecordDetailView({
           trend: totalActual > totalPlanned ? 'down' : 'up',
           formula: 'SUM(Activity_Actual_Hours)' },
         { label: 'Utilization', value: util, unit: '%', icon: Users,
-          formula: '(Actual_Hours / Planned_Hours) × 100' },
+          formula: '(Actual_Hours / (Planned_Hours + 0.0001)) × 100' },
         { label: 'Productivity', value: productivity, icon: Zap,
           trend: productivity >= 1 ? 'up' : 'down',
-          formula: 'Planned_Hours / Actual_Hours' },
+          formula: 'Actual_Hours / Planned_Hours' },
         { label: 'Total Delay', value: totalDelay, unit: 'd', icon: Clock,
           trend: totalDelay > 0 ? 'down' : 'up',
           formula: 'SUM(Task_Delay_Days)', hideIfZero: true },
@@ -507,7 +507,7 @@ export function RecordDetailView({
           { metric: 'Task %', value: taskProgress },
           { metric: 'Utilization', value: Math.min(util, 100) },
           { metric: 'Productivity', value: Math.min(productivity * 50, 100) },
-          { metric: 'Quality', value: wbsTasks.length > 0 ? Math.max(0, 100 - (totalDefects / wbsTasks.length) * 100) : 100 },
+          { metric: 'Quality', value: (wbsTasks.length + totalDefects) > 0 ? (1 - (totalDefects / (wbsTasks.length + totalDefects))) * 100 : 100 },
         ],
       });
     }
@@ -525,9 +525,9 @@ export function RecordDetailView({
         const ae = asText(td[FIELDS.taskActualEnd]);
         if (pe && ae) { const diff = dateDiff(ae, pe); if (diff > 0) totalDelay += diff; }
       });
-      const quality = childRecords.length > 0 ? Math.max(0, 100 - (totalDefects / childRecords.length) * 100) : 100;
-      const util = tPlanned > 0 ? (tActual / tPlanned) * 100 : 0;
-      const productivity = tActual > 0 ? tPlanned / tActual : 0;
+      const quality = (childRecords.length + totalDefects) > 0 ? (1 - (totalDefects / (childRecords.length + totalDefects))) * 100 : 100;
+      const util = (tActual / (tPlanned + 0.0001)) * 100;
+      const productivity = tPlanned > 0 ? tActual / tPlanned : 0;
       const delayedCount = childRecords.filter(t => {
         const pe = asText(t.submission_data?.[FIELDS.taskPlannedEnd]);
         const ae = asText(t.submission_data?.[FIELDS.taskActualEnd]);
@@ -553,13 +553,13 @@ export function RecordDetailView({
           trend: (actActual > 0 ? actActual : tActual) > (actPlanned > 0 ? actPlanned : tPlanned) ? 'down' : 'up',
           formula: actActual > 0 ? 'Activity_Actual_Hours' : 'SUM(Task_Actual_Hours)' },
         { label: 'Utilization', value: util, unit: '%', icon: Users,
-          formula: '(Actual_Hours / Planned_Hours) × 100' },
+          formula: '(Actual_Hours / (Planned_Hours + 0.0001)) × 100' },
         { label: 'Productivity', value: productivity, icon: Zap,
           trend: productivity >= 1 ? 'up' : 'down',
-          formula: 'Planned_Hours / Actual_Hours' },
+          formula: 'Actual_Hours / Planned_Hours' },
         { label: 'Quality Score', value: quality, unit: '%', icon: CheckCircle2,
           trend: quality >= 90 ? 'up' : 'neutral',
-          formula: '100 - (Defects / Tasks × 100)' },
+          formula: '(1 - (Defects / (Tasks + Defects))) × 100' },
         { label: 'Total Delay', value: totalDelay, unit: 'd', icon: Clock,
           trend: totalDelay > 0 ? 'down' : 'up',
           formula: 'SUM(DAYS(Actual_End - Planned_End))' },
@@ -616,10 +616,10 @@ export function RecordDetailView({
       const pe = asText(d[FIELDS.taskPlannedEnd]);
       const ae = asText(d[FIELDS.taskActualEnd]);
       const delay = pe && ae ? Math.max(0, dateDiff(ae, pe)) : 0;
-      const util = tPlanned > 0 ? (tActual / tPlanned) * 100 : 0;
-      const productivity = tActual > 0 ? tPlanned / tActual : 0;
+      const util = (tActual / (tPlanned + 0.0001)) * 100;
+      const productivity = tPlanned > 0 ? tActual / tPlanned : 0;
       const overtime = Math.max(0, tActual - tPlanned);
-      const quality = Math.max(0, 100 - tDefects * 10); // Each defect costs 10 points
+      const quality = (1 + tDefects) > 0 ? (1 - (tDefects / (1 + tDefects))) * 100 : 100;
 
       // Aggregate resource hours
       let rPlanned = 0, rActual = 0, rOvertime = 0;
@@ -634,10 +634,10 @@ export function RecordDetailView({
         { label: 'Actual Hours', value: tActual, icon: Clock,
           trend: tActual > tPlanned ? 'down' : 'up', formula: 'Task_Actual_Hours' },
         { label: 'Utilization', value: util, unit: '%', icon: Users,
-          formula: '(Actual_Hours / Planned_Hours) × 100' },
+          formula: '(Actual_Hours / (Planned_Hours + 0.0001)) × 100' },
         { label: 'Productivity', value: productivity, icon: Zap,
           trend: productivity >= 1 ? 'up' : 'down',
-          formula: 'Planned_Hours / Actual_Hours' },
+          formula: 'Actual_Hours / Planned_Hours' },
         { label: 'Delay', value: delay, unit: 'd', icon: Clock,
           trend: delay > 0 ? 'down' : 'up',
           formula: 'DAYS(Actual_End - Planned_End)' },
@@ -646,7 +646,7 @@ export function RecordDetailView({
           formula: 'Actual_Hours - Planned_Hours', hideIfZero: true },
         { label: 'Quality', value: quality, unit: '%', icon: CheckCircle2,
           trend: quality >= 90 ? 'up' : 'neutral',
-          formula: '100 - (Defects × 10)' },
+          formula: '(1 - (Defects / (1 + Defects))) × 100' },
         { label: 'Defects', value: tDefects, icon: AlertTriangle,
           trend: tDefects > 0 ? 'down' : 'up', formula: 'Defect_Count' },
         { label: 'Resources', value: childRecords.length, icon: Users, formula: 'COUNT(Resource_ID)' },
@@ -705,8 +705,8 @@ export function RecordDetailView({
       const rPlanned = asNum(d[FIELDS.plannedHours]);
       const rActual = asNum(d[FIELDS.actualHours]);
       const rOvertime = asNum(d[FIELDS.overtimeHours]);
-      const util = rPlanned > 0 ? (rActual / rPlanned) * 100 : 0;
-      const productivity = rActual > 0 ? rPlanned / rActual : 0;
+      const util = (rActual / (rPlanned + 0.0001)) * 100;
+      const productivity = rPlanned > 0 ? rActual / rPlanned : 0;
       const role = asText(d[FIELDS.resourceRole]);
 
       kpiCards.push(
@@ -715,10 +715,10 @@ export function RecordDetailView({
         { label: 'Overtime', value: rOvertime, unit: 'h', icon: AlertTriangle,
           trend: rOvertime > 0 ? 'down' : 'up', formula: 'Actual_Hours - Planned_Hours' },
         { label: 'Utilization', value: util, unit: '%', icon: Users,
-          formula: '(Actual_Hours / Planned_Hours) × 100' },
+          formula: '(Actual_Hours / (Planned_Hours + 0.0001)) × 100' },
         { label: 'Productivity', value: productivity, icon: Zap,
           trend: productivity >= 1 ? 'up' : 'down',
-          formula: 'Planned_Hours / Actual_Hours' },
+          formula: 'Actual_Hours / Planned_Hours' },
       );
 
       // Resource hours breakdown

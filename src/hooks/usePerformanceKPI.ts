@@ -207,14 +207,14 @@ export function calculateProjectManagerKPIs(submission: Record<string, any>, map
   const spi = pv > 0 ? ev / pv : 0;
   // Cost_Variance = EV - AC
   const costVariance = ev - ac;
-  // Cost_Variance (%) = ((EV - AC) / Planned_Budget) × 100
-  const costVariancePercent = plannedBudget > 0 ? ((ev - ac) / plannedBudget) * 100 : 0;
+  // Cost_Variance (%) = ((EV - AC) / EV) × 100
+  const costVariancePercent = ev > 0 ? ((ev - ac) / ev) * 100 : 0;
 
-  // Schedule_Variance (%) = ((EV - PV) / PV) × 100
-  const scheduleVariancePercent = pv > 0 ? ((ev - pv) / pv) * 100 : 0;
+  // Schedule_Variance (%) = ((EV - PV) / EV) × 100
+  const scheduleVariancePercent = ev > 0 ? ((ev - pv) / ev) * 100 : 0;
 
-  // Burn_Rate = Actual_Cost / (Current_Date - Actual_Start_Date)
-  const projectDuration = actualStart ? Math.max(dateDiffDays(new Date().toISOString(), actualStart), 1) : 1;
+  // Burn_Rate = Actual_Cost / (DAYS_BETWEEN(Current_Date, Start_Date) + 1)
+  const projectDuration = actualStart ? Math.max(dateDiffDays(new Date().toISOString(), actualStart), 0) + 1 : 1;
   const burnRate = burnRateField > 0 ? burnRateField : (actualCost / projectDuration);
 
   // Milestone_Delay_Days = Milestone_Actual_Date - Milestone_Planned_Date
@@ -340,9 +340,9 @@ export function calculateDisciplineEngineerKPIs(submissions: any[], mappings: Fi
     }
   }
 
-  // Quality_Score = 100 - ((Defect_Count / COUNT(Task_ID)) × 100)
+  // Quality_Score = (1 - (SUM(Defect_Count) / (COUNT(Task_ID) + SUM(Defect_Count)))) × 100
   // Use form field average if available, otherwise calculate from defects
-  const calculatedQuality = totalTasks > 0 ? 100 - ((totalDefects / totalTasks) * 100) : 100;
+  const calculatedQuality = (totalTasks + totalDefects) > 0 ? (1 - (totalDefects / (totalTasks + totalDefects))) * 100 : 100;
   const qualityScore = qualityCount > 0 ? sumQualityScore / qualityCount : calculatedQuality;
 
   return {
@@ -351,10 +351,10 @@ export function calculateDisciplineEngineerKPIs(submissions: any[], mappings: Fi
     // Task_Completion_Rate (%) = (Completed / Assigned) × 100
     taskCompletionRate: assigned > 0 ? (completed / assigned) * 100 : 0,
     taskDelayDays: totalDelay,
-    // Resource_Utilization (%) = (Actual_Hours / Planned_Hours) × 100
-    resourceUtilization: totalPlannedHours > 0 ? (totalActualHours / totalPlannedHours) * 100 : 0,
-    // Productivity_Score = Planned_Hours / Actual_Hours
-    productivityScore: totalActualHours > 0 ? totalPlannedHours / totalActualHours : 0,
+    // Resource_Utilization (%) = (Actual_Hours / (Planned_Hours + 0.0001)) × 100
+    resourceUtilization: (totalActualHours / (totalPlannedHours + 0.0001)) * 100,
+    // Productivity_Score = Actual_Hours / Planned_Hours
+    productivityScore: totalPlannedHours > 0 ? totalActualHours / totalPlannedHours : 0,
     // Overtime_Hours = Actual_Hours - Planned_Hours
     overtimeHours: totalOvertimeHours,
     engineeringRiskCount: engRisks,
