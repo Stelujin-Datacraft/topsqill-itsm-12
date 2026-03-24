@@ -1,0 +1,1 @@
+ALTER TABLE public.performance_thresholds ADD COLUMN notify_role_ids text[] DEFAULT '{}'::text[];

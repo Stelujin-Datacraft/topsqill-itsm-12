@@ -6,14 +6,16 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { type PerformanceThreshold } from '@/hooks/usePerformanceMonitoring';
 import { getSeverityColorClass } from '@/components/performance/utils/severityUtils';
 import { useProject } from '@/contexts/ProjectContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import { UseMutationResult } from '@tanstack/react-query';
-import { Plus, Trash2, Loader2, Settings2 } from 'lucide-react';
+import { Plus, Trash2, Loader2, Settings2, Users } from 'lucide-react';
 
 interface FormFieldOption {
   id: string;
@@ -27,6 +29,12 @@ interface DataSourceLink {
   source_form_name: string;
 }
 
+interface RoleOption {
+  id: string;
+  name: string;
+  description: string | null;
+}
+
 interface Props {
   perfProjectId?: string;
   thresholds: PerformanceThreshold[];
@@ -37,12 +45,14 @@ interface Props {
 
 export function ThresholdsConfig({ perfProjectId, thresholds, loading, createThreshold, deleteThreshold }: Props) {
   const { currentProject } = useProject();
+  const { userProfile } = useAuth();
   const projectId = currentProject?.id;
 
   const [open, setOpen] = useState(false);
   const [selectedFormId, setSelectedFormId] = useState('');
   const [selectedFormName, setSelectedFormName] = useState('');
   const [selectedDataSourceId, setSelectedDataSourceId] = useState<string | null>(null);
+  const [selectedRoleIds, setSelectedRoleIds] = useState<string[]>([]);
   const [formData, setFormData] = useState({
     operator: '>',
     threshold_value: 0,
@@ -71,6 +81,22 @@ export function ThresholdsConfig({ perfProjectId, thresholds, loading, createThr
     enabled: !!perfProjectId && !!projectId,
   });
 
+  // Fetch roles for the organization
+  const { data: roles = [] } = useQuery({
+    queryKey: ['org-roles-for-thresholds', userProfile?.organization_id],
+    queryFn: async () => {
+      if (!userProfile?.organization_id) return [];
+      const { data, error } = await supabase
+        .from('roles')
+        .select('id, name, description')
+        .eq('organization_id', userProfile.organization_id)
+        .order('name');
+      if (error) throw error;
+      return (data || []) as RoleOption[];
+    },
+    enabled: !!userProfile?.organization_id,
+  });
+
   // Fetch numeric fields for the selected form
   const { data: formFields = [] } = useQuery({
     queryKey: ['form-fields-for-thresholds', selectedFormId],
@@ -88,6 +114,20 @@ export function ThresholdsConfig({ perfProjectId, thresholds, loading, createThr
     enabled: !!selectedFormId,
   });
 
+  // Helper to get role names from IDs
+  const getRoleNames = (roleIds: string[] | undefined) => {
+    if (!roleIds || roleIds.length === 0) return [];
+    return roleIds
+      .map(id => roles.find(r => r.id === id)?.name)
+      .filter(Boolean) as string[];
+  };
+
+  const toggleRole = (roleId: string) => {
+    setSelectedRoleIds(prev =>
+      prev.includes(roleId) ? prev.filter(id => id !== roleId) : [...prev, roleId]
+    );
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.form_field_id) return;
@@ -102,6 +142,7 @@ export function ThresholdsConfig({ perfProjectId, thresholds, loading, createThr
       form_field_id: formData.form_field_id,
       form_field_label: formData.form_field_label,
       data_limit: formData.data_limit,
+      notify_role_ids: formData.send_email ? selectedRoleIds : [],
     });
     setOpen(false);
     resetForm();
@@ -115,6 +156,7 @@ export function ThresholdsConfig({ perfProjectId, thresholds, loading, createThr
     setSelectedFormId('');
     setSelectedFormName('');
     setSelectedDataSourceId(null);
+    setSelectedRoleIds([]);
   };
 
   return (
@@ -132,7 +174,7 @@ export function ThresholdsConfig({ perfProjectId, thresholds, loading, createThr
               <Plus className="mr-2 h-4 w-4" />Add Threshold
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-lg">
+          <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Create Alert Threshold</DialogTitle>
               <DialogDescription>
@@ -261,9 +303,55 @@ export function ThresholdsConfig({ perfProjectId, thresholds, loading, createThr
                 <Label>Send Email Notification</Label>
                 <Switch
                   checked={formData.send_email}
-                  onCheckedChange={v => setFormData(p => ({ ...p, send_email: v }))}
+                  onCheckedChange={v => {
+                    setFormData(p => ({ ...p, send_email: v }));
+                    if (!v) setSelectedRoleIds([]);
+                  }}
                 />
               </div>
+
+              {/* Role Selection - only visible when send_email is on */}
+              {formData.send_email && (
+                <div className="space-y-3 p-3 border border-border rounded-lg bg-muted/30">
+                  <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4 text-primary" />
+                    <Label className="font-medium">Notify Roles</Label>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Select which roles should receive email notifications when this threshold is triggered. All users assigned to the selected roles will be notified.
+                  </p>
+                  {roles.length > 0 ? (
+                    <div className="space-y-2 max-h-40 overflow-y-auto">
+                      {roles.map(role => (
+                        <div key={role.id} className="flex items-center gap-2">
+                          <Checkbox
+                            id={`role-${role.id}`}
+                            checked={selectedRoleIds.includes(role.id)}
+                            onCheckedChange={() => toggleRole(role.id)}
+                          />
+                          <Label htmlFor={`role-${role.id}`} className="text-sm cursor-pointer flex-1">
+                            {role.name}
+                            {role.description && (
+                              <span className="text-xs text-muted-foreground ml-1">— {role.description}</span>
+                            )}
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      No roles found in your organization. Create roles in the admin settings first.
+                    </p>
+                  )}
+                  {selectedRoleIds.length > 0 && (
+                    <div className="flex flex-wrap gap-1 pt-1">
+                      {getRoleNames(selectedRoleIds).map(name => (
+                        <Badge key={name} variant="secondary" className="text-xs">{name}</Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
 
               <Button
                 type="submit"
@@ -292,6 +380,12 @@ export function ThresholdsConfig({ perfProjectId, thresholds, loading, createThr
                   <div className="flex items-center gap-2 mt-1 flex-wrap">
                     <Badge className={getSeverityColorClass(threshold.severity)}>{threshold.severity}</Badge>
                     {threshold.send_email && <Badge variant="outline" className="text-xs">📧 Email</Badge>}
+                    {threshold.notify_role_ids && threshold.notify_role_ids.length > 0 && (
+                      <Badge variant="outline" className="text-xs">
+                        <Users className="h-3 w-3 mr-1" />
+                        {getRoleNames(threshold.notify_role_ids).join(', ') || `${threshold.notify_role_ids.length} role(s)`}
+                      </Badge>
+                    )}
                     <Badge variant={threshold.is_active ? 'default' : 'secondary'} className="text-xs">
                       {threshold.is_active ? 'Active' : 'Inactive'}
                     </Badge>

@@ -51,6 +51,7 @@ export interface PerformanceThreshold {
   form_field_id?: string;
   form_field_label?: string;
   data_limit?: number;
+  notify_role_ids?: string[];
 }
 
 export interface AIAnalysis {
@@ -198,6 +199,9 @@ export function usePerformanceMonitoring(perfProjectId?: string) {
       if (thresholdData.form_field_id) insertData.form_field_id = thresholdData.form_field_id;
       if (thresholdData.form_field_label) insertData.form_field_label = thresholdData.form_field_label;
       if (thresholdData.data_limit) insertData.data_limit = thresholdData.data_limit;
+      if (thresholdData.notify_role_ids && thresholdData.notify_role_ids.length > 0) {
+        insertData.notify_role_ids = thresholdData.notify_role_ids;
+      }
       const { data, error } = await supabase
         .from('performance_thresholds')
         .insert(insertData)
