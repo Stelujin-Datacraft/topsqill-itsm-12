@@ -190,63 +190,269 @@ async function fetchSingleRecordData(supabase: any, dataSources: any[], submissi
   };
 }
 
+// Role-based alert routing configuration
+const ALERT_ROLE_ROUTING: Record<string, string[]> = {
+  'task_delayed': ['Engineer', 'Project Manager'],
+  'budget_overrun': ['Project Manager', 'Finance'],
+  'schedule_variance_critical': ['Project Manager'],
+  'predicted_delay': ['Senior Management'],
+  'high_risk': ['Risk Compliance'],
+  // Fallback categories derived from alert content
+  'cost': ['Project Manager', 'Finance'],
+  'schedule': ['Project Manager'],
+  'risk': ['Risk Compliance', 'Senior Management'],
+  'resource': ['Engineer', 'Project Manager'],
+  'quality': ['Engineer'],
+};
+
+function classifyAlertType(alert: any): string {
+  const title = (alert.title || '').toLowerCase();
+  const desc = (alert.description || '').toLowerCase();
+  const metric = (alert.metric_name || '').toLowerCase();
+  const combined = `${title} ${desc} ${metric}`;
+
+  if (combined.includes('task') && (combined.includes('delay') || combined.includes('overdue') || combined.includes('late'))) return 'task_delayed';
+  if (combined.includes('budget') && (combined.includes('overrun') || combined.includes('exceed') || combined.includes('over'))) return 'budget_overrun';
+  if (combined.includes('schedule') && (combined.includes('critical') || combined.includes('variance') || combined.includes('slip'))) return 'schedule_variance_critical';
+  if (combined.includes('predict') && combined.includes('delay')) return 'predicted_delay';
+  if (combined.includes('high') && combined.includes('risk')) return 'high_risk';
+  if (combined.includes('cost') || combined.includes('budget') || combined.includes('eac') || combined.includes('etc') || combined.includes('cpi')) return 'cost';
+  if (combined.includes('schedule') || combined.includes('spi') || combined.includes('duration')) return 'schedule';
+  if (combined.includes('risk')) return 'risk';
+  if (combined.includes('resource') || combined.includes('utilization') || combined.includes('hours')) return 'resource';
+  if (combined.includes('quality') || combined.includes('defect')) return 'quality';
+  return 'schedule'; // default fallback
+}
+
+async function getUsersByRoles(supabase: any, roleNames: string[], orgId: string): Promise<string[]> {
+  const { data: roles } = await supabase
+    .from('roles')
+    .select('id')
+    .in('name', roleNames)
+    .eq('organization_id', orgId);
+
+  if (!roles || roles.length === 0) return [];
+
+  const roleIds = roles.map((r: any) => r.id);
+  const { data: assignments } = await supabase
+    .from('user_role_assignments')
+    .select('user_id')
+    .in('role_id', roleIds);
+
+  return assignments?.map((a: any) => a.user_id) || [];
+}
+
 async function sendAlertNotifications(supabase: any, projectId: string, perfProjectId: string | null, alerts: any[], userId: string) {
   try {
-    // In-app notifications for all org members
-    const { data: orgMembers } = await supabase
+    const { data: userProfile } = await supabase
       .from('profiles')
       .select('id, email, organization_id')
       .eq('id', userId)
       .single();
 
-    if (!orgMembers) return;
+    if (!userProfile?.organization_id) return;
+    const orgId = userProfile.organization_id;
 
-    // Get project members
-    const { data: members } = await supabase
+    // Classify alerts and group by target roles
+    const roleAlertMap: Record<string, any[]> = {};
+    for (const alert of alerts) {
+      const alertType = classifyAlertType(alert);
+      const targetRoles = ALERT_ROLE_ROUTING[alertType] || ['Project Manager'];
+      for (const role of targetRoles) {
+        if (!roleAlertMap[role]) roleAlertMap[role] = [];
+        roleAlertMap[role].push(alert);
+      }
+    }
+
+    // Get all unique role names
+    const allTargetRoles = [...new Set(Object.keys(roleAlertMap))];
+    const roleUserIds = await getUsersByRoles(supabase, allTargetRoles, orgId);
+
+    // Also include project members as fallback
+    const { data: projectMembers } = await supabase
       .from('project_members')
       .select('user_id')
       .eq('project_id', projectId);
+    const projectMemberIds = projectMembers?.map((m: any) => m.user_id) || [];
 
-    const memberIds = members?.map((m: any) => m.user_id) || [userId];
-    const uniqueIds = [...new Set(memberIds)];
+    // Build per-user notification with role-specific alerts
+    const userAlertMap: Record<string, any[]> = {};
 
-    // Create in-app notifications
+    // Add role-based user notifications
+    for (const [roleName, roleAlerts] of Object.entries(roleAlertMap)) {
+      const usersForRole = await getUsersByRoles(supabase, [roleName], orgId);
+      for (const uid of usersForRole) {
+        if (!userAlertMap[uid]) userAlertMap[uid] = [];
+        for (const alert of roleAlerts) {
+          if (!userAlertMap[uid].some((a: any) => a.title === alert.title)) {
+            userAlertMap[uid].push(alert);
+          }
+        }
+      }
+    }
+
+    // Fallback: if no role-based users found, notify the triggering user
+    if (Object.keys(userAlertMap).length === 0) {
+      userAlertMap[userId] = alerts;
+    }
+
+    // Create in-app notifications per user
     const criticalAlerts = alerts.filter((a: any) => a.severity === 'high' || a.severity === 'critical');
-    if (criticalAlerts.length > 0) {
-      const notifInserts = uniqueIds.map((uid: string) => ({
-        user_id: uid,
-        type: 'workflow_notification',
-        title: `⚠️ Performance Alert: ${criticalAlerts.length} issue${criticalAlerts.length > 1 ? 's' : ''} detected`,
-        message: criticalAlerts.map((a: any) => `${a.severity.toUpperCase()}: ${a.title}`).join(' | '),
-        data: { source: 'performance_monitoring', project_id: projectId, performance_project_id: perfProjectId, alert_count: criticalAlerts.length },
-        read: false,
-      }));
-      await supabase.from('notifications').insert(notifInserts);
+    if (criticalAlerts.length > 0 || alerts.length > 0) {
+      const notifInserts: any[] = [];
+      for (const [uid, userAlerts] of Object.entries(userAlertMap)) {
+        const highAlerts = userAlerts.filter((a: any) => a.severity === 'high' || a.severity === 'critical');
+        const alertsToNotify = highAlerts.length > 0 ? highAlerts : userAlerts;
+        if (alertsToNotify.length > 0) {
+          notifInserts.push({
+            user_id: uid,
+            type: 'performance_alert',
+            title: `⚠️ Performance Alert: ${alertsToNotify.length} issue${alertsToNotify.length > 1 ? 's' : ''} detected`,
+            message: alertsToNotify.map((a: any) => `${a.severity.toUpperCase()}: ${a.title}`).join(' | '),
+            data: {
+              source: 'performance_monitoring',
+              project_id: projectId,
+              performance_project_id: perfProjectId,
+              alert_count: alertsToNotify.length,
+              alert_types: alertsToNotify.map((a: any) => classifyAlertType(a)),
+            },
+            read: false,
+          });
+        }
+      }
+      if (notifInserts.length > 0) {
+        await supabase.from('notifications').insert(notifInserts);
+      }
     }
 
     // Send email via SMTP for critical/high alerts
-    if (criticalAlerts.length > 0 && orgMembers.organization_id) {
+    if (criticalAlerts.length > 0) {
       const { data: smtpConfigs } = await supabase
         .from('smtp_configs')
         .select('*')
-        .eq('organization_id', orgMembers.organization_id)
+        .eq('organization_id', orgId)
         .eq('is_active', true)
         .limit(1);
 
       if (smtpConfigs && smtpConfigs.length > 0) {
-        // Get emails of members
-        const { data: memberProfiles } = await supabase
+        // Get emails of role-targeted users
+        const targetUserIds = [...new Set(Object.keys(userAlertMap))];
+        const { data: targetProfiles } = await supabase
           .from('profiles')
-          .select('email')
-          .in('id', uniqueIds);
+          .select('id, email, first_name, last_name')
+          .in('id', targetUserIds);
 
-        const emails = memberProfiles?.map((p: any) => p.email).filter(Boolean) || [];
-        if (emails.length > 0) {
+        const emailRecipients = targetProfiles?.filter((p: any) => p.email) || [];
+        if (emailRecipients.length > 0) {
           const smtpConfig = smtpConfigs[0];
-          const alertSummary = criticalAlerts.map((a: any) => `• ${a.severity.toUpperCase()}: ${a.title} — ${a.description}`).join('\n');
-          const htmlAlerts = criticalAlerts.map((a: any) =>
-            `<tr><td style="padding:8px;border:1px solid #e5e7eb;"><span style="color:${a.severity === 'critical' ? '#ef4444' : '#f59e0b'};font-weight:bold;">${a.severity.toUpperCase()}</span></td><td style="padding:8px;border:1px solid #e5e7eb;">${a.title}</td><td style="padding:8px;border:1px solid #e5e7eb;">${a.description || ''}</td></tr>`
-          ).join('');
+
+          // Build role-based alert summary
+          const alertsByType: Record<string, any[]> = {};
+          for (const alert of criticalAlerts) {
+            const aType = classifyAlertType(alert);
+            if (!alertsByType[aType]) alertsByType[aType] = [];
+            alertsByType[aType].push(alert);
+          }
+
+          const htmlAlertRows = criticalAlerts.map((a: any) => {
+            const aType = classifyAlertType(a);
+            const targetRoles = ALERT_ROLE_ROUTING[aType] || ['Project Manager'];
+            const severityColor = a.severity === 'critical' ? '#dc2626' : '#f59e0b';
+            const severityBg = a.severity === 'critical' ? '#fef2f2' : '#fffbeb';
+            return `<tr>
+              <td style="padding:12px 16px;border-bottom:1px solid #e5e7eb;">
+                <span style="display:inline-block;padding:2px 8px;border-radius:4px;background:${severityBg};color:${severityColor};font-weight:600;font-size:12px;text-transform:uppercase;">${a.severity}</span>
+              </td>
+              <td style="padding:12px 16px;border-bottom:1px solid #e5e7eb;font-weight:500;color:#111827;">${a.title}</td>
+              <td style="padding:12px 16px;border-bottom:1px solid #e5e7eb;color:#6b7280;font-size:13px;">${a.description || '—'}</td>
+              <td style="padding:12px 16px;border-bottom:1px solid #e5e7eb;">
+                ${targetRoles.map((r: string) => `<span style="display:inline-block;padding:2px 6px;border-radius:3px;background:#eff6ff;color:#1d4ed8;font-size:11px;margin:1px 2px;">${r}</span>`).join('')}
+              </td>
+            </tr>`;
+          }).join('');
+
+          const htmlEmail = `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;font-family:'Segoe UI',Arial,sans-serif;background-color:#f3f4f6;">
+  <div style="max-width:680px;margin:24px auto;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);">
+    <!-- Header -->
+    <div style="background:linear-gradient(135deg,#dc2626,#b91c1c);padding:28px 32px;">
+      <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:700;">🚨 Performance Threshold Alert</h1>
+      <p style="margin:8px 0 0;color:#fecaca;font-size:14px;">
+        ${criticalAlerts.length} critical/high severity issue${criticalAlerts.length > 1 ? 's' : ''} detected in your project
+      </p>
+    </div>
+
+    <!-- Alert Summary Stats -->
+    <div style="padding:20px 32px;background:#fef2f2;border-bottom:1px solid #fecaca;">
+      <table style="width:100%;" cellpadding="0" cellspacing="0">
+        <tr>
+          <td style="text-align:center;padding:8px;">
+            <div style="font-size:28px;font-weight:700;color:#dc2626;">${criticalAlerts.filter((a: any) => a.severity === 'critical').length}</div>
+            <div style="font-size:12px;color:#991b1b;text-transform:uppercase;letter-spacing:0.5px;">Critical</div>
+          </td>
+          <td style="text-align:center;padding:8px;">
+            <div style="font-size:28px;font-weight:700;color:#f59e0b;">${criticalAlerts.filter((a: any) => a.severity === 'high').length}</div>
+            <div style="font-size:12px;color:#92400e;text-transform:uppercase;letter-spacing:0.5px;">High</div>
+          </td>
+          <td style="text-align:center;padding:8px;">
+            <div style="font-size:28px;font-weight:700;color:#4b5563;">${alerts.length}</div>
+            <div style="font-size:12px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;">Total Alerts</div>
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    <!-- Alert Details Table -->
+    <div style="padding:24px 32px;">
+      <h2 style="margin:0 0 16px;font-size:16px;color:#111827;font-weight:600;">Alert Details</h2>
+      <table style="width:100%;border-collapse:collapse;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
+        <thead>
+          <tr style="background:#f9fafb;">
+            <th style="padding:10px 16px;text-align:left;font-size:12px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #e5e7eb;">Severity</th>
+            <th style="padding:10px 16px;text-align:left;font-size:12px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #e5e7eb;">Alert</th>
+            <th style="padding:10px 16px;text-align:left;font-size:12px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #e5e7eb;">Details</th>
+            <th style="padding:10px 16px;text-align:left;font-size:12px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #e5e7eb;">Assigned To</th>
+          </tr>
+        </thead>
+        <tbody>${htmlAlertRows}</tbody>
+      </table>
+    </div>
+
+    <!-- Threshold Violations Section -->
+    <div style="padding:0 32px 24px;">
+      <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:16px;">
+        <h3 style="margin:0 0 8px;font-size:14px;color:#92400e;font-weight:600;">⚡ Threshold Violation Summary</h3>
+        <p style="margin:0;font-size:13px;color:#78350f;line-height:1.5;">
+          ${criticalAlerts.map((a: any) => {
+            const actual = a.actual_value != null ? `Actual: ₹${Number(a.actual_value).toLocaleString('en-IN')}` : '';
+            const threshold = a.threshold_value != null ? `Threshold: ₹${Number(a.threshold_value).toLocaleString('en-IN')}` : '';
+            return `<strong>${a.metric_name || a.title}</strong>: ${[actual, threshold].filter(Boolean).join(' | ')}`;
+          }).join('<br>')}
+        </p>
+      </div>
+    </div>
+
+    <!-- CTA -->
+    <div style="padding:0 32px 32px;text-align:center;">
+      <a href="#" style="display:inline-block;padding:12px 32px;background:#dc2626;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">
+        Review in Performance Dashboard
+      </a>
+    </div>
+
+    <!-- Footer -->
+    <div style="padding:20px 32px;background:#f9fafb;border-top:1px solid #e5e7eb;">
+      <p style="margin:0;font-size:12px;color:#9ca3af;text-align:center;">
+        This is an automated alert from TopSqill Performance Monitoring System.
+        <br>Alerts are routed based on your assigned role. Contact your admin to update role assignments.
+      </p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+          const textContent = `Performance Threshold Alert\n\n${criticalAlerts.length} critical/high severity issues detected.\n\n${criticalAlerts.map((a: any) => `${a.severity.toUpperCase()}: ${a.title} — ${a.description || ''}`).join('\n')}\n\nPlease review the Performance Dashboard for details.`;
 
           try {
             const { SMTPClient } = await import("https://deno.land/x/denomailer@1.6.0/mod.ts");
@@ -259,17 +465,22 @@ async function sendAlertNotifications(supabase: any, projectId: string, perfProj
               },
             });
 
-            for (const email of emails) {
+            for (const recipient of emailRecipients) {
               try {
+                const recipientName = [recipient.first_name, recipient.last_name].filter(Boolean).join(' ') || 'Team Member';
+                const personalizedHtml = htmlEmail.replace(
+                  '🚨 Performance Threshold Alert',
+                  `🚨 Performance Threshold Alert — ${recipientName}`
+                );
                 await client.send({
                   from: smtpConfig.from_name ? `${smtpConfig.from_name} <${smtpConfig.from_email}>` : smtpConfig.from_email,
-                  to: email,
-                  subject: `🚨 Performance Alert: ${criticalAlerts.length} issue${criticalAlerts.length > 1 ? 's' : ''} detected`,
-                  content: `Performance Monitoring Alert\n\n${alertSummary}\n\nPlease review the Performance Dashboard for details.`,
-                  html: `<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;padding:20px;"><h2 style="color:#ef4444;">🚨 Performance Alert</h2><p>${criticalAlerts.length} issue${criticalAlerts.length > 1 ? 's' : ''} detected in your project performance monitoring.</p><table style="width:100%;border-collapse:collapse;margin:16px 0;"><thead><tr style="background:#f3f4f6;"><th style="padding:8px;border:1px solid #e5e7eb;text-align:left;">Severity</th><th style="padding:8px;border:1px solid #e5e7eb;text-align:left;">Alert</th><th style="padding:8px;border:1px solid #e5e7eb;text-align:left;">Details</th></tr></thead><tbody>${htmlAlerts}</tbody></table><p style="color:#6b7280;font-size:12px;">This is an automated alert from your Performance Monitoring system.</p></body></html>`,
+                  to: recipient.email,
+                  subject: `🚨 Performance Alert: ${criticalAlerts.length} threshold violation${criticalAlerts.length > 1 ? 's' : ''} detected`,
+                  content: textContent,
+                  html: personalizedHtml,
                 });
               } catch (emailErr) {
-                console.error('Email send failed for', email, emailErr);
+                console.error('Email send failed for', recipient.email, emailErr);
               }
             }
             await client.close();
