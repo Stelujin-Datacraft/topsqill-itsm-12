@@ -274,7 +274,8 @@ export function RecordDetailView({
       const costVariancePct = budget > 0 ? ((ev - ac) / budget) * 100 : 0;
       const scheduleVariancePct = pv > 0 ? ((ev - pv) / pv) * 100 : 0;
       const onTimeRate = totalTasks > 0 ? ((totalTasks - delayedTasks) / totalTasks) * 100 : 0;
-      const predictedCostOverrun = budget > 0 && forecast > 0 ? ((forecast - budget) / budget) * 100 : 0;
+      const forecastForOverrun = forecast > 0 ? forecast : eac;
+      const predictedCostOverrun = budget > 0 && forecastForOverrun > 0 ? ((forecastForOverrun - budget) / budget) * 100 : 0;
 
       // Formula-based Risk Score
       let riskScore = 0;
