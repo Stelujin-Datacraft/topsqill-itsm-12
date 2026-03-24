@@ -467,11 +467,11 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
       {/* KPI Dashboard */}
       {computedKPIs && (
         <>
-          {activeRole === 'senior_management' && computedKPIs.seniorKPIs && <SeniorManagementDashboard kpis={computedKPIs.seniorKPIs} alerts={computedKPIs.alerts} />}
-          {activeRole === 'project_manager' && computedKPIs.pmKPIs && <ProjectManagerDashboard kpis={computedKPIs.pmKPIs} />}
-          {activeRole === 'discipline_engineer' && computedKPIs.engineerKPIs && <DisciplineEngineerDashboard kpis={computedKPIs.engineerKPIs} />}
-          {activeRole === 'finance_contract' && computedKPIs.financeKPIs && <FinanceDashboard kpis={computedKPIs.financeKPIs} />}
-          {activeRole === 'risk_governance' && computedKPIs.riskKPIs && <RiskGovernanceDashboard kpis={computedKPIs.riskKPIs} />}
+          {activeRole === 'senior_management' && computedKPIs.seniorKPIs && <SeniorManagementDashboard kpis={computedKPIs.seniorKPIs as any} />}
+          {activeRole === 'project_manager' && computedKPIs.pmKPIs && <ProjectManagerDashboard kpis={computedKPIs.pmKPIs as any} />}
+          {activeRole === 'discipline_engineer' && computedKPIs.engineerKPIs && <DisciplineEngineerDashboard kpis={computedKPIs.engineerKPIs as any} />}
+          {activeRole === 'finance_contract' && computedKPIs.financeKPIs && <FinanceDashboard kpis={computedKPIs.financeKPIs as any} />}
+          {activeRole === 'risk_governance' && computedKPIs.riskKPIs && <RiskGovernanceDashboard kpis={computedKPIs.riskKPIs as any} />}
         </>
       )}
 

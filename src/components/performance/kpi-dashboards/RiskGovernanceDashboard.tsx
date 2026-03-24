@@ -1,77 +1,37 @@
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { KPIMetricCard } from './KPIMetricCard';
-import { RiskGovernanceKPIs } from '@/hooks/usePerformanceKPI';
-import { ShieldAlert, ShieldCheck, AlertTriangle, Bug, Clock, FileText } from 'lucide-react';
-import { Progress } from '@/components/ui/progress';
+import { HierarchyRiskKPIs } from '@/hooks/useHierarchyKPI';
+import { ShieldAlert, AlertTriangle, Clock, Briefcase } from 'lucide-react';
 
 interface Props {
-  kpis: RiskGovernanceKPIs;
+  kpis: HierarchyRiskKPIs;
 }
 
 export function RiskGovernanceDashboard({ kpis }: Props) {
   return (
     <div className="space-y-6">
-      {/* Risk Overview */}
+      {/* Project Risk Overview */}
       <div>
-        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Risk Overview</h3>
+        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Project Risk Overview</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <KPIMetricCard title="Total Risks" value={kpis.totalRisks} icon={ShieldAlert} />
-          <KPIMetricCard title="Open Risks" value={kpis.openRisks} variant={kpis.openRisks > 0 ? 'warning' : 'success'} />
-          <KPIMetricCard title="High Risks" value={kpis.highRisks} variant={kpis.highRisks > 0 ? 'danger' : 'success'} icon={AlertTriangle} />
-          <KPIMetricCard title="Avg Risk Score" value={kpis.averageRiskScore.toFixed(1)}
-            variant={kpis.averageRiskScore > 70 ? 'danger' : kpis.averageRiskScore > 40 ? 'warning' : 'success'} icon={AlertTriangle} />
+          <KPIMetricCard title="Total Projects" value={kpis.totalProjects} icon={Briefcase} />
+          <KPIMetricCard title="Delayed Projects" value={kpis.delayedProjects}
+            variant={kpis.delayedProjects > 0 ? 'danger' : 'success'} icon={AlertTriangle} />
+          <KPIMetricCard title="Predicted Risk Projects" value={kpis.predictedRiskProjects}
+            subtitle="Projects with Predicted_Delay > 0"
+            variant={kpis.predictedRiskProjects > 0 ? 'warning' : 'success'} icon={ShieldAlert} />
+          <KPIMetricCard title="Avg Predicted Delay" value={`${kpis.averagePredictedDelay.toFixed(1)} days`}
+            variant={kpis.averagePredictedDelay > 5 ? 'warning' : 'default'} icon={Clock} />
         </div>
       </div>
 
-      {/* Risk Distribution */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Risk Distribution</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center gap-3">
-            <span className="text-sm w-20 text-red-600 font-medium">High</span>
-            <Progress value={kpis.totalRisks > 0 ? (kpis.highRisks / kpis.totalRisks) * 100 : 0} className="flex-1 [&>div]:bg-red-500" />
-            <span className="text-sm font-bold w-8 text-right">{kpis.highRisks}</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-sm w-20 text-yellow-600 font-medium">Medium</span>
-            <Progress value={kpis.totalRisks > 0 ? (kpis.mediumRisks / kpis.totalRisks) * 100 : 0} className="flex-1 [&>div]:bg-yellow-500" />
-            <span className="text-sm font-bold w-8 text-right">{kpis.mediumRisks}</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-sm w-20 text-green-600 font-medium">Low</span>
-            <Progress value={kpis.totalRisks > 0 ? (kpis.lowRisks / kpis.totalRisks) * 100 : 0} className="flex-1 [&>div]:bg-green-500" />
-            <span className="text-sm font-bold w-8 text-right">{kpis.lowRisks}</span>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Issues & Resolution */}
-      <div>
-        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Issues & Resolution</h3>
-        <div className="grid grid-cols-2 gap-3">
-          <KPIMetricCard title="Total Issues" value={kpis.totalIssues} icon={Bug} />
-          <KPIMetricCard title="Avg Resolution Time" value={`${kpis.avgResolutionTime.toFixed(1)} days`} icon={Clock} />
-        </div>
-      </div>
-
-      {/* Compliance & Audit */}
-      <div>
-        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Compliance & Audit</h3>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          <KPIMetricCard title="Compliance Status (%)" value={`${kpis.complianceStatus.toFixed(1)}%`}
-            variant={kpis.complianceStatus >= 80 ? 'success' : kpis.complianceStatus >= 60 ? 'warning' : 'danger'}
-            icon={ShieldCheck} />
-          <KPIMetricCard title="Audit Findings Count" value={kpis.auditFindingsCount} icon={FileText}
-            variant={kpis.auditFindingsCount > 0 ? 'warning' : 'success'} />
-          <KPIMetricCard title="Anomaly Flag" value={kpis.anomalyFlag}
-            variant={kpis.anomalyFlag === 'Yes' ? 'danger' : 'success'}
-            subtitle={kpis.anomalyFlag === 'Yes' ? 'Anomaly detected' : 'No anomalies'}
-            icon={AlertTriangle} />
-        </div>
+      {/* Note about limited metrics */}
+      <div className="text-sm text-muted-foreground bg-muted/50 rounded-lg p-4">
+        <p className="font-medium mb-1">ℹ️ Limited Risk Metrics</p>
+        <p>
+          Since no dedicated risk or issue forms exist, only project-level delay and prediction metrics are available.
+          To enable full risk/governance monitoring (risk scores, compliance status, audit findings), create dedicated Risk and Issue forms linked to the project hierarchy.
+        </p>
       </div>
     </div>
   );
