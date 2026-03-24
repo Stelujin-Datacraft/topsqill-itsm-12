@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ChevronRight, TrendingUp, TrendingDown, DollarSign, Clock, Users, CheckCircle2, AlertTriangle, BarChart3, Info, Target, Zap } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell, CartesianGrid, Legend } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell, CartesianGrid, Legend, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, AreaChart, Area, LineChart, Line } from 'recharts';
 import { CROSSREF_FIELDS } from '@/hooks/useHierarchyKPI';
 
 // ========================
@@ -336,15 +336,42 @@ export function RecordDetailView({
 
       if (ev > 0 || pv > 0 || ac > 0) {
         charts.push({
-          title: 'Earned Value Metrics',
-          type: 'bar',
+          title: 'Earned Value Analysis',
+          type: 'area',
           data: [
-            { name: 'EV', value: ev },
-            { name: 'PV', value: pv },
-            { name: 'AC', value: ac },
-          ].filter(d => d.value > 0),
+            { name: 'Planned Value', EV: 0, PV: 0, AC: 0 },
+            { name: 'Current', EV: ev, PV: pv, AC: ac },
+            { name: 'At Completion', EV: budget, PV: budget, AC: eac },
+          ],
+          dataKeys: ['EV', 'PV', 'AC'],
         });
       }
+
+      // Health Radar
+      charts.push({
+        title: 'Project Health Radar',
+        type: 'radar',
+        data: [
+          { metric: 'CPI', value: Math.min(cpi * 50, 100) },
+          { metric: 'SPI', value: Math.min(spi * 50, 100) },
+          { metric: 'On-Time', value: onTimeRate },
+          { metric: 'Budget', value: Math.max(0, 100 - budgetUtil + 100) > 100 ? 100 : Math.max(0, 200 - budgetUtil) },
+          { metric: 'Quality', value: totalTasks > 0 ? Math.max(0, 100 - (allTasks.reduce((s, t) => s + asNum(t.submission_data?.[FIELDS.taskDefectCount]), 0) / totalTasks) * 100) : 100 },
+          { metric: 'Risk', value: Math.max(0, 100 - riskScore) },
+        ],
+      });
+
+      // Cost Variance breakdown
+      charts.push({
+        title: 'Cost & Schedule Variance',
+        type: 'bar',
+        data: [
+          { name: 'Cost Var', value: costVariance },
+          { name: 'Schedule Var %', value: scheduleVariancePct },
+          { name: 'Budget Util %', value: budgetUtil },
+          { name: 'Overrun %', value: predictedCostOverrun },
+        ],
+      });
 
       if (childRecords.length > 0) {
         const activitiesByRef = new Map(allActivities.map(a => [a.submission_ref_id, a]));
@@ -374,6 +401,17 @@ export function RecordDetailView({
           type: 'pie',
           data: Object.entries(statusMap).map(([name, value]) => ({ name, value })),
         });
+      }
+
+      // Resource utilization pie
+      if (allResources.length > 0) {
+        const resData = allResources.map(r => ({
+          name: asText(r.submission_data?.[FIELDS.resourceName]) || r.submission_ref_id,
+          value: asNum(r.submission_data?.[FIELDS.actualHours]),
+        })).filter(d => d.value > 0).slice(0, 10);
+        if (resData.length > 0) {
+          charts.push({ title: 'Resource Hours Distribution', type: 'pie', data: resData });
+        }
       }
     }
 
@@ -448,7 +486,28 @@ export function RecordDetailView({
           })),
           dataKeys: ['planned', 'actual'],
         });
+
+        // Activity status pie
+        const actStatusMap: Record<string, number> = {};
+        childRecords.forEach(a => {
+          const s = asText(a.submission_data?.[FIELDS.activityStatus]) || 'Unknown';
+          actStatusMap[s] = (actStatusMap[s] || 0) + 1;
+        });
+        charts.push({ title: 'Activity Status', type: 'pie', data: Object.entries(actStatusMap).map(([name, value]) => ({ name, value })) });
       }
+
+      // WBS Health Radar
+      charts.push({
+        title: 'WBS Health Overview',
+        type: 'radar',
+        data: [
+          { metric: 'Activity %', value: progress },
+          { metric: 'Task %', value: taskProgress },
+          { metric: 'Utilization', value: Math.min(util, 100) },
+          { metric: 'Productivity', value: Math.min(productivity * 50, 100) },
+          { metric: 'Quality', value: wbsTasks.length > 0 ? Math.max(0, 100 - (totalDefects / wbsTasks.length) * 100) : 100 },
+        ],
+      });
     }
 
     if (level === 'activity') {
@@ -524,7 +583,28 @@ export function RecordDetailView({
         if (defectData.length > 0) {
           charts.push({ title: 'Defects by Task', type: 'bar', data: defectData.map(d => ({ name: d.name, value: d.defects })) });
         }
+
+        // Task status pie
+        const taskStatusMap: Record<string, number> = {};
+        childRecords.forEach(t => {
+          const s = asText(t.submission_data?.[FIELDS.taskStatus]) || 'Unknown';
+          taskStatusMap[s] = (taskStatusMap[s] || 0) + 1;
+        });
+        charts.push({ title: 'Task Status', type: 'pie', data: Object.entries(taskStatusMap).map(([name, value]) => ({ name, value })) });
       }
+
+      // Activity Health Radar
+      charts.push({
+        title: 'Activity Health',
+        type: 'radar',
+        data: [
+          { metric: 'Completion', value: progress },
+          { metric: 'Utilization', value: Math.min(util, 100) },
+          { metric: 'Quality', value: quality },
+          { metric: 'Productivity', value: Math.min(productivity * 50, 100) },
+          { metric: 'On-Time', value: childRecords.length > 0 ? ((childRecords.length - delayedCount) / childRecords.length) * 100 : 100 },
+        ],
+      });
     }
 
     if (level === 'task') {
@@ -594,7 +674,29 @@ export function RecordDetailView({
           })),
           dataKeys: ['planned', 'actual'],
         });
+
+        // Resource overtime stacked
+        const overtimeData = childRecords.map(r => ({
+          name: asText(r.submission_data?.[FIELDS.resourceName]) || r.submission_ref_id,
+          regular: asNum(r.submission_data?.[FIELDS.plannedHours]),
+          overtime: asNum(r.submission_data?.[FIELDS.overtimeHours]),
+        })).filter(d => d.regular > 0 || d.overtime > 0);
+        if (overtimeData.length > 0) {
+          charts.push({ title: 'Regular vs Overtime Hours', type: 'stacked-bar', data: overtimeData, dataKeys: ['regular', 'overtime'] });
+        }
       }
+
+      // Task KPI Radar
+      charts.push({
+        title: 'Task Performance',
+        type: 'radar',
+        data: [
+          { metric: 'Utilization', value: Math.min(util, 100) },
+          { metric: 'Productivity', value: Math.min(productivity * 50, 100) },
+          { metric: 'Quality', value: quality },
+          { metric: 'On-Time', value: delay <= 0 ? 100 : Math.max(0, 100 - delay * 5) },
+        ],
+      });
     }
 
     if (level === 'resource') {
@@ -616,6 +718,29 @@ export function RecordDetailView({
           trend: productivity >= 1 ? 'up' : 'down',
           formula: 'Planned_Hours / Actual_Hours' },
       );
+
+      // Resource hours breakdown
+      if (rPlanned > 0 || rActual > 0) {
+        charts.push({
+          title: 'Hours Breakdown',
+          type: 'pie',
+          data: [
+            { name: 'Regular', value: Math.max(0, rActual - rOvertime) },
+            ...(rOvertime > 0 ? [{ name: 'Overtime', value: rOvertime }] : []),
+            ...(rPlanned > rActual ? [{ name: 'Remaining', value: rPlanned - rActual }] : []),
+          ].filter(d => d.value > 0),
+        });
+
+        charts.push({
+          title: 'Resource Performance',
+          type: 'radar',
+          data: [
+            { metric: 'Utilization', value: Math.min(util, 100) },
+            { metric: 'Productivity', value: Math.min(productivity * 50, 100) },
+            { metric: 'Efficiency', value: rOvertime > 0 ? Math.max(0, 100 - (rOvertime / rActual) * 100) : 100 },
+          ],
+        });
+      }
     }
 
     // Per-child metrics for the list
@@ -734,6 +859,69 @@ export function RecordDetailView({
                 <RechartsTooltip contentStyle={tooltipStyle} />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
               </PieChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      );
+    }
+
+    if (chart.type === 'radar') {
+      return (
+        <Card key={index}>
+          <CardHeader className="pb-2"><CardTitle className="text-sm">{chart.title}</CardTitle></CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={260}>
+              <RadarChart data={chart.data} cx="50%" cy="50%" outerRadius="70%">
+                <PolarGrid className="stroke-border" />
+                <PolarAngleAxis dataKey="metric" tick={{ fontSize: 10 }} className="fill-muted-foreground" />
+                <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fontSize: 9 }} className="fill-muted-foreground" />
+                <Radar name="Score" dataKey="value" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.3} strokeWidth={2} />
+                <RechartsTooltip contentStyle={tooltipStyle} />
+              </RadarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      );
+    }
+
+    if (chart.type === 'area') {
+      return (
+        <Card key={index}>
+          <CardHeader className="pb-2"><CardTitle className="text-sm">{chart.title}</CardTitle></CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={220}>
+              <AreaChart data={chart.data}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                <XAxis dataKey="name" tick={{ fontSize: 10 }} className="fill-muted-foreground" />
+                <YAxis tick={{ fontSize: 11 }} className="fill-muted-foreground" />
+                <RechartsTooltip contentStyle={tooltipStyle} />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                {(chart.dataKeys || []).map((key, i) => (
+                  <Area key={key} type="monotone" dataKey={key} stroke={CHART_COLORS[i % CHART_COLORS.length]} fill={CHART_COLORS[i % CHART_COLORS.length]} fillOpacity={0.15} strokeWidth={2} />
+                ))}
+              </AreaChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      );
+    }
+
+    if (chart.type === 'stacked-bar') {
+      return (
+        <Card key={index}>
+          <CardHeader className="pb-2"><CardTitle className="text-sm">{chart.title}</CardTitle></CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={chart.data}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                <XAxis dataKey="name" tick={{ fontSize: 10 }} className="fill-muted-foreground" angle={-20} textAnchor="end" height={50} />
+                <YAxis tick={{ fontSize: 11 }} className="fill-muted-foreground" />
+                <RechartsTooltip contentStyle={tooltipStyle} />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                {(chart.dataKeys || []).map((key, i) => (
+                  <Bar key={key} dataKey={key} stackId="a" fill={CHART_COLORS[i % CHART_COLORS.length]} radius={i === (chart.dataKeys || []).length - 1 ? [4, 4, 0, 0] : undefined} />
+                ))}
+              </BarChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
