@@ -347,9 +347,11 @@ export function calcProjectManagerKPIs(projectData: any, tasks: any[]): Hierarch
   const projectDuration = startDate ? Math.max(dateDiffDays(new Date().toISOString(), startDate), 1) : 1;
   const burnRate = actualCost / projectDuration;
 
-  // Predicted_Cost_Overrun (%) = ((Forecasted_Cost - Planned_Budget) / Planned_Budget) * 100
-  const predictedCostOverrunPercent = plannedBudget > 0 && forecastedCost > 0
-    ? ((forecastedCost - plannedBudget) / plannedBudget) * 100
+  // Predicted_Cost_Overrun (%) = ((Forecasted_Cost or EAC - Planned_Budget) / Planned_Budget) * 100
+  const eacVal = cpi > 0 ? plannedBudget / cpi : 0;
+  const forecastForOverrun = forecastedCost > 0 ? forecastedCost : eacVal;
+  const predictedCostOverrunPercent = plannedBudget > 0 && forecastForOverrun > 0
+    ? ((forecastForOverrun - plannedBudget) / plannedBudget) * 100
     : 0;
 
   return {
