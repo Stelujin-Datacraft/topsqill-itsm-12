@@ -1,6 +1,7 @@
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { LucideIcon, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { LucideIcon, TrendingUp, TrendingDown, Minus, Info } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 
 interface KPIMetricCardProps {
@@ -11,6 +12,7 @@ interface KPIMetricCardProps {
   trend?: 'up' | 'down' | 'neutral';
   trendLabel?: string;
   variant?: 'default' | 'success' | 'warning' | 'danger';
+  formula?: string;
   className?: string;
 }
 
