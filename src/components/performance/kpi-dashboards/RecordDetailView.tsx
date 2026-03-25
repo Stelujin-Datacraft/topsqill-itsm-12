@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { FormulaBreakdownDialog, type FormulaBreakdown } from './FormulaBreakdownDialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -116,52 +117,72 @@ interface KPICardData {
   unit?: string;
   icon?: any;
   trend?: 'up' | 'down' | 'neutral';
-  formula?: string; // Formula description
+  formula?: string;
   hideIfZero?: boolean;
+  breakdown?: FormulaBreakdown;
 }
 
-function KPICard({ label, value, unit, icon: Icon, trend, formula }: KPICardData) {
+function KPICard({ label, value, unit, icon: Icon, trend, formula, breakdown }: KPICardData) {
+  const [showBreakdown, setShowBreakdown] = useState(false);
   const isCurrency = label.includes('Budget') || label.includes('Cost') || label.includes('EAC') || label.includes('ETC') || label.includes('VAC') || label.includes('Variance') && !unit;
   const displayValue = typeof value === 'number'
     ? (isCurrency ? `₹${value.toLocaleString('en-IN')}` : Number.isInteger(value) ? value.toLocaleString('en-IN') : value.toFixed(2))
     : value;
 
+  const isClickable = !!breakdown;
+
   return (
-    <Card className="relative">
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between">
-          <div className="min-w-0">
-            <div className="flex items-center gap-1">
-              <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide truncate">{label}</p>
-              {formula && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Info className="h-3 w-3 text-muted-foreground/60 shrink-0 cursor-help" />
-                    </TooltipTrigger>
-                    <TooltipContent side="top" className="max-w-[250px]">
-                      <p className="text-xs font-mono">{formula}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+    <>
+      <Card
+        className={`relative ${isClickable ? 'cursor-pointer hover:ring-1 hover:ring-primary/30' : ''}`}
+        onClick={isClickable ? () => setShowBreakdown(true) : undefined}
+      >
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="min-w-0">
+              <div className="flex items-center gap-1">
+                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide truncate">{label}</p>
+                {formula && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="h-3 w-3 text-muted-foreground/60 shrink-0 cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-[250px] z-[9999]">
+                        <p className="text-xs font-mono">{formula}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+              </div>
+              <p className="text-2xl font-bold text-foreground mt-1">
+                {displayValue}
+                {unit && <span className="text-sm font-normal text-muted-foreground ml-0.5">{unit}</span>}
+              </p>
+              {isClickable && (
+                <p className="text-[9px] text-muted-foreground/50 mt-0.5">Click for breakdown</p>
               )}
             </div>
-            <p className="text-2xl font-bold text-foreground mt-1">
-              {displayValue}
-              {unit && <span className="text-sm font-normal text-muted-foreground ml-0.5">{unit}</span>}
-            </p>
+            {Icon && (
+              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                <Icon className="h-5 w-5 text-primary" />
+              </div>
+            )}
           </div>
-          {Icon && (
-            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-              <Icon className="h-5 w-5 text-primary" />
-            </div>
+          {trend && (
+            <div className={`absolute top-0 left-0 w-1 h-full ${trend === 'up' ? 'bg-emerald-500' : trend === 'down' ? 'bg-destructive' : 'bg-muted'}`} />
           )}
-        </div>
-        {trend && (
-          <div className={`absolute top-0 left-0 w-1 h-full ${trend === 'up' ? 'bg-emerald-500' : trend === 'down' ? 'bg-destructive' : 'bg-muted'}`} />
-        )}
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+      {breakdown && (
+        <FormulaBreakdownDialog
+          open={showBreakdown}
+          onOpenChange={setShowBreakdown}
+          title={label}
+          breakdown={breakdown}
+        />
+      )}
+    </>
   );
 }
 
@@ -325,38 +346,68 @@ export function RecordDetailView({
 
       kpiCards.push(
         { label: 'Progress', value: progress, unit: '%', icon: Target, trend: progress >= 75 ? 'up' : progress >= 50 ? 'neutral' : 'down',
-          formula: '(Completed_Tasks / Total_Tasks) × 100' },
-        { label: 'Planned Budget', value: budget, icon: IndianRupee, formula: 'SUM(Planned_Budget)' },
+          formula: '(Completed_Tasks / Total_Tasks) × 100',
+          breakdown: { formula: '(Completed_Tasks / Total_Tasks) × 100', variables: [
+            { label: 'Completed Tasks', fieldName: 'COUNT_IF(Status = Completed)', value: completedTasks },
+            { label: 'Total Tasks', fieldName: 'COUNT(Task_ID)', value: totalTasks },
+          ], steps: [{ label: 'Division', expression: `${completedTasks} / ${totalTasks}`, result: totalTasks > 0 ? (completedTasks / totalTasks).toFixed(4) : '0' }, { label: 'Percentage', expression: `${totalTasks > 0 ? (completedTasks / totalTasks).toFixed(4) : '0'} × 100`, result: `${progress.toFixed(1)}%` }], result: `${progress.toFixed(1)}%` } },
+        { label: 'Planned Budget', value: budget, icon: IndianRupee, formula: 'SUM(Planned_Budget)',
+          breakdown: { formula: 'Planned_Budget', variables: [{ label: 'Planned Budget', fieldName: 'Planned_Budget', value: `₹${budget.toLocaleString('en-IN')}`, highlight: true }], result: `₹${budget.toLocaleString('en-IN')}` } },
         { label: 'Actual Cost', value: actual, icon: IndianRupee, trend: actual > budget ? 'down' : 'up',
-          formula: 'SUM(Actual_Cost)' },
+          formula: 'SUM(Actual_Cost)',
+          breakdown: { formula: 'Actual_Cost', variables: [{ label: 'Actual Cost', fieldName: 'Actual_Cost', value: `₹${actual.toLocaleString('en-IN')}`, highlight: true }, { label: 'Planned Budget (ref)', fieldName: 'Planned_Budget', value: `₹${budget.toLocaleString('en-IN')}` }], result: `₹${actual.toLocaleString('en-IN')}` } },
         { label: 'Budget Utilization', value: budgetUtil, unit: '%', icon: BarChart3,
-          formula: '(Actual_Cost / Planned_Budget) × 100' },
+          formula: '(Actual_Cost / Planned_Budget) × 100',
+          breakdown: { formula: '(Actual_Cost / Planned_Budget) × 100', variables: [{ label: 'Actual Cost', fieldName: 'Actual_Cost', value: `₹${actual.toLocaleString('en-IN')}` }, { label: 'Planned Budget', fieldName: 'Planned_Budget', value: `₹${budget.toLocaleString('en-IN')}` }], steps: [{ label: 'Division', expression: `${actual} / ${budget}`, result: budget > 0 ? (actual / budget).toFixed(4) : '0' }, { label: 'Percentage', expression: `${budget > 0 ? (actual / budget).toFixed(4) : '0'} × 100`, result: `${budgetUtil.toFixed(1)}%` }], result: `${budgetUtil.toFixed(1)}%` } },
         { label: 'CPI', value: cpi, icon: TrendingUp, trend: cpi >= 1 ? 'up' : cpi >= 0.9 ? 'neutral' : 'down',
-          formula: 'Earned_Value / Actual_Cost_Value' },
+          formula: 'Earned_Value / Actual_Cost_Value',
+          breakdown: { formula: 'Earned_Value / Actual_Cost_Value', description: 'Cost Performance Index — values ≥ 1.0 indicate cost efficiency', variables: [{ label: 'Earned Value (EV)', fieldName: 'Earned_Value', value: `₹${ev.toLocaleString('en-IN')}`, highlight: true }, { label: 'Actual Cost Value (AC)', fieldName: 'Actual_Cost_Value', value: `₹${ac.toLocaleString('en-IN')}`, highlight: true }], steps: [{ label: 'CPI', expression: `${ev} / ${ac}`, result: cpi.toFixed(4) }], result: cpi.toFixed(2) } },
         { label: 'SPI', value: spi, icon: TrendingUp, trend: spi >= 1 ? 'up' : spi >= 0.9 ? 'neutral' : 'down',
-          formula: 'Earned_Value / Planned_Value' },
+          formula: 'Earned_Value / Planned_Value',
+          breakdown: { formula: 'Earned_Value / Planned_Value', description: 'Schedule Performance Index — values ≥ 1.0 indicate ahead of schedule', variables: [{ label: 'Earned Value (EV)', fieldName: 'Earned_Value', value: `₹${ev.toLocaleString('en-IN')}`, highlight: true }, { label: 'Planned Value (PV)', fieldName: 'Planned_Value', value: `₹${pv.toLocaleString('en-IN')}`, highlight: true }], steps: [{ label: 'SPI', expression: `${ev} / ${pv}`, result: spi.toFixed(4) }], result: spi.toFixed(2) } },
         { label: 'Cost Variance', value: costVariance, icon: IndianRupee, trend: costVariance >= 0 ? 'up' : 'down',
-          formula: '((EV - AC) / EV) × 100' },
+          formula: 'EV - AC',
+          breakdown: { formula: 'Earned_Value - Actual_Cost_Value', variables: [{ label: 'Earned Value (EV)', fieldName: 'Earned_Value', value: `₹${ev.toLocaleString('en-IN')}` }, { label: 'Actual Cost Value (AC)', fieldName: 'Actual_Cost_Value', value: `₹${ac.toLocaleString('en-IN')}` }], steps: [{ label: 'Variance', expression: `${ev} - ${ac}`, result: `₹${costVariance.toLocaleString('en-IN')}` }], result: `₹${costVariance.toLocaleString('en-IN')}` } },
         { label: 'Schedule Var.', value: scheduleVariancePct, unit: '%', icon: Clock,
-          trend: scheduleVariancePct >= 0 ? 'up' : 'down', formula: '((EV - PV) / EV) × 100' },
-        { label: 'EAC', value: eac, icon: IndianRupee, formula: 'Planned_Budget / CPI' },
-        { label: 'ETC', value: etc, icon: IndianRupee, formula: 'EAC - Actual_Cost', hideIfZero: true },
+          trend: scheduleVariancePct >= 0 ? 'up' : 'down', formula: '((EV - PV) / EV) × 100',
+          breakdown: { formula: '((EV - PV) / EV) × 100', variables: [{ label: 'Earned Value (EV)', fieldName: 'Earned_Value', value: `₹${ev.toLocaleString('en-IN')}` }, { label: 'Planned Value (PV)', fieldName: 'Planned_Value', value: `₹${pv.toLocaleString('en-IN')}` }], steps: [{ label: 'Difference', expression: `${ev} - ${pv}`, result: String(ev - pv) }, { label: 'Ratio', expression: `${ev - pv} / ${ev}`, result: ev > 0 ? ((ev - pv) / ev).toFixed(4) : '0' }, { label: 'Percentage', expression: 'Ratio × 100', result: `${scheduleVariancePct.toFixed(1)}%` }], result: `${scheduleVariancePct.toFixed(1)}%` } },
+        { label: 'EAC', value: eac, icon: IndianRupee, formula: 'Planned_Budget / CPI',
+          breakdown: { formula: 'Planned_Budget / CPI', description: 'Estimate at Completion', variables: [{ label: 'Planned Budget', fieldName: 'Planned_Budget', value: `₹${budget.toLocaleString('en-IN')}` }, { label: 'CPI', fieldName: 'EV / AC', value: cpi.toFixed(2), highlight: true }], steps: [{ label: 'EAC', expression: `${budget} / ${cpi.toFixed(2)}`, result: `₹${Math.round(eac).toLocaleString('en-IN')}` }], result: `₹${Math.round(eac).toLocaleString('en-IN')}` } },
+        { label: 'ETC', value: etc, icon: IndianRupee, formula: 'EAC - Actual_Cost', hideIfZero: true,
+          breakdown: { formula: 'EAC - Actual_Cost', description: 'Estimate to Complete', variables: [{ label: 'EAC', fieldName: 'Budget / CPI', value: `₹${Math.round(eac).toLocaleString('en-IN')}` }, { label: 'Actual Cost', fieldName: 'Actual_Cost', value: `₹${actual.toLocaleString('en-IN')}` }], steps: [{ label: 'ETC', expression: `${Math.round(eac)} - ${actual}`, result: `₹${Math.round(etc).toLocaleString('en-IN')}` }], result: `₹${Math.round(etc).toLocaleString('en-IN')}` } },
         { label: 'VAC', value: vac, icon: IndianRupee, trend: vac >= 0 ? 'up' : 'down',
-          formula: 'Planned_Budget - EAC', hideIfZero: true },
+          formula: 'Planned_Budget - EAC', hideIfZero: true,
+          breakdown: { formula: 'Planned_Budget - EAC', description: 'Variance at Completion', variables: [{ label: 'Planned Budget', fieldName: 'Planned_Budget', value: `₹${budget.toLocaleString('en-IN')}` }, { label: 'EAC', fieldName: 'Budget / CPI', value: `₹${Math.round(eac).toLocaleString('en-IN')}` }], steps: [{ label: 'VAC', expression: `${budget} - ${Math.round(eac)}`, result: `₹${Math.round(vac).toLocaleString('en-IN')}` }], result: `₹${Math.round(vac).toLocaleString('en-IN')}` } },
         { label: 'On-Time Rate', value: onTimeRate, unit: '%', icon: CheckCircle2,
           trend: onTimeRate >= 80 ? 'up' : onTimeRate >= 60 ? 'neutral' : 'down',
-          formula: '(Tasks_On_Time / Total_Tasks) × 100' },
+          formula: '(Tasks_On_Time / Total_Tasks) × 100',
+          breakdown: { formula: '((Total_Tasks - Delayed_Tasks) / Total_Tasks) × 100', variables: [{ label: 'Total Tasks', value: totalTasks }, { label: 'Delayed Tasks', value: delayedTasks }, { label: 'On-Time Tasks', value: totalTasks - delayedTasks, highlight: true }], steps: [{ label: 'On-Time', expression: `${totalTasks} - ${delayedTasks}`, result: String(totalTasks - delayedTasks) }, { label: 'Rate', expression: `${totalTasks - delayedTasks} / ${totalTasks} × 100`, result: `${onTimeRate.toFixed(1)}%` }], result: `${onTimeRate.toFixed(1)}%` } },
         { label: 'Delayed Tasks', value: delayedTasks, icon: AlertTriangle,
           trend: delayedTasks > 0 ? 'down' : 'up',
-          formula: 'COUNT_IF(Actual_End > Planned_End)' },
+          formula: 'COUNT_IF(Actual_End > Planned_End)',
+          breakdown: { formula: 'COUNT_IF(Actual_End > Planned_End)', variables: [{ label: 'Total Tasks', value: totalTasks }, { label: 'Delayed (Actual > Planned)', value: delayedTasks, highlight: true }], result: delayedTasks } },
         { label: 'Risk Score', value: riskScore, icon: AlertTriangle,
           trend: riskScore > 70 ? 'down' : riskScore > 40 ? 'neutral' : 'up',
-          formula: 'Weighted: CPI(30%) + SPI(30%) + Delays(20%) + Pred(10%) + Overrun(10%)' },
+          formula: 'Weighted: CPI(30%) + SPI(30%) + Delays(20%) + Pred(10%) + Overrun(10%)',
+          breakdown: { formula: 'CPI_Risk×0.3 + SPI_Risk×0.3 + Delay_Ratio×0.2 + Pred_Delay×0.1 + Pred_Overrun×0.1', description: 'Weighted risk score from 0 (healthy) to 100 (critical)', variables: [
+            { label: 'CPI', fieldName: 'Earned_Value / Actual_Cost_Value', value: cpi.toFixed(2) },
+            { label: 'CPI Risk Component', fieldName: 'min((1 - CPI) × 100, 30) × 0.3', value: (cpi > 0 && cpi < 1 ? Math.min((1 - cpi) * 100, 30) * 0.3 : 0).toFixed(1), highlight: true },
+            { label: 'SPI', fieldName: 'Earned_Value / Planned_Value', value: spi.toFixed(2) },
+            { label: 'SPI Risk Component', fieldName: 'min((1 - SPI) × 100, 30) × 0.3', value: (spi > 0 && spi < 1 ? Math.min((1 - spi) * 100, 30) * 0.3 : 0).toFixed(1), highlight: true },
+            { label: 'Delayed Tasks Ratio', fieldName: `${delayedTasks} / ${totalTasks}`, value: totalTasks > 0 ? ((delayedTasks / totalTasks) * 100).toFixed(1) + '%' : '0%' },
+            { label: 'Delay Component', fieldName: 'Ratio × 100 × 0.2', value: (totalTasks > 0 ? (delayedTasks / totalTasks) * 100 * 0.2 : 0).toFixed(1), highlight: true },
+            { label: 'Predicted Delay', fieldName: 'Predicted_Delay_Days', value: `${predDelay} days` },
+            { label: 'Pred. Delay Component', fieldName: 'min(Days × 3, 100) × 0.1', value: (predDelay > 0 ? Math.min(predDelay * 3, 100) * 0.1 : 0).toFixed(1), highlight: true },
+            { label: 'Predicted Cost Overrun', fieldName: '((Forecast - Budget) / Budget) × 100', value: `${predictedCostOverrun.toFixed(1)}%` },
+            { label: 'Overrun Component', fieldName: 'min(Overrun%, 100) × 0.1', value: (predictedCostOverrun > 0 ? Math.min(predictedCostOverrun, 100) * 0.1 : 0).toFixed(1), highlight: true },
+          ], result: riskScore } },
         { label: 'Pred. Delay', value: predDelay, unit: 'd', icon: Clock,
-          formula: 'Predicted_Delay_Days', hideIfZero: true },
+          formula: 'Predicted_Delay_Days', hideIfZero: true,
+          breakdown: { formula: 'Predicted_Delay_Days', variables: [{ label: 'Predicted Delay', fieldName: 'Predicted_Delay_Days', value: `${predDelay} days`, highlight: true }], result: `${predDelay} days` } },
         { label: 'Pred. Overrun', value: predictedCostOverrun, unit: '%', icon: TrendingDown,
           trend: predictedCostOverrun > 0 ? 'down' : 'up',
-          formula: '((Forecast - Budget) / Budget) × 100', hideIfZero: true },
+          formula: '((Forecast - Budget) / Budget) × 100', hideIfZero: true,
+          breakdown: { formula: '((Forecast - Budget) / Budget) × 100', variables: [{ label: 'Forecast', fieldName: 'Forecasted_Cost or EAC', value: `₹${forecastForOverrun.toLocaleString('en-IN')}` }, { label: 'Planned Budget', fieldName: 'Planned_Budget', value: `₹${budget.toLocaleString('en-IN')}` }], steps: [{ label: 'Difference', expression: `${forecastForOverrun} - ${budget}`, result: String(forecastForOverrun - budget) }, { label: 'Overrun %', expression: `${forecastForOverrun - budget} / ${budget} × 100`, result: `${predictedCostOverrun.toFixed(1)}%` }], result: `${predictedCostOverrun.toFixed(1)}%` } },
       );
 
       // Charts
@@ -493,19 +544,23 @@ export function RecordDetailView({
           formula: 'COUNT_IF(Activity_Status = "Completed")' },
         { label: 'Activity Progress', value: progress, unit: '%', icon: TrendingUp,
           trend: progress >= 75 ? 'up' : 'neutral',
-          formula: '(Completed_Activities / Total_Activities) × 100' },
+          formula: '(Completed_Activities / Total_Activities) × 100',
+          breakdown: { formula: '(Completed_Activities / Total_Activities) × 100', variables: [{ label: 'Completed Activities', value: completedAct }, { label: 'Total Activities', value: childRecords.length }], steps: [{ label: 'Progress', expression: `${completedAct} / ${childRecords.length} × 100`, result: `${progress.toFixed(1)}%` }], result: `${progress.toFixed(1)}%` } },
         { label: 'Task Progress', value: taskProgress, unit: '%', icon: Target,
           trend: taskProgress >= 75 ? 'up' : 'neutral',
-          formula: '(Completed_Tasks / Total_Tasks) × 100' },
+          formula: '(Completed_Tasks / Total_Tasks) × 100',
+          breakdown: { formula: '(Completed_Tasks / Total_Tasks) × 100', variables: [{ label: 'Completed Tasks', value: completedTasks }, { label: 'Total Tasks (under WBS)', value: wbsTasks.length }], steps: [{ label: 'Progress', expression: `${completedTasks} / ${wbsTasks.length} × 100`, result: `${taskProgress.toFixed(1)}%` }], result: `${taskProgress.toFixed(1)}%` } },
         { label: 'Planned Hours', value: totalPlanned, icon: Clock, formula: 'SUM(Activity_Planned_Hours)' },
         { label: 'Actual Hours', value: totalActual, icon: Clock,
           trend: totalActual > totalPlanned ? 'down' : 'up',
           formula: 'SUM(Activity_Actual_Hours)' },
         { label: 'Utilization', value: util, unit: '%', icon: Users,
-          formula: '(Actual_Hours / (Planned_Hours + 0.0001)) × 100' },
+          formula: '(Actual_Hours / (Planned_Hours + 0.0001)) × 100',
+          breakdown: { formula: '(Actual_Hours / (Planned_Hours + ε)) × 100', variables: [{ label: 'Total Actual Hours', fieldName: 'SUM(Activity_Actual_Hours)', value: totalActual }, { label: 'Total Planned Hours', fieldName: 'SUM(Activity_Planned_Hours)', value: totalPlanned }], steps: [{ label: 'Utilization', expression: `${totalActual} / ${totalPlanned} × 100`, result: `${util.toFixed(1)}%` }], result: `${util.toFixed(1)}%` } },
         { label: 'Productivity', value: productivity, icon: Zap,
           trend: productivity >= 1 ? 'up' : 'down',
-          formula: 'Actual_Hours / Planned_Hours' },
+          formula: 'Actual_Hours / Planned_Hours',
+          breakdown: { formula: 'Actual_Hours / Planned_Hours', description: 'Values < 1 indicate under-utilization, > 1 indicates over-effort', variables: [{ label: 'Total Actual Hours', value: totalActual }, { label: 'Total Planned Hours', value: totalPlanned }], steps: [{ label: 'Productivity', expression: `${totalActual} / ${totalPlanned}`, result: productivity.toFixed(2) }], result: productivity.toFixed(2) } },
         { label: 'Total Delay', value: totalDelay, unit: 'd', icon: Clock,
           trend: totalDelay > 0 ? 'down' : 'up',
           formula: 'SUM(Task_Delay_Days)', hideIfZero: true },
@@ -580,7 +635,8 @@ export function RecordDetailView({
         { label: 'Completed', value: completedTasks, icon: CheckCircle2, trend: 'up',
           formula: 'COUNT_IF(Task_Status = "Completed")' },
         { label: 'Task Completion', value: progress, unit: '%', icon: TrendingUp,
-          formula: '(Completed_Tasks / Total_Tasks) × 100' },
+          formula: '(Completed_Tasks / Total_Tasks) × 100',
+          breakdown: { formula: '(Completed_Tasks / Total_Tasks) × 100', variables: [{ label: 'Completed Tasks', value: completedTasks }, { label: 'Total Tasks', value: childRecords.length }], steps: [{ label: 'Completion', expression: `${completedTasks} / ${childRecords.length} × 100`, result: `${progress.toFixed(1)}%` }], result: `${progress.toFixed(1)}%` } },
         { label: 'Delayed Tasks', value: delayedCount, icon: AlertTriangle,
           trend: delayedCount > 0 ? 'down' : 'up',
           formula: 'COUNT_IF(Actual_End > Planned_End)' },
@@ -590,13 +646,16 @@ export function RecordDetailView({
           trend: (actActual > 0 ? actActual : tActual) > (actPlanned > 0 ? actPlanned : tPlanned) ? 'down' : 'up',
           formula: actActual > 0 ? 'Activity_Actual_Hours' : 'SUM(Task_Actual_Hours)' },
         { label: 'Utilization', value: util, unit: '%', icon: Users,
-          formula: '(Actual_Hours / (Planned_Hours + 0.0001)) × 100' },
+          formula: '(Actual_Hours / (Planned_Hours + 0.0001)) × 100',
+          breakdown: { formula: '(Actual_Hours / (Planned_Hours + ε)) × 100', variables: [{ label: 'Actual Hours', value: tActual }, { label: 'Planned Hours', value: tPlanned }], steps: [{ label: 'Utilization', expression: `${tActual} / ${tPlanned} × 100`, result: `${util.toFixed(1)}%` }], result: `${util.toFixed(1)}%` } },
         { label: 'Productivity', value: productivity, icon: Zap,
           trend: productivity >= 1 ? 'up' : 'down',
-          formula: 'Actual_Hours / Planned_Hours' },
+          formula: 'Actual_Hours / Planned_Hours',
+          breakdown: { formula: 'Actual_Hours / Planned_Hours', variables: [{ label: 'Actual Hours', value: tActual }, { label: 'Planned Hours', value: tPlanned }], steps: [{ label: 'Productivity', expression: `${tActual} / ${tPlanned}`, result: productivity.toFixed(2) }], result: productivity.toFixed(2) } },
         { label: 'Quality Score', value: quality, unit: '%', icon: CheckCircle2,
           trend: quality >= 90 ? 'up' : 'neutral',
-          formula: '(1 - (Defects / (Tasks + Defects))) × 100' },
+          formula: '(1 - (Defects / (Tasks + Defects))) × 100',
+          breakdown: { formula: '(1 - (Defects / (Tasks + Defects))) × 100', variables: [{ label: 'Total Defects', value: totalDefects }, { label: 'Total Tasks', value: childRecords.length }], steps: [{ label: 'Defect Ratio', expression: `${totalDefects} / (${childRecords.length} + ${totalDefects})`, result: (childRecords.length + totalDefects) > 0 ? (totalDefects / (childRecords.length + totalDefects)).toFixed(4) : '0' }, { label: 'Quality', expression: `(1 - ${(childRecords.length + totalDefects) > 0 ? (totalDefects / (childRecords.length + totalDefects)).toFixed(4) : '0'}) × 100`, result: `${quality.toFixed(1)}%` }], result: `${quality.toFixed(1)}%` } },
         { label: 'Total Delay', value: totalDelay, unit: 'd', icon: Clock,
           trend: totalDelay > 0 ? 'down' : 'up',
           formula: 'SUM(DAYS(Actual_End - Planned_End))' },
@@ -671,19 +730,24 @@ export function RecordDetailView({
         { label: 'Actual Hours', value: tActual, icon: Clock,
           trend: tActual > tPlanned ? 'down' : 'up', formula: 'Task_Actual_Hours' },
         { label: 'Utilization', value: util, unit: '%', icon: Users,
-          formula: '(Actual_Hours / (Planned_Hours + 0.0001)) × 100' },
+          formula: '(Actual_Hours / (Planned_Hours + 0.0001)) × 100',
+          breakdown: { formula: '(Actual_Hours / (Planned_Hours + ε)) × 100', variables: [{ label: 'Actual Hours', fieldName: 'Task_Actual_Hours', value: tActual }, { label: 'Planned Hours', fieldName: 'Task_Planned_Hours', value: tPlanned }], steps: [{ label: 'Utilization', expression: `${tActual} / ${tPlanned} × 100`, result: `${util.toFixed(1)}%` }], result: `${util.toFixed(1)}%` } },
         { label: 'Productivity', value: productivity, icon: Zap,
           trend: productivity >= 1 ? 'up' : 'down',
-          formula: 'Actual_Hours / Planned_Hours' },
+          formula: 'Actual_Hours / Planned_Hours',
+          breakdown: { formula: 'Actual_Hours / Planned_Hours', variables: [{ label: 'Actual Hours', value: tActual }, { label: 'Planned Hours', value: tPlanned }], steps: [{ label: 'Productivity', expression: `${tActual} / ${tPlanned}`, result: productivity.toFixed(2) }], result: productivity.toFixed(2) } },
         { label: 'Delay', value: delay, unit: 'd', icon: Clock,
           trend: delay > 0 ? 'down' : 'up',
-          formula: 'DAYS(Actual_End - Planned_End)' },
+          formula: 'DAYS(Actual_End - Planned_End)',
+          breakdown: { formula: 'DAYS(Actual_End - Planned_End)', variables: [{ label: 'Planned End', fieldName: 'Task_Planned_End', value: pe || 'N/A' }, { label: 'Actual End', fieldName: 'Task_Actual_End', value: ae || 'N/A' }], result: `${delay} days` } },
         { label: 'Overtime', value: overtime, unit: 'h', icon: AlertTriangle,
           trend: overtime > 0 ? 'down' : 'up',
-          formula: 'Actual_Hours - Planned_Hours', hideIfZero: true },
+          formula: 'Actual_Hours - Planned_Hours', hideIfZero: true,
+          breakdown: { formula: 'Actual_Hours - Planned_Hours', variables: [{ label: 'Actual Hours', value: tActual }, { label: 'Planned Hours', value: tPlanned }], steps: [{ label: 'Overtime', expression: `${tActual} - ${tPlanned}`, result: `${overtime}h` }], result: `${overtime}h` } },
         { label: 'Quality', value: quality, unit: '%', icon: CheckCircle2,
           trend: quality >= 90 ? 'up' : 'neutral',
-          formula: '(1 - (Defects / (1 + Defects))) × 100' },
+          formula: '(1 - (Defects / (1 + Defects))) × 100',
+          breakdown: { formula: '(1 - (Defects / (1 + Defects))) × 100', variables: [{ label: 'Defect Count', fieldName: 'Task_Defect_Count', value: tDefects }], steps: [{ label: 'Ratio', expression: `${tDefects} / (1 + ${tDefects})`, result: (1 + tDefects) > 0 ? (tDefects / (1 + tDefects)).toFixed(4) : '0' }, { label: 'Quality', expression: `(1 - ${(1 + tDefects) > 0 ? (tDefects / (1 + tDefects)).toFixed(4) : '0'}) × 100`, result: `${quality.toFixed(1)}%` }], result: `${quality.toFixed(1)}%` } },
         { label: 'Defects', value: tDefects, icon: AlertTriangle,
           trend: tDefects > 0 ? 'down' : 'up', formula: 'Defect_Count' },
         { label: 'Resources', value: childRecords.length, icon: Users, formula: 'COUNT(Resource_ID)' },
@@ -750,12 +814,15 @@ export function RecordDetailView({
         { label: 'Planned Hours', value: rPlanned, icon: Clock, formula: 'Resource_Planned_Hours' },
         { label: 'Actual Hours', value: rActual, icon: Clock, formula: 'Resource_Actual_Hours' },
         { label: 'Overtime', value: rOvertime, unit: 'h', icon: AlertTriangle,
-          trend: rOvertime > 0 ? 'down' : 'up', formula: 'Actual_Hours - Planned_Hours' },
+          trend: rOvertime > 0 ? 'down' : 'up', formula: 'Actual_Hours - Planned_Hours',
+          breakdown: { formula: 'Actual_Hours - Planned_Hours', variables: [{ label: 'Actual Hours', fieldName: 'Resource_Actual_Hours', value: rActual }, { label: 'Planned Hours', fieldName: 'Resource_Planned_Hours', value: rPlanned }], steps: [{ label: 'Overtime', expression: `${rActual} - ${rPlanned}`, result: `${rOvertime}h` }], result: `${rOvertime}h` } },
         { label: 'Utilization', value: util, unit: '%', icon: Users,
-          formula: '(Actual_Hours / (Planned_Hours + 0.0001)) × 100' },
+          formula: '(Actual_Hours / (Planned_Hours + 0.0001)) × 100',
+          breakdown: { formula: '(Actual_Hours / (Planned_Hours + ε)) × 100', variables: [{ label: 'Actual Hours', fieldName: 'Resource_Actual_Hours', value: rActual }, { label: 'Planned Hours', fieldName: 'Resource_Planned_Hours', value: rPlanned }], steps: [{ label: 'Utilization', expression: `${rActual} / ${rPlanned} × 100`, result: `${util.toFixed(1)}%` }], result: `${util.toFixed(1)}%` } },
         { label: 'Productivity', value: productivity, icon: Zap,
           trend: productivity >= 1 ? 'up' : 'down',
-          formula: 'Actual_Hours / Planned_Hours' },
+          formula: 'Actual_Hours / Planned_Hours',
+          breakdown: { formula: 'Actual_Hours / Planned_Hours', variables: [{ label: 'Actual Hours', value: rActual }, { label: 'Planned Hours', value: rPlanned }], steps: [{ label: 'Productivity', expression: `${rActual} / ${rPlanned}`, result: productivity.toFixed(2) }], result: productivity.toFixed(2) } },
       );
 
       // Resource hours breakdown

@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { LucideIcon, TrendingUp, TrendingDown, Minus, Info } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { FormulaBreakdownDialog, type FormulaBreakdown } from './FormulaBreakdownDialog';
 
 interface KPIMetricCardProps {
   title: string;
@@ -13,6 +14,7 @@ interface KPIMetricCardProps {
   trendLabel?: string;
   variant?: 'default' | 'success' | 'warning' | 'danger';
   formula?: string;
+  formulaBreakdown?: FormulaBreakdown;
   className?: string;
 }
 
@@ -25,8 +27,11 @@ export function KPIMetricCard({
   trendLabel,
   variant = 'default',
   formula,
+  formulaBreakdown,
   className,
 }: KPIMetricCardProps) {
+  const [showBreakdown, setShowBreakdown] = useState(false);
+
   const variantStyles = {
     default: 'border-border/70 bg-gradient-to-br from-card via-card to-muted/40',
     success: 'border-success/35 bg-gradient-to-br from-success/10 via-card to-card',
@@ -55,44 +60,68 @@ export function KPIMetricCard({
       ? 'text-destructive bg-destructive/10 border-destructive/20'
       : 'text-muted-foreground bg-muted border-border';
 
+  const isClickable = !!formulaBreakdown;
+
   return (
-    <Card className={cn('group relative transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg', variantStyles[variant], className)}>
-      <div className={cn('pointer-events-none absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r', accentStyles[variant])} />
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="space-y-1.5 flex-1 min-w-0">
-            <div className="flex items-center gap-1">
-              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-[0.12em] truncate">{title}</p>
-              {formula && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Info className="h-3 w-3 text-muted-foreground/60 shrink-0 cursor-help" />
-                    </TooltipTrigger>
-                    <TooltipContent side="top" className="max-w-[250px]">
-                      <p className="text-xs font-mono">{formula}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+    <>
+      <Card
+        className={cn(
+          'group relative transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg',
+          isClickable && 'cursor-pointer ring-0 hover:ring-1 hover:ring-primary/30',
+          variantStyles[variant],
+          className,
+        )}
+        onClick={isClickable ? () => setShowBreakdown(true) : undefined}
+      >
+        <div className={cn('pointer-events-none absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r', accentStyles[variant])} />
+        <CardContent className="p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="space-y-1.5 flex-1 min-w-0">
+              <div className="flex items-center gap-1">
+                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-[0.12em] truncate">{title}</p>
+                {formula && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="h-3 w-3 text-muted-foreground/60 shrink-0 cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-[250px] z-[9999]">
+                        <p className="text-xs font-mono">{formula}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+              </div>
+              <p className="text-2xl font-bold text-foreground leading-none">{typeof value === 'number' ? formatValue(value) : value}</p>
+              {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
+              {trend && (
+                <div className={cn('inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium', trendColor)}>
+                  <TrendIcon className="h-3 w-3" />
+                  {trendLabel && <span>{trendLabel}</span>}
+                </div>
+              )}
+              {isClickable && (
+                <p className="text-[9px] text-muted-foreground/50 mt-0.5">Click for breakdown</p>
               )}
             </div>
-            <p className="text-2xl font-bold text-foreground leading-none">{typeof value === 'number' ? formatValue(value) : value}</p>
-            {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
-            {trend && (
-              <div className={cn('inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium', trendColor)}>
-                <TrendIcon className="h-3 w-3" />
-                {trendLabel && <span>{trendLabel}</span>}
+            {Icon && (
+              <div className={cn('rounded-xl border p-2.5 transition-transform duration-200 group-hover:scale-105', iconStyles[variant])}>
+                <Icon className="h-4 w-4" />
               </div>
             )}
           </div>
-          {Icon && (
-            <div className={cn('rounded-xl border p-2.5 transition-transform duration-200 group-hover:scale-105', iconStyles[variant])}>
-              <Icon className="h-4 w-4" />
-            </div>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+
+      {formulaBreakdown && (
+        <FormulaBreakdownDialog
+          open={showBreakdown}
+          onOpenChange={setShowBreakdown}
+          title={title}
+          breakdown={formulaBreakdown}
+        />
+      )}
+    </>
   );
 }
 
