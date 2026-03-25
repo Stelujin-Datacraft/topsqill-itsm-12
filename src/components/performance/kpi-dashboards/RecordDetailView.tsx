@@ -1,5 +1,7 @@
 import React, { useMemo, useState } from 'react';
-import { FormulaBreakdownDialog, type FormulaBreakdown } from './FormulaBreakdownDialog';
+import { type FormulaBreakdown } from './FormulaBreakdownDialog';
+import { FormulaBreakdownTable } from './FormulaBreakdownTable';
+import { ChartValueModal, type ChartClickPayload } from './ChartValueModal';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -122,67 +124,56 @@ interface KPICardData {
   breakdown?: FormulaBreakdown;
 }
 
-function KPICard({ label, value, unit, icon: Icon, trend, formula, breakdown }: KPICardData) {
-  const [showBreakdown, setShowBreakdown] = useState(false);
+function KPICard({ label, value, unit, icon: Icon, trend, formula, breakdown, onBreakdownClick }: KPICardData & { onBreakdownClick?: (label: string, breakdown: FormulaBreakdown) => void }) {
   const isCurrency = label.includes('Budget') || label.includes('Cost') || label.includes('EAC') || label.includes('ETC') || label.includes('VAC') || label.includes('Variance') && !unit;
   const displayValue = typeof value === 'number'
     ? (isCurrency ? `₹${value.toLocaleString('en-IN')}` : Number.isInteger(value) ? value.toLocaleString('en-IN') : value.toFixed(2))
     : value;
 
-  const isClickable = !!breakdown;
+  const isClickable = !!breakdown && !!onBreakdownClick;
 
   return (
-    <>
-      <Card
-        className={`relative ${isClickable ? 'cursor-pointer hover:ring-1 hover:ring-primary/30' : ''}`}
-        onClick={isClickable ? () => setShowBreakdown(true) : undefined}
-      >
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between">
-            <div className="min-w-0">
-              <div className="flex items-center gap-1">
-                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide truncate">{label}</p>
-                {formula && (
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Info className="h-3 w-3 text-muted-foreground/60 shrink-0 cursor-help" />
-                      </TooltipTrigger>
-                      <TooltipContent side="top" className="max-w-[250px] z-[9999]">
-                        <p className="text-xs font-mono">{formula}</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                )}
-              </div>
-              <p className="text-2xl font-bold text-foreground mt-1">
-                {displayValue}
-                {unit && <span className="text-sm font-normal text-muted-foreground ml-0.5">{unit}</span>}
-              </p>
-              {isClickable && (
-                <p className="text-[9px] text-muted-foreground/50 mt-0.5">Click for breakdown</p>
+    <Card
+      className={`relative ${isClickable ? 'cursor-pointer hover:ring-1 hover:ring-primary/30' : ''}`}
+      onClick={isClickable ? () => onBreakdownClick!(label, breakdown!) : undefined}
+    >
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between">
+          <div className="min-w-0">
+            <div className="flex items-center gap-1">
+              <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide truncate">{label}</p>
+              {formula && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="h-3 w-3 text-muted-foreground/60 shrink-0 cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="max-w-[250px] z-[9999]">
+                      <p className="text-xs font-mono">{formula}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               )}
             </div>
-            {Icon && (
-              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                <Icon className="h-5 w-5 text-primary" />
-              </div>
+            <p className="text-2xl font-bold text-foreground mt-1">
+              {displayValue}
+              {unit && <span className="text-sm font-normal text-muted-foreground ml-0.5">{unit}</span>}
+            </p>
+            {isClickable && (
+              <p className="text-[9px] text-muted-foreground/50 mt-0.5">Click for breakdown</p>
             )}
           </div>
-          {trend && (
-            <div className={`absolute top-0 left-0 w-1 h-full ${trend === 'up' ? 'bg-emerald-500' : trend === 'down' ? 'bg-destructive' : 'bg-muted'}`} />
+          {Icon && (
+            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+              <Icon className="h-5 w-5 text-primary" />
+            </div>
           )}
-        </CardContent>
-      </Card>
-      {breakdown && (
-        <FormulaBreakdownDialog
-          open={showBreakdown}
-          onOpenChange={setShowBreakdown}
-          title={label}
-          breakdown={breakdown}
-        />
-      )}
-    </>
+        </div>
+        {trend && (
+          <div className={`absolute top-0 left-0 w-1 h-full ${trend === 'up' ? 'bg-emerald-500' : trend === 'down' ? 'bg-destructive' : 'bg-muted'}`} />
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -888,8 +879,19 @@ export function RecordDetailView({
   // Filter out hideIfZero cards
   const visibleKPIs = kpiCards.filter(k => !(k.hideIfZero && (k.value === 0 || k.value === '0')));
 
-  const renderChart = (chart: typeof charts[0], index: number) => {
+  const renderChart = (chart: typeof charts[0], index: number, onChartClick?: (title: string, data: any) => void) => {
     const tooltipStyle = { backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: 12 };
+
+    const chartClickHandler = (data: any) => {
+      if (onChartClick && data?.activePayload?.[0]?.payload) {
+        onChartClick(chart.title, data.activePayload[0].payload);
+      }
+    };
+    const pieClickHandler = (entry: any) => {
+      if (onChartClick && entry) {
+        onChartClick(chart.title, entry);
+      }
+    };
 
     if (chart.type === 'bar') {
       return (
@@ -897,12 +899,12 @@ export function RecordDetailView({
           <CardHeader className="pb-2"><CardTitle className="text-sm">{chart.title}</CardTitle></CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={chart.data}>
+              <BarChart data={chart.data} onClick={chartClickHandler}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                 <XAxis dataKey="name" tick={{ fontSize: 11 }} className="fill-muted-foreground" />
                 <YAxis tick={{ fontSize: 11 }} className="fill-muted-foreground" />
                 <RechartsTooltip contentStyle={tooltipStyle} />
-                <Bar dataKey="value" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="value" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} className="cursor-pointer" />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -916,14 +918,14 @@ export function RecordDetailView({
           <CardHeader className="pb-2"><CardTitle className="text-sm">{chart.title}</CardTitle></CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={chart.data}>
+              <BarChart data={chart.data} onClick={chartClickHandler}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                 <XAxis dataKey="name" tick={{ fontSize: 10 }} className="fill-muted-foreground" angle={-20} textAnchor="end" height={50} />
                 <YAxis tick={{ fontSize: 11 }} className="fill-muted-foreground" />
                 <RechartsTooltip contentStyle={tooltipStyle} />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Bar dataKey="planned" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="actual" fill="hsl(var(--chart-2, 150 60% 45%))" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="planned" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} className="cursor-pointer" />
+                <Bar dataKey="actual" fill="hsl(var(--chart-2, 150 60% 45%))" radius={[4, 4, 0, 0]} className="cursor-pointer" />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -937,12 +939,12 @@ export function RecordDetailView({
           <CardHeader className="pb-2"><CardTitle className="text-sm">{chart.title}</CardTitle></CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={chart.data} layout="vertical">
+              <BarChart data={chart.data} layout="vertical" onClick={chartClickHandler}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                 <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 11 }} className="fill-muted-foreground" />
                 <YAxis dataKey="name" type="category" tick={{ fontSize: 10 }} width={80} className="fill-muted-foreground" />
                 <RechartsTooltip contentStyle={tooltipStyle} formatter={(v: number) => `${v}%`} />
-                <Bar dataKey="progress" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                <Bar dataKey="progress" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} className="cursor-pointer" />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -957,7 +959,7 @@ export function RecordDetailView({
           <CardContent>
             <ResponsiveContainer width="100%" height={220}>
               <PieChart>
-                <Pie data={chart.data} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name, value }) => `${name}: ${value}`} labelLine={false}>
+                <Pie data={chart.data} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name, value }) => `${name}: ${value}`} labelLine={false} onClick={pieClickHandler} className="cursor-pointer">
                   {chart.data.map((_, i) => (
                     <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
                   ))}
@@ -996,7 +998,7 @@ export function RecordDetailView({
           <CardHeader className="pb-2"><CardTitle className="text-sm">{chart.title}</CardTitle></CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={220}>
-              <AreaChart data={chart.data}>
+              <AreaChart data={chart.data} onClick={chartClickHandler}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                 <XAxis dataKey="name" tick={{ fontSize: 10 }} className="fill-muted-foreground" />
                 <YAxis tick={{ fontSize: 11 }} className="fill-muted-foreground" />
@@ -1018,14 +1020,14 @@ export function RecordDetailView({
           <CardHeader className="pb-2"><CardTitle className="text-sm">{chart.title}</CardTitle></CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={chart.data}>
+              <BarChart data={chart.data} onClick={chartClickHandler}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                 <XAxis dataKey="name" tick={{ fontSize: 10 }} className="fill-muted-foreground" angle={-20} textAnchor="end" height={50} />
                 <YAxis tick={{ fontSize: 11 }} className="fill-muted-foreground" />
                 <RechartsTooltip contentStyle={tooltipStyle} />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
                 {(chart.dataKeys || []).map((key, i) => (
-                  <Bar key={key} dataKey={key} stackId="a" fill={CHART_COLORS[i % CHART_COLORS.length]} radius={i === (chart.dataKeys || []).length - 1 ? [4, 4, 0, 0] : undefined} />
+                  <Bar key={key} dataKey={key} stackId="a" fill={CHART_COLORS[i % CHART_COLORS.length]} radius={i === (chart.dataKeys || []).length - 1 ? [4, 4, 0, 0] : undefined} className="cursor-pointer" />
                 ))}
               </BarChart>
             </ResponsiveContainer>
@@ -1040,21 +1042,52 @@ export function RecordDetailView({
   const levelLabel: Record<HierarchyLevel, string> = { project: 'Project', wbs: 'WBS', activity: 'Activity', task: 'Task', resource: 'Resource' };
   const childLevelLabel: Record<HierarchyLevel, string> = { project: 'Projects', wbs: 'WBS Items', activity: 'Activities', task: 'Tasks', resource: 'Resources' };
 
+  const [activeBreakdown, setActiveBreakdown] = useState<{ title: string; breakdown: FormulaBreakdown } | null>(null);
+  const [chartClickPayload, setChartClickPayload] = useState<ChartClickPayload | null>(null);
+
+  const handleBreakdownClick = (title: string, breakdown: FormulaBreakdown) => {
+    setActiveBreakdown(prev => prev?.title === title ? null : { title, breakdown });
+  };
+
+  const handleChartClick = (chartTitle: string, dataPoint: any) => {
+    if (dataPoint && typeof dataPoint === 'object') {
+      const cleaned = { ...dataPoint };
+      delete cleaned.payload;
+      setChartClickPayload({ chartTitle, dataPoint: cleaned });
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* KPI Cards Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
         {visibleKPIs.map((kpi, i) => (
-          <KPICard key={i} {...kpi} />
+          <KPICard key={i} {...kpi} onBreakdownClick={handleBreakdownClick} />
         ))}
       </div>
+
+      {/* Inline Formula Breakdown Table */}
+      {activeBreakdown && (
+        <FormulaBreakdownTable
+          title={activeBreakdown.title}
+          breakdown={activeBreakdown.breakdown}
+          onClose={() => setActiveBreakdown(null)}
+        />
+      )}
 
       {/* Charts */}
       {charts.length > 0 && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {charts.map((chart, i) => renderChart(chart, i))}
+          {charts.map((chart, i) => renderChart(chart, i, handleChartClick))}
         </div>
       )}
+
+      {/* Chart Value Detail Modal */}
+      <ChartValueModal
+        open={!!chartClickPayload}
+        onOpenChange={(open) => !open && setChartClickPayload(null)}
+        payload={chartClickPayload}
+      />
 
       {/* Child Records - Collapsible */}
       {childLevel && childRecords.length > 0 && (
