@@ -211,9 +211,7 @@ function ChildRecordRow({ record, level, onClick, metrics }: {
             <p className="text-xs font-bold">{m.value}</p>
           </div>
         ))}
-        {!isLeaf && (
-          <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
-        )}
+        <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
       </div>
     </div>
   );
