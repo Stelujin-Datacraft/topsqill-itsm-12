@@ -12,10 +12,10 @@ interface FormulaBreakdownTableProps {
   onClose: () => void;
 }
 
-function VariableRow({ variable, depth = 0 }: { variable: FormulaVariable & { subBreakdown?: FormulaBreakdown }; depth?: number }) {
+function VariableRow({ variable, depth = 0 }: { variable: FormulaVariable; depth?: number }) {
   const [expanded, setExpanded] = useState(false);
-  const hasSub = !!(variable as any).subBreakdown;
-  const sub = (variable as any).subBreakdown as FormulaBreakdown | undefined;
+  const hasSub = !!variable.subBreakdown;
+  const sub = variable.subBreakdown;
 
   return (
     <>
@@ -34,6 +34,9 @@ function VariableRow({ variable, depth = 0 }: { variable: FormulaVariable & { su
                 : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
             )}
             <span className="text-sm font-medium text-foreground">{variable.label}</span>
+            {hasSub && !expanded && (
+              <Badge variant="outline" className="text-[9px] ml-1 h-4 px-1">has formula</Badge>
+            )}
           </div>
         </TableCell>
         <TableCell className="py-2">
@@ -58,11 +61,14 @@ function VariableRow({ variable, depth = 0 }: { variable: FormulaVariable & { su
               <div className="flex items-center gap-2">
                 <Calculator className="h-3 w-3 text-primary" />
                 <code className="text-[11px] font-mono text-primary">{sub.formula}</code>
+                {sub.description && (
+                  <span className="text-[10px] text-muted-foreground">— {sub.description}</span>
+                )}
               </div>
             </TableCell>
           </TableRow>
           {sub.variables.map((sv, si) => (
-            <VariableRow key={si} variable={sv as any} depth={depth + 1} />
+            <VariableRow key={si} variable={sv} depth={depth + 1} />
           ))}
           {sub.steps && sub.steps.map((step, si) => (
             <TableRow key={`step-${si}`} className="bg-muted/20">
@@ -77,6 +83,18 @@ function VariableRow({ variable, depth = 0 }: { variable: FormulaVariable & { su
               </TableCell>
             </TableRow>
           ))}
+          {/* Sub result */}
+          <TableRow className="bg-primary/5">
+            <TableCell className="py-1.5" style={{ paddingLeft: (depth + 1) * 20 + 8 }}>
+              <span className="text-xs font-semibold text-primary">= Result</span>
+            </TableCell>
+            <TableCell className="py-1.5" />
+            <TableCell className="py-1.5 text-right">
+              <Badge variant="default" className="font-mono text-xs">
+                {typeof sub.result === 'number' ? sub.result.toLocaleString('en-IN') : sub.result}
+              </Badge>
+            </TableCell>
+          </TableRow>
         </>
       )}
     </>
@@ -119,7 +137,7 @@ export function FormulaBreakdownTable({ title, breakdown, onClose }: FormulaBrea
             </TableHeader>
             <TableBody>
               {breakdown.variables.map((v, i) => (
-                <VariableRow key={i} variable={v as any} />
+                <VariableRow key={i} variable={v} />
               ))}
             </TableBody>
           </Table>
