@@ -10,6 +10,7 @@ export interface FormulaVariable {
   fieldName?: string;
   value: string | number;
   highlight?: boolean;
+  subBreakdown?: FormulaBreakdown;
 }
 
 export interface FormulaBreakdown {
