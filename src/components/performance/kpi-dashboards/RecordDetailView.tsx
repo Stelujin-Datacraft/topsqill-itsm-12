@@ -1031,21 +1031,52 @@ export function RecordDetailView({
   const levelLabel: Record<HierarchyLevel, string> = { project: 'Project', wbs: 'WBS', activity: 'Activity', task: 'Task', resource: 'Resource' };
   const childLevelLabel: Record<HierarchyLevel, string> = { project: 'Projects', wbs: 'WBS Items', activity: 'Activities', task: 'Tasks', resource: 'Resources' };
 
+  const [activeBreakdown, setActiveBreakdown] = useState<{ title: string; breakdown: FormulaBreakdown } | null>(null);
+  const [chartClickPayload, setChartClickPayload] = useState<ChartClickPayload | null>(null);
+
+  const handleBreakdownClick = (title: string, breakdown: FormulaBreakdown) => {
+    setActiveBreakdown(prev => prev?.title === title ? null : { title, breakdown });
+  };
+
+  const handleChartClick = (chartTitle: string, dataPoint: any) => {
+    if (dataPoint && typeof dataPoint === 'object') {
+      const cleaned = { ...dataPoint };
+      delete cleaned.payload;
+      setChartClickPayload({ chartTitle, dataPoint: cleaned });
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* KPI Cards Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
         {visibleKPIs.map((kpi, i) => (
-          <KPICard key={i} {...kpi} />
+          <KPICard key={i} {...kpi} onBreakdownClick={handleBreakdownClick} />
         ))}
       </div>
+
+      {/* Inline Formula Breakdown Table */}
+      {activeBreakdown && (
+        <FormulaBreakdownTable
+          title={activeBreakdown.title}
+          breakdown={activeBreakdown.breakdown}
+          onClose={() => setActiveBreakdown(null)}
+        />
+      )}
 
       {/* Charts */}
       {charts.length > 0 && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {charts.map((chart, i) => renderChart(chart, i))}
+          {charts.map((chart, i) => renderChart(chart, i, handleChartClick))}
         </div>
       )}
+
+      {/* Chart Value Detail Modal */}
+      <ChartValueModal
+        open={!!chartClickPayload}
+        onOpenChange={(open) => !open && setChartClickPayload(null)}
+        payload={chartClickPayload}
+      />
 
       {/* Child Records - Collapsible */}
       {childLevel && childRecords.length > 0 && (
