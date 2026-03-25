@@ -879,7 +879,7 @@ export function RecordDetailView({
   // Filter out hideIfZero cards
   const visibleKPIs = kpiCards.filter(k => !(k.hideIfZero && (k.value === 0 || k.value === '0')));
 
-  const renderChart = (chart: typeof charts[0], index: number) => {
+  const renderChart = (chart: typeof charts[0], index: number, onChartClick?: (title: string, data: any) => void) => {
     const tooltipStyle = { backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: 12 };
 
     if (chart.type === 'bar') {
