@@ -1082,12 +1082,13 @@ export function RecordDetailView({
         </div>
       )}
 
-      {/* Chart Value Detail Modal */}
-      <ChartValueModal
-        open={!!chartClickPayload}
-        onOpenChange={(open) => !open && setChartClickPayload(null)}
-        payload={chartClickPayload}
-      />
+      {/* Chart Value Detail — Inline Table */}
+      {chartClickPayload && (
+        <ChartValueModal
+          payload={chartClickPayload}
+          onClose={() => setChartClickPayload(null)}
+        />
+      )}
 
       {/* Child Records - Collapsible */}
       {childLevel && childRecords.length > 0 && (
