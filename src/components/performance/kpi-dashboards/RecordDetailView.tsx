@@ -882,18 +882,29 @@ export function RecordDetailView({
   const renderChart = (chart: typeof charts[0], index: number, onChartClick?: (title: string, data: any) => void) => {
     const tooltipStyle = { backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: 12 };
 
+    const chartClickHandler = (data: any) => {
+      if (onChartClick && data?.activePayload?.[0]?.payload) {
+        onChartClick(chart.title, data.activePayload[0].payload);
+      }
+    };
+    const pieClickHandler = (entry: any) => {
+      if (onChartClick && entry) {
+        onChartClick(chart.title, entry);
+      }
+    };
+
     if (chart.type === 'bar') {
       return (
         <Card key={index}>
           <CardHeader className="pb-2"><CardTitle className="text-sm">{chart.title}</CardTitle></CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={chart.data}>
+              <BarChart data={chart.data} onClick={chartClickHandler}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                 <XAxis dataKey="name" tick={{ fontSize: 11 }} className="fill-muted-foreground" />
                 <YAxis tick={{ fontSize: 11 }} className="fill-muted-foreground" />
                 <RechartsTooltip contentStyle={tooltipStyle} />
-                <Bar dataKey="value" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="value" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} className="cursor-pointer" />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -907,14 +918,14 @@ export function RecordDetailView({
           <CardHeader className="pb-2"><CardTitle className="text-sm">{chart.title}</CardTitle></CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={chart.data}>
+              <BarChart data={chart.data} onClick={chartClickHandler}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                 <XAxis dataKey="name" tick={{ fontSize: 10 }} className="fill-muted-foreground" angle={-20} textAnchor="end" height={50} />
                 <YAxis tick={{ fontSize: 11 }} className="fill-muted-foreground" />
                 <RechartsTooltip contentStyle={tooltipStyle} />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Bar dataKey="planned" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="actual" fill="hsl(var(--chart-2, 150 60% 45%))" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="planned" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} className="cursor-pointer" />
+                <Bar dataKey="actual" fill="hsl(var(--chart-2, 150 60% 45%))" radius={[4, 4, 0, 0]} className="cursor-pointer" />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -928,12 +939,12 @@ export function RecordDetailView({
           <CardHeader className="pb-2"><CardTitle className="text-sm">{chart.title}</CardTitle></CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={chart.data} layout="vertical">
+              <BarChart data={chart.data} layout="vertical" onClick={chartClickHandler}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                 <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 11 }} className="fill-muted-foreground" />
                 <YAxis dataKey="name" type="category" tick={{ fontSize: 10 }} width={80} className="fill-muted-foreground" />
                 <RechartsTooltip contentStyle={tooltipStyle} formatter={(v: number) => `${v}%`} />
-                <Bar dataKey="progress" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                <Bar dataKey="progress" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} className="cursor-pointer" />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -948,7 +959,7 @@ export function RecordDetailView({
           <CardContent>
             <ResponsiveContainer width="100%" height={220}>
               <PieChart>
-                <Pie data={chart.data} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name, value }) => `${name}: ${value}`} labelLine={false}>
+                <Pie data={chart.data} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name, value }) => `${name}: ${value}`} labelLine={false} onClick={pieClickHandler} className="cursor-pointer">
                   {chart.data.map((_, i) => (
                     <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
                   ))}
@@ -987,7 +998,7 @@ export function RecordDetailView({
           <CardHeader className="pb-2"><CardTitle className="text-sm">{chart.title}</CardTitle></CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={220}>
-              <AreaChart data={chart.data}>
+              <AreaChart data={chart.data} onClick={chartClickHandler}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                 <XAxis dataKey="name" tick={{ fontSize: 10 }} className="fill-muted-foreground" />
                 <YAxis tick={{ fontSize: 11 }} className="fill-muted-foreground" />
@@ -1009,14 +1020,14 @@ export function RecordDetailView({
           <CardHeader className="pb-2"><CardTitle className="text-sm">{chart.title}</CardTitle></CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={chart.data}>
+              <BarChart data={chart.data} onClick={chartClickHandler}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                 <XAxis dataKey="name" tick={{ fontSize: 10 }} className="fill-muted-foreground" angle={-20} textAnchor="end" height={50} />
                 <YAxis tick={{ fontSize: 11 }} className="fill-muted-foreground" />
                 <RechartsTooltip contentStyle={tooltipStyle} />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
                 {(chart.dataKeys || []).map((key, i) => (
-                  <Bar key={key} dataKey={key} stackId="a" fill={CHART_COLORS[i % CHART_COLORS.length]} radius={i === (chart.dataKeys || []).length - 1 ? [4, 4, 0, 0] : undefined} />
+                  <Bar key={key} dataKey={key} stackId="a" fill={CHART_COLORS[i % CHART_COLORS.length]} radius={i === (chart.dataKeys || []).length - 1 ? [4, 4, 0, 0] : undefined} className="cursor-pointer" />
                 ))}
               </BarChart>
             </ResponsiveContainer>
