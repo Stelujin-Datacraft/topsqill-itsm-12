@@ -59,11 +59,9 @@ export function SeniorManagementDashboard({ kpis }: Props) {
               formula: 'SUM(Earned_Value) / SUM(Actual_Cost_Value)',
               description: 'Cost Performance Index — values ≥ 1.0 indicate cost efficiency across the portfolio',
               variables: [
-                { label: 'Total Earned Value', fieldName: 'SUM(Earned_Value)', value: `₹${kpis.portfolioEarnedValue?.toLocaleString('en-IN') ?? '0'}`, highlight: true },
-                { label: 'Total Actual Cost Value', fieldName: 'SUM(Actual_Cost_Value)', value: `₹${kpis.portfolioActualCostValue?.toLocaleString('en-IN') ?? '0'}`, highlight: true },
-              ],
-              steps: [
-                { label: 'CPI', expression: `${kpis.portfolioEarnedValue ?? 0} / ${kpis.portfolioActualCostValue ?? 0}`, result: kpis.portfolioCPI.toFixed(4) },
+                { label: 'Portfolio CPI (result)', value: kpis.portfolioCPI.toFixed(2), highlight: true },
+                { label: 'Total Planned Budget', fieldName: 'SUM(Planned_Budget)', value: `₹${kpis.portfolioPlannedBudget.toLocaleString('en-IN')}` },
+                { label: 'Total Actual Cost', fieldName: 'SUM(Actual_Cost)', value: `₹${kpis.portfolioActualCost.toLocaleString('en-IN')}` },
               ],
               result: kpis.portfolioCPI.toFixed(2),
             }}
@@ -79,11 +77,9 @@ export function SeniorManagementDashboard({ kpis }: Props) {
               formula: 'SUM(Earned_Value) / SUM(Planned_Value)',
               description: 'Schedule Performance Index — values ≥ 1.0 indicate ahead of schedule',
               variables: [
-                { label: 'Total Earned Value', fieldName: 'SUM(Earned_Value)', value: `₹${kpis.portfolioEarnedValue?.toLocaleString('en-IN') ?? '0'}`, highlight: true },
-                { label: 'Total Planned Value', fieldName: 'SUM(Planned_Value)', value: `₹${kpis.portfolioPlannedValue?.toLocaleString('en-IN') ?? '0'}`, highlight: true },
-              ],
-              steps: [
-                { label: 'SPI', expression: `${kpis.portfolioEarnedValue ?? 0} / ${kpis.portfolioPlannedValue ?? 0}`, result: kpis.portfolioSPI.toFixed(4) },
+                { label: 'Portfolio SPI (result)', value: kpis.portfolioSPI.toFixed(2), highlight: true },
+                { label: 'Total Planned Budget', fieldName: 'SUM(Planned_Budget)', value: `₹${kpis.portfolioPlannedBudget.toLocaleString('en-IN')}` },
+                { label: 'Total Actual Cost', fieldName: 'SUM(Actual_Cost)', value: `₹${kpis.portfolioActualCost.toLocaleString('en-IN')}` },
               ],
               result: kpis.portfolioSPI.toFixed(2),
             }}
