@@ -127,7 +127,7 @@ function KPICard({ label, value, unit, icon: Icon, trend, formula }: KPICardData
     : value;
 
   return (
-    <Card className="relative overflow-hidden">
+    <Card className="relative">
       <CardContent className="p-4">
         <div className="flex items-center justify-between">
           <div className="min-w-0">
@@ -190,12 +190,10 @@ function ChildRecordRow({ record, level, onClick, metrics }: {
 
   const name = asText(d[nameFieldMap[level]]) || record.submission_ref_id || 'Record';
   const status = asText(d[statusFieldMap[level]]);
-  const isLeaf = level === 'resource';
-
   return (
     <div
-      className={`group flex items-center justify-between gap-3 p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors ${isLeaf ? '' : 'cursor-pointer'}`}
-      onClick={isLeaf ? undefined : onClick}
+      className="group flex items-center justify-between gap-3 p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors cursor-pointer"
+      onClick={onClick}
     >
       <div className="flex items-center gap-3 min-w-0">
         <div className="flex flex-col min-w-0">
@@ -213,9 +211,7 @@ function ChildRecordRow({ record, level, onClick, metrics }: {
             <p className="text-xs font-bold">{m.value}</p>
           </div>
         ))}
-        {!isLeaf && (
-          <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
-        )}
+        <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
       </div>
     </div>
   );

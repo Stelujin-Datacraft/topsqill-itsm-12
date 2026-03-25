@@ -56,7 +56,7 @@ export function KPIMetricCard({
       : 'text-muted-foreground bg-muted border-border';
 
   return (
-    <Card className={cn('group relative overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg', variantStyles[variant], className)}>
+    <Card className={cn('group relative transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg', variantStyles[variant], className)}>
       <div className={cn('pointer-events-none absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r', accentStyles[variant])} />
       <CardContent className="p-4">
         <div className="flex items-start justify-between gap-3">
