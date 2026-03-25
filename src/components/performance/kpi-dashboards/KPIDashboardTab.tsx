@@ -389,10 +389,22 @@ export function KPIDashboardTab({ perfProjectId, alerts = [], predictions = [], 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <Card className="relative overflow-hidden">
             <div className={`absolute top-0 left-0 w-1 h-full ${formulaRisk.riskScore <= 25 ? 'bg-emerald-500' : formulaRisk.riskScore <= 50 ? 'bg-yellow-500' : formulaRisk.riskScore <= 75 ? 'bg-orange-500' : 'bg-destructive'}`} />
-            <CardContent className="pt-5 pb-4 pl-5">
+             <CardContent className="pt-5 pb-4 pl-5">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Risk Score</p>
+                  <div className="flex items-center gap-1">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Risk Score</p>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Info className="h-3 w-3 text-muted-foreground/60 shrink-0 cursor-help" />
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="max-w-[280px] z-[9999]">
+                          <p className="text-xs font-mono">Weighted: CPI(20%) + SPI(20%) + Delay_Ratio(25%) + Budget_Overrun(15%) + Pred_Delay(10%) + Pred_Overrun(10%)</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
                   <p className="text-3xl font-bold text-foreground mt-1">
                     {formulaRisk.riskScore}
                   </p>
