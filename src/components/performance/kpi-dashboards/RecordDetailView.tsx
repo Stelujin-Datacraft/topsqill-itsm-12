@@ -833,7 +833,7 @@ export function RecordDetailView({
     if (level === 'resource') {
       const rPlanned = asNum(d[FIELDS.plannedHours]);
       const rActual = asNum(d[FIELDS.actualHours]);
-      const rOvertime = asNum(d[FIELDS.overtimeHours]);
+      const rOvertime = Math.max(0, rActual - rPlanned);
       const util = (rActual / (rPlanned + 0.0001)) * 100;
       const productivity = rPlanned > 0 ? rActual / rPlanned : 0;
       const role = asText(d[FIELDS.resourceRole]);
@@ -841,9 +841,9 @@ export function RecordDetailView({
       kpiCards.push(
         { label: 'Planned Hours', value: rPlanned, icon: Clock, formula: 'Resource_Planned_Hours' },
         { label: 'Actual Hours', value: rActual, icon: Clock, formula: 'Resource_Actual_Hours' },
-        { label: 'Overtime', value: rOvertime, unit: 'h', icon: AlertTriangle,
-          trend: rOvertime > 0 ? 'down' : 'up', formula: 'Actual_Hours - Planned_Hours',
-          breakdown: { formula: 'Actual_Hours - Planned_Hours', variables: [{ label: 'Actual Hours', fieldName: 'Resource_Actual_Hours', value: rActual }, { label: 'Planned Hours', fieldName: 'Resource_Planned_Hours', value: rPlanned }], steps: [{ label: 'Overtime', expression: `${rActual} - ${rPlanned}`, result: `${rOvertime}h` }], result: `${rOvertime}h` } },
+        { label: 'Overtime Hours', value: rOvertime, unit: 'h', icon: AlertTriangle,
+          trend: rOvertime > 0 ? 'down' : 'up', formula: 'MAX(0, Actual_Hours − Planned_Hours)',
+          breakdown: { formula: 'MAX(0, Actual_Hours − Planned_Hours)', description: 'Overtime is the excess of actual hours over planned hours, floored at zero.', variables: [{ label: 'Actual Hours', fieldName: 'Resource_Actual_Hours', value: rActual }, { label: 'Planned Hours', fieldName: 'Resource_Planned_Hours', value: rPlanned }, { label: 'Raw Difference', fieldName: 'Actual − Planned', value: rActual - rPlanned }], steps: [{ label: 'Difference', expression: `${rActual} − ${rPlanned}`, result: `${rActual - rPlanned}` }, { label: 'Overtime Hours', expression: `MAX(0, ${rActual - rPlanned})`, result: `${rOvertime}h` }], result: `${rOvertime}h` } },
         { label: 'Utilization', value: util, unit: '%', icon: Users,
           formula: '(Actual_Hours / (Planned_Hours + 0.0001)) × 100',
           breakdown: { formula: '(Actual_Hours / (Planned_Hours + ε)) × 100', variables: [{ label: 'Actual Hours', fieldName: 'Resource_Actual_Hours', value: rActual }, { label: 'Planned Hours', fieldName: 'Resource_Planned_Hours', value: rPlanned }], steps: [{ label: 'Utilization', expression: `${rActual} / ${rPlanned} × 100`, result: `${util.toFixed(1)}%` }], result: `${util.toFixed(1)}%` } },
