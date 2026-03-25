@@ -117,52 +117,72 @@ interface KPICardData {
   unit?: string;
   icon?: any;
   trend?: 'up' | 'down' | 'neutral';
-  formula?: string; // Formula description
+  formula?: string;
   hideIfZero?: boolean;
+  breakdown?: FormulaBreakdown;
 }
 
-function KPICard({ label, value, unit, icon: Icon, trend, formula }: KPICardData) {
+function KPICard({ label, value, unit, icon: Icon, trend, formula, breakdown }: KPICardData) {
+  const [showBreakdown, setShowBreakdown] = useState(false);
   const isCurrency = label.includes('Budget') || label.includes('Cost') || label.includes('EAC') || label.includes('ETC') || label.includes('VAC') || label.includes('Variance') && !unit;
   const displayValue = typeof value === 'number'
     ? (isCurrency ? `₹${value.toLocaleString('en-IN')}` : Number.isInteger(value) ? value.toLocaleString('en-IN') : value.toFixed(2))
     : value;
 
+  const isClickable = !!breakdown;
+
   return (
-    <Card className="relative">
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between">
-          <div className="min-w-0">
-            <div className="flex items-center gap-1">
-              <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide truncate">{label}</p>
-              {formula && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Info className="h-3 w-3 text-muted-foreground/60 shrink-0 cursor-help" />
-                    </TooltipTrigger>
-                    <TooltipContent side="top" className="max-w-[250px]">
-                      <p className="text-xs font-mono">{formula}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+    <>
+      <Card
+        className={`relative ${isClickable ? 'cursor-pointer hover:ring-1 hover:ring-primary/30' : ''}`}
+        onClick={isClickable ? () => setShowBreakdown(true) : undefined}
+      >
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="min-w-0">
+              <div className="flex items-center gap-1">
+                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide truncate">{label}</p>
+                {formula && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="h-3 w-3 text-muted-foreground/60 shrink-0 cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-[250px] z-[9999]">
+                        <p className="text-xs font-mono">{formula}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+              </div>
+              <p className="text-2xl font-bold text-foreground mt-1">
+                {displayValue}
+                {unit && <span className="text-sm font-normal text-muted-foreground ml-0.5">{unit}</span>}
+              </p>
+              {isClickable && (
+                <p className="text-[9px] text-muted-foreground/50 mt-0.5">Click for breakdown</p>
               )}
             </div>
-            <p className="text-2xl font-bold text-foreground mt-1">
-              {displayValue}
-              {unit && <span className="text-sm font-normal text-muted-foreground ml-0.5">{unit}</span>}
-            </p>
+            {Icon && (
+              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                <Icon className="h-5 w-5 text-primary" />
+              </div>
+            )}
           </div>
-          {Icon && (
-            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-              <Icon className="h-5 w-5 text-primary" />
-            </div>
+          {trend && (
+            <div className={`absolute top-0 left-0 w-1 h-full ${trend === 'up' ? 'bg-emerald-500' : trend === 'down' ? 'bg-destructive' : 'bg-muted'}`} />
           )}
-        </div>
-        {trend && (
-          <div className={`absolute top-0 left-0 w-1 h-full ${trend === 'up' ? 'bg-emerald-500' : trend === 'down' ? 'bg-destructive' : 'bg-muted'}`} />
-        )}
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+      {breakdown && (
+        <FormulaBreakdownDialog
+          open={showBreakdown}
+          onOpenChange={setShowBreakdown}
+          title={label}
+          breakdown={breakdown}
+        />
+      )}
+    </>
   );
 }
 
