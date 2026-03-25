@@ -24,6 +24,7 @@ export function KPIMetricCard({
   trend,
   trendLabel,
   variant = 'default',
+  formula,
   className,
 }: KPIMetricCardProps) {
   const variantStyles = {
