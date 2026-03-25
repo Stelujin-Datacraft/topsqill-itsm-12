@@ -34,6 +34,19 @@ export function SeniorManagementDashboard({ kpis }: Props) {
             variant={kpis.onTimeDeliveryRate >= 80 ? 'success' : kpis.onTimeDeliveryRate >= 60 ? 'warning' : 'danger'}
             icon={TrendingUp}
             formula="(On_Time_Projects / Total_Projects) × 100"
+            formulaBreakdown={{
+              formula: '(On_Time_Projects / Total_Projects) × 100',
+              variables: [
+                { label: 'Total Projects', value: kpis.totalProjects },
+                { label: 'Delayed Projects', value: kpis.delayedProjects },
+                { label: 'On-Time Projects', value: kpis.totalProjects - kpis.delayedProjects, highlight: true },
+              ],
+              steps: [
+                { label: 'On-Time', expression: `${kpis.totalProjects} - ${kpis.delayedProjects}`, result: String(kpis.totalProjects - kpis.delayedProjects) },
+                { label: 'Rate', expression: `${kpis.totalProjects - kpis.delayedProjects} / ${kpis.totalProjects} × 100`, result: `${kpis.onTimeDeliveryRate.toFixed(1)}%` },
+              ],
+              result: `${kpis.onTimeDeliveryRate.toFixed(1)}%`,
+            }}
           />
           <KPIMetricCard
             title="Portfolio CPI"
@@ -42,6 +55,18 @@ export function SeniorManagementDashboard({ kpis }: Props) {
             variant={kpis.portfolioCPI >= 1 ? 'success' : kpis.portfolioCPI >= 0.9 ? 'warning' : 'danger'}
             icon={IndianRupee}
             formula="SUM(Earned_Value) / SUM(Actual_Cost_Value)"
+            formulaBreakdown={{
+              formula: 'SUM(Earned_Value) / SUM(Actual_Cost_Value)',
+              description: 'Cost Performance Index — values ≥ 1.0 indicate cost efficiency across the portfolio',
+              variables: [
+                { label: 'Total Earned Value', fieldName: 'SUM(Earned_Value)', value: `₹${kpis.portfolioEarnedValue?.toLocaleString('en-IN') ?? '0'}`, highlight: true },
+                { label: 'Total Actual Cost Value', fieldName: 'SUM(Actual_Cost_Value)', value: `₹${kpis.portfolioActualCostValue?.toLocaleString('en-IN') ?? '0'}`, highlight: true },
+              ],
+              steps: [
+                { label: 'CPI', expression: `${kpis.portfolioEarnedValue ?? 0} / ${kpis.portfolioActualCostValue ?? 0}`, result: kpis.portfolioCPI.toFixed(4) },
+              ],
+              result: kpis.portfolioCPI.toFixed(2),
+            }}
           />
           <KPIMetricCard
             title="Portfolio SPI"
@@ -50,6 +75,18 @@ export function SeniorManagementDashboard({ kpis }: Props) {
             variant={kpis.portfolioSPI >= 1 ? 'success' : kpis.portfolioSPI >= 0.9 ? 'warning' : 'danger'}
             icon={BarChart3}
             formula="SUM(Earned_Value) / SUM(Planned_Value)"
+            formulaBreakdown={{
+              formula: 'SUM(Earned_Value) / SUM(Planned_Value)',
+              description: 'Schedule Performance Index — values ≥ 1.0 indicate ahead of schedule',
+              variables: [
+                { label: 'Total Earned Value', fieldName: 'SUM(Earned_Value)', value: `₹${kpis.portfolioEarnedValue?.toLocaleString('en-IN') ?? '0'}`, highlight: true },
+                { label: 'Total Planned Value', fieldName: 'SUM(Planned_Value)', value: `₹${kpis.portfolioPlannedValue?.toLocaleString('en-IN') ?? '0'}`, highlight: true },
+              ],
+              steps: [
+                { label: 'SPI', expression: `${kpis.portfolioEarnedValue ?? 0} / ${kpis.portfolioPlannedValue ?? 0}`, result: kpis.portfolioSPI.toFixed(4) },
+              ],
+              result: kpis.portfolioSPI.toFixed(2),
+            }}
           />
         </div>
       </div>
@@ -65,6 +102,18 @@ export function SeniorManagementDashboard({ kpis }: Props) {
             value={`${kpis.budgetUtilization.toFixed(1)}%`}
             variant={kpis.budgetUtilization > 100 ? 'danger' : kpis.budgetUtilization > 90 ? 'warning' : 'success'}
             formula="(SUM(Actual_Cost) / SUM(Planned_Budget)) × 100"
+            formulaBreakdown={{
+              formula: '(SUM(Actual_Cost) / SUM(Planned_Budget)) × 100',
+              variables: [
+                { label: 'Total Actual Cost', fieldName: 'SUM(Actual_Cost)', value: `₹${kpis.portfolioActualCost.toLocaleString('en-IN')}` },
+                { label: 'Total Planned Budget', fieldName: 'SUM(Planned_Budget)', value: `₹${kpis.portfolioPlannedBudget.toLocaleString('en-IN')}` },
+              ],
+              steps: [
+                { label: 'Ratio', expression: `${kpis.portfolioActualCost} / ${kpis.portfolioPlannedBudget}`, result: kpis.portfolioPlannedBudget > 0 ? (kpis.portfolioActualCost / kpis.portfolioPlannedBudget).toFixed(4) : '0' },
+                { label: 'Utilization', expression: `Ratio × 100`, result: `${kpis.budgetUtilization.toFixed(1)}%` },
+              ],
+              result: `${kpis.budgetUtilization.toFixed(1)}%`,
+            }}
           />
         </div>
       </div>
