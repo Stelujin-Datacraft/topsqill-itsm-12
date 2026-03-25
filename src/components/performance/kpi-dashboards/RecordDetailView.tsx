@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { FormulaBreakdownDialog, type FormulaBreakdown } from './FormulaBreakdownDialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
