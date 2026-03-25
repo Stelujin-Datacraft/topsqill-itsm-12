@@ -14,14 +14,18 @@ export function RiskGovernanceDashboard({ kpis }: Props) {
       <div>
         <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Project Risk Overview</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <KPIMetricCard title="Total Projects" value={kpis.totalProjects} icon={Briefcase} />
+          <KPIMetricCard title="Total Projects" value={kpis.totalProjects} icon={Briefcase}
+            formula="COUNT(Project_ID)" />
           <KPIMetricCard title="Delayed Projects" value={kpis.delayedProjects}
-            variant={kpis.delayedProjects > 0 ? 'danger' : 'success'} icon={AlertTriangle} />
+            variant={kpis.delayedProjects > 0 ? 'danger' : 'success'} icon={AlertTriangle}
+            formula="COUNT_IF(Actual_End > Planned_End)" />
           <KPIMetricCard title="Predicted Risk Projects" value={kpis.predictedRiskProjects}
             subtitle="Projects with Predicted_Delay > 0"
-            variant={kpis.predictedRiskProjects > 0 ? 'warning' : 'success'} icon={ShieldAlert} />
+            variant={kpis.predictedRiskProjects > 0 ? 'warning' : 'success'} icon={ShieldAlert}
+            formula="COUNT_IF(Predicted_Delay > 0)" />
           <KPIMetricCard title="Avg Predicted Delay" value={`${kpis.averagePredictedDelay.toFixed(1)} days`}
-            variant={kpis.averagePredictedDelay > 5 ? 'warning' : 'default'} icon={Clock} />
+            variant={kpis.averagePredictedDelay > 5 ? 'warning' : 'default'} icon={Clock}
+            formula="AVG(Predicted_Delay_Days)" />
         </div>
       </div>
 

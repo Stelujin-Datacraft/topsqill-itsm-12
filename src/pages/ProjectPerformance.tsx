@@ -40,7 +40,7 @@ export default function ProjectPerformance() {
   const persisted = getPersistedState();
   const [activeTab, setActiveTab] = useState<string>(persisted.tab || 'dashboard');
   const [selectedPerfProject, setSelectedPerfProject] = useState<SelectedPerfProject | null>(persisted.project || null);
-  const [selectedRecordId, setSelectedRecordId] = useState<string>(persisted.record || '');
+  const [selectedRecordId, setSelectedRecordId] = useState<string>(persisted.record || '__all__');
   const [stateValidated, setStateValidated] = useState(false);
 
   // Validate persisted state: check if the data source still exists

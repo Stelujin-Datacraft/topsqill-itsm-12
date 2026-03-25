@@ -17,10 +17,13 @@ export function DisciplineEngineerDashboard({ kpis, hasHierarchy }: Props) {
         <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Task Status</h3>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           <KPIMetricCard title="Assigned Tasks" value={kpis.assignedTasks} icon={ListChecks}
-            subtitle="Non-completed tasks" />
-          <KPIMetricCard title="Completed Tasks" value={kpis.completedTasks} icon={CheckCircle2} variant="success" />
+            subtitle="Non-completed tasks"
+            formula="COUNT_IF(Status ≠ 'Completed')" />
+          <KPIMetricCard title="Completed Tasks" value={kpis.completedTasks} icon={CheckCircle2} variant="success"
+            formula="COUNT_IF(Status = 'Completed')" />
           <KPIMetricCard title="Task Completion Rate (%)" value={`${kpis.taskCompletionRate.toFixed(1)}%`}
-            variant={kpis.taskCompletionRate >= 80 ? 'success' : kpis.taskCompletionRate >= 50 ? 'warning' : 'danger'} icon={Activity} />
+            variant={kpis.taskCompletionRate >= 80 ? 'success' : kpis.taskCompletionRate >= 50 ? 'warning' : 'danger'} icon={Activity}
+            formula="(Completed_Tasks / Total_Tasks) × 100" />
         </div>
       </div>
 
@@ -30,7 +33,8 @@ export function DisciplineEngineerDashboard({ kpis, hasHierarchy }: Props) {
         <div className="grid grid-cols-2 gap-3">
           <KPIMetricCard title="Task Delay Days" value={`${kpis.taskDelayDays} days`}
             subtitle="Sum of delays across tasks"
-            variant={kpis.taskDelayDays > 0 ? 'danger' : 'success'} icon={Clock} />
+            variant={kpis.taskDelayDays > 0 ? 'danger' : 'success'} icon={Clock}
+            formula="SUM(DAYS(Actual_End - Planned_End))" />
         </div>
       </div>
 
@@ -40,16 +44,20 @@ export function DisciplineEngineerDashboard({ kpis, hasHierarchy }: Props) {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <KPIMetricCard title="Resource Utilization (%)" value={`${kpis.resourceUtilization.toFixed(1)}%`}
             subtitle="Actual / (Planned + 0.0001) Hours"
-            variant={kpis.resourceUtilization > 110 ? 'danger' : kpis.resourceUtilization >= 80 ? 'success' : 'warning'} icon={Gauge} />
+            variant={kpis.resourceUtilization > 110 ? 'danger' : kpis.resourceUtilization >= 80 ? 'success' : 'warning'} icon={Gauge}
+            formula="(Actual_Hours / (Planned_Hours + 0.0001)) × 100" />
           <KPIMetricCard title="Productivity Score" value={kpis.productivityScore.toFixed(2)}
             subtitle="Actual Hours / Planned Hours"
-            variant={kpis.productivityScore >= 1 ? 'success' : 'warning'} icon={Zap} />
+            variant={kpis.productivityScore >= 1 ? 'success' : 'warning'} icon={Zap}
+            formula="Actual_Hours / Planned_Hours" />
           <KPIMetricCard title="Overtime Hours" value={`${kpis.overtimeHours.toFixed(0)} hrs`}
             subtitle="From Resource Assignments"
-            variant={kpis.overtimeHours > 0 ? 'warning' : 'success'} icon={Clock} />
+            variant={kpis.overtimeHours > 0 ? 'warning' : 'success'} icon={Clock}
+            formula="SUM(Overtime_Hours)" />
           <KPIMetricCard title="Quality Score" value={kpis.qualityScore.toFixed(1)}
             subtitle="(1 - Defects/(Tasks+Defects)) × 100"
-            variant={kpis.qualityScore >= 80 ? 'success' : kpis.qualityScore >= 60 ? 'warning' : 'danger'} icon={Star} />
+            variant={kpis.qualityScore >= 80 ? 'success' : kpis.qualityScore >= 60 ? 'warning' : 'danger'} icon={Star}
+            formula="(1 - (SUM(Defects) / (COUNT(Tasks) + SUM(Defects)))) × 100" />
         </div>
       </div>
 

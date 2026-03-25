@@ -1,9 +1,9 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { ChevronRight, TrendingUp, TrendingDown, IndianRupee, Clock, Users, CheckCircle2, AlertTriangle, BarChart3, Info, Target, Zap } from 'lucide-react';
+import { ChevronRight, ChevronDown, TrendingUp, TrendingDown, IndianRupee, Clock, Users, CheckCircle2, AlertTriangle, BarChart3, Info, Target, Zap } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell, CartesianGrid, Legend, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, AreaChart, Area, LineChart, Line } from 'recharts';
 import { CROSSREF_FIELDS } from '@/hooks/useHierarchyKPI';
 
@@ -218,6 +218,47 @@ function ChildRecordRow({ record, level, onClick, metrics }: {
         )}
       </div>
     </div>
+  );
+}
+
+// ========================
+// COLLAPSIBLE CHILD RECORDS
+// ========================
+function ChildRecordsSection({ childRecords, childLevel, childLevelLabel, onSelectChild, childMetrics }: {
+  childRecords: any[];
+  childLevel: HierarchyLevel;
+  childLevelLabel: Record<HierarchyLevel, string>;
+  onSelectChild: (record: any, level: HierarchyLevel) => void;
+  childMetrics: (child: any) => { label: string; value: string; variant?: string }[];
+}) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <Card>
+      <CardHeader className="pb-3 cursor-pointer" onClick={() => setExpanded(!expanded)}>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm flex items-center gap-2">
+            {expanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+            {childLevelLabel[childLevel]}
+            <Badge variant="secondary" className="text-[10px]">{childRecords.length}</Badge>
+          </CardTitle>
+          <p className="text-xs text-muted-foreground">{expanded ? 'Click to collapse' : 'Click to expand'}</p>
+        </div>
+      </CardHeader>
+      {expanded && (
+        <CardContent className="space-y-2 pt-0">
+          {childRecords.map(child => (
+            <ChildRecordRow
+              key={child.id}
+              record={child}
+              level={childLevel}
+              onClick={() => onSelectChild(child, childLevel)}
+              metrics={childMetrics(child)}
+            />
+          ))}
+        </CardContent>
+      )}
+    </Card>
   );
 }
 
@@ -952,29 +993,15 @@ export function RecordDetailView({
         </div>
       )}
 
-      {/* Child Records */}
+      {/* Child Records - Collapsible */}
       {childLevel && childRecords.length > 0 && (
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm flex items-center gap-2">
-                {childLevelLabel[childLevel]}
-                <Badge variant="secondary" className="text-[10px]">{childRecords.length}</Badge>
-              </CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {childRecords.map(child => (
-              <ChildRecordRow
-                key={child.id}
-                record={child}
-                level={childLevel}
-                onClick={() => onSelectChild(child, childLevel)}
-                metrics={childMetrics(child)}
-              />
-            ))}
-          </CardContent>
-        </Card>
+        <ChildRecordsSection
+          childRecords={childRecords}
+          childLevel={childLevel}
+          childLevelLabel={childLevelLabel}
+          onSelectChild={onSelectChild}
+          childMetrics={childMetrics}
+        />
       )}
 
       {childLevel && childRecords.length === 0 && (

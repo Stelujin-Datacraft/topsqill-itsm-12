@@ -17,10 +17,10 @@ export function SeniorManagementDashboard({ kpis }: Props) {
       <div>
         <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Project Status</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <KPIMetricCard title="Total Projects" value={kpis.totalProjects} icon={Briefcase} />
-          <KPIMetricCard title="Active Projects" value={kpis.activeProjects} icon={Activity} variant="success" />
-          <KPIMetricCard title="Completed Projects" value={kpis.completedProjects} icon={Target} />
-          <KPIMetricCard title="Delayed Projects" value={kpis.delayedProjects} icon={AlertTriangle} variant={kpis.delayedProjects > 0 ? 'danger' : 'default'} />
+          <KPIMetricCard title="Total Projects" value={kpis.totalProjects} icon={Briefcase} formula="COUNT(Project_ID)" />
+          <KPIMetricCard title="Active Projects" value={kpis.activeProjects} icon={Activity} variant="success" formula="COUNT_IF(Status = 'Active' / 'In Progress')" />
+          <KPIMetricCard title="Completed Projects" value={kpis.completedProjects} icon={Target} formula="COUNT_IF(Status = 'Completed')" />
+          <KPIMetricCard title="Delayed Projects" value={kpis.delayedProjects} icon={AlertTriangle} variant={kpis.delayedProjects > 0 ? 'danger' : 'default'} formula="COUNT_IF(Actual_End > Planned_End)" />
         </div>
       </div>
 
@@ -33,6 +33,7 @@ export function SeniorManagementDashboard({ kpis }: Props) {
             value={`${kpis.onTimeDeliveryRate.toFixed(1)}%`}
             variant={kpis.onTimeDeliveryRate >= 80 ? 'success' : kpis.onTimeDeliveryRate >= 60 ? 'warning' : 'danger'}
             icon={TrendingUp}
+            formula="(On_Time_Projects / Total_Projects) × 100"
           />
           <KPIMetricCard
             title="Portfolio CPI"
@@ -40,6 +41,7 @@ export function SeniorManagementDashboard({ kpis }: Props) {
             subtitle={kpis.portfolioCPI >= 1 ? 'Under budget' : 'Over budget'}
             variant={kpis.portfolioCPI >= 1 ? 'success' : kpis.portfolioCPI >= 0.9 ? 'warning' : 'danger'}
             icon={IndianRupee}
+            formula="SUM(Earned_Value) / SUM(Actual_Cost_Value)"
           />
           <KPIMetricCard
             title="Portfolio SPI"
@@ -47,6 +49,7 @@ export function SeniorManagementDashboard({ kpis }: Props) {
             subtitle={kpis.portfolioSPI >= 1 ? 'Ahead of schedule' : 'Behind schedule'}
             variant={kpis.portfolioSPI >= 1 ? 'success' : kpis.portfolioSPI >= 0.9 ? 'warning' : 'danger'}
             icon={BarChart3}
+            formula="SUM(Earned_Value) / SUM(Planned_Value)"
           />
         </div>
       </div>
@@ -55,12 +58,13 @@ export function SeniorManagementDashboard({ kpis }: Props) {
       <div>
         <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Financial Overview</h3>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          <KPIMetricCard title="Portfolio Planned Budget" value={`₹${kpis.portfolioPlannedBudget.toLocaleString('en-IN')}`} icon={IndianRupee} />
-          <KPIMetricCard title="Portfolio Actual Cost" value={`₹${kpis.portfolioActualCost.toLocaleString('en-IN')}`} icon={IndianRupee} />
+          <KPIMetricCard title="Portfolio Planned Budget" value={`₹${kpis.portfolioPlannedBudget.toLocaleString('en-IN')}`} icon={IndianRupee} formula="SUM(Planned_Budget)" />
+          <KPIMetricCard title="Portfolio Actual Cost" value={`₹${kpis.portfolioActualCost.toLocaleString('en-IN')}`} icon={IndianRupee} formula="SUM(Actual_Cost)" />
           <KPIMetricCard
             title="Budget Utilization (%)"
             value={`${kpis.budgetUtilization.toFixed(1)}%`}
             variant={kpis.budgetUtilization > 100 ? 'danger' : kpis.budgetUtilization > 90 ? 'warning' : 'success'}
+            formula="(SUM(Actual_Cost) / SUM(Planned_Budget)) × 100"
           />
         </div>
       </div>
@@ -69,8 +73,8 @@ export function SeniorManagementDashboard({ kpis }: Props) {
       <div>
         <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Predictions</h3>
         <div className="grid grid-cols-2 gap-3">
-          <KPIMetricCard title="Avg Predicted Delay" value={`${kpis.averagePredictedDelay.toFixed(1)} days`} variant={kpis.averagePredictedDelay > 5 ? 'warning' : 'default'} />
-          <KPIMetricCard title="Avg Predicted Cost Overrun (%)" value={`${kpis.averagePredictedCostOverrun.toFixed(1)}%`} variant={kpis.averagePredictedCostOverrun > 10 ? 'danger' : 'default'} />
+          <KPIMetricCard title="Avg Predicted Delay" value={`${kpis.averagePredictedDelay.toFixed(1)} days`} variant={kpis.averagePredictedDelay > 5 ? 'warning' : 'default'} formula="AVG(Predicted_Delay_Days)" />
+          <KPIMetricCard title="Avg Predicted Cost Overrun (%)" value={`${kpis.averagePredictedCostOverrun.toFixed(1)}%`} variant={kpis.averagePredictedCostOverrun > 10 ? 'danger' : 'default'} formula="AVG(((Forecast - Budget) / Budget) × 100)" />
         </div>
       </div>
 
