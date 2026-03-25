@@ -222,6 +222,47 @@ function ChildRecordRow({ record, level, onClick, metrics }: {
 }
 
 // ========================
+// COLLAPSIBLE CHILD RECORDS
+// ========================
+function ChildRecordsSection({ childRecords, childLevel, childLevelLabel, onSelectChild, childMetrics }: {
+  childRecords: any[];
+  childLevel: HierarchyLevel;
+  childLevelLabel: Record<HierarchyLevel, string>;
+  onSelectChild: (record: any, level: HierarchyLevel) => void;
+  childMetrics: (child: any) => { label: string; value: string; variant?: string }[];
+}) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <Card>
+      <CardHeader className="pb-3 cursor-pointer" onClick={() => setExpanded(!expanded)}>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm flex items-center gap-2">
+            {expanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+            {childLevelLabel[childLevel]}
+            <Badge variant="secondary" className="text-[10px]">{childRecords.length}</Badge>
+          </CardTitle>
+          <p className="text-xs text-muted-foreground">{expanded ? 'Click to collapse' : 'Click to expand'}</p>
+        </div>
+      </CardHeader>
+      {expanded && (
+        <CardContent className="space-y-2 pt-0">
+          {childRecords.map(child => (
+            <ChildRecordRow
+              key={child.id}
+              record={child}
+              level={childLevel}
+              onClick={() => onSelectChild(child, childLevel)}
+              metrics={childMetrics(child)}
+            />
+          ))}
+        </CardContent>
+      )}
+    </Card>
+  );
+}
+
+// ========================
 // MAIN COMPONENT
 // ========================
 export function RecordDetailView({
