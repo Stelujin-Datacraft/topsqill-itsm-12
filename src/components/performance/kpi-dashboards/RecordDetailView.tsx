@@ -814,12 +814,15 @@ export function RecordDetailView({
         { label: 'Planned Hours', value: rPlanned, icon: Clock, formula: 'Resource_Planned_Hours' },
         { label: 'Actual Hours', value: rActual, icon: Clock, formula: 'Resource_Actual_Hours' },
         { label: 'Overtime', value: rOvertime, unit: 'h', icon: AlertTriangle,
-          trend: rOvertime > 0 ? 'down' : 'up', formula: 'Actual_Hours - Planned_Hours' },
+          trend: rOvertime > 0 ? 'down' : 'up', formula: 'Actual_Hours - Planned_Hours',
+          breakdown: { formula: 'Actual_Hours - Planned_Hours', variables: [{ label: 'Actual Hours', fieldName: 'Resource_Actual_Hours', value: rActual }, { label: 'Planned Hours', fieldName: 'Resource_Planned_Hours', value: rPlanned }], steps: [{ label: 'Overtime', expression: `${rActual} - ${rPlanned}`, result: `${rOvertime}h` }], result: `${rOvertime}h` } },
         { label: 'Utilization', value: util, unit: '%', icon: Users,
-          formula: '(Actual_Hours / (Planned_Hours + 0.0001)) × 100' },
+          formula: '(Actual_Hours / (Planned_Hours + 0.0001)) × 100',
+          breakdown: { formula: '(Actual_Hours / (Planned_Hours + ε)) × 100', variables: [{ label: 'Actual Hours', fieldName: 'Resource_Actual_Hours', value: rActual }, { label: 'Planned Hours', fieldName: 'Resource_Planned_Hours', value: rPlanned }], steps: [{ label: 'Utilization', expression: `${rActual} / ${rPlanned} × 100`, result: `${util.toFixed(1)}%` }], result: `${util.toFixed(1)}%` } },
         { label: 'Productivity', value: productivity, icon: Zap,
           trend: productivity >= 1 ? 'up' : 'down',
-          formula: 'Actual_Hours / Planned_Hours' },
+          formula: 'Actual_Hours / Planned_Hours',
+          breakdown: { formula: 'Actual_Hours / Planned_Hours', variables: [{ label: 'Actual Hours', value: rActual }, { label: 'Planned Hours', value: rPlanned }], steps: [{ label: 'Productivity', expression: `${rActual} / ${rPlanned}`, result: productivity.toFixed(2) }], result: productivity.toFixed(2) } },
       );
 
       // Resource hours breakdown
