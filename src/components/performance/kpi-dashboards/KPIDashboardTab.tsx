@@ -3,7 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, UserCog, Database, FileText, BarChart3, Brain, TrendingUp, EyeOff, Settings2, ShieldAlert, Activity, Zap, Target, AlertCircle, Lightbulb } from 'lucide-react';
+import { Loader2, UserCog, Database, FileText, BarChart3, Brain, TrendingUp, EyeOff, Settings2, ShieldAlert, Activity, Zap, Target, AlertCircle, Lightbulb, Info } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useHierarchyKPI } from '@/hooks/useHierarchyKPI';
 import { SeniorManagementDashboard } from './SeniorManagementDashboard';
 import { ProjectManagerDashboard } from './ProjectManagerDashboard';
