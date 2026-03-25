@@ -952,29 +952,15 @@ export function RecordDetailView({
         </div>
       )}
 
-      {/* Child Records */}
+      {/* Child Records - Collapsible */}
       {childLevel && childRecords.length > 0 && (
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm flex items-center gap-2">
-                {childLevelLabel[childLevel]}
-                <Badge variant="secondary" className="text-[10px]">{childRecords.length}</Badge>
-              </CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {childRecords.map(child => (
-              <ChildRecordRow
-                key={child.id}
-                record={child}
-                level={childLevel}
-                onClick={() => onSelectChild(child, childLevel)}
-                metrics={childMetrics(child)}
-              />
-            ))}
-          </CardContent>
-        </Card>
+        <ChildRecordsSection
+          childRecords={childRecords}
+          childLevel={childLevel}
+          childLevelLabel={childLevelLabel}
+          onSelectChild={onSelectChild}
+          childMetrics={childMetrics}
+        />
       )}
 
       {childLevel && childRecords.length === 0 && (
