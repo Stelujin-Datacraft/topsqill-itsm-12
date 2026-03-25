@@ -61,7 +61,21 @@ export function KPIMetricCard({
       <CardContent className="p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="space-y-1.5 flex-1 min-w-0">
-            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-[0.12em] truncate">{title}</p>
+            <div className="flex items-center gap-1">
+              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-[0.12em] truncate">{title}</p>
+              {formula && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="h-3 w-3 text-muted-foreground/60 shrink-0 cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="max-w-[250px]">
+                      <p className="text-xs font-mono">{formula}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+            </div>
             <p className="text-2xl font-bold text-foreground leading-none">{typeof value === 'number' ? formatValue(value) : value}</p>
             {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
             {trend && (
