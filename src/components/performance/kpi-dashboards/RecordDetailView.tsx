@@ -363,12 +363,41 @@ export function RecordDetailView({
           trend: scheduleVariancePct >= 0 ? 'up' : 'down', formula: '((EV - PV) / EV) × 100',
           breakdown: { formula: '((EV - PV) / EV) × 100', variables: [{ label: 'Earned Value (EV)', fieldName: 'Earned_Value', value: `₹${ev.toLocaleString('en-IN')}` }, { label: 'Planned Value (PV)', fieldName: 'Planned_Value', value: `₹${pv.toLocaleString('en-IN')}` }], steps: [{ label: 'Difference', expression: `${ev} - ${pv}`, result: String(ev - pv) }, { label: 'Ratio', expression: `${ev - pv} / ${ev}`, result: ev > 0 ? ((ev - pv) / ev).toFixed(4) : '0' }, { label: 'Percentage', expression: 'Ratio × 100', result: `${scheduleVariancePct.toFixed(1)}%` }], result: `${scheduleVariancePct.toFixed(1)}%` } },
         { label: 'EAC', value: eac, icon: IndianRupee, formula: 'Planned_Budget / CPI',
-          breakdown: { formula: 'Planned_Budget / CPI', description: 'Estimate at Completion', variables: [{ label: 'Planned Budget', fieldName: 'Planned_Budget', value: `₹${budget.toLocaleString('en-IN')}` }, { label: 'CPI', fieldName: 'EV / AC', value: cpi.toFixed(2), highlight: true }], steps: [{ label: 'EAC', expression: `${budget} / ${cpi.toFixed(2)}`, result: `₹${Math.round(eac).toLocaleString('en-IN')}` }], result: `₹${Math.round(eac).toLocaleString('en-IN')}` } },
+          breakdown: { formula: 'Planned_Budget / CPI', description: 'Estimate at Completion', variables: [
+            { label: 'Planned Budget', fieldName: 'Planned_Budget', value: `₹${budget.toLocaleString('en-IN')}` },
+            { label: 'CPI', fieldName: 'EV / AC', value: cpi.toFixed(2), highlight: true,
+              subBreakdown: { formula: 'Earned_Value / Actual_Cost_Value', description: 'Cost Performance Index', variables: [
+                { label: 'Earned Value (EV)', fieldName: 'Earned_Value', value: `₹${ev.toLocaleString('en-IN')}`, highlight: true },
+                { label: 'Actual Cost Value (AC)', fieldName: 'Actual_Cost_Value', value: `₹${ac.toLocaleString('en-IN')}`, highlight: true },
+              ], steps: [{ label: 'CPI', expression: `${ev} / ${ac}`, result: cpi.toFixed(4) }], result: cpi.toFixed(2) } },
+          ], steps: [{ label: 'EAC', expression: `${budget} / ${cpi.toFixed(2)}`, result: `₹${Math.round(eac).toLocaleString('en-IN')}` }], result: `₹${Math.round(eac).toLocaleString('en-IN')}` } },
         { label: 'ETC', value: etc, icon: IndianRupee, formula: 'EAC - Actual_Cost', hideIfZero: true,
-          breakdown: { formula: 'EAC - Actual_Cost', description: 'Estimate to Complete', variables: [{ label: 'EAC', fieldName: 'Budget / CPI', value: `₹${Math.round(eac).toLocaleString('en-IN')}` }, { label: 'Actual Cost', fieldName: 'Actual_Cost', value: `₹${actual.toLocaleString('en-IN')}` }], steps: [{ label: 'ETC', expression: `${Math.round(eac)} - ${actual}`, result: `₹${Math.round(etc).toLocaleString('en-IN')}` }], result: `₹${Math.round(etc).toLocaleString('en-IN')}` } },
+          breakdown: { formula: 'EAC - Actual_Cost', description: 'Estimate to Complete', variables: [
+            { label: 'EAC', fieldName: 'Budget / CPI', value: `₹${Math.round(eac).toLocaleString('en-IN')}`,
+              subBreakdown: { formula: 'Planned_Budget / CPI', description: 'Estimate at Completion', variables: [
+                { label: 'Planned Budget', fieldName: 'Planned_Budget', value: `₹${budget.toLocaleString('en-IN')}` },
+                { label: 'CPI', fieldName: 'EV / AC', value: cpi.toFixed(2), highlight: true,
+                  subBreakdown: { formula: 'Earned_Value / Actual_Cost_Value', variables: [
+                    { label: 'Earned Value (EV)', fieldName: 'Earned_Value', value: `₹${ev.toLocaleString('en-IN')}` },
+                    { label: 'Actual Cost Value (AC)', fieldName: 'Actual_Cost_Value', value: `₹${ac.toLocaleString('en-IN')}` },
+                  ], steps: [{ label: 'CPI', expression: `${ev} / ${ac}`, result: cpi.toFixed(4) }], result: cpi.toFixed(2) } },
+              ], steps: [{ label: 'EAC', expression: `${budget} / ${cpi.toFixed(2)}`, result: `₹${Math.round(eac).toLocaleString('en-IN')}` }], result: `₹${Math.round(eac).toLocaleString('en-IN')}` } },
+            { label: 'Actual Cost', fieldName: 'Actual_Cost', value: `₹${actual.toLocaleString('en-IN')}` },
+          ], steps: [{ label: 'ETC', expression: `${Math.round(eac)} - ${actual}`, result: `₹${Math.round(etc).toLocaleString('en-IN')}` }], result: `₹${Math.round(etc).toLocaleString('en-IN')}` } },
         { label: 'VAC', value: vac, icon: IndianRupee, trend: vac >= 0 ? 'up' : 'down',
           formula: 'Planned_Budget - EAC', hideIfZero: true,
-          breakdown: { formula: 'Planned_Budget - EAC', description: 'Variance at Completion', variables: [{ label: 'Planned Budget', fieldName: 'Planned_Budget', value: `₹${budget.toLocaleString('en-IN')}` }, { label: 'EAC', fieldName: 'Budget / CPI', value: `₹${Math.round(eac).toLocaleString('en-IN')}` }], steps: [{ label: 'VAC', expression: `${budget} - ${Math.round(eac)}`, result: `₹${Math.round(vac).toLocaleString('en-IN')}` }], result: `₹${Math.round(vac).toLocaleString('en-IN')}` } },
+          breakdown: { formula: 'Planned_Budget - EAC', description: 'Variance at Completion', variables: [
+            { label: 'Planned Budget', fieldName: 'Planned_Budget', value: `₹${budget.toLocaleString('en-IN')}` },
+            { label: 'EAC', fieldName: 'Budget / CPI', value: `₹${Math.round(eac).toLocaleString('en-IN')}`,
+              subBreakdown: { formula: 'Planned_Budget / CPI', description: 'Estimate at Completion', variables: [
+                { label: 'Planned Budget', fieldName: 'Planned_Budget', value: `₹${budget.toLocaleString('en-IN')}` },
+                { label: 'CPI', fieldName: 'EV / AC', value: cpi.toFixed(2), highlight: true,
+                  subBreakdown: { formula: 'Earned_Value / Actual_Cost_Value', variables: [
+                    { label: 'Earned Value (EV)', fieldName: 'Earned_Value', value: `₹${ev.toLocaleString('en-IN')}` },
+                    { label: 'Actual Cost Value (AC)', fieldName: 'Actual_Cost_Value', value: `₹${ac.toLocaleString('en-IN')}` },
+                  ], steps: [{ label: 'CPI', expression: `${ev} / ${ac}`, result: cpi.toFixed(4) }], result: cpi.toFixed(2) } },
+              ], steps: [{ label: 'EAC', expression: `${budget} / ${cpi.toFixed(2)}`, result: `₹${Math.round(eac).toLocaleString('en-IN')}` }], result: `₹${Math.round(eac).toLocaleString('en-IN')}` } },
+          ], steps: [{ label: 'VAC', expression: `${budget} - ${Math.round(eac)}`, result: `₹${Math.round(vac).toLocaleString('en-IN')}` }], result: `₹${Math.round(vac).toLocaleString('en-IN')}` } },
         { label: 'On-Time Rate', value: onTimeRate, unit: '%', icon: CheckCircle2,
           trend: onTimeRate >= 80 ? 'up' : onTimeRate >= 60 ? 'neutral' : 'down',
           formula: '(Tasks_On_Time / Total_Tasks) × 100',
