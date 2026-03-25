@@ -127,7 +127,7 @@ function KPICard({ label, value, unit, icon: Icon, trend, formula }: KPICardData
     : value;
 
   return (
-    <Card className="relative overflow-hidden">
+    <Card className="relative">
       <CardContent className="p-4">
         <div className="flex items-center justify-between">
           <div className="min-w-0">
