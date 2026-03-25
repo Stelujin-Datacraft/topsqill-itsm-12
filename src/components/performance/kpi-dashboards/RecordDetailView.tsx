@@ -410,9 +410,17 @@ export function RecordDetailView({
           trend: riskScore > 70 ? 'down' : riskScore > 40 ? 'neutral' : 'up',
           formula: 'Weighted: CPI(30%) + SPI(30%) + Delays(20%) + Pred(10%) + Overrun(10%)',
           breakdown: { formula: 'CPI_Risk×0.3 + SPI_Risk×0.3 + Delay_Ratio×0.2 + Pred_Delay×0.1 + Pred_Overrun×0.1', description: 'Weighted risk score from 0 (healthy) to 100 (critical)', variables: [
-            { label: 'CPI', fieldName: 'Earned_Value / Actual_Cost_Value', value: cpi.toFixed(2) },
+            { label: 'CPI', fieldName: 'Earned_Value / Actual_Cost_Value', value: cpi.toFixed(2),
+              subBreakdown: { formula: 'Earned_Value / Actual_Cost_Value', description: 'Cost Performance Index', variables: [
+                { label: 'Earned Value (EV)', fieldName: 'Earned_Value', value: `₹${ev.toLocaleString('en-IN')}`, highlight: true },
+                { label: 'Actual Cost Value (AC)', fieldName: 'Actual_Cost_Value', value: `₹${ac.toLocaleString('en-IN')}`, highlight: true },
+              ], steps: [{ label: 'CPI', expression: `${ev} / ${ac}`, result: cpi.toFixed(4) }], result: cpi.toFixed(2) } },
             { label: 'CPI Risk Component', fieldName: 'min((1 - CPI) × 100, 30) × 0.3', value: (cpi > 0 && cpi < 1 ? Math.min((1 - cpi) * 100, 30) * 0.3 : 0).toFixed(1), highlight: true },
-            { label: 'SPI', fieldName: 'Earned_Value / Planned_Value', value: spi.toFixed(2) },
+            { label: 'SPI', fieldName: 'Earned_Value / Planned_Value', value: spi.toFixed(2),
+              subBreakdown: { formula: 'Earned_Value / Planned_Value', description: 'Schedule Performance Index', variables: [
+                { label: 'Earned Value (EV)', fieldName: 'Earned_Value', value: `₹${ev.toLocaleString('en-IN')}`, highlight: true },
+                { label: 'Planned Value (PV)', fieldName: 'Planned_Value', value: `₹${pv.toLocaleString('en-IN')}`, highlight: true },
+              ], steps: [{ label: 'SPI', expression: `${ev} / ${pv}`, result: spi.toFixed(4) }], result: spi.toFixed(2) } },
             { label: 'SPI Risk Component', fieldName: 'min((1 - SPI) × 100, 30) × 0.3', value: (spi > 0 && spi < 1 ? Math.min((1 - spi) * 100, 30) * 0.3 : 0).toFixed(1), highlight: true },
             { label: 'Delayed Tasks Ratio', fieldName: `${delayedTasks} / ${totalTasks}`, value: totalTasks > 0 ? ((delayedTasks / totalTasks) * 100).toFixed(1) + '%' : '0%' },
             { label: 'Delay Component', fieldName: 'Ratio × 100 × 0.2', value: (totalTasks > 0 ? (delayedTasks / totalTasks) * 100 * 0.2 : 0).toFixed(1), highlight: true },
