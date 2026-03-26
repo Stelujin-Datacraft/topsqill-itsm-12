@@ -151,6 +151,23 @@ export function KPIDashboardTab({ perfProjectId, alerts = [], predictions = [], 
   const [aiRunning, setAiRunning] = useState(false);
   const [dismissedPredictions, setDismissedPredictions] = useState<Set<number>>(new Set());
 
+  // Check if data source exists for this perf project
+  const { data: hasDataSource, isLoading: dsLoading } = useQuery({
+    queryKey: ['perf-ds-exists', projectId, perfProjectId],
+    queryFn: async () => {
+      if (!projectId || !perfProjectId) return false;
+      const { data, error } = await supabase
+        .from('performance_data_sources')
+        .select('id')
+        .eq('project_id', projectId)
+        .eq('performance_project_id', perfProjectId)
+        .limit(1);
+      if (error) return false;
+      return (data && data.length > 0);
+    },
+    enabled: !!projectId && !!perfProjectId,
+  });
+
   const selectedRecordId = propSelectedRecordId ?? localRecordId;
   const handleRecordChange = (value: string) => {
     setLocalRecordId(value);
