@@ -320,19 +320,20 @@ export function RecordDetailView({
       const etc = eac > 0 ? eac - actual : 0;
       const vac = eac > 0 ? budget - eac : 0;
       const costVariance = ev - ac;
-      const costVariancePct = ev > 0 ? ((ev - ac) / ev) * 100 : 0;
-      const scheduleVariancePct = ev > 0 ? ((ev - pv) / ev) * 100 : 0;
+      const costVariancePct = ac > 0 ? ((ev - ac) / ac) * 100 : 0;
+      const scheduleVariancePct = pv > 0 ? ((ev - pv) / pv) * 100 : 0;
       const onTimeRate = totalTasks > 0 ? ((totalTasks - delayedTasks) / totalTasks) * 100 : 0;
       const forecastForOverrun = forecast > 0 ? forecast : eac;
       const predictedCostOverrun = budget > 0 && forecastForOverrun > 0 ? ((forecastForOverrun - budget) / budget) * 100 : 0;
 
-      // Formula-based Risk Score
-      let riskScore = 0;
-      if (cpi > 0 && cpi < 1) riskScore += Math.min((1 - cpi) * 100, 30) * 0.3;
-      if (spi > 0 && spi < 1) riskScore += Math.min((1 - spi) * 100, 30) * 0.3;
-      if (totalTasks > 0) riskScore += (delayedTasks / totalTasks) * 100 * 0.2;
-      if (predDelay > 0) riskScore += Math.min(predDelay * 3, 100) * 0.1;
-      if (predictedCostOverrun > 0) riskScore += Math.min(predictedCostOverrun, 100) * 0.1;
+      // Formula-based Risk Score (Normalized Weighted)
+      // CPI_Risk = MAX(0, (1 - CPI)) × 100; SPI_Risk = MAX(0, (1 - SPI)) × 100
+      const cpiRisk = Math.max(0, (1 - cpi)) * 100;
+      const spiRisk = Math.max(0, (1 - spi)) * 100;
+      const delayRisk = totalTasks > 0 ? (delayedTasks / totalTasks) * 100 : 0;
+      const predDelayRisk = Math.min(predDelay * 3, 100);
+      const predCostRisk = Math.min(Math.max(0, predictedCostOverrun), 100);
+      let riskScore = (cpiRisk * 0.30) + (spiRisk * 0.30) + (delayRisk * 0.20) + (predDelayRisk * 0.10) + (predCostRisk * 0.10);
       riskScore = Math.round(Math.min(riskScore, 100));
 
       kpiCards.push(
