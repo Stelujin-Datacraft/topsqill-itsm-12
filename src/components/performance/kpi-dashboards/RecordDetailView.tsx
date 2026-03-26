@@ -640,78 +640,105 @@ export function RecordDetailView({
     }
 
     if (level === 'wbs') {
-      // WBS aggregates from its linked activities and deeper children
+      // WBS ROLL-UP: Activities → Tasks → Resources
+      const totalActivities = childRecords.length;
       const completedAct = childRecords.filter(a => isCompleted(a.submission_data?.[FIELDS.activityStatus])).length;
-      const progress = childRecords.length > 0 ? (completedAct / childRecords.length) * 100 : 0;
-
-      let totalPlanned = 0, totalActual = 0;
-      childRecords.forEach(a => {
-        totalPlanned += asNum(a.submission_data?.[FIELDS.activityPlannedHours]);
-        totalActual += asNum(a.submission_data?.[FIELDS.activityActualHours]);
-      });
-      const util = (totalActual / (totalPlanned + 0.0001)) * 100;
-      const productivity = totalPlanned > 0 ? totalActual / (totalPlanned + 0.0001) : 0;
+      const progress = completedAct / Math.max(1, totalActivities) * 100;
 
       // Aggregate tasks under this WBS's activities
-      const activityRefs = new Set(childRecords.map(a => a.submission_ref_id));
       const wbsTasks = allTasks.filter(t => {
-        // Find if this task's parent activity is under this WBS
         for (const act of childRecords) {
           const refs = extractRefIds(act.submission_data?.[CROSSREF_FIELDS.ACTIVITY_TO_TASKS]);
           if (refs.includes(t.submission_ref_id)) return true;
         }
         return false;
       });
-      const completedTasks = wbsTasks.filter(t => isCompleted(t.submission_data?.[FIELDS.taskStatus])).length;
-      const taskProgress = wbsTasks.length > 0 ? (completedTasks / wbsTasks.length) * 100 : 0;
-      let totalDefects = 0, totalDelay = 0;
+
+      // Roll up hours from tasks (which roll up from resources)
+      let wbsPlannedHours = 0, wbsActualHours = 0;
       wbsTasks.forEach(t => {
-        totalDefects += asNum(t.submission_data?.[FIELDS.taskDefectCount]);
-        const pe = asText(t.submission_data?.[FIELDS.taskPlannedEnd]);
-        const ae = asText(t.submission_data?.[FIELDS.taskActualEnd]);
-        if (pe && ae) { const diff = dateDiff(ae, pe); if (diff > 0) totalDelay += diff; }
+        const h = getTaskRollupHours(t);
+        wbsPlannedHours += h.planned;
+        wbsActualHours += h.actual;
       });
 
+      const completedTasks = wbsTasks.filter(t => isCompleted(t.submission_data?.[FIELDS.taskStatus])).length;
+      const taskProgress = completedTasks / Math.max(1, wbsTasks.length) * 100;
+      let totalDefects = 0, totalDelay = 0;
+      const delayedTaskCount = wbsTasks.filter(t => getTaskDelayDays(t) > 0).length;
+      wbsTasks.forEach(t => {
+        totalDefects += asNum(t.submission_data?.[FIELDS.taskDefectCount]);
+        totalDelay += getTaskDelayDays(t);
+      });
+
+      const util = (wbsActualHours / (wbsPlannedHours + 0.0001)) * 100;
+      const productivity = wbsPlannedHours > 0 ? wbsActualHours / (wbsPlannedHours + 0.0001) : 0;
+
       kpiCards.push(
-        { label: 'Activities', value: childRecords.length, icon: BarChart3, formula: 'COUNT(Activity_ID)' },
-        { label: 'Completed', value: completedAct, icon: CheckCircle2, trend: 'up',
-          formula: 'COUNT_IF(Activity_Status = "Completed")' },
-        { label: 'Activity Progress', value: progress, unit: '%', icon: TrendingUp,
+        { label: 'Total Activities', value: totalActivities, icon: BarChart3, formula: 'COUNT(Activity_ID)',
+          breakdown: { formula: 'COUNT(Activity_ID)', variables: [{ label: 'Activity Count', value: totalActivities, highlight: true }], result: totalActivities } },
+        { label: 'Completed Activities', value: completedAct, icon: CheckCircle2, trend: 'up',
+          formula: 'COUNT_IF(Activity_Status = "Completed")',
+          breakdown: { formula: 'COUNT_IF(Activity_Status = "Completed")', variables: [{ label: 'Completed', value: completedAct, highlight: true }, { label: 'Total', value: totalActivities }], result: completedAct } },
+        { label: 'WBS Progress', value: progress, unit: '%', icon: TrendingUp,
           trend: progress >= 75 ? 'up' : 'neutral',
-          formula: '(Completed_Activities / Total_Activities) × 100',
-          breakdown: { formula: '(Completed_Activities / Total_Activities) × 100', variables: [{ label: 'Completed Activities', value: completedAct }, { label: 'Total Activities', value: childRecords.length }], steps: [{ label: 'Progress', expression: `${completedAct} / ${childRecords.length} × 100`, result: `${progress.toFixed(1)}%` }], result: `${progress.toFixed(1)}%` } },
+          formula: '(Completed_Activities / MAX(1, Total_Activities)) × 100',
+          breakdown: { formula: '(Completed_Activities / MAX(1, Total_Activities)) × 100', variables: [{ label: 'Completed Activities', value: completedAct }, { label: 'Total Activities', value: totalActivities }], steps: [{ label: 'Progress', expression: `${completedAct} / MAX(1, ${totalActivities}) × 100`, result: `${progress.toFixed(1)}%` }], result: `${progress.toFixed(1)}%` } },
         { label: 'Task Progress', value: taskProgress, unit: '%', icon: Target,
           trend: taskProgress >= 75 ? 'up' : 'neutral',
-          formula: '(Completed_Tasks / Total_Tasks) × 100',
-          breakdown: { formula: '(Completed_Tasks / Total_Tasks) × 100', variables: [{ label: 'Completed Tasks', value: completedTasks }, { label: 'Total Tasks (under WBS)', value: wbsTasks.length }], steps: [{ label: 'Progress', expression: `${completedTasks} / ${wbsTasks.length} × 100`, result: `${taskProgress.toFixed(1)}%` }], result: `${taskProgress.toFixed(1)}%` } },
-        { label: 'Planned Hours', value: totalPlanned, icon: Clock, formula: 'SUM(Activity_Planned_Hours)' },
-        { label: 'Actual Hours', value: totalActual, icon: Clock,
-          trend: totalActual > totalPlanned ? 'down' : 'up',
-          formula: 'SUM(Activity_Actual_Hours)' },
+          formula: '(Completed_Tasks / MAX(1, Total_Tasks)) × 100',
+          breakdown: { formula: '(Completed_Tasks / MAX(1, Total_Tasks)) × 100', variables: [{ label: 'Completed Tasks', value: completedTasks }, { label: 'Total Tasks (under WBS)', value: wbsTasks.length }], steps: [{ label: 'Progress', expression: `${completedTasks} / MAX(1, ${wbsTasks.length}) × 100`, result: `${taskProgress.toFixed(1)}%` }], result: `${taskProgress.toFixed(1)}%` } },
+        { label: 'Delayed Tasks', value: delayedTaskCount, icon: AlertTriangle,
+          trend: delayedTaskCount > 0 ? 'down' : 'up',
+          formula: 'COUNT_IF(Task_Delay_Days > 0)',
+          breakdown: { formula: 'COUNT_IF(MAX(0, DAYS(Actual_End - Planned_End)) > 0)', variables: [{ label: 'Delayed Tasks', value: delayedTaskCount, highlight: true }, { label: 'Total Tasks', value: wbsTasks.length }], result: delayedTaskCount } },
+        { label: 'WBS Planned Hours', value: wbsPlannedHours, icon: Clock,
+          formula: 'SUM(Activity_Planned_Hours) = SUM(Task_Planned_Hours) = SUM(Resource_Planned_Hours)',
+          breakdown: { formula: 'WBS_Planned_Hours = SUM(rolled-up Task hours from Resources)', description: 'Hours roll up: Resources → Tasks → Activities → WBS', variables: [{ label: 'WBS Planned Hours', value: `${wbsPlannedHours}h`, highlight: true }, { label: 'Total Tasks', value: wbsTasks.length }], result: `${wbsPlannedHours}h` } },
+        { label: 'WBS Actual Hours', value: wbsActualHours, icon: Clock,
+          trend: wbsActualHours > wbsPlannedHours ? 'down' : 'up',
+          formula: 'SUM(Activity_Actual_Hours) = SUM(Task_Actual_Hours) = SUM(Resource_Actual_Hours)',
+          breakdown: { formula: 'WBS_Actual_Hours = SUM(rolled-up Task hours from Resources)', variables: [{ label: 'WBS Actual Hours', value: `${wbsActualHours}h`, highlight: true }, { label: 'WBS Planned Hours (ref)', value: `${wbsPlannedHours}h` }], result: `${wbsActualHours}h` } },
         { label: 'Utilization', value: util, unit: '%', icon: Users,
-          formula: '(Actual_Hours / (Planned_Hours + 0.0001)) × 100',
-          breakdown: { formula: '(Actual_Hours / (Planned_Hours + ε)) × 100', variables: [{ label: 'Total Actual Hours', fieldName: 'SUM(Activity_Actual_Hours)', value: totalActual }, { label: 'Total Planned Hours', fieldName: 'SUM(Activity_Planned_Hours)', value: totalPlanned }], steps: [{ label: 'Utilization', expression: `${totalActual} / ${totalPlanned} × 100`, result: `${util.toFixed(1)}%` }], result: `${util.toFixed(1)}%` } },
+          formula: '(WBS_Actual_Hours / (WBS_Planned_Hours + 0.0001)) × 100',
+          breakdown: { formula: '(WBS_Actual_Hours / (WBS_Planned_Hours + ε)) × 100', variables: [{ label: 'WBS Actual Hours', fieldName: 'Roll-up from Resources', value: wbsActualHours }, { label: 'WBS Planned Hours', fieldName: 'Roll-up from Resources', value: wbsPlannedHours }], steps: [{ label: 'Utilization', expression: `${wbsActualHours} / ${wbsPlannedHours} × 100`, result: `${util.toFixed(1)}%` }], result: `${util.toFixed(1)}%` } },
         { label: 'Productivity', value: productivity, icon: Zap,
           trend: productivity >= 1 ? 'up' : 'down',
-          formula: 'Actual_Hours / (Planned_Hours + 0.0001)',
-          breakdown: { formula: 'Actual_Hours / (Planned_Hours + 0.0001)', description: 'Values < 1 indicate under-utilization, > 1 indicates over-effort', variables: [{ label: 'Total Actual Hours', value: totalActual }, { label: 'Total Planned Hours', value: totalPlanned }], steps: [{ label: 'Productivity', expression: `${totalActual} / (${totalPlanned} + 0.0001)`, result: productivity.toFixed(2) }], result: productivity.toFixed(2) } },
-        { label: 'Total Delay', value: totalDelay, unit: 'd', icon: Clock,
+          formula: 'WBS_Actual_Hours / (WBS_Planned_Hours + 0.0001)',
+          breakdown: { formula: 'WBS_Actual_Hours / (WBS_Planned_Hours + 0.0001)', description: 'Values < 1 indicate under-utilization, > 1 indicates over-effort', variables: [{ label: 'WBS Actual Hours', value: wbsActualHours }, { label: 'WBS Planned Hours', value: wbsPlannedHours }], steps: [{ label: 'Productivity', expression: `${wbsActualHours} / (${wbsPlannedHours} + 0.0001)`, result: productivity.toFixed(2) }], result: productivity.toFixed(2) } },
+        { label: 'WBS Total Delay', value: totalDelay, unit: 'd', icon: Clock,
           trend: totalDelay > 0 ? 'down' : 'up',
-          formula: 'SUM(Task_Delay_Days)', hideIfZero: true },
+          formula: 'SUM(Activity_Total_Delay) = SUM(Task_Delay_Days)',
+          breakdown: { formula: 'SUM(MAX(0, DAYS(Actual_End - Planned_End))) across all tasks under WBS', variables: [{ label: 'Total Delay', value: `${totalDelay} days`, highlight: true }, { label: 'Delayed Tasks', value: delayedTaskCount }], result: `${totalDelay} days` },
+          hideIfZero: true },
         { label: 'Defects', value: totalDefects, icon: AlertTriangle,
           trend: totalDefects > 0 ? 'down' : 'up',
           formula: 'SUM(Task_Defect_Count)', hideIfZero: true },
       );
 
       if (childRecords.length > 0) {
+        // Activity hours chart using roll-up from tasks
+        const activityChartData = childRecords.map(act => {
+          const actTasks = allTasks.filter(t => {
+            const refs = extractRefIds(act.submission_data?.[CROSSREF_FIELDS.ACTIVITY_TO_TASKS]);
+            return refs.includes(t.submission_ref_id);
+          });
+          let actPlanned = 0, actActual = 0;
+          actTasks.forEach(t => {
+            const h = getTaskRollupHours(t);
+            actPlanned += h.planned;
+            actActual += h.actual;
+          });
+          return {
+            name: asText(act.submission_data?.[FIELDS.activityName]) || act.submission_ref_id,
+            planned: actPlanned,
+            actual: actActual,
+          };
+        });
         charts.push({
-          title: 'Activity Hours: Planned vs Actual',
+          title: 'Activity Hours: Planned vs Actual (Roll-up)',
           type: 'bar-compare',
-          data: childRecords.map(a => ({
-            name: asText(a.submission_data?.[FIELDS.activityName]) || a.submission_ref_id,
-            planned: asNum(a.submission_data?.[FIELDS.activityPlannedHours]),
-            actual: asNum(a.submission_data?.[FIELDS.activityActualHours]),
-          })),
+          data: activityChartData,
           dataKeys: ['planned', 'actual'],
         });
 
