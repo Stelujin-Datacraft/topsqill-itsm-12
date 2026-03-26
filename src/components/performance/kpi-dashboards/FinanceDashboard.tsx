@@ -33,10 +33,10 @@ export function FinanceDashboard({ kpis }: Props) {
             subtitle={kpis.costVariance >= 0 ? 'Under budget' : 'Over budget'}
             variant={kpis.costVariance >= 0 ? 'success' : 'danger'}
             icon={kpis.costVariance >= 0 ? TrendingUp : TrendingDown}
-            formula="((EV - AC) / EV) × 100" />
+            formula="EV - AC" />
           <KPIMetricCard title="Cost Per Task" value={`₹${kpis.costPerTask.toLocaleString('en-IN')}`}
-            subtitle="Actual Cost / Task Count" icon={Calculator}
-            formula="SUM(Actual_Cost) / COUNT(Task_ID)" />
+            subtitle="Actual Cost / MAX(1, Task Count)" icon={Calculator}
+            formula="SUM(Actual_Cost) / MAX(1, COUNT(Task_ID))" />
           <KPIMetricCard title="CPI" value={kpis.cpi.toFixed(3)}
             subtitle={kpis.cpi >= 1 ? 'Cost efficient' : 'Cost overrun'}
             variant={kpis.cpi >= 1 ? 'success' : kpis.cpi >= 0.9 ? 'warning' : 'danger'}

@@ -320,19 +320,20 @@ export function RecordDetailView({
       const etc = eac > 0 ? eac - actual : 0;
       const vac = eac > 0 ? budget - eac : 0;
       const costVariance = ev - ac;
-      const costVariancePct = ev > 0 ? ((ev - ac) / ev) * 100 : 0;
-      const scheduleVariancePct = ev > 0 ? ((ev - pv) / ev) * 100 : 0;
+      const costVariancePct = ac > 0 ? ((ev - ac) / ac) * 100 : 0;
+      const scheduleVariancePct = pv > 0 ? ((ev - pv) / pv) * 100 : 0;
       const onTimeRate = totalTasks > 0 ? ((totalTasks - delayedTasks) / totalTasks) * 100 : 0;
       const forecastForOverrun = forecast > 0 ? forecast : eac;
       const predictedCostOverrun = budget > 0 && forecastForOverrun > 0 ? ((forecastForOverrun - budget) / budget) * 100 : 0;
 
-      // Formula-based Risk Score
-      let riskScore = 0;
-      if (cpi > 0 && cpi < 1) riskScore += Math.min((1 - cpi) * 100, 30) * 0.3;
-      if (spi > 0 && spi < 1) riskScore += Math.min((1 - spi) * 100, 30) * 0.3;
-      if (totalTasks > 0) riskScore += (delayedTasks / totalTasks) * 100 * 0.2;
-      if (predDelay > 0) riskScore += Math.min(predDelay * 3, 100) * 0.1;
-      if (predictedCostOverrun > 0) riskScore += Math.min(predictedCostOverrun, 100) * 0.1;
+      // Formula-based Risk Score (Normalized Weighted)
+      // CPI_Risk = MAX(0, (1 - CPI)) × 100; SPI_Risk = MAX(0, (1 - SPI)) × 100
+      const cpiRisk = Math.max(0, (1 - cpi)) * 100;
+      const spiRisk = Math.max(0, (1 - spi)) * 100;
+      const delayRisk = totalTasks > 0 ? (delayedTasks / totalTasks) * 100 : 0;
+      const predDelayRisk = Math.min(predDelay * 3, 100);
+      const predCostRisk = Math.min(Math.max(0, predictedCostOverrun), 100);
+      let riskScore = (cpiRisk * 0.30) + (spiRisk * 0.30) + (delayRisk * 0.20) + (predDelayRisk * 0.10) + (predCostRisk * 0.10);
       riskScore = Math.round(Math.min(riskScore, 100));
 
       kpiCards.push(
@@ -360,8 +361,8 @@ export function RecordDetailView({
           formula: 'EV - AC',
           breakdown: { formula: 'Earned_Value - Actual_Cost_Value', variables: [{ label: 'Earned Value (EV)', fieldName: 'Earned_Value', value: `₹${ev.toLocaleString('en-IN')}` }, { label: 'Actual Cost Value (AC)', fieldName: 'Actual_Cost_Value', value: `₹${ac.toLocaleString('en-IN')}` }], steps: [{ label: 'Variance', expression: `${ev} - ${ac}`, result: `₹${costVariance.toLocaleString('en-IN')}` }], result: `₹${costVariance.toLocaleString('en-IN')}` } },
         { label: 'Schedule Var.', value: scheduleVariancePct, unit: '%', icon: Clock,
-          trend: scheduleVariancePct >= 0 ? 'up' : 'down', formula: '((EV - PV) / EV) × 100',
-          breakdown: { formula: '((EV - PV) / EV) × 100', variables: [{ label: 'Earned Value (EV)', fieldName: 'Earned_Value', value: `₹${ev.toLocaleString('en-IN')}` }, { label: 'Planned Value (PV)', fieldName: 'Planned_Value', value: `₹${pv.toLocaleString('en-IN')}` }], steps: [{ label: 'Difference', expression: `${ev} - ${pv}`, result: String(ev - pv) }, { label: 'Ratio', expression: `${ev - pv} / ${ev}`, result: ev > 0 ? ((ev - pv) / ev).toFixed(4) : '0' }, { label: 'Percentage', expression: 'Ratio × 100', result: `${scheduleVariancePct.toFixed(1)}%` }], result: `${scheduleVariancePct.toFixed(1)}%` } },
+          trend: scheduleVariancePct >= 0 ? 'up' : 'down', formula: '((EV - PV) / PV) × 100',
+          breakdown: { formula: '((EV - PV) / PV) × 100', variables: [{ label: 'Earned Value (EV)', fieldName: 'Earned_Value', value: `₹${ev.toLocaleString('en-IN')}` }, { label: 'Planned Value (PV)', fieldName: 'Planned_Value', value: `₹${pv.toLocaleString('en-IN')}` }], steps: [{ label: 'Difference', expression: `${ev} - ${pv}`, result: String(ev - pv) }, { label: 'Ratio', expression: `${ev - pv} / ${pv}`, result: pv > 0 ? ((ev - pv) / pv).toFixed(4) : '0' }, { label: 'Percentage', expression: 'Ratio × 100', result: `${scheduleVariancePct.toFixed(1)}%` }], result: `${scheduleVariancePct.toFixed(1)}%` } },
         { label: 'EAC', value: eac, icon: IndianRupee, formula: 'Planned_Budget / CPI',
           breakdown: { formula: 'Planned_Budget / CPI', description: 'Estimate at Completion', variables: [
             { label: 'Planned Budget', fieldName: 'Planned_Budget', value: `₹${budget.toLocaleString('en-IN')}` },
@@ -408,26 +409,30 @@ export function RecordDetailView({
           breakdown: { formula: 'COUNT_IF(Actual_End > Planned_End)', variables: [{ label: 'Total Tasks', value: totalTasks }, { label: 'Delayed (Actual > Planned)', value: delayedTasks, highlight: true }], result: delayedTasks } },
         { label: 'Risk Score', value: riskScore, icon: AlertTriangle,
           trend: riskScore > 70 ? 'down' : riskScore > 40 ? 'neutral' : 'up',
-          formula: 'Weighted: CPI(30%) + SPI(30%) + Delays(20%) + Pred(10%) + Overrun(10%)',
-          breakdown: { formula: 'CPI_Risk×0.3 + SPI_Risk×0.3 + Delay_Ratio×0.2 + Pred_Delay×0.1 + Pred_Overrun×0.1', description: 'Weighted risk score from 0 (healthy) to 100 (critical)', variables: [
+          formula: 'CPI_Risk×0.30 + SPI_Risk×0.30 + Delay_Risk×0.20 + Pred_Delay_Risk×0.10 + Pred_Cost_Risk×0.10',
+          breakdown: { formula: '(CPI_Risk×0.30) + (SPI_Risk×0.30) + (Delay_Risk×0.20) + (Pred_Delay_Risk×0.10) + (Pred_Cost_Risk×0.10)', description: 'CPI_Risk = MAX(0, (1-CPI))×100; SPI_Risk = MAX(0, (1-SPI))×100. Score from 0 (healthy) to 100 (critical)', variables: [
             { label: 'CPI', fieldName: 'Earned_Value / Actual_Cost_Value', value: cpi.toFixed(2),
               subBreakdown: { formula: 'Earned_Value / Actual_Cost_Value', description: 'Cost Performance Index', variables: [
                 { label: 'Earned Value (EV)', fieldName: 'Earned_Value', value: `₹${ev.toLocaleString('en-IN')}`, highlight: true },
                 { label: 'Actual Cost Value (AC)', fieldName: 'Actual_Cost_Value', value: `₹${ac.toLocaleString('en-IN')}`, highlight: true },
               ], steps: [{ label: 'CPI', expression: `${ev} / ${ac}`, result: cpi.toFixed(4) }], result: cpi.toFixed(2) } },
-            { label: 'CPI Risk Component', fieldName: 'min((1 - CPI) × 100, 30) × 0.3', value: (cpi > 0 && cpi < 1 ? Math.min((1 - cpi) * 100, 30) * 0.3 : 0).toFixed(1), highlight: true },
+            { label: 'CPI Risk', fieldName: 'MAX(0, (1 - CPI)) × 100', value: cpiRisk.toFixed(1), highlight: true },
+            { label: 'CPI Component', fieldName: `${cpiRisk.toFixed(1)} × 0.30`, value: (cpiRisk * 0.30).toFixed(1), highlight: true },
             { label: 'SPI', fieldName: 'Earned_Value / Planned_Value', value: spi.toFixed(2),
               subBreakdown: { formula: 'Earned_Value / Planned_Value', description: 'Schedule Performance Index', variables: [
                 { label: 'Earned Value (EV)', fieldName: 'Earned_Value', value: `₹${ev.toLocaleString('en-IN')}`, highlight: true },
                 { label: 'Planned Value (PV)', fieldName: 'Planned_Value', value: `₹${pv.toLocaleString('en-IN')}`, highlight: true },
               ], steps: [{ label: 'SPI', expression: `${ev} / ${pv}`, result: spi.toFixed(4) }], result: spi.toFixed(2) } },
-            { label: 'SPI Risk Component', fieldName: 'min((1 - SPI) × 100, 30) × 0.3', value: (spi > 0 && spi < 1 ? Math.min((1 - spi) * 100, 30) * 0.3 : 0).toFixed(1), highlight: true },
-            { label: 'Delayed Tasks Ratio', fieldName: `${delayedTasks} / ${totalTasks}`, value: totalTasks > 0 ? ((delayedTasks / totalTasks) * 100).toFixed(1) + '%' : '0%' },
-            { label: 'Delay Component', fieldName: 'Ratio × 100 × 0.2', value: (totalTasks > 0 ? (delayedTasks / totalTasks) * 100 * 0.2 : 0).toFixed(1), highlight: true },
+            { label: 'SPI Risk', fieldName: 'MAX(0, (1 - SPI)) × 100', value: spiRisk.toFixed(1), highlight: true },
+            { label: 'SPI Component', fieldName: `${spiRisk.toFixed(1)} × 0.30`, value: (spiRisk * 0.30).toFixed(1), highlight: true },
+            { label: 'Delay Risk', fieldName: `(${delayedTasks}/${totalTasks}) × 100`, value: `${delayRisk.toFixed(1)}%` },
+            { label: 'Delay Component', fieldName: `${delayRisk.toFixed(1)} × 0.20`, value: (delayRisk * 0.20).toFixed(1), highlight: true },
             { label: 'Predicted Delay', fieldName: 'Predicted_Delay_Days', value: `${predDelay} days` },
-            { label: 'Pred. Delay Component', fieldName: 'min(Days × 3, 100) × 0.1', value: (predDelay > 0 ? Math.min(predDelay * 3, 100) * 0.1 : 0).toFixed(1), highlight: true },
+            { label: 'Pred. Delay Risk', fieldName: `MIN(${predDelay}×3, 100)`, value: predDelayRisk.toFixed(1) },
+            { label: 'Pred. Delay Component', fieldName: `${predDelayRisk.toFixed(1)} × 0.10`, value: (predDelayRisk * 0.10).toFixed(1), highlight: true },
             { label: 'Predicted Cost Overrun', fieldName: '((Forecast - Budget) / Budget) × 100', value: `${predictedCostOverrun.toFixed(1)}%` },
-            { label: 'Overrun Component', fieldName: 'min(Overrun%, 100) × 0.1', value: (predictedCostOverrun > 0 ? Math.min(predictedCostOverrun, 100) * 0.1 : 0).toFixed(1), highlight: true },
+            { label: 'Pred. Cost Risk', fieldName: `MIN(MAX(0, ${predictedCostOverrun.toFixed(1)}), 100)`, value: predCostRisk.toFixed(1) },
+            { label: 'Pred. Cost Component', fieldName: `${predCostRisk.toFixed(1)} × 0.10`, value: (predCostRisk * 0.10).toFixed(1), highlight: true },
           ], result: riskScore } },
         { label: 'Pred. Delay', value: predDelay, unit: 'd', icon: Clock,
           formula: 'Predicted_Delay_Days', hideIfZero: true,
@@ -544,7 +549,7 @@ export function RecordDetailView({
         totalActual += asNum(a.submission_data?.[FIELDS.activityActualHours]);
       });
       const util = (totalActual / (totalPlanned + 0.0001)) * 100;
-      const productivity = totalPlanned > 0 ? totalActual / totalPlanned : 0;
+      const productivity = totalPlanned > 0 ? totalActual / (totalPlanned + 0.0001) : 0;
 
       // Aggregate tasks under this WBS's activities
       const activityRefs = new Set(childRecords.map(a => a.submission_ref_id));
@@ -587,8 +592,8 @@ export function RecordDetailView({
           breakdown: { formula: '(Actual_Hours / (Planned_Hours + ε)) × 100', variables: [{ label: 'Total Actual Hours', fieldName: 'SUM(Activity_Actual_Hours)', value: totalActual }, { label: 'Total Planned Hours', fieldName: 'SUM(Activity_Planned_Hours)', value: totalPlanned }], steps: [{ label: 'Utilization', expression: `${totalActual} / ${totalPlanned} × 100`, result: `${util.toFixed(1)}%` }], result: `${util.toFixed(1)}%` } },
         { label: 'Productivity', value: productivity, icon: Zap,
           trend: productivity >= 1 ? 'up' : 'down',
-          formula: 'Actual_Hours / Planned_Hours',
-          breakdown: { formula: 'Actual_Hours / Planned_Hours', description: 'Values < 1 indicate under-utilization, > 1 indicates over-effort', variables: [{ label: 'Total Actual Hours', value: totalActual }, { label: 'Total Planned Hours', value: totalPlanned }], steps: [{ label: 'Productivity', expression: `${totalActual} / ${totalPlanned}`, result: productivity.toFixed(2) }], result: productivity.toFixed(2) } },
+          formula: 'Actual_Hours / (Planned_Hours + 0.0001)',
+          breakdown: { formula: 'Actual_Hours / (Planned_Hours + 0.0001)', description: 'Values < 1 indicate under-utilization, > 1 indicates over-effort', variables: [{ label: 'Total Actual Hours', value: totalActual }, { label: 'Total Planned Hours', value: totalPlanned }], steps: [{ label: 'Productivity', expression: `${totalActual} / (${totalPlanned} + 0.0001)`, result: productivity.toFixed(2) }], result: productivity.toFixed(2) } },
         { label: 'Total Delay', value: totalDelay, unit: 'd', icon: Clock,
           trend: totalDelay > 0 ? 'down' : 'up',
           formula: 'SUM(Task_Delay_Days)', hideIfZero: true },
@@ -647,7 +652,7 @@ export function RecordDetailView({
       });
       const quality = (childRecords.length + totalDefects) > 0 ? (1 - (totalDefects / (childRecords.length + totalDefects))) * 100 : 100;
       const util = (tActual / (tPlanned + 0.0001)) * 100;
-      const productivity = tPlanned > 0 ? tActual / tPlanned : 0;
+      const productivity = tPlanned > 0 ? tActual / (tPlanned + 0.0001) : 0;
       const delayedCount = childRecords.filter(t => {
         const pe = asText(t.submission_data?.[FIELDS.taskPlannedEnd]);
         const ae = asText(t.submission_data?.[FIELDS.taskActualEnd]);
@@ -678,15 +683,15 @@ export function RecordDetailView({
           breakdown: { formula: '(Actual_Hours / (Planned_Hours + ε)) × 100', variables: [{ label: 'Actual Hours', value: tActual }, { label: 'Planned Hours', value: tPlanned }], steps: [{ label: 'Utilization', expression: `${tActual} / ${tPlanned} × 100`, result: `${util.toFixed(1)}%` }], result: `${util.toFixed(1)}%` } },
         { label: 'Productivity', value: productivity, icon: Zap,
           trend: productivity >= 1 ? 'up' : 'down',
-          formula: 'Actual_Hours / Planned_Hours',
-          breakdown: { formula: 'Actual_Hours / Planned_Hours', variables: [{ label: 'Actual Hours', value: tActual }, { label: 'Planned Hours', value: tPlanned }], steps: [{ label: 'Productivity', expression: `${tActual} / ${tPlanned}`, result: productivity.toFixed(2) }], result: productivity.toFixed(2) } },
+          formula: 'Actual_Hours / (Planned_Hours + 0.0001)',
+          breakdown: { formula: 'Actual_Hours / (Planned_Hours + 0.0001)', variables: [{ label: 'Actual Hours', value: tActual }, { label: 'Planned Hours', value: tPlanned }], steps: [{ label: 'Productivity', expression: `${tActual} / (${tPlanned} + 0.0001)`, result: productivity.toFixed(2) }], result: productivity.toFixed(2) } },
         { label: 'Quality Score', value: quality, unit: '%', icon: CheckCircle2,
           trend: quality >= 90 ? 'up' : 'neutral',
           formula: '(1 - (Defects / (Tasks + Defects))) × 100',
           breakdown: { formula: '(1 - (Defects / (Tasks + Defects))) × 100', variables: [{ label: 'Total Defects', value: totalDefects }, { label: 'Total Tasks', value: childRecords.length }], steps: [{ label: 'Defect Ratio', expression: `${totalDefects} / (${childRecords.length} + ${totalDefects})`, result: (childRecords.length + totalDefects) > 0 ? (totalDefects / (childRecords.length + totalDefects)).toFixed(4) : '0' }, { label: 'Quality', expression: `(1 - ${(childRecords.length + totalDefects) > 0 ? (totalDefects / (childRecords.length + totalDefects)).toFixed(4) : '0'}) × 100`, result: `${quality.toFixed(1)}%` }], result: `${quality.toFixed(1)}%` } },
         { label: 'Total Delay', value: totalDelay, unit: 'd', icon: Clock,
           trend: totalDelay > 0 ? 'down' : 'up',
-          formula: 'SUM(DAYS(Actual_End - Planned_End))' },
+          formula: 'SUM(MAX(0, DAYS(Actual_End - Planned_End)))' },
         { label: 'Defects', value: totalDefects, icon: AlertTriangle,
           trend: totalDefects > 0 ? 'down' : 'up', formula: 'SUM(Defect_Count)' },
       );
@@ -741,7 +746,7 @@ export function RecordDetailView({
       const ae = asText(d[FIELDS.taskActualEnd]);
       const delay = pe && ae ? Math.max(0, dateDiff(ae, pe)) : 0;
       const util = (tActual / (tPlanned + 0.0001)) * 100;
-      const productivity = tPlanned > 0 ? tActual / tPlanned : 0;
+      const productivity = tPlanned > 0 ? tActual / (tPlanned + 0.0001) : 0;
       const overtime = Math.max(0, tActual - tPlanned);
       const quality = (1 + tDefects) > 0 ? (1 - (tDefects / (1 + tDefects))) * 100 : 100;
 
@@ -762,8 +767,8 @@ export function RecordDetailView({
           breakdown: { formula: '(Actual_Hours / (Planned_Hours + ε)) × 100', variables: [{ label: 'Actual Hours', fieldName: 'Task_Actual_Hours', value: tActual }, { label: 'Planned Hours', fieldName: 'Task_Planned_Hours', value: tPlanned }], steps: [{ label: 'Utilization', expression: `${tActual} / ${tPlanned} × 100`, result: `${util.toFixed(1)}%` }], result: `${util.toFixed(1)}%` } },
         { label: 'Productivity', value: productivity, icon: Zap,
           trend: productivity >= 1 ? 'up' : 'down',
-          formula: 'Actual_Hours / Planned_Hours',
-          breakdown: { formula: 'Actual_Hours / Planned_Hours', variables: [{ label: 'Actual Hours', value: tActual }, { label: 'Planned Hours', value: tPlanned }], steps: [{ label: 'Productivity', expression: `${tActual} / ${tPlanned}`, result: productivity.toFixed(2) }], result: productivity.toFixed(2) } },
+          formula: 'Actual_Hours / (Planned_Hours + 0.0001)',
+          breakdown: { formula: 'Actual_Hours / (Planned_Hours + 0.0001)', variables: [{ label: 'Actual Hours', value: tActual }, { label: 'Planned Hours', value: tPlanned }], steps: [{ label: 'Productivity', expression: `${tActual} / (${tPlanned} + 0.0001)`, result: productivity.toFixed(2) }], result: productivity.toFixed(2) } },
         { label: 'Delay', value: delay, unit: 'd', icon: Clock,
           trend: delay > 0 ? 'down' : 'up',
           formula: 'DAYS(Actual_End - Planned_End)',
@@ -835,7 +840,7 @@ export function RecordDetailView({
       const rActual = asNum(d[FIELDS.actualHours]);
       const rOvertime = Math.max(0, rActual - rPlanned);
       const util = (rActual / (rPlanned + 0.0001)) * 100;
-      const productivity = rPlanned > 0 ? rActual / rPlanned : 0;
+      const productivity = rPlanned > 0 ? rActual / (rPlanned + 0.0001) : 0;
       const role = asText(d[FIELDS.resourceRole]);
 
       kpiCards.push(
@@ -849,8 +854,8 @@ export function RecordDetailView({
           breakdown: { formula: '(Actual_Hours / (Planned_Hours + ε)) × 100', variables: [{ label: 'Actual Hours', fieldName: 'Resource_Actual_Hours', value: rActual }, { label: 'Planned Hours', fieldName: 'Resource_Planned_Hours', value: rPlanned }], steps: [{ label: 'Utilization', expression: `${rActual} / ${rPlanned} × 100`, result: `${util.toFixed(1)}%` }], result: `${util.toFixed(1)}%` } },
         { label: 'Productivity', value: productivity, icon: Zap,
           trend: productivity >= 1 ? 'up' : 'down',
-          formula: 'Actual_Hours / Planned_Hours',
-          breakdown: { formula: 'Actual_Hours / Planned_Hours', variables: [{ label: 'Actual Hours', value: rActual }, { label: 'Planned Hours', value: rPlanned }], steps: [{ label: 'Productivity', expression: `${rActual} / ${rPlanned}`, result: productivity.toFixed(2) }], result: productivity.toFixed(2) } },
+          formula: 'Actual_Hours / (Planned_Hours + 0.0001)',
+          breakdown: { formula: 'Actual_Hours / (Planned_Hours + 0.0001)', variables: [{ label: 'Actual Hours', value: rActual }, { label: 'Planned Hours', value: rPlanned }], steps: [{ label: 'Productivity', expression: `${rActual} / (${rPlanned} + 0.0001)`, result: productivity.toFixed(2) }], result: productivity.toFixed(2) } },
       );
 
       // Resource hours breakdown

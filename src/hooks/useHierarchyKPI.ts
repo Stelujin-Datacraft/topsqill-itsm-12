@@ -328,14 +328,14 @@ export function calcProjectManagerKPIs(projectData: any, tasks: any[]): Hierarch
   // Project_Progress (%) = (COUNT(Tasks.Task_Status = "Completed") / COUNT(Tasks.Task_ID)) * 100
   const projectProgress = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
 
-  // Schedule_Variance (%) = ((EV - PV) / EV) * 100
-  const scheduleVariancePercent = ev > 0 ? ((ev - pv) / ev) * 100 : 0;
+  // Schedule_Variance (%) = ((EV - PV) / PV) * 100
+  const scheduleVariancePercent = pv > 0 ? ((ev - pv) / pv) * 100 : 0;
 
   // Cost_Variance = EV - AC
   const costVariance = ev - ac;
 
-  // Cost_Variance (%) = ((EV - AC) / EV) * 100
-  const costVariancePercent = ev > 0 ? ((ev - ac) / ev) * 100 : 0;
+  // Cost_Variance (%) = ((EV - AC) / AC) * 100
+  const costVariancePercent = ac > 0 ? ((ev - ac) / ac) * 100 : 0;
 
   // CPI = EV / AC
   const cpi = ac > 0 ? ev / ac : 0;
@@ -343,8 +343,8 @@ export function calcProjectManagerKPIs(projectData: any, tasks: any[]): Hierarch
   // SPI = EV / PV
   const spi = pv > 0 ? ev / pv : 0;
 
-  // Burn_Rate = Actual_Cost / (DAYS_BETWEEN(Current_Date, Start_Date) + 1)
-  const projectDuration = startDate ? Math.max(dateDiffDays(new Date().toISOString(), startDate), 0) + 1 : 1;
+  // Burn_Rate = Actual_Cost / DAYS_BETWEEN(Current_Date, Actual_Start_Date)
+  const projectDuration = startDate ? Math.max(dateDiffDays(new Date().toISOString(), startDate), 1) : 1;
   const burnRate = actualCost / projectDuration;
 
   // Predicted_Cost_Overrun (%) = ((Forecasted_Cost or EAC - Planned_Budget) / Planned_Budget) * 100
@@ -447,8 +447,8 @@ export function calcFinanceKPIs(projects: any[], tasks: any[]): HierarchyFinance
   const etc = eac - sumActual;
   // VAC = Planned_Budget - EAC
   const vac = sumBudget - eac;
-  // Cost_Per_Task = SUM(Actual_Cost) / COUNT(Tasks.Task_ID)
-  const costPerTask = totalTasks > 0 ? sumActual / totalTasks : 0;
+  // Cost_Per_Task = SUM(Actual_Cost) / MAX(1, COUNT(Tasks.Task_ID))
+  const costPerTask = sumActual / Math.max(1, totalTasks);
   // Predicted_Cost_Overrun (%) = ((Forecasted_Cost or EAC - Planned_Budget) / Planned_Budget) * 100
   const forecastForOverrun = sumForecastedCost > 0 ? sumForecastedCost : eac;
   const predictedCostOverrunPercent = sumBudget > 0 && forecastForOverrun > 0
