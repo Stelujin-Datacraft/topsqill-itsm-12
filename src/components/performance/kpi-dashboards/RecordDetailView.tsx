@@ -549,7 +549,7 @@ export function RecordDetailView({
         totalActual += asNum(a.submission_data?.[FIELDS.activityActualHours]);
       });
       const util = (totalActual / (totalPlanned + 0.0001)) * 100;
-      const productivity = totalPlanned > 0 ? totalActual / totalPlanned : 0;
+      const productivity = totalPlanned > 0 ? totalActual / (totalPlanned + 0.0001) : 0;
 
       // Aggregate tasks under this WBS's activities
       const activityRefs = new Set(childRecords.map(a => a.submission_ref_id));
@@ -592,8 +592,8 @@ export function RecordDetailView({
           breakdown: { formula: '(Actual_Hours / (Planned_Hours + ε)) × 100', variables: [{ label: 'Total Actual Hours', fieldName: 'SUM(Activity_Actual_Hours)', value: totalActual }, { label: 'Total Planned Hours', fieldName: 'SUM(Activity_Planned_Hours)', value: totalPlanned }], steps: [{ label: 'Utilization', expression: `${totalActual} / ${totalPlanned} × 100`, result: `${util.toFixed(1)}%` }], result: `${util.toFixed(1)}%` } },
         { label: 'Productivity', value: productivity, icon: Zap,
           trend: productivity >= 1 ? 'up' : 'down',
-          formula: 'Actual_Hours / Planned_Hours',
-          breakdown: { formula: 'Actual_Hours / Planned_Hours', description: 'Values < 1 indicate under-utilization, > 1 indicates over-effort', variables: [{ label: 'Total Actual Hours', value: totalActual }, { label: 'Total Planned Hours', value: totalPlanned }], steps: [{ label: 'Productivity', expression: `${totalActual} / ${totalPlanned}`, result: productivity.toFixed(2) }], result: productivity.toFixed(2) } },
+          formula: 'Actual_Hours / (Planned_Hours + 0.0001)',
+          breakdown: { formula: 'Actual_Hours / (Planned_Hours + 0.0001)', description: 'Values < 1 indicate under-utilization, > 1 indicates over-effort', variables: [{ label: 'Total Actual Hours', value: totalActual }, { label: 'Total Planned Hours', value: totalPlanned }], steps: [{ label: 'Productivity', expression: `${totalActual} / (${totalPlanned} + 0.0001)`, result: productivity.toFixed(2) }], result: productivity.toFixed(2) } },
         { label: 'Total Delay', value: totalDelay, unit: 'd', icon: Clock,
           trend: totalDelay > 0 ? 'down' : 'up',
           formula: 'SUM(Task_Delay_Days)', hideIfZero: true },
@@ -652,7 +652,7 @@ export function RecordDetailView({
       });
       const quality = (childRecords.length + totalDefects) > 0 ? (1 - (totalDefects / (childRecords.length + totalDefects))) * 100 : 100;
       const util = (tActual / (tPlanned + 0.0001)) * 100;
-      const productivity = tPlanned > 0 ? tActual / tPlanned : 0;
+      const productivity = tPlanned > 0 ? tActual / (tPlanned + 0.0001) : 0;
       const delayedCount = childRecords.filter(t => {
         const pe = asText(t.submission_data?.[FIELDS.taskPlannedEnd]);
         const ae = asText(t.submission_data?.[FIELDS.taskActualEnd]);
