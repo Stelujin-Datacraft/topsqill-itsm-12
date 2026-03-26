@@ -408,8 +408,8 @@ export function calcEngineerKPIs(tasks: any[], resources: any[]): HierarchyEngin
   // Productivity_Score = Actual_Hours / Planned_Hours
   const productivityScore = totalPlannedHours > 0 ? totalActualHours / totalPlannedHours : 0;
 
-  // Overtime_Hours = Actual_Hours - Planned_Hours
-  const overtimeHours = totalActualHours - totalPlannedHours;
+  // Overtime_Hours = MAX(0, Actual_Hours - Planned_Hours)
+  const overtimeHours = Math.max(0, totalActualHours - totalPlannedHours);
 
   // Quality_Score = (1 - (SUM(Defect_Count) / (COUNT(Task_ID) + SUM(Defect_Count)))) * 100
   const qualityScore = (totalTasks + totalDefects) > 0 ? (1 - (totalDefects / (totalTasks + totalDefects))) * 100 : 100;
