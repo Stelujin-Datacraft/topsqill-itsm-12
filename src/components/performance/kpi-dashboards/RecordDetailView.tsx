@@ -767,72 +767,80 @@ export function RecordDetailView({
 
     if (level === 'activity') {
       const completedTasks = childRecords.filter(t => isCompleted(t.submission_data?.[FIELDS.taskStatus])).length;
-      const progress = childRecords.length > 0 ? (completedTasks / childRecords.length) * 100 : 0;
-      let totalDefects = 0, totalDelay = 0, tPlanned = 0, tActual = 0;
-      childRecords.forEach(t => {
-        const td = t.submission_data || {};
-        totalDefects += asNum(td[FIELDS.taskDefectCount]);
-        tPlanned += asNum(td[FIELDS.taskPlannedHours]);
-        tActual += asNum(td[FIELDS.taskActualHours]);
-        const pe = asText(td[FIELDS.taskPlannedEnd]);
-        const ae = asText(td[FIELDS.taskActualEnd]);
-        if (pe && ae) { const diff = dateDiff(ae, pe); if (diff > 0) totalDelay += diff; }
-      });
-      const quality = (childRecords.length + totalDefects) > 0 ? (1 - (totalDefects / (childRecords.length + totalDefects))) * 100 : 100;
-      const util = (tActual / (tPlanned + 0.0001)) * 100;
-      const productivity = tPlanned > 0 ? tActual / (tPlanned + 0.0001) : 0;
-      const delayedCount = childRecords.filter(t => {
-        const pe = asText(t.submission_data?.[FIELDS.taskPlannedEnd]);
-        const ae = asText(t.submission_data?.[FIELDS.taskActualEnd]);
-        return pe && ae && dateDiff(ae, pe) > 0;
-      }).length;
+      // ACTIVITY ROLL-UP: Tasks → Resources
+      const totalTasks = childRecords.length;
+      const completedTasks = childRecords.filter(t => isCompleted(t.submission_data?.[FIELDS.taskStatus])).length;
+      const progress = completedTasks / Math.max(1, totalTasks) * 100;
 
-      // Activity's own hours
-      const actPlanned = asNum(d[FIELDS.activityPlannedHours]);
-      const actActual = asNum(d[FIELDS.activityActualHours]);
+      // Roll up hours from tasks (which roll up from resources)
+      let actPlannedHours = 0, actActualHours = 0;
+      let totalDefects = 0, totalDelay = 0;
+      childRecords.forEach(t => {
+        const h = getTaskRollupHours(t);
+        actPlannedHours += h.planned;
+        actActualHours += h.actual;
+        totalDefects += asNum(t.submission_data?.[FIELDS.taskDefectCount]);
+        totalDelay += getTaskDelayDays(t);
+      });
+
+      const quality = (totalTasks + totalDefects) > 0 ? (1 - (totalDefects / (totalTasks + totalDefects))) * 100 : 100;
+      const util = (actActualHours / (actPlannedHours + 0.0001)) * 100;
+      const productivity = actPlannedHours > 0 ? actActualHours / (actPlannedHours + 0.0001) : 0;
+      const delayedCount = childRecords.filter(t => getTaskDelayDays(t) > 0).length;
 
       kpiCards.push(
-        { label: 'Tasks', value: childRecords.length, icon: BarChart3, formula: 'COUNT(Task_ID)' },
-        { label: 'Completed', value: completedTasks, icon: CheckCircle2, trend: 'up',
-          formula: 'COUNT_IF(Task_Status = "Completed")' },
-        { label: 'Task Completion', value: progress, unit: '%', icon: TrendingUp,
-          formula: '(Completed_Tasks / Total_Tasks) × 100',
-          breakdown: { formula: '(Completed_Tasks / Total_Tasks) × 100', variables: [{ label: 'Completed Tasks', value: completedTasks }, { label: 'Total Tasks', value: childRecords.length }], steps: [{ label: 'Completion', expression: `${completedTasks} / ${childRecords.length} × 100`, result: `${progress.toFixed(1)}%` }], result: `${progress.toFixed(1)}%` } },
+        { label: 'Total Tasks', value: totalTasks, icon: BarChart3, formula: 'COUNT(Task_ID)',
+          breakdown: { formula: 'COUNT(Task_ID)', variables: [{ label: 'Task Count', value: totalTasks, highlight: true }], result: totalTasks } },
+        { label: 'Completed Tasks', value: completedTasks, icon: CheckCircle2, trend: 'up',
+          formula: 'COUNT_IF(Task_Status = "Completed")',
+          breakdown: { formula: 'COUNT_IF(Task_Status = "Completed")', variables: [{ label: 'Completed', value: completedTasks, highlight: true }, { label: 'Total', value: totalTasks }], result: completedTasks } },
+        { label: 'Activity Progress', value: progress, unit: '%', icon: TrendingUp,
+          formula: '(Completed_Tasks / MAX(1, Total_Tasks)) × 100',
+          breakdown: { formula: '(Completed_Tasks / MAX(1, Total_Tasks)) × 100', variables: [{ label: 'Completed Tasks', value: completedTasks }, { label: 'Total Tasks', value: totalTasks }], steps: [{ label: 'Completion', expression: `${completedTasks} / MAX(1, ${totalTasks}) × 100`, result: `${progress.toFixed(1)}%` }], result: `${progress.toFixed(1)}%` } },
         { label: 'Delayed Tasks', value: delayedCount, icon: AlertTriangle,
           trend: delayedCount > 0 ? 'down' : 'up',
-          formula: 'COUNT_IF(Actual_End > Planned_End)' },
-        { label: 'Planned Hours', value: actPlanned > 0 ? actPlanned : tPlanned, icon: Clock,
-          formula: actPlanned > 0 ? 'Activity_Planned_Hours' : 'SUM(Task_Planned_Hours)' },
-        { label: 'Actual Hours', value: actActual > 0 ? actActual : tActual, icon: Clock,
-          trend: (actActual > 0 ? actActual : tActual) > (actPlanned > 0 ? actPlanned : tPlanned) ? 'down' : 'up',
-          formula: actActual > 0 ? 'Activity_Actual_Hours' : 'SUM(Task_Actual_Hours)' },
+          formula: 'COUNT_IF(Task_Delay_Days > 0)',
+          breakdown: { formula: 'COUNT_IF(MAX(0, DAYS(Actual_End - Planned_End)) > 0)', variables: [{ label: 'Delayed Tasks', value: delayedCount, highlight: true }, { label: 'Total Tasks', value: totalTasks }], result: delayedCount } },
+        { label: 'Activity Planned Hours', value: actPlannedHours, icon: Clock,
+          formula: 'SUM(Task_Planned_Hours) = SUM(Resource_Planned_Hours)',
+          breakdown: { formula: 'Activity_Planned_Hours = SUM(rolled-up Task hours from Resources)', description: 'Hours roll up: Resources → Tasks → Activity', variables: [{ label: 'Activity Planned Hours', value: `${actPlannedHours}h`, highlight: true }, { label: 'Total Tasks', value: totalTasks }], result: `${actPlannedHours}h` } },
+        { label: 'Activity Actual Hours', value: actActualHours, icon: Clock,
+          trend: actActualHours > actPlannedHours ? 'down' : 'up',
+          formula: 'SUM(Task_Actual_Hours) = SUM(Resource_Actual_Hours)',
+          breakdown: { formula: 'Activity_Actual_Hours = SUM(rolled-up Task hours from Resources)', variables: [{ label: 'Activity Actual Hours', value: `${actActualHours}h`, highlight: true }, { label: 'Activity Planned Hours (ref)', value: `${actPlannedHours}h` }], result: `${actActualHours}h` } },
         { label: 'Utilization', value: util, unit: '%', icon: Users,
-          formula: '(Actual_Hours / (Planned_Hours + 0.0001)) × 100',
-          breakdown: { formula: '(Actual_Hours / (Planned_Hours + ε)) × 100', variables: [{ label: 'Actual Hours', value: tActual }, { label: 'Planned Hours', value: tPlanned }], steps: [{ label: 'Utilization', expression: `${tActual} / ${tPlanned} × 100`, result: `${util.toFixed(1)}%` }], result: `${util.toFixed(1)}%` } },
+          formula: '(Activity_Actual_Hours / (Activity_Planned_Hours + 0.0001)) × 100',
+          breakdown: { formula: '(Activity_Actual_Hours / (Activity_Planned_Hours + ε)) × 100', variables: [{ label: 'Activity Actual Hours', fieldName: 'Roll-up from Resources', value: actActualHours }, { label: 'Activity Planned Hours', fieldName: 'Roll-up from Resources', value: actPlannedHours }], steps: [{ label: 'Utilization', expression: `${actActualHours} / ${actPlannedHours} × 100`, result: `${util.toFixed(1)}%` }], result: `${util.toFixed(1)}%` } },
         { label: 'Productivity', value: productivity, icon: Zap,
           trend: productivity >= 1 ? 'up' : 'down',
-          formula: 'Actual_Hours / (Planned_Hours + 0.0001)',
-          breakdown: { formula: 'Actual_Hours / (Planned_Hours + 0.0001)', variables: [{ label: 'Actual Hours', value: tActual }, { label: 'Planned Hours', value: tPlanned }], steps: [{ label: 'Productivity', expression: `${tActual} / (${tPlanned} + 0.0001)`, result: productivity.toFixed(2) }], result: productivity.toFixed(2) } },
+          formula: 'Activity_Actual_Hours / (Activity_Planned_Hours + 0.0001)',
+          breakdown: { formula: 'Activity_Actual_Hours / (Activity_Planned_Hours + 0.0001)', variables: [{ label: 'Activity Actual Hours', value: actActualHours }, { label: 'Activity Planned Hours', value: actPlannedHours }], steps: [{ label: 'Productivity', expression: `${actActualHours} / (${actPlannedHours} + 0.0001)`, result: productivity.toFixed(2) }], result: productivity.toFixed(2) } },
         { label: 'Quality Score', value: quality, unit: '%', icon: CheckCircle2,
           trend: quality >= 90 ? 'up' : 'neutral',
           formula: '(1 - (Defects / (Tasks + Defects))) × 100',
-          breakdown: { formula: '(1 - (Defects / (Tasks + Defects))) × 100', variables: [{ label: 'Total Defects', value: totalDefects }, { label: 'Total Tasks', value: childRecords.length }], steps: [{ label: 'Defect Ratio', expression: `${totalDefects} / (${childRecords.length} + ${totalDefects})`, result: (childRecords.length + totalDefects) > 0 ? (totalDefects / (childRecords.length + totalDefects)).toFixed(4) : '0' }, { label: 'Quality', expression: `(1 - ${(childRecords.length + totalDefects) > 0 ? (totalDefects / (childRecords.length + totalDefects)).toFixed(4) : '0'}) × 100`, result: `${quality.toFixed(1)}%` }], result: `${quality.toFixed(1)}%` } },
-        { label: 'Total Delay', value: totalDelay, unit: 'd', icon: Clock,
+          breakdown: { formula: '(1 - (Defects / (Tasks + Defects))) × 100', variables: [{ label: 'Total Defects', value: totalDefects }, { label: 'Total Tasks', value: totalTasks }], steps: [{ label: 'Defect Ratio', expression: `${totalDefects} / (${totalTasks} + ${totalDefects})`, result: (totalTasks + totalDefects) > 0 ? (totalDefects / (totalTasks + totalDefects)).toFixed(4) : '0' }, { label: 'Quality', expression: `(1 - ratio) × 100`, result: `${quality.toFixed(1)}%` }], result: `${quality.toFixed(1)}%` } },
+        { label: 'Activity Total Delay', value: totalDelay, unit: 'd', icon: Clock,
           trend: totalDelay > 0 ? 'down' : 'up',
-          formula: 'SUM(MAX(0, DAYS(Actual_End - Planned_End)))' },
+          formula: 'SUM(Task_Delay_Days) = SUM(MAX(0, DAYS(Actual_End - Planned_End)))',
+          breakdown: { formula: 'SUM(MAX(0, DAYS(Actual_End - Planned_End))) across all tasks', variables: [{ label: 'Total Delay', value: `${totalDelay} days`, highlight: true }, { label: 'Delayed Tasks', value: delayedCount }], result: `${totalDelay} days` },
+          hideIfZero: true },
         { label: 'Defects', value: totalDefects, icon: AlertTriangle,
-          trend: totalDefects > 0 ? 'down' : 'up', formula: 'SUM(Defect_Count)' },
+          trend: totalDefects > 0 ? 'down' : 'up', formula: 'SUM(Defect_Count)', hideIfZero: true },
       );
 
       if (childRecords.length > 0) {
+        // Task hours chart using roll-up from resources
         charts.push({
-          title: 'Task Hours: Planned vs Actual',
+          title: 'Task Hours: Planned vs Actual (Roll-up)',
           type: 'bar-compare',
-          data: childRecords.map(t => ({
-            name: asText(t.submission_data?.[FIELDS.taskName]) || t.submission_ref_id,
-            planned: asNum(t.submission_data?.[FIELDS.taskPlannedHours]),
-            actual: asNum(t.submission_data?.[FIELDS.taskActualHours]),
-          })),
+          data: childRecords.map(t => {
+            const h = getTaskRollupHours(t);
+            return {
+              name: asText(t.submission_data?.[FIELDS.taskName]) || t.submission_ref_id,
+              planned: h.planned,
+              actual: h.actual,
+            };
+          }),
           dataKeys: ['planned', 'actual'],
         });
 
@@ -861,7 +869,7 @@ export function RecordDetailView({
           { metric: 'Utilization', value: Math.min(util, 100) },
           { metric: 'Quality', value: quality },
           { metric: 'Productivity', value: Math.min(productivity * 50, 100) },
-          { metric: 'On-Time', value: childRecords.length > 0 ? ((childRecords.length - delayedCount) / childRecords.length) * 100 : 100 },
+          { metric: 'On-Time', value: totalTasks > 0 ? ((totalTasks - delayedCount) / totalTasks) * 100 : 100 },
         ],
       });
     }
