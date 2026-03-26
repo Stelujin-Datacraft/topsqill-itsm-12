@@ -279,11 +279,27 @@ export function KPIDashboardTab({ perfProjectId, alerts = [], predictions = [], 
 
   const visiblePredictions = aiResult?.predictions?.filter((_, i) => !dismissedPredictions.has(i)) ?? [];
 
-  if (loading) {
+  if (loading || dsLoading) {
     return (
       <div className="flex items-center justify-center min-h-[300px]">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
+    );
+  }
+
+  if (!hasDataSource) {
+    return (
+      <Card className="border-dashed">
+        <CardContent className="p-8 text-center space-y-3">
+          <Database className="h-10 w-10 mx-auto text-muted-foreground" />
+          <div>
+            <p className="font-medium text-foreground">No Data Source Configured</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              Please configure a data source in the <strong>Data Sources</strong> tab first to see KPI calculations and dashboards.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
     );
   }
 
