@@ -766,7 +766,6 @@ export function RecordDetailView({
     }
 
     if (level === 'activity') {
-      const completedTasks = childRecords.filter(t => isCompleted(t.submission_data?.[FIELDS.taskStatus])).length;
       // ACTIVITY ROLL-UP: Tasks → Resources
       const totalTasks = childRecords.length;
       const completedTasks = childRecords.filter(t => isCompleted(t.submission_data?.[FIELDS.taskStatus])).length;
