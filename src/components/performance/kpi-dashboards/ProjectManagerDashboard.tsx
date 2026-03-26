@@ -37,9 +37,9 @@ export function ProjectManagerDashboard({ kpis, hasHierarchy }: Props) {
           <KPIMetricCard title="Schedule Variance (%)" value={`${kpis.scheduleVariancePercent.toFixed(1)}%`}
             subtitle={kpis.scheduleVariancePercent >= 0 ? 'Ahead of schedule' : 'Behind schedule'}
             variant={kpis.scheduleVariancePercent >= 0 ? 'success' : 'danger'} icon={Calendar}
-            formula="((EV - PV) / EV) × 100"
+            formula="((EV - PV) / PV) × 100"
             formulaBreakdown={{
-              formula: '((EV - PV) / EV) × 100',
+              formula: '((Earned_Value - Planned_Value) / Planned_Value) × 100',
               description: 'Positive = ahead of schedule, Negative = behind schedule',
               variables: [
                 { label: 'Schedule Variance %', value: `${kpis.scheduleVariancePercent.toFixed(1)}%`, highlight: true },
@@ -72,7 +72,7 @@ export function ProjectManagerDashboard({ kpis, hasHierarchy }: Props) {
           />
           <KPIMetricCard title="Cost Variance (%)" value={`${kpis.costVariancePercent.toFixed(1)}%`}
             variant={kpis.costVariancePercent >= 0 ? 'success' : 'danger'}
-            formula="((EV - AC) / EV) × 100" />
+            formula="((EV - AC) / AC) × 100" />
           <KPIMetricCard title="CPI" value={kpis.cpi.toFixed(2)}
             subtitle={kpis.cpi >= 1 ? 'Cost efficient' : 'Cost overrun'}
             variant={kpis.cpi >= 1 ? 'success' : kpis.cpi >= 0.9 ? 'warning' : 'danger'} icon={IndianRupee}
@@ -107,11 +107,11 @@ export function ProjectManagerDashboard({ kpis, hasHierarchy }: Props) {
         <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Expenditure & Predictions</h3>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           <KPIMetricCard title="Burn Rate" value={`${kpis.burnRate.toFixed(0)}/day`} icon={Flame}
-            subtitle="Actual Cost / (Days Since Start + 1)"
-            formula="Actual_Cost / (Days_Since_Start + 1)"
+            subtitle="Actual Cost / Days Since Actual Start"
+            formula="Actual_Cost / DAYS_BETWEEN(Current_Date, Actual_Start_Date)"
             formulaBreakdown={{
-              formula: 'Actual_Cost / (Days_Since_Start + 1)',
-              description: 'Daily spend rate based on elapsed project time',
+              formula: 'Actual_Cost / DAYS_BETWEEN(Current_Date, Actual_Start_Date)',
+              description: 'Daily spend rate based on elapsed project time from actual start',
               variables: [
                 { label: 'Burn Rate', value: `₹${kpis.burnRate.toFixed(0)}/day`, highlight: true },
               ],
@@ -120,7 +120,7 @@ export function ProjectManagerDashboard({ kpis, hasHierarchy }: Props) {
           />
           <KPIMetricCard title="Predicted Delay Days" value={`${kpis.predictedDelayDays.toFixed(1)} days`}
             variant={kpis.predictedDelayDays > 5 ? 'warning' : 'default'}
-            formula="DAYS(Actual_End - Planned_End)" />
+            formula="MAX(0, DAYS(Actual_End - Planned_End))" />
           <KPIMetricCard title="Predicted Cost Overrun (%)" value={`${kpis.predictedCostOverrunPercent.toFixed(1)}%`}
             variant={kpis.predictedCostOverrunPercent > 10 ? 'danger' : 'default'} icon={AlertTriangle}
             formula="((Forecast - Budget) / Budget) × 100"
