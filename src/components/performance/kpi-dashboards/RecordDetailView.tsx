@@ -746,7 +746,7 @@ export function RecordDetailView({
       const ae = asText(d[FIELDS.taskActualEnd]);
       const delay = pe && ae ? Math.max(0, dateDiff(ae, pe)) : 0;
       const util = (tActual / (tPlanned + 0.0001)) * 100;
-      const productivity = tPlanned > 0 ? tActual / tPlanned : 0;
+      const productivity = tPlanned > 0 ? tActual / (tPlanned + 0.0001) : 0;
       const overtime = Math.max(0, tActual - tPlanned);
       const quality = (1 + tDefects) > 0 ? (1 - (tDefects / (1 + tDefects))) * 100 : 100;
 
@@ -767,8 +767,8 @@ export function RecordDetailView({
           breakdown: { formula: '(Actual_Hours / (Planned_Hours + ε)) × 100', variables: [{ label: 'Actual Hours', fieldName: 'Task_Actual_Hours', value: tActual }, { label: 'Planned Hours', fieldName: 'Task_Planned_Hours', value: tPlanned }], steps: [{ label: 'Utilization', expression: `${tActual} / ${tPlanned} × 100`, result: `${util.toFixed(1)}%` }], result: `${util.toFixed(1)}%` } },
         { label: 'Productivity', value: productivity, icon: Zap,
           trend: productivity >= 1 ? 'up' : 'down',
-          formula: 'Actual_Hours / Planned_Hours',
-          breakdown: { formula: 'Actual_Hours / Planned_Hours', variables: [{ label: 'Actual Hours', value: tActual }, { label: 'Planned Hours', value: tPlanned }], steps: [{ label: 'Productivity', expression: `${tActual} / ${tPlanned}`, result: productivity.toFixed(2) }], result: productivity.toFixed(2) } },
+          formula: 'Actual_Hours / (Planned_Hours + 0.0001)',
+          breakdown: { formula: 'Actual_Hours / (Planned_Hours + 0.0001)', variables: [{ label: 'Actual Hours', value: tActual }, { label: 'Planned Hours', value: tPlanned }], steps: [{ label: 'Productivity', expression: `${tActual} / (${tPlanned} + 0.0001)`, result: productivity.toFixed(2) }], result: productivity.toFixed(2) } },
         { label: 'Delay', value: delay, unit: 'd', icon: Clock,
           trend: delay > 0 ? 'down' : 'up',
           formula: 'DAYS(Actual_End - Planned_End)',
@@ -840,7 +840,7 @@ export function RecordDetailView({
       const rActual = asNum(d[FIELDS.actualHours]);
       const rOvertime = Math.max(0, rActual - rPlanned);
       const util = (rActual / (rPlanned + 0.0001)) * 100;
-      const productivity = rPlanned > 0 ? rActual / rPlanned : 0;
+      const productivity = rPlanned > 0 ? rActual / (rPlanned + 0.0001) : 0;
       const role = asText(d[FIELDS.resourceRole]);
 
       kpiCards.push(
@@ -854,8 +854,8 @@ export function RecordDetailView({
           breakdown: { formula: '(Actual_Hours / (Planned_Hours + ε)) × 100', variables: [{ label: 'Actual Hours', fieldName: 'Resource_Actual_Hours', value: rActual }, { label: 'Planned Hours', fieldName: 'Resource_Planned_Hours', value: rPlanned }], steps: [{ label: 'Utilization', expression: `${rActual} / ${rPlanned} × 100`, result: `${util.toFixed(1)}%` }], result: `${util.toFixed(1)}%` } },
         { label: 'Productivity', value: productivity, icon: Zap,
           trend: productivity >= 1 ? 'up' : 'down',
-          formula: 'Actual_Hours / Planned_Hours',
-          breakdown: { formula: 'Actual_Hours / Planned_Hours', variables: [{ label: 'Actual Hours', value: rActual }, { label: 'Planned Hours', value: rPlanned }], steps: [{ label: 'Productivity', expression: `${rActual} / ${rPlanned}`, result: productivity.toFixed(2) }], result: productivity.toFixed(2) } },
+          formula: 'Actual_Hours / (Planned_Hours + 0.0001)',
+          breakdown: { formula: 'Actual_Hours / (Planned_Hours + 0.0001)', variables: [{ label: 'Actual Hours', value: rActual }, { label: 'Planned Hours', value: rPlanned }], steps: [{ label: 'Productivity', expression: `${rActual} / (${rPlanned} + 0.0001)`, result: productivity.toFixed(2) }], result: productivity.toFixed(2) } },
       );
 
       // Resource hours breakdown
