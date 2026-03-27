@@ -534,6 +534,41 @@ export function KPIValidationInsight({ kpiLabel, breakdown, context, onClose }: 
                 </div>
               ))}
             </div>
+
+            {/* Field-level details from linked records */}
+            {analysis.comparisonDetails.length > 0 && (
+              <div className="mt-3 space-y-2">
+                {analysis.comparisonDetails.map((detail, i) => (
+                  <div key={i} className="rounded-md border overflow-hidden">
+                    <div className="bg-muted/40 px-3 py-1.5">
+                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">{detail.label}</p>
+                    </div>
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-muted/20">
+                          <TableHead className="text-[10px] uppercase tracking-wider h-7">Field</TableHead>
+                          <TableHead className="text-[10px] uppercase tracking-wider h-7">Source</TableHead>
+                          <TableHead className="text-[10px] uppercase tracking-wider h-7 text-right">Value</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {detail.fields.map((field, fi) => (
+                          <TableRow key={fi} className={field.source === 'Calculated' ? 'bg-primary/5 font-medium' : ''}>
+                            <TableCell className="py-1.5 text-xs">{field.name}</TableCell>
+                            <TableCell className="py-1.5">
+                              <Badge variant="outline" className="text-[9px] font-normal">{field.source}</Badge>
+                            </TableCell>
+                            <TableCell className="py-1.5 text-right">
+                              <code className="text-xs font-mono">{field.value}</code>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
