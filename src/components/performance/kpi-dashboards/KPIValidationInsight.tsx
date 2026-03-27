@@ -144,8 +144,10 @@ export function KPIValidationInsight({ kpiLabel, breakdown, context, onClose }: 
     }
 
     // ========================
-    // B. PERFORMANCE COMPARISON
+    // B. PERFORMANCE COMPARISON (with linked record field details)
     // ========================
+    const comparisonDetails: { label: string; fields: { name: string; source: string; value: string }[] }[] = [];
+
     if (level === 'project') {
       const budget = asNum(d[FIELDS.plannedBudget]);
       const actual = asNum(d[FIELDS.actualCost]);
@@ -164,6 +166,14 @@ export function KPIValidationInsight({ kpiLabel, breakdown, context, onClose }: 
               ? `✔ Under Budget — Actual ₹${actual.toLocaleString('en-IN')} vs Planned ₹${budget.toLocaleString('en-IN')} (${((budget - actual) / budget * 100).toFixed(1)}% savings)`
               : `❌ Over Budget — Actual ₹${actual.toLocaleString('en-IN')} vs Planned ₹${budget.toLocaleString('en-IN')} (${((actual - budget) / budget * 100).toFixed(1)}% overrun)`,
           });
+          comparisonDetails.push({
+            label: 'Budget vs Actual Cost',
+            fields: [
+              { name: 'Planned_Budget', source: 'Project Record', value: `₹${budget.toLocaleString('en-IN')}` },
+              { name: 'Actual_Cost', source: 'Project Record', value: `₹${actual.toLocaleString('en-IN')}` },
+              { name: 'Difference', source: 'Calculated', value: `₹${Math.abs(budget - actual).toLocaleString('en-IN')} ${actual <= budget ? '(Savings)' : '(Overrun)'}` },
+            ],
+          });
         }
         if (ev > 0 && ac > 0) {
           const cpi = ev / ac;
@@ -172,6 +182,14 @@ export function KPIValidationInsight({ kpiLabel, breakdown, context, onClose }: 
             text: cpi >= 1
               ? `✔ Cost Efficient — CPI ${cpi.toFixed(2)} (EV ₹${ev.toLocaleString('en-IN')} > AC ₹${ac.toLocaleString('en-IN')})`
               : `⚠️ Cost Overrun — CPI ${cpi.toFixed(2)} (EV ₹${ev.toLocaleString('en-IN')} < AC ₹${ac.toLocaleString('en-IN')})`,
+          });
+          comparisonDetails.push({
+            label: 'CPI Comparison (EV vs AC)',
+            fields: [
+              { name: 'Earned_Value (EV)', source: 'Project Record', value: `₹${ev.toLocaleString('en-IN')}` },
+              { name: 'Actual_Cost_Value (AC)', source: 'Project Record', value: `₹${ac.toLocaleString('en-IN')}` },
+              { name: 'CPI (EV / AC)', source: 'Calculated', value: cpi.toFixed(4) },
+            ],
           });
         }
       }
@@ -186,6 +204,14 @@ export function KPIValidationInsight({ kpiLabel, breakdown, context, onClose }: 
               ? `✔ On Schedule — SPI ${spi.toFixed(2)} (Earned Value ≥ Planned Value)`
               : `❌ Behind Schedule — SPI ${spi.toFixed(2)} (Earned Value < Planned Value)`,
           });
+          comparisonDetails.push({
+            label: 'SPI Comparison (EV vs PV)',
+            fields: [
+              { name: 'Earned_Value (EV)', source: 'Project Record', value: `₹${ev.toLocaleString('en-IN')}` },
+              { name: 'Planned_Value (PV)', source: 'Project Record', value: `₹${pv.toLocaleString('en-IN')}` },
+              { name: 'SPI (EV / PV)', source: 'Calculated', value: spi.toFixed(4) },
+            ],
+          });
         }
         if (endPlanned && endActual) {
           const diffDays = Math.round((new Date(endActual).getTime() - new Date(endPlanned).getTime()) / 86400000);
@@ -195,13 +221,20 @@ export function KPIValidationInsight({ kpiLabel, breakdown, context, onClose }: 
               ? `✔ On Time — Completed ${Math.abs(diffDays)} days early`
               : `❌ Delayed — ${diffDays} days past planned end date`,
           });
+          comparisonDetails.push({
+            label: 'End Date Comparison',
+            fields: [
+              { name: 'Planned_End_Date', source: 'Project Record', value: endPlanned },
+              { name: 'Actual_End_Date', source: 'Project Record', value: endActual },
+              { name: 'Difference', source: 'Calculated', value: `${Math.abs(diffDays)} days ${diffDays <= 0 ? 'early' : 'late'}` },
+            ],
+          });
         }
       }
     }
 
-    // Hours-based comparisons for any level
+    // Hours-based comparisons for any level with child record details
     if (lowerLabel.includes('utilization') || lowerLabel.includes('productivity') || lowerLabel.includes('hours') || lowerLabel.includes('overtime')) {
-      // Extract from breakdown variables
       const vars = breakdown.variables || [];
       const plannedVar = vars.find(v => v.label.toLowerCase().includes('planned'));
       const actualVar = vars.find(v => v.label.toLowerCase().includes('actual'));
@@ -216,6 +249,44 @@ export function KPIValidationInsight({ kpiLabel, breakdown, context, onClose }: 
               ? `✔ Within Budget Hours — ${actual}h used of ${planned}h planned (${((1 - ratio) * 100).toFixed(0)}% remaining)`
               : `⚠️ Hours Exceeded — ${actual}h used of ${planned}h planned (${((ratio - 1) * 100).toFixed(0)}% over)`,
           });
+
+          // Build child-level hour details
+          const childLevel: HierarchyLevel = level === 'project' ? 'wbs' : level === 'wbs' ? 'activity' : level === 'activity' ? 'task' : 'resource';
+          const hourFields: { name: string; source: string; value: string }[] = [];
+          
+          if (childLevel === 'resource' || childLevel === 'task') {
+            childRecords.slice(0, 10).forEach(child => {
+              const cd = child.submission_data || {};
+              const isResource = childLevel === 'resource';
+              const pHrs = asNum(cd[isResource ? FIELDS.plannedHours : FIELDS.taskPlannedHours]);
+              const aHrs = asNum(cd[isResource ? FIELDS.actualHours : FIELDS.taskActualHours]);
+              const name = getChildName(child, childLevel);
+              if (pHrs > 0 || aHrs > 0) {
+                hourFields.push({ name: `${name} — Planned`, source: `${childLevel} Record`, value: `${pHrs}h` });
+                hourFields.push({ name: `${name} — Actual`, source: `${childLevel} Record`, value: `${aHrs}h` });
+              }
+            });
+          }
+
+          if (hourFields.length > 0) {
+            comparisonDetails.push({
+              label: `Hours Breakdown by ${childLevel.charAt(0).toUpperCase() + childLevel.slice(1)}`,
+              fields: [
+                { name: 'Total Planned Hours', source: 'Roll-up Sum', value: `${planned}h` },
+                { name: 'Total Actual Hours', source: 'Roll-up Sum', value: `${actual}h` },
+                ...hourFields,
+              ],
+            });
+          } else {
+            comparisonDetails.push({
+              label: 'Hours Comparison',
+              fields: [
+                { name: 'Planned_Hours', source: plannedVar.label, value: `${planned}h` },
+                { name: 'Actual_Hours', source: actualVar.label, value: `${actual}h` },
+                { name: 'Ratio', source: 'Calculated', value: `${(ratio * 100).toFixed(1)}%` },
+              ],
+            });
+          }
         }
       }
     }
@@ -376,7 +447,7 @@ export function KPIValidationInsight({ kpiLabel, breakdown, context, onClose }: 
 
     summary = summaryParts.join(' ');
 
-    return { consistencyChecks, comparisons, healthIndicators, rootCauses: rootCauses.slice(0, 5), summary };
+    return { consistencyChecks, comparisons, comparisonDetails, healthIndicators, rootCauses: rootCauses.slice(0, 5), summary };
   }, [kpiLabel, breakdown, level, record, childRecords, allTasks, allActivities, allResources]);
 
   const hasContent = analysis.consistencyChecks.length > 0 || analysis.comparisons.length > 0 ||
@@ -463,6 +534,41 @@ export function KPIValidationInsight({ kpiLabel, breakdown, context, onClose }: 
                 </div>
               ))}
             </div>
+
+            {/* Field-level details from linked records */}
+            {analysis.comparisonDetails.length > 0 && (
+              <div className="mt-3 space-y-2">
+                {analysis.comparisonDetails.map((detail, i) => (
+                  <div key={i} className="rounded-md border overflow-hidden">
+                    <div className="bg-muted/40 px-3 py-1.5">
+                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">{detail.label}</p>
+                    </div>
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-muted/20">
+                          <TableHead className="text-[10px] uppercase tracking-wider h-7">Field</TableHead>
+                          <TableHead className="text-[10px] uppercase tracking-wider h-7">Source</TableHead>
+                          <TableHead className="text-[10px] uppercase tracking-wider h-7 text-right">Value</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {detail.fields.map((field, fi) => (
+                          <TableRow key={fi} className={field.source === 'Calculated' ? 'bg-primary/5 font-medium' : ''}>
+                            <TableCell className="py-1.5 text-xs">{field.name}</TableCell>
+                            <TableCell className="py-1.5">
+                              <Badge variant="outline" className="text-[9px] font-normal">{field.source}</Badge>
+                            </TableCell>
+                            <TableCell className="py-1.5 text-right">
+                              <code className="text-xs font-mono">{field.value}</code>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 

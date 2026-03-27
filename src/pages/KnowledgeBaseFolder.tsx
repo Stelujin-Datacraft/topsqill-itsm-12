@@ -245,9 +245,22 @@ const KnowledgeBaseFolder = () => {
                           </p>
                         </div>
                         </div>
-                        <div className="text-right text-xs text-muted-foreground ml-4 shrink-0 space-y-0.5">
-                          <div>v{policy.current_version}</div>
-                          <div>{format(new Date(policy.updated_at), 'MMM d, yyyy')}</div>
+                        <div className="flex items-center gap-2 ml-4 shrink-0">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="gap-1 text-xs h-7"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/policy/${policy.id}`);
+                            }}
+                          >
+                            <Eye className="h-3 w-3" /> View
+                          </Button>
+                          <div className="text-right text-xs text-muted-foreground space-y-0.5">
+                            <div>v{policy.current_version}</div>
+                            <div>{format(new Date(policy.updated_at), 'MMM d, yyyy')}</div>
+                          </div>
                         </div>
                       </div>
                     </CardContent>
