@@ -252,7 +252,7 @@ const KnowledgeBaseFolder = () => {
                             className="gap-1 text-xs h-7"
                             onClick={(e) => {
                               e.stopPropagation();
-                              navigate(`/policy/${policy.id}?tab=content`);
+                              navigate(`/policy/${policy.id}`);
                             }}
                           >
                             <Eye className="h-3 w-3" /> View
