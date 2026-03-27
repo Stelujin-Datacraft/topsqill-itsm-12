@@ -1246,11 +1246,26 @@ export function RecordDetailView({
 
       {/* Inline Formula Breakdown Table */}
       {activeBreakdown && (
-        <FormulaBreakdownTable
-          title={activeBreakdown.title}
-          breakdown={activeBreakdown.breakdown}
-          onClose={() => setActiveBreakdown(null)}
-        />
+        <>
+          <FormulaBreakdownTable
+            title={activeBreakdown.title}
+            breakdown={activeBreakdown.breakdown}
+            onClose={() => setActiveBreakdown(null)}
+          />
+          <KPIValidationInsight
+            kpiLabel={activeBreakdown.title}
+            breakdown={activeBreakdown.breakdown}
+            context={{
+              level,
+              record,
+              childRecords,
+              allTasks,
+              allActivities,
+              allResources,
+            }}
+            onClose={() => setActiveBreakdown(null)}
+          />
+        </>
       )}
 
       {/* Charts */}
