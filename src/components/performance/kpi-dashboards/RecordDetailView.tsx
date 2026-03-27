@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { type FormulaBreakdown } from './FormulaBreakdownDialog';
 import { FormulaBreakdownTable } from './FormulaBreakdownTable';
 import { ChartValueModal, type ChartClickPayload } from './ChartValueModal';
+import { KPIValidationInsight } from './KPIValidationInsight';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -1245,11 +1246,26 @@ export function RecordDetailView({
 
       {/* Inline Formula Breakdown Table */}
       {activeBreakdown && (
-        <FormulaBreakdownTable
-          title={activeBreakdown.title}
-          breakdown={activeBreakdown.breakdown}
-          onClose={() => setActiveBreakdown(null)}
-        />
+        <>
+          <FormulaBreakdownTable
+            title={activeBreakdown.title}
+            breakdown={activeBreakdown.breakdown}
+            onClose={() => setActiveBreakdown(null)}
+          />
+          <KPIValidationInsight
+            kpiLabel={activeBreakdown.title}
+            breakdown={activeBreakdown.breakdown}
+            context={{
+              level,
+              record,
+              childRecords,
+              allTasks,
+              allActivities,
+              allResources,
+            }}
+            onClose={() => setActiveBreakdown(null)}
+          />
+        </>
       )}
 
       {/* Charts */}
