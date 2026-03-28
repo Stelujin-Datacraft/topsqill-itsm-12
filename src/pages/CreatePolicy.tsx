@@ -16,7 +16,6 @@ import { PolicyContentSource } from '@/components/policies/PolicyContentSource';
 import { PolicyFormLink } from '@/components/policies/PolicyFormLink';
 import { PolicyRecordSelector } from '@/components/policies/PolicyRecordSelector';
 import PageContent from '@/components/PageContent';
-import { PolicyRecordSelector } from '@/components/policies/PolicyRecordSelector';
 import { PolicyCustomFieldsBuilder, type PolicyCustomField } from '@/components/policies/PolicyCustomFieldsBuilder';
 
 
