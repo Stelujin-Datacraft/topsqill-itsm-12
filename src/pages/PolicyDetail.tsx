@@ -1536,6 +1536,128 @@ const PolicyDetail = () => {
     return userId.slice(0, 8) + '...';
   };
 
+  // Preview mode - clean document view for the "View" button
+  if (isPreviewMode) {
+    const contentHtml = policy.content?.html || '';
+    const customFieldsArr = (policy.content?.custom_fields as any[]) || [];
+    const customFieldVals = (policy.content?.custom_field_values as Record<string, any>) || {};
+    const dataFields = customFieldsArr.filter((f: any) => !['header', 'description', 'horizontal-line'].includes(f.type));
+    const previewSectionOrder = getSectionOrder();
+
+    return (
+      <div className="flex-1 overflow-auto bg-background">
+        <div className="max-w-4xl mx-auto py-8 px-6 space-y-6">
+          <div className="flex items-center justify-between">
+            <Button variant="ghost" size="sm" onClick={() => window.close()}>
+              <ArrowLeft className="h-4 w-4 mr-1" /> Close Preview
+            </Button>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => navigate(`/policy/${policy.id}`)}>
+                <Edit className="h-4 w-4 mr-1" /> Open Full View
+              </Button>
+              <Button variant="outline" size="sm" onClick={exportToPDF}>
+                <FileDown className="h-4 w-4 mr-1" /> Export PDF
+              </Button>
+            </div>
+          </div>
+
+          <div className="text-center space-y-2 border-b pb-6">
+            <h1 className="text-2xl font-bold text-foreground">{policy.name}</h1>
+            <div className="flex items-center gap-2 justify-center flex-wrap">
+              {policy.policy_number && <span className="text-sm font-mono text-muted-foreground">{policy.policy_number}</span>}
+              <Badge className={statusDef?.color}>{statusDef?.label}</Badge>
+              <Badge variant="outline">{policy.category}</Badge>
+              <Badge variant="secondary">v{policy.current_version}</Badge>
+            </div>
+            {policy.description && <p className="text-sm text-muted-foreground max-w-2xl mx-auto">{policy.description}</p>}
+          </div>
+
+          {previewSectionOrder.map(sectionId => (
+            <div key={sectionId}>
+              {sectionId === 'metadata' && (
+                <Card>
+                  <CardHeader className="py-3 px-4"><CardTitle className="text-sm">Dates & Metadata</CardTitle></CardHeader>
+                  <CardContent className="space-y-2 text-sm px-4 pb-4 pt-0">
+                    <DetailRow label="Created" value={format(new Date(policy.created_at), 'PPpp')} />
+                    <DetailRow label="Last Updated" value={format(new Date(policy.updated_at), 'PPpp')} />
+                    {policy.effective_date && <DetailRow label="Effective Date" value={policy.effective_date} />}
+                    {policy.expiry_date && <DetailRow label="Expiry Date" value={policy.expiry_date} />}
+                    {policy.next_review_date && <DetailRow label="Next Review" value={policy.next_review_date} />}
+                    {policy.published_at && <DetailRow label="Published" value={format(new Date(policy.published_at), 'PPpp')} />}
+                    <DetailRow label="Doc Number" value={policy.policy_number || '—'} />
+                    <DetailRow label="Priority" value={<Badge className={priorityDef?.color}>{priorityDef?.label}</Badge>} />
+                    <DetailRow label="Version" value={`v${policy.current_version}`} />
+                  </CardContent>
+                </Card>
+              )}
+
+              {sectionId === 'document_content' && contentHtml && (
+                <div>
+                  <span className="text-sm font-semibold text-foreground mb-2 block">Document Content</span>
+                  <div className="border rounded-lg overflow-hidden bg-white">
+                    <iframe
+                      title="Document Content Preview"
+                      srcDoc={`<!DOCTYPE html><html><head><meta charset="utf-8" /><style>body{font-family:'Segoe UI','Calibri',Arial,sans-serif;font-size:13px;line-height:1.7;color:#1a1a1a;padding:32px 40px;margin:0;background:#fff}h1,h2,h3{color:#111;margin-top:1.2em;margin-bottom:0.4em}h1{font-size:1.8em;border-bottom:2px solid #e5e7eb;padding-bottom:0.3em}h2{font-size:1.4em;border-bottom:1px solid #e5e7eb;padding-bottom:0.2em}table{border-collapse:collapse;width:100%;margin:1em 0}th,td{border:1px solid #d1d5db;padding:8px 12px;text-align:left;font-size:12px}th{background:#f3f4f6;font-weight:600}img{max-width:100%;height:auto}blockquote{border-left:3px solid #6366f1;padding:8px 16px;margin:1em 0;background:#f5f3ff}</style></head><body>${contentHtml.replace(/\x60/g, '&#96;')}</body></html>`}
+                      className="w-full border-0"
+                      style={{ minHeight: '500px', height: '70vh' }}
+                      onLoad={(e) => {
+                        const iframe = e.target as HTMLIFrameElement;
+                        if (iframe.contentDocument?.body) {
+                          const h = iframe.contentDocument.body.scrollHeight + 40;
+                          iframe.style.height = Math.max(400, Math.min(h, 2000)) + 'px';
+                        }
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {sectionId === 'custom_fields' && dataFields.length > 0 && (
+                <Card>
+                  <CardHeader className="py-3 px-4"><CardTitle className="text-sm">Custom Fields Data</CardTitle></CardHeader>
+                  <CardContent className="px-4 pb-4 pt-0">
+                    <div className="space-y-2">
+                      {dataFields.map((field: any) => {
+                        const raw = customFieldVals[field.id];
+                        let display = '—';
+                        if (raw !== null && raw !== undefined && raw !== '') {
+                          if (Array.isArray(raw)) display = raw.join(', ') || '—';
+                          else if (typeof raw === 'boolean') display = raw ? 'Yes' : 'No';
+                          else display = String(raw);
+                        }
+                        return (
+                          <div key={field.id} className="flex items-center gap-3 py-1.5 border-b last:border-b-0">
+                            <span className="text-xs font-medium text-muted-foreground w-1/3">{field.label}</span>
+                            <span className="text-sm font-medium flex-1">{display}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {sectionId === 'dynamic_fields' && policy.form_id && (
+                <div>
+                  <span className="text-sm font-medium text-foreground mb-2 block">Dynamic Fields Display</span>
+                  <PolicyDynamicFieldsRenderer
+                    formId={policy.form_id}
+                    displayFormat={(policy.content?.dynamic_fields_display as 'table' | 'field-value') || 'table'}
+                    selectedFieldIds={policy.content?.selected_field_ids as string[] | undefined}
+                    selectedRecordIds={policy.content?.selected_record_ids as string[] | undefined}
+                    recordNameFieldId={policy.content?.record_name_field_id as string | undefined}
+                    exportColumns={(policy.content?.dynamic_field_columns as number) || 1}
+                    recordComments={{}}
+                  />
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex-1 overflow-auto space-y-6 p-6">
       {/* Header */}
