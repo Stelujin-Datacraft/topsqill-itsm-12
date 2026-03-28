@@ -44,6 +44,8 @@ import { sendKBNotificationEmail } from '@/services/kbNotificationEmail';
 const PolicyDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const isPreviewMode = searchParams.get('preview') === 'true';
   const { user, userProfile } = useAuth();
   const { currentOrganization } = useOrganization();
   const { currentProject } = useProject();
