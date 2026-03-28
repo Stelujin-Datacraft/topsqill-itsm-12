@@ -14,9 +14,8 @@ import { POLICY_CATEGORIES } from '@/types/policy';
 import type { PolicyTemplate } from '@/types/policy';
 import { PolicyContentSource } from '@/components/policies/PolicyContentSource';
 import { PolicyFormLink } from '@/components/policies/PolicyFormLink';
-import { PolicyFieldSelector } from '@/components/policies/PolicyFieldSelector';
-import PageContent from '@/components/PageContent';
 import { PolicyRecordSelector } from '@/components/policies/PolicyRecordSelector';
+import PageContent from '@/components/PageContent';
 import { PolicyCustomFieldsBuilder, type PolicyCustomField } from '@/components/policies/PolicyCustomFieldsBuilder';
 
 
@@ -130,7 +129,6 @@ const CreatePolicy = () => {
   const updateField = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) => {
     setForm(prev => ({ ...prev, [key]: value }));
   };
-  const [activeView, setActiveView] = useState<'fields' | 'records'>('records');
   const [selectedRecords, setSelectedRecords] = useState<string[]>([]);
   const [customFields, setCustomFields] = useState<PolicyCustomField[]>([]);
   const [customFieldValues, setCustomFieldValues] = useState<Record<string, any>>({});
@@ -234,45 +232,15 @@ const CreatePolicy = () => {
             />
 
             {form.form_id && (
-              <>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setActiveView("records")}
-                    className={`px-3 py-1 text-sm rounded-md border ${activeView === "records" ? "bg-primary text-primary-foreground" : ""}`}
-                  >
-                    Select Records
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setActiveView("fields")}
-                    className={`px-3 py-1 text-sm rounded-md border ${activeView === "fields" ? "bg-primary text-primary-foreground" : ""}`}
-                  >
-                    Select Fields
-                  </button>
-                </div>
-
-                {activeView === "fields" && (
-                  <PolicyFieldSelector
-                    formId={form.form_id}
-                    selectedFieldIds={form.selected_field_ids}
-                    onSelectedFieldsChange={(ids) =>
-                      updateField("selected_field_ids", ids)
-                    }
-                    recordNameFieldId={recordNameFieldId}
-                    onRecordNameFieldChange={setRecordNameFieldId}
-                  />
-                )}
-
-                {activeView === "records" && (
-                  <PolicyRecordSelector
-                    formId={form.form_id}
-                    selectedFieldIds={form.selected_field_ids}
-                    selectedRecordIds={selectedRecords}
-                    onSelectedRecordsChange={setSelectedRecords}
-                  />
-                )}
-              </>
+              <PolicyRecordSelector
+                formId={form.form_id}
+                selectedFieldIds={form.selected_field_ids}
+                selectedRecordIds={selectedRecords}
+                onSelectedRecordsChange={setSelectedRecords}
+                onSelectedFieldsChange={(ids) => updateField("selected_field_ids", ids)}
+                recordNameFieldId={recordNameFieldId}
+                onRecordNameFieldChange={setRecordNameFieldId}
+              />
             )}
           </CardContent>
         </Card>

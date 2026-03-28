@@ -90,22 +90,27 @@ export default function EmailConfigPage() {
     try {
       setLoading(true);
       
-      const configData = {
-        ...config,
-        organization_id: userProfile.organization_id,
-        created_by: userProfile.id,
-      };
+      // If setting as default, unset other defaults first
+      if (config.is_default) {
+        await supabase
+          .from('smtp_configs')
+          .update({ is_default: false })
+          .eq('organization_id', userProfile.organization_id)
+          .eq('is_default', true);
+      }
 
       if (config.id) {
+        const { id: _id, ...updateData } = config;
         const { error } = await supabase
           .from('smtp_configs')
-          .update(configData)
+          .update({ ...updateData, organization_id: userProfile.organization_id, created_by: userProfile.id })
           .eq('id', config.id);
         if (error) throw error;
       } else {
+        const { id: _id, ...insertData } = config;
         const { error } = await supabase
           .from('smtp_configs')
-          .insert([configData]);
+          .insert([{ ...insertData, organization_id: userProfile.organization_id, created_by: userProfile.id }]);
         if (error) throw error;
       }
 
