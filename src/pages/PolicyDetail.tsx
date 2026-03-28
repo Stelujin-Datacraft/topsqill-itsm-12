@@ -347,6 +347,7 @@ const PolicyDetail = () => {
     );
   }
 
+  const startEditing = () => {
     setEditForm({
       name: policy.name,
       description: policy.description || '',
