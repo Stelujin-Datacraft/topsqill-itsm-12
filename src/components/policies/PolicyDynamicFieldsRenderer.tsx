@@ -402,7 +402,7 @@ function resolveCrossRefValue(value: any, linkedData: LinkedData): string {
 
   if (Array.isArray(value)) {
     const resolved = value.map(resolveOne).filter(Boolean);
-    return resolved.length > 0 ? resolved.join('; ') : '—';
+    return resolved.length > 0 ? resolved.join('\n') : '—';
   }
 
   return resolveOne(value);
@@ -467,11 +467,20 @@ function TableFormatView({
       <TableBody>
         {fields.map(field => {
           const rawValue = submissionData?.[field.id];
+          const isCrossRef = ['cross-reference', 'child-cross-reference', 'dynamic-table'].includes(field.field_type);
           const displayValue = formatValue(rawValue, field.field_type, field.options, linkedData);
           return (
             <TableRow key={field.id}>
               <TableCell className="font-medium text-sm">{field.label}</TableCell>
-              <TableCell className="text-sm">{displayValue}</TableCell>
+              <TableCell className="text-sm">
+                {isCrossRef && displayValue.includes('\n') ? (
+                  <div className="space-y-1">
+                    {displayValue.split('\n').map((line, i) => (
+                      <div key={i} className="py-0.5 border-b last:border-b-0 border-muted/40">{line}</div>
+                    ))}
+                  </div>
+                ) : displayValue}
+              </TableCell>
             </TableRow>
           );
         })}
@@ -491,14 +500,23 @@ function FieldValueFormatView({
 }) {
   return (
     <div className="space-y-3">
-      {fields.map((field, idx) => {
+    {fields.map((field, idx) => {
         const rawValue = submissionData?.[field.id];
+        const isCrossRef = ['cross-reference', 'child-cross-reference', 'dynamic-table'].includes(field.field_type);
         const displayValue = formatValue(rawValue, field.field_type, field.options, linkedData);
         return (
           <div key={field.id}>
             {idx > 0 && <Separator className="mb-3" />}
             <div className="font-semibold text-sm text-foreground">{field.label}</div>
-            <div className="text-sm text-muted-foreground mt-0.5">{displayValue}</div>
+            {isCrossRef && displayValue.includes('\n') ? (
+              <div className="mt-0.5 space-y-1">
+                {displayValue.split('\n').map((line, i) => (
+                  <div key={i} className="text-sm text-muted-foreground py-0.5 border-b last:border-b-0 border-muted/40">{line}</div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-sm text-muted-foreground mt-0.5">{displayValue}</div>
+            )}
           </div>
         );
       })}
