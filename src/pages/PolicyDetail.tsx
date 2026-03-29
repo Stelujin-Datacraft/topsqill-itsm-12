@@ -1537,6 +1537,51 @@ const PolicyDetail = () => {
     return userId.slice(0, 8) + '...';
   };
 
+  // PDF Preview mode - generate PDF and display in-page
+  if (isPdfPreviewMode) {
+    const [pdfUrl, setPdfUrl] = React.useState<string | null>(null);
+    const [pdfGenerating, setPdfGenerating] = React.useState(true);
+
+    React.useEffect(() => {
+      const gen = async () => {
+        setPdfGenerating(true);
+        try {
+          await generatePDF('preview');
+        } catch (e) {
+          console.error('PDF generation failed:', e);
+        }
+        setPdfGenerating(false);
+      };
+      // Small delay to ensure policy data is loaded
+      const timer = setTimeout(gen, 500);
+      return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [policy.id]);
+
+    return (
+      <div className="flex-1 overflow-auto bg-background">
+        <div className="max-w-4xl mx-auto py-8 px-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
+              <ArrowLeft className="h-4 w-4 mr-1" /> Back
+            </Button>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => navigate(`/policy/${policy.id}`)}>
+                <Edit className="h-4 w-4 mr-1" /> Open Full View
+              </Button>
+              <Button variant="outline" size="sm" onClick={exportToPDF}>
+                <FileDown className="h-4 w-4 mr-1" /> Download PDF
+              </Button>
+            </div>
+          </div>
+          <p className="text-center text-sm text-muted-foreground">
+            PDF preview has been opened in a new tab. If it didn't open, check your popup blocker.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   // Preview mode - clean document view for the "View" button
   if (isPreviewMode) {
     const contentHtml = policy.content?.html || '';
