@@ -1540,8 +1540,7 @@ const PolicyDetail = () => {
     return userId.slice(0, 8) + '...';
   };
 
-  // PDF Preview mode - auto-generate PDF preview
-  const pdfGenerated = React.useRef(false);
+  // Use the pdfGenerated ref declared at top level
   React.useEffect(() => {
     if (isPdfPreviewMode && policy && !pdfGenerated.current) {
       pdfGenerated.current = true;
