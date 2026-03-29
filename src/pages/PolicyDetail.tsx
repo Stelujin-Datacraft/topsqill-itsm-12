@@ -1537,11 +1537,18 @@ const PolicyDetail = () => {
     return userId.slice(0, 8) + '...';
   };
 
-  // PDF Preview mode - generate PDF and display in-page
-  if (isPdfPreviewMode) {
-    // Trigger PDF preview generation
-    setTimeout(() => generatePDF('preview'), 300);
+  // PDF Preview mode - auto-generate PDF preview
+  const pdfGenerated = React.useRef(false);
+  React.useEffect(() => {
+    if (isPdfPreviewMode && policy && !pdfGenerated.current) {
+      pdfGenerated.current = true;
+      const timer = setTimeout(() => generatePDF('preview'), 300);
+      return () => clearTimeout(timer);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPdfPreviewMode, policy?.id]);
 
+  if (isPdfPreviewMode) {
     return (
       <div className="flex-1 overflow-auto bg-background">
         <div className="max-w-4xl mx-auto py-8 px-6 space-y-4">
