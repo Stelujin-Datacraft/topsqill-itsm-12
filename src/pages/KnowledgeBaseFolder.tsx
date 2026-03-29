@@ -252,7 +252,8 @@ const KnowledgeBaseFolder = () => {
                             className="gap-1 text-xs h-7"
                             onClick={(e) => {
                               e.stopPropagation();
-                              window.open(`/policy/${policy.id}?preview=true`, '_blank');
+                              // Navigate to the policy detail which will generate a PDF preview
+                              navigate(`/policy/${policy.id}?preview=pdf`);
                             }}
                           >
                             <Eye className="h-3 w-3" /> View
