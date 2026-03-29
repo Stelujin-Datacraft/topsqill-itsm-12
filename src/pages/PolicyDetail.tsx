@@ -1539,24 +1539,8 @@ const PolicyDetail = () => {
 
   // PDF Preview mode - generate PDF and display in-page
   if (isPdfPreviewMode) {
-    const [pdfUrl, setPdfUrl] = React.useState<string | null>(null);
-    const [pdfGenerating, setPdfGenerating] = React.useState(true);
-
-    React.useEffect(() => {
-      const gen = async () => {
-        setPdfGenerating(true);
-        try {
-          await generatePDF('preview');
-        } catch (e) {
-          console.error('PDF generation failed:', e);
-        }
-        setPdfGenerating(false);
-      };
-      // Small delay to ensure policy data is loaded
-      const timer = setTimeout(gen, 500);
-      return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [policy.id]);
+    // Trigger PDF preview generation
+    setTimeout(() => generatePDF('preview'), 300);
 
     return (
       <div className="flex-1 overflow-auto bg-background">
@@ -1574,8 +1558,8 @@ const PolicyDetail = () => {
               </Button>
             </div>
           </div>
-          <p className="text-center text-sm text-muted-foreground">
-            PDF preview has been opened in a new tab. If it didn't open, check your popup blocker.
+          <p className="text-center text-sm text-muted-foreground py-12">
+            Generating PDF preview... It will open in a new tab automatically.
           </p>
         </div>
       </div>
