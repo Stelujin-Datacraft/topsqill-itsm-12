@@ -2,9 +2,12 @@ import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Label } from "@/components/ui/label";
-import { CheckCircle, ListFilter, Tag } from "lucide-react";
+import { CheckCircle, Tag, Eye } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const EXCLUDED_TYPES = ['section', 'divider', 'heading', 'paragraph', 'spacer', 'page-break'];
 const RECORD_NAME_ALLOWED_TYPES = ['text', 'number', 'date', 'time', 'datetime', 'short-text', 'long-text', 'email', 'url', 'phone'];
@@ -28,7 +31,6 @@ export function PolicyRecordSelector({
   recordNameFieldId,
   onRecordNameFieldChange,
 }: PolicyRecordSelectorProps) {
-  // Fetch all records
   const { data: records = [], isLoading: recordsLoading } = useQuery({
     queryKey: ["form-submissions", formId],
     queryFn: async () => {
@@ -43,7 +45,6 @@ export function PolicyRecordSelector({
     enabled: !!formId,
   });
 
-  // Fetch all fields
   const { data: allFields = [] } = useQuery({
     queryKey: ["form-fields-for-record-select", formId],
     queryFn: async () => {
@@ -82,10 +83,11 @@ export function PolicyRecordSelector({
     }
   };
 
-  const selectAllFields = () => onSelectedFieldsChange?.(allFields.map(f => f.id));
-  const clearAllFields = () => onSelectedFieldsChange?.([]);
-
   if (recordsLoading) return <p className="text-sm text-muted-foreground">Loading records...</p>;
+
+  // Build selected preview data
+  const hasSelections = selectedFieldIds.length > 0 || selectedRecordIds.length > 0;
+  const selectedRecordsData = records.filter(r => selectedRecordIds.includes(r.id));
 
   return (
     <div className="space-y-4">
@@ -112,58 +114,20 @@ export function PolicyRecordSelector({
         </div>
       )}
 
-      {/* Field Selection */}
-      {onSelectedFieldsChange && (
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <ListFilter className="h-4 w-4 text-primary" />
-              <Label className="text-sm font-medium">Select Fields to Display</Label>
-              {selectedFieldIds.length > 0 && (
-                <span className="text-xs text-muted-foreground">({selectedFieldIds.length} selected)</span>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <button onClick={selectAllFields} className="text-xs text-primary hover:underline" type="button">Select All</button>
-              <span className="text-xs text-muted-foreground">|</span>
-              <button onClick={clearAllFields} className="text-xs text-muted-foreground hover:underline" type="button">Clear</button>
-            </div>
-          </div>
-          <div className="border rounded-md max-h-[160px] overflow-y-auto">
-            {allFields.map(field => {
-              const isSelected = selectedFieldIds.includes(field.id);
-              return (
-                <div
-                  key={field.id}
-                  onClick={() => toggleField(field.id)}
-                  className={`flex items-center gap-3 px-3 py-1.5 cursor-pointer hover:bg-muted/50 border-b last:border-b-0 transition-colors ${isSelected ? 'bg-primary/5' : ''}`}
-                >
-                  <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${isSelected ? 'bg-primary border-primary' : 'border-muted-foreground/30'}`}>
-                    {isSelected && <CheckCircle className="h-3 w-3 text-primary-foreground" />}
-                  </div>
-                  <span className="text-sm flex-1">{field.label}</span>
-                  <Badge variant="outline" className="text-[10px] py-0 shrink-0">{field.field_type}</Badge>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Record Selection */}
+      {/* Records & Fields Selection Table */}
       {records.length === 0 ? (
         <p className="text-sm text-muted-foreground">No records found.</p>
       ) : (
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <Label className="text-sm font-medium">Select Records</Label>
+            <Label className="text-sm font-medium">Select Records & Fields</Label>
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 className="text-xs text-primary hover:underline"
                 onClick={() => onSelectedRecordsChange(records.map((r) => r.id))}
               >
-                Select All
+                All Records
               </button>
               <span className="text-xs text-muted-foreground">|</span>
               <button
@@ -171,22 +135,62 @@ export function PolicyRecordSelector({
                 className="text-xs text-muted-foreground hover:underline"
                 onClick={() => onSelectedRecordsChange([])}
               >
-                Clear
+                Clear Records
               </button>
+              {onSelectedFieldsChange && (
+                <>
+                  <span className="text-xs text-muted-foreground">|</span>
+                  <button
+                    type="button"
+                    className="text-xs text-primary hover:underline"
+                    onClick={() => onSelectedFieldsChange(allFields.map(f => f.id))}
+                  >
+                    All Fields
+                  </button>
+                  <span className="text-xs text-muted-foreground">|</span>
+                  <button
+                    type="button"
+                    className="text-xs text-muted-foreground hover:underline"
+                    onClick={() => onSelectedFieldsChange([])}
+                  >
+                    Clear Fields
+                  </button>
+                </>
+              )}
             </div>
           </div>
+
+          <p className="text-xs text-muted-foreground">
+            Check the checkboxes in column headers to select fields, and row checkboxes to select records.
+            {selectedFieldIds.length > 0 && <span className="font-medium text-foreground ml-1">({selectedFieldIds.length} fields selected)</span>}
+            {selectedRecordIds.length > 0 && <span className="font-medium text-foreground ml-1">({selectedRecordIds.length} records selected)</span>}
+          </p>
 
           <div className="overflow-x-auto border rounded-md">
             <table className="w-max min-w-full text-sm table-auto">
               <thead className="bg-muted/20">
                 <tr>
-                  <th className="p-2"></th>
-                  <th className="p-2 text-left">Record ID</th>
-                  {fieldsToShow.map((fid) => (
-                    <th key={fid} className="p-2 text-left">
-                      {fieldLabelMap[fid] || fid}
-                    </th>
-                  ))}
+                  <th className="p-2 w-10"></th>
+                  <th className="p-2 text-left text-xs font-medium">Record ID</th>
+                  {allFields.map((field) => {
+                    const isFieldSelected = selectedFieldIds.includes(field.id);
+                    return (
+                      <th key={field.id} className="p-2 text-left">
+                        <div className="flex items-center gap-1.5">
+                          {onSelectedFieldsChange && (
+                            <Checkbox
+                              checked={isFieldSelected}
+                              onCheckedChange={() => toggleField(field.id)}
+                              className="h-3.5 w-3.5"
+                            />
+                          )}
+                          <span className={`text-xs font-medium ${isFieldSelected ? 'text-primary' : ''}`}>
+                            {field.label}
+                          </span>
+                        </div>
+                      </th>
+                    );
+                  })}
                 </tr>
               </thead>
               <tbody>
@@ -198,23 +202,22 @@ export function PolicyRecordSelector({
                       className={`border-b hover:bg-muted/50 transition-colors ${isSelected ? "bg-primary/5" : ""}`}
                     >
                       <td className="p-2">
-                        <div
-                          className={`w-4 h-4 rounded border flex items-center justify-center cursor-pointer ${
-                            isSelected ? "bg-primary border-primary" : "border-muted-foreground/30"
-                          }`}
-                          onClick={() => toggleRecord(record.id)}
-                        >
-                          {isSelected && <CheckCircle className="h-3 w-3 text-primary-foreground" />}
-                        </div>
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={() => toggleRecord(record.id)}
+                          className="h-3.5 w-3.5"
+                        />
                       </td>
-                      <td className="p-2">{record.submission_ref_id || record.id}</td>
-                      {fieldsToShow.map((fid) => {
-                        const value = record.submission_data?.[fid];
-                        let displayValue = "-";
+                      <td className="p-2 text-xs">{record.submission_ref_id || record.id.slice(0, 8)}</td>
+                      {allFields.map((field) => {
+                        const value = record.submission_data?.[field.id];
+                        let displayValue = "—";
                         if (Array.isArray(value)) {
-                          displayValue = value.map((v: any) => v.submission_ref_id || v.id).join(", ");
-                        } else if (value) displayValue = value;
-                        return <td key={fid} className="p-2">{displayValue}</td>;
+                          displayValue = value.map((v: any) => v.submission_ref_id || v.id || v).join(", ");
+                        } else if (value !== null && value !== undefined && value !== '') {
+                          displayValue = typeof value === 'object' ? JSON.stringify(value) : String(value);
+                        }
+                        return <td key={field.id} className="p-2 text-xs max-w-[200px] truncate">{displayValue}</td>;
                       })}
                     </tr>
                   );
@@ -223,6 +226,54 @@ export function PolicyRecordSelector({
             </table>
           </div>
         </div>
+      )}
+
+      {/* Selection Preview */}
+      {hasSelections && selectedRecordsData.length > 0 && selectedFieldIds.length > 0 && (
+        <Card className="border-primary/30">
+          <CardHeader className="py-2 px-4">
+            <div className="flex items-center gap-2">
+              <Eye className="h-4 w-4 text-primary" />
+              <CardTitle className="text-sm">Selection Preview</CardTitle>
+              <Badge variant="outline" className="text-[10px]">
+                {selectedRecordsData.length} records × {selectedFieldIds.length} fields
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="px-4 pb-3 pt-0">
+            <div className="overflow-x-auto border rounded-md">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-xs">Record</TableHead>
+                    {selectedFieldIds.map(fid => (
+                      <TableHead key={fid} className="text-xs">{fieldLabelMap[fid] || fid}</TableHead>
+                    ))}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {selectedRecordsData.map((record, idx) => (
+                    <TableRow key={record.id}>
+                      <TableCell className="text-xs font-medium">
+                        {record.submission_ref_id || `Record ${idx + 1}`}
+                      </TableCell>
+                      {selectedFieldIds.map(fid => {
+                        const value = record.submission_data?.[fid];
+                        let displayValue = "—";
+                        if (Array.isArray(value)) {
+                          displayValue = value.map((v: any) => v.submission_ref_id || v.id || v).join(", ");
+                        } else if (value !== null && value !== undefined && value !== '') {
+                          displayValue = typeof value === 'object' ? JSON.stringify(value) : String(value);
+                        }
+                        return <TableCell key={fid} className="text-xs">{displayValue}</TableCell>;
+                      })}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

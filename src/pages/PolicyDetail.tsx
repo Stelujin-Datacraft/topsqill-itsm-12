@@ -46,6 +46,7 @@ const PolicyDetail = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const isPreviewMode = searchParams.get('preview') === 'true';
+  const isPdfPreviewMode = searchParams.get('preview') === 'pdf';
   const { user, userProfile } = useAuth();
   const { currentOrganization } = useOrganization();
   const { currentProject } = useProject();
@@ -192,6 +193,9 @@ const PolicyDetail = () => {
     },
     enabled: !!currentProject?.id && showLinkDialog,
   });
+
+  // PDF Preview mode - auto-generate PDF preview (hooks must be before early returns)
+  const pdfGenerated = React.useRef(false);
 
   if (!policy) {
     return (
@@ -694,7 +698,7 @@ const PolicyDetail = () => {
             }
             return parts.length > 0 ? `${refId} — ${parts.join(' | ')}` : refId;
           };
-          if (Array.isArray(value)) return value.map(resolveOne).filter(Boolean).join('; ') || '—';
+          if (Array.isArray(value)) return value.map(resolveOne).filter(Boolean).join('\n') || '—';
           return resolveOne(value);
         };
 
@@ -1536,6 +1540,38 @@ const PolicyDetail = () => {
     return userId.slice(0, 8) + '...';
   };
 
+  // PDF preview effect - intentionally placed after generatePDF definition
+  // This is safe because pdfGenerated ref is declared before early returns
+  if (isPdfPreviewMode && !pdfGenerated.current) {
+    pdfGenerated.current = true;
+    setTimeout(() => generatePDF('preview'), 300);
+  }
+
+  if (isPdfPreviewMode) {
+    return (
+      <div className="flex-1 overflow-auto bg-background">
+        <div className="max-w-4xl mx-auto py-8 px-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
+              <ArrowLeft className="h-4 w-4 mr-1" /> Back
+            </Button>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => navigate(`/policy/${policy.id}`)}>
+                <Edit className="h-4 w-4 mr-1" /> Open Full View
+              </Button>
+              <Button variant="outline" size="sm" onClick={exportToPDF}>
+                <FileDown className="h-4 w-4 mr-1" /> Download PDF
+              </Button>
+            </div>
+          </div>
+          <p className="text-center text-sm text-muted-foreground py-12">
+            Generating PDF preview... It will open in a new tab automatically.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   // Preview mode - clean document view for the "View" button
   if (isPreviewMode) {
     const contentHtml = policy.content?.html || '';
@@ -1974,79 +2010,8 @@ const PolicyDetail = () => {
                             </Card>
                           )}
 
-                          {sectionId === 'document_content' && (
-                            <div>
-                              <div className="flex items-center gap-2 mb-2">
-                                <div {...provided.dragHandleProps} className="cursor-grab active:cursor-grabbing">
-                                  <GripVertical className="h-4 w-4 text-muted-foreground" />
-                                </div>
-                                <span className="text-sm font-semibold text-foreground">Document Content</span>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => setContentExpanded(!contentExpanded)}
-                                  className="gap-1 text-xs ml-auto"
-                                >
-                                  {contentExpanded ? <><EyeOff className="h-3.5 w-3.5" /> Collapse</> : <><Eye className="h-3.5 w-3.5" /> Expand</>}
-                                </Button>
-                              </div>
-                              {contentExpanded && (
-                                <>
-                                  {(liveContentHtml ?? policy.content?.html) ? (
-                                    <div className="border rounded-lg overflow-hidden bg-white">
-                                      <iframe
-                                        title="Document Content Preview"
-                                        srcDoc={`<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8" />
-<style>
-  body {
-    font-family: 'Segoe UI', 'Calibri', Arial, Helvetica, sans-serif;
-    font-size: 13px; line-height: 1.7; color: #1a1a1a;
-    padding: 32px 40px; margin: 0; background: #fff;
-  }
-  h1, h2, h3, h4, h5, h6 { color: #111; margin-top: 1.2em; margin-bottom: 0.4em; }
-  h1 { font-size: 1.8em; border-bottom: 2px solid #e5e7eb; padding-bottom: 0.3em; }
-  h2 { font-size: 1.4em; border-bottom: 1px solid #e5e7eb; padding-bottom: 0.2em; }
-  h3 { font-size: 1.2em; }
-  p { margin: 0.5em 0; }
-  ul, ol { padding-left: 1.8em; margin: 0.5em 0; }
-  li { margin: 0.2em 0; }
-  table { border-collapse: collapse; width: 100%; margin: 1em 0; }
-  th, td { border: 1px solid #d1d5db; padding: 8px 12px; text-align: left; font-size: 12px; }
-  th { background: #f3f4f6; font-weight: 600; }
-  tr:nth-child(even) { background: #f9fafb; }
-  img { max-width: 100%; height: auto; margin: 0.5em 0; }
-  blockquote { border-left: 3px solid #6366f1; padding: 8px 16px; margin: 1em 0; background: #f5f3ff; color: #374151; }
-  code { background: #f3f4f6; padding: 2px 5px; border-radius: 3px; font-size: 0.9em; }
-  a { color: #4f46e5; }
-  hr { border: none; border-top: 1px solid #e5e7eb; margin: 1.5em 0; }
-  strong { font-weight: 600; }
-</style>
-</head>
-<body>${(liveContentHtml ?? policy.content?.html ?? '').replace(/\x60/g, '&#96;')}</body>
-</html>`}
-                                        className="w-full border-0"
-                                        style={{ minHeight: '500px', height: '70vh' }}
-                                        onLoad={(e) => {
-                                          const iframe = e.target as HTMLIFrameElement;
-                                          if (iframe.contentDocument?.body) {
-                                            const h = iframe.contentDocument.body.scrollHeight + 40;
-                                            iframe.style.height = Math.max(400, Math.min(h, 2000)) + 'px';
-                                          }
-                                        }}
-                                      />
-                                    </div>
-                                  ) : (
-                                    <p className="text-sm text-muted-foreground text-center py-6 border rounded-lg">
-                                      No content has been added yet. Click "Edit" to add content.
-                                    </p>
-                                  )}
-                                </>
-                              )}
-                            </div>
-                          )}
+                          {/* Document Content section hidden from main view - always included in exports */}
+                          {sectionId === 'document_content' && null}
 
                           {sectionId === 'custom_fields' && policy.content?.custom_fields && (policy.content.custom_fields as any[]).length > 0 && (() => {
                             const fields = (policy.content.custom_fields as any[]).filter((f: any) => !['header', 'description', 'horizontal-line'].includes(f.type));
