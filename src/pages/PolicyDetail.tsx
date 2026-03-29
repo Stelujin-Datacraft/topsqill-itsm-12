@@ -194,6 +194,9 @@ const PolicyDetail = () => {
     enabled: !!currentProject?.id && showLinkDialog,
   });
 
+  // PDF Preview mode - auto-generate PDF preview (hooks must be before early returns)
+  const pdfGenerated = React.useRef(false);
+
   if (!policy) {
     return (
       <div className="flex items-center justify-center h-[60vh]">
