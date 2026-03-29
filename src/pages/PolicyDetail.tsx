@@ -1540,15 +1540,12 @@ const PolicyDetail = () => {
     return userId.slice(0, 8) + '...';
   };
 
-  // Use the pdfGenerated ref declared at top level
-  React.useEffect(() => {
-    if (isPdfPreviewMode && policy && !pdfGenerated.current) {
-      pdfGenerated.current = true;
-      const timer = setTimeout(() => generatePDF('preview'), 300);
-      return () => clearTimeout(timer);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPdfPreviewMode, policy?.id]);
+  // PDF preview effect - intentionally placed after generatePDF definition
+  // This is safe because pdfGenerated ref is declared before early returns
+  if (isPdfPreviewMode && !pdfGenerated.current) {
+    pdfGenerated.current = true;
+    setTimeout(() => generatePDF('preview'), 300);
+  }
 
   if (isPdfPreviewMode) {
     return (
