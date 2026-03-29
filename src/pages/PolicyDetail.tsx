@@ -694,7 +694,7 @@ const PolicyDetail = () => {
             }
             return parts.length > 0 ? `${refId} — ${parts.join(' | ')}` : refId;
           };
-          if (Array.isArray(value)) return value.map(resolveOne).filter(Boolean).join('; ') || '—';
+          if (Array.isArray(value)) return value.map(resolveOne).filter(Boolean).join('\n') || '—';
           return resolveOne(value);
         };
 
