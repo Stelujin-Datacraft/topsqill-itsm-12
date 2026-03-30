@@ -475,7 +475,10 @@ const PolicyDetail = () => {
     return [];
   };
 
-  const generatePDF = async (mode: 'download' | 'preview' = 'download') => {
+  const generatePDF = async (
+    mode: 'download' | 'preview' = 'download',
+    options?: { openInSameTab?: boolean; suppressPreviewToast?: boolean },
+  ) => {
     const currentSectionOrder = getSectionOrder();
 
     const doc = new jsPDF();
@@ -814,19 +817,19 @@ const PolicyDetail = () => {
     if (mode === 'preview') {
       const pdfBlob = doc.output('blob');
       const pdfUrl = URL.createObjectURL(pdfBlob);
-      // Use window.open for reliable new-tab opening
-      const newTab = window.open(pdfUrl, '_blank');
-      if (!newTab) {
-        // Fallback if popup blocked
-        const a = document.createElement('a');
-        a.href = pdfUrl;
-        a.target = '_blank';
-        a.rel = 'noopener noreferrer';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
+      if (options?.openInSameTab) {
+        window.location.replace(pdfUrl);
+        return;
       }
-      toast.success('PDF preview opened in new tab');
+
+      const newTab = window.open(pdfUrl, '_blank', 'noopener,noreferrer');
+      if (!newTab) {
+        window.location.href = pdfUrl;
+      }
+
+      if (!options?.suppressPreviewToast) {
+        toast.success('PDF preview opened in new tab');
+      }
     } else {
       doc.save(`${policy.policy_number || policy.name.replace(/[^a-zA-Z0-9]/g, '_')}_v${policy.current_version}.pdf`);
       toast.success('PDF exported');
@@ -1540,34 +1543,16 @@ const PolicyDetail = () => {
     return userId.slice(0, 8) + '...';
   };
 
-  // PDF preview effect - intentionally placed after generatePDF definition
-  // This is safe because pdfGenerated ref is declared before early returns
-  if (isPdfPreviewMode && !pdfGenerated.current) {
+  React.useEffect(() => {
+    if (!isPdfPreviewMode || pdfGenerated.current) return;
     pdfGenerated.current = true;
-    setTimeout(() => generatePDF('preview'), 300);
-  }
+    void generatePDF('preview', { openInSameTab: true, suppressPreviewToast: true });
+  }, [isPdfPreviewMode, policy.id]);
 
   if (isPdfPreviewMode) {
     return (
-      <div className="flex-1 overflow-auto bg-background">
-        <div className="max-w-4xl mx-auto py-8 px-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
-              <ArrowLeft className="h-4 w-4 mr-1" /> Back
-            </Button>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={() => navigate(`/policy/${policy.id}`)}>
-                <Edit className="h-4 w-4 mr-1" /> Open Full View
-              </Button>
-              <Button variant="outline" size="sm" onClick={exportToPDF}>
-                <FileDown className="h-4 w-4 mr-1" /> Download PDF
-              </Button>
-            </div>
-          </div>
-          <p className="text-center text-sm text-muted-foreground py-12">
-            Generating PDF preview... It will open in a new tab automatically.
-          </p>
-        </div>
+      <div className="flex min-h-[60vh] items-center justify-center bg-background">
+        <p className="text-sm text-muted-foreground">Preparing document preview...</p>
       </div>
     );
   }
