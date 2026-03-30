@@ -3073,6 +3073,39 @@ const PolicyDetail = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Document Preview Modal */}
+      <Dialog open={showPreviewModal} onOpenChange={(open) => {
+        if (!open) {
+          setShowPreviewModal(false);
+          if (previewIframeUrl) {
+            URL.revokeObjectURL(previewIframeUrl);
+            setPreviewIframeUrl(null);
+          }
+        }
+      }}>
+        <DialogContent className="max-w-5xl h-[85vh] flex flex-col p-0" hideCloseButton={false}>
+          <DialogHeader className="px-6 pt-6 pb-2">
+            <DialogTitle className="flex items-center gap-2">
+              <Eye className="h-5 w-5" />
+              Document Preview — {policy?.name}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 px-6 pb-6 min-h-0">
+            {previewIframeUrl ? (
+              <iframe
+                src={previewIframeUrl}
+                className="w-full h-full rounded-md border"
+                title="Document Preview"
+              />
+            ) : (
+              <div className="flex items-center justify-center h-full">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
