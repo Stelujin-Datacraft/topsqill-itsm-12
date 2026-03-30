@@ -268,8 +268,7 @@ const KnowledgeBaseFolder = () => {
                               } catch {
                                 window.open(`/policy/${policy.id}?preview=pdf`, '_blank', 'noopener,noreferrer');
                               }
-                            }
-                          >
+                            }}
                             <Eye className="h-3 w-3" /> View
                           </Button>
                           <div className="text-right text-xs text-muted-foreground space-y-0.5">
