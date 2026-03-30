@@ -68,3 +68,6 @@ verify_jwt = false
 
 [functions.analyze-performance]
 verify_jwt = false
+
+[functions.policy-preview]
+verify_jwt = false
