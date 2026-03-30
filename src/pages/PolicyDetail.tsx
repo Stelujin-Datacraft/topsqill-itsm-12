@@ -69,6 +69,8 @@ const PolicyDetail = () => {
   const [liveContentHtml, setLiveContentHtml] = useState<string | null>(null);
   const [contentDirty, setContentDirty] = useState(false);
   const [showSaveConfirmDialog, setShowSaveConfirmDialog] = useState(false);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [previewIframeUrl, setPreviewIframeUrl] = useState<string | null>(null);
   const [contentExpanded, setContentExpanded] = useState(true);
   const [customFieldColumns, setCustomFieldColumns] = useState<number>(
     (policies.find(p => p.id === id)?.content?.custom_field_columns as number) || 1
@@ -198,9 +200,14 @@ const PolicyDetail = () => {
   const pdfGenerated = React.useRef(false);
 
   React.useEffect(() => {
-    if (!policy || !isPdfPreviewMode || pdfGenerated.current) return;
+    if (!isPdfPreviewMode || !policy || pdfGenerated.current) return;
+    // Check if the edge function already handled it (PDF/DOCX file served directly)
+    // This path is only hit if user navigates here directly — edge function is preferred
     pdfGenerated.current = true;
-    void generatePDF('preview', { openInSameTab: true, suppressPreviewToast: true });
+    const timer = setTimeout(() => {
+      void generatePDF('preview', { openInSameTab: true, suppressPreviewToast: true });
+    }, 500);
+    return () => clearTimeout(timer);
   }, [isPdfPreviewMode, policy?.id]);
 
   if (!policy) {
@@ -1730,6 +1737,30 @@ const PolicyDetail = () => {
                   <FileDown className="h-4 w-4 mr-2" /> Download Original PDF (with Content)
                 </DropdownMenuItem>
               )}
+              <DropdownMenuItem onClick={() => {
+                const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+                const previewUrl = `${supabaseUrl}/functions/v1/policy-preview?id=${policy.id}`;
+                // Try edge function first — if it returns JSON (no file), fall back to client-side
+                fetch(previewUrl).then(async (res) => {
+                  const contentType = res.headers.get('content-type') || '';
+                  if (contentType.includes('application/pdf')) {
+                    const blob = await res.blob();
+                    const blobUrl = URL.createObjectURL(blob);
+                    setPreviewIframeUrl(blobUrl);
+                    setShowPreviewModal(true);
+                  } else if (res.redirected || res.status === 302) {
+                    // DOCX — open in new tab (Office viewer)
+                    window.open(res.url, '_blank');
+                  } else {
+                    // Fallback: client-side PDF generation
+                    void generatePDF('preview');
+                  }
+                }).catch(() => {
+                  void generatePDF('preview');
+                });
+              }}>
+                <Eye className="h-4 w-4 mr-2" /> Preview Document
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={exportToPDF}>
                 <FileDown className="h-4 w-4 mr-2" /> Export as PDF
               </DropdownMenuItem>
@@ -3040,6 +3071,39 @@ const PolicyDetail = () => {
               Assign {postReviewerIds.length} Reviewer(s)
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Document Preview Modal */}
+      <Dialog open={showPreviewModal} onOpenChange={(open) => {
+        if (!open) {
+          setShowPreviewModal(false);
+          if (previewIframeUrl) {
+            URL.revokeObjectURL(previewIframeUrl);
+            setPreviewIframeUrl(null);
+          }
+        }
+      }}>
+        <DialogContent className="max-w-5xl h-[85vh] flex flex-col p-0" hideCloseButton={false}>
+          <DialogHeader className="px-6 pt-6 pb-2">
+            <DialogTitle className="flex items-center gap-2">
+              <Eye className="h-5 w-5" />
+              Document Preview — {policy?.name}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 px-6 pb-6 min-h-0">
+            {previewIframeUrl ? (
+              <iframe
+                src={previewIframeUrl}
+                className="w-full h-full rounded-md border"
+                title="Document Preview"
+              />
+            ) : (
+              <div className="flex items-center justify-center h-full">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>

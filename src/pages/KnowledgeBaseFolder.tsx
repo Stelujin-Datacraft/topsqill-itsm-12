@@ -250,12 +250,23 @@ const KnowledgeBaseFolder = () => {
                             variant="outline"
                             size="sm"
                             className="gap-1 text-xs h-7"
-                            onClick={(e) => {
+                            onClick={async (e) => {
                               e.stopPropagation();
-                              const previewUrl = `/policy/${policy.id}?preview=pdf`;
-                              const previewTab = window.open(previewUrl, '_blank', 'noopener,noreferrer');
-                              if (!previewTab) {
-                                navigate(previewUrl);
+                              const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+                              const edgeFnUrl = `${supabaseUrl}/functions/v1/policy-preview?id=${policy.id}`;
+                              try {
+                                const res = await fetch(edgeFnUrl);
+                                const ct = res.headers.get('content-type') || '';
+                                if (ct.includes('application/pdf')) {
+                                  const blob = await res.blob();
+                                  window.open(URL.createObjectURL(blob), '_blank', 'noopener,noreferrer');
+                                } else if (res.redirected) {
+                                  window.open(res.url, '_blank', 'noopener,noreferrer');
+                                } else {
+                                  window.open(`/policy/${policy.id}?preview=pdf`, '_blank', 'noopener,noreferrer');
+                                }
+                              } catch {
+                                window.open(`/policy/${policy.id}?preview=pdf`, '_blank', 'noopener,noreferrer');
                               }
                             }}
                           >
