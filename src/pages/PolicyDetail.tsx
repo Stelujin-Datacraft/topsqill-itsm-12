@@ -197,6 +197,12 @@ const PolicyDetail = () => {
   // PDF Preview mode - auto-generate PDF preview (hooks must be before early returns)
   const pdfGenerated = React.useRef(false);
 
+  React.useEffect(() => {
+    if (!policy || !isPdfPreviewMode || pdfGenerated.current) return;
+    pdfGenerated.current = true;
+    void generatePDF('preview', { openInSameTab: true, suppressPreviewToast: true });
+  }, [isPdfPreviewMode, policy?.id]);
+
   if (!policy) {
     return (
       <div className="flex items-center justify-center h-[60vh]">
@@ -1542,12 +1548,6 @@ const PolicyDetail = () => {
     if (u) return [u.first_name, u.last_name].filter(Boolean).join(' ') || u.email;
     return userId.slice(0, 8) + '...';
   };
-
-  React.useEffect(() => {
-    if (!isPdfPreviewMode || pdfGenerated.current) return;
-    pdfGenerated.current = true;
-    void generatePDF('preview', { openInSameTab: true, suppressPreviewToast: true });
-  }, [isPdfPreviewMode, policy.id]);
 
   if (isPdfPreviewMode) {
     return (
