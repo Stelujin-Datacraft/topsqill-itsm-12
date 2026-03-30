@@ -49,6 +49,9 @@ const KnowledgeBaseFolder = () => {
   const [typeFilter, setTypeFilter] = useState('all');
   const [activeTab, setActiveTab] = useState('list');
 
+  const [previewIframeUrl, setPreviewIframeUrl] = useState<string | null>(null);
+const [showPreviewModal, setShowPreviewModal] = useState(false);
+
   // Template state
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [viewTemplate, setViewTemplate] = useState<PolicyTemplate | null>(null);
@@ -250,25 +253,15 @@ const KnowledgeBaseFolder = () => {
                             variant="outline"
                             size="sm"
                             className="gap-1 text-xs h-7"
-                            onClick={async (e) => {
-                              e.stopPropagation();
-                              const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-                              const edgeFnUrl = `${supabaseUrl}/functions/v1/policy-preview?id=${policy.id}`;
-                              try {
-                                const res = await fetch(edgeFnUrl);
-                                const ct = res.headers.get('content-type') || '';
-                                if (ct.includes('application/pdf')) {
-                                  const blob = await res.blob();
-                                  window.open(URL.createObjectURL(blob), '_blank', 'noopener,noreferrer');
-                                } else if (res.redirected) {
-                                  window.open(res.url, '_blank', 'noopener,noreferrer');
-                                } else {
-                                  window.open(`/policy/${policy.id}?preview=pdf`, '_blank', 'noopener,noreferrer');
-                                }
-                              } catch {
-                                window.open(`/policy/${policy.id}?preview=pdf`, '_blank', 'noopener,noreferrer');
-                              }
-                            }}
+                            onClick={(e) => {
+  e.stopPropagation();
+
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const previewUrl = `${supabaseUrl}/functions/v1/policy-preview?id=${policy.id}`;
+
+  setPreviewIframeUrl(previewUrl);
+  setShowPreviewModal(true);
+}}
                           >
                             <Eye className="h-3 w-3" /> View
                           </Button>
@@ -286,6 +279,34 @@ const KnowledgeBaseFolder = () => {
           )}
         </TabsContent>
 
+<Dialog
+  open={showPreviewModal}
+  onOpenChange={(open) => {
+    if (!open) {
+      setShowPreviewModal(false);
+      setPreviewIframeUrl(null);
+    }
+  }}
+>
+  <DialogContent className="max-w-5xl h-[85vh] flex flex-col p-0">
+    <DialogHeader className="px-6 pt-6 pb-2">
+      <DialogTitle>Document Preview</DialogTitle>
+    </DialogHeader>
+
+    <div className="flex-1 px-6 pb-6">
+      {previewIframeUrl ? (
+        <iframe
+          src={previewIframeUrl}
+          className="w-full h-full border rounded-md"
+        />
+      ) : (
+        <div className="flex items-center justify-center h-full">
+          Loading...
+        </div>
+      )}
+    </div>
+  </DialogContent>
+</Dialog>
         <TabsContent value="templates" className="space-y-4">
           {templatesLoading ? (
             <div className="space-y-3">
