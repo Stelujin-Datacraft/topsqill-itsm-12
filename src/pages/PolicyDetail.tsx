@@ -69,6 +69,8 @@ const PolicyDetail = () => {
   const [liveContentHtml, setLiveContentHtml] = useState<string | null>(null);
   const [contentDirty, setContentDirty] = useState(false);
   const [showSaveConfirmDialog, setShowSaveConfirmDialog] = useState(false);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [previewIframeUrl, setPreviewIframeUrl] = useState<string | null>(null);
   const [contentExpanded, setContentExpanded] = useState(true);
   const [customFieldColumns, setCustomFieldColumns] = useState<number>(
     (policies.find(p => p.id === id)?.content?.custom_field_columns as number) || 1
@@ -1735,6 +1737,30 @@ const PolicyDetail = () => {
                   <FileDown className="h-4 w-4 mr-2" /> Download Original PDF (with Content)
                 </DropdownMenuItem>
               )}
+              <DropdownMenuItem onClick={() => {
+                const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+                const previewUrl = `${supabaseUrl}/functions/v1/policy-preview?id=${policy.id}`;
+                // Try edge function first — if it returns JSON (no file), fall back to client-side
+                fetch(previewUrl).then(async (res) => {
+                  const contentType = res.headers.get('content-type') || '';
+                  if (contentType.includes('application/pdf')) {
+                    const blob = await res.blob();
+                    const blobUrl = URL.createObjectURL(blob);
+                    setPreviewIframeUrl(blobUrl);
+                    setShowPreviewModal(true);
+                  } else if (res.redirected || res.status === 302) {
+                    // DOCX — open in new tab (Office viewer)
+                    window.open(res.url, '_blank');
+                  } else {
+                    // Fallback: client-side PDF generation
+                    void generatePDF('preview');
+                  }
+                }).catch(() => {
+                  void generatePDF('preview');
+                });
+              }}>
+                <Eye className="h-4 w-4 mr-2" /> Preview Document
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={exportToPDF}>
                 <FileDown className="h-4 w-4 mr-2" /> Export as PDF
               </DropdownMenuItem>
