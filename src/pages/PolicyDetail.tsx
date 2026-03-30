@@ -198,9 +198,14 @@ const PolicyDetail = () => {
   const pdfGenerated = React.useRef(false);
 
   React.useEffect(() => {
-    if (!policy || !isPdfPreviewMode || pdfGenerated.current) return;
+    if (!isPdfPreviewMode || !policy || pdfGenerated.current) return;
+    // Check if the edge function already handled it (PDF/DOCX file served directly)
+    // This path is only hit if user navigates here directly — edge function is preferred
     pdfGenerated.current = true;
-    void generatePDF('preview', { openInSameTab: true, suppressPreviewToast: true });
+    const timer = setTimeout(() => {
+      void generatePDF('preview', { openInSameTab: true, suppressPreviewToast: true });
+    }, 500);
+    return () => clearTimeout(timer);
   }, [isPdfPreviewMode, policy?.id]);
 
   if (!policy) {

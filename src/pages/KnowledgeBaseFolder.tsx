@@ -252,11 +252,9 @@ const KnowledgeBaseFolder = () => {
                             className="gap-1 text-xs h-7"
                             onClick={(e) => {
                               e.stopPropagation();
-                              const previewUrl = `/policy/${policy.id}?preview=pdf`;
-                              const previewTab = window.open(previewUrl, '_blank', 'noopener,noreferrer');
-                              if (!previewTab) {
-                                navigate(previewUrl);
-                              }
+                              const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+                              const previewUrl = `${supabaseUrl}/functions/v1/policy-preview?id=${policy.id}`;
+                              window.open(previewUrl, '_blank', 'noopener,noreferrer');
                             }}
                           >
                             <Eye className="h-3 w-3" /> View
