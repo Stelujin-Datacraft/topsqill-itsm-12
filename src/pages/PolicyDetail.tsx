@@ -284,6 +284,7 @@ const PolicyDetail = () => {
     await updatePolicy.mutateAsync({
       id: policy.id,
       ...restEditForm,
+      form_id: form_id || null,
       effective_date: effective_date || null,
       expiry_date: expiry_date || null,
       content: updatedContent,
