@@ -49,8 +49,8 @@ const KnowledgeBaseFolder = () => {
   const [typeFilter, setTypeFilter] = useState('all');
   const [activeTab, setActiveTab] = useState('list');
 
-  const [previewIframeUrl, setPreviewIframeUrl] = useState<string | null>(null);
-const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [previewPolicyId, setPreviewPolicyId] = useState<string | null>(null);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
 
   // Template state
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
