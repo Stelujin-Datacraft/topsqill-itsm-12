@@ -49,6 +49,7 @@ const PolicyDetail = () => {
   const [searchParams] = useSearchParams();
   const isPreviewMode = searchParams.get('preview') === 'true';
   const isPdfPreviewMode = searchParams.get('preview') === 'pdf';
+  const isEmbedded = searchParams.get('embedded') === 'true';
   const { user, userProfile } = useAuth();
   const { currentOrganization } = useOrganization();
   const { currentProject } = useProject();
