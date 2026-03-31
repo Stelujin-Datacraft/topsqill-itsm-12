@@ -268,13 +268,17 @@ const PolicyDetail = () => {
       next_review_date = d.toISOString().split('T')[0];
     }
 
-    const { content_html, effective_date, expiry_date, custom_field_values, custom_fields, ...restEditForm } = editForm;
+    const { content_html, effective_date, expiry_date, custom_field_values, custom_fields, form_id, selected_field_ids, selected_record_ids, record_name_field_id, dynamic_fields_display, ...restEditForm } = editForm;
     // Merge content_html, custom_field_values, and custom_fields into existing content
     const updatedContent = {
       ...(policy.content || {}),
       ...(content_html !== undefined ? { html: content_html } : {}),
       ...(custom_field_values ? { custom_field_values } : {}),
       ...(custom_fields ? { custom_fields } : {}),
+      dynamic_fields_display: form_id ? dynamic_fields_display : undefined,
+      selected_field_ids: form_id && selected_field_ids?.length > 0 ? selected_field_ids : undefined,
+      selected_record_ids: form_id && selected_record_ids?.length > 0 ? selected_record_ids : undefined,
+      record_name_field_id: form_id && record_name_field_id ? record_name_field_id : undefined,
     };
 
     await updatePolicy.mutateAsync({
