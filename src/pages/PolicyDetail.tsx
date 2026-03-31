@@ -49,7 +49,6 @@ const PolicyDetail = () => {
   const [searchParams] = useSearchParams();
   const isPreviewMode = searchParams.get('preview') === 'true';
   const isPdfPreviewMode = searchParams.get('preview') === 'pdf';
-  const isEmbedded = searchParams.get('embedded') === 'true';
   const { user, userProfile } = useAuth();
   const { currentOrganization } = useOrganization();
   const { currentProject } = useProject();
@@ -1588,21 +1587,19 @@ const PolicyDetail = () => {
     return (
       <div className="flex-1 overflow-auto bg-background">
         <div className="max-w-4xl mx-auto py-8 px-6 space-y-6">
-          {!isEmbedded && (
-            <div className="flex items-center justify-between">
-              <Button variant="ghost" size="sm" onClick={() => window.close()}>
-                <ArrowLeft className="h-4 w-4 mr-1" /> Close Preview
+          <div className="flex items-center justify-between">
+            <Button variant="ghost" size="sm" onClick={() => window.close()}>
+              <ArrowLeft className="h-4 w-4 mr-1" /> Close Preview
+            </Button>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => navigate(`/policy/${policy.id}`)}>
+                <Edit className="h-4 w-4 mr-1" /> Open Full View
               </Button>
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={() => navigate(`/policy/${policy.id}`)}>
-                  <Edit className="h-4 w-4 mr-1" /> Open Full View
-                </Button>
-                <Button variant="outline" size="sm" onClick={exportToPDF}>
-                  <FileDown className="h-4 w-4 mr-1" /> Export PDF
-                </Button>
-              </div>
+              <Button variant="outline" size="sm" onClick={exportToPDF}>
+                <FileDown className="h-4 w-4 mr-1" /> Export PDF
+              </Button>
             </div>
-          )}
+          </div>
 
           <div className="text-center space-y-2 border-b pb-6">
             <h1 className="text-2xl font-bold text-foreground">{policy.name}</h1>
