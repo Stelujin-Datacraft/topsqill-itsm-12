@@ -238,6 +238,11 @@ const PolicyDetail = () => {
       content_html: policy.content?.html || '',
       custom_field_values: { ...(policy.content?.custom_field_values || {}) },
       custom_fields: [...(policy.content?.custom_fields as PolicyCustomField[] || [])],
+      form_id: policy.form_id || '',
+      selected_field_ids: [...(policy.content?.selected_field_ids as string[] || [])],
+      selected_record_ids: [...(policy.content?.selected_record_ids as string[] || [])],
+      record_name_field_id: (policy.content?.record_name_field_id as string) || '',
+      dynamic_fields_display: (policy.content?.dynamic_fields_display as string) || 'table',
     });
     setIsEditing(true);
   };
