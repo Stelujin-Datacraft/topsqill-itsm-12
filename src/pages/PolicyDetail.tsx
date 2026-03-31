@@ -1947,6 +1947,35 @@ const PolicyDetail = () => {
                 </div>
               )}
 
+              {/* Dynamic Fields - Form & Record Selection */}
+              <div className="col-span-2 space-y-4">
+                <Separator />
+                <Label className="text-sm font-medium">Dynamic Fields (Form Link)</Label>
+                <PolicyFormLink
+                  formId={editForm.form_id || ''}
+                  onFormIdChange={(id) => {
+                    setEditForm((p: any) => ({
+                      ...p,
+                      form_id: id,
+                      selected_field_ids: id ? p.selected_field_ids : [],
+                      selected_record_ids: id ? p.selected_record_ids : [],
+                      record_name_field_id: id ? p.record_name_field_id : '',
+                    }));
+                  }}
+                />
+                {editForm.form_id && (
+                  <PolicyRecordSelector
+                    formId={editForm.form_id}
+                    selectedFieldIds={editForm.selected_field_ids || []}
+                    selectedRecordIds={editForm.selected_record_ids || []}
+                    onSelectedRecordsChange={(ids) => setEditForm((p: any) => ({ ...p, selected_record_ids: ids }))}
+                    onSelectedFieldsChange={(ids) => setEditForm((p: any) => ({ ...p, selected_field_ids: ids }))}
+                    recordNameFieldId={editForm.record_name_field_id || ''}
+                    onRecordNameFieldChange={(id) => setEditForm((p: any) => ({ ...p, record_name_field_id: id }))}
+                  />
+                )}
+              </div>
+
               <div className="col-span-2">
                 <Label>Change Summary</Label>
                 <Input value={changeSummary} onChange={e => setChangeSummary(e.target.value)} placeholder="What changed?" />
@@ -1983,8 +2012,8 @@ const PolicyDetail = () => {
         </Card>
       )}
 
-      {/* Tabs */}
-      <Tabs defaultValue="content">
+      {/* Tabs - hidden during editing */}
+      {!isEditing && <Tabs defaultValue="content">
         <TabsList className="flex-wrap">
           <TabsTrigger value="content" className="gap-1">
             <BookOpen className="h-3.5 w-3.5" /> Content
