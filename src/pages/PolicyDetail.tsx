@@ -8,6 +8,8 @@ import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-p
 import { Document, Packer, Paragraph, TextRun, ImageRun, HeadingLevel, Table as DocxTable, TableRow as DocxTableRow, TableCell as DocxTableCell, WidthType, BorderStyle, AlignmentType } from 'docx';
 import { PolicyDynamicFieldsRenderer } from '@/components/policies/PolicyDynamicFieldsRenderer';
 import { PolicyCustomFieldsBuilder, type PolicyCustomField } from '@/components/policies/PolicyCustomFieldsBuilder';
+import { PolicyFormLink } from '@/components/policies/PolicyFormLink';
+import { PolicyRecordSelector } from '@/components/policies/PolicyRecordSelector';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -236,6 +238,11 @@ const PolicyDetail = () => {
       content_html: policy.content?.html || '',
       custom_field_values: { ...(policy.content?.custom_field_values || {}) },
       custom_fields: [...(policy.content?.custom_fields as PolicyCustomField[] || [])],
+      form_id: policy.form_id || '',
+      selected_field_ids: [...(policy.content?.selected_field_ids as string[] || [])],
+      selected_record_ids: [...(policy.content?.selected_record_ids as string[] || [])],
+      record_name_field_id: (policy.content?.record_name_field_id as string) || '',
+      dynamic_fields_display: (policy.content?.dynamic_fields_display as string) || 'table',
     });
     setIsEditing(true);
   };
@@ -261,18 +268,23 @@ const PolicyDetail = () => {
       next_review_date = d.toISOString().split('T')[0];
     }
 
-    const { content_html, effective_date, expiry_date, custom_field_values, custom_fields, ...restEditForm } = editForm;
+    const { content_html, effective_date, expiry_date, custom_field_values, custom_fields, form_id, selected_field_ids, selected_record_ids, record_name_field_id, dynamic_fields_display, ...restEditForm } = editForm;
     // Merge content_html, custom_field_values, and custom_fields into existing content
     const updatedContent = {
       ...(policy.content || {}),
       ...(content_html !== undefined ? { html: content_html } : {}),
       ...(custom_field_values ? { custom_field_values } : {}),
       ...(custom_fields ? { custom_fields } : {}),
+      dynamic_fields_display: form_id ? dynamic_fields_display : undefined,
+      selected_field_ids: form_id && selected_field_ids?.length > 0 ? selected_field_ids : undefined,
+      selected_record_ids: form_id && selected_record_ids?.length > 0 ? selected_record_ids : undefined,
+      record_name_field_id: form_id && record_name_field_id ? record_name_field_id : undefined,
     };
 
     await updatePolicy.mutateAsync({
       id: policy.id,
       ...restEditForm,
+      form_id: form_id || null,
       effective_date: effective_date || null,
       expiry_date: expiry_date || null,
       content: updatedContent,
@@ -1935,6 +1947,35 @@ const PolicyDetail = () => {
                 </div>
               )}
 
+              {/* Dynamic Fields - Form & Record Selection */}
+              <div className="col-span-2 space-y-4">
+                <Separator />
+                <Label className="text-sm font-medium">Dynamic Fields (Form Link)</Label>
+                <PolicyFormLink
+                  formId={editForm.form_id || ''}
+                  onFormIdChange={(id) => {
+                    setEditForm((p: any) => ({
+                      ...p,
+                      form_id: id,
+                      selected_field_ids: id ? p.selected_field_ids : [],
+                      selected_record_ids: id ? p.selected_record_ids : [],
+                      record_name_field_id: id ? p.record_name_field_id : '',
+                    }));
+                  }}
+                />
+                {editForm.form_id && (
+                  <PolicyRecordSelector
+                    formId={editForm.form_id}
+                    selectedFieldIds={editForm.selected_field_ids || []}
+                    selectedRecordIds={editForm.selected_record_ids || []}
+                    onSelectedRecordsChange={(ids) => setEditForm((p: any) => ({ ...p, selected_record_ids: ids }))}
+                    onSelectedFieldsChange={(ids) => setEditForm((p: any) => ({ ...p, selected_field_ids: ids }))}
+                    recordNameFieldId={editForm.record_name_field_id || ''}
+                    onRecordNameFieldChange={(id) => setEditForm((p: any) => ({ ...p, record_name_field_id: id }))}
+                  />
+                )}
+              </div>
+
               <div className="col-span-2">
                 <Label>Change Summary</Label>
                 <Input value={changeSummary} onChange={e => setChangeSummary(e.target.value)} placeholder="What changed?" />
@@ -1971,8 +2012,8 @@ const PolicyDetail = () => {
         </Card>
       )}
 
-      {/* Tabs */}
-      <Tabs defaultValue="content">
+      {/* Tabs - hidden during editing */}
+      {!isEditing && <Tabs defaultValue="content">
         <TabsList className="flex-wrap">
           <TabsTrigger value="content" className="gap-1">
             <BookOpen className="h-3.5 w-3.5" /> Content
@@ -2660,7 +2701,7 @@ const PolicyDetail = () => {
           </Card>
         </TabsContent>
 
-      </Tabs>
+      </Tabs>}
 
       {/* Submit for Approval Dialog */}
       <Dialog open={showApprovalDialog} onOpenChange={setShowApprovalDialog}>
