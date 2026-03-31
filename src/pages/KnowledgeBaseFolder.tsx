@@ -292,7 +292,7 @@ const KnowledgeBaseFolder = () => {
     <div className="flex-1 px-6 pb-6">
       {previewPolicyId ? (
         <iframe
-          src={`/policy/${previewPolicyId}?preview=true`}
+          src={`/policy/${previewPolicyId}?preview=true&embedded=true`}
           className="w-full h-full border rounded-md"
           title="Document Preview"
         />
