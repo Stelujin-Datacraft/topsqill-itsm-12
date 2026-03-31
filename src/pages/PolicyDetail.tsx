@@ -2701,7 +2701,7 @@ const PolicyDetail = () => {
           </Card>
         </TabsContent>
 
-      </Tabs>
+      </Tabs>}
 
       {/* Submit for Approval Dialog */}
       <Dialog open={showApprovalDialog} onOpenChange={setShowApprovalDialog}>
