@@ -280,7 +280,7 @@ const KnowledgeBaseFolder = () => {
   onOpenChange={(open) => {
     if (!open) {
       setShowPreviewModal(false);
-      setPreviewIframeUrl(null);
+      setPreviewPolicyId(null);
     }
   }}
 >
@@ -290,13 +290,14 @@ const KnowledgeBaseFolder = () => {
     </DialogHeader>
 
     <div className="flex-1 px-6 pb-6">
-      {previewIframeUrl ? (
+      {previewPolicyId ? (
         <iframe
-          src={previewIframeUrl}
+          src={`/policy/${previewPolicyId}?preview=true`}
           className="w-full h-full border rounded-md"
+          title="Document Preview"
         />
       ) : (
-        <div className="flex items-center justify-center h-full">
+        <div className="flex items-center justify-center h-full text-muted-foreground">
           Loading...
         </div>
       )}
