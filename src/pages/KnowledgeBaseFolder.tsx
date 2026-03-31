@@ -49,8 +49,8 @@ const KnowledgeBaseFolder = () => {
   const [typeFilter, setTypeFilter] = useState('all');
   const [activeTab, setActiveTab] = useState('list');
 
-  const [previewIframeUrl, setPreviewIframeUrl] = useState<string | null>(null);
-const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [previewPolicyId, setPreviewPolicyId] = useState<string | null>(null);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
 
   // Template state
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -254,14 +254,10 @@ const [showPreviewModal, setShowPreviewModal] = useState(false);
                             size="sm"
                             className="gap-1 text-xs h-7"
                             onClick={(e) => {
-  e.stopPropagation();
-
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-  const previewUrl = `${supabaseUrl}/functions/v1/policy-preview?id=${policy.id}`;
-
-  setPreviewIframeUrl(previewUrl);
-  setShowPreviewModal(true);
-}}
+                              e.stopPropagation();
+                              setPreviewPolicyId(policy.id);
+                              setShowPreviewModal(true);
+                            }}
                           >
                             <Eye className="h-3 w-3" /> View
                           </Button>
@@ -284,7 +280,7 @@ const [showPreviewModal, setShowPreviewModal] = useState(false);
   onOpenChange={(open) => {
     if (!open) {
       setShowPreviewModal(false);
-      setPreviewIframeUrl(null);
+      setPreviewPolicyId(null);
     }
   }}
 >
@@ -294,13 +290,14 @@ const [showPreviewModal, setShowPreviewModal] = useState(false);
     </DialogHeader>
 
     <div className="flex-1 px-6 pb-6">
-      {previewIframeUrl ? (
+      {previewPolicyId ? (
         <iframe
-          src={previewIframeUrl}
+          src={`/policy/${previewPolicyId}?preview=true&embedded=true`}
           className="w-full h-full border rounded-md"
+          title="Document Preview"
         />
       ) : (
-        <div className="flex items-center justify-center h-full">
+        <div className="flex items-center justify-center h-full text-muted-foreground">
           Loading...
         </div>
       )}
