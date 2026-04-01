@@ -1935,12 +1935,21 @@ const PolicyDetail = () => {
                 <Textarea value={editForm.description} onChange={e => setEditForm((p: any) => ({ ...p, description: e.target.value }))} rows={3} />
               </div>
               <div className="col-span-2">
-                <Label>Policy Content</Label>
-                <TiptapEditor
-                  content={editForm.content_html || ''}
-                  onChange={(html) => setEditForm((p: any) => ({ ...p, content_html: html }))}
-                  placeholder="Write the full policy content..."
-                  className="min-h-[150px]"
+                <Label className="mb-2 block">Doc Content</Label>
+                <PolicyContentSource
+                  contentHtml={editForm.content_html || ''}
+                  onContentChange={(html) => setEditForm((p: any) => ({ ...p, content_html: html }))}
+                  onOriginalFileChange={() => {}}
+                  templates={allTemplates}
+                  templatesLoading={allTemplatesLoading}
+                  selectedTemplate={editSelectedTemplate}
+                  onTemplateSelect={(t) => {
+                    setEditSelectedTemplate(t);
+                    const tHtml = t.content_structure?.html || '';
+                    setEditForm((p: any) => ({ ...p, content_html: tHtml }));
+                  }}
+                  mode={editContentMode}
+                  onModeChange={setEditContentMode}
                 />
               </div>
 
