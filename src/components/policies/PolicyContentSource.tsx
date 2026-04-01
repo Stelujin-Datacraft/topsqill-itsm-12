@@ -276,19 +276,9 @@ export function PolicyContentSource({
             />
           </div>
 
-          {/* Three-mode toggle: Live Preview / Edit Content / Original Document */}
           {(uploadedFile || contentHtml) && (
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <Button
-                  type="button"
-                  variant={uploadViewMode === 'preview' ? 'default' : 'outline'}
-                  size="sm"
-                  className="gap-1.5 text-xs h-7"
-                  onClick={() => setUploadViewMode('preview')}
-                >
-                  <Eye className="h-3 w-3" /> Live Preview
-                </Button>
                 <Button
                   type="button"
                   variant={uploadViewMode === 'edit' ? 'default' : 'outline'}
@@ -310,14 +300,6 @@ export function PolicyContentSource({
                   </Button>
                 )}
               </div>
-
-              <p className="text-xs text-muted-foreground mb-2">
-                {uploadViewMode === 'preview' && '📄 Live preview — reflects all your edits in real-time'}
-                {uploadViewMode === 'edit' && '✏️ Rich text editor — changes appear instantly in Live Preview'}
-                {uploadViewMode === 'original' && '📎 Original DOCX rendering — read-only reference of the uploaded file'}
-              </p>
-
-              {uploadViewMode === 'preview' && livePreviewPanel}
 
               {uploadViewMode === 'edit' && (
                 <TiptapEditor
