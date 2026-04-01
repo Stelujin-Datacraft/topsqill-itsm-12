@@ -171,7 +171,7 @@ const CreatePolicy = () => {
               <Textarea
                 value={form.description}
                 onChange={e => updateField('description', e.target.value)}
-                placeholder="Brief description of the policy..."
+                placeholder="Brief description of the document..."
                 rows={3}
               />
             </div>
