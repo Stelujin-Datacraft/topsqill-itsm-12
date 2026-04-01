@@ -249,6 +249,20 @@ const PolicyDetail = () => {
       record_name_field_id: (policy.content?.record_name_field_id as string) || '',
       dynamic_fields_display: (policy.content?.dynamic_fields_display as string) || 'table',
     });
+    // Detect which content mode was used
+    const contentSource = policy.content?.content_source as string;
+    if (contentSource) {
+      setEditContentMode(contentSource);
+    } else if (policy.content?.original_docx_url) {
+      setEditContentMode('upload');
+    } else if (policy.template_id) {
+      setEditContentMode('template');
+    } else if (policy.content?.html) {
+      setEditContentMode('blank');
+    } else {
+      setEditContentMode('upload');
+    }
+    setEditSelectedTemplate(null);
     setIsEditing(true);
   };
 
