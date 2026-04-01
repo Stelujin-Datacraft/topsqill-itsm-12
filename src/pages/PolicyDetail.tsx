@@ -292,6 +292,7 @@ const PolicyDetail = () => {
     const updatedContent = {
       ...(policy.content || {}),
       ...(content_html !== undefined ? { html: content_html } : {}),
+      content_source: editContentMode,
       ...(custom_field_values ? { custom_field_values } : {}),
       ...(custom_fields ? { custom_fields } : {}),
       dynamic_fields_display: form_id ? dynamic_fields_display : undefined,
