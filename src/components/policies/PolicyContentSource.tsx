@@ -60,6 +60,9 @@ export function PolicyContentSource({
   mode,
   onModeChange,
 }: PolicyContentSourceProps) {
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [uploadViewMode, setUploadViewMode] = useState<'preview' | 'edit'>('preview');
+
   const [pasteText, setPasteText] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
