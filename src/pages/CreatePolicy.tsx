@@ -146,7 +146,7 @@ const CreatePolicy = () => {
           </Button>
           <Button onClick={handleSubmit} disabled={!form.name.trim() || createPolicy.isPending}>
             <Save className="h-4 w-4 mr-2" />
-            {createPolicy.isPending ? 'Creating...' : isAudit ? 'Create Audit' : 'Create Policy'}
+            {createPolicy.isPending ? 'Creating...' : isAudit ? 'Create Audit' : 'Create Doc'}
           </Button>
         </div>
       }
