@@ -6,7 +6,8 @@ import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { TiptapEditor } from '@/components/ui/tiptap-editor';
-import { FileText, Sparkles, Upload, ClipboardPaste, Loader2 } from 'lucide-react';
+import { DocxPreview } from '@/components/ui/docx-preview';
+import { FileText, Sparkles, Upload, ClipboardPaste, Loader2, Eye, Edit3 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { PolicyTemplate } from '@/types/policy';
 import mammoth from 'mammoth';
@@ -59,6 +60,9 @@ export function PolicyContentSource({
   mode,
   onModeChange,
 }: PolicyContentSourceProps) {
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [uploadViewMode, setUploadViewMode] = useState<'preview' | 'edit'>('preview');
+
   const [pasteText, setPasteText] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -117,6 +121,8 @@ export function PolicyContentSource({
       if (result.value) {
         onContentChange(result.value);
         onOriginalFileChange?.(file);
+        setUploadedFile(file);
+        setUploadViewMode('preview');
         toast.success(`Imported content from "${file.name}"`);
         if (result.messages.length > 0) {
           console.warn('Mammoth warnings:', result.messages);
@@ -254,7 +260,7 @@ export function PolicyContentSource({
                 <Upload className="h-8 w-8 text-muted-foreground" />
                 <p className="text-sm font-medium">Click to upload a DOCX file</p>
                 <p className="text-xs text-muted-foreground">
-                  Content, images, tables, and headings will be extracted
+                  Content, images, tables, and headings will be extracted with original formatting
                 </p>
               </div>
             )}
@@ -266,15 +272,41 @@ export function PolicyContentSource({
               onChange={handleFileUpload}
             />
           </div>
-          {contentHtml && (
+
+          {/* Hybrid: Original Preview + Editable */}
+          {(uploadedFile || contentHtml) && (
             <div>
-              <Label className="text-xs text-muted-foreground">Imported content (editable):</Label>
-              <TiptapEditor
-                content={contentHtml}
-                onChange={onContentChange}
-                placeholder="Uploaded content will appear here..."
-                className="min-h-[200px] mt-1"
-              />
+              <div className="flex items-center gap-2 mb-2">
+                <Button
+                  type="button"
+                  variant={uploadViewMode === 'preview' ? 'default' : 'outline'}
+                  size="sm"
+                  className="gap-1.5 text-xs h-7"
+                  onClick={() => setUploadViewMode('preview')}
+                >
+                  <Eye className="h-3 w-3" /> Original Preview
+                </Button>
+                <Button
+                  type="button"
+                  variant={uploadViewMode === 'edit' ? 'default' : 'outline'}
+                  size="sm"
+                  className="gap-1.5 text-xs h-7"
+                  onClick={() => setUploadViewMode('edit')}
+                >
+                  <Edit3 className="h-3 w-3" /> Edit Content
+                </Button>
+              </div>
+
+              {uploadViewMode === 'preview' && uploadedFile ? (
+                <DocxPreview file={uploadedFile} className="min-h-[300px]" />
+              ) : (
+                <TiptapEditor
+                  content={contentHtml}
+                  onChange={onContentChange}
+                  placeholder="Uploaded content will appear here..."
+                  className="min-h-[300px]"
+                />
+              )}
             </div>
           )}
         </div>
