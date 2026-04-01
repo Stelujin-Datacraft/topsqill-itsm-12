@@ -159,7 +159,7 @@ const CreatePolicy = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <Label>Policy Name *</Label>
+              <Label>Doc Name *</Label>
               <Input
                 value={form.name}
                 onChange={e => updateField('name', e.target.value)}
