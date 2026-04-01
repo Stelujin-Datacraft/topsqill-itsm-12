@@ -120,9 +120,31 @@ export function TiptapToolbar({ editor, disabled = false }: TiptapToolbarProps) 
     }
   };
 
+  const imageInputRef = React.useRef<HTMLInputElement>(null);
+
   const addImage = () => {
+    // Show choice: URL or file upload
+    imageInputRef.current?.click();
+  };
+
+  const addImageFromUrl = () => {
     const url = window.prompt('Enter image URL:');
     if (url) editor.chain().focus().setImage({ src: url }).run();
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64 = reader.result as string;
+      editor.chain().focus().setImage({ src: base64 }).run();
+    };
+    reader.readAsDataURL(file);
+    if (e.target) e.target.value = '';
   };
 
   const getCurrentHeading = () => {
