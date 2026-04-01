@@ -140,18 +140,6 @@ export function PolicyContentSource({
     setPasteText('');
   };
 
-  // Live preview iframe that reflects current contentHtml (edits show immediately)
-  const livePreviewPanel = (
-    <div className="border rounded-lg overflow-hidden bg-white" style={{ minHeight: '300px' }}>
-      <iframe
-        ref={livePreviewRef}
-        title="Live Preview"
-        className="w-full border-0"
-        style={{ minHeight: '300px', height: '100%' }}
-        onLoad={() => updateLivePreview(contentHtml)}
-      />
-    </div>
-  );
 
   // Source picker (tabs for Write/Template/Upload/Paste)
   const sourceEditor = (
