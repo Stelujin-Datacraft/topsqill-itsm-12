@@ -7,7 +7,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { TiptapEditor } from '@/components/ui/tiptap-editor';
 import { DocxPreview } from '@/components/ui/docx-preview';
-import { FileText, Sparkles, Upload, ClipboardPaste, Loader2, Eye, Edit3 } from 'lucide-react';
+import { FileText, Sparkles, Upload, ClipboardPaste, Loader2, Eye, Edit3, FileImage } from 'lucide-react';
 import { toast } from 'sonner';
 import type { PolicyTemplate } from '@/types/policy';
 import mammoth from 'mammoth';
@@ -61,28 +61,30 @@ export function PolicyContentSource({
   onModeChange,
 }: PolicyContentSourceProps) {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
-  const [uploadViewMode, setUploadViewMode] = useState<'preview' | 'edit'>('preview');
+  const [uploadViewMode, setUploadViewMode] = useState<'preview' | 'edit' | 'original'>('preview');
 
   const [pasteText, setPasteText] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const previewIframeRef = useRef<HTMLIFrameElement>(null);
+  const livePreviewRef = useRef<HTMLIFrameElement>(null);
 
-  // Write directly to iframe document for instant live preview updates
-  const updatePreview = useCallback((html: string) => {
-    const iframe = previewIframeRef.current;
+  // Write to iframe for live preview (reflects edits instantly)
+  const updateLivePreview = useCallback((html: string) => {
+    const iframe = livePreviewRef.current;
     if (!iframe) return;
     const doc = iframe.contentDocument;
     if (!doc) return;
     doc.open();
-    doc.write(`<!DOCTYPE html><html><head><meta charset="utf-8"/><style>${PREVIEW_STYLES}</style></head><body>${html || '<p style="color:#999;text-align:center;padding-top:60px;">Import or write content on the left to see a live preview here.</p>'}</body></html>`);
+    doc.write(`<!DOCTYPE html><html><head><meta charset="utf-8"/><style>${PREVIEW_STYLES}</style></head><body>${html || '<p style="color:#999;text-align:center;padding-top:60px;">Upload or write content to see a live preview here.</p>'}</body></html>`);
     doc.close();
   }, []);
 
-  // Update preview whenever contentHtml changes
+  // Update live preview whenever contentHtml changes
   useEffect(() => {
-    updatePreview(contentHtml);
-  }, [contentHtml, updatePreview]);
+    if (uploadViewMode === 'preview') {
+      updateLivePreview(contentHtml);
+    }
+  }, [contentHtml, uploadViewMode, updateLivePreview]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -100,8 +102,8 @@ export function PolicyContentSource({
       const result = await mammoth.convertToHtml(
         { arrayBuffer },
         {
-          convertImage: mammoth.images.imgElement(function(image: any) {
-            return image.read("base64").then(function(imageBuffer: string) {
+          convertImage: mammoth.images.imgElement(function (image: any) {
+            return image.read("base64").then(function (imageBuffer: string) {
               return { src: `data:${image.contentType};base64,${imageBuffer}` };
             });
           }),
@@ -126,7 +128,7 @@ export function PolicyContentSource({
         toast.success(`Imported content from "${file.name}"`);
         if (result.messages.length > 0) {
           console.warn('Mammoth warnings:', result.messages);
-          toast.info('Note: Some formatting (headers/footers) may need manual adjustment after import.', { duration: 5000 });
+          toast.info('Note: Some formatting may need manual adjustment after import.', { duration: 5000 });
         }
       } else {
         toast.error('No content found in the document');
@@ -157,14 +159,15 @@ export function PolicyContentSource({
     setPasteText('');
   };
 
-  const previewIframe = (
-    <div className="border rounded-lg overflow-hidden bg-white h-full">
+  // Live preview iframe that reflects current contentHtml (edits show immediately)
+  const livePreviewPanel = (
+    <div className="border rounded-lg overflow-hidden bg-white" style={{ minHeight: '300px' }}>
       <iframe
-        ref={previewIframeRef}
+        ref={livePreviewRef}
         title="Live Preview"
         className="w-full border-0"
-        style={{ minHeight: '400px', height: '100%' }}
-        onLoad={() => updatePreview(contentHtml)}
+        style={{ minHeight: '300px', height: '100%' }}
+        onLoad={() => updateLivePreview(contentHtml)}
       />
     </div>
   );
@@ -273,7 +276,7 @@ export function PolicyContentSource({
             />
           </div>
 
-          {/* Hybrid: Original Preview + Editable */}
+          {/* Three-mode toggle: Live Preview / Edit Content / Original Document */}
           {(uploadedFile || contentHtml) && (
             <div>
               <div className="flex items-center gap-2 mb-2">
@@ -284,7 +287,7 @@ export function PolicyContentSource({
                   className="gap-1.5 text-xs h-7"
                   onClick={() => setUploadViewMode('preview')}
                 >
-                  <Eye className="h-3 w-3" /> Original Preview
+                  <Eye className="h-3 w-3" /> Live Preview
                 </Button>
                 <Button
                   type="button"
@@ -295,17 +298,38 @@ export function PolicyContentSource({
                 >
                   <Edit3 className="h-3 w-3" /> Edit Content
                 </Button>
+                {uploadedFile && (
+                  <Button
+                    type="button"
+                    variant={uploadViewMode === 'original' ? 'default' : 'outline'}
+                    size="sm"
+                    className="gap-1.5 text-xs h-7"
+                    onClick={() => setUploadViewMode('original')}
+                  >
+                    <FileImage className="h-3 w-3" /> Original Document
+                  </Button>
+                )}
               </div>
 
-              {uploadViewMode === 'preview' && uploadedFile ? (
-                <DocxPreview file={uploadedFile} className="min-h-[300px]" />
-              ) : (
+              <p className="text-xs text-muted-foreground mb-2">
+                {uploadViewMode === 'preview' && '📄 Live preview — reflects all your edits in real-time'}
+                {uploadViewMode === 'edit' && '✏️ Rich text editor — changes appear instantly in Live Preview'}
+                {uploadViewMode === 'original' && '📎 Original DOCX rendering — read-only reference of the uploaded file'}
+              </p>
+
+              {uploadViewMode === 'preview' && livePreviewPanel}
+
+              {uploadViewMode === 'edit' && (
                 <TiptapEditor
                   content={contentHtml}
                   onChange={onContentChange}
                   placeholder="Uploaded content will appear here..."
                   className="min-h-[300px]"
                 />
+              )}
+
+              {uploadViewMode === 'original' && uploadedFile && (
+                <DocxPreview file={uploadedFile} className="min-h-[300px]" />
               )}
             </div>
           )}
