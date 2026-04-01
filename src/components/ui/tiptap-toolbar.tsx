@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Editor } from '@tiptap/react';
 import { Button } from './button';
 import { Separator } from './separator';
@@ -11,9 +11,9 @@ import {
   Undo, Redo,
   AlignLeft, AlignCenter, AlignRight, AlignJustify,
   Table as TableIcon, Minus, Quote, Code,
-  Type, Palette, Highlighter, Pilcrow,
-  TableProperties, RowsIcon, Columns,
-  Trash2, Plus, ArrowDown, ArrowUp, ArrowLeft, ArrowRight,
+  Type, Highlighter,
+  RowsIcon, Columns,
+  Trash2, ArrowDown, ArrowUp, ArrowLeft, ArrowRight,
 } from 'lucide-react';
 
 interface TiptapToolbarProps {
@@ -47,6 +47,9 @@ const HEADING_OPTIONS = [
   { label: 'Heading 4', value: '4' },
 ];
 
+const MAX_GRID_ROWS = 8;
+const MAX_GRID_COLS = 8;
+
 function ToolbarButton({
   onClick, active, disabled, children, title,
 }: {
@@ -64,6 +67,42 @@ function ToolbarButton({
     >
       {children}
     </Button>
+  );
+}
+
+function TableGridPicker({ onSelect, onClose }: { onSelect: (rows: number, cols: number) => void; onClose: () => void }) {
+  const [hoverRow, setHoverRow] = useState(0);
+  const [hoverCol, setHoverCol] = useState(0);
+
+  return (
+    <div className="p-2">
+      <p className="text-xs text-muted-foreground mb-1.5 text-center font-medium">
+        {hoverRow > 0 && hoverCol > 0 ? `${hoverRow} × ${hoverCol} Table` : 'Select table size'}
+      </p>
+      <div
+        className="grid gap-[2px]"
+        style={{ gridTemplateColumns: `repeat(${MAX_GRID_COLS}, 1fr)` }}
+        onMouseLeave={() => { setHoverRow(0); setHoverCol(0); }}
+      >
+        {Array.from({ length: MAX_GRID_ROWS * MAX_GRID_COLS }).map((_, idx) => {
+          const r = Math.floor(idx / MAX_GRID_COLS) + 1;
+          const c = (idx % MAX_GRID_COLS) + 1;
+          const isActive = r <= hoverRow && c <= hoverCol;
+          return (
+            <div
+              key={idx}
+              className={`w-4 h-4 border rounded-[2px] cursor-pointer transition-colors ${
+                isActive
+                  ? 'bg-primary border-primary'
+                  : 'bg-background border-border hover:border-muted-foreground'
+              }`}
+              onMouseEnter={() => { setHoverRow(r); setHoverCol(c); }}
+              onClick={() => { onSelect(r, c); onClose(); }}
+            />
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -108,6 +147,10 @@ export function TiptapToolbar({ editor, disabled = false }: TiptapToolbarProps) 
       editor.chain().focus().setFontFamily(value).run();
     }
   };
+
+  const insertTable = useCallback((rows: number, cols: number) => {
+    editor.chain().focus().insertTable({ rows, cols, withHeaderRow: true }).run();
+  }, [editor]);
 
   return (
     <div className="flex items-center gap-0.5 p-1.5 border-b bg-muted/30 flex-wrap">
@@ -272,49 +315,46 @@ export function TiptapToolbar({ editor, disabled = false }: TiptapToolbarProps) 
 
       <Separator orientation="vertical" className="h-5 mx-0.5" />
 
-      {/* Table */}
+      {/* Table with Grid Picker */}
       <Popover open={showTableMenu} onOpenChange={setShowTableMenu}>
         <PopoverTrigger asChild>
           <Button type="button" variant="ghost" size="sm" className={`h-7 w-7 p-0 ${editor.isActive('table') ? 'bg-accent text-accent-foreground' : ''}`} disabled={disabled} title="Table">
             <TableIcon className="h-3.5 w-3.5" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-48 p-2" align="start">
-          <div className="space-y-1">
-            <Button variant="ghost" size="sm" className="w-full justify-start text-xs h-7" onClick={() => { editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(); setShowTableMenu(false); }}>
-              <Plus className="h-3 w-3 mr-1.5" /> Insert 3×3 Table
-            </Button>
-            <Button variant="ghost" size="sm" className="w-full justify-start text-xs h-7" onClick={() => { editor.chain().focus().insertTable({ rows: 4, cols: 4, withHeaderRow: true }).run(); setShowTableMenu(false); }}>
-              <Plus className="h-3 w-3 mr-1.5" /> Insert 4×4 Table
-            </Button>
-            {editor.isActive('table') && (
-              <>
-                <Separator className="my-1" />
-                <Button variant="ghost" size="sm" className="w-full justify-start text-xs h-7" onClick={() => editor.chain().focus().addColumnAfter().run()}>
-                  <ArrowRight className="h-3 w-3 mr-1.5" /> Add Column After
-                </Button>
-                <Button variant="ghost" size="sm" className="w-full justify-start text-xs h-7" onClick={() => editor.chain().focus().addColumnBefore().run()}>
-                  <ArrowLeft className="h-3 w-3 mr-1.5" /> Add Column Before
-                </Button>
-                <Button variant="ghost" size="sm" className="w-full justify-start text-xs h-7" onClick={() => editor.chain().focus().addRowAfter().run()}>
-                  <ArrowDown className="h-3 w-3 mr-1.5" /> Add Row After
-                </Button>
-                <Button variant="ghost" size="sm" className="w-full justify-start text-xs h-7" onClick={() => editor.chain().focus().addRowBefore().run()}>
-                  <ArrowUp className="h-3 w-3 mr-1.5" /> Add Row Before
-                </Button>
-                <Separator className="my-1" />
-                <Button variant="ghost" size="sm" className="w-full justify-start text-xs h-7" onClick={() => editor.chain().focus().deleteColumn().run()}>
-                  <Columns className="h-3 w-3 mr-1.5" /> Delete Column
-                </Button>
-                <Button variant="ghost" size="sm" className="w-full justify-start text-xs h-7" onClick={() => editor.chain().focus().deleteRow().run()}>
-                  <RowsIcon className="h-3 w-3 mr-1.5" /> Delete Row
-                </Button>
-                <Button variant="ghost" size="sm" className="w-full justify-start text-xs h-7 text-destructive" onClick={() => { editor.chain().focus().deleteTable().run(); setShowTableMenu(false); }}>
-                  <Trash2 className="h-3 w-3 mr-1.5" /> Delete Table
-                </Button>
-              </>
-            )}
-          </div>
+        <PopoverContent className="w-auto p-0" align="start">
+          {editor.isActive('table') ? (
+            <div className="p-2 space-y-1 min-w-[180px]">
+              <p className="text-xs font-medium text-muted-foreground px-1 mb-1">Table Actions</p>
+              <Button variant="ghost" size="sm" className="w-full justify-start text-xs h-7" onClick={() => editor.chain().focus().addColumnAfter().run()}>
+                <ArrowRight className="h-3 w-3 mr-1.5" /> Add Column After
+              </Button>
+              <Button variant="ghost" size="sm" className="w-full justify-start text-xs h-7" onClick={() => editor.chain().focus().addColumnBefore().run()}>
+                <ArrowLeft className="h-3 w-3 mr-1.5" /> Add Column Before
+              </Button>
+              <Button variant="ghost" size="sm" className="w-full justify-start text-xs h-7" onClick={() => editor.chain().focus().addRowAfter().run()}>
+                <ArrowDown className="h-3 w-3 mr-1.5" /> Add Row After
+              </Button>
+              <Button variant="ghost" size="sm" className="w-full justify-start text-xs h-7" onClick={() => editor.chain().focus().addRowBefore().run()}>
+                <ArrowUp className="h-3 w-3 mr-1.5" /> Add Row Before
+              </Button>
+              <Separator className="my-1" />
+              <Button variant="ghost" size="sm" className="w-full justify-start text-xs h-7" onClick={() => editor.chain().focus().deleteColumn().run()}>
+                <Columns className="h-3 w-3 mr-1.5" /> Delete Column
+              </Button>
+              <Button variant="ghost" size="sm" className="w-full justify-start text-xs h-7" onClick={() => editor.chain().focus().deleteRow().run()}>
+                <RowsIcon className="h-3 w-3 mr-1.5" /> Delete Row
+              </Button>
+              <Button variant="ghost" size="sm" className="w-full justify-start text-xs h-7 text-destructive" onClick={() => { editor.chain().focus().deleteTable().run(); setShowTableMenu(false); }}>
+                <Trash2 className="h-3 w-3 mr-1.5" /> Delete Table
+              </Button>
+            </div>
+          ) : (
+            <TableGridPicker
+              onSelect={insertTable}
+              onClose={() => setShowTableMenu(false)}
+            />
+          )}
         </PopoverContent>
       </Popover>
 
