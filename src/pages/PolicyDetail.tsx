@@ -1279,13 +1279,99 @@ const PolicyDetail = () => {
     // Separator
     cps.push('<w:p><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="6" w:space="1" w:color="auto"/></w:pBdr></w:pPr></w:p>');
 
-    // Inject HTML content
+    // Inject HTML content with full rich text preservation
     const cHtml = liveContentHtml ?? policy.content?.html;
     if (cHtml) {
       const td = document.createElement('div');
       td.innerHTML = cHtml;
 
-      const extractBlocks = (node: Node): string[] => {
+      // Helper: parse CSS color to hex (supports rgb(), hex, named colors)
+      const colorToHex = (color: string): string | null => {
+        if (!color) return null;
+        color = color.trim();
+        if (color.startsWith('#')) return color.replace('#', '').toUpperCase().slice(0, 6);
+        const rgbMatch = color.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+        if (rgbMatch) {
+          const [, r, g, b] = rgbMatch;
+          return [r, g, b].map(c => parseInt(c).toString(16).padStart(2, '0')).join('').toUpperCase();
+        }
+        const namedColors: Record<string, string> = { red: 'FF0000', blue: '0000FF', green: '008000', black: '000000', white: 'FFFFFF', gray: '808080', yellow: 'FFFF00', orange: 'FFA500', purple: '800080' };
+        return namedColors[color.toLowerCase()] || null;
+      };
+
+      // Helper: extract inline runs with formatting from an element
+      const extractInlineRuns = (node: Node, inherited: { bold?: boolean; italic?: boolean; underline?: boolean; strike?: boolean; color?: string | null; highlight?: string | null; fontSize?: string | null; fontFamily?: string | null } = {}): string => {
+        if (node.nodeType === Node.TEXT_NODE) {
+          const t = node.textContent || '';
+          if (!t) return '';
+          let rPr = '';
+          if (inherited.bold) rPr += '<w:b/>';
+          if (inherited.italic) rPr += '<w:i/>';
+          if (inherited.underline) rPr += '<w:u w:val="single"/>';
+          if (inherited.strike) rPr += '<w:strike/>';
+          if (inherited.color) rPr += '<w:color w:val="' + inherited.color + '"/>';
+          if (inherited.highlight) rPr += '<w:shd w:val="clear" w:color="auto" w:fill="' + inherited.highlight + '"/>';
+          if (inherited.fontSize) rPr += '<w:sz w:val="' + inherited.fontSize + '"/>';
+          if (inherited.fontFamily) rPr += '<w:rFonts w:ascii="' + esc(inherited.fontFamily) + '" w:hAnsi="' + esc(inherited.fontFamily) + '"/>';
+          return '<w:r>' + (rPr ? '<w:rPr>' + rPr + '</w:rPr>' : '') + '<w:t xml:space="preserve">' + esc(t) + '</w:t></w:r>';
+        }
+        if (node.nodeType !== Node.ELEMENT_NODE) return '';
+        const el = node as HTMLElement;
+        const tag = el.tagName.toLowerCase();
+        // Build merged properties
+        const props = { ...inherited };
+        if (tag === 'strong' || tag === 'b') props.bold = true;
+        if (tag === 'em' || tag === 'i') props.italic = true;
+        if (tag === 'u') props.underline = true;
+        if (tag === 's' || tag === 'del' || tag === 'strike') props.strike = true;
+        if (tag === 'mark') {
+          const bg = el.getAttribute('data-color') || el.style.backgroundColor;
+          const hex = colorToHex(bg || 'FFFF00');
+          if (hex) props.highlight = hex;
+        }
+        if (tag === 'span') {
+          const c = el.style.color; if (c) { const h = colorToHex(c); if (h) props.color = h; }
+          const bg = el.style.backgroundColor; if (bg) { const h = colorToHex(bg); if (h) props.highlight = h; }
+          const ff = el.style.fontFamily; if (ff) props.fontFamily = ff.replace(/['"]/g, '');
+          const fs = el.style.fontSize;
+          if (fs) {
+            const px = parseFloat(fs); if (!isNaN(px)) props.fontSize = String(Math.round(px * 1.5)); // px to half-points approx
+          }
+        }
+        if (tag === 'a') {
+          // Render links as underlined blue text with the URL in parentheses
+          const href = el.getAttribute('href') || '';
+          let runs = '';
+          el.childNodes.forEach(ch => { runs += extractInlineRuns(ch, { ...props, underline: true, color: '0563C1' }); });
+          if (href) runs += '<w:r><w:rPr><w:color w:val="0563C1"/><w:sz w:val="18"/></w:rPr><w:t xml:space="preserve"> (' + esc(href) + ')</w:t></w:r>';
+          return runs;
+        }
+        if (tag === 'br') return '</w:r></w:p><w:p><w:r>';
+        // Recurse children
+        let result = '';
+        el.childNodes.forEach(ch => { result += extractInlineRuns(ch, props); });
+        return result;
+      };
+
+      // Helper: get paragraph alignment
+      const getAlignment = (el: HTMLElement): string => {
+        const align = el.style.textAlign || el.getAttribute('align') || '';
+        if (align === 'center') return '<w:jc w:val="center"/>';
+        if (align === 'right') return '<w:jc w:val="right"/>';
+        if (align === 'justify') return '<w:jc w:val="both"/>';
+        return '';
+      };
+
+      const tblBorders = '<w:tblBorders>' +
+        '<w:top w:val="single" w:sz="4" w:space="0" w:color="999999"/>' +
+        '<w:left w:val="single" w:sz="4" w:space="0" w:color="999999"/>' +
+        '<w:bottom w:val="single" w:sz="4" w:space="0" w:color="999999"/>' +
+        '<w:right w:val="single" w:sz="4" w:space="0" w:color="999999"/>' +
+        '<w:insideH w:val="single" w:sz="4" w:space="0" w:color="999999"/>' +
+        '<w:insideV w:val="single" w:sz="4" w:space="0" w:color="999999"/>' +
+        '</w:tblBorders>';
+
+      const extractBlocks = (node: Node, listCounter?: { val: number }): string[] => {
         const b: string[] = [];
         if (node.nodeType === Node.TEXT_NODE) {
           const t = node.textContent?.trim();
@@ -1293,41 +1379,96 @@ const PolicyDetail = () => {
         } else if (node.nodeType === Node.ELEMENT_NODE) {
           const el = node as HTMLElement;
           const tag = el.tagName.toLowerCase();
+
           if (['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].includes(tag)) {
-            const sz = tag === 'h1' ? '32' : tag === 'h2' ? '28' : '24';
-            b.push('<w:p><w:r><w:rPr><w:b/><w:sz w:val="' + sz + '"/></w:rPr><w:t xml:space="preserve">' + esc(el.textContent || '') + '</w:t></w:r></w:p>');
+            const sizes: Record<string, string> = { h1: '48', h2: '36', h3: '28', h4: '24', h5: '22', h6: '20' };
+            const sz = sizes[tag] || '24';
+            const jc = getAlignment(el);
+            const pPr = '<w:pPr><w:spacing w:before="240" w:after="120"/>' + (jc ? jc : '') + '</w:pPr>';
+            const runs = extractInlineRuns(el, { bold: true, fontSize: sz });
+            b.push('<w:p>' + pPr + runs + '</w:p>');
+
+          } else if (tag === 'p' || tag === 'div') {
+            const jc = getAlignment(el);
+            const pPr = jc ? '<w:pPr>' + jc + '</w:pPr>' : '';
+            const runs = extractInlineRuns(el);
+            if (runs) b.push('<w:p>' + pPr + runs + '</w:p>');
+            else b.push('<w:p/>');
+
           } else if (tag === 'li') {
-            b.push('<w:p><w:r><w:t xml:space="preserve">\u2022 ' + esc(el.textContent || '') + '</w:t></w:r></w:p>');
-          } else if (['p', 'div'].includes(tag)) {
-            const t = el.textContent?.trim();
-            if (t) b.push('<w:p><w:r><w:t xml:space="preserve">' + esc(t) + '</w:t></w:r></w:p>');
+            const parentTag = el.parentElement?.tagName.toLowerCase();
+            let bullet = '\u2022 ';
+            if (parentTag === 'ol' && listCounter) {
+              bullet = listCounter.val + '. ';
+              listCounter.val++;
+            }
+            const runs = extractInlineRuns(el);
+            b.push('<w:p><w:pPr><w:ind w:left="720" w:hanging="360"/></w:pPr><w:r><w:t xml:space="preserve">' + esc(bullet) + '</w:t></w:r>' + runs + '</w:p>');
+
+          } else if (tag === 'ul') {
+            el.childNodes.forEach(ch => b.push(...extractBlocks(ch)));
+
+          } else if (tag === 'ol') {
+            const counter = { val: 1 };
+            el.childNodes.forEach(ch => b.push(...extractBlocks(ch, counter)));
+
           } else if (tag === 'table') {
             const rows = el.querySelectorAll('tr');
             if (rows.length > 0) {
-              let tx = '<w:tbl><w:tblPr><w:tblW w:w="5000" w:type="pct"/><w:tblBorders>' +
-                '<w:top w:val="single" w:sz="4" w:space="0" w:color="auto"/>' +
-                '<w:left w:val="single" w:sz="4" w:space="0" w:color="auto"/>' +
-                '<w:bottom w:val="single" w:sz="4" w:space="0" w:color="auto"/>' +
-                '<w:right w:val="single" w:sz="4" w:space="0" w:color="auto"/>' +
-                '<w:insideH w:val="single" w:sz="4" w:space="0" w:color="auto"/>' +
-                '<w:insideV w:val="single" w:sz="4" w:space="0" w:color="auto"/>' +
-                '</w:tblBorders></w:tblPr>';
-              rows.forEach(tr => {
+              let tx = '<w:tbl><w:tblPr><w:tblW w:w="5000" w:type="pct"/>' + tblBorders + '</w:tblPr>';
+              rows.forEach((tr, rowIdx) => {
                 tx += '<w:tr>';
-                tr.querySelectorAll('td,th').forEach(c => {
-                  const isBold = c.tagName.toLowerCase() === 'th';
-                  tx += '<w:tc><w:p><w:r>' + (isBold ? '<w:rPr><w:b/></w:rPr>' : '') +
-                    '<w:t xml:space="preserve">' + esc(c.textContent || '') + '</w:t></w:r></w:p></w:tc>';
+                tr.querySelectorAll('td,th').forEach(cell => {
+                  const isHeader = cell.tagName.toLowerCase() === 'th' || rowIdx === 0;
+                  const cellEl = cell as HTMLElement;
+                  const bgColor = cellEl.style.backgroundColor;
+                  const bgHex = bgColor ? colorToHex(bgColor) : (isHeader ? 'E8E8E8' : null);
+                  let tcPr = '<w:tcPr>';
+                  tcPr += '<w:tcMar><w:top w:w="60" w:type="dxa"/><w:bottom w:w="60" w:type="dxa"/><w:left w:w="100" w:type="dxa"/><w:right w:w="100" w:type="dxa"/></w:tcMar>';
+                  if (bgHex) tcPr += '<w:shd w:val="clear" w:color="auto" w:fill="' + bgHex + '"/>';
+                  const colspan = cellEl.getAttribute('colspan');
+                  if (colspan && parseInt(colspan) > 1) tcPr += '<w:gridSpan w:val="' + colspan + '"/>';
+                  const rowspan = cellEl.getAttribute('rowspan');
+                  if (rowspan && parseInt(rowspan) > 1) tcPr += '<w:vMerge w:val="restart"/>';
+                  tcPr += '</w:tcPr>';
+
+                  // Extract cell content as blocks or inline
+                  const cellBlocks = cellEl.querySelectorAll('p, h1, h2, h3, h4, h5, h6, ul, ol, table');
+                  if (cellBlocks.length > 0) {
+                    let cellContent = '';
+                    cellEl.childNodes.forEach(ch => {
+                      const inner = extractBlocks(ch);
+                      cellContent += inner.join('');
+                    });
+                    if (!cellContent) cellContent = '<w:p/>';
+                    tx += '<w:tc>' + tcPr + cellContent + '</w:tc>';
+                  } else {
+                    const runs = extractInlineRuns(cellEl, isHeader ? { bold: true } : {});
+                    tx += '<w:tc>' + tcPr + '<w:p>' + runs + '</w:p></w:tc>';
+                  }
                 });
                 tx += '</w:tr>';
               });
               tx += '</w:tbl>';
               b.push(tx);
             }
+
           } else if (tag === 'blockquote') {
-            b.push('<w:p><w:pPr><w:ind w:left="720"/></w:pPr><w:r><w:rPr><w:i/></w:rPr><w:t xml:space="preserve">' + esc(el.textContent || '') + '</w:t></w:r></w:p>');
-          } else if (tag === 'ul' || tag === 'ol') {
-            el.childNodes.forEach(ch => b.push(...extractBlocks(ch)));
+            const runs = extractInlineRuns(el, { italic: true });
+            b.push('<w:p><w:pPr><w:ind w:left="720"/><w:pBdr><w:left w:val="single" w:sz="12" w:space="4" w:color="CCCCCC"/></w:pBdr></w:pPr>' + runs + '</w:p>');
+
+          } else if (tag === 'hr') {
+            b.push('<w:p><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="6" w:space="1" w:color="auto"/></w:pBdr></w:pPr></w:p>');
+
+          } else if (tag === 'img') {
+            // Note: images as base64 in OpenXML requires relationship entries; skip with placeholder
+            const alt = el.getAttribute('alt') || 'Image';
+            b.push('<w:p><w:r><w:rPr><w:i/><w:color w:val="888888"/></w:rPr><w:t xml:space="preserve">[' + esc(alt) + ']</w:t></w:r></w:p>');
+
+          } else if (tag === 'pre' || tag === 'code') {
+            const t = el.textContent || '';
+            b.push('<w:p><w:pPr><w:shd w:val="clear" w:color="auto" w:fill="F5F5F5"/><w:ind w:left="200" w:right="200"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/><w:sz w:val="20"/></w:rPr><w:t xml:space="preserve">' + esc(t) + '</w:t></w:r></w:p>');
+
           } else {
             el.childNodes.forEach(ch => b.push(...extractBlocks(ch)));
           }
