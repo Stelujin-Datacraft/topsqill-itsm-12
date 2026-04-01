@@ -66,25 +66,6 @@ export function PolicyContentSource({
   const [pasteText, setPasteText] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const livePreviewRef = useRef<HTMLIFrameElement>(null);
-
-  // Write to iframe for live preview (reflects edits instantly)
-  const updateLivePreview = useCallback((html: string) => {
-    const iframe = livePreviewRef.current;
-    if (!iframe) return;
-    const doc = iframe.contentDocument;
-    if (!doc) return;
-    doc.open();
-    doc.write(`<!DOCTYPE html><html><head><meta charset="utf-8"/><style>${PREVIEW_STYLES}</style></head><body>${html || '<p style="color:#999;text-align:center;padding-top:60px;">Upload or write content to see a live preview here.</p>'}</body></html>`);
-    doc.close();
-  }, []);
-
-  // Update live preview whenever contentHtml changes
-  useEffect(() => {
-    if (uploadViewMode === 'preview') {
-      updateLivePreview(contentHtml);
-    }
-  }, [contentHtml, uploadViewMode, updateLivePreview]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
