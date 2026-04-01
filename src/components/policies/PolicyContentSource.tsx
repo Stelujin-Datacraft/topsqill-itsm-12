@@ -121,6 +121,8 @@ export function PolicyContentSource({
       if (result.value) {
         onContentChange(result.value);
         onOriginalFileChange?.(file);
+        setUploadedFile(file);
+        setUploadViewMode('preview');
         toast.success(`Imported content from "${file.name}"`);
         if (result.messages.length > 0) {
           console.warn('Mammoth warnings:', result.messages);
