@@ -44,7 +44,7 @@ const CreatePolicy = () => {
   const typeParam = searchParams.get('type') || 'policy';
   const isAudit = typeParam === 'audit';
   const { createPolicy, templates, templatesLoading } = usePolicies();
-  const [contentMode, setContentMode] = useState('blank');
+  const [contentMode, setContentMode] = useState('upload');
   const [selectedTemplate, setSelectedTemplate] = useState<PolicyTemplate | null>(null);
   const [form, setForm] = useState(INITIAL_FORM);
   const [originalDocxFile, setOriginalDocxFile] = useState<File | null>(null);
