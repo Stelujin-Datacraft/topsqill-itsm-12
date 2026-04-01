@@ -42,6 +42,8 @@ import { PolicyCustomFieldsRenderer } from '@/components/policies/PolicyCustomFi
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { sendKBNotificationEmail } from '@/services/kbNotificationEmail';
+import { PolicyContentSource } from '@/components/policies/PolicyContentSource';
+import { usePolicies as usePoliciesHook } from '@/hooks/usePolicies';
 
 const PolicyDetail = () => {
   const { id } = useParams<{ id: string }>();
