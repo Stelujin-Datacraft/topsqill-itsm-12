@@ -181,7 +181,7 @@ const CreatePolicy = () => {
         {/* Policy Content - Full Width */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Policy Content</CardTitle>
+            <CardTitle className="text-lg">Doc Content</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <PolicyContentSource

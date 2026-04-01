@@ -352,8 +352,8 @@ const PolicyDetail = () => {
       await supabase.from('notifications').insert({
         user_id: approverId,
         type: 'policy_approval_request',
-        title: 'Policy Approval Required',
-        message: `You have been requested to approve policy "${policy.name}" (${policy.policy_number || 'Draft'}) v${policy.current_version}.`,
+        title: 'Doc Approval Required',
+        message: `You have been requested to approve document "${policy.name}" (${policy.policy_number || 'Draft'}) v${policy.current_version}.`,
         data: {
           policy_id: policy.id,
           policy_name: policy.name,
