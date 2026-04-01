@@ -1,7 +1,17 @@
 /* TipTap Editor Styles */
 
+/* Reset prose table styles to prevent conflicts */
+.tiptap-content.prose table,
+.tiptap-content.prose thead,
+.tiptap-content.prose tbody,
+.tiptap-content.prose tr,
+.tiptap-content.prose th,
+.tiptap-content.prose td {
+  border-color: inherit;
+}
+
 /* Table styles */
-.tiptap-content .tiptap-table {
+.tiptap-content table {
   border-collapse: collapse;
   width: 100%;
   margin: 1em 0;
@@ -9,23 +19,23 @@
   overflow: hidden;
 }
 
-.tiptap-content .tiptap-table td,
-.tiptap-content .tiptap-table th {
-  border: 1px solid hsl(var(--border));
+.tiptap-content td,
+.tiptap-content th {
+  border: 2px solid #d1d5db !important;
   padding: 8px 12px;
   vertical-align: top;
   position: relative;
   min-width: 80px;
 }
 
-.tiptap-content .tiptap-table th {
+.tiptap-content th {
   background: hsl(var(--muted));
   font-weight: 600;
 }
 
-.tiptap-content .tiptap-table .selectedCell {
-  background: hsl(var(--primary) / 0.08);
-  border-color: hsl(var(--primary));
+.tiptap-content .selectedCell {
+  background: hsl(var(--primary) / 0.1) !important;
+  border-color: hsl(var(--primary)) !important;
 }
 
 /* Column resize handle */
@@ -134,4 +144,17 @@
 
 .tiptap-content .ProseMirror p {
   margin: 0.25em 0;
+}
+
+/* Ensure ProseMirror doesn't hide table borders */
+.tiptap-content .ProseMirror table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.tiptap-content .ProseMirror td,
+.tiptap-content .ProseMirror th {
+  border: 2px solid #d1d5db !important;
+  padding: 8px 12px;
+  vertical-align: top;
 }
