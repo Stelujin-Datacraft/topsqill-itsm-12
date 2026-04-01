@@ -1,22 +1,20 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Link from '@tiptap/extension-link';
 import Image from '@tiptap/extension-image';
 import UnderlineExtension from '@tiptap/extension-underline';
-import { Button } from './button';
-import { Separator } from './separator';
-import { 
-  Bold, 
-  Italic, 
-  Underline, 
-  List, 
-  ListOrdered, 
-  Link as LinkIcon,
-  Image as ImageIcon,
-  Undo,
-  Redo
-} from 'lucide-react';
+import Table from '@tiptap/extension-table';
+import TableRow from '@tiptap/extension-table-row';
+import TableCell from '@tiptap/extension-table-cell';
+import TableHeader from '@tiptap/extension-table-header';
+import TextAlign from '@tiptap/extension-text-align';
+import { Color } from '@tiptap/extension-color';
+import TextStyle from '@tiptap/extension-text-style';
+import Highlight from '@tiptap/extension-highlight';
+import Placeholder from '@tiptap/extension-placeholder';
+import FontFamily from '@tiptap/extension-font-family';
+import { TiptapToolbar } from './tiptap-toolbar';
 
 interface TiptapEditorProps {
   content: string;
@@ -37,19 +35,33 @@ export function TiptapEditor({
 
   const editor = useEditor({
     extensions: [
-      StarterKit,
+      StarterKit.configure({
+        heading: { levels: [1, 2, 3, 4] },
+      }),
       UnderlineExtension,
       Link.configure({
         openOnClick: false,
-        HTMLAttributes: {
-          class: 'text-primary underline',
-        },
+        HTMLAttributes: { class: 'text-primary underline cursor-pointer' },
       }),
       Image.configure({
-        HTMLAttributes: {
-          class: 'max-w-full h-auto rounded-md',
-        },
+        HTMLAttributes: { class: 'max-w-full h-auto rounded-md' },
+        allowBase64: true,
       }),
+      Table.configure({
+        resizable: true,
+        HTMLAttributes: { class: 'tiptap-table' },
+      }),
+      TableRow,
+      TableCell,
+      TableHeader,
+      TextAlign.configure({
+        types: ['heading', 'paragraph'],
+      }),
+      TextStyle,
+      Color,
+      Highlight.configure({ multicolor: true }),
+      Placeholder.configure({ placeholder }),
+      FontFamily,
     ],
     content,
     onUpdate: ({ editor }) => {
@@ -60,7 +72,6 @@ export function TiptapEditor({
     editable: !disabled,
   });
 
-  // Sync external content changes into the editor
   useEffect(() => {
     if (editor && content !== editor.getHTML()) {
       isExternalUpdate.current = true;
@@ -69,7 +80,6 @@ export function TiptapEditor({
     }
   }, [content, editor]);
 
-  // Listen for insert-at-cursor events
   useEffect(() => {
     if (!editor) return;
     const handler = (e: Event) => {
@@ -80,136 +90,14 @@ export function TiptapEditor({
     return () => window.removeEventListener('tiptap-insert-text', handler);
   }, [editor]);
 
-  if (!editor) {
-    return null;
-  }
-
-  const addLink = () => {
-    const url = window.prompt('Enter URL:');
-    if (url) {
-      editor.chain().focus().setLink({ href: url }).run();
-    }
-  };
-
-  const addImage = () => {
-    const url = window.prompt('Enter image URL:');
-    if (url) {
-      editor.chain().focus().setImage({ src: url }).run();
-    }
-  };
+  if (!editor) return null;
 
   return (
-    <div className={`border rounded-md ${className}`}>
-      {/* Toolbar */}
-      <div className="flex items-center gap-1 p-2 border-b bg-muted/50 flex-wrap">
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={() => editor.chain().focus().toggleBold().run()}
-          className={editor.isActive('bold') ? 'bg-muted' : ''}
-          disabled={disabled}
-        >
-          <Bold className="h-4 w-4" />
-        </Button>
-        
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={() => editor.chain().focus().toggleItalic().run()}
-          className={editor.isActive('italic') ? 'bg-muted' : ''}
-          disabled={disabled}
-        >
-          <Italic className="h-4 w-4" />
-        </Button>
-
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={() => editor.chain().focus().toggleUnderline().run()}
-          className={editor.isActive('underline') ? 'bg-muted' : ''}
-          disabled={disabled}
-        >
-          <Underline className="h-4 w-4" />
-        </Button>
-
-        <Separator orientation="vertical" className="h-6" />
-
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={() => editor.chain().focus().toggleBulletList().run()}
-          className={editor.isActive('bulletList') ? 'bg-muted' : ''}
-          disabled={disabled}
-        >
-          <List className="h-4 w-4" />
-        </Button>
-
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={() => editor.chain().focus().toggleOrderedList().run()}
-          className={editor.isActive('orderedList') ? 'bg-muted' : ''}
-          disabled={disabled}
-        >
-          <ListOrdered className="h-4 w-4" />
-        </Button>
-
-        <Separator orientation="vertical" className="h-6" />
-
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={addLink}
-          className={editor.isActive('link') ? 'bg-muted' : ''}
-          disabled={disabled}
-        >
-          <LinkIcon className="h-4 w-4" />
-        </Button>
-
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={addImage}
-          disabled={disabled}
-        >
-          <ImageIcon className="h-4 w-4" />
-        </Button>
-
-        <Separator orientation="vertical" className="h-6" />
-
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={() => editor.chain().focus().undo().run()}
-          disabled={!editor.can().undo() || disabled}
-        >
-          <Undo className="h-4 w-4" />
-        </Button>
-
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={() => editor.chain().focus().redo().run()}
-          disabled={!editor.can().redo() || disabled}
-        >
-          <Redo className="h-4 w-4" />
-        </Button>
-      </div>
-
-      {/* Editor Content */}
+    <div className={`border rounded-md overflow-hidden ${className}`}>
+      <TiptapToolbar editor={editor} disabled={disabled} />
       <EditorContent
         editor={editor}
-        className="prose prose-sm max-w-none p-4 min-h-[120px] focus-within:outline-none"
-        placeholder={placeholder}
+        className="tiptap-content prose prose-sm max-w-none p-4 min-h-[200px] focus-within:outline-none"
       />
     </div>
   );
