@@ -136,8 +136,8 @@ const CreatePolicy = () => {
 
   return (
     <PageContent
-      title={isAudit ? "Create New Audit" : "Create New Policy"}
-      description={isAudit ? "Define a new audit with content, metadata, and governance settings" : "Define a new organizational policy with content, metadata, and governance settings"}
+      title={isAudit ? "Create New Audit" : "Create New Doc"}
+      description={isAudit ? "Define a new audit with content, metadata, and governance settings" : "Define a new document with content, metadata, and governance settings"}
       actions={
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={() => folderParam ? navigate(`/knowledge-base/${folderParam}`) : navigate('/knowledge-base')}>
