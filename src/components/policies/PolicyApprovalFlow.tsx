@@ -86,7 +86,7 @@ export function PolicyApprovalFlow({
       <div className="text-center py-8">
         <Users className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
         <p className="text-sm text-muted-foreground">No approval flow configured yet</p>
-        <p className="text-xs text-muted-foreground mt-1">Submit this policy for approval to start the flow</p>
+        <p className="text-xs text-muted-foreground mt-1">Submit this document for approval to start the flow</p>
       </div>
     );
   }

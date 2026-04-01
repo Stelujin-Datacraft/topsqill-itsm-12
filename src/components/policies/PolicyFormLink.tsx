@@ -72,7 +72,7 @@ export function PolicyFormLink({ formId, onFormIdChange }: PolicyFormLinkProps) 
       </div>
       {selectedForm && (
         <p className="text-xs text-muted-foreground">
-          Linked: <span className="font-medium text-foreground">{selectedForm.name}</span> — Form fields will be available as dynamic policy fields.
+          Linked: <span className="font-medium text-foreground">{selectedForm.name}</span> — Form fields will be available as dynamic document fields.
         </p>
       )}
     </div>
