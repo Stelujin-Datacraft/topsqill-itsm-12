@@ -260,7 +260,7 @@ export function PolicyContentSource({
                 <Upload className="h-8 w-8 text-muted-foreground" />
                 <p className="text-sm font-medium">Click to upload a DOCX file</p>
                 <p className="text-xs text-muted-foreground">
-                  Content, images, tables, and headings will be extracted
+                  Content, images, tables, and headings will be extracted with original formatting
                 </p>
               </div>
             )}
@@ -272,15 +272,41 @@ export function PolicyContentSource({
               onChange={handleFileUpload}
             />
           </div>
-          {contentHtml && (
+
+          {/* Hybrid: Original Preview + Editable */}
+          {(uploadedFile || contentHtml) && (
             <div>
-              <Label className="text-xs text-muted-foreground">Imported content (editable):</Label>
-              <TiptapEditor
-                content={contentHtml}
-                onChange={onContentChange}
-                placeholder="Uploaded content will appear here..."
-                className="min-h-[200px] mt-1"
-              />
+              <div className="flex items-center gap-2 mb-2">
+                <Button
+                  type="button"
+                  variant={uploadViewMode === 'preview' ? 'default' : 'outline'}
+                  size="sm"
+                  className="gap-1.5 text-xs h-7"
+                  onClick={() => setUploadViewMode('preview')}
+                >
+                  <Eye className="h-3 w-3" /> Original Preview
+                </Button>
+                <Button
+                  type="button"
+                  variant={uploadViewMode === 'edit' ? 'default' : 'outline'}
+                  size="sm"
+                  className="gap-1.5 text-xs h-7"
+                  onClick={() => setUploadViewMode('edit')}
+                >
+                  <Edit3 className="h-3 w-3" /> Edit Content
+                </Button>
+              </div>
+
+              {uploadViewMode === 'preview' && uploadedFile ? (
+                <DocxPreview file={uploadedFile} className="min-h-[300px]" />
+              ) : (
+                <TiptapEditor
+                  content={contentHtml}
+                  onChange={onContentChange}
+                  placeholder="Uploaded content will appear here..."
+                  className="min-h-[300px]"
+                />
+              )}
             </div>
           )}
         </div>
