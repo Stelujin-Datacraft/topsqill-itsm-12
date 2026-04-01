@@ -330,10 +330,29 @@ export function TiptapToolbar({ editor, disabled = false }: TiptapToolbarProps) 
         </ToolbarButton>
       )}
 
-      {/* Image */}
-      <ToolbarButton onClick={addImage} disabled={disabled} title="Insert Image">
-        <ImageIcon className="h-3.5 w-3.5" />
-      </ToolbarButton>
+      {/* Image - File upload + URL */}
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" disabled={disabled} title="Insert Image">
+            <ImageIcon className="h-3.5 w-3.5" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-44 p-2" align="start">
+          <Button variant="ghost" size="sm" className="w-full justify-start text-xs h-7" onClick={addImage}>
+            <Upload className="h-3 w-3 mr-1.5" /> From Computer
+          </Button>
+          <Button variant="ghost" size="sm" className="w-full justify-start text-xs h-7" onClick={addImageFromUrl}>
+            <LinkIcon className="h-3 w-3 mr-1.5" /> From URL
+          </Button>
+        </PopoverContent>
+      </Popover>
+      <input
+        ref={imageInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleImageUpload}
+      />
 
       <Separator orientation="vertical" className="h-5 mx-0.5" />
 
