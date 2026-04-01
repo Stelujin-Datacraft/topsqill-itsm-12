@@ -919,7 +919,7 @@ const PolicyDetail = () => {
     if (versionHtml) {
       ensureSpace(20);
       doc.setFontSize(12);
-      doc.text('Policy Content', 14, yPos);
+      doc.text('Doc Content', 14, yPos);
       yPos += 8;
       doc.setFontSize(10);
 
