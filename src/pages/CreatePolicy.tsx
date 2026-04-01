@@ -44,7 +44,7 @@ const CreatePolicy = () => {
   const typeParam = searchParams.get('type') || 'policy';
   const isAudit = typeParam === 'audit';
   const { createPolicy, templates, templatesLoading } = usePolicies();
-  const [contentMode, setContentMode] = useState('blank');
+  const [contentMode, setContentMode] = useState('upload');
   const [selectedTemplate, setSelectedTemplate] = useState<PolicyTemplate | null>(null);
   const [form, setForm] = useState(INITIAL_FORM);
   const [originalDocxFile, setOriginalDocxFile] = useState<File | null>(null);
@@ -101,6 +101,7 @@ const CreatePolicy = () => {
       exception_allowed: form.exception_allowed,
       content: {
         ...(form.content_html ? { html: form.content_html } : (selectedTemplate?.content_structure || {})),
+        content_source: contentMode,
         dynamic_fields_display: form.form_id ? form.dynamic_fields_display : undefined,
         selected_field_ids: form.form_id && form.selected_field_ids.length > 0 ? form.selected_field_ids : undefined,
         selected_record_ids: form.form_id && selectedRecords.length > 0 ? selectedRecords : undefined,
@@ -136,8 +137,8 @@ const CreatePolicy = () => {
 
   return (
     <PageContent
-      title={isAudit ? "Create New Audit" : "Create New Policy"}
-      description={isAudit ? "Define a new audit with content, metadata, and governance settings" : "Define a new organizational policy with content, metadata, and governance settings"}
+      title={isAudit ? "Create New Audit" : "Create New Doc"}
+      description={isAudit ? "Define a new audit with content, metadata, and governance settings" : "Define a new document with content, metadata, and governance settings"}
       actions={
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={() => folderParam ? navigate(`/knowledge-base/${folderParam}`) : navigate('/knowledge-base')}>
@@ -146,7 +147,7 @@ const CreatePolicy = () => {
           </Button>
           <Button onClick={handleSubmit} disabled={!form.name.trim() || createPolicy.isPending}>
             <Save className="h-4 w-4 mr-2" />
-            {createPolicy.isPending ? 'Creating...' : isAudit ? 'Create Audit' : 'Create Policy'}
+            {createPolicy.isPending ? 'Creating...' : isAudit ? 'Create Audit' : 'Create Doc'}
           </Button>
         </div>
       }
@@ -159,11 +160,11 @@ const CreatePolicy = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <Label>Policy Name *</Label>
+              <Label>Doc Name *</Label>
               <Input
                 value={form.name}
                 onChange={e => updateField('name', e.target.value)}
-                placeholder="e.g., Information Security Policy"
+                placeholder="e.g., Information Security Doc"
               />
             </div>
             <div>
@@ -171,7 +172,7 @@ const CreatePolicy = () => {
               <Textarea
                 value={form.description}
                 onChange={e => updateField('description', e.target.value)}
-                placeholder="Brief description of the policy..."
+                placeholder="Brief description of the document..."
                 rows={3}
               />
             </div>
@@ -181,7 +182,7 @@ const CreatePolicy = () => {
         {/* Policy Content - Full Width */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Policy Content</CardTitle>
+            <CardTitle className="text-lg">Doc Content</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <PolicyContentSource

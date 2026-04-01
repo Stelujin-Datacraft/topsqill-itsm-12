@@ -190,7 +190,7 @@ export function PolicyContentSource({
         <TiptapEditor
           content={contentHtml}
           onChange={onContentChange}
-          placeholder="Write the full policy content here..."
+          placeholder="Write the full document content here..."
           className="min-h-[350px]"
         />
       </TabsContent>
@@ -288,7 +288,7 @@ export function PolicyContentSource({
             <Textarea
               value={pasteText}
               onChange={e => setPasteText(e.target.value)}
-              placeholder="Paste your policy content here (HTML or plain text)..."
+              placeholder="Paste your document content here (HTML or plain text)..."
               rows={6}
               className="mt-1 font-mono text-xs"
             />

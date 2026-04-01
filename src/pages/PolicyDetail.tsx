@@ -42,6 +42,8 @@ import { PolicyCustomFieldsRenderer } from '@/components/policies/PolicyCustomFi
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { sendKBNotificationEmail } from '@/services/kbNotificationEmail';
+import { PolicyContentSource } from '@/components/policies/PolicyContentSource';
+import { usePolicies as usePoliciesHook } from '@/hooks/usePolicies';
 
 const PolicyDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -58,6 +60,9 @@ const PolicyDetail = () => {
   const policy = policies.find(p => p.id === id);
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<any>({});
+  const [editContentMode, setEditContentMode] = useState('blank');
+  const [editSelectedTemplate, setEditSelectedTemplate] = useState<any>(null);
+  const { templates: allTemplates, templatesLoading: allTemplatesLoading } = usePoliciesHook();
   const [changeSummary, setChangeSummary] = useState('');
   const [reviewCommentMap, setReviewCommentMap] = useState<Record<string, string>>({});
   const [showLinkDialog, setShowLinkDialog] = useState(false);
@@ -244,6 +249,20 @@ const PolicyDetail = () => {
       record_name_field_id: (policy.content?.record_name_field_id as string) || '',
       dynamic_fields_display: (policy.content?.dynamic_fields_display as string) || 'table',
     });
+    // Detect which content mode was used
+    const contentSource = policy.content?.content_source as string;
+    if (contentSource) {
+      setEditContentMode(contentSource);
+    } else if (policy.content?.original_docx_url) {
+      setEditContentMode('upload');
+    } else if (policy.template_id) {
+      setEditContentMode('template');
+    } else if (policy.content?.html) {
+      setEditContentMode('blank');
+    } else {
+      setEditContentMode('upload');
+    }
+    setEditSelectedTemplate(null);
     setIsEditing(true);
   };
 
@@ -273,6 +292,7 @@ const PolicyDetail = () => {
     const updatedContent = {
       ...(policy.content || {}),
       ...(content_html !== undefined ? { html: content_html } : {}),
+      content_source: editContentMode,
       ...(custom_field_values ? { custom_field_values } : {}),
       ...(custom_fields ? { custom_fields } : {}),
       dynamic_fields_display: form_id ? dynamic_fields_display : undefined,
@@ -333,8 +353,8 @@ const PolicyDetail = () => {
       await supabase.from('notifications').insert({
         user_id: approverId,
         type: 'policy_approval_request',
-        title: 'Policy Approval Required',
-        message: `You have been requested to approve policy "${policy.name}" (${policy.policy_number || 'Draft'}) v${policy.current_version}.`,
+        title: 'Doc Approval Required',
+        message: `You have been requested to approve document "${policy.name}" (${policy.policy_number || 'Draft'}) v${policy.current_version}.`,
         data: {
           policy_id: policy.id,
           policy_name: policy.name,
@@ -900,7 +920,7 @@ const PolicyDetail = () => {
     if (versionHtml) {
       ensureSpace(20);
       doc.setFontSize(12);
-      doc.text('Policy Content', 14, yPos);
+      doc.text('Doc Content', 14, yPos);
       yPos += 8;
       doc.setFontSize(10);
 
@@ -1916,12 +1936,21 @@ const PolicyDetail = () => {
                 <Textarea value={editForm.description} onChange={e => setEditForm((p: any) => ({ ...p, description: e.target.value }))} rows={3} />
               </div>
               <div className="col-span-2">
-                <Label>Policy Content</Label>
-                <TiptapEditor
-                  content={editForm.content_html || ''}
-                  onChange={(html) => setEditForm((p: any) => ({ ...p, content_html: html }))}
-                  placeholder="Write the full policy content..."
-                  className="min-h-[150px]"
+                <Label className="mb-2 block">Doc Content</Label>
+                <PolicyContentSource
+                  contentHtml={editForm.content_html || ''}
+                  onContentChange={(html) => setEditForm((p: any) => ({ ...p, content_html: html }))}
+                  onOriginalFileChange={() => {}}
+                  templates={allTemplates}
+                  templatesLoading={allTemplatesLoading}
+                  selectedTemplate={editSelectedTemplate}
+                  onTemplateSelect={(t) => {
+                    setEditSelectedTemplate(t);
+                    const tHtml = t.content_structure?.html || '';
+                    setEditForm((p: any) => ({ ...p, content_html: tHtml }));
+                  }}
+                  mode={editContentMode}
+                  onModeChange={setEditContentMode}
                 />
               </div>
 
