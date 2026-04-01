@@ -288,7 +288,7 @@ export function PolicyContentSource({
             <Textarea
               value={pasteText}
               onChange={e => setPasteText(e.target.value)}
-              placeholder="Paste your policy content here (HTML or plain text)..."
+              placeholder="Paste your document content here (HTML or plain text)..."
               rows={6}
               className="mt-1 font-mono text-xs"
             />
