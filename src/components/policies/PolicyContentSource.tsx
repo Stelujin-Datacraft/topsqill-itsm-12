@@ -7,7 +7,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { TiptapEditor } from '@/components/ui/tiptap-editor';
 import { DocxPreview } from '@/components/ui/docx-preview';
-import { FileText, Sparkles, Upload, ClipboardPaste, Loader2, Eye, Edit3, FileImage } from 'lucide-react';
+import { FileText, Sparkles, Upload, ClipboardPaste, Loader2, Edit3, FileImage } from 'lucide-react';
 import { toast } from 'sonner';
 import type { PolicyTemplate } from '@/types/policy';
 import mammoth from 'mammoth';
