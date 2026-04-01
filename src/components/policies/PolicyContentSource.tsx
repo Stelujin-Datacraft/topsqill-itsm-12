@@ -190,7 +190,7 @@ export function PolicyContentSource({
         <TiptapEditor
           content={contentHtml}
           onChange={onContentChange}
-          placeholder="Write the full policy content here..."
+          placeholder="Write the full document content here..."
           className="min-h-[350px]"
         />
       </TabsContent>
