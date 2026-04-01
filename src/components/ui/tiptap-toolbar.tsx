@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import {
   Bold, Italic, Underline, Strikethrough,
   List, ListOrdered,
-  Link as LinkIcon, Image as ImageIcon, Unlink,
+  Link as LinkIcon, Image as ImageIcon, Unlink, Upload,
   Undo, Redo,
   AlignLeft, AlignCenter, AlignRight, AlignJustify,
   Table as TableIcon, Minus, Quote, Code,
