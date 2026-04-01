@@ -163,7 +163,7 @@ const CreatePolicy = () => {
               <Input
                 value={form.name}
                 onChange={e => updateField('name', e.target.value)}
-                placeholder="e.g., Information Security Policy"
+                placeholder="e.g., Information Security Doc"
               />
             </div>
             <div>
