@@ -2030,13 +2030,13 @@ const PolicyDetail = () => {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="bg-popover">
               {policy.content?.original_docx_url && (
-                <DropdownMenuItem onClick={downloadOriginalDocxWithContent}>
-                  <FileDown className="h-4 w-4 mr-2" /> Download Original DOCX (with Content)
+                <DropdownMenuItem onClick={exportToDocx}>
+                  <FileDown className="h-4 w-4 mr-2" /> Download Original DOCX
                 </DropdownMenuItem>
               )}
               {policy.content?.original_docx_url && (
-                <DropdownMenuItem onClick={downloadOriginalPdfWithContent}>
-                  <FileDown className="h-4 w-4 mr-2" /> Download Original PDF (with Content)
+                <DropdownMenuItem onClick={exportToPDF}>
+                  <FileDown className="h-4 w-4 mr-2" /> Download Original PDF
                 </DropdownMenuItem>
               )}
               <DropdownMenuItem onClick={() => {
