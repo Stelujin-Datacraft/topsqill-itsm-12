@@ -60,6 +60,9 @@ const PolicyDetail = () => {
   const policy = policies.find(p => p.id === id);
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<any>({});
+  const [editContentMode, setEditContentMode] = useState('blank');
+  const [editSelectedTemplate, setEditSelectedTemplate] = useState<any>(null);
+  const { templates: allTemplates, templatesLoading: allTemplatesLoading } = usePoliciesHook();
   const [changeSummary, setChangeSummary] = useState('');
   const [reviewCommentMap, setReviewCommentMap] = useState<Record<string, string>>({});
   const [showLinkDialog, setShowLinkDialog] = useState(false);
