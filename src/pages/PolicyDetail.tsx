@@ -1038,6 +1038,87 @@ const PolicyDetail = () => {
       sections.push(new Paragraph({ children: [new TextRun({ text: 'Document Content', bold: true, size: 24, font: 'Calibri' })], heading: HeadingLevel.HEADING_2, spacing: { after: 100 } }));
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = docxContentHtml;
+
+      // Extract inline TextRun children from an element, preserving bold/italic/underline/color/highlight
+      const extractInlineRuns = (el: Node): any[] => {
+        const runs: any[] = [];
+        el.childNodes.forEach(child => {
+          if (child.nodeType === Node.TEXT_NODE) {
+            const text = child.textContent || '';
+            if (text) runs.push(new TextRun({ text, size: 22, font: 'Calibri' }));
+          } else if (child.nodeType === Node.ELEMENT_NODE) {
+            const childEl = child as HTMLElement;
+            const tag = childEl.tagName.toLowerCase();
+            const style = childEl.style;
+            const isBold = tag === 'strong' || tag === 'b' || style.fontWeight === 'bold' || style.fontWeight === '700';
+            const isItalic = tag === 'em' || tag === 'i' || style.fontStyle === 'italic';
+            const isUnderline = tag === 'u' || style.textDecoration?.includes('underline');
+            const isStrike = tag === 's' || tag === 'del' || style.textDecoration?.includes('line-through');
+            const color = style.color ? rgbToHex(style.color) : undefined;
+            const highlight = tag === 'mark' ? 'yellow' : undefined;
+
+            if (tag === 'br') {
+              runs.push(new TextRun({ text: '', break: 1 }));
+              return;
+            }
+
+            if (tag === 'a') {
+              const text = childEl.textContent || '';
+              if (text) runs.push(new TextRun({ text, size: 22, font: 'Calibri', color: '4F46E5', underline: { type: 'single' as any } }));
+              return;
+            }
+
+            // If it's an inline formatting tag, apply formatting to all nested text
+            if (['strong', 'b', 'em', 'i', 'u', 's', 'del', 'mark', 'span', 'sub', 'sup'].includes(tag)) {
+              const nestedRuns = extractInlineRuns(childEl);
+              nestedRuns.forEach((run: any) => {
+                // Apply parent formatting to child runs
+                const props: any = { size: 22, font: 'Calibri', text: run.root?.[1]?.root?.[1] || '' };
+                // Rebuild with merged formatting
+                const origText = getRunText(run);
+                if (!origText) return;
+                const mergedProps: any = { text: origText, size: 22, font: 'Calibri' };
+                if (isBold || isRunBold(run)) mergedProps.bold = true;
+                if (isItalic || isRunItalic(run)) mergedProps.italics = true;
+                if (isUnderline) mergedProps.underline = { type: 'single' as any };
+                if (isStrike) mergedProps.strike = true;
+                if (color) mergedProps.color = color;
+                if (highlight) mergedProps.highlight = highlight;
+                runs.push(new TextRun(mergedProps));
+              });
+              return;
+            }
+
+            // For other inline elements, just recurse
+            runs.push(...extractInlineRuns(childEl));
+          }
+        });
+        return runs;
+      };
+
+      // Helper to get text from a TextRun
+      const getRunText = (run: any): string => {
+        try {
+          // Access the options passed to TextRun constructor
+          if (run.options?.text) return run.options.text;
+          // Fallback: traverse the internal structure
+          return run.root?.[1]?.root?.find((r: any) => typeof r === 'string' || r?.root) || '';
+        } catch { return ''; }
+      };
+      const isRunBold = (run: any): boolean => { try { return run.options?.bold || false; } catch { return false; } };
+      const isRunItalic = (run: any): boolean => { try { return run.options?.italics || false; } catch { return false; } };
+
+      // Convert rgb(r,g,b) or hex color to DOCX hex
+      const rgbToHex = (color: string): string | undefined => {
+        if (!color) return undefined;
+        if (color.startsWith('#')) return color.replace('#', '').toUpperCase();
+        const match = color.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+        if (match) {
+          return [match[1], match[2], match[3]].map(n => parseInt(n).toString(16).padStart(2, '0')).join('').toUpperCase();
+        }
+        return undefined;
+      };
+
       const processNode = (node: Node) => {
         if (node.nodeType === Node.TEXT_NODE) {
           const text = node.textContent?.trim();
@@ -1045,29 +1126,77 @@ const PolicyDetail = () => {
         } else if (node.nodeType === Node.ELEMENT_NODE) {
           const el = node as HTMLElement;
           const tag = el.tagName.toLowerCase();
+
           if (['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].includes(tag)) {
             const level = tag === 'h1' ? HeadingLevel.HEADING_1 : tag === 'h2' ? HeadingLevel.HEADING_2 : HeadingLevel.HEADING_3;
-            sections.push(new Paragraph({ children: [new TextRun({ text: el.textContent || '', bold: true, size: tag === 'h1' ? 32 : tag === 'h2' ? 28 : 24, font: 'Calibri' })], heading: level, spacing: { after: 120 } }));
+            const runs = extractInlineRuns(el);
+            // Force bold on heading runs
+            const headingRuns = runs.length > 0 ? runs.map((r: any) => {
+              const text = getRunText(r);
+              return new TextRun({ text, bold: true, size: tag === 'h1' ? 32 : tag === 'h2' ? 28 : 24, font: 'Calibri' });
+            }) : [new TextRun({ text: el.textContent || '', bold: true, size: tag === 'h1' ? 32 : tag === 'h2' ? 28 : 24, font: 'Calibri' })];
+            sections.push(new Paragraph({ children: headingRuns, heading: level, spacing: { after: 120 } }));
+
           } else if (tag === 'p' || tag === 'div') {
-            const text = el.textContent?.trim();
-            if (text) sections.push(new Paragraph({ children: [new TextRun({ text, size: 22, font: 'Calibri' })], spacing: { after: 80 } }));
+            const runs = extractInlineRuns(el);
+            if (runs.length > 0) {
+              // Check text alignment
+              const align = el.style.textAlign;
+              const alignment = align === 'center' ? 'center' : align === 'right' ? 'right' : align === 'justify' ? 'both' : undefined;
+              sections.push(new Paragraph({ children: runs, spacing: { after: 80 }, ...(alignment ? { alignment: alignment as any } : {}) }));
+            }
+
           } else if (tag === 'ul' || tag === 'ol') {
-            el.querySelectorAll('li').forEach((li, idx) => {
+            el.querySelectorAll(':scope > li').forEach((li, idx) => {
+              const runs = extractInlineRuns(li);
               const bullet = tag === 'ul' ? '• ' : `${idx + 1}. `;
-              sections.push(new Paragraph({ children: [new TextRun({ text: bullet + (li.textContent || ''), size: 22, font: 'Calibri' })], spacing: { after: 40 }, indent: { left: 400 } }));
+              const bulletRun = new TextRun({ text: bullet, size: 22, font: 'Calibri' });
+              sections.push(new Paragraph({ children: [bulletRun, ...runs], spacing: { after: 40 }, indent: { left: 400 } }));
             });
+
           } else if (tag === 'table') {
             const rows = el.querySelectorAll('tr');
             if (rows.length > 0) {
+              const cellBorder = { style: 'single' as any, size: 1, color: 'CCCCCC' };
+              const borders = { top: cellBorder, bottom: cellBorder, left: cellBorder, right: cellBorder };
               const docxRows = Array.from(rows).map((tr, rIdx) => {
                 const cells = tr.querySelectorAll('td, th');
-                return new DocxTableRow({ children: Array.from(cells).map(cell => new DocxTableCell({ children: [new Paragraph({ children: [new TextRun({ text: cell.textContent || '', bold: cell.tagName.toLowerCase() === 'th' || rIdx === 0, size: 20, font: 'Calibri' })] })], width: { size: 100 / cells.length, type: WidthType.PERCENTAGE } })) });
+                return new DocxTableRow({
+                  children: Array.from(cells).map(cell => {
+                    const isHeader = cell.tagName.toLowerCase() === 'th' || rIdx === 0;
+                    const cellRuns = extractInlineRuns(cell);
+                    const finalRuns = cellRuns.length > 0 ? cellRuns : [new TextRun({ text: cell.textContent || '', size: 20, font: 'Calibri', bold: isHeader })];
+                    return new DocxTableCell({
+                      children: [new Paragraph({ children: finalRuns })],
+                      width: { size: Math.floor(100 / cells.length), type: WidthType.PERCENTAGE },
+                      borders,
+                      ...(isHeader ? { shading: { fill: 'F3F4F6', type: 'clear' as any, color: 'auto' } } : {}),
+                    });
+                  }),
+                });
               });
               sections.push(new DocxTable({ rows: docxRows, width: { size: 100, type: WidthType.PERCENTAGE } }));
               sections.push(new Paragraph({ children: [], spacing: { after: 120 } }));
             }
+
           } else if (tag === 'blockquote') {
-            sections.push(new Paragraph({ children: [new TextRun({ text: el.textContent || '', italics: true, size: 22, color: '374151', font: 'Calibri' })], indent: { left: 400 }, spacing: { after: 100 } }));
+            const runs = extractInlineRuns(el);
+            const finalRuns = runs.length > 0 ? runs : [new TextRun({ text: el.textContent || '', italics: true, size: 22, color: '374151', font: 'Calibri' })];
+            sections.push(new Paragraph({ children: finalRuns, indent: { left: 400 }, spacing: { after: 100 } }));
+
+          } else if (tag === 'img') {
+            // Skip images in DOCX export (base64 images not easily supported)
+            // Add a placeholder note
+            const alt = el.getAttribute('alt') || 'Image';
+            sections.push(new Paragraph({ children: [new TextRun({ text: `[${alt}]`, italics: true, size: 20, color: '999999', font: 'Calibri' })], spacing: { after: 80 } }));
+
+          } else if (tag === 'hr') {
+            sections.push(new Paragraph({
+              children: [],
+              spacing: { after: 100, before: 100 },
+              border: { bottom: { style: 'single' as any, size: 6, space: 1, color: 'CCCCCC' } },
+            }));
+
           } else {
             el.childNodes.forEach(child => processNode(child));
           }
