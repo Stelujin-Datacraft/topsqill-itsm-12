@@ -6,7 +6,7 @@ import { Popover, PopoverContent, PopoverTrigger } from './popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './select';
 import {
   Bold, Italic, Underline, Strikethrough,
-  List, ListOrdered,
+  List, ListOrdered, ListChecks,
   Link as LinkIcon, Image as ImageIcon, Unlink, Upload,
   Undo, Redo,
   AlignLeft, AlignCenter, AlignRight, AlignJustify,
@@ -14,6 +14,7 @@ import {
   Type, Highlighter,
   RowsIcon, Columns,
   Trash2, ArrowDown, ArrowUp, ArrowLeft, ArrowRight,
+  Subscript, Superscript,
 } from 'lucide-react';
 
 interface TiptapToolbarProps {
@@ -45,6 +46,8 @@ const HEADING_OPTIONS = [
   { label: 'Heading 2', value: '2' },
   { label: 'Heading 3', value: '3' },
   { label: 'Heading 4', value: '4' },
+  { label: 'Heading 5', value: '5' },
+  { label: 'Heading 6', value: '6' },
 ];
 
 const MAX_GRID_ROWS = 8;
@@ -123,7 +126,6 @@ export function TiptapToolbar({ editor, disabled = false }: TiptapToolbarProps) 
   const imageInputRef = React.useRef<HTMLInputElement>(null);
 
   const addImage = () => {
-    // Show choice: URL or file upload
     imageInputRef.current?.click();
   };
 
@@ -135,9 +137,7 @@ export function TiptapToolbar({ editor, disabled = false }: TiptapToolbarProps) 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      return;
-    }
+    if (!file.type.startsWith('image/')) return;
     const reader = new FileReader();
     reader.onload = () => {
       const base64 = reader.result as string;
@@ -148,7 +148,7 @@ export function TiptapToolbar({ editor, disabled = false }: TiptapToolbarProps) 
   };
 
   const getCurrentHeading = () => {
-    for (let i = 1; i <= 4; i++) {
+    for (let i = 1; i <= 6; i++) {
       if (editor.isActive('heading', { level: i })) return String(i);
     }
     return 'paragraph';
@@ -158,7 +158,7 @@ export function TiptapToolbar({ editor, disabled = false }: TiptapToolbarProps) 
     if (value === 'paragraph') {
       editor.chain().focus().setParagraph().run();
     } else {
-      editor.chain().focus().toggleHeading({ level: parseInt(value) as 1 | 2 | 3 | 4 }).run();
+      editor.chain().focus().toggleHeading({ level: parseInt(value) as 1 | 2 | 3 | 4 | 5 | 6 }).run();
     }
   };
 
@@ -222,6 +222,12 @@ export function TiptapToolbar({ editor, disabled = false }: TiptapToolbarProps) 
       </ToolbarButton>
       <ToolbarButton onClick={() => editor.chain().focus().toggleStrike().run()} active={editor.isActive('strike')} disabled={disabled} title="Strikethrough">
         <Strikethrough className="h-3.5 w-3.5" />
+      </ToolbarButton>
+      <ToolbarButton onClick={() => editor.chain().focus().toggleSubscript().run()} active={editor.isActive('subscript')} disabled={disabled} title="Subscript">
+        <Subscript className="h-3.5 w-3.5" />
+      </ToolbarButton>
+      <ToolbarButton onClick={() => editor.chain().focus().toggleSuperscript().run()} active={editor.isActive('superscript')} disabled={disabled} title="Superscript">
+        <Superscript className="h-3.5 w-3.5" />
       </ToolbarButton>
 
       <Separator orientation="vertical" className="h-5 mx-0.5" />
@@ -304,6 +310,9 @@ export function TiptapToolbar({ editor, disabled = false }: TiptapToolbarProps) 
       <ToolbarButton onClick={() => editor.chain().focus().toggleOrderedList().run()} active={editor.isActive('orderedList')} disabled={disabled} title="Numbered List">
         <ListOrdered className="h-3.5 w-3.5" />
       </ToolbarButton>
+      <ToolbarButton onClick={() => editor.chain().focus().toggleTaskList().run()} active={editor.isActive('taskList')} disabled={disabled} title="Task List (Checklist)">
+        <ListChecks className="h-3.5 w-3.5" />
+      </ToolbarButton>
 
       <Separator orientation="vertical" className="h-5 mx-0.5" />
 
@@ -330,7 +339,7 @@ export function TiptapToolbar({ editor, disabled = false }: TiptapToolbarProps) 
         </ToolbarButton>
       )}
 
-      {/* Image - File upload + URL */}
+      {/* Image */}
       <Popover>
         <PopoverTrigger asChild>
           <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" disabled={disabled} title="Insert Image">
@@ -356,7 +365,7 @@ export function TiptapToolbar({ editor, disabled = false }: TiptapToolbarProps) 
 
       <Separator orientation="vertical" className="h-5 mx-0.5" />
 
-      {/* Table with Grid Picker */}
+      {/* Table */}
       <Popover open={showTableMenu} onOpenChange={setShowTableMenu}>
         <PopoverTrigger asChild>
           <Button type="button" variant="ghost" size="sm" className={`h-7 w-7 p-0 ${editor.isActive('table') ? 'bg-accent text-accent-foreground' : ''}`} disabled={disabled} title="Table">

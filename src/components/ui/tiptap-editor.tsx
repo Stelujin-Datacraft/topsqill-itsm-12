@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Link from '@tiptap/extension-link';
@@ -14,6 +14,10 @@ import { TextStyle } from '@tiptap/extension-text-style';
 import Highlight from '@tiptap/extension-highlight';
 import Placeholder from '@tiptap/extension-placeholder';
 import FontFamily from '@tiptap/extension-font-family';
+import Subscript from '@tiptap/extension-subscript';
+import Superscript from '@tiptap/extension-superscript';
+import TaskList from '@tiptap/extension-task-list';
+import TaskItem from '@tiptap/extension-task-item';
 import { TiptapToolbar } from './tiptap-toolbar';
 
 interface TiptapEditorProps {
@@ -36,9 +40,11 @@ export function TiptapEditor({
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
-        heading: { levels: [1, 2, 3, 4] },
+        heading: { levels: [1, 2, 3, 4, 5, 6] },
       }),
       UnderlineExtension,
+      Subscript,
+      Superscript,
       Link.configure({
         openOnClick: false,
         HTMLAttributes: { class: 'text-primary underline cursor-pointer' },
@@ -62,6 +68,8 @@ export function TiptapEditor({
       Highlight.configure({ multicolor: true }),
       Placeholder.configure({ placeholder }),
       FontFamily,
+      TaskList,
+      TaskItem.configure({ nested: true }),
     ],
     content,
     onUpdate: ({ editor }) => {
