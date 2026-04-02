@@ -1,4 +1,6 @@
 import React, { useState, useMemo, useCallback } from 'react';
+import { generatePolicyPreviewBlob } from '@/utils/policyPdfPreview';
+import { Loader2 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Plus, Search, FileText, Shield, BarChart3, LayoutTemplate, CalendarClock, FolderOpen, Users, Lock, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -49,12 +51,21 @@ const KnowledgeBaseFolder = () => {
   const [typeFilter, setTypeFilter] = useState('all');
   const [activeTab, setActiveTab] = useState('list');
 
-  const handleViewPolicy = useCallback((policy: any) => {
-    const previewPath = `/policy/${policy.id}?preview=pdf`;
-    const previewWindow = window.open(previewPath, '_blank', 'noopener');
+  const [previewIframeUrl, setPreviewIframeUrl] = useState<string | null>(null);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
-    if (!previewWindow) {
-      navigate(previewPath);
+  const handleViewPolicy = useCallback(async (policy: any) => {
+    setPreviewLoading(true);
+    setShowPreviewModal(true);
+    setPreviewIframeUrl(null);
+    try {
+      const blobUrl = await generatePolicyPreviewBlob(policy);
+      setPreviewIframeUrl(blobUrl);
+    } catch (err) {
+      console.error('Failed to generate preview:', err);
+    } finally {
+      setPreviewLoading(false);
     }
   }, []);
 
@@ -280,6 +291,49 @@ const KnowledgeBaseFolder = () => {
           )}
         </TabsContent>
 
+<Dialog
+  open={showPreviewModal}
+  onOpenChange={(open) => {
+    if (!open) {
+      setShowPreviewModal(false);
+      if (previewIframeUrl) {
+        URL.revokeObjectURL(previewIframeUrl);
+      }
+      setPreviewIframeUrl(null);
+    }
+  }}
+>
+  <DialogContent className="max-w-5xl h-[85vh] flex flex-col p-0">
+    <DialogHeader className="px-6 pt-6 pb-2">
+      <DialogTitle>Document Preview</DialogTitle>
+    </DialogHeader>
+
+    <div className="flex-1 px-6 pb-6">
+      {previewLoading ? (
+        <div className="flex items-center justify-center h-full gap-2">
+          <Loader2 className="h-5 w-5 animate-spin text-primary" />
+          <span className="text-sm text-muted-foreground">Generating preview...</span>
+        </div>
+      ) : previewIframeUrl ? (
+        <object
+          data={previewIframeUrl}
+          type="application/pdf"
+          className="w-full h-full border rounded-md"
+          aria-label="Document Preview"
+        >
+          <div className="flex flex-col items-center justify-center h-full gap-3 text-sm text-muted-foreground">
+            <p>PDF preview not supported in this browser.</p>
+            <a href={previewIframeUrl} download="preview.pdf" className="text-primary underline">Download PDF</a>
+          </div>
+        </object>
+      ) : (
+        <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
+          No preview available
+        </div>
+      )}
+    </div>
+  </DialogContent>
+</Dialog>
         <TabsContent value="templates" className="space-y-4">
           {templatesLoading ? (
             <div className="space-y-3">
