@@ -315,11 +315,17 @@ const KnowledgeBaseFolder = () => {
           <span className="text-sm text-muted-foreground">Generating preview...</span>
         </div>
       ) : previewIframeUrl ? (
-        <iframe
-          src={previewIframeUrl}
+        <object
+          data={previewIframeUrl}
+          type="application/pdf"
           className="w-full h-full border rounded-md"
-          title="Document Preview"
-        />
+          aria-label="Document Preview"
+        >
+          <div className="flex flex-col items-center justify-center h-full gap-3 text-sm text-muted-foreground">
+            <p>PDF preview not supported in this browser.</p>
+            <a href={previewIframeUrl} download="preview.pdf" className="text-primary underline">Download PDF</a>
+          </div>
+        </object>
       ) : (
         <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
           No preview available
