@@ -6,7 +6,7 @@ import { Popover, PopoverContent, PopoverTrigger } from './popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './select';
 import {
   Bold, Italic, Underline, Strikethrough,
-  List, ListOrdered, ListChecks,
+  List, ListOrdered,
   Link as LinkIcon, Image as ImageIcon, Unlink, Upload,
   Undo, Redo,
   AlignLeft, AlignCenter, AlignRight, AlignJustify,
@@ -310,10 +310,6 @@ export function TiptapToolbar({ editor, disabled = false }: TiptapToolbarProps) 
       <ToolbarButton onClick={() => editor.chain().focus().toggleOrderedList().run()} active={editor.isActive('orderedList')} disabled={disabled} title="Numbered List">
         <ListOrdered className="h-3.5 w-3.5" />
       </ToolbarButton>
-      <ToolbarButton onClick={() => editor.chain().focus().toggleTaskList().run()} active={editor.isActive('taskList')} disabled={disabled} title="Task List (Checklist)">
-        <ListChecks className="h-3.5 w-3.5" />
-      </ToolbarButton>
-
       <Separator orientation="vertical" className="h-5 mx-0.5" />
 
       {/* Blockquote & Code & HR */}
