@@ -6,7 +6,7 @@ import { Popover, PopoverContent, PopoverTrigger } from './popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './select';
 import {
   Bold, Italic, Underline, Strikethrough,
-  List, ListOrdered, ListChecks,
+  List, ListOrdered,
   Link as LinkIcon, Image as ImageIcon, Unlink, Upload,
   Undo, Redo,
   AlignLeft, AlignCenter, AlignRight, AlignJustify,
