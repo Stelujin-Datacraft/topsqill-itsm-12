@@ -66,8 +66,6 @@ export function TiptapEditor({
       Highlight.configure({ multicolor: true }),
       Placeholder.configure({ placeholder }),
       FontFamily,
-      TaskList,
-      TaskItem.configure({ nested: true }),
     ],
     content,
     onUpdate: ({ editor }) => {
