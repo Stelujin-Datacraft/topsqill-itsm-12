@@ -296,6 +296,9 @@ const KnowledgeBaseFolder = () => {
   onOpenChange={(open) => {
     if (!open) {
       setShowPreviewModal(false);
+      if (previewIframeUrl) {
+        URL.revokeObjectURL(previewIframeUrl);
+      }
       setPreviewIframeUrl(null);
     }
   }}
@@ -306,14 +309,20 @@ const KnowledgeBaseFolder = () => {
     </DialogHeader>
 
     <div className="flex-1 px-6 pb-6">
-      {previewIframeUrl ? (
+      {previewLoading ? (
+        <div className="flex items-center justify-center h-full gap-2">
+          <Loader2 className="h-5 w-5 animate-spin text-primary" />
+          <span className="text-sm text-muted-foreground">Generating preview...</span>
+        </div>
+      ) : previewIframeUrl ? (
         <iframe
           src={previewIframeUrl}
           className="w-full h-full border rounded-md"
+          title="Document Preview"
         />
       ) : (
-        <div className="flex items-center justify-center h-full">
-          Loading...
+        <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
+          No preview available
         </div>
       )}
     </div>
