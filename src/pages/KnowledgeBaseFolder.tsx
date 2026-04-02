@@ -1,4 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
+import { generatePolicyPreviewBlob } from '@/utils/policyPdfPreview';
+import { Loader2 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Plus, Search, FileText, Shield, BarChart3, LayoutTemplate, CalendarClock, FolderOpen, Users, Lock, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
