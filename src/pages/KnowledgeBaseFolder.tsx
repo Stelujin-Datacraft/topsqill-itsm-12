@@ -52,7 +52,22 @@ const KnowledgeBaseFolder = () => {
   const [activeTab, setActiveTab] = useState('list');
 
   const [previewIframeUrl, setPreviewIframeUrl] = useState<string | null>(null);
-const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [previewLoading, setPreviewLoading] = useState(false);
+
+  const handleViewPolicy = useCallback(async (policy: any) => {
+    setPreviewLoading(true);
+    setShowPreviewModal(true);
+    setPreviewIframeUrl(null);
+    try {
+      const blobUrl = await generatePolicyPreviewBlob(policy);
+      setPreviewIframeUrl(blobUrl);
+    } catch (err) {
+      console.error('Failed to generate preview:', err);
+    } finally {
+      setPreviewLoading(false);
+    }
+  }, []);
 
   // Template state
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
