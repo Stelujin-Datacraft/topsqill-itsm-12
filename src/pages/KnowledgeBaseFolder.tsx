@@ -1,4 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
+import { generatePolicyPreviewBlob } from '@/utils/policyPdfPreview';
+import { Loader2 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Plus, Search, FileText, Shield, BarChart3, LayoutTemplate, CalendarClock, FolderOpen, Users, Lock, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -50,7 +52,22 @@ const KnowledgeBaseFolder = () => {
   const [activeTab, setActiveTab] = useState('list');
 
   const [previewIframeUrl, setPreviewIframeUrl] = useState<string | null>(null);
-const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [previewLoading, setPreviewLoading] = useState(false);
+
+  const handleViewPolicy = useCallback(async (policy: any) => {
+    setPreviewLoading(true);
+    setShowPreviewModal(true);
+    setPreviewIframeUrl(null);
+    try {
+      const blobUrl = await generatePolicyPreviewBlob(policy);
+      setPreviewIframeUrl(blobUrl);
+    } catch (err) {
+      console.error('Failed to generate preview:', err);
+    } finally {
+      setPreviewLoading(false);
+    }
+  }, []);
 
   // Template state
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -255,12 +272,7 @@ const [showPreviewModal, setShowPreviewModal] = useState(false);
                             className="gap-1 text-xs h-7"
                             onClick={(e) => {
   e.stopPropagation();
-
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-  const previewUrl = `${supabaseUrl}/functions/v1/policy-preview?id=${policy.id}`;
-
-  setPreviewIframeUrl(previewUrl);
-  setShowPreviewModal(true);
+  handleViewPolicy(policy);
 }}
                           >
                             <Eye className="h-3 w-3" /> View
@@ -284,6 +296,9 @@ const [showPreviewModal, setShowPreviewModal] = useState(false);
   onOpenChange={(open) => {
     if (!open) {
       setShowPreviewModal(false);
+      if (previewIframeUrl) {
+        URL.revokeObjectURL(previewIframeUrl);
+      }
       setPreviewIframeUrl(null);
     }
   }}
@@ -294,14 +309,20 @@ const [showPreviewModal, setShowPreviewModal] = useState(false);
     </DialogHeader>
 
     <div className="flex-1 px-6 pb-6">
-      {previewIframeUrl ? (
+      {previewLoading ? (
+        <div className="flex items-center justify-center h-full gap-2">
+          <Loader2 className="h-5 w-5 animate-spin text-primary" />
+          <span className="text-sm text-muted-foreground">Generating preview...</span>
+        </div>
+      ) : previewIframeUrl ? (
         <iframe
           src={previewIframeUrl}
           className="w-full h-full border rounded-md"
+          title="Document Preview"
         />
       ) : (
-        <div className="flex items-center justify-center h-full">
-          Loading...
+        <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
+          No preview available
         </div>
       )}
     </div>
