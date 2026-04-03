@@ -1888,17 +1888,15 @@ const PolicyDetail = () => {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="bg-popover">
-              {policy.content?.original_docx_url && (
                 <DropdownMenuItem onClick={downloadOriginalDocxWithContent}>
-                  <FileDown className="h-4 w-4 mr-2" /> Download Original DOCX (with Content)
+                  <FileDown className="h-4 w-4 mr-2" /> Download DOCX
                 </DropdownMenuItem>
-              )}
-              {policy.content?.original_docx_url && (
+              
+   
                 <DropdownMenuItem onClick={downloadOriginalPdfWithContent}>
-                  <FileDown className="h-4 w-4 mr-2" /> Download Original PDF (with Content)
+                  <FileDown className="h-4 w-4 mr-2" /> Download PDF
                 </DropdownMenuItem>
-              )}
-              <DropdownMenuItem onClick={() => {
+              {/* <DropdownMenuItem onClick={() => {
                 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
                 const previewUrl = `${supabaseUrl}/functions/v1/policy-preview?id=${policy.id}`;
                 // Try edge function first — if it returns JSON (no file), fall back to client-side
@@ -1927,7 +1925,7 @@ const PolicyDetail = () => {
               </DropdownMenuItem>
               <DropdownMenuItem onClick={exportToDocx}>
                 <FileDown className="h-4 w-4 mr-2" /> Export as DOCX
-              </DropdownMenuItem>
+              </DropdownMenuItem> */}
             </DropdownMenuContent>
           </DropdownMenu>
           {canEdit && policy.status === 'draft' && (
