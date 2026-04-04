@@ -1891,41 +1891,9 @@ const PolicyDetail = () => {
                 <DropdownMenuItem onClick={downloadOriginalDocxWithContent}>
                   <FileDown className="h-4 w-4 mr-2" /> Download DOCX
                 </DropdownMenuItem>
-              
-   
-                <DropdownMenuItem onClick={downloadOriginalPdfWithContent}>
+                <DropdownMenuItem onClick={exportToPDF}>
                   <FileDown className="h-4 w-4 mr-2" /> Download PDF
                 </DropdownMenuItem>
-              {/* <DropdownMenuItem onClick={() => {
-                const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-                const previewUrl = `${supabaseUrl}/functions/v1/policy-preview?id=${policy.id}`;
-                // Try edge function first — if it returns JSON (no file), fall back to client-side
-                fetch(previewUrl).then(async (res) => {
-                  const contentType = res.headers.get('content-type') || '';
-                  if (contentType.includes('application/pdf')) {
-                    const blob = await res.blob();
-                    const blobUrl = URL.createObjectURL(blob);
-                    setPreviewIframeUrl(blobUrl);
-                    setShowPreviewModal(true);
-                  } else if (res.redirected || res.status === 302) {
-                    // DOCX — open in new tab (Office viewer)
-                    window.open(res.url, '_blank');
-                  } else {
-                    // Fallback: client-side PDF generation
-                    void generatePDF('preview');
-                  }
-                }).catch(() => {
-                  void generatePDF('preview');
-                });
-              }}>
-                <Eye className="h-4 w-4 mr-2" /> Preview Document
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={exportToPDF}>
-                <FileDown className="h-4 w-4 mr-2" /> Export as PDF
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={exportToDocx}>
-                <FileDown className="h-4 w-4 mr-2" /> Export as DOCX
-              </DropdownMenuItem> */}
             </DropdownMenuContent>
           </DropdownMenu>
           {canEdit && policy.status === 'draft' && (
