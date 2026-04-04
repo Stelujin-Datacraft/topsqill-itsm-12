@@ -799,7 +799,18 @@ const PolicyDetail = () => {
                 yPos = (doc as any).lastAutoTable?.finalY + 6 || yPos + 10;
               } else {
                 const tableRows = fields.map((f: any) => [f.label, pdfFmtVal(data[f.id], f.field_type, f.options)]);
-                autoTable(doc, { head: [['Field', 'Value']], body: tableRows, startY: yPos, margin: { left: 14 }, styles: { fontSize: 9 }, headStyles: { fillColor: [60, 60, 60] } });
+                autoTable(doc, {
+                  head: [['Field', 'Value']],
+                  body: tableRows,
+                  startY: yPos,
+                  margin: { left: 14 },
+                  styles: { fontSize: 9, cellPadding: 4 },
+                  headStyles: { fillColor: [60, 60, 60] },
+                  columnStyles: {
+                    0: { fontStyle: 'bold', cellWidth: 55 },
+                    1: { cellWidth: 'auto' },
+                  },
+                });
                 yPos = (doc as any).lastAutoTable?.finalY + 6 || yPos + 10;
               }
             } else {
