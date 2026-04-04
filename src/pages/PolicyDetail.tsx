@@ -892,7 +892,14 @@ const PolicyDetail = () => {
     }
   };
 
-  const exportToPDF = () => generatePDF('download');
+  const exportToPDF = () => {
+    // If an original template was uploaded, use the high-fidelity template-preserving export
+    if (policy.content?.original_docx_url) {
+      downloadOriginalPdfWithContent();
+    } else {
+      generatePDF('download');
+    }
+  };
 
   const generateVersionPDF = async (version: any, mode: 'download' | 'preview') => {
     const doc = new jsPDF();
