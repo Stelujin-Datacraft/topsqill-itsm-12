@@ -303,10 +303,10 @@ export async function generatePolicyPreviewBlob(policy: any): Promise<string> {
             body: rows,
             startY: yPos,
             margin: { left: 14 },
-            styles: { fontSize: 9 },
+            styles: { fontSize: 9, cellPadding: 4, overflow: 'linebreak' },
             headStyles: { fillColor: [60, 60, 60] },
             columnStyles: {
-              0: { fontStyle: 'bold', cellWidth: 60 },
+              0: { fontStyle: 'bold', cellWidth: 55 },
               1: { cellWidth: 'auto' },
             },
           });
