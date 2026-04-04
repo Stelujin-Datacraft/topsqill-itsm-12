@@ -1909,9 +1909,20 @@ const PolicyDetail = () => {
                 <DropdownMenuItem onClick={downloadOriginalDocxWithContent}>
                   <FileDown className="h-4 w-4 mr-2" /> Download DOCX
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={exportToPDF}>
-                  <FileDown className="h-4 w-4 mr-2" /> Download PDF
-                </DropdownMenuItem>
+                {policy.content?.original_docx_url ? (
+                  <>
+                    <DropdownMenuItem onClick={downloadOriginalPdfWithContent}>
+                      <FileDown className="h-4 w-4 mr-2" /> Download PDF (Original Template)
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => generatePDF('download')}>
+                      <FileDown className="h-4 w-4 mr-2" /> Download PDF (Basic)
+                    </DropdownMenuItem>
+                  </>
+                ) : (
+                  <DropdownMenuItem onClick={() => generatePDF('download')}>
+                    <FileDown className="h-4 w-4 mr-2" /> Download PDF
+                  </DropdownMenuItem>
+                )}
             </DropdownMenuContent>
           </DropdownMenu>
           {canEdit && policy.status === 'draft' && (
