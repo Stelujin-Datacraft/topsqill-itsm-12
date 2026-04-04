@@ -799,7 +799,18 @@ const PolicyDetail = () => {
                 yPos = (doc as any).lastAutoTable?.finalY + 6 || yPos + 10;
               } else {
                 const tableRows = fields.map((f: any) => [f.label, pdfFmtVal(data[f.id], f.field_type, f.options)]);
-                autoTable(doc, { head: [['Field', 'Value']], body: tableRows, startY: yPos, margin: { left: 14 }, styles: { fontSize: 9 }, headStyles: { fillColor: [60, 60, 60] } });
+                autoTable(doc, {
+                  head: [['Field', 'Value']],
+                  body: tableRows,
+                  startY: yPos,
+                  margin: { left: 14 },
+                  styles: { fontSize: 9, cellPadding: 4 },
+                  headStyles: { fillColor: [60, 60, 60] },
+                  columnStyles: {
+                    0: { fontStyle: 'bold', cellWidth: 55 },
+                    1: { cellWidth: 'auto' },
+                  },
+                });
                 yPos = (doc as any).lastAutoTable?.finalY + 6 || yPos + 10;
               }
             } else {
@@ -1891,41 +1902,9 @@ const PolicyDetail = () => {
                 <DropdownMenuItem onClick={downloadOriginalDocxWithContent}>
                   <FileDown className="h-4 w-4 mr-2" /> Download DOCX
                 </DropdownMenuItem>
-              
-   
-                <DropdownMenuItem onClick={downloadOriginalPdfWithContent}>
+                <DropdownMenuItem onClick={exportToPDF}>
                   <FileDown className="h-4 w-4 mr-2" /> Download PDF
                 </DropdownMenuItem>
-              {/* <DropdownMenuItem onClick={() => {
-                const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-                const previewUrl = `${supabaseUrl}/functions/v1/policy-preview?id=${policy.id}`;
-                // Try edge function first — if it returns JSON (no file), fall back to client-side
-                fetch(previewUrl).then(async (res) => {
-                  const contentType = res.headers.get('content-type') || '';
-                  if (contentType.includes('application/pdf')) {
-                    const blob = await res.blob();
-                    const blobUrl = URL.createObjectURL(blob);
-                    setPreviewIframeUrl(blobUrl);
-                    setShowPreviewModal(true);
-                  } else if (res.redirected || res.status === 302) {
-                    // DOCX — open in new tab (Office viewer)
-                    window.open(res.url, '_blank');
-                  } else {
-                    // Fallback: client-side PDF generation
-                    void generatePDF('preview');
-                  }
-                }).catch(() => {
-                  void generatePDF('preview');
-                });
-              }}>
-                <Eye className="h-4 w-4 mr-2" /> Preview Document
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={exportToPDF}>
-                <FileDown className="h-4 w-4 mr-2" /> Export as PDF
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={exportToDocx}>
-                <FileDown className="h-4 w-4 mr-2" /> Export as DOCX
-              </DropdownMenuItem> */}
             </DropdownMenuContent>
           </DropdownMenu>
           {canEdit && policy.status === 'draft' && (
