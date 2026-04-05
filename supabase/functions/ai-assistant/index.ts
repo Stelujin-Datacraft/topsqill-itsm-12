@@ -56,9 +56,7 @@ interface AIRequest {
     existingCharts?: Array<{ type: string; dimensions: string[]; metrics: string[] }>;
     // Rule generation
     existingFieldRules?: Array<{ name: string; targetField: string; action: string }>;
-    existingFormRules?: Array<{ name: string; action: string }>;
-    // SLA generation
-    industry?: string;
+    // SLA generation (industry already declared above)
   };
 }
 
