@@ -37,6 +37,19 @@ interface ReportInfo {
   description?: string;
 }
 
+interface FormWithFields {
+  id: string;
+  name: string;
+  description?: string;
+  fields: Array<{
+    id: string;
+    label: string;
+    type: string;
+    options?: Array<{ id: string; value: string; label: string }>;
+    required: boolean;
+  }>;
+}
+
 export function AIChatbot() {
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
