@@ -42,6 +42,10 @@ interface AIContentResult {
 
 interface AIChatbotResult {
   message: string;
+  toolCall?: {
+    action: string;
+    params: Record<string, any>;
+  };
 }
 
 interface AIFormulaResult {
@@ -288,7 +292,7 @@ export function useFormAI() {
     userInput: string,
     chatHistory: Array<{ role: 'user' | 'assistant'; content: string }>,
     options?: {
-      availableForms?: Array<{ id: string; name: string; description?: string }>;
+      availableForms?: Array<{ id: string; name: string; description?: string; fields?: Array<{ id: string; label: string; type: string; options?: any[]; required: boolean }> }>;
       availableWorkflows?: Array<{ id: string; name: string; description?: string }>;
       availableReports?: Array<{ id: string; name: string; description?: string }>;
       currentRoute?: string;

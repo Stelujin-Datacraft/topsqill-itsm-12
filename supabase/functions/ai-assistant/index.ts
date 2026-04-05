@@ -56,9 +56,7 @@ interface AIRequest {
     existingCharts?: Array<{ type: string; dimensions: string[]; metrics: string[] }>;
     // Rule generation
     existingFieldRules?: Array<{ name: string; targetField: string; action: string }>;
-    existingFormRules?: Array<{ name: string; action: string }>;
-    // SLA generation
-    industry?: string;
+    // SLA generation (industry already declared above)
   };
 }
 
@@ -318,185 +316,350 @@ Generate appropriate content for this request.`;
         }
         break;
 
-      // NEW: Chatbot Assistant
-      case 'chatbot-assist':
-        temperature = 0.5;
-        maxTokens = 1500;
+      // NEW: Chatbot Assistant with Tool Calling
+      case 'chatbot-assist': {
+        temperature = 0.4;
+        maxTokens = 2000;
         
-         systemPrompt = `You are a helpful AI Copilot for TopSqill BPM - a form and workflow management system. You can both HELP users and EXECUTE actions on their behalf.
+        // Build enriched form context with fields
+        const formsWithFields = (context.availableForms || []).map((f: any) => {
+          const fields = f.fields || [];
+          return {
+            id: f.id,
+            name: f.name,
+            description: f.description,
+            fields: fields.map((field: any) => ({
+              id: field.id,
+              label: field.label,
+              type: field.type,
+              options: field.options?.map((o: any) => o.label || o.value).slice(0, 10),
+              required: field.required
+            }))
+          };
+        });
 
- ## Your Capabilities:
- 
- ### Navigation (always available):
- - To go to forms: [Navigate to Forms](/forms)
- - To go to a specific form: [Open Form Name](/form/{formId})
- - To go to workflows: [Navigate to Workflows](/workflows)
- - To go to reports: [Navigate to Reports](/reports)
- - To go to SLA predictions: [View SLA Predictions](/sla-management)
- - To view a specific dashboard: [View Dashboard Name](/dashboard-view/{dashboardId})
- - To go to query builder: [Navigate to Query Builder](/query)
- 
- ### Executable Actions (when user asks you to DO something):
- When a user asks you to perform an action, respond with both a confirmation AND an action command.
- 
- **Action Command Format**: [ACTION:action_name|param1=value1|param2=value2]
- 
- **Available Actions**:
- 1. **create_form** - Create a new form
-    - Params: name (string), description (string), fields (JSON array of {type, label, required, placeholder})
-    - Example: [ACTION:create_form|name=Customer Feedback|description=Collect customer feedback|fields=[{"type":"text","label":"Name","required":true},{"type":"textarea","label":"Feedback"}]]
- 
- 2. **trigger_workflow** - Start a workflow
-    - Params: workflowId (string), triggerData (optional JSON)
-    - Example: [ACTION:trigger_workflow|workflowId=abc123]
- 
- 3. **create_submission** - Create a form submission
-    - Params: formId (string), data (JSON object with field values)
-    - Example: [ACTION:create_submission|formId=xyz789|data={"name":"John","email":"john@test.com"}]
- 
- 4. **create_dashboard** - Create a new dashboard
-    - Params: name (string), description (optional string)
-    - Example: [ACTION:create_dashboard|name=Sales Overview|description=Weekly sales metrics]
- 
- 5. **create_workflow** - Create a new workflow
-    - Params: name (string), description (optional string), triggerFormId (optional string), nodes (optional JSON array)
-    - Example: [ACTION:create_workflow|name=Approval Process|description=Auto-approve requests|triggerFormId=form123]
- 
-  6. **create_form_with_workflow** - Create a form AND linked workflow in one action (RECOMMENDED for complex requests)
-     - Params: formName, formDescription, fields (JSON array), workflowName, workflowDescription, workflowNodes (JSON array)
-     - workflowNodes format: Each node must be FULLY CONFIGURED with all details
-     - Node types: start, action, condition, wait, end
-     - CRITICAL for notification nodes: Include emailTemplateName, emailSubject, and emailBody to auto-create the email template
-     - Example with email: [ACTION:create_form_with_workflow|formName=IT Enrollment|formDescription=IT asset enrollment form|fields=[{"type":"text","label":"Employee Name","required":true},{"type":"select","label":"Asset Type","options":[{"value":"laptop","label":"Laptop"},{"value":"desktop","label":"Desktop"}],"required":true}]|workflowName=IT Enrollment Workflow|workflowNodes=[{"tempId":"start","type":"start","label":"Start","config":{"triggerType":"form_submission"},"connections":[{"to":"notify"}]},{"tempId":"notify","type":"action","label":"Send Confirmation","config":{"actionType":"notification","emailTemplateName":"IT Enrollment Confirmation","emailSubject":"Your IT Enrollment Request Received","emailBody":"<h2>IT Enrollment Confirmation</h2><p>Dear {{Employee Name}},</p><p>Your request for a {{Asset Type}} has been received and is being processed.</p><p>You will be notified once your asset is ready.</p><p>Best regards,<br>IT Department</p>"},"connections":[{"to":"end"}]},{"tempId":"end","type":"end","label":"End","config":{"endStatus":"completed"}}]]
+        const copilotSystemPrompt = `You are a helpful AI Copilot for TopSqill BPM - a form and workflow management system.
 
- 7. **get_sla_predictions** - Get AI-powered SLA breach predictions
-    - No params needed
-    - Example: [ACTION:get_sla_predictions]
- 
- 8. **get_form_stats** - Get submission statistics for a form
-    - Params: formId (string)
-    - Example: [ACTION:get_form_stats|formId=abc123]
- 
- 9. **update_submission_status** - Approve or reject a submission
-    - Params: submissionId (string), status (approved/rejected), notes (optional string)
-    - Example: [ACTION:update_submission_status|submissionId=sub123|status=approved|notes=Looks good]
- 
- 10. **create_form_with_sla** - Create a form with SLA tracking attached
-     - Params: formName, formDescription, fields (JSON array), lifecycleFieldLabel (string), slaTemplateName (optional - to link existing), createNewSlaTemplate (boolean), newSlaConfig (JSON for new template), escalationChainName (optional), createNewEscalationChain (boolean), newEscalationConfig (JSON)
-     - newSlaConfig format: {"name":"Template Name","warningThresholdHours":4,"breachThresholdHours":8,"businessHoursStart":"09:00","businessHoursEnd":"17:00"}
-     - newEscalationConfig format: {"name":"Chain Name","levels":[{"level":"L1","hoursAfterBreach":2,"sendEmail":true}]}
-     - Example: [ACTION:create_form_with_sla|formName=Support Ticket|formDescription=Customer support tickets|fields=[{"type":"text","label":"Subject","required":true},{"type":"textarea","label":"Description"}]|lifecycleFieldLabel=Status|createNewSlaTemplate=true|newSlaConfig={"name":"Support SLA","warningThresholdHours":2,"breachThresholdHours":4}]
- 
- 11. **create_form_with_email_template** - Create a form with email notifications
-     - Params: formName, formDescription, fields (JSON array), emailTemplateName (string), emailSubject (string), emailBody (HTML string), emailRecipientType (submitter/form_owner), existingTemplateName (optional - to link existing)
-     - Example: [ACTION:create_form_with_email_template|formName=Contact Form|formDescription=Customer inquiries|fields=[{"type":"text","label":"Name","required":true},{"type":"email","label":"Email","required":true}]|emailTemplateName=Contact Confirmation|emailSubject=Thank you for contacting us|emailBody=<p>We received your message and will respond shortly.</p>|emailRecipientType=submitter]
- 
- 12. **add_email_action_to_workflow** - Add an email notification node to an existing workflow
-     - Params: workflowId OR workflowName (string), emailTemplateId OR emailTemplateName (string), actionLabel (optional string), createNewTemplate (boolean), newTemplateConfig (JSON)
-     - Example: [ACTION:add_email_action_to_workflow|workflowName=Approval Process|emailTemplateName=Approval Notification|actionLabel=Send Approval Email]
- 
- 13. **link_form_to_workflow** - Link an existing form to an existing workflow as trigger
-     - Params: formId OR formName (string), workflowId OR workflowName (string)
-     - Example: [ACTION:link_form_to_workflow|formName=Leave Request|workflowName=Leave Approval]
- 
- 14. **link_form_to_sla** - Attach SLA tracking to an existing form
-     - Params: formId OR formName (string), lifecycleFieldLabel (string), slaTemplateId OR slaTemplateName (string), escalationChainId OR escalationChainName (optional)
-     - Example: [ACTION:link_form_to_sla|formName=Support Ticket|lifecycleFieldLabel=Status|slaTemplateName=Standard Support SLA|escalationChainName=Support Escalation]
+## Your Capabilities:
+1. **Navigate** users to pages using markdown links like [Go to Forms](/forms)
+2. **Execute actions** by calling the provided tools
+3. **Explain** features and guide users
 
- 15. **create_email_template** - Create a standalone email template (independent of workflows/forms)
-     - Params: name (string), description (optional string), subject (string), htmlContent (string - full HTML email body), textContent (optional string), recipientType (optional: submitter/form_owner)
-     - IMPORTANT: You MUST provide complete, contextual content - NOT placeholders or empty content
-     - htmlContent should include proper HTML structure with {{variable_name}} placeholders for dynamic values
-     - Example: [ACTION:create_email_template|name=Order Confirmation|description=Sent when an order is placed|subject=Order Confirmed - #{{order_number}}|htmlContent=<h1>Thank You for Your Order!</h1><p>Dear {{customer_name}},</p><p>Your order #{{order_number}} has been confirmed. We are processing it now.</p><p><strong>Order Details:</strong></p><ul><li>Order ID: {{order_number}}</li><li>Date: {{order_date}}</li><li>Total: {{order_total}}</li></ul><p>You will receive another email when your order ships.</p><p>Best regards,<br>The Sales Team</p>]
- 
- ## When to Execute Actions:
- - If user says "create a form for...", "make me a...", "set up a...", "start the workflow", etc. → Include the action command
- - If user wants BOTH a form AND workflow together (like "create a leave request form with approval workflow") → Use create_form_with_workflow
-  - If user wants a form with SLA/deadline tracking → Use create_form_with_sla
-  - If user wants a form with email notifications → Use create_form_with_email_template
-  - If user wants to add email actions to an existing workflow → Use add_email_action_to_workflow
-  - If user wants to link existing resources together → Use link_form_to_workflow or link_form_to_sla
- - If user just asks "how do I create a form?" → Explain but don't execute
- - If user asks "what are my SLA risks?" → Execute get_sla_predictions
- - Always confirm what you're about to do before the action command
+## Navigation Links:
+- Forms: [Navigate to Forms](/forms)
+- Specific form: [Open Form](/form-edit/{formId})
+- Workflows: [Navigate to Workflows](/workflows)
+- Reports: [Navigate to Reports](/reports)
+- SLA: [View SLA](/sla-management)
+- Dashboards: [View Dashboard](/dashboard-view/{dashboardId})
+- Query: [Navigate to Query](/query)
+- Email Templates: [View Email Templates](/email-templates)
 
-  ## Linking Existing Resources:
-  You can reference existing resources by NAME instead of ID. The system will look up the resource automatically.
-  - "Link the Leave Request form to the Approval workflow" → [ACTION:link_form_to_workflow|formName=Leave Request|workflowName=Approval]
-  - "Add email notifications using the Welcome Template to the Onboarding workflow" → [ACTION:add_email_action_to_workflow|workflowName=Onboarding|emailTemplateName=Welcome Template]
+## Available Forms (with their fields):
+${JSON.stringify(formsWithFields, null, 2)}
 
- ## CRITICAL: Creating Complete Configurations
- 
- **NEVER create empty, placeholder, or incomplete configurations.** Every resource you create must be immediately usable.
- 
- ### For Email Templates (MOST IMPORTANT):
- When creating ANY email template (standalone or within workflows), you MUST generate REAL, CONTEXTUAL content:
- 
- 1. **name**: Descriptive name like "Leave Request Confirmation" or "IT Enrollment Notification"
- 2. **subject**: Complete subject line with {{variables}} where appropriate - e.g., "Your Leave Request for {{leave_dates}} Has Been Submitted"
- 3. **htmlContent/emailBody**: FULL HTML email including:
-    - Professional greeting: "<p>Dear {{Employee Name}},</p>"
-    - Clear explanation of what happened based on the form/workflow context
-    - Relevant details using {{field_name}} placeholders matching the form fields
-    - Next steps or expectations
-    - Professional signature
- 
- **BAD (DO NOT DO THIS):**
- - emailBody: "<p>A workflow action has been triggered.</p>"
- - emailBody: "<p>Notification content here.</p>"
- - subject: "Notification"
- 
- **GOOD (DO THIS):**
- - emailBody: "<h2>Leave Request Submitted</h2><p>Dear {{Employee Name}},</p><p>Your leave request has been submitted successfully.</p><p><strong>Details:</strong></p><ul><li>Leave Type: {{Leave Type}}</li><li>Start Date: {{Start Date}}</li><li>End Date: {{End Date}}</li><li>Reason: {{Reason}}</li></ul><p>Your manager will review this request and you will be notified of the decision.</p><p>Best regards,<br>HR Department</p>"
- - subject: "Leave Request Submitted - {{Leave Type}} from {{Start Date}} to {{End Date}}"
- 
- ### For Workflow Nodes:
- - Start nodes: Include triggerType (e.g., "form_submission", "manual", "scheduled")
- - End nodes: Include endStatus (e.g., "completed", "approved", "rejected")
- - Condition nodes: Include full condition logic
- - Wait nodes: Include duration or specific date
- - Action nodes with notifications: ALWAYS include emailTemplateName, emailSubject, AND emailBody with full content
- 
- ### For Form Fields:
- - Include appropriate field types based on the form purpose
- - Add relevant placeholders and tooltips
- - Mark essential fields as required
- - Include options for select/radio fields
- 
- **Remember: The user expects these resources to work immediately without manual editing.**
-
- ## Available Context:
- 
- **Forms in this project:**
-${JSON.stringify(context.availableForms || [], null, 2)}
-
- **Workflows:**
+## Available Workflows:
 ${JSON.stringify(context.availableWorkflows || [], null, 2)}
 
- **Reports:**
+## Available Reports:
 ${JSON.stringify(context.availableReports || [], null, 2)}
 
- **Current Route:** ${context.currentRoute || 'Unknown'}
+## Current Route: ${context.currentRoute || 'Unknown'}
 
- ## Response Rules:
-- Be helpful, clear, and concise
-- Provide navigation links when users want to go somewhere
- - Include action commands when users want you to DO something
-- If you don't know something, admit it and suggest alternatives
-- Use markdown formatting for clarity (lists, bold, links, etc.)
- - For actions, always explain what you're about to do before the [ACTION:...] command
- - Be proactive - suggest relevant actions based on what user is trying to accomplish`;
+## Rules:
+- When the user asks to CREATE something, use the appropriate tool
+- When creating workflows, ALWAYS reference real form IDs and field labels from the context above
+- For workflow conditions, use actual field IDs and values from the form's field options
+- For email templates, generate COMPLETE professional content - never use placeholders like "content here"
+- When linking forms to workflows, use the real form ID from the context
+- Be concise and helpful. Use markdown for formatting.
+- If user asks "how" to do something, explain without executing
+- If user says "create/make/set up", execute the action via tools`;
+
+        // Define tools for structured output
+        const copilotTools = [
+          {
+            type: "function",
+            function: {
+              name: "create_form",
+              description: "Create a new form with fields. Use appropriate field types.",
+              parameters: {
+                type: "object",
+                properties: {
+                  name: { type: "string", description: "Form name" },
+                  description: { type: "string", description: "Form description" },
+                  fields: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        type: { type: "string", enum: ["text", "textarea", "number", "email", "phone", "date", "time", "datetime", "select", "multi-select", "radio", "checkbox", "toggle-switch", "file", "image", "signature", "rating", "slider", "header", "description", "horizontal-line", "section-break", "tags", "country", "address", "currency", "url", "color"] },
+                        label: { type: "string" },
+                        required: { type: "boolean" },
+                        placeholder: { type: "string" },
+                        tooltip: { type: "string" },
+                        options: { type: "array", items: { type: "object", properties: { value: { type: "string" }, label: { type: "string" } }, required: ["value", "label"] } }
+                      },
+                      required: ["type", "label", "required"]
+                    }
+                  }
+                },
+                required: ["name", "description", "fields"]
+              }
+            }
+          },
+          {
+            type: "function",
+            function: {
+              name: "create_workflow",
+              description: "Create a new workflow with nodes. Reference actual form IDs and field labels from context.",
+              parameters: {
+                type: "object",
+                properties: {
+                  name: { type: "string" },
+                  description: { type: "string" },
+                  triggerFormId: { type: "string", description: "ID of the form that triggers this workflow" },
+                  nodes: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        tempId: { type: "string" },
+                        type: { type: "string", enum: ["start", "action", "condition", "wait", "end"] },
+                        label: { type: "string" },
+                        config: { type: "object" },
+                        connections: { type: "array", items: { type: "object", properties: { to: { type: "string" }, sourceHandle: { type: "string" }, conditionType: { type: "string" } }, required: ["to"] } }
+                      },
+                      required: ["tempId", "type", "label", "config"]
+                    }
+                  }
+                },
+                required: ["name", "description"]
+              }
+            }
+          },
+          {
+            type: "function",
+            function: {
+              name: "create_form_with_workflow",
+              description: "Create a form AND a linked workflow together. Best for requests like 'create a leave request form with approval workflow'.",
+              parameters: {
+                type: "object",
+                properties: {
+                  formName: { type: "string" },
+                  formDescription: { type: "string" },
+                  fields: { type: "array", items: { type: "object", properties: { type: { type: "string" }, label: { type: "string" }, required: { type: "boolean" }, placeholder: { type: "string" }, options: { type: "array", items: { type: "object", properties: { value: { type: "string" }, label: { type: "string" } }, required: ["value", "label"] } } }, required: ["type", "label", "required"] } },
+                  workflowName: { type: "string" },
+                  workflowDescription: { type: "string" },
+                  workflowNodes: { type: "array", items: { type: "object", properties: { tempId: { type: "string" }, type: { type: "string" }, label: { type: "string" }, config: { type: "object" }, connections: { type: "array", items: { type: "object", properties: { to: { type: "string" } }, required: ["to"] } } }, required: ["tempId", "type", "label", "config"] } }
+                },
+                required: ["formName", "formDescription", "fields", "workflowName", "workflowNodes"]
+              }
+            }
+          },
+          {
+            type: "function",
+            function: {
+              name: "trigger_workflow",
+              description: "Trigger/start an existing workflow",
+              parameters: {
+                type: "object",
+                properties: {
+                  workflowId: { type: "string" },
+                  triggerData: { type: "object" }
+                },
+                required: ["workflowId"]
+              }
+            }
+          },
+          {
+            type: "function",
+            function: {
+              name: "create_submission",
+              description: "Create a new submission for a form",
+              parameters: {
+                type: "object",
+                properties: {
+                  formId: { type: "string" },
+                  data: { type: "object" }
+                },
+                required: ["formId", "data"]
+              }
+            }
+          },
+          {
+            type: "function",
+            function: {
+              name: "create_dashboard",
+              description: "Create a new dashboard",
+              parameters: {
+                type: "object",
+                properties: {
+                  name: { type: "string" },
+                  description: { type: "string" }
+                },
+                required: ["name"]
+              }
+            }
+          },
+          {
+            type: "function",
+            function: {
+              name: "link_form_to_workflow",
+              description: "Link an existing form to an existing workflow as a trigger",
+              parameters: {
+                type: "object",
+                properties: {
+                  formId: { type: "string" },
+                  formName: { type: "string" },
+                  workflowId: { type: "string" },
+                  workflowName: { type: "string" }
+                },
+                required: []
+              }
+            }
+          },
+          {
+            type: "function",
+            function: {
+              name: "create_email_template",
+              description: "Create a standalone email template",
+              parameters: {
+                type: "object",
+                properties: {
+                  name: { type: "string" },
+                  description: { type: "string" },
+                  subject: { type: "string" },
+                  htmlContent: { type: "string", description: "Full professional HTML email body" },
+                  recipientType: { type: "string", enum: ["submitter", "form_owner"] }
+                },
+                required: ["name", "subject", "htmlContent"]
+              }
+            }
+          },
+          {
+            type: "function",
+            function: {
+              name: "create_form_with_email_template",
+              description: "Create a form with automatic email notifications on submission",
+              parameters: {
+                type: "object",
+                properties: {
+                  formName: { type: "string" },
+                  formDescription: { type: "string" },
+                  fields: { type: "array", items: { type: "object", properties: { type: { type: "string" }, label: { type: "string" }, required: { type: "boolean" }, placeholder: { type: "string" }, options: { type: "array", items: { type: "object", properties: { value: { type: "string" }, label: { type: "string" } }, required: ["value", "label"] } } }, required: ["type", "label", "required"] } },
+                  emailTemplateName: { type: "string" },
+                  emailSubject: { type: "string" },
+                  emailBody: { type: "string", description: "Complete HTML email body" },
+                  emailRecipientType: { type: "string", enum: ["submitter", "form_owner"] }
+                },
+                required: ["formName", "formDescription", "fields", "emailTemplateName", "emailSubject", "emailBody"]
+              }
+            }
+          },
+          {
+            type: "function",
+            function: {
+              name: "get_sla_predictions",
+              description: "Get AI-powered SLA breach predictions for current project",
+              parameters: { type: "object", properties: {}, required: [] }
+            }
+          },
+          {
+            type: "function",
+            function: {
+              name: "get_form_stats",
+              description: "Get submission statistics for a form",
+              parameters: {
+                type: "object",
+                properties: { formId: { type: "string" } },
+                required: ["formId"]
+              }
+            }
+          },
+          {
+            type: "function",
+            function: {
+              name: "update_submission_status",
+              description: "Approve or reject a submission",
+              parameters: {
+                type: "object",
+                properties: {
+                  submissionId: { type: "string" },
+                  status: { type: "string", enum: ["approved", "rejected"] },
+                  notes: { type: "string" }
+                },
+                required: ["submissionId", "status"]
+              }
+            }
+          },
+          {
+            type: "function",
+            function: {
+              name: "create_form_with_sla",
+              description: "Create a form with SLA tracking attached",
+              parameters: {
+                type: "object",
+                properties: {
+                  formName: { type: "string" },
+                  formDescription: { type: "string" },
+                  fields: { type: "array", items: { type: "object", properties: { type: { type: "string" }, label: { type: "string" }, required: { type: "boolean" }, placeholder: { type: "string" }, options: { type: "array", items: { type: "object", properties: { value: { type: "string" }, label: { type: "string" } }, required: ["value", "label"] } } }, required: ["type", "label", "required"] } },
+                  lifecycleFieldLabel: { type: "string" },
+                  createNewSlaTemplate: { type: "boolean" },
+                  newSlaConfig: { type: "object", properties: { name: { type: "string" }, warningThresholdHours: { type: "number" }, breachThresholdHours: { type: "number" } } },
+                  createNewEscalationChain: { type: "boolean" },
+                  newEscalationConfig: { type: "object" }
+                },
+                required: ["formName", "formDescription", "fields", "lifecycleFieldLabel"]
+              }
+            }
+          },
+          {
+            type: "function",
+            function: {
+              name: "add_email_action_to_workflow",
+              description: "Add an email notification node to an existing workflow",
+              parameters: {
+                type: "object",
+                properties: {
+                  workflowId: { type: "string" },
+                  workflowName: { type: "string" },
+                  emailTemplateName: { type: "string" },
+                  actionLabel: { type: "string" },
+                  createNewTemplate: { type: "boolean" },
+                  newTemplateConfig: { type: "object", properties: { name: { type: "string" }, subject: { type: "string" }, htmlContent: { type: "string" } } }
+                },
+                required: []
+              }
+            }
+          },
+          {
+            type: "function",
+            function: {
+              name: "link_form_to_sla",
+              description: "Attach SLA tracking to an existing form",
+              parameters: {
+                type: "object",
+                properties: {
+                  formId: { type: "string" },
+                  formName: { type: "string" },
+                  lifecycleFieldLabel: { type: "string" },
+                  slaTemplateName: { type: "string" },
+                  escalationChainName: { type: "string" }
+                },
+                required: ["lifecycleFieldLabel"]
+              }
+            }
+          }
+        ];
 
         // Build conversation history
-        const chatMessages = context.chatHistory?.map(msg => ({
+        const copilotChatMessages = context.chatHistory?.map((msg: any) => ({
           role: msg.role,
           content: msg.content
         })) || [];
-        
-        userPrompt = context.userInput || '';
-        
-        // For chatbot, we'll include history in the request
-        const chatResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+
+        const copilotResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${LOVABLE_API_KEY}`,
@@ -505,20 +668,21 @@ ${JSON.stringify(context.availableReports || [], null, 2)}
           body: JSON.stringify({
             model: 'google/gemini-3-flash-preview',
             messages: [
-              { role: 'system', content: systemPrompt },
-              ...chatMessages,
-              { role: 'user', content: userPrompt }
+              { role: 'system', content: copilotSystemPrompt },
+              ...copilotChatMessages,
+              { role: 'user', content: context.userInput || '' }
             ],
             temperature,
             max_tokens: maxTokens,
+            tools: copilotTools,
           }),
         });
 
-        if (!chatResponse.ok) {
-          const errorText = await chatResponse.text();
-          console.error('AI Gateway error:', chatResponse.status, errorText);
+        if (!copilotResponse.ok) {
+          const errorText = await copilotResponse.text();
+          console.error('AI Gateway error:', copilotResponse.status, errorText);
           
-          if (chatResponse.status === 429) {
+          if (copilotResponse.status === 429) {
             return new Response(JSON.stringify({ 
               success: false, 
               error: 'AI rate limit exceeded. Please try again in a few moments.' 
@@ -528,7 +692,7 @@ ${JSON.stringify(context.availableReports || [], null, 2)}
             });
           }
           
-          if (chatResponse.status === 402) {
+          if (copilotResponse.status === 402) {
             return new Response(JSON.stringify({ 
               success: false, 
               error: 'AI credits exhausted. Please add credits to your Lovable workspace.' 
@@ -538,18 +702,50 @@ ${JSON.stringify(context.availableReports || [], null, 2)}
             });
           }
           
-          throw new Error(`AI Gateway error: ${chatResponse.status}`);
+          throw new Error(`AI Gateway error: ${copilotResponse.status}`);
         }
 
-        const chatData = await chatResponse.json();
-        const chatContent = chatData.choices[0]?.message?.content;
+        const copilotData = await copilotResponse.json();
+        const copilotChoice = copilotData.choices[0];
+        const copilotMessage = copilotChoice?.message;
 
+        // Check if the AI wants to call a tool
+        if (copilotMessage?.tool_calls && copilotMessage.tool_calls.length > 0) {
+          const toolCall = copilotMessage.tool_calls[0];
+          const functionName = toolCall.function?.name;
+          let functionArgs: any = {};
+          
+          try {
+            functionArgs = JSON.parse(toolCall.function?.arguments || '{}');
+          } catch (e) {
+            console.error('Failed to parse tool call arguments:', e);
+          }
+
+          console.log(`AI tool call: ${functionName}`, functionArgs);
+
+          // Return both the text content and the structured action
+          return new Response(JSON.stringify({ 
+            success: true, 
+            result: { 
+              message: copilotMessage.content || `I'll execute that for you now...`,
+              toolCall: {
+                action: functionName,
+                params: functionArgs
+              }
+            } 
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
+        // No tool call - just a text response
         return new Response(JSON.stringify({ 
           success: true, 
-          result: { message: chatContent } 
+          result: { message: copilotMessage?.content || 'I could not generate a response.' } 
         }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
+      }
 
       // NEW: Formula/Query Builder
       case 'generate-formula':

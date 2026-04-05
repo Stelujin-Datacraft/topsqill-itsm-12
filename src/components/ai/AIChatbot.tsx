@@ -37,6 +37,19 @@ interface ReportInfo {
   description?: string;
 }
 
+interface FormWithFields {
+  id: string;
+  name: string;
+  description?: string;
+  fields: Array<{
+    id: string;
+    label: string;
+    type: string;
+    options?: Array<{ id: string; value: string; label: string }>;
+    required: boolean;
+  }>;
+}
+
 export function AIChatbot() {
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
@@ -65,6 +78,7 @@ export function AIChatbot() {
   const [input, setInput] = useState('');
   const [workflows, setWorkflows] = useState<WorkflowInfo[]>([]);
   const [reports, setReports] = useState<ReportInfo[]>([]);
+  const [formsWithFields, setFormsWithFields] = useState<FormWithFields[]>([]);
    const [copilotEnabled, setCopilotEnabled] = useState(true);
   const { chatbotAssist, isLoading } = useFormAI();
   const { forms } = useForm();
@@ -97,92 +111,34 @@ export function AIChatbot() {
        throw err;
      }
    };
- 
-   // Parse AI response for action commands
-   const parseActionCommands = (content: string): { action: string; params: Record<string, any> } | null => {
-    // Look for action patterns like: [ACTION:create_form|name=Test Form|fields=[...]]
-    // Use a more robust approach that handles nested brackets in JSON values
-    const actionStartMatch = content.match(/\[ACTION:(\w+)\|/);
-    if (actionStartMatch) {
-      const action = actionStartMatch[1];
-      const startIndex = actionStartMatch.index! + actionStartMatch[0].length;
-      
-      // Find the matching closing bracket, accounting for nested brackets
-      let bracketCount = 1;
-      let endIndex = startIndex;
-      for (let i = startIndex; i < content.length && bracketCount > 0; i++) {
-        if (content[i] === '[') bracketCount++;
-        else if (content[i] === ']') bracketCount--;
-        if (bracketCount === 0) {
-          endIndex = i;
-          break;
-        }
-      }
-      
-      const paramsStr = content.substring(startIndex, endIndex);
-      const params: Record<string, any> = {};
-      
-      // Parse params more carefully - split by | but not within brackets
-      let currentParam = '';
-      let inBrackets = 0;
-      for (let i = 0; i < paramsStr.length; i++) {
-        const char = paramsStr[i];
-        if (char === '[') inBrackets++;
-        else if (char === ']') inBrackets--;
-        
-        if (char === '|' && inBrackets === 0) {
-          // Process current param
-          const eqIndex = currentParam.indexOf('=');
-          if (eqIndex > 0) {
-            const key = currentParam.substring(0, eqIndex).trim();
-            const value = currentParam.substring(eqIndex + 1);
-            try {
-              params[key] = JSON.parse(value);
-            } catch {
-              params[key] = value;
-            }
-           }
-          currentParam = '';
-        } else {
-          currentParam += char;
-         }
-      }
-      
-      // Don't forget the last param
-      if (currentParam) {
-        const eqIndex = currentParam.indexOf('=');
-        if (eqIndex > 0) {
-          const key = currentParam.substring(0, eqIndex).trim();
-          const value = currentParam.substring(eqIndex + 1);
-          try {
-            params[key] = JSON.parse(value);
-          } catch {
-            params[key] = value;
-          }
-        }
-      }
-      
-       return { action, params };
-     }
-     return null;
-   };
- 
-  // Load workflows and reports when project changes
+
+  // Load workflows, reports, and form fields when project changes
   useEffect(() => {
     const loadData = async () => {
       if (!currentProject?.id) return;
 
       try {
-        // Load workflows using raw query to avoid type issues
-        const workflowResponse = await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/workflows?project_id=eq.${currentProject.id}&status=eq.active&select=id,name,description&order=name`,
-          {
-            headers: {
-              'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY,
-              'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
-            }
-          }
-        );
+        const session = (await supabase.auth.getSession()).data.session;
+        const headers = {
+          'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${session?.access_token}`
+        };
+
+        // Load all data in parallel
+        const [workflowResponse, reportResponse, formsResponse] = await Promise.all([
+          fetch(
+            `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/workflows?project_id=eq.${currentProject.id}&status=eq.active&select=id,name,description&order=name`,
+            { headers }
+          ),
+          fetch(
+            `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/reports?project_id=eq.${currentProject.id}&select=id,name,description&order=name`,
+            { headers }
+          ),
+          fetch(
+            `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/forms?project_id=eq.${currentProject.id}&select=id,name,description,form_fields(id,label,field_type,options,required)&order=name`,
+            { headers }
+          )
+        ]);
         
         if (workflowResponse.ok) {
           const workflowData = await workflowResponse.json();
@@ -193,17 +149,6 @@ export function AIChatbot() {
           })));
         }
 
-        // Load reports
-        const reportResponse = await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/reports?project_id=eq.${currentProject.id}&select=id,name,description&order=name`,
-          {
-            headers: {
-              'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY,
-              'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
-            }
-          }
-        );
-
         if (reportResponse.ok) {
           const reportData = await reportResponse.json();
           setReports(reportData.map((r: any) => ({ 
@@ -212,8 +157,36 @@ export function AIChatbot() {
             description: r.description || undefined 
           })));
         }
+
+        if (formsResponse.ok) {
+          const formsData = await formsResponse.json();
+          setFormsWithFields(formsData.map((f: any) => ({
+            id: f.id,
+            name: f.name,
+            description: f.description || undefined,
+            fields: (f.form_fields || []).map((field: any) => {
+              let parsedOptions: any[] = [];
+              if (field.options) {
+                try {
+                  parsedOptions = typeof field.options === 'string' ? JSON.parse(field.options) : field.options;
+                } catch { parsedOptions = []; }
+              }
+              return {
+                id: field.id,
+                label: field.label,
+                type: field.field_type,
+                options: Array.isArray(parsedOptions) ? parsedOptions.map((o: any, idx: number) => ({
+                  id: o.id || `opt-${idx}`,
+                  value: o.value || o.label || '',
+                  label: o.label || o.value || ''
+                })) : [],
+                required: field.required || false
+              };
+            })
+          })));
+        }
       } catch (error) {
-        console.error('Error loading workflows/reports:', error);
+        console.error('Error loading AI context data:', error);
       }
     };
 
@@ -268,11 +241,7 @@ export function AIChatbot() {
       userMessage.content,
       chatHistory,
       {
-        availableForms: forms.map(f => ({ 
-          id: f.id, 
-          name: f.name, 
-          description: f.description 
-        })),
+        availableForms: formsWithFields,
         availableWorkflows: workflows,
         availableReports: reports,
         currentRoute: location.pathname
@@ -280,22 +249,18 @@ export function AIChatbot() {
     );
 
     if (result) {
-       let messageContent = result.message;
+       const messageContent = result.message;
+       const toolCall = result.toolCall;
        
-       // Check for action commands in the response
-       const actionCommand = parseActionCommands(messageContent);
-       
-       if (actionCommand && copilotEnabled) {
-         // Remove the action command from displayed message
-         const cleanContent = messageContent.replace(/\[ACTION:[^\]]+\]/, '').trim();
-         
+       // Check if AI returned a structured tool call
+       if (toolCall && copilotEnabled) {
          const assistantMessage: Message = {
            id: `assistant-${Date.now()}`,
            role: 'assistant',
-           content: cleanContent,
+           content: messageContent || `Executing **${toolCall.action.replace(/_/g, ' ')}**...`,
            timestamp: new Date(),
            action: {
-             type: actionCommand.action,
+             type: toolCall.action,
              status: 'executing'
            }
          };
@@ -303,12 +268,12 @@ export function AIChatbot() {
          
          // Execute the action
          try {
-           const actionResult = await executeCopilotAction(actionCommand.action, actionCommand.params);
+           const actionResult = await executeCopilotAction(toolCall.action, toolCall.params);
            
            // Update message with success
            setMessages(prev => prev.map(m => 
              m.id === assistantMessage.id 
-               ? { ...m, action: { type: actionCommand.action, status: 'success', result: actionResult } }
+               ? { ...m, action: { type: toolCall.action, status: 'success', result: actionResult } }
                : m
            ));
            
@@ -325,7 +290,6 @@ export function AIChatbot() {
            
            // If action created something, offer to navigate
            if (actionResult.result?.formId && actionResult.result?.workflowId) {
-             // Both form and workflow were created
              const navMessage: Message = {
                id: `nav-offer-${Date.now()}`,
                role: 'assistant',
@@ -334,7 +298,6 @@ export function AIChatbot() {
              };
              setMessages(prev => [...prev, navMessage]);
            } else if (actionResult.result?.formId && actionResult.result?.slaTemplateId) {
-             // Form with SLA created
              const navMessage: Message = {
                id: `nav-offer-${Date.now()}`,
                role: 'assistant',
@@ -343,7 +306,6 @@ export function AIChatbot() {
              };
              setMessages(prev => [...prev, navMessage]);
            } else if (actionResult.result?.formId && actionResult.result?.emailTemplateId) {
-             // Form with email template created
              const navMessage: Message = {
                id: `nav-offer-${Date.now()}`,
                role: 'assistant',
@@ -360,7 +322,6 @@ export function AIChatbot() {
              };
              setMessages(prev => [...prev, navMessage]);
            } else if (actionResult.result?.workflowId && actionResult.result?.nodeId) {
-             // Email action added to workflow
              const navMessage: Message = {
                id: `nav-offer-${Date.now()}`,
                role: 'assistant',
@@ -385,7 +346,6 @@ export function AIChatbot() {
              };
              setMessages(prev => [...prev, navMessage]);
            } else if (actionResult.result?.slaTemplateId) {
-             // SLA linked to existing form
              const navMessage: Message = {
                id: `nav-offer-${Date.now()}`,
                role: 'assistant',
@@ -396,10 +356,9 @@ export function AIChatbot() {
            }
            
          } catch (err) {
-           // Update message with error
            setMessages(prev => prev.map(m => 
              m.id === assistantMessage.id 
-               ? { ...m, action: { type: actionCommand.action, status: 'error' } }
+               ? { ...m, action: { type: toolCall.action, status: 'error' } }
                : m
            ));
            
