@@ -78,6 +78,7 @@ export function AIChatbot() {
   const [input, setInput] = useState('');
   const [workflows, setWorkflows] = useState<WorkflowInfo[]>([]);
   const [reports, setReports] = useState<ReportInfo[]>([]);
+  const [formsWithFields, setFormsWithFields] = useState<FormWithFields[]>([]);
    const [copilotEnabled, setCopilotEnabled] = useState(true);
   const { chatbotAssist, isLoading } = useFormAI();
   const { forms } = useForm();
@@ -110,25 +111,34 @@ export function AIChatbot() {
        throw err;
      }
    };
- 
-  // No more parseActionCommands - we use structured tool calls now
 
-  // Load workflows and reports when project changes
+  // Load workflows, reports, and form fields when project changes
   useEffect(() => {
     const loadData = async () => {
       if (!currentProject?.id) return;
 
       try {
-        // Load workflows using raw query to avoid type issues
-        const workflowResponse = await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/workflows?project_id=eq.${currentProject.id}&status=eq.active&select=id,name,description&order=name`,
-          {
-            headers: {
-              'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY,
-              'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
-            }
-          }
-        );
+        const session = (await supabase.auth.getSession()).data.session;
+        const headers = {
+          'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${session?.access_token}`
+        };
+
+        // Load all data in parallel
+        const [workflowResponse, reportResponse, formsResponse] = await Promise.all([
+          fetch(
+            `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/workflows?project_id=eq.${currentProject.id}&status=eq.active&select=id,name,description&order=name`,
+            { headers }
+          ),
+          fetch(
+            `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/reports?project_id=eq.${currentProject.id}&select=id,name,description&order=name`,
+            { headers }
+          ),
+          fetch(
+            `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/forms?project_id=eq.${currentProject.id}&select=id,name,description,form_fields(id,label,field_type,options,required)&order=name`,
+            { headers }
+          )
+        ]);
         
         if (workflowResponse.ok) {
           const workflowData = await workflowResponse.json();
@@ -139,17 +149,6 @@ export function AIChatbot() {
           })));
         }
 
-        // Load reports
-        const reportResponse = await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/reports?project_id=eq.${currentProject.id}&select=id,name,description&order=name`,
-          {
-            headers: {
-              'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY,
-              'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
-            }
-          }
-        );
-
         if (reportResponse.ok) {
           const reportData = await reportResponse.json();
           setReports(reportData.map((r: any) => ({ 
@@ -158,8 +157,36 @@ export function AIChatbot() {
             description: r.description || undefined 
           })));
         }
+
+        if (formsResponse.ok) {
+          const formsData = await formsResponse.json();
+          setFormsWithFields(formsData.map((f: any) => ({
+            id: f.id,
+            name: f.name,
+            description: f.description || undefined,
+            fields: (f.form_fields || []).map((field: any) => {
+              let parsedOptions: any[] = [];
+              if (field.options) {
+                try {
+                  parsedOptions = typeof field.options === 'string' ? JSON.parse(field.options) : field.options;
+                } catch { parsedOptions = []; }
+              }
+              return {
+                id: field.id,
+                label: field.label,
+                type: field.field_type,
+                options: Array.isArray(parsedOptions) ? parsedOptions.map((o: any, idx: number) => ({
+                  id: o.id || `opt-${idx}`,
+                  value: o.value || o.label || '',
+                  label: o.label || o.value || ''
+                })) : [],
+                required: field.required || false
+              };
+            })
+          })));
+        }
       } catch (error) {
-        console.error('Error loading workflows/reports:', error);
+        console.error('Error loading AI context data:', error);
       }
     };
 
