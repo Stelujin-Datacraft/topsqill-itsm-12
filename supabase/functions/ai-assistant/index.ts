@@ -745,6 +745,7 @@ ${JSON.stringify(context.availableReports || [], null, 2)}
         }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
+      }
 
       // NEW: Formula/Query Builder
       case 'generate-formula':
