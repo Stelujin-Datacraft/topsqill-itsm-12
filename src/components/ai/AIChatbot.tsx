@@ -241,11 +241,7 @@ export function AIChatbot() {
       userMessage.content,
       chatHistory,
       {
-        availableForms: forms.map(f => ({ 
-          id: f.id, 
-          name: f.name, 
-          description: f.description 
-        })),
+        availableForms: formsWithFields,
         availableWorkflows: workflows,
         availableReports: reports,
         currentRoute: location.pathname
@@ -253,22 +249,18 @@ export function AIChatbot() {
     );
 
     if (result) {
-       let messageContent = result.message;
+       const messageContent = result.message;
+       const toolCall = result.toolCall;
        
-       // Check for action commands in the response
-       const actionCommand = parseActionCommands(messageContent);
-       
-       if (actionCommand && copilotEnabled) {
-         // Remove the action command from displayed message
-         const cleanContent = messageContent.replace(/\[ACTION:[^\]]+\]/, '').trim();
-         
+       // Check if AI returned a structured tool call
+       if (toolCall && copilotEnabled) {
          const assistantMessage: Message = {
            id: `assistant-${Date.now()}`,
            role: 'assistant',
-           content: cleanContent,
+           content: messageContent || `Executing **${toolCall.action.replace(/_/g, ' ')}**...`,
            timestamp: new Date(),
            action: {
-             type: actionCommand.action,
+             type: toolCall.action,
              status: 'executing'
            }
          };
@@ -276,12 +268,12 @@ export function AIChatbot() {
          
          // Execute the action
          try {
-           const actionResult = await executeCopilotAction(actionCommand.action, actionCommand.params);
+           const actionResult = await executeCopilotAction(toolCall.action, toolCall.params);
            
            // Update message with success
            setMessages(prev => prev.map(m => 
              m.id === assistantMessage.id 
-               ? { ...m, action: { type: actionCommand.action, status: 'success', result: actionResult } }
+               ? { ...m, action: { type: toolCall.action, status: 'success', result: actionResult } }
                : m
            ));
            
@@ -298,7 +290,6 @@ export function AIChatbot() {
            
            // If action created something, offer to navigate
            if (actionResult.result?.formId && actionResult.result?.workflowId) {
-             // Both form and workflow were created
              const navMessage: Message = {
                id: `nav-offer-${Date.now()}`,
                role: 'assistant',
@@ -307,7 +298,6 @@ export function AIChatbot() {
              };
              setMessages(prev => [...prev, navMessage]);
            } else if (actionResult.result?.formId && actionResult.result?.slaTemplateId) {
-             // Form with SLA created
              const navMessage: Message = {
                id: `nav-offer-${Date.now()}`,
                role: 'assistant',
@@ -316,7 +306,6 @@ export function AIChatbot() {
              };
              setMessages(prev => [...prev, navMessage]);
            } else if (actionResult.result?.formId && actionResult.result?.emailTemplateId) {
-             // Form with email template created
              const navMessage: Message = {
                id: `nav-offer-${Date.now()}`,
                role: 'assistant',
@@ -333,7 +322,6 @@ export function AIChatbot() {
              };
              setMessages(prev => [...prev, navMessage]);
            } else if (actionResult.result?.workflowId && actionResult.result?.nodeId) {
-             // Email action added to workflow
              const navMessage: Message = {
                id: `nav-offer-${Date.now()}`,
                role: 'assistant',
@@ -358,7 +346,6 @@ export function AIChatbot() {
              };
              setMessages(prev => [...prev, navMessage]);
            } else if (actionResult.result?.slaTemplateId) {
-             // SLA linked to existing form
              const navMessage: Message = {
                id: `nav-offer-${Date.now()}`,
                role: 'assistant',
@@ -369,10 +356,9 @@ export function AIChatbot() {
            }
            
          } catch (err) {
-           // Update message with error
            setMessages(prev => prev.map(m => 
              m.id === assistantMessage.id 
-               ? { ...m, action: { type: actionCommand.action, status: 'error' } }
+               ? { ...m, action: { type: toolCall.action, status: 'error' } }
                : m
            ));
            
