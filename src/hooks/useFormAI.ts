@@ -42,6 +42,10 @@ interface AIContentResult {
 
 interface AIChatbotResult {
   message: string;
+  toolCall?: {
+    action: string;
+    params: Record<string, any>;
+  };
 }
 
 interface AIFormulaResult {
