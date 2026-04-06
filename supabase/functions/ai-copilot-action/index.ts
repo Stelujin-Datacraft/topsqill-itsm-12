@@ -33,7 +33,7 @@
  
      switch (action) {
        case 'create_form': {
-         let { name, description, fields } = params;
+         let { name, description, fields, pages } = params;
          
          // Parse fields if it's a string (from AI response)
          if (typeof fields === 'string') {
@@ -45,9 +45,34 @@
            }
          }
          
+         // Parse pages if string
+         if (typeof pages === 'string') {
+           try { pages = JSON.parse(pages); } catch { pages = null; }
+         }
+         
          // Ensure fields is an array
          if (!Array.isArray(fields)) {
            fields = [];
+         }
+         
+         // Build pages metadata
+         const formPages = Array.isArray(pages) && pages.length > 0
+           ? pages.map((p: any, idx: number) => ({
+               id: `page-${idx + 1}`,
+               name: p.name || `Page ${idx + 1}`,
+               order: idx,
+               fields: []
+             }))
+           : [{ id: 'default', name: 'Page 1', order: 0, fields: [] }];
+
+         // Build field-to-page mapping
+         const fieldPageMap: Record<number, string> = {};
+         if (Array.isArray(pages) && pages.length > 0) {
+           pages.forEach((p: any, pageIdx: number) => {
+             (p.fieldIndexes || []).forEach((fieldIdx: number) => {
+               fieldPageMap[fieldIdx] = `page-${pageIdx + 1}`;
+             });
+           });
          }
          
          // Create form
@@ -59,14 +84,15 @@
              project_id: projectId,
              created_by: userId,
              status: 'draft',
-             organization_id: organizationId
+             organization_id: organizationId,
+             pages: formPages
            })
            .select()
            .single();
  
          if (formError) throw formError;
  
-         // Create fields if provided
+         // Create fields with page assignment
          if (fields && fields.length > 0) {
            const formFields = fields.map((f: any, idx: number) => ({
              form_id: form.id,
@@ -76,14 +102,15 @@
              required: f.required || false,
              field_order: idx + 1,
              options: f.options ? JSON.stringify(f.options) : null,
-             tooltip: f.tooltip
+             tooltip: f.tooltip,
+             page_id: fieldPageMap[idx] || formPages[0]?.id || 'default'
            }));
  
            await supabase.from('form_fields').insert(formFields);
          }
  
-         result = { formId: form.id, formName: form.name };
-         message = `Created form "${name}" successfully!`;
+         result = { formId: form.id, formName: form.name, pageCount: formPages.length };
+         message = `Created form "${name}" with ${formPages.length} page(s) successfully!`;
          break;
        }
  
