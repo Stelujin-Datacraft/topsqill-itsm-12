@@ -102,6 +102,8 @@ const Forms = () => {
       options?: Array<{ label: string; value: string }>;
       validation?: any;
     }>;
+    pages?: Array<{ name: string; description?: string; fieldIndexes: number[] }>;
+    suggestedLayout?: 1 | 2 | 3;
   }) => {
     if (!currentProject?.id || !userProfile?.id || !userProfile?.organization_id) return;
     if (!Array.isArray(generatedForm.fields) || generatedForm.fields.length === 0) {
@@ -110,7 +112,30 @@ const Forms = () => {
     }
     
     try {
-      // Create the form first
+      // Build pages from AI suggestion or default to single page
+      const aiPages = generatedForm.pages && generatedForm.pages.length > 0
+        ? generatedForm.pages
+        : null;
+
+      const formPages = aiPages
+        ? aiPages.map((p, idx) => ({
+            id: `page-${idx + 1}`,
+            name: p.name || `Page ${idx + 1}`,
+            order: idx,
+            fields: [] as string[],
+          }))
+        : [{ id: 'default', name: 'Page 1', order: 0, fields: [] as string[] }];
+
+      // Build a mapping: fieldIndex -> pageId
+      const fieldPageMap: Record<number, string> = {};
+      if (aiPages) {
+        aiPages.forEach((page, pageIdx) => {
+          (page.fieldIndexes || []).forEach((fieldIdx) => {
+            fieldPageMap[fieldIdx] = `page-${pageIdx + 1}`;
+          });
+        });
+      }
+
       const newForm = await createForm({
         name: generatedForm.name,
         description: generatedForm.description,
@@ -119,8 +144,8 @@ const Forms = () => {
         createdBy: userProfile.id,
         status: 'draft',
         isPublic: false,
-        layout: { columns: 1 },
-        pages: [{ id: 'default', name: 'Page 1', order: 0, fields: [] }],
+        layout: { columns: generatedForm.suggestedLayout || 1 },
+        pages: formPages,
         fieldRules: [],
         formRules: [],
         permissions: { view: [], submit: [], edit: [] },
@@ -128,7 +153,6 @@ const Forms = () => {
       });
 
       if (newForm) {
-        // Add each field to the form - map options to include id
         for (let i = 0; i < generatedForm.fields.length; i++) {
           const field = generatedForm.fields[i];
           const mappedOptions = field.options?.map((opt, idx) => ({
@@ -137,8 +161,8 @@ const Forms = () => {
             label: opt.label
           }));
           
-          // Sanitize the field type to ensure it's valid
           const sanitizedType = sanitizeFieldType(field.type);
+          const pageId = fieldPageMap[i] || formPages[0]?.id || 'default';
           
           await addField(newForm.id, {
             label: field.label,
@@ -147,11 +171,10 @@ const Forms = () => {
             placeholder: field.placeholder,
             options: mappedOptions,
             validation: field.validation,
-            pageId: 'default'
+            pageId
           });
         }
         
-        // Navigate to the form builder
         navigate(`/form-builder/${newForm.id}`);
       }
     } catch (error) {

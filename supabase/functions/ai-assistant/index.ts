@@ -382,7 +382,7 @@ ${JSON.stringify(context.availableReports || [], null, 2)}
             type: "function",
             function: {
               name: "create_form",
-              description: "Create a new form with fields. Use appropriate field types.",
+              description: "Create a new form with fields. For large forms, organize fields into multiple pages. Use appropriate field types.",
               parameters: {
                 type: "object",
                 properties: {
@@ -401,6 +401,19 @@ ${JSON.stringify(context.availableReports || [], null, 2)}
                         options: { type: "array", items: { type: "object", properties: { value: { type: "string" }, label: { type: "string" } }, required: ["value", "label"] } }
                       },
                       required: ["type", "label", "required"]
+                    }
+                  },
+                  pages: {
+                    type: "array",
+                    description: "Optional multi-page layout. Each page contains fieldIndexes referencing the fields array. Use for forms with 8+ fields or distinct sections.",
+                    items: {
+                      type: "object",
+                      properties: {
+                        name: { type: "string", description: "Page title e.g. 'Personal Info'" },
+                        description: { type: "string" },
+                        fieldIndexes: { type: "array", items: { type: "integer" }, description: "Zero-based indexes into the fields array" }
+                      },
+                      required: ["name", "fieldIndexes"]
                     }
                   }
                 },
