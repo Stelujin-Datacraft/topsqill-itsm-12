@@ -226,25 +226,62 @@ export function AIFormGenerator({
                 </CardHeader>
                 <CardContent>
                   <ScrollArea className="h-[300px] pr-4">
-                    <div className="space-y-2">
-                      <Label className="text-xs text-muted-foreground">
-                        {generatedForm.fields.length} fields generated
-                      </Label>
-                      {generatedForm.fields.map((field, index) => (
-                        <div
-                          key={index}
-                          className="flex items-center justify-between p-2 border rounded-md text-sm"
-                        >
-                          <div className="flex items-center gap-2">
-                            <span>{fieldTypeIcons[field.type] || '📝'}</span>
-                            <span>{field.label}</span>
+                    <div className="space-y-3">
+                      {generatedForm.pages && generatedForm.pages.length > 1 ? (
+                        generatedForm.pages.map((page, pageIdx) => (
+                          <div key={pageIdx} className="space-y-2">
+                            <div className="flex items-center gap-2">
+                              <Badge variant="default" className="text-xs">
+                                Page {pageIdx + 1}
+                              </Badge>
+                              <span className="text-xs font-medium">{page.name}</span>
+                            </div>
+                            {page.description && (
+                              <p className="text-xs text-muted-foreground ml-2">{page.description}</p>
+                            )}
+                            {(page.fieldIndexes || []).map((fieldIdx) => {
+                              const field = generatedForm.fields[fieldIdx];
+                              if (!field) return null;
+                              return (
+                                <div
+                                  key={fieldIdx}
+                                  className="flex items-center justify-between p-2 border rounded-md text-sm ml-2"
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <span>{fieldTypeIcons[field.type] || '📝'}</span>
+                                    <span>{field.label}</span>
+                                  </div>
+                                  <div className="flex gap-1">
+                                    <Badge variant="outline" className="text-xs">{field.type}</Badge>
+                                    {field.required && <Badge variant="destructive" className="text-xs">Required</Badge>}
+                                  </div>
+                                </div>
+                              );
+                            })}
                           </div>
-                          <div className="flex gap-1">
-                            <Badge variant="outline" className="text-xs">{field.type}</Badge>
-                            {field.required && <Badge variant="destructive" className="text-xs">Required</Badge>}
-                          </div>
-                        </div>
-                      ))}
+                        ))
+                      ) : (
+                        <>
+                          <Label className="text-xs text-muted-foreground">
+                            {generatedForm.fields.length} fields generated
+                          </Label>
+                          {generatedForm.fields.map((field, index) => (
+                            <div
+                              key={index}
+                              className="flex items-center justify-between p-2 border rounded-md text-sm"
+                            >
+                              <div className="flex items-center gap-2">
+                                <span>{fieldTypeIcons[field.type] || '📝'}</span>
+                                <span>{field.label}</span>
+                              </div>
+                              <div className="flex gap-1">
+                                <Badge variant="outline" className="text-xs">{field.type}</Badge>
+                                {field.required && <Badge variant="destructive" className="text-xs">Required</Badge>}
+                              </div>
+                            </div>
+                          ))}
+                        </>
+                      )}
                     </div>
                   </ScrollArea>
                 </CardContent>
