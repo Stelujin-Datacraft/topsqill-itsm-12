@@ -346,15 +346,17 @@ export function useFormAI() {
   const suggestWorkflow = useCallback(async (
     workflowGoal: string,
     options?: {
-      triggerForm?: { id: string; name: string; fields: Array<{ id: string; label: string; type: string }> };
+      triggerForm?: { id: string; name: string; fields: Array<{ id: string; label: string; type: string; options?: Array<{ id: string; value: string; label: string }> }> };
       existingNodes?: Array<{ id: string; type: string; label: string }>;
+      additionalForms?: Array<{ id: string; name: string; fields: Array<{ id: string; label: string; type: string; options?: Array<{ id: string; value: string; label: string }> }> }>;
     }
   ): Promise<AIWorkflowSuggestionResult | null> => {
     return callAI('suggest-workflow', {
       workflowGoal,
       userInput: workflowGoal,
       triggerForm: options?.triggerForm,
-      existingNodes: options?.existingNodes
+      existingNodes: options?.existingNodes,
+      additionalForms: options?.additionalForms
     });
   }, [callAI]);
 

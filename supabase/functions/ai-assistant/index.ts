@@ -1106,23 +1106,34 @@ Use the "connections" array to specify edges. Reference target nodes by their "l
 
 Goal: "${context.workflowGoal || context.userInput}"
 ${context.triggerForm ? `
-Trigger Form: ${context.triggerForm.name}
+=== TRIGGER FORM (Primary) ===
+Form Name: ${context.triggerForm.name}
 Form ID: ${context.triggerForm.id}
-Form Fields:
-${JSON.stringify(context.triggerForm.fields?.map(f => ({ id: f.id, label: f.label, type: f.type })), null, 2)}` : ''}
+Fields:
+${JSON.stringify(context.triggerForm.fields?.map(f => ({ id: f.id, label: f.label, type: f.type, ...(f.options ? { options: f.options } : {}) })), null, 2)}` : ''}
+${context.additionalForms?.length ? `
+=== ADDITIONAL FORMS (Available for actions like create_record, change_field_value) ===
+${context.additionalForms.map(f => `
+Form: ${f.name} (ID: ${f.id})
+Fields:
+${JSON.stringify(f.fields?.map(ff => ({ id: ff.id, label: ff.label, type: ff.type, ...(ff.options ? { options: ff.options } : {}) })), null, 2)}
+`).join('')}` : ''}
 ${context.existingNodes?.length ? `
 Existing Nodes to consider:
 ${JSON.stringify(context.existingNodes, null, 2)}` : ''}
 
 IMPORTANT: 
-- Use the actual field IDs and form ID from above in your configurations
-- For condition nodes, reference actual field IDs and labels
+- Use the ACTUAL field IDs and form IDs from the forms provided above - DO NOT make up IDs
+- For condition nodes, reference actual field IDs, labels, and for select/radio fields use the actual option values
+- For send_notification actions, use {{field_label}} placeholders matching the actual field labels
+- For change_field_value, use actual field IDs from the correct form
+- For create_record, map source fields to target fields using actual IDs from both forms
 - Ensure every node except "end" has proper connections
 - Condition nodes MUST have both "true" and "false" connections
 - CRITICAL: Every node config MUST be COMPLETE with all required nested properties
 - For action nodes with send_notification: MUST include full notificationConfig with type, subject, message, and recipientConfig
 - For action nodes with change_field_value: MUST include targetFormId, targetFormName, targetFieldId, targetFieldName, staticValue/dynamicValuePath, and fieldUpdates array
-- Do NOT return empty or partial configs - users should see meaningful node descriptions, not "Click to configure"
+- Do NOT return empty or partial configs - users should see meaningful node descriptions
 
 Return a valid JSON object:
 {

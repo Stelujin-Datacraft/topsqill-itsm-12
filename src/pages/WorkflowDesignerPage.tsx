@@ -37,6 +37,7 @@ const WorkflowDesignerPage = () => {
   const [saving, setSaving] = useState(false);
   const [running, setRunning] = useState(false);
   const [activeTab, setActiveTab] = useState('designer');
+  const [availableForms, setAvailableForms] = useState<Array<{ id: string; name: string; fields?: Array<{ id: string; label: string; type: string; options?: Array<{ id: string; value: string; label: string }> }> }>>([]);
   
   // Enrollment settings state
   const [enrollmentMode, setEnrollmentMode] = useState<'allow_always' | 'once_per_record' | 'cooldown'>('allow_always');
@@ -220,6 +221,50 @@ const WorkflowDesignerPage = () => {
   const handleBackToList = () => {
     navigate('/workflows');
   };
+
+  // Fetch available forms with fields for AI context
+  useEffect(() => {
+    const fetchForms = async () => {
+      try {
+        const { data: forms, error } = await supabase
+          .from('forms')
+          .select('id, name')
+          .in('status', ['active', 'published', 'draft'])
+          .order('name');
+        
+        if (error || !forms) return;
+
+        const formsWithFields = await Promise.all(
+          forms.map(async (form) => {
+            const { data: fields } = await supabase
+              .from('form_fields')
+              .select('id, label, field_type, options')
+              .eq('form_id', form.id)
+              .order('field_order');
+            
+            return {
+              id: form.id,
+              name: form.name,
+              fields: (fields || []).map(f => ({
+                id: f.id,
+                label: f.label,
+                type: f.field_type,
+                options: Array.isArray(f.options) 
+                  ? (f.options as Array<{ id?: string; value: string; label: string }>).map(o => ({ id: o.id || o.value, value: o.value, label: o.label }))
+                  : undefined
+              }))
+            };
+          })
+        );
+
+        setAvailableForms(formsWithFields);
+      } catch (err) {
+        console.error('Error fetching forms for AI:', err);
+      }
+    };
+
+    fetchForms();
+  }, []);
 
 
   if (loading) {
@@ -512,6 +557,7 @@ const WorkflowDesignerPage = () => {
         <div className="flex space-x-2">
           <AIWorkflowSuggester
             onApply={handleAIWorkflowApply}
+            availableForms={availableForms}
             existingNodes={workflowData.nodes.map(n => ({ id: n.id, type: n.type, label: n.label }))}
             buttonLabel="AI Suggest"
             buttonVariant="outline"
