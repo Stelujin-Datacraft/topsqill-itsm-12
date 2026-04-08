@@ -481,7 +481,7 @@ const WorkflowDesignerPage = () => {
       const xOffset = nodeType === 'condition' ? 350 : 250;
       
       return {
-        id: `ai-node-${index}-${timestamp}`,
+        id: crypto.randomUUID(),
         type: nodeType as any,
         label: node.label,
         position: { x: xOffset, y: yOffset },
