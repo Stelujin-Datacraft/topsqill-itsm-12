@@ -222,6 +222,50 @@ const WorkflowDesignerPage = () => {
     navigate('/workflows');
   };
 
+  // Fetch available forms with fields for AI context
+  useEffect(() => {
+    const fetchForms = async () => {
+      try {
+        const { data: forms, error } = await supabase
+          .from('forms')
+          .select('id, name')
+          .in('status', ['active', 'published', 'draft'])
+          .order('name');
+        
+        if (error || !forms) return;
+
+        const formsWithFields = await Promise.all(
+          forms.map(async (form) => {
+            const { data: fields } = await supabase
+              .from('form_fields')
+              .select('id, label, type, options')
+              .eq('form_id', form.id)
+              .order('sort_order');
+            
+            return {
+              id: form.id,
+              name: form.name,
+              fields: (fields || []).map(f => ({
+                id: f.id,
+                label: f.label,
+                type: f.type,
+                options: Array.isArray(f.options) 
+                  ? (f.options as Array<{ id?: string; value: string; label: string }>).map(o => ({ id: o.id || o.value, value: o.value, label: o.label }))
+                  : undefined
+              }))
+            };
+          })
+        );
+
+        setAvailableForms(formsWithFields);
+      } catch (err) {
+        console.error('Error fetching forms for AI:', err);
+      }
+    };
+
+    fetchForms();
+  }, []);
+
 
   if (loading) {
     return (
