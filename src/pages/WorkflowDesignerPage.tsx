@@ -238,9 +238,9 @@ const WorkflowDesignerPage = () => {
           forms.map(async (form) => {
             const { data: fields } = await supabase
               .from('form_fields')
-              .select('id, label, type, options')
+              .select('id, label, field_type, options')
               .eq('form_id', form.id)
-              .order('sort_order');
+              .order('field_order');
             
             return {
               id: form.id,
@@ -248,7 +248,7 @@ const WorkflowDesignerPage = () => {
               fields: (fields || []).map(f => ({
                 id: f.id,
                 label: f.label,
-                type: f.type,
+                type: f.field_type,
                 options: Array.isArray(f.options) 
                   ? (f.options as Array<{ id?: string; value: string; label: string }>).map(o => ({ id: o.id || o.value, value: o.value, label: o.label }))
                   : undefined
