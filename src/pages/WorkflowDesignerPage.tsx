@@ -516,7 +516,7 @@ const WorkflowDesignerPage = () => {
             }
             
             newConnections.push({
-              id: `conn-${sourceIndex}-${connIndex}-${connectionTimestamp}`,
+              id: crypto.randomUUID(),
               source: sourceNode.id,
               target: targetNode.id,
               sourceHandle,
