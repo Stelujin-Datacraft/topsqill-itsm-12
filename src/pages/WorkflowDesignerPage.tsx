@@ -37,6 +37,7 @@ const WorkflowDesignerPage = () => {
   const [saving, setSaving] = useState(false);
   const [running, setRunning] = useState(false);
   const [activeTab, setActiveTab] = useState('designer');
+  const [availableForms, setAvailableForms] = useState<Array<{ id: string; name: string; fields?: Array<{ id: string; label: string; type: string; options?: Array<{ id: string; value: string; label: string }> }> }>>([]);
   
   // Enrollment settings state
   const [enrollmentMode, setEnrollmentMode] = useState<'allow_always' | 'once_per_record' | 'cooldown'>('allow_always');
