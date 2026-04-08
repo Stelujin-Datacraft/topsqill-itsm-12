@@ -528,7 +528,7 @@ const WorkflowDesignerPage = () => {
         // Auto-connect sequential nodes if no connections specified (except for end nodes)
         const nextNode = newNodes[sourceIndex + 1];
         newConnections.push({
-          id: `conn-auto-${sourceIndex}-${connectionTimestamp}`,
+          id: crypto.randomUUID(),
           source: sourceNode.id,
           target: nextNode.id
         });
