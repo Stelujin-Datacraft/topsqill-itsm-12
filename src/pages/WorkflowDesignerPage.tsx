@@ -557,6 +557,7 @@ const WorkflowDesignerPage = () => {
         <div className="flex space-x-2">
           <AIWorkflowSuggester
             onApply={handleAIWorkflowApply}
+            availableForms={availableForms}
             existingNodes={workflowData.nodes.map(n => ({ id: n.id, type: n.type, label: n.label }))}
             buttonLabel="AI Suggest"
             buttonVariant="outline"
