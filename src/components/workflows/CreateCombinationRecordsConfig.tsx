@@ -529,7 +529,7 @@ export function CreateCombinationRecordsConfig({
                     });
                   }}
                   placeholder="Select cross-reference field (optional)"
-                  filterTypes={['cross-reference']}
+                  filterTypes={['cross-reference', 'child-cross-reference']}
                 />
               </div>
             </div>
