@@ -1050,12 +1050,56 @@ For create_record:
 {
   "actionType": "create_record",
   "targetFormId": "target_form_id",
+  "targetFormName": "Target Form Name",
   "recordCount": 1,
   "initialStatus": "pending",
   "setSubmittedBy": "trigger_submitter",
   "fieldMappings": [
     { "sourceFieldId": "source_field", "targetFieldId": "target_field" }
   ]
+}
+
+For create_linked_record (creates a record in a linked form via cross-reference field):
+{
+  "actionType": "create_linked_record",
+  "crossReferenceFieldId": "cross_ref_field_id_in_trigger_form",
+  "crossReferenceFieldName": "Cross Ref Field Label",
+  "targetFormId": "linked_form_id",
+  "targetFormName": "Linked Form Name",
+  "recordCount": 1,
+  "fieldConfigMode": "field_mapping" | "none",
+  "fieldMappings": [
+    { "sourceFieldId": "source_field", "targetFieldId": "target_field" }
+  ],
+  "setSubmittedBy": "trigger_submitter",
+  "initialStatus": "pending"
+}
+
+For update_linked_records (updates existing records in a linked form via cross-reference):
+{
+  "actionType": "update_linked_records",
+  "crossReferenceFieldId": "cross_ref_field_id_in_trigger_form",
+  "crossReferenceFieldName": "Cross Ref Field Label",
+  "targetFormId": "linked_form_id",
+  "targetFormName": "Linked Form Name",
+  "updateScope": "all" | "first" | "last",
+  "fieldMappings": [
+    { "sourceFieldId": "trigger_field_id", "targetFieldId": "linked_field_id" }
+  ]
+}
+
+For create_combination_records (creates Cartesian product records from cross-ref selections):
+{
+  "actionType": "create_combination_records",
+  "combinationMode": "single",
+  "sourceCrossRefFieldId": "cross_ref_field_id",
+  "sourceCrossRefFieldName": "Cross Ref Field Label",
+  "sourceLinkedFormId": "linked_form_id",
+  "sourceLinkedFormName": "Linked Form Name",
+  "targetFormId": "destination_form_id",
+  "targetFormName": "Destination Form Name",
+  "initialStatus": "pending",
+  "setSubmittedBy": "trigger_submitter"
 }
 
 CONDITION NODE config:
