@@ -19,11 +19,18 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
+interface CrossRefConfig {
+  targetFormId: string;
+  targetFormName: string;
+  targetFormFields?: Array<{ id: string; label: string; type: string; options?: Array<{ id: string; value: string; label: string }> }>;
+}
+
 interface WorkflowFormField {
   id: string;
   label: string;
   type: string;
   options?: Array<{ id: string; value: string; label: string }>;
+  crossRefConfig?: CrossRefConfig;
 }
 
 interface WorkflowFormOption {
@@ -90,6 +97,8 @@ const fieldTypeIcons: Record<string, string> = {
   textarea: '📄',
   file: '📎',
   toggle: '🔀',
+  'cross-reference': '🔗',
+  'child-cross-reference': '🔗',
 };
 
 export function AIWorkflowSuggester({
@@ -144,7 +153,14 @@ export function AIWorkflowSuggester({
         id: f.id,
         label: f.label,
         type: f.type,
-        options: f.options
+        options: f.options,
+        ...(f.crossRefConfig ? {
+          crossRefConfig: {
+            targetFormId: f.crossRefConfig.targetFormId,
+            targetFormName: f.crossRefConfig.targetFormName,
+            targetFormFields: f.crossRefConfig.targetFormFields
+          }
+        } : {})
       }))
     }));
 
@@ -274,13 +290,23 @@ export function AIWorkflowSuggester({
                           <AccordionContent className="pb-2">
                             <div className="grid grid-cols-2 gap-1">
                               {(form.fields || []).map((field) => (
-                                <div key={field.id} className="flex items-center gap-1 text-xs text-muted-foreground p-1 bg-muted/50 rounded">
-                                  <span>{fieldTypeIcons[field.type] || '📦'}</span>
-                                  <span className="truncate">{field.label}</span>
-                                  {field.options && field.options.length > 0 && (
-                                    <Badge variant="outline" className="text-[10px] px-1 ml-auto">
-                                      {field.options.length} opts
-                                    </Badge>
+                                <div key={field.id} className="text-xs text-muted-foreground p-1 bg-muted/50 rounded">
+                                  <div className="flex items-center gap-1">
+                                    <span>{fieldTypeIcons[field.type] || '📦'}</span>
+                                    <span className="truncate">{field.label}</span>
+                                    {field.options && field.options.length > 0 && (
+                                      <Badge variant="outline" className="text-[10px] px-1 ml-auto">
+                                        {field.options.length} opts
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  {field.crossRefConfig && (
+                                    <div className="ml-4 mt-0.5 text-[10px] text-primary/70 flex items-center gap-1">
+                                      🔗 → {field.crossRefConfig.targetFormName}
+                                      <Badge variant="outline" className="text-[9px] px-1">
+                                        {field.crossRefConfig.targetFormFields?.length || 0} fields
+                                      </Badge>
+                                    </div>
                                   )}
                                 </div>
                               ))}

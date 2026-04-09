@@ -37,7 +37,7 @@ const WorkflowDesignerPage = () => {
   const [saving, setSaving] = useState(false);
   const [running, setRunning] = useState(false);
   const [activeTab, setActiveTab] = useState('designer');
-  const [availableForms, setAvailableForms] = useState<Array<{ id: string; name: string; fields?: Array<{ id: string; label: string; type: string; options?: Array<{ id: string; value: string; label: string }> }> }>>([]);
+  const [availableForms, setAvailableForms] = useState<Array<{ id: string; name: string; fields?: Array<{ id: string; label: string; type: string; options?: Array<{ id: string; value: string; label: string }>; crossRefConfig?: { targetFormId: string; targetFormName: string; targetFormFields?: Array<{ id: string; label: string; type: string; options?: Array<{ id: string; value: string; label: string }> }> } }> }>>([]);
   
   // Enrollment settings state
   const [enrollmentMode, setEnrollmentMode] = useState<'allow_always' | 'once_per_record' | 'cooldown'>('allow_always');
@@ -238,21 +238,56 @@ const WorkflowDesignerPage = () => {
           forms.map(async (form) => {
             const { data: fields } = await supabase
               .from('form_fields')
-              .select('id, label, field_type, options')
+              .select('id, label, field_type, options, custom_config')
               .eq('form_id', form.id)
               .order('field_order');
             
+            // For cross-reference fields, fetch linked form info
+            const enrichedFields = await Promise.all(
+              (fields || []).map(async (f) => {
+                const base = {
+                  id: f.id,
+                  label: f.label,
+                  type: f.field_type,
+                  options: Array.isArray(f.options) 
+                    ? (f.options as Array<{ id?: string; value: string; label: string }>).map(o => ({ id: o.id || o.value, value: o.value, label: o.label }))
+                    : undefined,
+                  crossRefConfig: undefined as any
+                };
+
+                if ((f.field_type === 'cross-reference' || f.field_type === 'child-cross-reference') && f.custom_config) {
+                  const config = f.custom_config as any;
+                  const targetFormId = config?.targetFormId;
+                  if (targetFormId) {
+                    // Fetch linked form name and fields
+                    const [formRes, fieldsRes] = await Promise.all([
+                      supabase.from('forms').select('id, name').eq('id', targetFormId).single(),
+                      supabase.from('form_fields').select('id, label, field_type, options').eq('form_id', targetFormId).order('field_order')
+                    ]);
+                    
+                    base.crossRefConfig = {
+                      targetFormId,
+                      targetFormName: formRes.data?.name || 'Unknown Form',
+                      targetFormFields: (fieldsRes.data || []).map(tf => ({
+                        id: tf.id,
+                        label: tf.label,
+                        type: tf.field_type,
+                        options: Array.isArray(tf.options)
+                          ? (tf.options as Array<{ id?: string; value: string; label: string }>).map(o => ({ id: o.id || o.value, value: o.value, label: o.label }))
+                          : undefined
+                      }))
+                    };
+                  }
+                }
+
+                return base;
+              })
+            );
+
             return {
               id: form.id,
               name: form.name,
-              fields: (fields || []).map(f => ({
-                id: f.id,
-                label: f.label,
-                type: f.field_type,
-                options: Array.isArray(f.options) 
-                  ? (f.options as Array<{ id?: string; value: string; label: string }>).map(o => ({ id: o.id || o.value, value: o.value, label: o.label }))
-                  : undefined
-              }))
+              fields: enrichedFields
             };
           })
         );
@@ -380,6 +415,25 @@ const WorkflowDesignerPage = () => {
          if (!config.targetFormName && config.targetFormId) {
            config.targetFormName = 'Target Form';
          }
+       }
+
+       // Normalize create_linked_record config
+       if (config.actionType === 'create_linked_record') {
+         if (!config.recordCount) config.recordCount = 1;
+         if (!config.targetFormName && config.targetFormId) config.targetFormName = 'Linked Form';
+         if (!config.fieldConfigMode) config.fieldConfigMode = config.fieldMappings?.length ? 'field_mapping' : 'none';
+       }
+
+       // Normalize update_linked_records config
+       if (config.actionType === 'update_linked_records') {
+         if (!config.updateScope) config.updateScope = 'all';
+         if (!config.targetFormName && config.targetFormId) config.targetFormName = 'Linked Form';
+       }
+
+       // Normalize create_combination_records config
+       if (config.actionType === 'create_combination_records') {
+         if (!config.combinationMode) config.combinationMode = 'single';
+         if (!config.targetFormName && config.targetFormId) config.targetFormName = 'Target Form';
        }
         break;
         

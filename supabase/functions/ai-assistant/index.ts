@@ -1050,12 +1050,56 @@ For create_record:
 {
   "actionType": "create_record",
   "targetFormId": "target_form_id",
+  "targetFormName": "Target Form Name",
   "recordCount": 1,
   "initialStatus": "pending",
   "setSubmittedBy": "trigger_submitter",
   "fieldMappings": [
     { "sourceFieldId": "source_field", "targetFieldId": "target_field" }
   ]
+}
+
+For create_linked_record (creates a record in a linked form via cross-reference field):
+{
+  "actionType": "create_linked_record",
+  "crossReferenceFieldId": "cross_ref_field_id_in_trigger_form",
+  "crossReferenceFieldName": "Cross Ref Field Label",
+  "targetFormId": "linked_form_id",
+  "targetFormName": "Linked Form Name",
+  "recordCount": 1,
+  "fieldConfigMode": "field_mapping" | "none",
+  "fieldMappings": [
+    { "sourceFieldId": "source_field", "targetFieldId": "target_field" }
+  ],
+  "setSubmittedBy": "trigger_submitter",
+  "initialStatus": "pending"
+}
+
+For update_linked_records (updates existing records in a linked form via cross-reference):
+{
+  "actionType": "update_linked_records",
+  "crossReferenceFieldId": "cross_ref_field_id_in_trigger_form",
+  "crossReferenceFieldName": "Cross Ref Field Label",
+  "targetFormId": "linked_form_id",
+  "targetFormName": "Linked Form Name",
+  "updateScope": "all" | "first" | "last",
+  "fieldMappings": [
+    { "sourceFieldId": "trigger_field_id", "targetFieldId": "linked_field_id" }
+  ]
+}
+
+For create_combination_records (creates Cartesian product records from cross-ref selections):
+{
+  "actionType": "create_combination_records",
+  "combinationMode": "single",
+  "sourceCrossRefFieldId": "cross_ref_field_id",
+  "sourceCrossRefFieldName": "Cross Ref Field Label",
+  "sourceLinkedFormId": "linked_form_id",
+  "sourceLinkedFormName": "Linked Form Name",
+  "targetFormId": "destination_form_id",
+  "targetFormName": "Destination Form Name",
+  "initialStatus": "pending",
+  "setSubmittedBy": "trigger_submitter"
 }
 
 CONDITION NODE config:
@@ -1110,13 +1154,13 @@ ${context.triggerForm ? `
 Form Name: ${context.triggerForm.name}
 Form ID: ${context.triggerForm.id}
 Fields:
-${JSON.stringify(context.triggerForm.fields?.map(f => ({ id: f.id, label: f.label, type: f.type, ...(f.options ? { options: f.options } : {}) })), null, 2)}` : ''}
+${JSON.stringify(context.triggerForm.fields?.map(f => ({ id: f.id, label: f.label, type: f.type, ...(f.options ? { options: f.options } : {}), ...(f.crossRefConfig ? { crossRefConfig: { targetFormId: f.crossRefConfig.targetFormId, targetFormName: f.crossRefConfig.targetFormName, targetFormFields: f.crossRefConfig.targetFormFields } } : {}) })), null, 2)}` : ''}
 ${context.additionalForms?.length ? `
 === ADDITIONAL FORMS (Available for actions like create_record, change_field_value) ===
 ${context.additionalForms.map(f => `
 Form: ${f.name} (ID: ${f.id})
 Fields:
-${JSON.stringify(f.fields?.map(ff => ({ id: ff.id, label: ff.label, type: ff.type, ...(ff.options ? { options: ff.options } : {}) })), null, 2)}
+${JSON.stringify(f.fields?.map(ff => ({ id: ff.id, label: ff.label, type: ff.type, ...(ff.options ? { options: ff.options } : {}), ...(ff.crossRefConfig ? { crossRefConfig: { targetFormId: ff.crossRefConfig.targetFormId, targetFormName: ff.crossRefConfig.targetFormName, targetFormFields: ff.crossRefConfig.targetFormFields } } : {}) })), null, 2)}
 `).join('')}` : ''}
 ${context.existingNodes?.length ? `
 Existing Nodes to consider:
@@ -1128,6 +1172,10 @@ IMPORTANT:
 - For send_notification actions, use {{field_label}} placeholders matching the actual field labels
 - For change_field_value, use actual field IDs from the correct form
 - For create_record, map source fields to target fields using actual IDs from both forms
+- CROSS-REFERENCE ACTIONS: When fields have "crossRefConfig" property, they are cross-reference fields linked to other forms. USE these to suggest cross-ref actions:
+  * create_linked_record: Use when the workflow should create new records in linked forms (use the crossRefConfig.targetFormId and the cross-ref field ID)
+  * update_linked_records: Use when the workflow should update existing linked records
+  * create_combination_records: Use when combining records across cross-ref selections
 - Ensure every node except "end" has proper connections
 - Condition nodes MUST have both "true" and "false" connections
 - CRITICAL: Every node config MUST be COMPLETE with all required nested properties
