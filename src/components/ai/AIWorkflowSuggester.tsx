@@ -19,11 +19,18 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
+interface CrossRefConfig {
+  targetFormId: string;
+  targetFormName: string;
+  targetFormFields?: Array<{ id: string; label: string; type: string; options?: Array<{ id: string; value: string; label: string }> }>;
+}
+
 interface WorkflowFormField {
   id: string;
   label: string;
   type: string;
   options?: Array<{ id: string; value: string; label: string }>;
+  crossRefConfig?: CrossRefConfig;
 }
 
 interface WorkflowFormOption {
