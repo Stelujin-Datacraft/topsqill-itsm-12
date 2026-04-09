@@ -97,6 +97,8 @@ const fieldTypeIcons: Record<string, string> = {
   textarea: '📄',
   file: '📎',
   toggle: '🔀',
+  'cross-reference': '🔗',
+  'child-cross-reference': '🔗',
 };
 
 export function AIWorkflowSuggester({
