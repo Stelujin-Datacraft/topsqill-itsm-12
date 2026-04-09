@@ -416,6 +416,25 @@ const WorkflowDesignerPage = () => {
            config.targetFormName = 'Target Form';
          }
        }
+
+       // Normalize create_linked_record config
+       if (config.actionType === 'create_linked_record') {
+         if (!config.recordCount) config.recordCount = 1;
+         if (!config.targetFormName && config.targetFormId) config.targetFormName = 'Linked Form';
+         if (!config.fieldConfigMode) config.fieldConfigMode = config.fieldMappings?.length ? 'field_mapping' : 'none';
+       }
+
+       // Normalize update_linked_records config
+       if (config.actionType === 'update_linked_records') {
+         if (!config.updateScope) config.updateScope = 'all';
+         if (!config.targetFormName && config.targetFormId) config.targetFormName = 'Linked Form';
+       }
+
+       // Normalize create_combination_records config
+       if (config.actionType === 'create_combination_records') {
+         if (!config.combinationMode) config.combinationMode = 'single';
+         if (!config.targetFormName && config.targetFormId) config.targetFormName = 'Target Form';
+       }
         break;
         
       case 'condition':
