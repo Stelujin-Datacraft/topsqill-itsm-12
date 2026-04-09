@@ -289,16 +289,17 @@ export function CreateCombinationRecordsConfig({
             formId={triggerFormId}
             value={config.secondSourceCrossRefFieldId || ''}
             onValueChange={(fieldId, fieldName, fieldType, fieldOptions, customConfig) => {
+              const isChildRef = fieldType === 'child-cross-reference';
               onConfigChange({
                 ...config,
                 secondSourceCrossRefFieldId: fieldId,
                 secondSourceCrossRefFieldName: fieldName,
-                secondSourceLinkedFormId: customConfig?.targetFormId,
-                secondSourceLinkedFormName: customConfig?.targetFormName
+                secondSourceLinkedFormId: isChildRef ? (customConfig?.parentFormId || customConfig?.targetFormId) : customConfig?.targetFormId,
+                secondSourceLinkedFormName: isChildRef ? (customConfig?.parentFormName || customConfig?.targetFormName) : customConfig?.targetFormName
               });
             }}
             placeholder="Select second cross-reference field"
-            filterTypes={['cross-reference']}
+            filterTypes={['cross-reference', 'child-cross-reference']}
           />
           {secondLinkedFormLoading && (
             <p className="text-xs text-blue-600">Loading linked form...</p>
