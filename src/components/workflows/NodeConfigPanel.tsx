@@ -1252,8 +1252,13 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
                         formId={triggerFormId}
                         value={localConfig?.crossReferenceFieldId || ''}
                         onValueChange={(fieldId, fieldName, fieldType, fieldOptions, customConfig) => {
-                          const targetFormId = customConfig?.targetFormId;
-                          const targetFormName = customConfig?.targetFormName;
+                          const isChildRef = fieldType === 'child-cross-reference';
+                          const targetFormId = isChildRef 
+                            ? (customConfig?.parentFormId || customConfig?.targetFormId)
+                            : customConfig?.targetFormId;
+                          const targetFormName = isChildRef
+                            ? (customConfig?.parentFormName || customConfig?.targetFormName)
+                            : customConfig?.targetFormName;
                           
                           handleFullConfigUpdate({
                             ...localConfig,
@@ -1265,7 +1270,7 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
                           });
                         }}
                         placeholder="Select cross-reference field"
-                        filterTypes={['cross-reference']}
+                        filterTypes={['cross-reference', 'child-cross-reference']}
                       />
                     </div>
 
