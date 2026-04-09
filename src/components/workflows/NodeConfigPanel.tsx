@@ -1022,8 +1022,15 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
                         value={localConfig?.crossReferenceFieldId || ''}
                         onValueChange={(fieldId, fieldName, fieldType, fieldOptions, customConfig) => {
                           // When a cross-reference field is selected, auto-detect the target form
-                          const targetFormId = customConfig?.targetFormId;
-                          const targetFormName = customConfig?.targetFormName;
+                          // For cross-reference: targetFormId is the linked child form
+                          // For child-cross-reference: parentFormId is the linked parent form
+                          const isChildRef = fieldType === 'child-cross-reference';
+                          const targetFormId = isChildRef 
+                            ? (customConfig?.parentFormId || customConfig?.targetFormId)
+                            : customConfig?.targetFormId;
+                          const targetFormName = isChildRef
+                            ? (customConfig?.parentFormName || customConfig?.targetFormName)
+                            : customConfig?.targetFormName;
                           
                           handleFullConfigUpdate({
                             ...localConfig,
@@ -1034,7 +1041,7 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
                           });
                         }}
                         placeholder="Select cross-reference field"
-                        filterTypes={['cross-reference']}
+                        filterTypes={['cross-reference', 'child-cross-reference']}
                       />
                     </div>
 
