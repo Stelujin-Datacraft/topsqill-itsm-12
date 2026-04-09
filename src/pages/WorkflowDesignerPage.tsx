@@ -238,21 +238,56 @@ const WorkflowDesignerPage = () => {
           forms.map(async (form) => {
             const { data: fields } = await supabase
               .from('form_fields')
-              .select('id, label, field_type, options')
+              .select('id, label, field_type, options, custom_config')
               .eq('form_id', form.id)
               .order('field_order');
             
+            // For cross-reference fields, fetch linked form info
+            const enrichedFields = await Promise.all(
+              (fields || []).map(async (f) => {
+                const base = {
+                  id: f.id,
+                  label: f.label,
+                  type: f.field_type,
+                  options: Array.isArray(f.options) 
+                    ? (f.options as Array<{ id?: string; value: string; label: string }>).map(o => ({ id: o.id || o.value, value: o.value, label: o.label }))
+                    : undefined,
+                  crossRefConfig: undefined as any
+                };
+
+                if ((f.field_type === 'cross-reference' || f.field_type === 'child-cross-reference') && f.custom_config) {
+                  const config = f.custom_config as any;
+                  const targetFormId = config?.targetFormId;
+                  if (targetFormId) {
+                    // Fetch linked form name and fields
+                    const [formRes, fieldsRes] = await Promise.all([
+                      supabase.from('forms').select('id, name').eq('id', targetFormId).single(),
+                      supabase.from('form_fields').select('id, label, field_type, options').eq('form_id', targetFormId).order('field_order')
+                    ]);
+                    
+                    base.crossRefConfig = {
+                      targetFormId,
+                      targetFormName: formRes.data?.name || 'Unknown Form',
+                      targetFormFields: (fieldsRes.data || []).map(tf => ({
+                        id: tf.id,
+                        label: tf.label,
+                        type: tf.field_type,
+                        options: Array.isArray(tf.options)
+                          ? (tf.options as Array<{ id?: string; value: string; label: string }>).map(o => ({ id: o.id || o.value, value: o.value, label: o.label }))
+                          : undefined
+                      }))
+                    };
+                  }
+                }
+
+                return base;
+              })
+            );
+
             return {
               id: form.id,
               name: form.name,
-              fields: (fields || []).map(f => ({
-                id: f.id,
-                label: f.label,
-                type: f.field_type,
-                options: Array.isArray(f.options) 
-                  ? (f.options as Array<{ id?: string; value: string; label: string }>).map(o => ({ id: o.id || o.value, value: o.value, label: o.label }))
-                  : undefined
-              }))
+              fields: enrichedFields
             };
           })
         );
