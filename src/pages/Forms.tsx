@@ -153,6 +153,10 @@ const Forms = () => {
       });
 
       if (newForm) {
+        // Track created field IDs per page
+        const pageFieldIds: Record<string, string[]> = {};
+        formPages.forEach(p => { pageFieldIds[p.id] = []; });
+
         for (let i = 0; i < generatedForm.fields.length; i++) {
           const field = generatedForm.fields[i];
           const mappedOptions = field.options?.map((opt, idx) => ({
@@ -164,7 +168,7 @@ const Forms = () => {
           const sanitizedType = sanitizeFieldType(field.type);
           const pageId = fieldPageMap[i] || formPages[0]?.id || 'default';
           
-          await addField(newForm.id, {
+          const newField = await addField(newForm.id, {
             label: field.label,
             type: sanitizedType as any,
             required: field.required,
@@ -173,7 +177,23 @@ const Forms = () => {
             validation: field.validation,
             pageId
           });
+
+          // Track the field ID for its page
+          if (newField?.id && pageFieldIds[pageId]) {
+            pageFieldIds[pageId].push(newField.id);
+          }
         }
+
+        // Update the form's pages with the created field IDs
+        const updatedPages = formPages.map(p => ({
+          ...p,
+          fields: pageFieldIds[p.id] || []
+        }));
+
+        await supabase
+          .from('forms')
+          .update({ pages: updatedPages as any })
+          .eq('id', newForm.id);
         
         navigate(`/form-builder/${newForm.id}`);
       }
