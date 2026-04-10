@@ -253,13 +253,15 @@ export function CreateCombinationRecordsConfig({
           formId={triggerFormId}
           value={config.sourceCrossRefFieldId || ''}
           onValueChange={(fieldId, fieldName, fieldType, fieldOptions, customConfig) => {
+            let cfg = customConfig || {};
+            if (typeof cfg === 'string') { try { cfg = JSON.parse(cfg); } catch { cfg = {}; } }
             const isChildRef = fieldType === 'child-cross-reference';
             onConfigChange({
               ...config,
               sourceCrossRefFieldId: fieldId,
               sourceCrossRefFieldName: fieldName,
-              sourceLinkedFormId: isChildRef ? (customConfig?.parentFormId || customConfig?.targetFormId) : customConfig?.targetFormId,
-              sourceLinkedFormName: isChildRef ? (customConfig?.parentFormName || customConfig?.targetFormName) : customConfig?.targetFormName
+              sourceLinkedFormId: isChildRef ? (cfg?.parentFormId || cfg?.targetFormId) : cfg?.targetFormId,
+              sourceLinkedFormName: isChildRef ? (cfg?.parentFormName || cfg?.targetFormName) : cfg?.targetFormName
             });
           }}
           placeholder="Select cross-reference field"
