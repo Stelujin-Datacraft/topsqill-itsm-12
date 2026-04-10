@@ -62,13 +62,20 @@ export function FormFieldSelector({
           // Filter out static/layout fields using centralized utility
           let dataFields = fieldsData
             .filter(field => !excludeStaticFields || !STATIC_LAYOUT_FIELD_TYPES.includes(field.field_type as any))
-            .map(field => ({
-              id: field.id,
-              type: field.field_type,
-              label: field.label,
-              options: field.options || [],
-              customConfig: field.custom_config || {},
-            } as ExtendedFormField));
+            .map(field => {
+              // Parse custom_config - handle both object and string formats
+              let parsedConfig = field.custom_config || {};
+              if (typeof parsedConfig === 'string') {
+                try { parsedConfig = JSON.parse(parsedConfig); } catch { parsedConfig = {}; }
+              }
+              return {
+                id: field.id,
+                type: field.field_type,
+                label: field.label,
+                options: field.options || [],
+                customConfig: parsedConfig,
+              } as ExtendedFormField;
+            });
           
           // Apply type filter if provided
           const typesToFilter = filterTypesKey ? filterTypesKey.split(',') : [];

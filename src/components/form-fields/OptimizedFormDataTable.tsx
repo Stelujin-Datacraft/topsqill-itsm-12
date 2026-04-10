@@ -101,7 +101,7 @@ export function OptimizedFormDataTable({
 
   // State for confirmed selected records
   const [selectedRecords, setSelectedRecords] = useState<SelectedRecord[]>([]);
-  const pageSize = config.pageSize || 10;
+  const pageSize = config.pageSize || 50;
   const displayColumns = config.displayColumns || [];
   const tableDisplayFields = config.tableDisplayFields || [];
   const isCrossReference = fieldType === 'cross-reference' || fieldType === 'child-cross-reference';
