@@ -1021,16 +1021,21 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
                         formId={triggerFormId}
                         value={localConfig?.crossReferenceFieldId || ''}
                         onValueChange={(fieldId, fieldName, fieldType, fieldOptions, customConfig) => {
+                          // Safely parse customConfig in case it's a string
+                          let config = customConfig || {};
+                          if (typeof config === 'string') {
+                            try { config = JSON.parse(config); } catch { config = {}; }
+                          }
                           // When a cross-reference field is selected, auto-detect the target form
-                          // For cross-reference: targetFormId is the linked child form
-                          // For child-cross-reference: parentFormId is the linked parent form
                           const isChildRef = fieldType === 'child-cross-reference';
                           const targetFormId = isChildRef 
-                            ? (customConfig?.parentFormId || customConfig?.targetFormId)
-                            : customConfig?.targetFormId;
+                            ? (config?.parentFormId || config?.targetFormId)
+                            : config?.targetFormId;
                           const targetFormName = isChildRef
-                            ? (customConfig?.parentFormName || customConfig?.targetFormName)
-                            : customConfig?.targetFormName;
+                            ? (config?.parentFormName || config?.targetFormName)
+                            : config?.targetFormName;
+                          
+                          console.log('🔗 Cross-ref field selected:', { fieldId, fieldType, isChildRef, targetFormId, targetFormName, config });
                           
                           handleFullConfigUpdate({
                             ...localConfig,
@@ -1252,13 +1257,19 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
                         formId={triggerFormId}
                         value={localConfig?.crossReferenceFieldId || ''}
                         onValueChange={(fieldId, fieldName, fieldType, fieldOptions, customConfig) => {
+                          let config = customConfig || {};
+                          if (typeof config === 'string') {
+                            try { config = JSON.parse(config); } catch { config = {}; }
+                          }
                           const isChildRef = fieldType === 'child-cross-reference';
                           const targetFormId = isChildRef 
-                            ? (customConfig?.parentFormId || customConfig?.targetFormId)
-                            : customConfig?.targetFormId;
+                            ? (config?.parentFormId || config?.targetFormId)
+                            : config?.targetFormId;
                           const targetFormName = isChildRef
-                            ? (customConfig?.parentFormName || customConfig?.targetFormName)
-                            : customConfig?.targetFormName;
+                            ? (config?.parentFormName || config?.targetFormName)
+                            : config?.targetFormName;
+                          
+                          console.log('🔗 Cross-ref field selected (update):', { fieldId, fieldType, isChildRef, targetFormId, targetFormName, config });
                           
                           handleFullConfigUpdate({
                             ...localConfig,
@@ -1266,7 +1277,7 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
                             crossReferenceFieldName: fieldName,
                             targetFormId: targetFormId || localConfig?.targetFormId,
                             targetFormName: targetFormName || localConfig?.targetFormName,
-                            fieldMappings: [] // Reset field mappings when cross-reference changes
+                            fieldMappings: []
                           });
                         }}
                         placeholder="Select cross-reference field"
