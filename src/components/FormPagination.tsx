@@ -1,8 +1,17 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger
+} from '@/components/ui/alert-dialog';
 import { ChevronLeft, ChevronRight, Save, Edit2, Trash2, Check, X } from 'lucide-react';
 import { FormPage } from '@/types/form';
 
@@ -40,31 +49,34 @@ export function FormPagination({
   const canGoPrevious = currentPageIndex > 0;
   const canGoNext = currentPageIndex < pages.length - 1;
 
-  // Auto-scroll to keep active page centered
+  const isFewPages = pages.length <= 4;
+
+  // Auto-scroll for many pages only
   useEffect(() => {
-    if (scrollContainerRef.current && currentPageId) {
-      const activePageElement = scrollContainerRef.current.querySelector(`[data-page-id="${currentPageId}"]`);
+    if (!isFewPages && scrollContainerRef.current && currentPageId) {
+      const activePageElement = scrollContainerRef.current.querySelector(
+        `[data-page-id="${currentPageId}"]`
+      );
       if (activePageElement) {
         const container = scrollContainerRef.current;
         const containerWidth = container.clientWidth;
         const elementRect = activePageElement.getBoundingClientRect();
         const containerRect = container.getBoundingClientRect();
-        
-        // Calculate relative position within the container
-        const elementLeft = elementRect.left - containerRect.left + container.scrollLeft;
+
+        const elementLeft =
+          elementRect.left - containerRect.left + container.scrollLeft;
         const elementWidth = elementRect.width;
-        
-        // Calculate the scroll position to center the element
-        const targetScrollLeft = elementLeft + (elementWidth / 2) - (containerWidth / 2);
-        
-        // Smooth scroll to the calculated position
+
+        const targetScrollLeft =
+          elementLeft + elementWidth / 2 - containerWidth / 2;
+
         container.scrollTo({
           left: Math.max(0, targetScrollLeft),
           behavior: 'smooth'
         });
       }
     }
-  }, [currentPageId]);
+  }, [currentPageId, isFewPages]);
 
   const handleStartEdit = (page: FormPage) => {
     if (readOnly) return;
@@ -74,13 +86,9 @@ export function FormPagination({
 
   const handleSaveEdit = async () => {
     if (editingPageId && onPageRename && editingName.trim()) {
-      try {
-        await onPageRename(editingPageId, editingName.trim());
-        setEditingPageId(null);
-        setEditingName('');
-      } catch (error) {
-        console.error('Error renaming page:', error);
-      }
+      await onPageRename(editingPageId, editingName.trim());
+      setEditingPageId(null);
+      setEditingName('');
     }
   };
 
@@ -91,11 +99,7 @@ export function FormPagination({
 
   const handleDeletePage = async (pageId: string) => {
     if (readOnly || !onPageDelete || pages.length <= 1) return;
-    try {
-      await onPageDelete(pageId);
-    } catch (error) {
-      console.error('Error deleting page:', error);
-    }
+    await onPageDelete(pageId);
   };
 
   const handlePageClick = (e: React.MouseEvent, pageId: string) => {
@@ -112,9 +116,9 @@ export function FormPagination({
 
   return (
     <div className="w-full">
-      {/* Full-width scrollable page tabs */}
+      {/* Pagination */}
       <div className="flex items-center gap-2 w-full">
-        {/* Left navigation arrow */}
+        {/* Left Arrow */}
         <Button
           type="button"
           variant="ghost"
@@ -126,31 +130,48 @@ export function FormPagination({
           <ChevronLeft className="h-4 w-4" />
         </Button>
 
-        {/* Scrollable page container */}
-        <div 
+        {/* Pages */}
+        <div
           ref={scrollContainerRef}
-          className="flex-1 overflow-x-auto scrollbar-hide"
-          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+          className={`flex-1 ${
+            isFewPages ? '' : 'overflow-x-auto scrollbar-hide'
+          }`}
         >
-          <div className="flex gap-1 min-w-max pb-2">
-            {pages.map((page, index) => (
-              <div key={page.id} data-page-id={page.id} className="flex items-center group">
+          <div
+            className={`flex pb-2 w-full ${
+              isFewPages
+                ? 'justify-evenly items-center'
+                : 'min-w-max gap-1'
+            }`}
+          >
+            {pages.map((page) => (
+              <div
+                key={page.id}
+                data-page-id={page.id}
+                className="flex items-center group"
+              >
                 {editingPageId === page.id && !readOnly ? (
                   <div className="flex items-center gap-1 px-2 py-1">
                     <Input
                       value={editingName}
                       onChange={(e) => setEditingName(e.target.value)}
                       className="h-7 text-sm w-24"
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') handleSaveEdit();
-                        if (e.key === 'Escape') handleCancelEdit();
-                      }}
                       autoFocus
                     />
-                    <Button size="sm" variant="ghost" onClick={handleSaveEdit} className="h-7 w-7 p-0">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={handleSaveEdit}
+                      className="h-7 w-7 p-0"
+                    >
                       <Check className="h-3 w-3" />
                     </Button>
-                    <Button size="sm" variant="ghost" onClick={handleCancelEdit} className="h-7 w-7 p-0">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={handleCancelEdit}
+                      className="h-7 w-7 p-0"
+                    >
                       <X className="h-3 w-3" />
                     </Button>
                   </div>
@@ -158,13 +179,20 @@ export function FormPagination({
                   <div className="flex items-center">
                     <Button
                       type="button"
-                      variant={currentPageId === page.id ? "default" : "ghost"}
+                      variant={
+                        currentPageId === page.id ? 'default' : 'ghost'
+                      }
                       size="sm"
                       onClick={(e) => handlePageClick(e, page.id)}
-                      className="h-8 px-3 text-sm whitespace-nowrap"
+                      className={`h-8 text-sm ${
+                        isFewPages
+                          ? 'px-4'
+                          : 'px-3 whitespace-nowrap'
+                      }`}
                     >
                       {page.name}
                     </Button>
+
                     {!readOnly && (
                       <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 ml-1">
                         <Button
@@ -176,6 +204,7 @@ export function FormPagination({
                         >
                           <Edit2 className="h-3 w-3" />
                         </Button>
+
                         {pages.length > 1 && (
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
@@ -183,21 +212,32 @@ export function FormPagination({
                                 type="button"
                                 size="sm"
                                 variant="ghost"
-                                className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                                className="h-6 w-6 p-0 text-destructive"
                               >
                                 <Trash2 className="h-3 w-3" />
                               </Button>
                             </AlertDialogTrigger>
+
                             <AlertDialogContent>
                               <AlertDialogHeader>
-                                <AlertDialogTitle>Delete Page</AlertDialogTitle>
+                                <AlertDialogTitle>
+                                  Delete Page
+                                </AlertDialogTitle>
                                 <AlertDialogDescription>
-                                  Are you sure you want to delete "{page.name}"? This action cannot be undone and all fields on this page will be moved to the first page.
+                                  Are you sure you want to delete "
+                                  {page.name}"?
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
+
                               <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => handleDeletePage(page.id)}>
+                                <AlertDialogCancel>
+                                  Cancel
+                                </AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() =>
+                                    handleDeletePage(page.id)
+                                  }
+                                >
                                   Delete Page
                                 </AlertDialogAction>
                               </AlertDialogFooter>
@@ -213,7 +253,7 @@ export function FormPagination({
           </div>
         </div>
 
-        {/* Right navigation arrow */}
+        {/* Right Arrow */}
         <Button
           type="button"
           variant="ghost"
@@ -226,13 +266,20 @@ export function FormPagination({
         </Button>
       </div>
 
-      {/* Page indicator */}
+      {/* Footer */}
       <div className="flex items-center justify-center mt-2">
         <span className="text-xs text-muted-foreground">
           Page {currentPageIndex + 1} of {pages.length}
         </span>
+
         {showSave && onSavePage && (
-          <Button type="button" variant="outline" size="sm" onClick={onSavePage} className="ml-4">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={onSavePage}
+            className="ml-4"
+          >
             <Save className="h-3 w-3 mr-1" />
             Save
           </Button>

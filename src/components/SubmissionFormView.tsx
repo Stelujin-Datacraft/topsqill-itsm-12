@@ -506,116 +506,7 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
 
   return (
     <div className="space-y-6 h-full">
-      {/* Pagination */}
-      {pages.length > 1 && (
-        <div className="px-4 py-3 bg-white border rounded-lg">
-          <FormPagination
-            pages={pages}
-            currentPageId={currentPageId}
-            currentPageIndex={currentPageIndex}
-            onPageChange={handlePageChange}
-            onPrevious={() => {
-              const currentIndex = pages.findIndex(p => p.id === currentPageId);
-              if (currentIndex > 0) {
-                handlePageChange(pages[currentIndex - 1].id);
-              }
-            }}
-            onNext={() => {
-              const currentIndex = pages.findIndex(p => p.id === currentPageId);
-              if (currentIndex < pages.length - 1) {
-                handlePageChange(pages[currentIndex + 1].id);
-              }
-            }}
-            readOnly={true}
-          />
-        </div>
-      )}
 
-      {/* Action Bar */}
-     {/* <div className="flex items-center justify-between bg-card border rounded-lg px-4 py-3 shadow-sm">
-        <div className="flex items-center gap-4">
-          <div className="flex flex-col">
-            <h2 className="text-lg font-semibold">{submission.form_name}</h2>
-            <div className="flex items-center gap-4 text-sm text-muted-foreground">
-              <SubmissionRefDisplay
-                submissionRefId={submission.submission_ref_id}
-                submissionId={submission.id}
-                formReferenceId={submission.form_reference_id}
-                formName={submission.form_name}
-                variant="default"
-              />
-              <div className="flex items-center gap-1">
-                <Clock className="h-3 w-3" />
-                <span>{new Date(submission.submitted_at).toLocaleString()}</span>
-              </div>
-            </div>
-          </div>*/}
-          
-            {/* Lifecycle Dropdown Fields */}
-         {/* <div className="flex items-center gap-4 ml-4">
-            {lifecycleFields.map((field) => (
-              <LifecycleStatusBar
-                key={field.id}
-                field={field}
-                value={formData[field.id] || ''}
-                onChange={(value) => handleFieldChange(field.id, value)}
-                disabled={saving}
-                isEditing={isEditing}
-                submissionId={submission.id}
-                formId={form?.id}
-              />
-            ))}
-          </div>
-          
-        </div>
-        
-        <div className="flex items-center gap-2">
-          {isEditing ? (
-            <>
-              <Button 
-                variant="outline" 
-                size="icon"
-                className="h-8 w-8"
-                onClick={handleCancel}
-                disabled={saving}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-              <Button 
-                size="sm" 
-                onClick={handleSave}
-                disabled={saving}
-              >
-                <Save className="h-4 w-4 mr-1" />
-                {saving ? 'Saving...' : 'Save'}
-              </Button>
-            </>
-          ) : (
-            <>
-              {submission && form && (
-                <ManualWorkflowTrigger
-                  formId={form.id}
-                  submissionId={submission.id}
-                  submissionData={formData}
-                  submissionRefId={submission.submission_ref_id}
-                />
-              )}
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => setShowRecordHistory(true)}
-              >
-                <History className="h-4 w-4 mr-1" />
-                History
-              </Button>
-              <Button size="sm" onClick={() => setIsEditing(true)}>
-                <Edit className="h-4 w-4 mr-1" />
-                Edit
-              </Button>
-            </>
-          )}
-        </div>
-      </div>*/}
 
       {/*Action bar */}
       <div className='bg-card border rounded-lg px-4 py-3 space-y-3'>
@@ -727,6 +618,117 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
 )}
         
   </div>
+      {/* Pagination */}
+      {pages.length > 1 && (
+        <div className="px-4 py-3 bg-white border rounded-lg">
+          <FormPagination
+            pages={pages}
+            currentPageId={currentPageId}
+            currentPageIndex={currentPageIndex}
+            onPageChange={handlePageChange}
+            onPrevious={() => {
+              const currentIndex = pages.findIndex(p => p.id === currentPageId);
+              if (currentIndex > 0) {
+                handlePageChange(pages[currentIndex - 1].id);
+              }
+            }}
+            onNext={() => {
+              const currentIndex = pages.findIndex(p => p.id === currentPageId);
+              if (currentIndex < pages.length - 1) {
+                handlePageChange(pages[currentIndex + 1].id);
+              }
+            }}
+            readOnly={true}
+          />
+        </div>
+      )}
+
+      {/* Action Bar */}
+     {/* <div className="flex items-center justify-between bg-card border rounded-lg px-4 py-3 shadow-sm">
+        <div className="flex items-center gap-4">
+          <div className="flex flex-col">
+            <h2 className="text-lg font-semibold">{submission.form_name}</h2>
+            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+              <SubmissionRefDisplay
+                submissionRefId={submission.submission_ref_id}
+                submissionId={submission.id}
+                formReferenceId={submission.form_reference_id}
+                formName={submission.form_name}
+                variant="default"
+              />
+              <div className="flex items-center gap-1">
+                <Clock className="h-3 w-3" />
+                <span>{new Date(submission.submitted_at).toLocaleString()}</span>
+              </div>
+            </div>
+          </div>*/}
+          
+            {/* Lifecycle Dropdown Fields */}
+         {/* <div className="flex items-center gap-4 ml-4">
+            {lifecycleFields.map((field) => (
+              <LifecycleStatusBar
+                key={field.id}
+                field={field}
+                value={formData[field.id] || ''}
+                onChange={(value) => handleFieldChange(field.id, value)}
+                disabled={saving}
+                isEditing={isEditing}
+                submissionId={submission.id}
+                formId={form?.id}
+              />
+            ))}
+          </div>
+          
+        </div>
+        
+        <div className="flex items-center gap-2">
+          {isEditing ? (
+            <>
+              <Button 
+                variant="outline" 
+                size="icon"
+                className="h-8 w-8"
+                onClick={handleCancel}
+                disabled={saving}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+              <Button 
+                size="sm" 
+                onClick={handleSave}
+                disabled={saving}
+              >
+                <Save className="h-4 w-4 mr-1" />
+                {saving ? 'Saving...' : 'Save'}
+              </Button>
+            </>
+          ) : (
+            <>
+              {submission && form && (
+                <ManualWorkflowTrigger
+                  formId={form.id}
+                  submissionId={submission.id}
+                  submissionData={formData}
+                  submissionRefId={submission.submission_ref_id}
+                />
+              )}
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setShowRecordHistory(true)}
+              >
+                <History className="h-4 w-4 mr-1" />
+                History
+              </Button>
+              <Button size="sm" onClick={() => setIsEditing(true)}>
+                <Edit className="h-4 w-4 mr-1" />
+                Edit
+              </Button>
+            </>
+          )}
+        </div>
+      </div>*/}
+
 
       {/* Main Content Area with Navigation */}
       <div className={`grid gap-6 h-[calc(100vh-16rem)] ${
