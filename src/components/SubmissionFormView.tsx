@@ -619,29 +619,30 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
         
   </div>
       {/* Pagination */}
-      {pages.length > 1 && (
-        <div className="px-4 py-3 bg-white border rounded-lg">
-          <FormPagination
-            pages={pages}
-            currentPageId={currentPageId}
-            currentPageIndex={currentPageIndex}
-            onPageChange={handlePageChange}
-            onPrevious={() => {
-              const currentIndex = pages.findIndex(p => p.id === currentPageId);
-              if (currentIndex > 0) {
-                handlePageChange(pages[currentIndex - 1].id);
-              }
-            }}
-            onNext={() => {
-              const currentIndex = pages.findIndex(p => p.id === currentPageId);
-              if (currentIndex < pages.length - 1) {
-                handlePageChange(pages[currentIndex + 1].id);
-              }
-            }}
-            readOnly={true}
-          />
-        </div>
-      )}
+{/* Pagination */}
+{pages.length > 1 && (
+  <div className="w-full px-4 py-3 bg-white border rounded-lg">
+    <FormPagination
+      pages={pages}
+      currentPageId={currentPageId}
+      currentPageIndex={currentPageIndex}
+      onPageChange={handlePageChange}
+      onPrevious={() => {
+        const currentIndex = pages.findIndex(p => p.id === currentPageId);
+        if (currentIndex > 0) {
+          handlePageChange(pages[currentIndex - 1].id);
+        }
+      }}
+      onNext={() => {
+        const currentIndex = pages.findIndex(p => p.id === currentPageId);
+        if (currentIndex < pages.length - 1) {
+          handlePageChange(pages[currentIndex + 1].id);
+        }
+      }}
+      readOnly={true}
+    />
+  </div>
+)}
 
       {/* Action Bar */}
      {/* <div className="flex items-center justify-between bg-card border rounded-lg px-4 py-3 shadow-sm">
