@@ -1038,6 +1038,19 @@ export function RecordDetailView({
       const quality = (1 + tDefects) > 0 ? (1 - (tDefects / (1 + tDefects))) * 100 : 100;
       const resourceCount = childRecords.length;
 
+      // Build contributing records for task level
+      const taskResContrib = childRecords.map(r => {
+        const rd = r.submission_data || {};
+        return {
+          refId: r.submission_ref_id,
+          name: asText(rd[FIELDS.resourceName]) || r.submission_ref_id,
+          role: asText(rd[FIELDS.resourceRole]),
+          planned: asNum(rd[FIELDS.plannedHours]),
+          actual: asNum(rd[FIELDS.actualHours]),
+          overtime: asNum(rd[FIELDS.overtimeHours]),
+        };
+      });
+
       const hoursFormula = childRecords.length > 0 ? 'SUM(Resource_Planned_Hours)' : 'Task_Planned_Hours';
       const hoursActualFormula = childRecords.length > 0 ? 'SUM(Resource_Actual_Hours)' : 'Task_Actual_Hours';
 
@@ -1045,13 +1058,21 @@ export function RecordDetailView({
         { label: 'Task Planned Hours', value: taskPlanned, icon: Clock,
           formula: hoursFormula,
           breakdown: childRecords.length > 0
-            ? { formula: 'SUM(Resource_Planned_Hours)', description: 'Rolled up from linked Resource Assignments', variables: [{ label: 'Task Planned Hours', fieldName: 'SUM(Resource_Planned_Hours)', value: `${taskPlanned}h`, highlight: true }, { label: 'Resource Count', value: resourceCount }], result: `${taskPlanned}h` }
+            ? { formula: 'SUM(Resource_Planned_Hours)', description: 'Rolled up from linked Resource Assignments', variables: [{ label: 'Task Planned Hours', fieldName: 'SUM(Resource_Planned_Hours)', value: `${taskPlanned}h`, highlight: true }, { label: 'Resource Count', value: resourceCount }], result: `${taskPlanned}h`,
+            contributingRecords: { title: 'Resource Planned Hours', valueLabel: 'Planned', records: taskResContrib.map(r => ({
+              refId: r.refId, name: r.name, status: r.role, value: `${r.planned}h`, variant: 'neutral' as const, detail: `Actual: ${r.actual}h`
+            })) } }
             : { formula: 'Task_Planned_Hours', variables: [{ label: 'Task Planned Hours', fieldName: 'Task_Planned_Hours', value: `${taskPlanned}h`, highlight: true }], result: `${taskPlanned}h` } },
         { label: 'Task Actual Hours', value: taskActual, icon: Clock,
           trend: taskActual > taskPlanned ? 'down' : 'up',
           formula: hoursActualFormula,
           breakdown: childRecords.length > 0
-            ? { formula: 'SUM(Resource_Actual_Hours)', description: 'Rolled up from linked Resource Assignments', variables: [{ label: 'Task Actual Hours', fieldName: 'SUM(Resource_Actual_Hours)', value: `${taskActual}h`, highlight: true }, { label: 'Task Planned Hours (ref)', value: `${taskPlanned}h` }], result: `${taskActual}h` }
+            ? { formula: 'SUM(Resource_Actual_Hours)', description: 'Rolled up from linked Resource Assignments', variables: [{ label: 'Task Actual Hours', fieldName: 'SUM(Resource_Actual_Hours)', value: `${taskActual}h`, highlight: true }, { label: 'Task Planned Hours (ref)', value: `${taskPlanned}h` }], result: `${taskActual}h`,
+            contributingRecords: { title: 'Resource Actual Hours', valueLabel: 'Actual', records: taskResContrib.map(r => ({
+              refId: r.refId, name: r.name, status: r.role, value: `${r.actual}h`,
+              variant: (r.actual > r.planned * 1.1 ? 'danger' : 'success') as 'danger' | 'success',
+              detail: `Planned: ${r.planned}h${r.overtime > 0 ? `, OT: ${r.overtime}h` : ''}`
+            })) } }
             : { formula: 'Task_Actual_Hours', variables: [{ label: 'Task Actual Hours', fieldName: 'Task_Actual_Hours', value: `${taskActual}h`, highlight: true }], result: `${taskActual}h` } },
         { label: 'Task Overtime', value: taskOvertime, unit: 'h', icon: AlertTriangle,
           trend: taskOvertime > 0 ? 'down' : 'up',
