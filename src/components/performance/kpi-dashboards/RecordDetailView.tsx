@@ -1118,6 +1118,7 @@ export function RecordDetailView({
           planned: asNum(rd[FIELDS.plannedHours]),
           actual: asNum(rd[FIELDS.actualHours]),
           overtime: asNum(rd[FIELDS.overtimeHours]),
+          rawData: rd,
         };
       });
 
