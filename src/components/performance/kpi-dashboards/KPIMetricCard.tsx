@@ -16,6 +16,9 @@ interface KPIMetricCardProps {
   formula?: string;
   formulaBreakdown?: FormulaBreakdown;
   className?: string;
+
+  // ✅ ADDED FOR DRILLDOWN SUPPORT
+  onClick?: () => void;
 }
 
 export function KPIMetricCard({
@@ -29,6 +32,7 @@ export function KPIMetricCard({
   formula,
   formulaBreakdown,
   className,
+  onClick,
 }: KPIMetricCardProps) {
   const [showBreakdown, setShowBreakdown] = useState(false);
 
@@ -53,59 +57,111 @@ export function KPIMetricCard({
     danger: 'border-destructive/20 bg-destructive/10 text-destructive',
   };
 
-  const TrendIcon = trend === 'up' ? TrendingUp : trend === 'down' ? TrendingDown : Minus;
-  const trendColor = trend === 'up'
-    ? 'text-success bg-success/10 border-success/20'
-    : trend === 'down'
+  const TrendIcon =
+    trend === 'up' ? TrendingUp : trend === 'down' ? TrendingDown : Minus;
+
+  const trendColor =
+    trend === 'up'
+      ? 'text-success bg-success/10 border-success/20'
+      : trend === 'down'
       ? 'text-destructive bg-destructive/10 border-destructive/20'
       : 'text-muted-foreground bg-muted border-border';
 
-  const isClickable = !!formulaBreakdown;
+  const isClickable = !!formulaBreakdown || !!onClick;
 
   return (
     <>
       <Card
         className={cn(
           'group relative transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg',
-          isClickable && 'cursor-pointer ring-0 hover:ring-1 hover:ring-primary/30',
+          isClickable &&
+            'cursor-pointer hover:ring-1 hover:ring-primary/30',
           variantStyles[variant],
           className,
         )}
-        onClick={isClickable ? () => setShowBreakdown(true) : undefined}
+        onClick={
+          onClick
+            ? onClick
+            : formulaBreakdown
+            ? () => setShowBreakdown(true)
+            : undefined
+        }
       >
-        <div className={cn('pointer-events-none absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r', accentStyles[variant])} />
+        {/* Top Accent Bar */}
+        <div
+          className={cn(
+            'pointer-events-none absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r',
+            accentStyles[variant],
+          )}
+        />
+
         <CardContent className="p-4">
           <div className="flex items-start justify-between gap-3">
+
+            {/* LEFT CONTENT */}
             <div className="space-y-1.5 flex-1 min-w-0">
+
+              {/* TITLE + INFO */}
               <div className="flex items-center gap-1">
-                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-[0.12em] truncate">{title}</p>
+                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-[0.12em] truncate">
+                  {title}
+                </p>
+
                 {formula && (
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Info className="h-3 w-3 text-muted-foreground/60 shrink-0 cursor-help" />
                       </TooltipTrigger>
-                      <TooltipContent side="top" className="max-w-[250px] z-[9999]">
+                      <TooltipContent side="top" className="max-w-[250px]">
                         <p className="text-xs font-mono">{formula}</p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
                 )}
               </div>
-              <p className="text-2xl font-bold text-foreground leading-none">{typeof value === 'number' ? formatValue(value) : value}</p>
-              {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
+
+              {/* VALUE */}
+              <p className="text-2xl font-bold text-foreground leading-none">
+                {typeof value === 'number'
+                  ? formatValue(value)
+                  : value}
+              </p>
+
+              {/* SUBTITLE */}
+              {subtitle && (
+                <p className="text-xs text-muted-foreground">{subtitle}</p>
+              )}
+
+              {/* TREND */}
               {trend && (
-                <div className={cn('inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium', trendColor)}>
+                <div
+                  className={cn(
+                    'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium',
+                    trendColor,
+                  )}
+                >
                   <TrendIcon className="h-3 w-3" />
                   {trendLabel && <span>{trendLabel}</span>}
                 </div>
               )}
+
+              {/* CLICK HINT */}
               {isClickable && (
-                <p className="text-[9px] text-muted-foreground/50 mt-0.5">Click for breakdown</p>
+                <p className="text-[9px] text-muted-foreground/50 mt-0.5">
+                  Click for details
+                </p>
               )}
             </div>
+
+            {/* ICON */}
             {Icon && (
-              <div className={cn('rounded-xl border p-2.5 transition-transform duration-200 group-hover:scale-105', iconStyles[variant])}>
+              <div
+                className={cn(
+                  'rounded-xl border p-2.5 transition-transform duration-200 group-hover:scale-105',
+                  iconStyles[variant],
+                )}
+              >
                 <Icon className="h-4 w-4" />
               </div>
             )}
@@ -113,6 +169,7 @@ export function KPIMetricCard({
         </CardContent>
       </Card>
 
+      {/* FORMULA BREAKDOWN MODAL */}
       {formulaBreakdown && (
         <FormulaBreakdownDialog
           open={showBreakdown}
@@ -125,6 +182,7 @@ export function KPIMetricCard({
   );
 }
 
+/* ================= VALUE FORMATTER ================= */
 function formatValue(val: number): string {
   if (val >= 1_000_000) return `₹${(val / 1_000_000).toFixed(1)}M`;
   if (val >= 1_000) return `₹${(val / 1_000).toFixed(1)}K`;

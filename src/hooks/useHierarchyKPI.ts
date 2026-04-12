@@ -176,6 +176,7 @@ export interface HierarchySeniorKPIs {
     spi: number;
     plannedBudget: number;
     actualCost: number;
+    projectType?: string;
   }>;
 }
 
@@ -279,6 +280,7 @@ export function calcSeniorManagementKPIs(projects: any[]): HierarchySeniorKPIs {
       spi: pv > 0 ? ev / pv : 0,
       plannedBudget,
       actualCost,
+      projectType: str(d[PF.Project_Type]),
     });
   }
 
