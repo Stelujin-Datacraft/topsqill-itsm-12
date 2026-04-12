@@ -353,6 +353,115 @@ function buildAlertEmailHtml(alerts: any[], projectName: string, perfProjectName
 </html>`;
 }
 
+// Raw SMTP email sender - avoids denomailer's BadResource bug in edge runtime
+async function sendSmtpEmail(
+  smtpConfig: { host: string; port: number; username: string; password: string; from_email: string; from_name?: string },
+  email: { to: string; subject: string; html: string; text: string }
+) {
+  const encoder = new TextEncoder();
+  const decoder = new TextDecoder();
+
+  // Connect raw TCP
+  const conn = await Deno.connect({ hostname: smtpConfig.host, port: smtpConfig.port });
+
+  async function readLine(): Promise<string> {
+    const buf = new Uint8Array(4096);
+    let result = '';
+    while (true) {
+      const n = await conn.read(buf);
+      if (n === null) break;
+      result += decoder.decode(buf.subarray(0, n));
+      if (result.includes('\r\n')) break;
+    }
+    return result.trim();
+  }
+
+  async function send(cmd: string): Promise<string> {
+    await conn.write(encoder.encode(cmd + '\r\n'));
+    return await readLine();
+  }
+
+  try {
+    // Read greeting
+    await readLine();
+
+    // EHLO
+    await send(`EHLO localhost`);
+
+    // STARTTLS for port 587
+    if (smtpConfig.port === 587) {
+      await send('STARTTLS');
+      const tlsConn = await Deno.startTls(conn, { hostname: smtpConfig.host });
+      
+      // Re-assign read/send to use TLS connection
+      const tlsReadLine = async (): Promise<string> => {
+        const buf = new Uint8Array(4096);
+        let result = '';
+        while (true) {
+          const n = await tlsConn.read(buf);
+          if (n === null) break;
+          result += decoder.decode(buf.subarray(0, n));
+          if (result.includes('\r\n')) break;
+        }
+        return result.trim();
+      };
+      const tlsSend = async (cmd: string): Promise<string> => {
+        await tlsConn.write(encoder.encode(cmd + '\r\n'));
+        return await tlsReadLine();
+      };
+
+      // EHLO again after STARTTLS
+      await tlsSend('EHLO localhost');
+
+      // AUTH LOGIN
+      await tlsSend('AUTH LOGIN');
+      await tlsSend(btoa(smtpConfig.username));
+      const authResult = await tlsSend(btoa(smtpConfig.password));
+      if (!authResult.startsWith('235')) {
+        throw new Error(`SMTP AUTH failed: ${authResult}`);
+      }
+
+      const fromAddr = smtpConfig.from_email;
+      await tlsSend(`MAIL FROM:<${fromAddr}>`);
+      await tlsSend(`RCPT TO:<${email.to}>`);
+      await tlsSend('DATA');
+
+      const boundary = `boundary_${Date.now()}`;
+      const message = [
+        `From: ${smtpConfig.from_name ? `${smtpConfig.from_name} <${fromAddr}>` : fromAddr}`,
+        `To: ${email.to}`,
+        `Subject: ${email.subject}`,
+        `MIME-Version: 1.0`,
+        `Content-Type: multipart/alternative; boundary="${boundary}"`,
+        ``,
+        `--${boundary}`,
+        `Content-Type: text/plain; charset=UTF-8`,
+        ``,
+        email.text,
+        ``,
+        `--${boundary}`,
+        `Content-Type: text/html; charset=UTF-8`,
+        ``,
+        email.html,
+        ``,
+        `--${boundary}--`,
+        `.`,
+      ].join('\r\n');
+
+      const quitResult = await tlsSend(message);
+      await tlsSend('QUIT');
+      
+      try { tlsConn.close(); } catch (_) { /* ignore */ }
+      return;
+    }
+
+    // Port 465 (direct TLS) - not handled here, use startTls approach above
+    throw new Error('Only port 587 STARTTLS is supported by this sender');
+  } finally {
+    try { conn.close(); } catch (_) { /* ignore */ }
+  }
+}
+
 async function sendAlertNotifications(supabase: any, projectId: string, perfProjectId: string | null, alerts: any[], userId: string) {
   try {
     // Get current user's org
