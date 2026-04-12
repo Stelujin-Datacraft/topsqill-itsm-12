@@ -385,7 +385,7 @@ async function sendAlertNotifications(supabase: any, projectId: string, perfProj
 
     // Get project members for in-app notifications
     const { data: members } = await supabase
-      .from('project_members')
+      .from('project_users')
       .select('user_id')
       .eq('project_id', projectId);
 
@@ -506,11 +506,18 @@ async function sendAlertNotifications(supabase: any, projectId: string, perfProj
     // Send emails
     try {
       const { SMTPClient } = await import("https://deno.land/x/denomailer@1.6.0/mod.ts");
+      
+      // For port 587 (Gmail/STARTTLS), use tls:false so denomailer upgrades via STARTTLS
+      // For port 465, use tls:true for implicit TLS
+      const useDirectTls = smtpConfig.port === 465;
+      
+      console.log(`SMTP connecting: ${smtpConfig.host}:${smtpConfig.port} tls=${useDirectTls}`);
+      
       const client = new SMTPClient({
         connection: {
           hostname: smtpConfig.host,
           port: smtpConfig.port,
-          tls: smtpConfig.use_tls,
+          tls: useDirectTls,
           auth: { username: smtpConfig.username, password: smtpConfig.password },
         },
       });
