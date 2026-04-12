@@ -385,7 +385,7 @@ async function sendAlertNotifications(supabase: any, projectId: string, perfProj
 
     // Get project members for in-app notifications
     const { data: members } = await supabase
-      .from('project_members')
+      .from('project_users')
       .select('user_id')
       .eq('project_id', projectId);
 
@@ -506,11 +506,18 @@ async function sendAlertNotifications(supabase: any, projectId: string, perfProj
     // Send emails
     try {
       const { SMTPClient } = await import("https://deno.land/x/denomailer@1.6.0/mod.ts");
+      
+      // For port 587 (Gmail/STARTTLS), use tls:false so denomailer upgrades via STARTTLS
+      // For port 465, use tls:true for implicit TLS
+      const useDirectTls = smtpConfig.port === 465;
+      
+      console.log(`SMTP connecting: ${smtpConfig.host}:${smtpConfig.port} tls=${useDirectTls}`);
+      
       const client = new SMTPClient({
         connection: {
           hostname: smtpConfig.host,
           port: smtpConfig.port,
-          tls: smtpConfig.use_tls,
+          tls: useDirectTls,
           auth: { username: smtpConfig.username, password: smtpConfig.password },
         },
       });
@@ -858,6 +865,75 @@ Be SPECIFIC — reference actual field values, rupee amounts (₹), dates, and p
 
         // Send in-app and email notifications for alerts
         await sendAlertNotifications(supabase, project_id, performance_project_id || null, alertInserts, user.id);
+      }
+
+      // --- Threshold breach check (independent of AI anomalies) ---
+      // Check actual submission data against configured thresholds and send email alerts
+      try {
+        const { data: thresholds } = await supabase
+          .from('performance_thresholds')
+          .select('*')
+          .eq('project_id', project_id)
+          .eq('is_active', true)
+          .eq('send_email', true)
+          .eq('performance_project_id', performance_project_id || '');
+        
+        // Also try without perf project filter if none found
+        let allThresholds = thresholds || [];
+        if (allThresholds.length === 0) {
+          const { data: th2 } = await supabase
+            .from('performance_thresholds')
+            .select('*')
+            .eq('project_id', project_id)
+            .eq('is_active', true)
+            .eq('send_email', true);
+          allThresholds = th2 || [];
+        }
+
+        if (allThresholds.length > 0 && analysisContext?.recordData) {
+          const breachedAlerts: any[] = [];
+
+          for (const th of allThresholds) {
+            const fieldId = th.form_field_id;
+            const actualValue = fieldId ? parseFloat(analysisContext.recordData[fieldId]) : null;
+            
+            if (actualValue === null || isNaN(actualValue)) continue;
+
+            const thresholdVal = parseFloat(th.threshold_value);
+            if (isNaN(thresholdVal)) continue;
+
+            let breached = false;
+            switch (th.operator) {
+              case '>': breached = actualValue > thresholdVal; break;
+              case '<': breached = actualValue < thresholdVal; break;
+              case '>=': breached = actualValue >= thresholdVal; break;
+              case '<=': breached = actualValue <= thresholdVal; break;
+              case '=': case '==': breached = actualValue === thresholdVal; break;
+              case '!=': breached = actualValue !== thresholdVal; break;
+            }
+
+            if (breached) {
+              breachedAlerts.push({
+                severity: th.severity || 'medium',
+                title: `Threshold Breach: ${th.form_field_label || th.metric_name}`,
+                description: `${th.form_field_label || th.metric_name} value ${actualValue} ${th.operator} ${thresholdVal} (${th.severity})`,
+                metric_name: th.metric_name,
+                threshold_value: thresholdVal,
+                actual_value: actualValue,
+                ai_recommendation: analysis.recommendations?.[0]?.description || null,
+              });
+            }
+          }
+
+          if (breachedAlerts.length > 0) {
+            console.log(`🚨 ${breachedAlerts.length} threshold breach(es) detected — sending email alerts`);
+            await sendAlertNotifications(supabase, project_id, performance_project_id || null, breachedAlerts, user.id);
+          } else {
+            console.log('✅ No threshold breaches detected in submission data');
+          }
+        }
+      } catch (thErr) {
+        console.error('Threshold breach check error (non-blocking):', thErr);
       }
 
       // Store predictions
