@@ -103,18 +103,12 @@ function VariableRow({ variable, depth = 0 }: { variable: FormulaVariable; depth
 
 export function FormulaBreakdownTable({ title, breakdown, onClose }: FormulaBreakdownTableProps) {
   return (
-    <Card className="border-primary/30 shadow-md animate-in slide-in-from-top-2 duration-200">
+    <Card className="border-primary/30 shadow-md">
       <CardHeader className="pb-2 flex flex-row items-center justify-between">
         <div className="flex items-center gap-2">
           <Calculator className="h-4 w-4 text-primary" />
           <CardTitle className="text-sm">{title} — Formula Breakdown</CardTitle>
         </div>
-        <button
-          onClick={onClose}
-          className="h-6 w-6 rounded-sm flex items-center justify-center hover:bg-muted transition-colors"
-        >
-          <X className="h-3.5 w-3.5 text-muted-foreground" />
-        </button>
       </CardHeader>
       <CardContent className="pt-0 space-y-3">
         {/* Formula display */}

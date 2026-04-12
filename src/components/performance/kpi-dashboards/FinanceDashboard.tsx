@@ -1,141 +1,41 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { KPIMetricCard } from './KPIMetricCard';
-import { HierarchyFinanceKPIs } from '@/hooks/useHierarchyKPI';
+import { HierarchyFinanceKPIs, HierarchySeniorKPIs } from '@/hooks/useHierarchyKPI';
 import { IndianRupee, TrendingUp, TrendingDown, Calculator, Target, BarChart3 } from 'lucide-react';
-import { type FormulaBreakdown } from './FormulaBreakdownDialog';
+import { Badge } from '@/components/ui/badge';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 interface Props {
   kpis: HierarchyFinanceKPIs;
-  projectList?: Array<{ refId: string; name: string; plannedBudget: number; actualCost: number; cpi: number; spi: number; status: string }>;
+  projectList?: HierarchySeniorKPIs['projectList'];
+  onSelectProject?: (projectId: string) => void;
 }
 
-export function FinanceDashboard({ kpis, projectList = [] }: Props) {
-  const budgetBreakdown: FormulaBreakdown = useMemo(() => ({
-    formula: 'SUM(Planned_Budget)',
-    variables: [{ label: 'Total Planned Budget', fieldName: 'SUM(Planned_Budget)', value: `₹${kpis.plannedBudget.toLocaleString('en-IN')}`, highlight: true }],
-    result: `₹${kpis.plannedBudget.toLocaleString('en-IN')}`,
-    contributingRecords: projectList.length > 0 ? {
-      title: 'Per-Project Budget', valueLabel: 'Planned Budget',
-      records: projectList.map(p => ({
-        refId: p.refId, name: p.name, status: p.status,
-        value: `₹${p.plannedBudget.toLocaleString('en-IN')}`, variant: 'neutral' as const,
-      }))
-    } : undefined,
-  }), [kpis, projectList]);
+type DrillType = 'budget' | 'actualCost' | 'budgetUtil' | 'costVariance' | 'costPerTask' | 'cpi' | 'eac' | 'etc' | 'vac' | 'overrun' | null;
 
-  const actualCostBreakdown: FormulaBreakdown = useMemo(() => ({
-    formula: 'SUM(Actual_Cost)',
-    variables: [
-      { label: 'Total Actual Cost', fieldName: 'SUM(Actual_Cost)', value: `₹${kpis.actualCost.toLocaleString('en-IN')}`, highlight: true },
-      { label: 'Planned Budget (ref)', value: `₹${kpis.plannedBudget.toLocaleString('en-IN')}` },
-    ],
-    result: `₹${kpis.actualCost.toLocaleString('en-IN')}`,
-    contributingRecords: projectList.length > 0 ? {
-      title: 'Per-Project Actual Cost', valueLabel: 'Actual Cost',
-      records: projectList.map(p => ({
-        refId: p.refId, name: p.name, status: p.status,
-        value: `₹${p.actualCost.toLocaleString('en-IN')}`,
-        variant: (p.actualCost > p.plannedBudget ? 'danger' : 'success') as 'danger' | 'success',
-        detail: `Budget: ₹${p.plannedBudget.toLocaleString('en-IN')}`
-      }))
-    } : undefined,
-  }), [kpis, projectList]);
+export function FinanceDashboard({ kpis, projectList = [], onSelectProject }: Props) {
+  const [open, setOpen] = useState(false);
+  const [activeType, setActiveType] = useState<DrillType>(null);
 
-  const budgetUtilBreakdown: FormulaBreakdown = useMemo(() => ({
-    formula: '(Actual_Cost / Planned_Budget) × 100',
-    variables: [
-      { label: 'Actual Cost', value: `₹${kpis.actualCost.toLocaleString('en-IN')}` },
-      { label: 'Planned Budget', value: `₹${kpis.plannedBudget.toLocaleString('en-IN')}` },
-    ],
-    steps: [{ label: 'Utilization', expression: `${kpis.actualCost} / ${kpis.plannedBudget} × 100`, result: `${kpis.budgetUtilization.toFixed(1)}%` }],
-    result: `${kpis.budgetUtilization.toFixed(1)}%`,
-    contributingRecords: projectList.length > 0 ? {
-      title: 'Per-Project Utilization', valueLabel: 'Utilization',
-      records: projectList.map(p => {
-        const util = p.plannedBudget > 0 ? ((p.actualCost / p.plannedBudget) * 100) : 0;
-        return {
-          refId: p.refId, name: p.name, status: p.status,
-          value: `${util.toFixed(1)}%`,
-          variant: (util > 100 ? 'danger' : util > 90 ? 'warning' : 'success') as 'danger' | 'warning' | 'success',
-          detail: `₹${p.actualCost.toLocaleString('en-IN')} / ₹${p.plannedBudget.toLocaleString('en-IN')}`
-        };
-      })
-    } : undefined,
-  }), [kpis, projectList]);
+  const handleOpen = (type: DrillType) => { setActiveType(type); setOpen(true); };
+  const handleRowClick = (id: string) => { setOpen(false); onSelectProject?.(id); };
 
-  const costVarianceBreakdown: FormulaBreakdown = useMemo(() => ({
-    formula: 'EV - AC (aggregated)',
-    description: 'Positive = under budget, Negative = over budget',
-    variables: [{ label: 'Cost Variance', value: `₹${kpis.costVariance.toLocaleString('en-IN')}`, highlight: true }],
-    result: `₹${kpis.costVariance.toLocaleString('en-IN')}`,
-    contributingRecords: projectList.length > 0 ? {
-      title: 'Per-Project Cost Performance', valueLabel: 'CPI',
-      records: projectList.map(p => ({
-        refId: p.refId, name: p.name, status: p.cpi >= 1 ? '✅ Under Budget' : '🔴 Over Budget',
-        value: p.cpi.toFixed(2),
-        variant: (p.cpi >= 1 ? 'success' : 'danger') as 'success' | 'danger',
-        detail: `Actual: ₹${p.actualCost.toLocaleString('en-IN')} | Budget: ₹${p.plannedBudget.toLocaleString('en-IN')}`
-      }))
-    } : undefined,
-  }), [kpis, projectList]);
-
-  const cpiBreakdown: FormulaBreakdown = useMemo(() => ({
-    formula: 'Earned_Value / Actual_Cost_Value',
-    description: '≥ 1.0 = cost efficient',
-    variables: [{ label: 'CPI', value: kpis.cpi.toFixed(3), highlight: true }],
-    result: kpis.cpi.toFixed(3),
-    contributingRecords: projectList.length > 0 ? {
-      title: 'Per-Project CPI', valueLabel: 'CPI',
-      records: projectList.map(p => ({
-        refId: p.refId, name: p.name, status: p.cpi >= 1 ? 'Efficient' : 'Overrun',
-        value: p.cpi.toFixed(2),
-        variant: (p.cpi >= 1 ? 'success' : 'danger') as 'success' | 'danger',
-        detail: `Budget: ₹${p.plannedBudget.toLocaleString('en-IN')}`
-      }))
-    } : undefined,
-  }), [kpis, projectList]);
-
-  const eacBreakdown: FormulaBreakdown = useMemo(() => ({
-    formula: 'Planned_Budget / CPI',
-    description: 'Estimate at Completion',
-    variables: [
-      { label: 'Planned Budget', value: `₹${kpis.plannedBudget.toLocaleString('en-IN')}` },
-      { label: 'CPI', value: kpis.cpi.toFixed(3), highlight: true },
-    ],
-    steps: [{ label: 'EAC', expression: `${kpis.plannedBudget} / ${kpis.cpi.toFixed(3)}`, result: `₹${kpis.eac.toLocaleString('en-IN')}` }],
-    result: `₹${kpis.eac.toLocaleString('en-IN')}`,
-  }), [kpis]);
-
-  const etcBreakdown: FormulaBreakdown = useMemo(() => ({
-    formula: 'EAC - Actual_Cost',
-    variables: [
-      { label: 'EAC', value: `₹${kpis.eac.toLocaleString('en-IN')}` },
-      { label: 'Actual Cost', value: `₹${kpis.actualCost.toLocaleString('en-IN')}` },
-    ],
-    result: `₹${kpis.etc.toLocaleString('en-IN')}`,
-  }), [kpis]);
-
-  const vacBreakdown: FormulaBreakdown = useMemo(() => ({
-    formula: 'Planned_Budget - EAC',
-    description: 'Positive = savings, Negative = overrun',
-    variables: [
-      { label: 'Planned Budget', value: `₹${kpis.plannedBudget.toLocaleString('en-IN')}` },
-      { label: 'EAC', value: `₹${kpis.eac.toLocaleString('en-IN')}` },
-    ],
-    result: `₹${kpis.vac.toLocaleString('en-IN')}`,
-  }), [kpis]);
-
-  const overrunBreakdown: FormulaBreakdown = useMemo(() => ({
-    formula: '((Forecast - Budget) / Budget) × 100',
-    variables: [{ label: 'Predicted Overrun', value: `${kpis.predictedCostOverrunPercent.toFixed(1)}%`, highlight: true }],
-    result: `${kpis.predictedCostOverrunPercent.toFixed(1)}%`,
-  }), [kpis]);
-
-  const costPerTaskBreakdown: FormulaBreakdown = useMemo(() => ({
-    formula: 'SUM(Actual_Cost) / MAX(1, COUNT(Task_ID))',
-    variables: [{ label: 'Cost Per Task', value: `₹${kpis.costPerTask.toLocaleString('en-IN')}`, highlight: true }],
-    result: `₹${kpis.costPerTask.toLocaleString('en-IN')}`,
-  }), [kpis]);
+  const modalTitle = useMemo(() => {
+    const titles: Record<string, string> = {
+      budget: `Planned Budget — ₹${kpis.plannedBudget.toLocaleString('en-IN')}`,
+      actualCost: `Actual Cost — ₹${kpis.actualCost.toLocaleString('en-IN')}`,
+      budgetUtil: `Budget Utilization — ${kpis.budgetUtilization.toFixed(1)}%`,
+      costVariance: `Cost Variance — ₹${kpis.costVariance.toLocaleString('en-IN')}`,
+      costPerTask: `Cost Per Task — ₹${kpis.costPerTask.toLocaleString('en-IN')}`,
+      cpi: `CPI — ${kpis.cpi.toFixed(3)}`,
+      eac: `EAC — ₹${kpis.eac.toLocaleString('en-IN')}`,
+      etc: `ETC — ₹${kpis.etc.toLocaleString('en-IN')}`,
+      vac: `VAC — ₹${kpis.vac.toLocaleString('en-IN')}`,
+      overrun: `Predicted Cost Overrun — ${kpis.predictedCostOverrunPercent.toFixed(1)}%`,
+    };
+    return titles[activeType || ''] || '';
+  }, [activeType, kpis]);
 
   return (
     <div className="space-y-6">
@@ -143,15 +43,14 @@ export function FinanceDashboard({ kpis, projectList = [] }: Props) {
         <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Budget Overview</h3>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           <KPIMetricCard title="Planned Budget" value={`₹${kpis.plannedBudget.toLocaleString('en-IN')}`} icon={IndianRupee}
-            formula="SUM(Planned_Budget)" formulaBreakdown={budgetBreakdown} />
+            formula="SUM(Planned_Budget)" onClick={() => handleOpen('budget')} />
           <KPIMetricCard title="Actual Cost" value={`₹${kpis.actualCost.toLocaleString('en-IN')}`} icon={IndianRupee}
-            formula="SUM(Actual_Cost)" formulaBreakdown={actualCostBreakdown} />
+            formula="SUM(Actual_Cost)" onClick={() => handleOpen('actualCost')} />
           <KPIMetricCard title="Budget Utilization (%)" value={`${kpis.budgetUtilization.toFixed(1)}%`}
             variant={kpis.budgetUtilization > 100 ? 'danger' : kpis.budgetUtilization > 90 ? 'warning' : 'success'}
-            icon={BarChart3} formula="(Actual_Cost / Planned_Budget) × 100" formulaBreakdown={budgetUtilBreakdown} />
+            icon={BarChart3} formula="(Actual / Planned) × 100" onClick={() => handleOpen('budgetUtil')} />
         </div>
       </div>
-
       <div>
         <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Variance & Performance</h3>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
@@ -159,37 +58,82 @@ export function FinanceDashboard({ kpis, projectList = [] }: Props) {
             subtitle={kpis.costVariance >= 0 ? 'Under budget' : 'Over budget'}
             variant={kpis.costVariance >= 0 ? 'success' : 'danger'}
             icon={kpis.costVariance >= 0 ? TrendingUp : TrendingDown}
-            formula="EV - AC" formulaBreakdown={costVarianceBreakdown} />
+            formula="EV - AC" onClick={() => handleOpen('costVariance')} />
           <KPIMetricCard title="Cost Per Task" value={`₹${kpis.costPerTask.toLocaleString('en-IN')}`}
-            subtitle="Actual Cost / MAX(1, Task Count)" icon={Calculator}
-            formula="SUM(Actual_Cost) / MAX(1, COUNT(Task_ID))" formulaBreakdown={costPerTaskBreakdown} />
+            subtitle="Actual / Task Count" icon={Calculator}
+            formula="SUM(Actual) / MAX(1, Tasks)" onClick={() => handleOpen('costPerTask')} />
           <KPIMetricCard title="CPI" value={kpis.cpi.toFixed(3)}
             subtitle={kpis.cpi >= 1 ? 'Cost efficient' : 'Cost overrun'}
             variant={kpis.cpi >= 1 ? 'success' : kpis.cpi >= 0.9 ? 'warning' : 'danger'}
-            icon={Target} formula="Earned_Value / Actual_Cost_Value" formulaBreakdown={cpiBreakdown} />
+            icon={Target} formula="EV / AC" onClick={() => handleOpen('cpi')} />
         </div>
       </div>
-
       <div>
         <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Forecasting</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <KPIMetricCard title="EAC" value={`₹${kpis.eac.toLocaleString('en-IN')}`}
             subtitle="Estimate At Completion" icon={Calculator}
-            formula="Planned_Budget / CPI" formulaBreakdown={eacBreakdown} />
+            formula="Budget / CPI" onClick={() => handleOpen('eac')} />
           <KPIMetricCard title="ETC" value={`₹${kpis.etc.toLocaleString('en-IN')}`}
             subtitle="Estimate To Complete" icon={Calculator}
-            formula="EAC - Actual_Cost" formulaBreakdown={etcBreakdown} />
+            formula="EAC - Actual" onClick={() => handleOpen('etc')} />
           <KPIMetricCard title="VAC" value={`₹${kpis.vac.toLocaleString('en-IN')}`}
             subtitle={kpis.vac >= 0 ? 'Under budget forecast' : 'Over budget forecast'}
             variant={kpis.vac >= 0 ? 'success' : 'danger'}
-            formula="Planned_Budget - EAC" formulaBreakdown={vacBreakdown} />
-          <KPIMetricCard title="Predicted Cost Overrun (%)" value={`${kpis.predictedCostOverrunPercent.toFixed(1)}%`}
-            subtitle="((Forecasted - Planned) / Planned) × 100"
+            formula="Budget - EAC" onClick={() => handleOpen('vac')} />
+          <KPIMetricCard title="Pred. Overrun (%)" value={`${kpis.predictedCostOverrunPercent.toFixed(1)}%`}
             variant={kpis.predictedCostOverrunPercent > 10 ? 'danger' : 'default'}
             icon={kpis.predictedCostOverrunPercent > 0 ? TrendingDown : TrendingUp}
-            formula="((Forecast - Budget) / Budget) × 100" formulaBreakdown={overrunBreakdown} />
+            formula="((Forecast-Budget)/Budget)×100" onClick={() => handleOpen('overrun')} />
         </div>
       </div>
+
+      {/* Records Dialog */}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-5xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{modalTitle}</DialogTitle>
+            <p className="text-xs text-muted-foreground">Records involved in this calculation. Click a row to drill into it.</p>
+          </DialogHeader>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Ref ID</TableHead>
+                <TableHead>Project</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Planned Budget</TableHead>
+                <TableHead className="text-right">Actual Cost</TableHead>
+                <TableHead className="text-right">CPI</TableHead>
+                <TableHead className="text-right">SPI</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {projectList.map((p) => {
+                const util = p.plannedBudget > 0 ? ((p.actualCost / p.plannedBudget) * 100) : 0;
+                return (
+                  <TableRow key={p.id} className="cursor-pointer hover:bg-primary/5 transition-colors" onClick={() => handleRowClick(p.id)}>
+                    <TableCell><Badge variant="outline" className="font-mono text-xs">{p.refId}</Badge></TableCell>
+                    <TableCell className="font-medium">{p.name}</TableCell>
+                    <TableCell><Badge variant="secondary" className="text-[10px]">{p.status}</Badge></TableCell>
+                    <TableCell className="text-right">₹{p.plannedBudget.toLocaleString('en-IN')}</TableCell>
+                    <TableCell className="text-right font-medium">
+                      <span className={p.actualCost > p.plannedBudget ? 'text-destructive' : ''}>
+                        ₹{p.actualCost.toLocaleString('en-IN')}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <span className={p.cpi >= 1 ? 'text-emerald-600 font-semibold' : 'text-destructive font-semibold'}>{p.cpi.toFixed(2)}</span>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <span className={p.spi >= 1 ? 'text-emerald-600 font-semibold' : 'text-destructive font-semibold'}>{p.spi.toFixed(2)}</span>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
