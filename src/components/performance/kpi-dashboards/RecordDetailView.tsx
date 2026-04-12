@@ -1083,7 +1083,12 @@ export function RecordDetailView({
           formula: 'MAX(0, DAYS(Actual_End_Date - Planned_End_Date))',
           breakdown: { formula: 'MAX(0, DAYS(Actual_End_Date - Planned_End_Date))', variables: [{ label: 'Planned End', fieldName: 'Task_Planned_End_Date', value: pe || 'N/A' }, { label: 'Actual End', fieldName: 'Task_Actual_End_Date', value: ae || 'N/A' }], steps: [{ label: 'Delay', expression: `MAX(0, DAYS(${ae || 'N/A'} - ${pe || 'N/A'}))`, result: `${delay} days` }], result: `${delay} days` } },
         { label: 'Task Resources', value: resourceCount, icon: Users, formula: 'COUNT(Resource_ID)',
-          breakdown: { formula: 'COUNT(Resource_ID)', variables: [{ label: 'Resource Count', value: resourceCount, highlight: true }], result: resourceCount } },
+          breakdown: { formula: 'COUNT(Resource_ID)', variables: [{ label: 'Resource Count', value: resourceCount, highlight: true }], result: resourceCount,
+          contributingRecords: resourceCount > 0 ? { title: 'Linked Resources', valueLabel: 'Hours (Actual/Planned)', records: taskResContrib.map(r => ({
+            refId: r.refId, name: r.name, status: r.role, value: `${r.actual}h / ${r.planned}h`,
+            variant: (r.actual > r.planned * 1.1 ? 'danger' : r.actual >= r.planned * 0.8 ? 'success' : 'warning') as 'danger' | 'success' | 'warning',
+            detail: r.overtime > 0 ? `Overtime: ${r.overtime}h` : 'No overtime'
+          })) } : undefined } },
         { label: 'Utilization', value: util, unit: '%', icon: Users,
           formula: '(Task_Actual_Hours / (Task_Planned_Hours + 0.0001)) × 100',
           breakdown: { formula: '(Task_Actual_Hours / (Task_Planned_Hours + ε)) × 100', variables: [{ label: 'Task Actual Hours', value: taskActual }, { label: 'Task Planned Hours', value: taskPlanned }], steps: [{ label: 'Utilization', expression: `${taskActual} / ${taskPlanned} × 100`, result: `${util.toFixed(1)}%` }], result: `${util.toFixed(1)}%` } },
