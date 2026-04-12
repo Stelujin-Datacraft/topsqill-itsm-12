@@ -806,7 +806,7 @@ export function RecordDetailView({
         const linkedTasks = taskRefs.map(ref => allTasks.find(t => t.submission_ref_id === ref)).filter(Boolean);
         let ph = 0, ah = 0;
         linkedTasks.forEach(t => { const h = getTaskRollupHours(t); ph += h.planned; ah += h.actual; });
-        return { refId: a.submission_ref_id, name: aName, status: aStatus, completed: isCompleted(aStatus), taskCount: linkedTasks.length, planned: ph, actual: ah };
+        return { refId: a.submission_ref_id, name: aName, status: aStatus, completed: isCompleted(aStatus), taskCount: linkedTasks.length, planned: ph, actual: ah, rawData: ad };
       });
 
       const wbsTaskContrib = wbsTasks.map(t => {
@@ -815,7 +815,7 @@ export function RecordDetailView({
         const tStatus = asText(td2[FIELDS.taskStatus]);
         const h = getTaskRollupHours(t);
         const delay = getTaskDelayDays(t);
-        return { refId: t.submission_ref_id, name: tName, status: tStatus, planned: h.planned, actual: h.actual, delay, completed: isCompleted(tStatus), defects: asNum(td2[FIELDS.taskDefectCount]) };
+        return { refId: t.submission_ref_id, name: tName, status: tStatus, planned: h.planned, actual: h.actual, delay, completed: isCompleted(tStatus), defects: asNum(td2[FIELDS.taskDefectCount]), rawData: td2 };
       });
 
       kpiCards.push(
@@ -969,7 +969,7 @@ export function RecordDetailView({
         const h = getTaskRollupHours(t);
         const delay = getTaskDelayDays(t);
         const resCount = (resourcesByTaskRef.get(t.submission_ref_id) || []).length;
-        return { refId: t.submission_ref_id, name: tName, status: tStatus, planned: h.planned, actual: h.actual, delay, completed: isCompleted(tStatus), defects: asNum(td2[FIELDS.taskDefectCount]), resCount };
+        return { refId: t.submission_ref_id, name: tName, status: tStatus, planned: h.planned, actual: h.actual, delay, completed: isCompleted(tStatus), defects: asNum(td2[FIELDS.taskDefectCount]), resCount, rawData: td2 };
       });
 
       kpiCards.push(
