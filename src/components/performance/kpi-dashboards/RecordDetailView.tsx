@@ -395,13 +395,41 @@ export function RecordDetailView({
       // Project delay from WBS roll-up
       const projectTotalDelay = totalTaskDelayDays;
 
+      // Build contributing record helpers for project level
+      const wbsContrib = childRecords.map(w => {
+        const wd = w.submission_data || {};
+        const wName = asText(wd[FIELDS.wbsName]) || w.submission_ref_id;
+        const wStatus = asText(wd[FIELDS.wbsStatus]);
+        const wRefs = extractRefIds(wd[CROSSREF_FIELDS.WBS_TO_ACTIVITIES]);
+        return { refId: w.submission_ref_id, name: wName, status: wStatus, actCount: wRefs.length, completed: isCompleted(wStatus) };
+      });
+
+      const taskContrib = allTasks.map(t => {
+        const td2 = t.submission_data || {};
+        const tName = asText(td2[FIELDS.taskName]) || t.submission_ref_id;
+        const tStatus = asText(td2[FIELDS.taskStatus]);
+        const h = getTaskRollupHours(t);
+        const delay = getTaskDelayDays(t);
+        return { refId: t.submission_ref_id, name: tName, status: tStatus, planned: h.planned, actual: h.actual, delay, completed: isCompleted(tStatus), defects: asNum(td2[FIELDS.taskDefectCount]) };
+      });
+
+      const resourceContrib = allResources.map(r => {
+        const rd = r.submission_data || {};
+        return { refId: r.submission_ref_id, name: asText(rd[FIELDS.resourceName]) || r.submission_ref_id, role: asText(rd[FIELDS.resourceRole]), planned: asNum(rd[FIELDS.plannedHours]), actual: asNum(rd[FIELDS.actualHours]), overtime: asNum(rd[FIELDS.overtimeHours]) };
+      });
+
       kpiCards.push(
         { label: 'Progress (WBS)', value: progress, unit: '%', icon: Target, trend: progress >= 75 ? 'up' : progress >= 50 ? 'neutral' : 'down',
           formula: '(Completed_WBS / MAX(1, Total_WBS)) × 100',
           breakdown: { formula: '(Completed_WBS / MAX(1, Total_WBS)) × 100', variables: [
             { label: 'Completed WBS', fieldName: 'COUNT_IF(WBS_Status = Completed)', value: completedWBS },
             { label: 'Total WBS', fieldName: 'COUNT(WBS_ID)', value: totalWBS },
-          ], steps: [{ label: 'Division', expression: `${completedWBS} / MAX(1, ${totalWBS})`, result: totalWBS > 0 ? (completedWBS / totalWBS).toFixed(4) : '0' }, { label: 'Percentage', expression: 'Result × 100', result: `${progress.toFixed(1)}%` }], result: `${progress.toFixed(1)}%` } },
+          ], steps: [{ label: 'Division', expression: `${completedWBS} / MAX(1, ${totalWBS})`, result: totalWBS > 0 ? (completedWBS / totalWBS).toFixed(4) : '0' }, { label: 'Percentage', expression: 'Result × 100', result: `${progress.toFixed(1)}%` }], result: `${progress.toFixed(1)}%`,
+          contributingRecords: { title: 'WBS Records', valueLabel: 'Status', records: wbsContrib.map(w => ({
+            refId: w.refId, name: w.name, status: w.status, value: w.completed ? '✅ Completed' : '⏳ In Progress',
+            variant: w.completed ? 'success' as const : 'warning' as const,
+            detail: `${w.actCount} activities linked`
+          })) } } },
         { label: 'Total WBS', value: totalWBS, icon: BarChart3, formula: 'COUNT(WBS_ID)',
           breakdown: { formula: 'COUNT(WBS_ID)', variables: [{ label: 'WBS Count', fieldName: 'COUNT(WBS_ID)', value: totalWBS, highlight: true }], result: totalWBS } },
         { label: 'Completed WBS', value: completedWBS, icon: CheckCircle2, trend: 'up', formula: 'COUNT_IF(WBS_Status = "Completed")',
