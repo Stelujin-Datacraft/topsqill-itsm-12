@@ -59,6 +59,18 @@ interface SimulationResult {
   unit: string;
 }
 
+function getSubmissionLabel(s: any, fields: any[]): string {
+  const refId = s.submission_ref_id || s.id?.slice(0, 8);
+  if (!s.submission_data || !fields.length) return refId;
+  const nameField = fields.find((f: any) => /name|title|project/i.test(f.label) && f.field_type !== 'cross_reference');
+  if (nameField) {
+    const val = s.submission_data[nameField.id];
+    const text = typeof val === 'object' && val?.value ? val.value : val;
+    if (text && typeof text === 'string' && text.length > 0) return `${refId} — ${text}`;
+  }
+  return refId;
+}
+
 export function ScenarioSimulator({ perfProjectId, selectedRecordId }: Props) {
   const { currentProject } = useProject();
   const [variables, setVariables] = useState<ScenarioVariable[]>(DEFAULT_VARIABLES);
