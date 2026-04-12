@@ -774,18 +774,35 @@ export function RecordDetailView({
         { label: 'Task Progress', value: taskProgress, unit: '%', icon: Target,
           trend: taskProgress >= 75 ? 'up' : 'neutral',
           formula: '(Completed_Tasks / MAX(1, Total_Tasks)) × 100',
-          breakdown: { formula: '(Completed_Tasks / MAX(1, Total_Tasks)) × 100', variables: [{ label: 'Completed Tasks', value: completedTasks }, { label: 'Total Tasks (under WBS)', value: wbsTasks.length }], steps: [{ label: 'Progress', expression: `${completedTasks} / MAX(1, ${wbsTasks.length}) × 100`, result: `${taskProgress.toFixed(1)}%` }], result: `${taskProgress.toFixed(1)}%` } },
+          breakdown: { formula: '(Completed_Tasks / MAX(1, Total_Tasks)) × 100', variables: [{ label: 'Completed Tasks', value: completedTasks }, { label: 'Total Tasks (under WBS)', value: wbsTasks.length }], steps: [{ label: 'Progress', expression: `${completedTasks} / MAX(1, ${wbsTasks.length}) × 100`, result: `${taskProgress.toFixed(1)}%` }], result: `${taskProgress.toFixed(1)}%`,
+          contributingRecords: { title: 'Tasks under this WBS', valueLabel: 'Status', records: wbsTaskContrib.map(t => ({
+            refId: t.refId, name: t.name, status: t.status, value: t.completed ? '✅ Done' : '⏳ Active',
+            variant: (t.completed ? 'success' : t.delay > 0 ? 'danger' : 'warning') as 'success' | 'danger' | 'warning',
+            detail: `${t.actual}h / ${t.planned}h${t.delay > 0 ? `, Delay: ${t.delay}d` : ''}`
+          })) } } },
         { label: 'Delayed Tasks', value: delayedTaskCount, icon: AlertTriangle,
           trend: delayedTaskCount > 0 ? 'down' : 'up',
           formula: 'COUNT_IF(Task_Delay_Days > 0)',
-          breakdown: { formula: 'COUNT_IF(MAX(0, DAYS(Actual_End - Planned_End)) > 0)', variables: [{ label: 'Delayed Tasks', value: delayedTaskCount, highlight: true }, { label: 'Total Tasks', value: wbsTasks.length }], result: delayedTaskCount } },
+          breakdown: { formula: 'COUNT_IF(MAX(0, DAYS(Actual_End - Planned_End)) > 0)', variables: [{ label: 'Delayed Tasks', value: delayedTaskCount, highlight: true }, { label: 'Total Tasks', value: wbsTasks.length }], result: delayedTaskCount,
+          contributingRecords: { title: 'Delayed Tasks under WBS', valueLabel: 'Delay', records: wbsTaskContrib.filter(t => t.delay > 0).map(t => ({
+            refId: t.refId, name: t.name, status: t.status, value: `${t.delay} days`, variant: 'danger' as const,
+            detail: `Actual: ${t.actual}h, Planned: ${t.planned}h, Defects: ${t.defects}`
+          })) } } },
         { label: 'WBS Planned Hours', value: wbsPlannedHours, icon: Clock,
           formula: 'SUM(Activity_Planned_Hours) = SUM(Task_Planned_Hours) = SUM(Resource_Planned_Hours)',
-          breakdown: { formula: 'WBS_Planned_Hours = SUM(rolled-up Task hours from Resources)', description: 'Hours roll up: Resources → Tasks → Activities → WBS', variables: [{ label: 'WBS Planned Hours', value: `${wbsPlannedHours}h`, highlight: true }, { label: 'Total Tasks', value: wbsTasks.length }], result: `${wbsPlannedHours}h` } },
+          breakdown: { formula: 'WBS_Planned_Hours = SUM(rolled-up Task hours from Resources)', description: 'Hours roll up: Resources → Tasks → Activities → WBS', variables: [{ label: 'WBS Planned Hours', value: `${wbsPlannedHours}h`, highlight: true }, { label: 'Total Tasks', value: wbsTasks.length }], result: `${wbsPlannedHours}h`,
+          contributingRecords: { title: 'Per-Task Planned Hours', valueLabel: 'Planned', records: wbsTaskContrib.map(t => ({
+            refId: t.refId, name: t.name, status: t.status, value: `${t.planned}h`, variant: 'neutral' as const, detail: `Actual: ${t.actual}h`
+          })) } } },
         { label: 'WBS Actual Hours', value: wbsActualHours, icon: Clock,
           trend: wbsActualHours > wbsPlannedHours ? 'down' : 'up',
           formula: 'SUM(Activity_Actual_Hours) = SUM(Task_Actual_Hours) = SUM(Resource_Actual_Hours)',
-          breakdown: { formula: 'WBS_Actual_Hours = SUM(rolled-up Task hours from Resources)', variables: [{ label: 'WBS Actual Hours', value: `${wbsActualHours}h`, highlight: true }, { label: 'WBS Planned Hours (ref)', value: `${wbsPlannedHours}h` }], result: `${wbsActualHours}h` } },
+          breakdown: { formula: 'WBS_Actual_Hours = SUM(rolled-up Task hours from Resources)', variables: [{ label: 'WBS Actual Hours', value: `${wbsActualHours}h`, highlight: true }, { label: 'WBS Planned Hours (ref)', value: `${wbsPlannedHours}h` }], result: `${wbsActualHours}h`,
+          contributingRecords: { title: 'Per-Task Actual Hours', valueLabel: 'Actual', records: wbsTaskContrib.map(t => ({
+            refId: t.refId, name: t.name, status: t.status, value: `${t.actual}h`,
+            variant: (t.actual > t.planned * 1.1 ? 'danger' : 'success') as 'danger' | 'success',
+            detail: `Planned: ${t.planned}h${t.delay > 0 ? `, Delay: ${t.delay}d` : ''}`
+          })) } } },
         { label: 'Utilization', value: util, unit: '%', icon: Users,
           formula: '(WBS_Actual_Hours / (WBS_Planned_Hours + 0.0001)) × 100',
           breakdown: { formula: '(WBS_Actual_Hours / (WBS_Planned_Hours + ε)) × 100', variables: [{ label: 'WBS Actual Hours', fieldName: 'Roll-up from Resources', value: wbsActualHours }, { label: 'WBS Planned Hours', fieldName: 'Roll-up from Resources', value: wbsPlannedHours }], steps: [{ label: 'Utilization', expression: `${wbsActualHours} / ${wbsPlannedHours} × 100`, result: `${util.toFixed(1)}%` }], result: `${util.toFixed(1)}%` } },
