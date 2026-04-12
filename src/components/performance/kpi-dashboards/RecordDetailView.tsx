@@ -402,7 +402,7 @@ export function RecordDetailView({
         const wName = asText(wd[FIELDS.wbsName]) || w.submission_ref_id;
         const wStatus = asText(wd[FIELDS.wbsStatus]);
         const wRefs = extractRefIds(wd[CROSSREF_FIELDS.WBS_TO_ACTIVITIES]);
-        return { refId: w.submission_ref_id, name: wName, status: wStatus, actCount: wRefs.length, completed: isCompleted(wStatus) };
+        return { refId: w.submission_ref_id, name: wName, status: wStatus, actCount: wRefs.length, completed: isCompleted(wStatus), rawData: wd };
       });
 
       const taskContrib = allTasks.map(t => {
@@ -411,12 +411,12 @@ export function RecordDetailView({
         const tStatus = asText(td2[FIELDS.taskStatus]);
         const h = getTaskRollupHours(t);
         const delay = getTaskDelayDays(t);
-        return { refId: t.submission_ref_id, name: tName, status: tStatus, planned: h.planned, actual: h.actual, delay, completed: isCompleted(tStatus), defects: asNum(td2[FIELDS.taskDefectCount]) };
+        return { refId: t.submission_ref_id, name: tName, status: tStatus, planned: h.planned, actual: h.actual, delay, completed: isCompleted(tStatus), defects: asNum(td2[FIELDS.taskDefectCount]), rawData: td2 };
       });
 
       const resourceContrib = allResources.map(r => {
         const rd = r.submission_data || {};
-        return { refId: r.submission_ref_id, name: asText(rd[FIELDS.resourceName]) || r.submission_ref_id, role: asText(rd[FIELDS.resourceRole]), planned: asNum(rd[FIELDS.plannedHours]), actual: asNum(rd[FIELDS.actualHours]), overtime: asNum(rd[FIELDS.overtimeHours]) };
+        return { refId: r.submission_ref_id, name: asText(rd[FIELDS.resourceName]) || r.submission_ref_id, role: asText(rd[FIELDS.resourceRole]), planned: asNum(rd[FIELDS.plannedHours]), actual: asNum(rd[FIELDS.actualHours]), overtime: asNum(rd[FIELDS.overtimeHours]), rawData: rd };
       });
 
       kpiCards.push(
