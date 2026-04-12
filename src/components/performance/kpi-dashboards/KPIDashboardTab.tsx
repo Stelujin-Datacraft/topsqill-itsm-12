@@ -31,6 +31,7 @@ interface Props {
   selectedRecordId?: string;
   onRecordChange?: (id: string) => void;
   onNavigateToThresholds?: () => void;
+  onNavigateToAlerts?: () => void;
 }
 
 type RoleType = 'senior_management' | 'project_manager' | 'discipline_engineer' | 'finance_contract' | 'risk_governance';
@@ -136,7 +137,7 @@ function useHealthMetrics(alerts: PerformanceAlert[], predictions: PerformancePr
   }, [alerts, predictions, thresholds]);
 }
 
-export function KPIDashboardTab({ perfProjectId, alerts = [], predictions = [], thresholds = [], selectedRecordId: propSelectedRecordId, onRecordChange, onNavigateToThresholds }: Props) {
+export function KPIDashboardTab({ perfProjectId, alerts = [], predictions = [], thresholds = [], selectedRecordId: propSelectedRecordId, onRecordChange, onNavigateToThresholds, onNavigateToAlerts }: Props) {
   const { userProfile } = useAuth();
   const { currentProject } = useProject();
   const { toast } = useToast();
@@ -466,7 +467,7 @@ export function KPIDashboardTab({ perfProjectId, alerts = [], predictions = [], 
               <p className="text-[9px] text-muted-foreground mt-2">Based on CPI, SPI, delays & budget</p>
             </CardContent>
           </Card>
-          <Card className="relative overflow-hidden">
+          <Card className="relative overflow-hidden cursor-pointer hover:ring-1 hover:ring-primary/30 transition-all" onClick={onNavigateToAlerts}>
             <div className={`absolute top-0 left-0 w-1 h-full ${health.alertHealth >= 80 ? 'bg-emerald-500' : health.alertHealth >= 50 ? 'bg-yellow-500' : 'bg-destructive'}`} />
             <CardContent className="pt-5 pb-4 pl-5">
               <div className="flex items-center justify-between">
@@ -479,9 +480,10 @@ export function KPIDashboardTab({ perfProjectId, alerts = [], predictions = [], 
                   <ShieldAlert className="h-6 w-6 text-muted-foreground" />
                 </div>
               </div>
+              <p className="text-[9px] text-muted-foreground/50 mt-1">Click to view alerts</p>
             </CardContent>
           </Card>
-          <Card className="relative overflow-hidden">
+          <Card className="relative overflow-hidden cursor-pointer hover:ring-1 hover:ring-primary/30 transition-all" onClick={onNavigateToThresholds}>
             <div className={`absolute top-0 left-0 w-1 h-full ${health.coverageScore >= 60 ? 'bg-emerald-500' : health.coverageScore >= 20 ? 'bg-yellow-500' : 'bg-muted'}`} />
             <CardContent className="pt-5 pb-4 pl-5">
               <div className="flex items-center justify-between">
@@ -494,6 +496,7 @@ export function KPIDashboardTab({ perfProjectId, alerts = [], predictions = [], 
                   <Settings2 className="h-6 w-6 text-muted-foreground" />
                 </div>
               </div>
+              <p className="text-[9px] text-muted-foreground/50 mt-1">Click to manage thresholds</p>
             </CardContent>
           </Card>
           <Card className="relative overflow-hidden">

@@ -151,6 +151,7 @@ export default function ProjectPerformance() {
             selectedRecordId={selectedRecordId}
             onRecordChange={setSelectedRecordId}
             onNavigateToThresholds={() => setActiveTab('thresholds')}
+            onNavigateToAlerts={() => setActiveTab('alerts')}
           />
         </TabsContent>
         <TabsContent value="data-sources">
