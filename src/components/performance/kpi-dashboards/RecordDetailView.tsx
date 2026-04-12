@@ -1463,7 +1463,7 @@ export function RecordDetailView({
   const [chartClickPayload, setChartClickPayload] = useState<ChartClickPayload | null>(null);
 
   const handleBreakdownClick = (title: string, breakdown: FormulaBreakdown) => {
-    setActiveBreakdown(prev => prev?.title === title ? null : { title, breakdown });
+    setActiveBreakdown({ title, breakdown });
   };
 
   const handleChartClick = (chartTitle: string, dataPoint: any) => {
@@ -1483,29 +1483,36 @@ export function RecordDetailView({
         ))}
       </div>
 
-      {/* Inline Formula Breakdown Table */}
-      {activeBreakdown && (
-        <>
-          <FormulaBreakdownTable
-            title={activeBreakdown.title}
-            breakdown={activeBreakdown.breakdown}
-            onClose={() => setActiveBreakdown(null)}
-          />
-          <KPIValidationInsight
-            kpiLabel={activeBreakdown.title}
-            breakdown={activeBreakdown.breakdown}
-            context={{
-              level,
-              record,
-              childRecords,
-              allTasks,
-              allActivities,
-              allResources,
-            }}
-            onClose={() => setActiveBreakdown(null)}
-          />
-        </>
-      )}
+      {/* Formula Breakdown Dialog */}
+      <Dialog open={!!activeBreakdown} onOpenChange={(open) => { if (!open) setActiveBreakdown(null); }}>
+        <DialogContent className="max-w-5xl w-full max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-base">{activeBreakdown?.title} — Breakdown</DialogTitle>
+          </DialogHeader>
+          {activeBreakdown && (
+            <div className="space-y-4">
+              <FormulaBreakdownTable
+                title={activeBreakdown.title}
+                breakdown={activeBreakdown.breakdown}
+                onClose={() => setActiveBreakdown(null)}
+              />
+              <KPIValidationInsight
+                kpiLabel={activeBreakdown.title}
+                breakdown={activeBreakdown.breakdown}
+                context={{
+                  level,
+                  record,
+                  childRecords,
+                  allTasks,
+                  allActivities,
+                  allResources,
+                }}
+                onClose={() => setActiveBreakdown(null)}
+              />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Charts */}
       {charts.length > 0 && (
