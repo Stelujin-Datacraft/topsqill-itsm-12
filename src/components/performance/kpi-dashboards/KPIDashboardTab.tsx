@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
@@ -207,7 +207,18 @@ export function KPIDashboardTab({ perfProjectId, alerts = [], predictions = [], 
       return data[0] as { analysis_data: any; submission_id: string | null; created_at: string };
     },
     enabled: !!projectId && !!perfProjectId,
+    staleTime: 10 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
   });
+
+  // Reset state when performance project changes
+  useEffect(() => {
+    setAiResult(null);
+    analysisRanForRef.current = null;
+    setDismissedPredictions(new Set());
+  }, [perfProjectId]);
+
+  const analysisRanForRef = useRef<string | null>(null);
 
   const doesMatch = (recordId: string | undefined, saved: typeof savedAnalysis) => {
     if (!recordId || !saved) return false;
@@ -229,6 +240,7 @@ export function KPIDashboardTab({ perfProjectId, alerts = [], predictions = [], 
   useEffect(() => {
     if (!selectedRecordId || !savedAnalysisFetched) return;
     if (doesMatch(selectedRecordId, savedAnalysis)) return;
+    if (analysisRanForRef.current === selectedRecordId) return;
     setAiResult(null);
     runAIAnalysis(selectedRecordId);
   }, [selectedRecordId, savedAnalysisFetched]);
@@ -236,6 +248,7 @@ export function KPIDashboardTab({ perfProjectId, alerts = [], predictions = [], 
   const runAIAnalysis = async (submissionId: string) => {
     if (!submissionId || !projectId || !perfProjectId) return;
     const isAll = submissionId === '__all__';
+    analysisRanForRef.current = submissionId;
     setAiRunning(true);
     try {
       const { data, error } = await supabase.functions.invoke('analyze-performance', {

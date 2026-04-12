@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -119,7 +119,18 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
       return data[0] as SavedAnalysisRow;
     },
     enabled: !!projectId && !!perfProjectId,
+    staleTime: 10 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
   });
+
+  // Reset state when performance project changes
+  useEffect(() => {
+    setAiResult(null);
+    analysisRanForRef.current = null;
+    setDismissedPredictions(new Set());
+  }, [perfProjectId]);
+
+  const analysisRanForRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!savedAnalysis) return;
@@ -141,10 +152,12 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
     // Wait for saved-analysis lookup before deciding to run analysis.
     if (!propSelectedRecordId || !savedAnalysisFetched) return;
     if (doesSavedAnalysisMatchRecord(propSelectedRecordId, savedAnalysis)) return;
+    // Prevent re-running if we already ran for this record
+    if (analysisRanForRef.current === propSelectedRecordId) return;
 
     setAiResult(null);
     runAIAnalysis(propSelectedRecordId);
-  }, [propSelectedRecordId, savedAnalysis, savedAnalysisFetched]);
+  }, [propSelectedRecordId, savedAnalysisFetched]);
 
   const recordOptions = useMemo(() => {
     const options = submissions.map((sub: any) => {
@@ -200,6 +213,7 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
     if (!submissionId || !projectId || !perfProjectId) return;
     // For "all records", send a special flag to the edge function
     const isAll = submissionId === '__all__';
+    analysisRanForRef.current = submissionId;
     setAiRunning(true);
     try {
       const { data, error } = await supabase.functions.invoke('analyze-performance', {
