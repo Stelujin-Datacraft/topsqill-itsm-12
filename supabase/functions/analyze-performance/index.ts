@@ -462,7 +462,7 @@ async function sendAlertNotifications(supabase: any, projectId: string, perfProj
 
     // Get email addresses
     const { data: userProfiles } = await supabase
-      .from('profiles')
+      .from('user_profiles')
       .select('id, email, first_name, last_name')
       .in('id', targetUserIds);
 
