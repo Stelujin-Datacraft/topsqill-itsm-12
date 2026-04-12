@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { usePerformanceMonitoring } from '@/hooks/usePerformanceMonitoring';
 import { supabase } from '@/integrations/supabase/client';
 import { useProject } from '@/contexts/ProjectContext';
@@ -58,11 +59,28 @@ interface SimulationResult {
   unit: string;
 }
 
+function getSubmissionLabel(s: any, fields: any[]): string {
+  const refId = s.submission_ref_id || s.id?.slice(0, 8);
+  if (!s.submission_data || !fields.length) return refId;
+  const nameField = fields.find((f: any) => /name|title|project/i.test(f.label) && f.field_type !== 'cross_reference');
+  if (nameField) {
+    const val = s.submission_data[nameField.id];
+    const text = typeof val === 'object' && val?.value ? val.value : val;
+    if (text && typeof text === 'string' && text.length > 0) return `${refId} — ${text}`;
+  }
+  return refId;
+}
+
 export function ScenarioSimulator({ perfProjectId, selectedRecordId }: Props) {
   const { currentProject } = useProject();
   const [variables, setVariables] = useState<ScenarioVariable[]>(DEFAULT_VARIABLES);
   const [isSimulating, setIsSimulating] = useState(false);
   const [results, setResults] = useState<SimulationResult[] | null>(null);
+  const [localRecordId, setLocalRecordId] = useState<string>('');
+
+  // Determine effective record: use parent's if it's a real ID, otherwise use local selector
+  const isParentRecordValid = selectedRecordId && selectedRecordId !== '__all__' && selectedRecordId !== '';
+  const effectiveRecordId = isParentRecordValid ? selectedRecordId : localRecordId;
 
   const { data: dataSources = [] } = useQuery({
     queryKey: ['scenario-data-sources', currentProject?.id, perfProjectId],
@@ -79,16 +97,32 @@ export function ScenarioSimulator({ perfProjectId, selectedRecordId }: Props) {
 
   const formId = dataSources[0]?.source_form_id;
 
-  const { data: submission } = useQuery({
-    queryKey: ['scenario-submission', selectedRecordId],
+  // Fetch all submissions for the record selector
+  const { data: allSubmissions = [] } = useQuery({
+    queryKey: ['scenario-all-submissions', formId],
     queryFn: async () => {
-      if (!selectedRecordId) return null;
+      if (!formId) return [];
+      const { data } = await (supabase.from('form_submissions')
+        .select('id, submission_data, submitted_at, submission_ref_id') as any)
+        .eq('form_id', formId)
+        .eq('status', 'submitted')
+        .order('submitted_at', { ascending: false })
+        .limit(200);
+      return (data || []) as Array<{ id: string; submission_data: any; submitted_at: string; submission_ref_id: string }>;
+    },
+    enabled: !!formId && !isParentRecordValid,
+  });
+
+  const { data: submission } = useQuery({
+    queryKey: ['scenario-submission', effectiveRecordId],
+    queryFn: async () => {
+      if (!effectiveRecordId) return null;
       const { data } = await supabase.from('form_submissions')
         .select('id, submission_data, submitted_at, submission_ref_id')
-        .eq('id', selectedRecordId).single();
+        .eq('id', effectiveRecordId).single();
       return data || null;
     },
-    enabled: !!selectedRecordId,
+    enabled: !!effectiveRecordId,
   });
 
   const { data: formFields = [] } = useQuery({
@@ -221,15 +255,50 @@ export function ScenarioSimulator({ perfProjectId, selectedRecordId }: Props) {
 
   const hasChanges = variables.some(v => v.adjustedValue !== v.baseValue);
 
-  if (!selectedRecordId) {
+  if (!effectiveRecordId) {
     return (
-      <Card className="border-dashed">
-        <CardContent className="flex flex-col items-center justify-center py-12">
-          <FileText className="h-12 w-12 text-muted-foreground mb-4" />
-          <p className="font-medium text-foreground">Select a Record</p>
-          <p className="text-sm text-muted-foreground mt-1">Choose a record from the selector above to run what-if simulations.</p>
-        </CardContent>
-      </Card>
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+            <FlaskConical className="h-5 w-5 text-primary" />
+            What-If Scenario Simulator
+          </h2>
+          <p className="text-sm text-muted-foreground">Select a record to run what-if simulations</p>
+        </div>
+        {!isParentRecordValid && allSubmissions.length > 0 ? (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm">Select a Record</CardTitle>
+              <CardDescription className="text-xs">Choose a project record to simulate scenario outcomes</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Select value={localRecordId} onValueChange={v => { setLocalRecordId(v); setResults(null); }}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose a record..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {allSubmissions.map((s: any) => {
+                    const label = getSubmissionLabel(s, formFields);
+                    return (
+                      <SelectItem key={s.id} value={s.id}>
+                        {label}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="border-dashed">
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <FileText className="h-12 w-12 text-muted-foreground mb-4" />
+              <p className="font-medium text-foreground">Select a Record</p>
+              <p className="text-sm text-muted-foreground mt-1">Choose a record from the KPI Dashboard tab first, or configure a data source.</p>
+            </CardContent>
+          </Card>
+        )}
+      </div>
     );
   }
 
@@ -241,9 +310,32 @@ export function ScenarioSimulator({ perfProjectId, selectedRecordId }: Props) {
           What-If Scenario Simulator
         </h2>
         <p className="text-sm text-muted-foreground">
-          Adjust variables to project outcomes for record: {submission?.submission_ref_id || selectedRecordId.slice(0, 8)}
+          Adjust variables to project outcomes for record: {submission?.submission_ref_id || effectiveRecordId.slice(0, 8)}
         </p>
       </div>
+
+      {/* Record selector when parent didn't provide one */}
+      {!isParentRecordValid && allSubmissions.length > 0 && (
+        <Card>
+          <CardContent className="pt-4">
+            <Select value={localRecordId} onValueChange={v => { setLocalRecordId(v); setResults(null); }}>
+              <SelectTrigger>
+                <SelectValue placeholder="Change record..." />
+              </SelectTrigger>
+              <SelectContent>
+                {allSubmissions.map((s: any) => {
+                  const label = getSubmissionLabel(s, formFields);
+                  return (
+                    <SelectItem key={s.id} value={s.id}>
+                      {label}
+                    </SelectItem>
+                  );
+                })}
+              </SelectContent>
+            </Select>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left Panel: Scenario Controls */}
