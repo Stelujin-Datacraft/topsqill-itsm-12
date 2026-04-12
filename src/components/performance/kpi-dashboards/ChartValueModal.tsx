@@ -57,7 +57,8 @@ export function ChartValueModal({ payload, onClose }: ChartValueInlineProps) {
                         {display}
                       </Badge>
                     </TableCell>
-                  ))}
+                    );
+                  })}
                 </TableRow>
               </TableBody>
             </Table>
