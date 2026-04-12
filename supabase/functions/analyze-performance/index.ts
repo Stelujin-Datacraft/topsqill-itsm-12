@@ -71,6 +71,8 @@ PAGE 7 – NOTES & ACTIVITIES:
 PAGE 8 – CONFIGURATION SETTINGS:
 - Time Card Reporting, Auto Effort Update, Calculations mode, Score Recalculation, Date Format
 
+CURRENCY: All monetary values are in Indian Rupees (₹ / INR). Always use the ₹ symbol — never use $ or USD.
+
 ANALYSIS RULES FOR THIS FORM:
 1. Schedule Variance: If Actual Duration > Planned Duration by >10%, flag as schedule overrun
 2. Cost Variance: If Actual Cost > Planned Cost by >10%, flag as budget overrun
@@ -378,6 +380,8 @@ ANALYSIS INSTRUCTIONS:
 6. THRESHOLD VIOLATIONS: Check configured thresholds against aggregated values.
 7. RECOMMENDATIONS: Provide strategic recommendations for portfolio-level improvements.
 
+IMPORTANT: All monetary values are in Indian Rupees (₹ / INR). Always use the ₹ symbol when referencing currency amounts — never use $ or USD.
+
 Be SPECIFIC — reference actual aggregated values, averages, and trends.`;
       } else {
         // Single record analysis
@@ -420,7 +424,9 @@ ANALYSIS INSTRUCTIONS:
 6. THRESHOLD VIOLATIONS: Check configured thresholds against this record's values.
 7. RECOMMENDATIONS: Provide actionable, specific recommendations referencing actual values.
 
-Be SPECIFIC — reference actual field values, dollar amounts, dates, and percentages from the record data.`;
+IMPORTANT: All monetary values are in Indian Rupees (₹ / INR). Always use the ₹ symbol when referencing currency amounts — never use $ or USD.
+
+Be SPECIFIC — reference actual field values, rupee amounts (₹), dates, and percentages from the record data.`;
       }
 
       const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
