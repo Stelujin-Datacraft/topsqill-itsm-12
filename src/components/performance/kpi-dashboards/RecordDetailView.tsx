@@ -1468,9 +1468,21 @@ export function RecordDetailView({
 
   const handleChartClick = (chartTitle: string, dataPoint: any) => {
     if (dataPoint && typeof dataPoint === 'object') {
-      const cleaned = { ...dataPoint };
-      delete cleaned.payload;
-      setChartClickPayload({ chartTitle, dataPoint: cleaned });
+      const cleaned: Record<string, any> = {};
+      for (const [key, val] of Object.entries(dataPoint)) {
+        if (key === 'payload' || key === 'fill' || key === 'stroke' || key === 'cx' || key === 'cy' || key === 'innerRadius' || key === 'outerRadius' || key === 'startAngle' || key === 'endAngle' || key === 'midAngle' || key === 'paddingAngle' || key === 'tooltipPayload' || key === 'tooltipPosition' || key === 'percent' || key === 'maxRadius') continue;
+        if (val == null) continue;
+        if (typeof val === 'object' && !Array.isArray(val)) {
+          // Flatten object values
+          const flat = (val as any).label || (val as any).value || (val as any).name || (val as any).amount || JSON.stringify(val);
+          cleaned[key] = typeof flat === 'string' ? flat : String(flat);
+        } else {
+          cleaned[key] = val;
+        }
+      }
+      if (Object.keys(cleaned).length > 0) {
+        setChartClickPayload({ chartTitle, dataPoint: cleaned });
+      }
     }
   };
 
