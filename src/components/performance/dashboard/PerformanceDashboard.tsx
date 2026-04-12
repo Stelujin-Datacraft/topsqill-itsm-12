@@ -206,6 +206,7 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
     if (!submissionId || !projectId || !perfProjectId) return;
     // For "all records", send a special flag to the edge function
     const isAll = submissionId === '__all__';
+    analysisRanForRef.current = submissionId;
     setAiRunning(true);
     try {
       const { data, error } = await supabase.functions.invoke('analyze-performance', {
