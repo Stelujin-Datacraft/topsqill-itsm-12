@@ -1,9 +1,9 @@
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { BarChart3, X } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { BarChart3 } from 'lucide-react';
 
 export interface ChartClickPayload {
   chartTitle: string;
@@ -16,28 +16,22 @@ interface ChartValueInlineProps {
 }
 
 export function ChartValueModal({ payload, onClose }: ChartValueInlineProps) {
-  if (!payload) return null;
-
-  const entries = Object.entries(payload.dataPoint).filter(
-    ([key]) => key !== '__proto__' && key !== 'payload'
-  );
+  const entries = payload
+    ? Object.entries(payload.dataPoint).filter(
+        ([key]) => key !== '__proto__' && key !== 'payload'
+      )
+    : [];
 
   return (
-    <Card className="border-primary/30 shadow-md animate-in slide-in-from-top-2 duration-200">
-      <CardHeader className="pb-2 flex flex-row items-center justify-between">
-        <div className="flex items-center gap-2">
-          <BarChart3 className="h-4 w-4 text-primary" />
-          <CardTitle className="text-sm">{payload.chartTitle} — Data Point</CardTitle>
-        </div>
-        <button
-          onClick={onClose}
-          className="h-6 w-6 rounded-sm flex items-center justify-center hover:bg-muted transition-colors"
-        >
-          <X className="h-3.5 w-3.5 text-muted-foreground" />
-        </button>
-      </CardHeader>
-      <CardContent className="pt-0">
-        <ScrollArea className="w-full">
+    <Dialog open={!!payload} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="max-w-3xl w-full">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-base">
+            <BarChart3 className="h-4 w-4 text-primary" />
+            {payload?.chartTitle} — Data Point
+          </DialogTitle>
+        </DialogHeader>
+        <ScrollArea className="w-full max-h-[60vh]">
           <div className="min-w-max">
             <Table>
               <TableHeader>
@@ -66,7 +60,7 @@ export function ChartValueModal({ payload, onClose }: ChartValueInlineProps) {
           </div>
           <ScrollBar orientation="horizontal" />
         </ScrollArea>
-      </CardContent>
-    </Card>
+      </DialogContent>
+    </Dialog>
   );
 }
