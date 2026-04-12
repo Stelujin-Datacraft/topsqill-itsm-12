@@ -45,12 +45,16 @@ export function ChartValueModal({ payload, onClose }: ChartValueInlineProps) {
               </TableHeader>
               <TableBody>
                 <TableRow>
-                  {entries.map(([key, value]) => (
+                  {entries.map(([key, value]) => {
+                    let display: string;
+                    if (value == null) display = '—';
+                    else if (typeof value === 'number') display = value.toLocaleString('en-IN', { maximumFractionDigits: 2 });
+                    else if (typeof value === 'object') display = (value as any).label || (value as any).value || (value as any).name || JSON.stringify(value);
+                    else display = String(value);
+                    return (
                     <TableCell key={key} className="py-2 px-4 whitespace-nowrap">
                       <Badge variant="secondary" className="font-mono text-xs">
-                        {typeof value === 'number'
-                          ? value.toLocaleString('en-IN', { maximumFractionDigits: 2 })
-                          : String(value ?? '—')}
+                        {display}
                       </Badge>
                     </TableCell>
                   ))}
