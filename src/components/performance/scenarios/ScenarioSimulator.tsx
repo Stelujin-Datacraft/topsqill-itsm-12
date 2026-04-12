@@ -243,15 +243,50 @@ export function ScenarioSimulator({ perfProjectId, selectedRecordId }: Props) {
 
   const hasChanges = variables.some(v => v.adjustedValue !== v.baseValue);
 
-  if (!selectedRecordId) {
+  if (!effectiveRecordId) {
     return (
-      <Card className="border-dashed">
-        <CardContent className="flex flex-col items-center justify-center py-12">
-          <FileText className="h-12 w-12 text-muted-foreground mb-4" />
-          <p className="font-medium text-foreground">Select a Record</p>
-          <p className="text-sm text-muted-foreground mt-1">Choose a record from the selector above to run what-if simulations.</p>
-        </CardContent>
-      </Card>
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+            <FlaskConical className="h-5 w-5 text-primary" />
+            What-If Scenario Simulator
+          </h2>
+          <p className="text-sm text-muted-foreground">Select a record to run what-if simulations</p>
+        </div>
+        {!isParentRecordValid && allSubmissions.length > 0 ? (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm">Select a Record</CardTitle>
+              <CardDescription className="text-xs">Choose a project record to simulate scenario outcomes</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Select value={localRecordId} onValueChange={v => { setLocalRecordId(v); setResults(null); }}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose a record..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {allSubmissions.map((s: any) => {
+                    const label = getSubmissionLabel(s, formFields);
+                    return (
+                      <SelectItem key={s.id} value={s.id}>
+                        {label}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="border-dashed">
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <FileText className="h-12 w-12 text-muted-foreground mb-4" />
+              <p className="font-medium text-foreground">Select a Record</p>
+              <p className="text-sm text-muted-foreground mt-1">Choose a record from the KPI Dashboard tab first, or configure a data source.</p>
+            </CardContent>
+          </Card>
+        )}
+      </div>
     );
   }
 
@@ -263,9 +298,32 @@ export function ScenarioSimulator({ perfProjectId, selectedRecordId }: Props) {
           What-If Scenario Simulator
         </h2>
         <p className="text-sm text-muted-foreground">
-          Adjust variables to project outcomes for record: {submission?.submission_ref_id || selectedRecordId.slice(0, 8)}
+          Adjust variables to project outcomes for record: {submission?.submission_ref_id || effectiveRecordId.slice(0, 8)}
         </p>
       </div>
+
+      {/* Record selector when parent didn't provide one */}
+      {!isParentRecordValid && allSubmissions.length > 0 && (
+        <Card>
+          <CardContent className="pt-4">
+            <Select value={localRecordId} onValueChange={v => { setLocalRecordId(v); setResults(null); }}>
+              <SelectTrigger>
+                <SelectValue placeholder="Change record..." />
+              </SelectTrigger>
+              <SelectContent>
+                {allSubmissions.map((s: any) => {
+                  const label = getSubmissionLabel(s, formFields);
+                  return (
+                    <SelectItem key={s.id} value={s.id}>
+                      {label}
+                    </SelectItem>
+                  );
+                })}
+              </SelectContent>
+            </Select>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left Panel: Scenario Controls */}
