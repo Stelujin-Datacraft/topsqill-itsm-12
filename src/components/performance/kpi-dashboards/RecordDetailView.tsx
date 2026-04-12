@@ -891,12 +891,31 @@ export function RecordDetailView({
       const productivity = actPlannedHours > 0 ? actActualHours / (actPlannedHours + 0.0001) : 0;
       const delayedCount = childRecords.filter(t => getTaskDelayDays(t) > 0).length;
 
+      // Build contributing record data for activity level
+      const actTaskContrib = childRecords.map(t => {
+        const td2 = t.submission_data || {};
+        const tName = asText(td2[FIELDS.taskName]) || t.submission_ref_id;
+        const tStatus = asText(td2[FIELDS.taskStatus]);
+        const h = getTaskRollupHours(t);
+        const delay = getTaskDelayDays(t);
+        const resCount = (resourcesByTaskRef.get(t.submission_ref_id) || []).length;
+        return { refId: t.submission_ref_id, name: tName, status: tStatus, planned: h.planned, actual: h.actual, delay, completed: isCompleted(tStatus), defects: asNum(td2[FIELDS.taskDefectCount]), resCount };
+      });
+
       kpiCards.push(
         { label: 'Total Tasks', value: totalTasks, icon: BarChart3, formula: 'COUNT(Task_ID)',
-          breakdown: { formula: 'COUNT(Task_ID)', variables: [{ label: 'Task Count', value: totalTasks, highlight: true }], result: totalTasks } },
+          breakdown: { formula: 'COUNT(Task_ID)', variables: [{ label: 'Task Count', value: totalTasks, highlight: true }], result: totalTasks,
+          contributingRecords: { title: 'Tasks under this Activity', valueLabel: 'Hours (Actual/Planned)', records: actTaskContrib.map(t => ({
+            refId: t.refId, name: t.name, status: t.status, value: `${t.actual}h / ${t.planned}h`,
+            variant: (t.completed ? 'success' : t.delay > 0 ? 'danger' : 'warning') as 'success' | 'danger' | 'warning',
+            detail: `${t.resCount} resources${t.delay > 0 ? `, Delay: ${t.delay}d` : ''}${t.defects > 0 ? `, Defects: ${t.defects}` : ''}`
+          })) } } },
         { label: 'Completed Tasks', value: completedTasks, icon: CheckCircle2, trend: 'up',
           formula: 'COUNT_IF(Task_Status = "Completed")',
-          breakdown: { formula: 'COUNT_IF(Task_Status = "Completed")', variables: [{ label: 'Completed', value: completedTasks, highlight: true }, { label: 'Total', value: totalTasks }], result: completedTasks } },
+          breakdown: { formula: 'COUNT_IF(Task_Status = "Completed")', variables: [{ label: 'Completed', value: completedTasks, highlight: true }, { label: 'Total', value: totalTasks }], result: completedTasks,
+          contributingRecords: { title: 'Completed Tasks', valueLabel: 'Hours', records: actTaskContrib.filter(t => t.completed).map(t => ({
+            refId: t.refId, name: t.name, status: t.status, value: `${t.actual}h`, variant: 'success' as const, detail: `Planned: ${t.planned}h`
+          })) } } },
         { label: 'Activity Progress', value: progress, unit: '%', icon: TrendingUp,
           formula: '(Completed_Tasks / MAX(1, Total_Tasks)) × 100',
           breakdown: { formula: '(Completed_Tasks / MAX(1, Total_Tasks)) × 100', variables: [{ label: 'Completed Tasks', value: completedTasks }, { label: 'Total Tasks', value: totalTasks }], steps: [{ label: 'Completion', expression: `${completedTasks} / MAX(1, ${totalTasks}) × 100`, result: `${progress.toFixed(1)}%` }], result: `${progress.toFixed(1)}%` } },
