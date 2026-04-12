@@ -256,6 +256,7 @@ function ContributingRecordRow({ rec }: { rec: ContributingRecord }) {
   );
 }
 
+export function FormulaBreakdownTable({ title, breakdown, onClose }: FormulaBreakdownTableProps) {
   return (
     <Card className="border-primary/30 shadow-md">
       <CardHeader className="pb-2 flex flex-row items-center justify-between">
