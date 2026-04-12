@@ -503,47 +503,24 @@ async function sendAlertNotifications(supabase: any, projectId: string, perfProj
       return `• [${a.severity.toUpperCase()}] ${a.title}\n  ${a.description || ''}\n  Metric: ${a.metric_name || '—'} | Threshold: ${a.threshold_value ?? '—'} | Actual: ${a.actual_value ?? '—'}`;
     }).join('\n\n');
 
-    // Send emails
-    try {
-      const { SMTPClient } = await import("https://deno.land/x/denomailer@1.6.0/mod.ts");
+    // Send emails using raw SMTP over TCP (denomailer has BadResource bug in edge runtime)
+    for (const target of emailTargets) {
+      const userRoles = userRoleMap.get(target.id);
+      const roleLabels = userRoles ? [...userRoles].map((r: string) => PERFORMANCE_ROLE_LABELS[r] || r).join(', ') : '';
       
-      // For port 587 (Gmail/STARTTLS), use tls:false so denomailer upgrades via STARTTLS
-      // For port 465, use tls:true for implicit TLS
-      const useDirectTls = smtpConfig.port === 465;
-      
-      console.log(`SMTP connecting: ${smtpConfig.host}:${smtpConfig.port} tls=${useDirectTls}`);
-      
-      const client = new SMTPClient({
-        connection: {
-          hostname: smtpConfig.host,
-          port: smtpConfig.port,
-          tls: useDirectTls,
-          auth: { username: smtpConfig.username, password: smtpConfig.password },
-        },
-      });
-
-      for (const target of emailTargets) {
-        const userRoles = userRoleMap.get(target.id);
-        const roleLabels = userRoles ? [...userRoles].map((r: string) => PERFORMANCE_ROLE_LABELS[r] || r).join(', ') : '';
-        
-        try {
-          await client.send({
-            from: smtpConfig.from_name ? `${smtpConfig.from_name} <${smtpConfig.from_email}>` : smtpConfig.from_email,
-            to: target.email,
-            subject: emailSubject,
-            content: `Performance Alert — ${projectName}\n\nHello ${target.first_name || 'Team Member'},\n\nYou are receiving this alert because of your performance role: ${roleLabels}\n\n${plainText}\n\nPlease review the Performance Dashboard for details.\n\nThis is an automated alert from the Performance Monitoring System.`,
-            html: emailHtml,
-          });
-          console.log(`✅ Alert email sent to ${target.email} (Roles: ${roleLabels})`);
-        } catch (emailErr) {
-          console.error(`❌ Email send failed for ${target.email}:`, emailErr);
-        }
+      try {
+        await sendSmtpEmail(smtpConfig, {
+          to: target.email,
+          subject: emailSubject,
+          html: emailHtml,
+          text: `Performance Alert — ${projectName}\n\nHello ${target.first_name || 'Team Member'},\n\nYou are receiving this alert because of your performance role: ${roleLabels}\n\n${plainText}\n\nPlease review the Performance Dashboard for details.\n\nThis is an automated alert from the Performance Monitoring System.`,
+        });
+        console.log(`✅ Alert email sent to ${target.email} (Roles: ${roleLabels})`);
+      } catch (emailErr) {
+        console.error(`❌ Email send failed for ${target.email}:`, emailErr);
       }
-      await client.close();
-      console.log(`📧 Alert emails completed: ${emailTargets.length} recipient(s)`);
-    } catch (smtpErr) {
-      console.error('SMTP connection failed (non-blocking):', smtpErr);
     }
+    console.log(`📧 Alert emails completed: ${emailTargets.length} recipient(s)`);
   } catch (err) {
     console.error('Alert notification error (non-blocking):', err);
   }
