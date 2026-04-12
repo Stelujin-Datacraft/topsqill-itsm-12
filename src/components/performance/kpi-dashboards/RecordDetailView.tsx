@@ -439,11 +439,17 @@ export function RecordDetailView({
         { label: 'Total Tasks', value: totalTasks, icon: BarChart3, formula: 'COUNT(Task_ID)',
           breakdown: { formula: 'COUNT(Task_ID)', variables: [{ label: 'Task Count', value: totalTasks, highlight: true }], result: totalTasks } },
         { label: 'Completed Tasks', value: completedTasks, icon: CheckCircle2, trend: 'up', formula: 'COUNT_IF(Task_Status = "Completed")',
-          breakdown: { formula: 'COUNT_IF(Task_Status = "Completed")', variables: [{ label: 'Completed Tasks', value: completedTasks, highlight: true }, { label: 'Total Tasks', value: totalTasks }], result: completedTasks } },
+          breakdown: { formula: 'COUNT_IF(Task_Status = "Completed")', variables: [{ label: 'Completed Tasks', value: completedTasks, highlight: true }, { label: 'Total Tasks', value: totalTasks }], result: completedTasks,
+          contributingRecords: { title: 'Completed Tasks', valueLabel: 'Status', records: taskContrib.filter(t => t.completed).map(t => ({
+            refId: t.refId, name: t.name, status: t.status, value: `${t.actual}h / ${t.planned}h`, variant: 'success' as const, detail: t.delay > 0 ? `Delayed ${t.delay}d` : 'On time'
+          })) } } },
         { label: 'Delayed Tasks', value: delayedTasks, icon: AlertTriangle,
           trend: delayedTasks > 0 ? 'down' : 'up',
           formula: 'COUNT_IF(Task_Delay_Days > 0)',
-          breakdown: { formula: 'COUNT_IF(MAX(0, DAYS(Actual_End - Planned_End)) > 0)', variables: [{ label: 'Total Tasks', value: totalTasks }, { label: 'Delayed Tasks', value: delayedTasks, highlight: true }], result: delayedTasks } },
+          breakdown: { formula: 'COUNT_IF(MAX(0, DAYS(Actual_End - Planned_End)) > 0)', variables: [{ label: 'Total Tasks', value: totalTasks }, { label: 'Delayed Tasks', value: delayedTasks, highlight: true }], result: delayedTasks,
+          contributingRecords: { title: 'Delayed Tasks', valueLabel: 'Delay', records: taskContrib.filter(t => t.delay > 0).map(t => ({
+            refId: t.refId, name: t.name, status: t.status, value: `${t.delay} days`, variant: 'danger' as const, detail: `Actual: ${t.actual}h / Planned: ${t.planned}h`
+          })) } } },
         { label: 'Total Resources', value: totalResources, icon: Users, formula: 'COUNT(Resource_ID)',
           breakdown: { formula: 'COUNT(Resource_ID)', variables: [{ label: 'Resource Count', value: totalResources, highlight: true }], result: totalResources } },
         { label: 'Avg Task Delay', value: avgTaskDelay, unit: 'd', icon: Clock,
