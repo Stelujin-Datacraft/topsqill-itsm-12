@@ -451,18 +451,36 @@ export function RecordDetailView({
             refId: t.refId, name: t.name, status: t.status, value: `${t.delay} days`, variant: 'danger' as const, detail: `Actual: ${t.actual}h / Planned: ${t.planned}h`
           })) } } },
         { label: 'Total Resources', value: totalResources, icon: Users, formula: 'COUNT(Resource_ID)',
-          breakdown: { formula: 'COUNT(Resource_ID)', variables: [{ label: 'Resource Count', value: totalResources, highlight: true }], result: totalResources } },
+          breakdown: { formula: 'COUNT(Resource_ID)', variables: [{ label: 'Resource Count', value: totalResources, highlight: true }], result: totalResources,
+          contributingRecords: { title: 'All Resources', valueLabel: 'Hours (Actual/Planned)', records: resourceContrib.map(r => ({
+            refId: r.refId, name: r.name, status: r.role, value: `${r.actual}h / ${r.planned}h`,
+            variant: (r.actual > r.planned * 1.1 ? 'danger' : r.actual >= r.planned * 0.8 ? 'success' : 'warning') as 'danger' | 'success' | 'warning',
+            detail: r.overtime > 0 ? `Overtime: ${r.overtime}h` : ''
+          })) } } },
         { label: 'Avg Task Delay', value: avgTaskDelay, unit: 'd', icon: Clock,
           trend: avgTaskDelay > 2 ? 'down' : 'up',
           formula: 'AVG(Task_Delay_Days)', hideIfZero: true,
-          breakdown: { formula: 'SUM(Task_Delay_Days) / COUNT(Task_ID)', variables: [{ label: 'Total Delay Days', fieldName: 'SUM(MAX(0, DAYS(Actual_End - Planned_End)))', value: `${totalTaskDelayDays} days` }, { label: 'Total Tasks', fieldName: 'COUNT(Task_ID)', value: totalTasks }], steps: [{ label: 'Average', expression: `${totalTaskDelayDays} / ${totalTasks}`, result: `${avgTaskDelay.toFixed(1)} days` }], result: `${avgTaskDelay.toFixed(1)} days` } },
+          breakdown: { formula: 'SUM(Task_Delay_Days) / COUNT(Task_ID)', variables: [{ label: 'Total Delay Days', fieldName: 'SUM(MAX(0, DAYS(Actual_End - Planned_End)))', value: `${totalTaskDelayDays} days` }, { label: 'Total Tasks', fieldName: 'COUNT(Task_ID)', value: totalTasks }], steps: [{ label: 'Average', expression: `${totalTaskDelayDays} / ${totalTasks}`, result: `${avgTaskDelay.toFixed(1)} days` }], result: `${avgTaskDelay.toFixed(1)} days`,
+          contributingRecords: { title: 'All Tasks — Delay Contribution', valueLabel: 'Delay Days', records: taskContrib.map(t => ({
+            refId: t.refId, name: t.name, status: t.status, value: `${t.delay} days`,
+            variant: (t.delay > 5 ? 'danger' : t.delay > 0 ? 'warning' : 'success') as 'danger' | 'warning' | 'success',
+            detail: `Actual: ${t.actual}h, Planned: ${t.planned}h`
+          })) } } },
         { label: 'Planned Hours (Roll-up)', value: projectPlannedHours, icon: Clock,
           formula: 'SUM(WBS_Planned_Hours) → SUM(Activity_Planned_Hours) → SUM(Task_Planned_Hours) → SUM(Resource_Planned_Hours)',
-          breakdown: { formula: 'Project_Planned_Hours = SUM(all Task rolled-up hours from Resources)', description: 'Hours roll up: Resources → Tasks → Activities → WBS → Project', variables: [{ label: 'Project Planned Hours', fieldName: 'SUM(Resource_Planned_Hours) via hierarchy', value: `${projectPlannedHours}h`, highlight: true }, { label: 'Total Tasks', value: totalTasks }, { label: 'Total Resources', value: totalResources }], result: `${projectPlannedHours}h` } },
+          breakdown: { formula: 'Project_Planned_Hours = SUM(all Task rolled-up hours from Resources)', description: 'Hours roll up: Resources → Tasks → Activities → WBS → Project', variables: [{ label: 'Project Planned Hours', fieldName: 'SUM(Resource_Planned_Hours) via hierarchy', value: `${projectPlannedHours}h`, highlight: true }, { label: 'Total Tasks', value: totalTasks }, { label: 'Total Resources', value: totalResources }], result: `${projectPlannedHours}h`,
+          contributingRecords: { title: 'Per-Task Planned Hours (from Resources)', valueLabel: 'Planned Hours', records: taskContrib.map(t => ({
+            refId: t.refId, name: t.name, status: t.status, value: `${t.planned}h`, variant: 'neutral' as const, detail: `Actual: ${t.actual}h`
+          })) } } },
         { label: 'Actual Hours (Roll-up)', value: projectActualHours, icon: Clock,
           trend: projectActualHours > projectPlannedHours ? 'down' : 'up',
           formula: 'SUM(WBS_Actual_Hours) → SUM(Activity_Actual_Hours) → SUM(Task_Actual_Hours) → SUM(Resource_Actual_Hours)',
-          breakdown: { formula: 'Project_Actual_Hours = SUM(all Task rolled-up hours from Resources)', variables: [{ label: 'Project Actual Hours', fieldName: 'SUM(Resource_Actual_Hours) via hierarchy', value: `${projectActualHours}h`, highlight: true }, { label: 'Project Planned Hours (ref)', value: `${projectPlannedHours}h` }], result: `${projectActualHours}h` } },
+          breakdown: { formula: 'Project_Actual_Hours = SUM(all Task rolled-up hours from Resources)', variables: [{ label: 'Project Actual Hours', fieldName: 'SUM(Resource_Actual_Hours) via hierarchy', value: `${projectActualHours}h`, highlight: true }, { label: 'Project Planned Hours (ref)', value: `${projectPlannedHours}h` }], result: `${projectActualHours}h`,
+          contributingRecords: { title: 'Per-Resource Actual Hours', valueLabel: 'Actual Hours', records: resourceContrib.map(r => ({
+            refId: r.refId, name: r.name, status: r.role, value: `${r.actual}h`,
+            variant: (r.actual > r.planned * 1.1 ? 'danger' : 'success') as 'danger' | 'success',
+            detail: `Planned: ${r.planned}h${r.overtime > 0 ? `, OT: ${r.overtime}h` : ''}`
+          })) } } },
         { label: 'Resource Utilization', value: resourceUtilization, unit: '%', icon: Users,
           formula: '(Project_Actual_Hours / (Project_Planned_Hours + 0.0001)) × 100',
           breakdown: { formula: '(Project_Actual_Hours / (Project_Planned_Hours + 0.0001)) × 100', variables: [{ label: 'Project Actual Hours', fieldName: 'Roll-up from Resources', value: `${projectActualHours}h` }, { label: 'Project Planned Hours', fieldName: 'Roll-up from Resources', value: `${projectPlannedHours}h` }], steps: [{ label: 'Utilization', expression: `${projectActualHours} / (${projectPlannedHours} + 0.0001) × 100`, result: `${resourceUtilization.toFixed(1)}%` }], result: `${resourceUtilization.toFixed(1)}%` } },
