@@ -922,14 +922,27 @@ export function RecordDetailView({
         { label: 'Delayed Tasks', value: delayedCount, icon: AlertTriangle,
           trend: delayedCount > 0 ? 'down' : 'up',
           formula: 'COUNT_IF(Task_Delay_Days > 0)',
-          breakdown: { formula: 'COUNT_IF(MAX(0, DAYS(Actual_End - Planned_End)) > 0)', variables: [{ label: 'Delayed Tasks', value: delayedCount, highlight: true }, { label: 'Total Tasks', value: totalTasks }], result: delayedCount } },
+          breakdown: { formula: 'COUNT_IF(MAX(0, DAYS(Actual_End - Planned_End)) > 0)', variables: [{ label: 'Delayed Tasks', value: delayedCount, highlight: true }, { label: 'Total Tasks', value: totalTasks }], result: delayedCount,
+          contributingRecords: { title: 'Delayed Tasks', valueLabel: 'Delay', records: actTaskContrib.filter(t => t.delay > 0).map(t => ({
+            refId: t.refId, name: t.name, status: t.status, value: `${t.delay} days`, variant: 'danger' as const,
+            detail: `Actual: ${t.actual}h, Planned: ${t.planned}h`
+          })) } } },
         { label: 'Activity Planned Hours', value: actPlannedHours, icon: Clock,
           formula: 'SUM(Task_Planned_Hours) = SUM(Resource_Planned_Hours)',
-          breakdown: { formula: 'Activity_Planned_Hours = SUM(rolled-up Task hours from Resources)', description: 'Hours roll up: Resources → Tasks → Activity', variables: [{ label: 'Activity Planned Hours', value: `${actPlannedHours}h`, highlight: true }, { label: 'Total Tasks', value: totalTasks }], result: `${actPlannedHours}h` } },
+          breakdown: { formula: 'Activity_Planned_Hours = SUM(rolled-up Task hours from Resources)', description: 'Hours roll up: Resources → Tasks → Activity', variables: [{ label: 'Activity Planned Hours', value: `${actPlannedHours}h`, highlight: true }, { label: 'Total Tasks', value: totalTasks }], result: `${actPlannedHours}h`,
+          contributingRecords: { title: 'Per-Task Planned Hours', valueLabel: 'Planned', records: actTaskContrib.map(t => ({
+            refId: t.refId, name: t.name, status: t.status, value: `${t.planned}h`, variant: 'neutral' as const,
+            detail: `${t.resCount} resources`
+          })) } } },
         { label: 'Activity Actual Hours', value: actActualHours, icon: Clock,
           trend: actActualHours > actPlannedHours ? 'down' : 'up',
           formula: 'SUM(Task_Actual_Hours) = SUM(Resource_Actual_Hours)',
-          breakdown: { formula: 'Activity_Actual_Hours = SUM(rolled-up Task hours from Resources)', variables: [{ label: 'Activity Actual Hours', value: `${actActualHours}h`, highlight: true }, { label: 'Activity Planned Hours (ref)', value: `${actPlannedHours}h` }], result: `${actActualHours}h` } },
+          breakdown: { formula: 'Activity_Actual_Hours = SUM(rolled-up Task hours from Resources)', variables: [{ label: 'Activity Actual Hours', value: `${actActualHours}h`, highlight: true }, { label: 'Activity Planned Hours (ref)', value: `${actPlannedHours}h` }], result: `${actActualHours}h`,
+          contributingRecords: { title: 'Per-Task Actual Hours', valueLabel: 'Actual', records: actTaskContrib.map(t => ({
+            refId: t.refId, name: t.name, status: t.status, value: `${t.actual}h`,
+            variant: (t.actual > t.planned * 1.1 ? 'danger' : 'success') as 'danger' | 'success',
+            detail: `Planned: ${t.planned}h${t.defects > 0 ? `, Defects: ${t.defects}` : ''}`
+          })) } } },
         { label: 'Utilization', value: util, unit: '%', icon: Users,
           formula: '(Activity_Actual_Hours / (Activity_Planned_Hours + 0.0001)) × 100',
           breakdown: { formula: '(Activity_Actual_Hours / (Activity_Planned_Hours + ε)) × 100', variables: [{ label: 'Activity Actual Hours', fieldName: 'Roll-up from Resources', value: actActualHours }, { label: 'Activity Planned Hours', fieldName: 'Roll-up from Resources', value: actPlannedHours }], steps: [{ label: 'Utilization', expression: `${actActualHours} / ${actPlannedHours} × 100`, result: `${util.toFixed(1)}%` }], result: `${util.toFixed(1)}%` } },
@@ -940,11 +953,19 @@ export function RecordDetailView({
         { label: 'Quality Score', value: quality, unit: '%', icon: CheckCircle2,
           trend: quality >= 90 ? 'up' : 'neutral',
           formula: '(1 - (Defects / (Tasks + Defects))) × 100',
-          breakdown: { formula: '(1 - (Defects / (Tasks + Defects))) × 100', variables: [{ label: 'Total Defects', value: totalDefects }, { label: 'Total Tasks', value: totalTasks }], steps: [{ label: 'Defect Ratio', expression: `${totalDefects} / (${totalTasks} + ${totalDefects})`, result: (totalTasks + totalDefects) > 0 ? (totalDefects / (totalTasks + totalDefects)).toFixed(4) : '0' }, { label: 'Quality', expression: `(1 - ratio) × 100`, result: `${quality.toFixed(1)}%` }], result: `${quality.toFixed(1)}%` } },
+          breakdown: { formula: '(1 - (Defects / (Tasks + Defects))) × 100', variables: [{ label: 'Total Defects', value: totalDefects }, { label: 'Total Tasks', value: totalTasks }], steps: [{ label: 'Defect Ratio', expression: `${totalDefects} / (${totalTasks} + ${totalDefects})`, result: (totalTasks + totalDefects) > 0 ? (totalDefects / (totalTasks + totalDefects)).toFixed(4) : '0' }, { label: 'Quality', expression: `(1 - ratio) × 100`, result: `${quality.toFixed(1)}%` }], result: `${quality.toFixed(1)}%`,
+          contributingRecords: totalDefects > 0 ? { title: 'Tasks with Defects', valueLabel: 'Defects', records: actTaskContrib.filter(t => t.defects > 0).map(t => ({
+            refId: t.refId, name: t.name, status: t.status, value: `${t.defects}`, variant: 'danger' as const,
+            detail: `Hours: ${t.actual}h / ${t.planned}h`
+          })) } : undefined } },
         { label: 'Activity Total Delay', value: totalDelay, unit: 'd', icon: Clock,
           trend: totalDelay > 0 ? 'down' : 'up',
           formula: 'SUM(Task_Delay_Days) = SUM(MAX(0, DAYS(Actual_End - Planned_End)))',
-          breakdown: { formula: 'SUM(MAX(0, DAYS(Actual_End - Planned_End))) across all tasks', variables: [{ label: 'Total Delay', value: `${totalDelay} days`, highlight: true }, { label: 'Delayed Tasks', value: delayedCount }], result: `${totalDelay} days` },
+          breakdown: { formula: 'SUM(MAX(0, DAYS(Actual_End - Planned_End))) across all tasks', variables: [{ label: 'Total Delay', value: `${totalDelay} days`, highlight: true }, { label: 'Delayed Tasks', value: delayedCount }], result: `${totalDelay} days`,
+          contributingRecords: { title: 'Per-Task Delay', valueLabel: 'Delay', records: actTaskContrib.filter(t => t.delay > 0).map(t => ({
+            refId: t.refId, name: t.name, status: t.status, value: `${t.delay} days`, variant: 'danger' as const,
+            detail: `Hours: ${t.actual}h / ${t.planned}h`
+          })) } },
           hideIfZero: true },
         { label: 'Defects', value: totalDefects, icon: AlertTriangle,
           trend: totalDefects > 0 ? 'down' : 'up', formula: 'SUM(Defect_Count)', hideIfZero: true },
