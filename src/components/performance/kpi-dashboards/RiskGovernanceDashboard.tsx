@@ -1,61 +1,37 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { KPIMetricCard } from './KPIMetricCard';
-import { HierarchyRiskKPIs } from '@/hooks/useHierarchyKPI';
-import { HierarchySeniorKPIs } from '@/hooks/useHierarchyKPI';
+import { HierarchyRiskKPIs, HierarchySeniorKPIs } from '@/hooks/useHierarchyKPI';
 import { ShieldAlert, AlertTriangle, Clock, Briefcase } from 'lucide-react';
-import { type FormulaBreakdown } from './FormulaBreakdownDialog';
+import { Badge } from '@/components/ui/badge';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 interface Props {
   kpis: HierarchyRiskKPIs;
   projectList?: HierarchySeniorKPIs['projectList'];
+  onSelectProject?: (projectId: string) => void;
 }
 
-export function RiskGovernanceDashboard({ kpis, projectList = [] }: Props) {
-  const totalBreakdown: FormulaBreakdown = useMemo(() => ({
-    formula: 'COUNT(Project_ID)',
-    variables: [{ label: 'Total Projects', value: kpis.totalProjects, highlight: true }],
-    result: kpis.totalProjects,
-    contributingRecords: projectList.length > 0 ? {
-      title: 'All Projects', valueLabel: 'SPI',
-      records: projectList.map(p => ({
-        refId: p.refId, name: p.name, status: p.status,
-        value: `SPI: ${p.spi.toFixed(2)} | CPI: ${p.cpi.toFixed(2)}`,
-        variant: (p.spi >= 1 && p.cpi >= 1 ? 'success' : 'danger') as 'success' | 'danger',
-      }))
-    } : undefined,
-  }), [kpis, projectList]);
+type DrillType = 'total' | 'delayed' | 'risk' | 'avgDelay' | null;
 
-  const delayedBreakdown: FormulaBreakdown = useMemo(() => ({
-    formula: 'COUNT_IF(Actual_End > Planned_End)',
-    variables: [
-      { label: 'Total Projects', value: kpis.totalProjects },
-      { label: 'Delayed', value: kpis.delayedProjects, highlight: true },
-    ],
-    result: kpis.delayedProjects,
-    contributingRecords: projectList.length > 0 ? {
-      title: 'Project Delay Status', valueLabel: 'SPI',
-      records: projectList.filter(p => p.spi < 1).map(p => ({
-        refId: p.refId, name: p.name, status: '🔴 Delayed',
-        value: `SPI: ${p.spi.toFixed(2)}`, variant: 'danger' as const,
-        detail: `CPI: ${p.cpi.toFixed(2)}`
-      }))
-    } : undefined,
-  }), [kpis, projectList]);
+export function RiskGovernanceDashboard({ kpis, projectList = [], onSelectProject }: Props) {
+  const [open, setOpen] = useState(false);
+  const [activeType, setActiveType] = useState<DrillType>(null);
 
-  const riskBreakdown: FormulaBreakdown = useMemo(() => ({
-    formula: 'COUNT_IF(Predicted_Delay > 0)',
-    variables: [
-      { label: 'Total Projects', value: kpis.totalProjects },
-      { label: 'At Risk', value: kpis.predictedRiskProjects, highlight: true },
-    ],
-    result: kpis.predictedRiskProjects,
-  }), [kpis]);
+  const handleOpen = (type: DrillType) => { setActiveType(type); setOpen(true); };
+  const handleRowClick = (id: string) => { setOpen(false); onSelectProject?.(id); };
 
-  const avgDelayBreakdown: FormulaBreakdown = useMemo(() => ({
-    formula: 'AVG(Predicted_Delay_Days)',
-    variables: [{ label: 'Avg Predicted Delay', value: `${kpis.averagePredictedDelay.toFixed(1)} days`, highlight: true }],
-    result: `${kpis.averagePredictedDelay.toFixed(1)} days`,
-  }), [kpis]);
+  const filteredList = useMemo(() => {
+    if (activeType === 'delayed') return projectList.filter(p => p.spi < 1);
+    return projectList;
+  }, [activeType, projectList]);
+
+  const titles: Record<string, string> = {
+    total: `All Projects (${kpis.totalProjects})`,
+    delayed: `Delayed Projects (${kpis.delayedProjects})`,
+    risk: `Predicted Risk Projects (${kpis.predictedRiskProjects})`,
+    avgDelay: `Avg Predicted Delay — ${kpis.averagePredictedDelay.toFixed(1)} days`,
+  };
 
   return (
     <div className="space-y-6">
@@ -63,25 +39,61 @@ export function RiskGovernanceDashboard({ kpis, projectList = [] }: Props) {
         <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Project Risk Overview</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <KPIMetricCard title="Total Projects" value={kpis.totalProjects} icon={Briefcase}
-            formula="COUNT(Project_ID)" formulaBreakdown={totalBreakdown} />
+            formula="COUNT(Project_ID)" onClick={() => handleOpen('total')} />
           <KPIMetricCard title="Delayed Projects" value={kpis.delayedProjects}
             variant={kpis.delayedProjects > 0 ? 'danger' : 'success'} icon={AlertTriangle}
-            formula="COUNT_IF(Actual_End > Planned_End)" formulaBreakdown={delayedBreakdown} />
+            formula="COUNT_IF(Delayed)" onClick={() => handleOpen('delayed')} />
           <KPIMetricCard title="Predicted Risk Projects" value={kpis.predictedRiskProjects}
-            subtitle="Projects with Predicted_Delay > 0"
+            subtitle="Predicted_Delay > 0"
             variant={kpis.predictedRiskProjects > 0 ? 'warning' : 'success'} icon={ShieldAlert}
-            formula="COUNT_IF(Predicted_Delay > 0)" formulaBreakdown={riskBreakdown} />
+            onClick={() => handleOpen('risk')} />
           <KPIMetricCard title="Avg Predicted Delay" value={`${kpis.averagePredictedDelay.toFixed(1)} days`}
             variant={kpis.averagePredictedDelay > 5 ? 'warning' : 'default'} icon={Clock}
-            formula="AVG(Predicted_Delay_Days)" formulaBreakdown={avgDelayBreakdown} />
+            onClick={() => handleOpen('avgDelay')} />
         </div>
       </div>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-5xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{titles[activeType || ''] || ''}</DialogTitle>
+            <p className="text-xs text-muted-foreground">Click a row to drill into that project</p>
+          </DialogHeader>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Ref ID</TableHead>
+                <TableHead>Project</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">CPI</TableHead>
+                <TableHead className="text-right">SPI</TableHead>
+                <TableHead className="text-right">Risk Score</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredList.map((p) => (
+                <TableRow key={p.id} className="cursor-pointer hover:bg-primary/5 transition-colors" onClick={() => handleRowClick(p.id)}>
+                  <TableCell><Badge variant="outline" className="font-mono text-xs">{p.refId}</Badge></TableCell>
+                  <TableCell className="font-medium">{p.name}</TableCell>
+                  <TableCell><Badge variant="secondary" className="text-[10px]">{p.status}</Badge></TableCell>
+                  <TableCell className="text-right">
+                    <span className={p.cpi >= 1 ? 'text-emerald-600 font-semibold' : 'text-destructive font-semibold'}>{p.cpi.toFixed(2)}</span>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <span className={p.spi >= 1 ? 'text-emerald-600 font-semibold' : 'text-destructive font-semibold'}>{p.spi.toFixed(2)}</span>
+                  </TableCell>
+                  <TableCell className="text-right">{p.riskScore}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </DialogContent>
+      </Dialog>
 
       <div className="text-sm text-muted-foreground bg-muted/50 rounded-lg p-4">
         <p className="font-medium mb-1">ℹ️ Limited Risk Metrics</p>
         <p>
           Since no dedicated risk or issue forms exist, only project-level delay and prediction metrics are available.
-          To enable full risk/governance monitoring (risk scores, compliance status, audit findings), create dedicated Risk and Issue forms linked to the project hierarchy.
         </p>
       </div>
     </div>
