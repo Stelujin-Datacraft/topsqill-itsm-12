@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ChevronDown, ChevronRight, Calculator, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, Calculator, X, Eye } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { type FormulaBreakdown, type FormulaVariable } from './FormulaBreakdownDialog';
+import { type FormulaBreakdown, type FormulaVariable, type ContributingRecord } from './FormulaBreakdownDialog';
 
 interface FormulaBreakdownTableProps {
   title: string;
