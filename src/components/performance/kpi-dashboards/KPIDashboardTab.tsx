@@ -211,6 +211,13 @@ export function KPIDashboardTab({ perfProjectId, alerts = [], predictions = [], 
     gcTime: 15 * 60 * 1000,
   });
 
+  // Reset state when performance project changes
+  useEffect(() => {
+    setAiResult(null);
+    analysisRanForRef.current = null;
+    setDismissedPredictions(new Set());
+  }, [perfProjectId]);
+
   const analysisRanForRef = useRef<string | null>(null);
 
   const doesMatch = (recordId: string | undefined, saved: typeof savedAnalysis) => {
