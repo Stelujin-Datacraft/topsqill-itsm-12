@@ -119,7 +119,11 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
       return data[0] as SavedAnalysisRow;
     },
     enabled: !!projectId && !!perfProjectId,
+    staleTime: 10 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
   });
+
+  const analysisRanForRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!savedAnalysis) return;
@@ -141,10 +145,12 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
     // Wait for saved-analysis lookup before deciding to run analysis.
     if (!propSelectedRecordId || !savedAnalysisFetched) return;
     if (doesSavedAnalysisMatchRecord(propSelectedRecordId, savedAnalysis)) return;
+    // Prevent re-running if we already ran for this record
+    if (analysisRanForRef.current === propSelectedRecordId) return;
 
     setAiResult(null);
     runAIAnalysis(propSelectedRecordId);
-  }, [propSelectedRecordId, savedAnalysis, savedAnalysisFetched]);
+  }, [propSelectedRecordId, savedAnalysisFetched]);
 
   const recordOptions = useMemo(() => {
     const options = submissions.map((sub: any) => {
