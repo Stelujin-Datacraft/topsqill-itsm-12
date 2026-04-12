@@ -302,7 +302,7 @@ export function ScenarioSimulator({ perfProjectId, selectedRecordId }: Props) {
                 </SelectTrigger>
                 <SelectContent>
                   {allSubmissions.map((s: any) => {
-                    const label = getSubmissionLabel(s, formFields);
+                    const label = getSubmissionLabel(s, formFields, fieldMappings);
                     return (
                       <SelectItem key={s.id} value={s.id}>
                         {label}
@@ -348,7 +348,7 @@ export function ScenarioSimulator({ perfProjectId, selectedRecordId }: Props) {
               </SelectTrigger>
               <SelectContent>
                 {allSubmissions.map((s: any) => {
-                  const label = getSubmissionLabel(s, formFields);
+                  const label = getSubmissionLabel(s, formFields, fieldMappings);
                   return (
                     <SelectItem key={s.id} value={s.id}>
                       {label}
