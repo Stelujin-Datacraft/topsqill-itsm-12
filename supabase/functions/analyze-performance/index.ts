@@ -472,14 +472,13 @@ async function sendAlertNotifications(supabase: any, projectId: string, perfProj
       return;
     }
 
-    // Fetch SMTP config
+    // Fetch SMTP configs (default first, then fallback configs)
     const { data: smtpConfigs } = await supabase
       .from('smtp_configs')
       .select('*')
       .eq('organization_id', orgMembers.organization_id)
       .eq('is_active', true)
-      .order('is_default', { ascending: false })
-      .limit(1);
+      .order('is_default', { ascending: false });
 
     if (!smtpConfigs || smtpConfigs.length === 0) {
       console.error('No active SMTP configuration found — cannot send alert emails');
@@ -487,7 +486,7 @@ async function sendAlertNotifications(supabase: any, projectId: string, perfProj
     }
 
     const smtpConfig = smtpConfigs[0];
-    console.log('Using SMTP config:', smtpConfig.name, smtpConfig.host);
+    console.log('Using SMTP config:', smtpConfig.name, smtpConfig.host, 'TLS:', smtpConfig.use_tls);
 
     // Build email content
     const emailHtml = buildAlertEmailHtml(alerts, projectName, perfProjectName);
@@ -498,49 +497,75 @@ async function sendAlertNotifications(supabase: any, projectId: string, perfProj
     const emailSubject = `${severityLabel} | ${alerts.length} Performance Alert${alerts.length > 1 ? 's' : ''} — ${projectName}${perfProjectName ? ` / ${perfProjectName}` : ''}`;
 
     const plainText = alerts.map((a: any) => {
-      const roles = userRoleMap.get(userId);
-      const roleLabels = roles ? [...roles].map(r => PERFORMANCE_ROLE_LABELS[r] || r).join(', ') : '';
       return `• [${a.severity.toUpperCase()}] ${a.title}\n  ${a.description || ''}\n  Metric: ${a.metric_name || '—'} | Threshold: ${a.threshold_value ?? '—'} | Actual: ${a.actual_value ?? '—'}`;
     }).join('\n\n');
+
+    const persistedAlertIds = alerts
+      .map((alert: any) => alert.id)
+      .filter((id: string | undefined) => !!id);
 
     // Send emails
     try {
       const { SMTPClient } = await import("https://deno.land/x/denomailer@1.6.0/mod.ts");
-      
-      // For port 587 (Gmail/STARTTLS), use tls:false so denomailer upgrades via STARTTLS
-      // For port 465, use tls:true for implicit TLS
-      const useDirectTls = smtpConfig.port === 465;
-      
-      console.log(`SMTP connecting: ${smtpConfig.host}:${smtpConfig.port} tls=${useDirectTls}`);
-      
-      const client = new SMTPClient({
-        connection: {
-          hostname: smtpConfig.host,
-          port: smtpConfig.port,
-          tls: useDirectTls,
-          auth: { username: smtpConfig.username, password: smtpConfig.password },
-        },
-      });
 
+      let deliveredCount = 0;
       for (const target of emailTargets) {
         const userRoles = userRoleMap.get(target.id);
         const roleLabels = userRoles ? [...userRoles].map((r: string) => PERFORMANCE_ROLE_LABELS[r] || r).join(', ') : '';
-        
-        try {
-          await client.send({
-            from: smtpConfig.from_name ? `${smtpConfig.from_name} <${smtpConfig.from_email}>` : smtpConfig.from_email,
-            to: target.email,
-            subject: emailSubject,
-            content: `Performance Alert — ${projectName}\n\nHello ${target.first_name || 'Team Member'},\n\nYou are receiving this alert because of your performance role: ${roleLabels}\n\n${plainText}\n\nPlease review the Performance Dashboard for details.\n\nThis is an automated alert from the Performance Monitoring System.`,
-            html: emailHtml,
-          });
-          console.log(`✅ Alert email sent to ${target.email} (Roles: ${roleLabels})`);
-        } catch (emailErr) {
-          console.error(`❌ Email send failed for ${target.email}:`, emailErr);
+
+        let delivered = false;
+        let lastEmailError: unknown = null;
+
+        for (const config of smtpConfigs) {
+          let client: InstanceType<typeof SMTPClient> | null = null;
+
+          try {
+            console.log(`SMTP connecting: ${config.host}:${config.port} tls=${config.use_tls} recipient=${target.email}`);
+
+            client = new SMTPClient({
+              connection: {
+                hostname: config.host,
+                port: config.port,
+                tls: config.use_tls,
+                auth: { username: config.username, password: config.password },
+              },
+            });
+
+            await client.send({
+              from: config.from_name ? `${config.from_name} <${config.from_email}>` : config.from_email,
+              to: target.email,
+              subject: emailSubject,
+              content: `Performance Alert — ${projectName}\n\nHello ${target.first_name || 'Team Member'},\n\nYou are receiving this alert because of your performance role: ${roleLabels}\n\n${plainText}\n\nPlease review the Performance Dashboard for details.\n\nThis is an automated alert from the Performance Monitoring System.`,
+              html: emailHtml,
+            });
+
+            await client.close().catch(() => {});
+            delivered = true;
+            deliveredCount += 1;
+            console.log(`✅ Alert email sent to ${target.email} (Roles: ${roleLabels}) via ${config.host}`);
+            break;
+          } catch (emailErr) {
+            lastEmailError = emailErr;
+            console.error(`❌ Email send failed for ${target.email} via ${config.host}:`, emailErr);
+            if (client) {
+              await client.close().catch(() => {});
+            }
+          }
+        }
+
+        if (!delivered) {
+          console.error(`❌ All SMTP configs failed for ${target.email}:`, lastEmailError);
         }
       }
-      await client.close();
-      console.log(`📧 Alert emails completed: ${emailTargets.length} recipient(s)`);
+
+      if (persistedAlertIds.length > 0 && deliveredCount > 0) {
+        await supabase
+          .from('performance_alerts')
+          .update({ email_sent: true, email_sent_at: new Date().toISOString() })
+          .in('id', persistedAlertIds);
+      }
+
+      console.log(`📧 Alert emails completed: ${deliveredCount}/${emailTargets.length} recipient(s)`);
     } catch (smtpErr) {
       console.error('SMTP connection failed (non-blocking):', smtpErr);
     }
@@ -870,28 +895,22 @@ Be SPECIFIC — reference actual field values, rupee amounts (₹), dates, and p
       // --- Threshold breach check (independent of AI anomalies) ---
       // Check actual submission data against configured thresholds and send email alerts
       try {
-        const { data: thresholds } = await supabase
+        let thresholdQuery = supabase
           .from('performance_thresholds')
           .select('*')
           .eq('project_id', project_id)
-          .eq('is_active', true)
-          .eq('send_email', true)
-          .eq('performance_project_id', performance_project_id || '');
-        
-        // Also try without perf project filter if none found
-        let allThresholds = thresholds || [];
-        if (allThresholds.length === 0) {
-          const { data: th2 } = await supabase
-            .from('performance_thresholds')
-            .select('*')
-            .eq('project_id', project_id)
-            .eq('is_active', true)
-            .eq('send_email', true);
-          allThresholds = th2 || [];
+          .eq('is_active', true);
+
+        if (performance_project_id) {
+          thresholdQuery = thresholdQuery.eq('performance_project_id', performance_project_id);
         }
+
+        const { data: thresholds } = await thresholdQuery;
+        const allThresholds = thresholds || [];
 
         if (allThresholds.length > 0 && analysisContext?.recordData) {
           const breachedAlerts: any[] = [];
+          const orgId = dataSources?.[0]?.organization_id;
 
           for (const th of allThresholds) {
             const fieldId = th.form_field_id;
@@ -914,20 +933,50 @@ Be SPECIFIC — reference actual field values, rupee amounts (₹), dates, and p
 
             if (breached) {
               breachedAlerts.push({
+                project_id,
+                organization_id: orgId,
+                alert_type: 'threshold_breach',
                 severity: th.severity || 'medium',
                 title: `Threshold Breach: ${th.form_field_label || th.metric_name}`,
                 description: `${th.form_field_label || th.metric_name} value ${actualValue} ${th.operator} ${thresholdVal} (${th.severity})`,
                 metric_name: th.metric_name,
                 threshold_value: thresholdVal,
                 actual_value: actualValue,
+                ai_generated: false,
+                ai_reasoning: `Threshold rule matched for field ${th.form_field_label || th.metric_name}`,
                 ai_recommendation: analysis.recommendations?.[0]?.description || null,
+                status: 'active',
+                ...(performance_project_id ? { performance_project_id } : {}),
               });
             }
           }
 
           if (breachedAlerts.length > 0) {
             console.log(`🚨 ${breachedAlerts.length} threshold breach(es) detected — sending email alerts`);
-            await sendAlertNotifications(supabase, project_id, performance_project_id || null, breachedAlerts, user.id);
+
+            const { data: insertedThresholdAlerts, error: thresholdAlertError } = await supabase
+              .from('performance_alerts')
+              .insert(breachedAlerts)
+              .select('*');
+
+            if (thresholdAlertError) {
+              console.error('Error saving threshold alerts:', thresholdAlertError);
+            }
+
+            const emailEligibleAlerts = breachedAlerts.filter((_, index) => allThresholds[index]?.send_email);
+            const thresholdAlertsForNotification = insertedThresholdAlerts || breachedAlerts;
+
+            await sendAlertNotifications(
+              supabase,
+              project_id,
+              performance_project_id || null,
+              thresholdAlertsForNotification,
+              user.id,
+            );
+
+            if (emailEligibleAlerts.length === 0) {
+              console.log('Threshold alerts created in-app, but no thresholds had email enabled');
+            }
           } else {
             console.log('✅ No threshold breaches detected in submission data');
           }
