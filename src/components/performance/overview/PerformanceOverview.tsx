@@ -95,6 +95,8 @@ export function PerformanceOverview({ alerts, predictions, thresholds, loading, 
       return data[0] as { analysis_data: any; submission_id: string | null; created_at: string };
     },
     enabled: !!projectId && !!perfProjectId,
+    staleTime: 10 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
   });
 
   // Restore saved analysis on mount (only if no fresh aiResult is set)

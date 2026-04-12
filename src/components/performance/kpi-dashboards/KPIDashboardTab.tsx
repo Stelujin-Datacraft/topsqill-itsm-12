@@ -241,6 +241,7 @@ export function KPIDashboardTab({ perfProjectId, alerts = [], predictions = [], 
   const runAIAnalysis = async (submissionId: string) => {
     if (!submissionId || !projectId || !perfProjectId) return;
     const isAll = submissionId === '__all__';
+    analysisRanForRef.current = submissionId;
     setAiRunning(true);
     try {
       const { data, error } = await supabase.functions.invoke('analyze-performance', {
