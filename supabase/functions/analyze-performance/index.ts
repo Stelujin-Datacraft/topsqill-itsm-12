@@ -200,6 +200,98 @@ const PERFORMANCE_ROLE_LABELS: Record<string, string> = {
   risk_governance: 'Risk / Governance',
 };
 
+function evaluateThreshold(operator: string, actualValue: number, thresholdValue: number): boolean {
+  switch (operator) {
+    case '>':
+      return actualValue > thresholdValue;
+    case '>=':
+      return actualValue >= thresholdValue;
+    case '<':
+      return actualValue < thresholdValue;
+    case '<=':
+      return actualValue <= thresholdValue;
+    case '==':
+      return actualValue === thresholdValue;
+    case '!=':
+      return actualValue !== thresholdValue;
+    default:
+      return false;
+  }
+}
+
+function buildThresholdDescription(fieldLabel: string, actualValue: number, operator: string, thresholdValue: number, isAllRecords: boolean): string {
+  const scopeLabel = isAllRecords ? 'portfolio aggregate' : 'selected record';
+  return `${fieldLabel} in the ${scopeLabel} breached the configured threshold: actual ${actualValue} ${operator} threshold ${thresholdValue}.`;
+}
+
+function buildThresholdAlerts(
+  projectId: string,
+  performanceProjectId: string | null,
+  thresholds: any[],
+  dataSources: any[],
+  analysisContext: any,
+  isAllRecords: boolean,
+  submissionId: string,
+) {
+  const dataSource = dataSources?.[0];
+  const fieldMappings = Array.isArray(dataSource?.field_mappings) ? dataSource.field_mappings : [];
+  const fieldLabelById = new Map<string, string>();
+  const fieldAggregationById = new Map<string, string>();
+
+  for (const mapping of fieldMappings) {
+    fieldLabelById.set(mapping.formFieldId, mapping.label || mapping.formFieldLabel || mapping.formFieldId);
+    fieldAggregationById.set(mapping.formFieldId, mapping.aggregation || 'sum');
+  }
+
+  const recordRef = isAllRecords ? 'All Records' : (analysisContext?.submissionRefId || submissionId.slice(0, 8));
+  const alerts: any[] = [];
+
+  for (const threshold of thresholds || []) {
+    const thresholdValue = Number(threshold.threshold_value);
+    if (!Number.isFinite(thresholdValue)) continue;
+
+    const fieldId = threshold.form_field_id;
+    const fieldLabel = threshold.form_field_label || fieldLabelById.get(fieldId) || threshold.metric_name || 'Metric';
+
+    let actualValue: number | null = null;
+
+    if (isAllRecords) {
+      const metricStats = analysisContext?.aggregatedMetrics?.[fieldLabel];
+      const preferredAggregation = fieldAggregationById.get(fieldId) || 'sum';
+      const aggregatedValue = metricStats?.[preferredAggregation] ?? metricStats?.sum ?? metricStats?.avg ?? metricStats?.max ?? metricStats?.min;
+      const parsed = Number(aggregatedValue);
+      actualValue = Number.isFinite(parsed) ? parsed : null;
+    } else {
+      const rawValue = analysisContext?.recordData?.[fieldId];
+      const parsed = Number(rawValue);
+      actualValue = Number.isFinite(parsed) ? parsed : null;
+    }
+
+    if (actualValue === null) continue;
+    if (!evaluateThreshold(threshold.operator, actualValue, thresholdValue)) continue;
+
+    alerts.push({
+      project_id: projectId,
+      organization_id: dataSource?.organization_id,
+      alert_type: 'threshold',
+      severity: threshold.severity || 'medium',
+      title: `Threshold Breach: ${fieldLabel} (${recordRef})`,
+      description: buildThresholdDescription(fieldLabel, actualValue, threshold.operator, thresholdValue, isAllRecords),
+      ai_generated: false,
+      ai_confidence: null,
+      ai_reasoning: null,
+      ai_recommendation: null,
+      metric_name: fieldLabel,
+      threshold_value: thresholdValue,
+      actual_value: actualValue,
+      status: 'active',
+      ...(performanceProjectId ? { performance_project_id: performanceProjectId } : {}),
+    });
+  }
+
+  return alerts;
+}
+
 function buildAlertEmailHtml(alerts: any[], projectName: string, perfProjectName: string | null): string {
   const timestamp = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'full', timeStyle: 'short' });
   
@@ -385,7 +477,7 @@ async function sendAlertNotifications(supabase: any, projectId: string, perfProj
 
     // Get project members for in-app notifications
     const { data: members } = await supabase
-      .from('project_members')
+      .from('project_users')
       .select('user_id')
       .eq('project_id', projectId);
 
@@ -587,7 +679,7 @@ serve(async (req) => {
       const { data: thresholds } = await thQuery;
 
       // CLEAR old alerts and predictions for this perf project before generating fresh ones
-      let delAlertQuery = supabase.from("performance_alerts").delete().eq("project_id", project_id).eq("ai_generated", true);
+      let delAlertQuery = supabase.from("performance_alerts").delete().eq("project_id", project_id).or("ai_generated.eq.true,alert_type.eq.threshold");
       let delPredQuery = supabase.from("performance_predictions").delete().eq("project_id", project_id);
       if (performance_project_id) {
         delAlertQuery = delAlertQuery.eq("performance_project_id", performance_project_id);
@@ -830,6 +922,26 @@ Be SPECIFIC — reference actual field values, rupee amounts (₹), dates, and p
         type: VALID_PREDICTION_TYPES.includes(p.type) ? p.type : (PREDICTION_TYPE_MAP[p.type] || "risk_trend"),
         confidence: p.confidence > 1 ? p.confidence / 100 : p.confidence,
       }));
+
+      // Store deterministic threshold violations as fresh alerts
+      const thresholdAlertInserts = buildThresholdAlerts(
+        project_id,
+        performance_project_id || null,
+        thresholds || [],
+        dataSources || [],
+        analysisContext,
+        isAllRecords,
+        submission_id,
+      );
+
+      if (thresholdAlertInserts.length > 0) {
+        const { error: thresholdAlertError } = await supabase.from("performance_alerts").insert(thresholdAlertInserts);
+        if (thresholdAlertError) {
+          console.error("Error saving threshold alerts:", thresholdAlertError);
+        } else {
+          await sendAlertNotifications(supabase, project_id, performance_project_id || null, thresholdAlertInserts, user.id);
+        }
+      }
 
       // Store anomalies as fresh alerts
       const recordRef = isAllRecords ? 'All Records' : (analysisContext.submissionRefId || submission_id.slice(0, 8));
