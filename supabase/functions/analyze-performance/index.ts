@@ -383,17 +383,14 @@ async function sendAlertNotifications(supabase: any, projectId: string, perfProj
 
     const projectName = projectInfo?.name || 'Unknown Project';
 
-    // Get project members for in-app notifications
-    const { data: members } = await supabase
-      .from('project_users')
-      .select('user_id')
-      .eq('project_id', projectId);
+    // Send in-app notifications to all users in the organization for now
+    const { data: orgUsers } = await supabase
+      .from('user_profiles')
+      .select('id')
+      .eq('organization_id', orgMembers.organization_id);
 
-    const memberIds = members?.map((m: any) => m.user_id) || [userId];
-    // Also include performance role users so they get in-app notifications
-    const roleUserIds = [...userRoleMap.keys()];
-    const allTargetIds = [...memberIds, ...roleUserIds, userId];
-    const uniqueIds = [...new Set(allTargetIds)];
+    const orgUserIds = orgUsers?.map((member: any) => member.id).filter(Boolean) || [];
+    const uniqueIds = [...new Set([...orgUserIds, userId])];
 
     // Create in-app notifications for all members and role users
     if (alerts.length > 0) {
@@ -413,6 +410,13 @@ async function sendAlertNotifications(supabase: any, projectId: string, perfProj
       }
     }
 
+    const thresholdBreachAlerts = alerts.filter((alert: any) => alert.alert_type === 'threshold_breach');
+
+    if (thresholdBreachAlerts.length === 0) {
+      console.log('No threshold breach alerts in this batch — skipping email delivery');
+      return;
+    }
+
     // --- Role-based email notifications via SMTP ---
     // Fetch thresholds that have notify_role_ids configured
     let thQuery = supabase
@@ -429,9 +433,36 @@ async function sendAlertNotifications(supabase: any, projectId: string, perfProj
       return;
     }
 
+    const breachedThresholdKeys = new Set(
+      thresholdBreachAlerts.flatMap((alert: any) => {
+        const titleKey = typeof alert.title === 'string'
+          ? alert.title.replace(/^Threshold Breach:\s*/i, '').trim()
+          : null;
+
+        return [alert.metric_name, titleKey]
+          .map((value) => typeof value === 'string' ? value.trim() : null)
+          .filter((value): value is string => !!value);
+      })
+    );
+
+    const emailEligibleThresholds = emailThresholds.filter((threshold: any) => {
+      const metricKey = typeof threshold.metric_name === 'string' ? threshold.metric_name.trim() : null;
+      const fieldLabelKey = typeof threshold.form_field_label === 'string' ? threshold.form_field_label.trim() : null;
+
+      return !!(
+        (metricKey && breachedThresholdKeys.has(metricKey)) ||
+        (fieldLabelKey && breachedThresholdKeys.has(fieldLabelKey))
+      );
+    });
+
+    if (emailEligibleThresholds.length === 0) {
+      console.log('Threshold breaches were detected, but none of the breached thresholds have email enabled');
+      return;
+    }
+
     // Collect all unique role_types that need notifying
     const allRoleTypes = new Set<string>();
-    for (const th of emailThresholds) {
+    for (const th of emailEligibleThresholds) {
       if (th.notify_role_ids && Array.isArray(th.notify_role_ids)) {
         th.notify_role_ids.forEach((r: string) => allRoleTypes.add(r));
       }
@@ -527,8 +558,7 @@ async function sendAlertNotifications(supabase: any, projectId: string, perfProj
           let client: InstanceType<typeof SMTPClient> | null = null;
 
           try {
-            // Port 587 uses STARTTLS (tls=false in denomailer); port 465 uses direct TLS
-            const useTls = config.port === 465;
+            const useTls = config.use_tls ?? config.port === 465;
             console.log(`SMTP connecting: ${config.host}:${config.port} tls=${useTls} recipient=${target.email}`);
 
             client = new SMTPClient({
