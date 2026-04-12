@@ -532,7 +532,7 @@ export function KPIDashboardTab({ perfProjectId, alerts = [], predictions = [], 
       {kpis && (!requiresSpecificProject || hasSpecificProject) && (
         <>
           {selectedRole === 'senior_management' && kpis.seniorKPIs && (
-            <SeniorManagementDashboard kpis={kpis.seniorKPIs} />
+            <SeniorManagementDashboard kpis={kpis.seniorKPIs} onSelectProject={(projectId) => handleRecordChange(projectId)} />
           )}
           {selectedRole === 'project_manager' && kpis.pmKPIs && (
             <ProjectManagerDashboard kpis={kpis.pmKPIs} hasHierarchy={!!hierarchy} />
@@ -541,10 +541,10 @@ export function KPIDashboardTab({ perfProjectId, alerts = [], predictions = [], 
             <DisciplineEngineerDashboard kpis={kpis.engineerKPIs} hasHierarchy={!!hierarchy} />
           )}
           {selectedRole === 'finance_contract' && kpis.financeKPIs && (
-            <FinanceDashboard kpis={kpis.financeKPIs} />
+            <FinanceDashboard kpis={kpis.financeKPIs} projectList={kpis.seniorKPIs?.projectList} />
           )}
           {selectedRole === 'risk_governance' && kpis.riskKPIs && (
-            <RiskGovernanceDashboard kpis={kpis.riskKPIs} />
+            <RiskGovernanceDashboard kpis={kpis.riskKPIs} projectList={kpis.seniorKPIs?.projectList} />
           )}
         </>
       )}
