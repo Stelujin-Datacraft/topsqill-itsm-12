@@ -13,12 +13,26 @@ export interface FormulaVariable {
   subBreakdown?: FormulaBreakdown;
 }
 
+export interface ContributingRecord {
+  refId: string;
+  name: string;
+  value: string | number;
+  status?: string;
+  detail?: string;
+  variant?: 'success' | 'warning' | 'danger' | 'neutral';
+}
+
 export interface FormulaBreakdown {
   formula: string;
   description?: string;
   variables: FormulaVariable[];
   steps?: { label: string; expression: string; result: string }[];
   result: string | number;
+  contributingRecords?: {
+    title: string;
+    valueLabel?: string;
+    records: ContributingRecord[];
+  };
 
   // ✅ ADD THESE (NEW STRUCTURED DRILLDOWN)
   onTimeProjects?: { name: string; spi?: number }[];
