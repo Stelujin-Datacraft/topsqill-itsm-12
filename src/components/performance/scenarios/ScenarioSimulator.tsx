@@ -90,13 +90,13 @@ export function ScenarioSimulator({ perfProjectId, selectedRecordId }: Props) {
     queryKey: ['scenario-all-submissions', formId],
     queryFn: async () => {
       if (!formId) return [];
-      const { data } = await supabase.from('form_submissions')
-        .select('id, submission_data, submitted_at, submission_ref_id')
+      const { data } = await (supabase.from('form_submissions')
+        .select('id, submission_data, submitted_at, submission_ref_id') as any)
         .eq('form_id', formId)
         .eq('status', 'submitted')
         .order('submitted_at', { ascending: false })
         .limit(200);
-      return data || [];
+      return (data || []) as Array<{ id: string; submission_data: any; submitted_at: string; submission_ref_id: string }>;
     },
     enabled: !!formId && !isParentRecordValid,
   });
