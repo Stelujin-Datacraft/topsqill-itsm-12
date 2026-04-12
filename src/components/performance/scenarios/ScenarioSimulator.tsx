@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { usePerformanceMonitoring } from '@/hooks/usePerformanceMonitoring';
 import { supabase } from '@/integrations/supabase/client';
 import { useProject } from '@/contexts/ProjectContext';
@@ -63,6 +64,11 @@ export function ScenarioSimulator({ perfProjectId, selectedRecordId }: Props) {
   const [variables, setVariables] = useState<ScenarioVariable[]>(DEFAULT_VARIABLES);
   const [isSimulating, setIsSimulating] = useState(false);
   const [results, setResults] = useState<SimulationResult[] | null>(null);
+  const [localRecordId, setLocalRecordId] = useState<string>('');
+
+  // Determine effective record: use parent's if it's a real ID, otherwise use local selector
+  const isParentRecordValid = selectedRecordId && selectedRecordId !== '__all__' && selectedRecordId !== '';
+  const effectiveRecordId = isParentRecordValid ? selectedRecordId : localRecordId;
 
   const { data: dataSources = [] } = useQuery({
     queryKey: ['scenario-data-sources', currentProject?.id, perfProjectId],
@@ -79,16 +85,32 @@ export function ScenarioSimulator({ perfProjectId, selectedRecordId }: Props) {
 
   const formId = dataSources[0]?.source_form_id;
 
-  const { data: submission } = useQuery({
-    queryKey: ['scenario-submission', selectedRecordId],
+  // Fetch all submissions for the record selector
+  const { data: allSubmissions = [] } = useQuery({
+    queryKey: ['scenario-all-submissions', formId],
     queryFn: async () => {
-      if (!selectedRecordId) return null;
+      if (!formId) return [];
       const { data } = await supabase.from('form_submissions')
         .select('id, submission_data, submitted_at, submission_ref_id')
-        .eq('id', selectedRecordId).single();
+        .eq('form_id', formId)
+        .eq('status', 'submitted')
+        .order('submitted_at', { ascending: false })
+        .limit(200);
+      return data || [];
+    },
+    enabled: !!formId && !isParentRecordValid,
+  });
+
+  const { data: submission } = useQuery({
+    queryKey: ['scenario-submission', effectiveRecordId],
+    queryFn: async () => {
+      if (!effectiveRecordId) return null;
+      const { data } = await supabase.from('form_submissions')
+        .select('id, submission_data, submitted_at, submission_ref_id')
+        .eq('id', effectiveRecordId).single();
       return data || null;
     },
-    enabled: !!selectedRecordId,
+    enabled: !!effectiveRecordId,
   });
 
   const { data: formFields = [] } = useQuery({
