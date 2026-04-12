@@ -5,7 +5,6 @@ import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { usePerformanceMonitoring } from '@/hooks/usePerformanceMonitoring';
 import { supabase } from '@/integrations/supabase/client';
 import { useProject } from '@/contexts/ProjectContext';
 import { useQuery } from '@tanstack/react-query';
@@ -38,11 +37,10 @@ interface Props {
   selectedRecordId?: string;
 }
 
-const FIELD_LABELS = [
-  'Planned Budget', 'Actual Cost', 'Earned Value (EV)', 'Actual Cost Value (AC)',
-  'Planned Value (PV)', 'Planned Start Date', 'Planned End Date', 'Actual Start Date',
-  'Planned Hours', 'Actual Hours', 'Risk Score', 'Predicted Delay Days',
-];
+interface FieldMapping {
+  formFieldId: string;
+  formFieldLabel: string;
+}
 
 const DEFAULT_VARIABLES: ScenarioVariable[] = [
   { id: 'budget', name: 'Budget Allocation', baseValue: 100, adjustedValue: 100, unit: '%', min: 50, max: 200, step: 25 },
@@ -59,16 +57,44 @@ interface SimulationResult {
   unit: string;
 }
 
-function getSubmissionLabel(s: any, fields: any[]): string {
-  const refId = s.submission_ref_id || s.id?.slice(0, 8);
-  if (!s.submission_data || !fields.length) return refId;
-  const nameField = fields.find((f: any) => /name|title|project/i.test(f.label) && f.field_type !== 'cross_reference');
-  if (nameField) {
-    const val = s.submission_data[nameField.id];
-    const text = typeof val === 'object' && val?.value ? val.value : val;
-    if (text && typeof text === 'string' && text.length > 0) return `${refId} — ${text}`;
+function unwrapValue(value: any) {
+  if (value == null) return value;
+  if (typeof value === 'object') {
+    if ('amount' in value && value.amount != null) return value.amount;
+    if ('value' in value && value.value != null) return value.value;
+    if ('label' in value && value.label != null) return value.label;
   }
-  return refId;
+  return value;
+}
+
+function resolveMappedField(data: Record<string, any>, mappings: FieldMapping[], formFields: any[], label: string): any {
+  let mapping = mappings.find((m) => m.formFieldLabel === label);
+  if (!mapping) mapping = mappings.find((m) => m.formFieldLabel.toLowerCase() === label.toLowerCase());
+  if (!mapping) mapping = mappings.find((m) => m.formFieldLabel.toLowerCase().includes(label.toLowerCase()));
+  if (mapping) return data?.[mapping.formFieldId];
+
+  let field = formFields.find((f: any) => f.label === label);
+  if (!field) field = formFields.find((f: any) => f.label?.toLowerCase() === label.toLowerCase());
+  if (!field) field = formFields.find((f: any) => f.label?.toLowerCase().includes(label.toLowerCase()));
+  return field ? data?.[field.id] : undefined;
+}
+
+function getSubmissionLabel(s: any, fields: any[], mappings: FieldMapping[]): string {
+  const refId = s.submission_ref_id || s.id?.slice(0, 8);
+  if (!s.submission_data) return refId;
+
+  const preferredNameMapping = mappings.find((m) =>
+    m.formFieldLabel?.toLowerCase().includes('name') && !m.formFieldLabel?.toLowerCase().includes('schedule')
+  );
+
+  let value = preferredNameMapping ? s.submission_data?.[preferredNameMapping.formFieldId] : undefined;
+  if (value == null && fields.length) {
+    const nameField = fields.find((f: any) => /name|title|project/i.test(f.label) && f.field_type !== 'cross_reference');
+    value = nameField ? s.submission_data?.[nameField.id] : undefined;
+  }
+
+  const text = unwrapValue(value);
+  return text && typeof text === 'string' ? `${refId} — ${text}` : refId;
 }
 
 export function ScenarioSimulator({ perfProjectId, selectedRecordId }: Props) {
@@ -78,26 +104,34 @@ export function ScenarioSimulator({ perfProjectId, selectedRecordId }: Props) {
   const [results, setResults] = useState<SimulationResult[] | null>(null);
   const [localRecordId, setLocalRecordId] = useState<string>('');
 
-  // Determine effective record: use parent's if it's a real ID, otherwise use local selector
-  const isParentRecordValid = selectedRecordId && selectedRecordId !== '__all__' && selectedRecordId !== '';
+  const isParentRecordValid = !!selectedRecordId && selectedRecordId !== '__all__' && selectedRecordId !== '';
   const effectiveRecordId = isParentRecordValid ? selectedRecordId : localRecordId;
 
   const { data: dataSources = [] } = useQuery({
     queryKey: ['scenario-data-sources', currentProject?.id, perfProjectId],
     queryFn: async () => {
       if (!currentProject?.id) return [];
-      let q = supabase.from('performance_data_sources').select('*')
-        .eq('project_id', currentProject.id).eq('is_active', true);
+      let q = (supabase.from('performance_data_sources').select('source_form_id, field_mappings') as any)
+        .eq('project_id', currentProject.id)
+        .eq('is_active', true);
       if (perfProjectId) q = q.eq('performance_project_id', perfProjectId);
-      const { data } = await q;
+      const { data } = await q.limit(1);
       return data || [];
     },
     enabled: !!currentProject?.id,
   });
 
-  const formId = dataSources[0]?.source_form_id;
+  const dataSource = dataSources[0] as { source_form_id?: string; field_mappings?: any[] } | undefined;
+  const formId = dataSource?.source_form_id;
 
-  // Fetch all submissions for the record selector
+  const fieldMappings = useMemo<FieldMapping[]>(() => {
+    const raw = Array.isArray(dataSource?.field_mappings) ? dataSource.field_mappings : [];
+    return raw.map((m: any) => ({
+      formFieldId: m.formFieldId || '',
+      formFieldLabel: m.formFieldLabel || '',
+    })).filter((m: FieldMapping) => m.formFieldId && m.formFieldLabel);
+  }, [dataSource]);
+
   const { data: allSubmissions = [] } = useQuery({
     queryKey: ['scenario-all-submissions', formId],
     queryFn: async () => {
@@ -105,7 +139,6 @@ export function ScenarioSimulator({ perfProjectId, selectedRecordId }: Props) {
       const { data } = await (supabase.from('form_submissions')
         .select('id, submission_data, submitted_at, submission_ref_id') as any)
         .eq('form_id', formId)
-        .eq('status', 'submitted')
         .order('submitted_at', { ascending: false })
         .limit(200);
       return (data || []) as Array<{ id: string; submission_data: any; submitted_at: string; submission_ref_id: string }>;
@@ -117,9 +150,10 @@ export function ScenarioSimulator({ perfProjectId, selectedRecordId }: Props) {
     queryKey: ['scenario-submission', effectiveRecordId],
     queryFn: async () => {
       if (!effectiveRecordId) return null;
-      const { data } = await supabase.from('form_submissions')
-        .select('id, submission_data, submitted_at, submission_ref_id')
-        .eq('id', effectiveRecordId).single();
+      const { data } = await (supabase.from('form_submissions')
+        .select('id, submission_data, submitted_at, submission_ref_id') as any)
+        .eq('id', effectiveRecordId)
+        .single();
       return data || null;
     },
     enabled: !!effectiveRecordId,
@@ -129,41 +163,31 @@ export function ScenarioSimulator({ perfProjectId, selectedRecordId }: Props) {
     queryKey: ['scenario-form-fields', formId],
     queryFn: async () => {
       if (!formId) return [];
-      const { data } = await supabase.from('form_fields')
-        .select('id, label, field_type').eq('form_id', formId);
+      const { data } = await (supabase.from('form_fields')
+        .select('id, label, field_type') as any)
+        .eq('form_id', formId);
       return data || [];
     },
     enabled: !!formId,
   });
 
-  const fieldLookup = useMemo(() => {
-    const map: Record<string, string> = {};
-    formFields.forEach((f: any) => { map[f.label] = f.id; });
-    return map;
-  }, [formFields]);
-
   const resolveNum = (data: any, label: string): number => {
-    const id = fieldLookup[label];
-    if (!id) return 0;
-    const raw = data?.[id];
-    if (raw == null) return 0;
-    const v = typeof raw === 'object' && raw.value !== undefined ? raw.value : raw;
-    const n = Number(v);
-    return isNaN(n) ? 0 : n;
+    const raw = resolveMappedField(data || {}, fieldMappings, formFields, label);
+    const value = unwrapValue(raw);
+    const parsed = Number(value);
+    return Number.isNaN(parsed) ? 0 : parsed;
   };
 
   const resolveDate = (data: any, label: string): Date | null => {
-    const id = fieldLookup[label];
-    if (!id) return null;
-    const raw = data?.[id];
-    if (!raw) return null;
-    const v = typeof raw === 'object' && raw.value !== undefined ? raw.value : raw;
-    const d = new Date(v);
-    return isNaN(d.getTime()) ? null : d;
+    const raw = resolveMappedField(data || {}, fieldMappings, formFields, label);
+    const value = unwrapValue(raw);
+    if (!value) return null;
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
   };
 
   const updateVariable = (id: string, value: number) => {
-    setVariables(prev => prev.map(v => v.id === id ? { ...v, adjustedValue: value } : v));
+    setVariables((prev) => prev.map((v) => v.id === id ? { ...v, adjustedValue: value } : v));
     setResults(null);
   };
 
