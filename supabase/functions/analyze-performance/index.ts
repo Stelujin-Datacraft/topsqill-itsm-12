@@ -1,6 +1,7 @@
 // Performance Analysis Edge Function v5 - Single Record Analysis with Enterprise Project Portfolio Tracker Awareness
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -199,6 +200,71 @@ const PERFORMANCE_ROLE_LABELS: Record<string, string> = {
   finance_contract: 'Finance / Contract',
   risk_governance: 'Risk / Governance',
 };
+
+function normalizeMetricKey(value: string | null | undefined): string {
+  return (value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function parseNumericValue(value: unknown): number | null {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null;
+  }
+
+  if (typeof value === 'string') {
+    const normalized = value.replace(/,/g, '').trim();
+    if (!normalized) return null;
+
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
+}
+
+function resolveThresholdFieldId(threshold: any, dataSources: any[]): string | null {
+  if (threshold?.form_field_id) return threshold.form_field_id;
+
+  const targetKeys = new Set(
+    [
+      threshold?.metric_name,
+      threshold?.form_field_label,
+      typeof threshold?.metric_name === 'string' ? threshold.metric_name.split('→').pop()?.trim() : null,
+      typeof threshold?.metric_name === 'string' ? threshold.metric_name.split('->').pop()?.trim() : null,
+    ]
+      .filter(Boolean)
+      .map((value) => normalizeMetricKey(String(value))),
+  );
+
+  for (const dataSource of dataSources || []) {
+    const fieldMappings = Array.isArray(dataSource?.field_mappings) ? dataSource.field_mappings : [];
+
+    for (const mapping of fieldMappings) {
+      const mappingKeys = [
+        mapping?.formFieldId,
+        mapping?.label,
+        mapping?.formFieldLabel,
+      ]
+        .filter(Boolean)
+        .map((value) => normalizeMetricKey(String(value)));
+
+      if (mappingKeys.some((key) => targetKeys.has(key))) {
+        return mapping.formFieldId || null;
+      }
+    }
+  }
+
+  return null;
+}
+
+async function closeSmtpClient(client: SMTPClient | null) {
+  if (!client) return;
+
+  try {
+    await client.close();
+  } catch (closeError) {
+    console.warn('SMTP close warning:', closeError);
+  }
+}
 
 function buildAlertEmailHtml(alerts: any[], projectName: string, perfProjectName: string | null): string {
   const timestamp = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'full', timeStyle: 'short' });
@@ -407,26 +473,32 @@ async function sendAlertNotifications(supabase: any, projectId: string, perfProj
     }
 
     // --- Role-based email notifications via SMTP ---
-    // Fetch thresholds that have notify_role_ids configured
-    let thQuery = supabase
-      .from('performance_thresholds')
-      .select('notify_role_ids, metric_name, form_field_label')
-      .eq('project_id', projectId)
-      .eq('is_active', true)
-      .eq('send_email', true);
-    if (perfProjectId) thQuery = thQuery.eq('performance_project_id', perfProjectId);
-    const { data: emailThresholds } = await thQuery;
-
-    if (!emailThresholds || emailThresholds.length === 0) {
-      console.log('No thresholds with email notifications configured');
-      return;
+    // Prefer roles attached to the breached alerts themselves so emails go only to the users
+    // assigned to the matching threshold rule.
+    const allRoleTypes = new Set<string>();
+    for (const alert of alerts) {
+      if (Array.isArray(alert?.notify_role_ids)) {
+        alert.notify_role_ids.forEach((roleId: string) => allRoleTypes.add(roleId));
+      }
     }
 
-    // Collect all unique role_types that need notifying
-    const allRoleTypes = new Set<string>();
-    for (const th of emailThresholds) {
-      if (th.notify_role_ids && Array.isArray(th.notify_role_ids)) {
-        th.notify_role_ids.forEach((r: string) => allRoleTypes.add(r));
+    if (allRoleTypes.size === 0) {
+      const { data: emailThresholds } = await supabase
+        .from('performance_thresholds')
+        .select('notify_role_ids, performance_project_id')
+        .eq('project_id', projectId)
+        .eq('is_active', true)
+        .eq('send_email', true);
+
+      const scopedThresholds = (emailThresholds || []).filter((threshold: any) => {
+        if (!perfProjectId) return !threshold.performance_project_id;
+        return threshold.performance_project_id === perfProjectId || threshold.performance_project_id == null;
+      });
+
+      for (const threshold of scopedThresholds) {
+        if (Array.isArray(threshold?.notify_role_ids)) {
+          threshold.notify_role_ids.forEach((roleId: string) => allRoleTypes.add(roleId));
+        }
       }
     }
 
@@ -440,20 +512,24 @@ async function sendAlertNotifications(supabase: any, projectId: string, perfProj
     // Find users assigned to these performance roles
     let roleQuery = supabase
       .from('performance_user_roles')
-      .select('user_id, role_type')
+      .select('user_id, role_type, performance_project_id')
       .eq('project_id', projectId)
       .in('role_type', [...allRoleTypes]);
-    if (perfProjectId) roleQuery = roleQuery.eq('performance_project_id', perfProjectId);
     const { data: roleAssignments } = await roleQuery;
 
-    if (!roleAssignments || roleAssignments.length === 0) {
+    const scopedRoleAssignments = (roleAssignments || []).filter((assignment: any) => {
+      if (!perfProjectId) return !assignment.performance_project_id;
+      return assignment.performance_project_id === perfProjectId || assignment.performance_project_id == null;
+    });
+
+    if (scopedRoleAssignments.length === 0) {
       console.log('No users assigned to the notified performance roles');
       return;
     }
 
     // Get unique user IDs and their roles
     const userRoleMap = new Map<string, Set<string>>();
-    for (const ra of roleAssignments) {
+    for (const ra of scopedRoleAssignments) {
       if (!userRoleMap.has(ra.user_id)) userRoleMap.set(ra.user_id, new Set());
       userRoleMap.get(ra.user_id)!.add(ra.role_type);
     }
@@ -478,72 +554,76 @@ async function sendAlertNotifications(supabase: any, projectId: string, perfProj
       .select('*')
       .eq('organization_id', orgMembers.organization_id)
       .eq('is_active', true)
-      .order('is_default', { ascending: false })
-      .limit(1);
+      .order('is_default', { ascending: false });
 
     if (!smtpConfigs || smtpConfigs.length === 0) {
       console.error('No active SMTP configuration found — cannot send alert emails');
       return;
     }
 
-    const smtpConfig = smtpConfigs[0];
-    console.log('Using SMTP config:', smtpConfig.name, smtpConfig.host);
-
-    // Build email content
-    const emailHtml = buildAlertEmailHtml(alerts, projectName, perfProjectName);
-    const critCount = alerts.filter((a: any) => a.severity === 'critical').length;
-    const highCount = alerts.filter((a: any) => a.severity === 'high').length;
-
-    const severityLabel = critCount > 0 ? '🔴 CRITICAL' : highCount > 0 ? '🟠 HIGH' : '🟡 MEDIUM';
-    const emailSubject = `${severityLabel} | ${alerts.length} Performance Alert${alerts.length > 1 ? 's' : ''} — ${projectName}${perfProjectName ? ` / ${perfProjectName}` : ''}`;
-
-    const plainText = alerts.map((a: any) => {
-      const roles = userRoleMap.get(userId);
-      const roleLabels = roles ? [...roles].map(r => PERFORMANCE_ROLE_LABELS[r] || r).join(', ') : '';
-      return `• [${a.severity.toUpperCase()}] ${a.title}\n  ${a.description || ''}\n  Metric: ${a.metric_name || '—'} | Threshold: ${a.threshold_value ?? '—'} | Actual: ${a.actual_value ?? '—'}`;
-    }).join('\n\n');
-
-    // Send emails
-    try {
-      const { SMTPClient } = await import("https://deno.land/x/denomailer@1.6.0/mod.ts");
-      
-      // For port 587 (Gmail/STARTTLS), use tls:false so denomailer upgrades via STARTTLS
-      // For port 465, use tls:true for implicit TLS
-      const useDirectTls = smtpConfig.port === 465;
-      
-      console.log(`SMTP connecting: ${smtpConfig.host}:${smtpConfig.port} tls=${useDirectTls}`);
-      
-      const client = new SMTPClient({
-        connection: {
-          hostname: smtpConfig.host,
-          port: smtpConfig.port,
-          tls: useDirectTls,
-          auth: { username: smtpConfig.username, password: smtpConfig.password },
-        },
+    for (const target of emailTargets) {
+      const userRoles = userRoleMap.get(target.id) || new Set<string>();
+      const relevantAlerts = alerts.filter((alert: any) => {
+        const alertRoles = Array.isArray(alert?.notify_role_ids) ? alert.notify_role_ids : [];
+        if (alertRoles.length === 0) return true;
+        return alertRoles.some((roleId: string) => userRoles.has(roleId));
       });
 
-      for (const target of emailTargets) {
-        const userRoles = userRoleMap.get(target.id);
-        const roleLabels = userRoles ? [...userRoles].map((r: string) => PERFORMANCE_ROLE_LABELS[r] || r).join(', ') : '';
-        
+      if (relevantAlerts.length === 0) continue;
+
+      const roleLabels = [...userRoles].map((roleId: string) => PERFORMANCE_ROLE_LABELS[roleId] || roleId).join(', ');
+      const critCount = relevantAlerts.filter((alert: any) => alert.severity === 'critical').length;
+      const highCount = relevantAlerts.filter((alert: any) => alert.severity === 'high').length;
+      const severityLabel = critCount > 0 ? '🔴 CRITICAL' : highCount > 0 ? '🟠 HIGH' : '🟡 MEDIUM';
+      const emailSubject = `${severityLabel} | ${relevantAlerts.length} Performance Alert${relevantAlerts.length > 1 ? 's' : ''} — ${projectName}${perfProjectName ? ` / ${perfProjectName}` : ''}`;
+      const emailHtml = buildAlertEmailHtml(relevantAlerts, projectName, perfProjectName);
+      const plainText = relevantAlerts.map((alert: any) => (
+        `• [${alert.severity.toUpperCase()}] ${alert.title}\n  ${alert.description || ''}\n  Metric: ${alert.metric_name || '—'} | Threshold: ${alert.threshold_value ?? '—'} | Actual: ${alert.actual_value ?? '—'}`
+      )).join('\n\n');
+
+      let delivered = false;
+      let lastError: unknown = null;
+
+      for (const smtpConfig of smtpConfigs) {
+        let client: SMTPClient | null = null;
+
         try {
+          console.log(`SMTP connecting: ${smtpConfig.host}:${smtpConfig.port} tls=${smtpConfig.use_tls} recipient=${target.email}`);
+
+          client = new SMTPClient({
+            connection: {
+              hostname: smtpConfig.host,
+              port: smtpConfig.port,
+              tls: smtpConfig.use_tls,
+              auth: { username: smtpConfig.username, password: smtpConfig.password },
+            },
+          });
+
           await client.send({
             from: smtpConfig.from_name ? `${smtpConfig.from_name} <${smtpConfig.from_email}>` : smtpConfig.from_email,
             to: target.email,
             subject: emailSubject,
-            content: `Performance Alert — ${projectName}\n\nHello ${target.first_name || 'Team Member'},\n\nYou are receiving this alert because of your performance role: ${roleLabels}\n\n${plainText}\n\nPlease review the Performance Dashboard for details.\n\nThis is an automated alert from the Performance Monitoring System.`,
+            content: `Performance Alert — ${projectName}\n\nHello ${target.first_name || 'Team Member'},\n\nYou are receiving this alert because of your performance role: ${roleLabels || 'Configured recipient'}\n\n${plainText}\n\nPlease review the Performance Dashboard for details.\n\nThis is an automated alert from the Performance Monitoring System.`,
             html: emailHtml,
           });
-          console.log(`✅ Alert email sent to ${target.email} (Roles: ${roleLabels})`);
+
+          delivered = true;
+          console.log(`✅ Alert email sent to ${target.email} via ${smtpConfig.host} (Roles: ${roleLabels})`);
+          break;
         } catch (emailErr) {
-          console.error(`❌ Email send failed for ${target.email}:`, emailErr);
+          lastError = emailErr;
+          console.error(`❌ Email send failed for ${target.email} via ${smtpConfig.host}:`, emailErr);
+        } finally {
+          await closeSmtpClient(client);
         }
       }
-      await client.close();
-      console.log(`📧 Alert emails completed: ${emailTargets.length} recipient(s)`);
-    } catch (smtpErr) {
-      console.error('SMTP connection failed (non-blocking):', smtpErr);
+
+      if (!delivered) {
+        console.error(`❌ All SMTP configs failed for ${target.email}:`, lastError);
+      }
     }
+
+    console.log(`📧 Alert emails attempted for ${emailTargets.length} recipient(s)`);
   } catch (err) {
     console.error('Alert notification error (non-blocking):', err);
   }
@@ -870,37 +950,36 @@ Be SPECIFIC — reference actual field values, rupee amounts (₹), dates, and p
       // --- Threshold breach check (independent of AI anomalies) ---
       // Check actual submission data against configured thresholds and send email alerts
       try {
-        const { data: thresholds } = await supabase
+        const { data: thresholdRows } = await supabase
           .from('performance_thresholds')
           .select('*')
           .eq('project_id', project_id)
           .eq('is_active', true)
-          .eq('send_email', true)
-          .eq('performance_project_id', performance_project_id || '');
-        
-        // Also try without perf project filter if none found
-        let allThresholds = thresholds || [];
-        if (allThresholds.length === 0) {
-          const { data: th2 } = await supabase
-            .from('performance_thresholds')
-            .select('*')
-            .eq('project_id', project_id)
-            .eq('is_active', true)
-            .eq('send_email', true);
-          allThresholds = th2 || [];
-        }
+          .eq('send_email', true);
+
+        const allThresholds = (thresholdRows || []).filter((threshold: any) => {
+          if (!performance_project_id) return !threshold.performance_project_id;
+          return threshold.performance_project_id === performance_project_id || threshold.performance_project_id == null;
+        });
 
         if (allThresholds.length > 0 && analysisContext?.recordData) {
           const breachedAlerts: any[] = [];
 
           for (const th of allThresholds) {
-            const fieldId = th.form_field_id;
-            const actualValue = fieldId ? parseFloat(analysisContext.recordData[fieldId]) : null;
-            
-            if (actualValue === null || isNaN(actualValue)) continue;
+            const fieldId = resolveThresholdFieldId(th, dataSources || []);
+            const actualValue = parseNumericValue(fieldId ? analysisContext.recordData[fieldId] : null);
+            const thresholdVal = parseNumericValue(th.threshold_value);
 
-            const thresholdVal = parseFloat(th.threshold_value);
-            if (isNaN(thresholdVal)) continue;
+            if (actualValue == null || thresholdVal == null) {
+              console.log('Skipping threshold due to missing numeric value', {
+                threshold_id: th.id,
+                metric_name: th.metric_name,
+                field_id: fieldId,
+                actualValue,
+                thresholdVal,
+              });
+              continue;
+            }
 
             let breached = false;
             switch (th.operator) {
@@ -914,8 +993,12 @@ Be SPECIFIC — reference actual field values, rupee amounts (₹), dates, and p
 
             if (breached) {
               breachedAlerts.push({
+                threshold_id: th.id,
+                notify_role_ids: Array.isArray(th.notify_role_ids) ? th.notify_role_ids : [],
+                form_field_id: fieldId,
+                form_field_label: th.form_field_label,
                 severity: th.severity || 'medium',
-                title: `Threshold Breach: ${th.form_field_label || th.metric_name}`,
+                title: `Threshold Breach: ${th.form_field_label || th.metric_name}${analysisContext.submissionRefId ? ` (${analysisContext.submissionRefId})` : ''}`,
                 description: `${th.form_field_label || th.metric_name} value ${actualValue} ${th.operator} ${thresholdVal} (${th.severity})`,
                 metric_name: th.metric_name,
                 threshold_value: thresholdVal,
