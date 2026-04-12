@@ -357,7 +357,7 @@ async function sendAlertNotifications(supabase: any, projectId: string, perfProj
   try {
     // Get current user's org
     const { data: orgMembers } = await supabase
-      .from('profiles')
+      .from('user_profiles')
       .select('id, email, organization_id')
       .eq('id', userId)
       .single();
