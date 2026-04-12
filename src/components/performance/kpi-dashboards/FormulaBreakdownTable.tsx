@@ -177,11 +177,13 @@ export function FormulaBreakdownTable({ title, breakdown, onClose }: FormulaBrea
           <div className="space-y-2">
             <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
               {breakdown.contributingRecords.title} ({breakdown.contributingRecords.records.length} records)
+              <span className="ml-2 text-primary/60 normal-case font-normal">— click any row to drill down</span>
             </p>
             <div className="rounded-md border overflow-hidden">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/40">
+                    <TableHead className="text-[11px] uppercase tracking-wider h-8 w-6"></TableHead>
                     <TableHead className="text-[11px] uppercase tracking-wider h-8">Ref ID</TableHead>
                     <TableHead className="text-[11px] uppercase tracking-wider h-8">Name</TableHead>
                     <TableHead className="text-[11px] uppercase tracking-wider h-8">Status</TableHead>
@@ -193,27 +195,7 @@ export function FormulaBreakdownTable({ title, breakdown, onClose }: FormulaBrea
                 </TableHeader>
                 <TableBody>
                   {breakdown.contributingRecords.records.map((rec, i) => (
-                    <TableRow key={i} className={
-                      rec.variant === 'danger' ? 'bg-destructive/5' :
-                      rec.variant === 'success' ? 'bg-emerald-500/5' :
-                      rec.variant === 'warning' ? 'bg-amber-500/5' : ''
-                    }>
-                      <TableCell className="py-1.5">
-                        <code className="text-[11px] font-mono text-primary">{rec.refId}</code>
-                      </TableCell>
-                      <TableCell className="py-1.5 text-sm">{rec.name}</TableCell>
-                      <TableCell className="py-1.5">
-                        {rec.status && (
-                          <Badge variant="outline" className="text-[10px]">{rec.status}</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className="py-1.5 text-right">
-                        <Badge variant={rec.variant === 'danger' ? 'destructive' : 'secondary'} className="font-mono text-xs">
-                          {typeof rec.value === 'number' ? rec.value.toLocaleString('en-IN') : rec.value}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="py-1.5 text-xs text-muted-foreground">{rec.detail || ''}</TableCell>
-                    </TableRow>
+                    <ContributingRecordRow key={i} rec={rec} />
                   ))}
                 </TableBody>
               </Table>
