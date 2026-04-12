@@ -390,27 +390,20 @@ async function sendAlertNotifications(supabase: any, projectId: string, perfProj
       .eq('project_id', projectId);
 
     const memberIds = members?.map((m: any) => m.user_id) || [userId];
-    // Also include performance role users so they get in-app notifications
-    const roleUserIds = [...userRoleMap.keys()];
-    const allTargetIds = [...memberIds, ...roleUserIds, userId];
-    const uniqueIds = [...new Set(allTargetIds)];
+    const uniqueIds = [...new Set(memberIds)];
 
-    // Create in-app notifications for all members and role users
-    if (alerts.length > 0) {
+    // Create in-app notifications for all members
+    const criticalAlerts = alerts.filter((a: any) => a.severity === 'high' || a.severity === 'critical');
+    if (criticalAlerts.length > 0) {
       const notifInserts = uniqueIds.map((uid: string) => ({
         user_id: uid,
         type: 'workflow_notification',
-        title: `⚠️ Performance Alert: ${alerts.length} issue${alerts.length > 1 ? 's' : ''} detected`,
-        message: alerts.map((a: any) => `${(a.severity || 'medium').toUpperCase()}: ${a.title}`).join(' | '),
-        data: { source: 'performance_monitoring', project_id: projectId, performance_project_id: perfProjectId, alert_count: alerts.length },
+        title: `⚠️ Performance Alert: ${criticalAlerts.length} issue${criticalAlerts.length > 1 ? 's' : ''} detected`,
+        message: criticalAlerts.map((a: any) => `${a.severity.toUpperCase()}: ${a.title}`).join(' | '),
+        data: { source: 'performance_monitoring', project_id: projectId, performance_project_id: perfProjectId, alert_count: criticalAlerts.length },
         read: false,
       }));
-      const { error: notifErr } = await supabase.from('notifications').insert(notifInserts);
-      if (notifErr) {
-        console.error('Error inserting in-app notifications:', notifErr);
-      } else {
-        console.log(`📬 In-app notifications sent to ${uniqueIds.length} user(s)`);
-      }
+      await supabase.from('notifications').insert(notifInserts);
     }
 
     // --- Role-based email notifications via SMTP ---
@@ -527,15 +520,13 @@ async function sendAlertNotifications(supabase: any, projectId: string, perfProj
           let client: InstanceType<typeof SMTPClient> | null = null;
 
           try {
-            // Port 587 uses STARTTLS (tls=false in denomailer); port 465 uses direct TLS
-            const useTls = config.port === 465;
-            console.log(`SMTP connecting: ${config.host}:${config.port} tls=${useTls} recipient=${target.email}`);
+            console.log(`SMTP connecting: ${config.host}:${config.port} tls=${config.use_tls} recipient=${target.email}`);
 
             client = new SMTPClient({
               connection: {
                 hostname: config.host,
                 port: config.port,
-                tls: useTls,
+                tls: config.use_tls,
                 auth: { username: config.username, password: config.password },
               },
             });
@@ -972,10 +963,8 @@ Be SPECIFIC — reference actual field values, rupee amounts (₹), dates, and p
               console.error('Error saving threshold alerts:', thresholdAlertError);
             }
 
+            const emailEligibleAlerts = breachedAlerts.filter((_, index) => allThresholds[index]?.send_email);
             const thresholdAlertsForNotification = insertedThresholdAlerts || breachedAlerts;
-
-            // Check if any breached thresholds have email enabled
-            const hasEmailEligible = allThresholds.some((th: any) => th.send_email);
 
             await sendAlertNotifications(
               supabase,
@@ -985,7 +974,7 @@ Be SPECIFIC — reference actual field values, rupee amounts (₹), dates, and p
               user.id,
             );
 
-            if (!hasEmailEligible) {
+            if (emailEligibleAlerts.length === 0) {
               console.log('Threshold alerts created in-app, but no thresholds had email enabled');
             }
           } else {
