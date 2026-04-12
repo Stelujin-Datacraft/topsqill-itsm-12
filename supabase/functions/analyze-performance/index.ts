@@ -890,12 +890,12 @@ Be SPECIFIC — reference actual field values, rupee amounts (₹), dates, and p
           allThresholds = th2 || [];
         }
 
-        if (allThresholds.length > 0 && analysisContext?.rawData) {
+        if (allThresholds.length > 0 && analysisContext?.recordData) {
           const breachedAlerts: any[] = [];
 
           for (const th of allThresholds) {
             const fieldId = th.form_field_id;
-            const actualValue = fieldId ? parseFloat(analysisContext.rawData[fieldId]) : null;
+            const actualValue = fieldId ? parseFloat(analysisContext.recordData[fieldId]) : null;
             
             if (actualValue === null || isNaN(actualValue)) continue;
 
