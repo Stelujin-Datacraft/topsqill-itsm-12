@@ -20,6 +20,8 @@ export interface ContributingRecord {
   status?: string;
   detail?: string;
   variant?: 'success' | 'warning' | 'danger' | 'neutral';
+  rawData?: Record<string, any>;
+  childRecords?: ContributingRecord[];
 }
 
 export interface FormulaBreakdown {

@@ -402,7 +402,7 @@ export function RecordDetailView({
         const wName = asText(wd[FIELDS.wbsName]) || w.submission_ref_id;
         const wStatus = asText(wd[FIELDS.wbsStatus]);
         const wRefs = extractRefIds(wd[CROSSREF_FIELDS.WBS_TO_ACTIVITIES]);
-        return { refId: w.submission_ref_id, name: wName, status: wStatus, actCount: wRefs.length, completed: isCompleted(wStatus) };
+        return { refId: w.submission_ref_id, name: wName, status: wStatus, actCount: wRefs.length, completed: isCompleted(wStatus), rawData: wd };
       });
 
       const taskContrib = allTasks.map(t => {
@@ -411,12 +411,12 @@ export function RecordDetailView({
         const tStatus = asText(td2[FIELDS.taskStatus]);
         const h = getTaskRollupHours(t);
         const delay = getTaskDelayDays(t);
-        return { refId: t.submission_ref_id, name: tName, status: tStatus, planned: h.planned, actual: h.actual, delay, completed: isCompleted(tStatus), defects: asNum(td2[FIELDS.taskDefectCount]) };
+        return { refId: t.submission_ref_id, name: tName, status: tStatus, planned: h.planned, actual: h.actual, delay, completed: isCompleted(tStatus), defects: asNum(td2[FIELDS.taskDefectCount]), rawData: td2 };
       });
 
       const resourceContrib = allResources.map(r => {
         const rd = r.submission_data || {};
-        return { refId: r.submission_ref_id, name: asText(rd[FIELDS.resourceName]) || r.submission_ref_id, role: asText(rd[FIELDS.resourceRole]), planned: asNum(rd[FIELDS.plannedHours]), actual: asNum(rd[FIELDS.actualHours]), overtime: asNum(rd[FIELDS.overtimeHours]) };
+        return { refId: r.submission_ref_id, name: asText(rd[FIELDS.resourceName]) || r.submission_ref_id, role: asText(rd[FIELDS.resourceRole]), planned: asNum(rd[FIELDS.plannedHours]), actual: asNum(rd[FIELDS.actualHours]), overtime: asNum(rd[FIELDS.overtimeHours]), rawData: rd };
       });
 
       kpiCards.push(
@@ -429,8 +429,8 @@ export function RecordDetailView({
           contributingRecords: { title: 'WBS Records', valueLabel: 'Status', records: wbsContrib.map(w => ({
             refId: w.refId, name: w.name, status: w.status, value: w.completed ? '✅ Completed' : '⏳ In Progress',
             variant: w.completed ? 'success' as const : 'warning' as const,
-            detail: `${w.actCount} activities linked`
-          })) } } },
+            detail: `${w.actCount} activities linked`, rawData: w.rawData
+          , rawData: w.rawData })) } } },
         { label: 'Total WBS', value: totalWBS, icon: BarChart3, formula: 'COUNT(WBS_ID)',
           breakdown: { formula: 'COUNT(WBS_ID)', variables: [{ label: 'WBS Count', fieldName: 'COUNT(WBS_ID)', value: totalWBS, highlight: true }], result: totalWBS } },
         { label: 'Completed WBS', value: completedWBS, icon: CheckCircle2, trend: 'up', formula: 'COUNT_IF(WBS_Status = "Completed")',
@@ -442,22 +442,22 @@ export function RecordDetailView({
         { label: 'Completed Tasks', value: completedTasks, icon: CheckCircle2, trend: 'up', formula: 'COUNT_IF(Task_Status = "Completed")',
           breakdown: { formula: 'COUNT_IF(Task_Status = "Completed")', variables: [{ label: 'Completed Tasks', value: completedTasks, highlight: true }, { label: 'Total Tasks', value: totalTasks }], result: completedTasks,
           contributingRecords: { title: 'Completed Tasks', valueLabel: 'Status', records: taskContrib.filter(t => t.completed).map(t => ({
-            refId: t.refId, name: t.name, status: t.status, value: `${t.actual}h / ${t.planned}h`, variant: 'success' as const, detail: t.delay > 0 ? `Delayed ${t.delay}d` : 'On time'
-          })) } } },
+            refId: t.refId, name: t.name, status: t.status, value: `${t.actual}h / ${t.planned}h`, variant: 'success' as const, detail: t.delay > 0 ? `Delayed ${t.delay}d` : 'On time', rawData: t.rawData
+          , rawData: t.rawData })) } } },
         { label: 'Delayed Tasks', value: delayedTasks, icon: AlertTriangle,
           trend: delayedTasks > 0 ? 'down' : 'up',
           formula: 'COUNT_IF(Task_Delay_Days > 0)',
           breakdown: { formula: 'COUNT_IF(MAX(0, DAYS(Actual_End - Planned_End)) > 0)', variables: [{ label: 'Total Tasks', value: totalTasks }, { label: 'Delayed Tasks', value: delayedTasks, highlight: true }], result: delayedTasks,
           contributingRecords: { title: 'Delayed Tasks', valueLabel: 'Delay', records: taskContrib.filter(t => t.delay > 0).map(t => ({
-            refId: t.refId, name: t.name, status: t.status, value: `${t.delay} days`, variant: 'danger' as const, detail: `Actual: ${t.actual}h / Planned: ${t.planned}h`
-          })) } } },
+            refId: t.refId, name: t.name, status: t.status, value: `${t.delay} days`, variant: 'danger' as const, detail: `Actual: ${t.actual}h / Planned: ${t.planned}h`, rawData: t.rawData
+          , rawData: t.rawData })) } } },
         { label: 'Total Resources', value: totalResources, icon: Users, formula: 'COUNT(Resource_ID)',
           breakdown: { formula: 'COUNT(Resource_ID)', variables: [{ label: 'Resource Count', value: totalResources, highlight: true }], result: totalResources,
           contributingRecords: { title: 'All Resources', valueLabel: 'Hours (Actual/Planned)', records: resourceContrib.map(r => ({
             refId: r.refId, name: r.name, status: r.role, value: `${r.actual}h / ${r.planned}h`,
             variant: (r.actual > r.planned * 1.1 ? 'danger' : r.actual >= r.planned * 0.8 ? 'success' : 'warning') as 'danger' | 'success' | 'warning',
-            detail: r.overtime > 0 ? `Overtime: ${r.overtime}h` : ''
-          })) } } },
+            detail: r.overtime > 0 ? `Overtime: ${r.overtime}h` : '', rawData: r.rawData
+          , rawData: r.rawData })) } } },
         { label: 'Avg Task Delay', value: avgTaskDelay, unit: 'd', icon: Clock,
           trend: avgTaskDelay > 2 ? 'down' : 'up',
           formula: 'AVG(Task_Delay_Days)', hideIfZero: true,
@@ -465,14 +465,14 @@ export function RecordDetailView({
           contributingRecords: { title: 'All Tasks — Delay Contribution', valueLabel: 'Delay Days', records: taskContrib.map(t => ({
             refId: t.refId, name: t.name, status: t.status, value: `${t.delay} days`,
             variant: (t.delay > 5 ? 'danger' : t.delay > 0 ? 'warning' : 'success') as 'danger' | 'warning' | 'success',
-            detail: `Actual: ${t.actual}h, Planned: ${t.planned}h`
-          })) } } },
+            detail: `Actual: ${t.actual}h, Planned: ${t.planned}h`, rawData: t.rawData
+          , rawData: t.rawData })) } } },
         { label: 'Planned Hours (Roll-up)', value: projectPlannedHours, icon: Clock,
           formula: 'SUM(WBS_Planned_Hours) → SUM(Activity_Planned_Hours) → SUM(Task_Planned_Hours) → SUM(Resource_Planned_Hours)',
           breakdown: { formula: 'Project_Planned_Hours = SUM(all Task rolled-up hours from Resources)', description: 'Hours roll up: Resources → Tasks → Activities → WBS → Project', variables: [{ label: 'Project Planned Hours', fieldName: 'SUM(Resource_Planned_Hours) via hierarchy', value: `${projectPlannedHours}h`, highlight: true }, { label: 'Total Tasks', value: totalTasks }, { label: 'Total Resources', value: totalResources }], result: `${projectPlannedHours}h`,
           contributingRecords: { title: 'Per-Task Planned Hours (from Resources)', valueLabel: 'Planned Hours', records: taskContrib.map(t => ({
-            refId: t.refId, name: t.name, status: t.status, value: `${t.planned}h`, variant: 'neutral' as const, detail: `Actual: ${t.actual}h`
-          })) } } },
+            refId: t.refId, name: t.name, status: t.status, value: `${t.planned}h`, variant: 'neutral' as const, detail: `Actual: ${t.actual}h`, rawData: t.rawData
+          , rawData: t.rawData })) } } },
         { label: 'Actual Hours (Roll-up)', value: projectActualHours, icon: Clock,
           trend: projectActualHours > projectPlannedHours ? 'down' : 'up',
           formula: 'SUM(WBS_Actual_Hours) → SUM(Activity_Actual_Hours) → SUM(Task_Actual_Hours) → SUM(Resource_Actual_Hours)',
@@ -480,16 +480,16 @@ export function RecordDetailView({
           contributingRecords: { title: 'Per-Resource Actual Hours', valueLabel: 'Actual Hours', records: resourceContrib.map(r => ({
             refId: r.refId, name: r.name, status: r.role, value: `${r.actual}h`,
             variant: (r.actual > r.planned * 1.1 ? 'danger' : 'success') as 'danger' | 'success',
-            detail: `Planned: ${r.planned}h${r.overtime > 0 ? `, OT: ${r.overtime}h` : ''}`
-          })) } } },
+            detail: `Planned: ${r.planned}h${r.overtime > 0 ? `, OT: ${r.overtime}h` : ''}`, rawData: r.rawData
+          , rawData: r.rawData })) } } },
         { label: 'Resource Utilization', value: resourceUtilization, unit: '%', icon: Users,
           formula: '(Project_Actual_Hours / (Project_Planned_Hours + 0.0001)) × 100',
           breakdown: { formula: '(Project_Actual_Hours / (Project_Planned_Hours + 0.0001)) × 100', variables: [{ label: 'Project Actual Hours', fieldName: 'Roll-up from Resources', value: `${projectActualHours}h` }, { label: 'Project Planned Hours', fieldName: 'Roll-up from Resources', value: `${projectPlannedHours}h` }], steps: [{ label: 'Utilization', expression: `${projectActualHours} / (${projectPlannedHours} + 0.0001) × 100`, result: `${resourceUtilization.toFixed(1)}%` }], result: `${resourceUtilization.toFixed(1)}%`,
           contributingRecords: { title: 'Resource Hours Breakdown', valueLabel: 'Actual / Planned', records: resourceContrib.map(r => ({
             refId: r.refId, name: r.name, status: r.role, value: `${r.actual}h / ${r.planned}h`,
             variant: (r.actual > r.planned * 1.1 ? 'danger' : r.actual >= r.planned * 0.8 ? 'success' : 'warning') as 'danger' | 'success' | 'warning',
-            detail: `Utilization: ${r.planned > 0 ? ((r.actual / r.planned) * 100).toFixed(0) : 0}%`
-          })) } } },
+            detail: `Utilization: ${r.planned > 0 ? ((r.actual / r.planned) * 100).toFixed(0) : 0}%`, rawData: r.rawData
+          , rawData: r.rawData })) } } },
         { label: 'Planned Budget', value: budget, icon: IndianRupee, formula: 'Planned_Budget',
           breakdown: { formula: 'Planned_Budget', variables: [{ label: 'Planned Budget', fieldName: 'Planned_Budget', value: `₹${budget.toLocaleString('en-IN')}`, highlight: true }], result: `₹${budget.toLocaleString('en-IN')}` } },
         { label: 'Actual Cost', value: actual, icon: IndianRupee, trend: actual > budget ? 'down' : 'up',
@@ -590,7 +590,7 @@ export function RecordDetailView({
             refId: t.refId, name: t.name, status: t.delay > 0 ? 'Delayed' : 'On Time', value: t.delay > 0 ? `${t.delay} days late` : 'On Time',
             variant: (t.delay > 0 ? 'danger' : 'success') as 'danger' | 'success',
             detail: `Planned: ${t.planned}h, Actual: ${t.actual}h`
-          })) } } },
+          , rawData: t.rawData })) } } },
         { label: 'Project Total Delay', value: projectTotalDelay, unit: 'd', icon: Clock,
           trend: projectTotalDelay > 0 ? 'down' : 'up',
           formula: 'SUM(WBS_Total_Delay) = SUM(all Task_Delay_Days)', hideIfZero: true,
@@ -599,7 +599,7 @@ export function RecordDetailView({
             refId: t.refId, name: t.name, status: t.status, value: `${t.delay} days`,
             variant: (t.delay > 5 ? 'danger' : 'warning') as 'danger' | 'warning',
             detail: `Planned End vs Actual End`
-          })) } } },
+          , rawData: t.rawData })) } } },
         { label: 'Risk Score', value: riskScore, icon: AlertTriangle,
           trend: riskScore > 70 ? 'down' : riskScore > 40 ? 'neutral' : 'up',
           formula: 'CPI_Risk×0.30 + SPI_Risk×0.30 + Delay_Risk×0.20 + Pred_Delay_Risk×0.10 + Pred_Cost_Risk×0.10',
@@ -806,7 +806,7 @@ export function RecordDetailView({
         const linkedTasks = taskRefs.map(ref => allTasks.find(t => t.submission_ref_id === ref)).filter(Boolean);
         let ph = 0, ah = 0;
         linkedTasks.forEach(t => { const h = getTaskRollupHours(t); ph += h.planned; ah += h.actual; });
-        return { refId: a.submission_ref_id, name: aName, status: aStatus, completed: isCompleted(aStatus), taskCount: linkedTasks.length, planned: ph, actual: ah };
+        return { refId: a.submission_ref_id, name: aName, status: aStatus, completed: isCompleted(aStatus), taskCount: linkedTasks.length, planned: ph, actual: ah, rawData: ad };
       });
 
       const wbsTaskContrib = wbsTasks.map(t => {
@@ -815,7 +815,7 @@ export function RecordDetailView({
         const tStatus = asText(td2[FIELDS.taskStatus]);
         const h = getTaskRollupHours(t);
         const delay = getTaskDelayDays(t);
-        return { refId: t.submission_ref_id, name: tName, status: tStatus, planned: h.planned, actual: h.actual, delay, completed: isCompleted(tStatus), defects: asNum(td2[FIELDS.taskDefectCount]) };
+        return { refId: t.submission_ref_id, name: tName, status: tStatus, planned: h.planned, actual: h.actual, delay, completed: isCompleted(tStatus), defects: asNum(td2[FIELDS.taskDefectCount]), rawData: td2 };
       });
 
       kpiCards.push(
@@ -825,13 +825,13 @@ export function RecordDetailView({
             refId: a.refId, name: a.name, status: a.status, value: `${a.actual}h / ${a.planned}h`,
             variant: (a.completed ? 'success' : 'warning') as 'success' | 'warning',
             detail: `${a.taskCount} tasks`
-          })) } } },
+          , rawData: a.rawData })) } } },
         { label: 'Completed Activities', value: completedAct, icon: CheckCircle2, trend: 'up',
           formula: 'COUNT_IF(Activity_Status = "Completed")',
           breakdown: { formula: 'COUNT_IF(Activity_Status = "Completed")', variables: [{ label: 'Completed', value: completedAct, highlight: true }, { label: 'Total', value: totalActivities }], result: completedAct,
           contributingRecords: { title: 'Completed Activities', valueLabel: 'Status', records: wbsActivityContrib.filter(a => a.completed).map(a => ({
             refId: a.refId, name: a.name, status: a.status, value: '✅ Completed', variant: 'success' as const, detail: `${a.taskCount} tasks, ${a.actual}h`
-          })) } } },
+          , rawData: a.rawData })) } } },
         { label: 'WBS Progress', value: progress, unit: '%', icon: TrendingUp,
           trend: progress >= 75 ? 'up' : 'neutral',
           formula: '(Completed_Activities / MAX(1, Total_Activities)) × 100',
@@ -840,7 +840,7 @@ export function RecordDetailView({
             refId: a.refId, name: a.name, status: a.status, value: a.completed ? '100%' : 'In Progress',
             variant: (a.completed ? 'success' : 'warning') as 'success' | 'warning',
             detail: `${a.taskCount} tasks linked`
-          })) } } },
+          , rawData: a.rawData })) } } },
         { label: 'Task Progress', value: taskProgress, unit: '%', icon: Target,
           trend: taskProgress >= 75 ? 'up' : 'neutral',
           formula: '(Completed_Tasks / MAX(1, Total_Tasks)) × 100',
@@ -849,7 +849,7 @@ export function RecordDetailView({
             refId: t.refId, name: t.name, status: t.status, value: t.completed ? '✅ Done' : '⏳ Active',
             variant: (t.completed ? 'success' : t.delay > 0 ? 'danger' : 'warning') as 'success' | 'danger' | 'warning',
             detail: `${t.actual}h / ${t.planned}h${t.delay > 0 ? `, Delay: ${t.delay}d` : ''}`
-          })) } } },
+          , rawData: t.rawData })) } } },
         { label: 'Delayed Tasks', value: delayedTaskCount, icon: AlertTriangle,
           trend: delayedTaskCount > 0 ? 'down' : 'up',
           formula: 'COUNT_IF(Task_Delay_Days > 0)',
@@ -857,13 +857,13 @@ export function RecordDetailView({
           contributingRecords: { title: 'Delayed Tasks under WBS', valueLabel: 'Delay', records: wbsTaskContrib.filter(t => t.delay > 0).map(t => ({
             refId: t.refId, name: t.name, status: t.status, value: `${t.delay} days`, variant: 'danger' as const,
             detail: `Actual: ${t.actual}h, Planned: ${t.planned}h, Defects: ${t.defects}`
-          })) } } },
+          , rawData: t.rawData })) } } },
         { label: 'WBS Planned Hours', value: wbsPlannedHours, icon: Clock,
           formula: 'SUM(Activity_Planned_Hours) = SUM(Task_Planned_Hours) = SUM(Resource_Planned_Hours)',
           breakdown: { formula: 'WBS_Planned_Hours = SUM(rolled-up Task hours from Resources)', description: 'Hours roll up: Resources → Tasks → Activities → WBS', variables: [{ label: 'WBS Planned Hours', value: `${wbsPlannedHours}h`, highlight: true }, { label: 'Total Tasks', value: wbsTasks.length }], result: `${wbsPlannedHours}h`,
           contributingRecords: { title: 'Per-Task Planned Hours', valueLabel: 'Planned', records: wbsTaskContrib.map(t => ({
             refId: t.refId, name: t.name, status: t.status, value: `${t.planned}h`, variant: 'neutral' as const, detail: `Actual: ${t.actual}h`
-          })) } } },
+          , rawData: t.rawData })) } } },
         { label: 'WBS Actual Hours', value: wbsActualHours, icon: Clock,
           trend: wbsActualHours > wbsPlannedHours ? 'down' : 'up',
           formula: 'SUM(Activity_Actual_Hours) = SUM(Task_Actual_Hours) = SUM(Resource_Actual_Hours)',
@@ -872,7 +872,7 @@ export function RecordDetailView({
             refId: t.refId, name: t.name, status: t.status, value: `${t.actual}h`,
             variant: (t.actual > t.planned * 1.1 ? 'danger' : 'success') as 'danger' | 'success',
             detail: `Planned: ${t.planned}h${t.delay > 0 ? `, Delay: ${t.delay}d` : ''}`
-          })) } } },
+          , rawData: t.rawData })) } } },
         { label: 'Utilization', value: util, unit: '%', icon: Users,
           formula: '(WBS_Actual_Hours / (WBS_Planned_Hours + 0.0001)) × 100',
           breakdown: { formula: '(WBS_Actual_Hours / (WBS_Planned_Hours + ε)) × 100', variables: [{ label: 'WBS Actual Hours', fieldName: 'Roll-up from Resources', value: wbsActualHours }, { label: 'WBS Planned Hours', fieldName: 'Roll-up from Resources', value: wbsPlannedHours }], steps: [{ label: 'Utilization', expression: `${wbsActualHours} / ${wbsPlannedHours} × 100`, result: `${util.toFixed(1)}%` }], result: `${util.toFixed(1)}%` } },
@@ -969,7 +969,7 @@ export function RecordDetailView({
         const h = getTaskRollupHours(t);
         const delay = getTaskDelayDays(t);
         const resCount = (resourcesByTaskRef.get(t.submission_ref_id) || []).length;
-        return { refId: t.submission_ref_id, name: tName, status: tStatus, planned: h.planned, actual: h.actual, delay, completed: isCompleted(tStatus), defects: asNum(td2[FIELDS.taskDefectCount]), resCount };
+        return { refId: t.submission_ref_id, name: tName, status: tStatus, planned: h.planned, actual: h.actual, delay, completed: isCompleted(tStatus), defects: asNum(td2[FIELDS.taskDefectCount]), resCount, rawData: td2 };
       });
 
       kpiCards.push(
@@ -979,13 +979,13 @@ export function RecordDetailView({
             refId: t.refId, name: t.name, status: t.status, value: `${t.actual}h / ${t.planned}h`,
             variant: (t.completed ? 'success' : t.delay > 0 ? 'danger' : 'warning') as 'success' | 'danger' | 'warning',
             detail: `${t.resCount} resources${t.delay > 0 ? `, Delay: ${t.delay}d` : ''}${t.defects > 0 ? `, Defects: ${t.defects}` : ''}`
-          })) } } },
+          , rawData: t.rawData })) } } },
         { label: 'Completed Tasks', value: completedTasks, icon: CheckCircle2, trend: 'up',
           formula: 'COUNT_IF(Task_Status = "Completed")',
           breakdown: { formula: 'COUNT_IF(Task_Status = "Completed")', variables: [{ label: 'Completed', value: completedTasks, highlight: true }, { label: 'Total', value: totalTasks }], result: completedTasks,
           contributingRecords: { title: 'Completed Tasks', valueLabel: 'Hours', records: actTaskContrib.filter(t => t.completed).map(t => ({
             refId: t.refId, name: t.name, status: t.status, value: `${t.actual}h`, variant: 'success' as const, detail: `Planned: ${t.planned}h`
-          })) } } },
+          , rawData: t.rawData })) } } },
         { label: 'Activity Progress', value: progress, unit: '%', icon: TrendingUp,
           formula: '(Completed_Tasks / MAX(1, Total_Tasks)) × 100',
           breakdown: { formula: '(Completed_Tasks / MAX(1, Total_Tasks)) × 100', variables: [{ label: 'Completed Tasks', value: completedTasks }, { label: 'Total Tasks', value: totalTasks }], steps: [{ label: 'Completion', expression: `${completedTasks} / MAX(1, ${totalTasks}) × 100`, result: `${progress.toFixed(1)}%` }], result: `${progress.toFixed(1)}%` } },
@@ -996,14 +996,14 @@ export function RecordDetailView({
           contributingRecords: { title: 'Delayed Tasks', valueLabel: 'Delay', records: actTaskContrib.filter(t => t.delay > 0).map(t => ({
             refId: t.refId, name: t.name, status: t.status, value: `${t.delay} days`, variant: 'danger' as const,
             detail: `Actual: ${t.actual}h, Planned: ${t.planned}h`
-          })) } } },
+          , rawData: t.rawData })) } } },
         { label: 'Activity Planned Hours', value: actPlannedHours, icon: Clock,
           formula: 'SUM(Task_Planned_Hours) = SUM(Resource_Planned_Hours)',
           breakdown: { formula: 'Activity_Planned_Hours = SUM(rolled-up Task hours from Resources)', description: 'Hours roll up: Resources → Tasks → Activity', variables: [{ label: 'Activity Planned Hours', value: `${actPlannedHours}h`, highlight: true }, { label: 'Total Tasks', value: totalTasks }], result: `${actPlannedHours}h`,
           contributingRecords: { title: 'Per-Task Planned Hours', valueLabel: 'Planned', records: actTaskContrib.map(t => ({
             refId: t.refId, name: t.name, status: t.status, value: `${t.planned}h`, variant: 'neutral' as const,
             detail: `${t.resCount} resources`
-          })) } } },
+          , rawData: t.rawData })) } } },
         { label: 'Activity Actual Hours', value: actActualHours, icon: Clock,
           trend: actActualHours > actPlannedHours ? 'down' : 'up',
           formula: 'SUM(Task_Actual_Hours) = SUM(Resource_Actual_Hours)',
@@ -1012,7 +1012,7 @@ export function RecordDetailView({
             refId: t.refId, name: t.name, status: t.status, value: `${t.actual}h`,
             variant: (t.actual > t.planned * 1.1 ? 'danger' : 'success') as 'danger' | 'success',
             detail: `Planned: ${t.planned}h${t.defects > 0 ? `, Defects: ${t.defects}` : ''}`
-          })) } } },
+          , rawData: t.rawData })) } } },
         { label: 'Utilization', value: util, unit: '%', icon: Users,
           formula: '(Activity_Actual_Hours / (Activity_Planned_Hours + 0.0001)) × 100',
           breakdown: { formula: '(Activity_Actual_Hours / (Activity_Planned_Hours + ε)) × 100', variables: [{ label: 'Activity Actual Hours', fieldName: 'Roll-up from Resources', value: actActualHours }, { label: 'Activity Planned Hours', fieldName: 'Roll-up from Resources', value: actPlannedHours }], steps: [{ label: 'Utilization', expression: `${actActualHours} / ${actPlannedHours} × 100`, result: `${util.toFixed(1)}%` }], result: `${util.toFixed(1)}%` } },
@@ -1027,7 +1027,7 @@ export function RecordDetailView({
           contributingRecords: totalDefects > 0 ? { title: 'Tasks with Defects', valueLabel: 'Defects', records: actTaskContrib.filter(t => t.defects > 0).map(t => ({
             refId: t.refId, name: t.name, status: t.status, value: `${t.defects}`, variant: 'danger' as const,
             detail: `Hours: ${t.actual}h / ${t.planned}h`
-          })) } : undefined } },
+          , rawData: t.rawData })) } : undefined } },
         { label: 'Activity Total Delay', value: totalDelay, unit: 'd', icon: Clock,
           trend: totalDelay > 0 ? 'down' : 'up',
           formula: 'SUM(Task_Delay_Days) = SUM(MAX(0, DAYS(Actual_End - Planned_End)))',
@@ -1035,7 +1035,7 @@ export function RecordDetailView({
           contributingRecords: { title: 'Per-Task Delay', valueLabel: 'Delay', records: actTaskContrib.filter(t => t.delay > 0).map(t => ({
             refId: t.refId, name: t.name, status: t.status, value: `${t.delay} days`, variant: 'danger' as const,
             detail: `Hours: ${t.actual}h / ${t.planned}h`
-          })) } },
+          , rawData: t.rawData })) } },
           hideIfZero: true },
         { label: 'Defects', value: totalDefects, icon: AlertTriangle,
           trend: totalDefects > 0 ? 'down' : 'up', formula: 'SUM(Defect_Count)', hideIfZero: true },
@@ -1118,6 +1118,7 @@ export function RecordDetailView({
           planned: asNum(rd[FIELDS.plannedHours]),
           actual: asNum(rd[FIELDS.actualHours]),
           overtime: asNum(rd[FIELDS.overtimeHours]),
+          rawData: rd,
         };
       });
 
@@ -1131,7 +1132,7 @@ export function RecordDetailView({
             ? { formula: 'SUM(Resource_Planned_Hours)', description: 'Rolled up from linked Resource Assignments', variables: [{ label: 'Task Planned Hours', fieldName: 'SUM(Resource_Planned_Hours)', value: `${taskPlanned}h`, highlight: true }, { label: 'Resource Count', value: resourceCount }], result: `${taskPlanned}h`,
             contributingRecords: { title: 'Resource Planned Hours', valueLabel: 'Planned', records: taskResContrib.map(r => ({
               refId: r.refId, name: r.name, status: r.role, value: `${r.planned}h`, variant: 'neutral' as const, detail: `Actual: ${r.actual}h`
-            })) } }
+            , rawData: r.rawData })) } }
             : { formula: 'Task_Planned_Hours', variables: [{ label: 'Task Planned Hours', fieldName: 'Task_Planned_Hours', value: `${taskPlanned}h`, highlight: true }], result: `${taskPlanned}h` } },
         { label: 'Task Actual Hours', value: taskActual, icon: Clock,
           trend: taskActual > taskPlanned ? 'down' : 'up',
@@ -1142,7 +1143,7 @@ export function RecordDetailView({
               refId: r.refId, name: r.name, status: r.role, value: `${r.actual}h`,
               variant: (r.actual > r.planned * 1.1 ? 'danger' : 'success') as 'danger' | 'success',
               detail: `Planned: ${r.planned}h${r.overtime > 0 ? `, OT: ${r.overtime}h` : ''}`
-            })) } }
+            , rawData: r.rawData })) } }
             : { formula: 'Task_Actual_Hours', variables: [{ label: 'Task Actual Hours', fieldName: 'Task_Actual_Hours', value: `${taskActual}h`, highlight: true }], result: `${taskActual}h` } },
         { label: 'Task Overtime', value: taskOvertime, unit: 'h', icon: AlertTriangle,
           trend: taskOvertime > 0 ? 'down' : 'up',
@@ -1158,7 +1159,7 @@ export function RecordDetailView({
             refId: r.refId, name: r.name, status: r.role, value: `${r.actual}h / ${r.planned}h`,
             variant: (r.actual > r.planned * 1.1 ? 'danger' : r.actual >= r.planned * 0.8 ? 'success' : 'warning') as 'danger' | 'success' | 'warning',
             detail: r.overtime > 0 ? `Overtime: ${r.overtime}h` : 'No overtime'
-          })) } : undefined } },
+          , rawData: r.rawData })) } : undefined } },
         { label: 'Utilization', value: util, unit: '%', icon: Users,
           formula: '(Task_Actual_Hours / (Task_Planned_Hours + 0.0001)) × 100',
           breakdown: { formula: '(Task_Actual_Hours / (Task_Planned_Hours + ε)) × 100', variables: [{ label: 'Task Actual Hours', value: taskActual }, { label: 'Task Planned Hours', value: taskPlanned }], steps: [{ label: 'Utilization', expression: `${taskActual} / ${taskPlanned} × 100`, result: `${util.toFixed(1)}%` }], result: `${util.toFixed(1)}%` } },
