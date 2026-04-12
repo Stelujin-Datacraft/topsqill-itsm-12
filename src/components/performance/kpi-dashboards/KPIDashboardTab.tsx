@@ -541,10 +541,10 @@ export function KPIDashboardTab({ perfProjectId, alerts = [], predictions = [], 
             <DisciplineEngineerDashboard kpis={kpis.engineerKPIs} hasHierarchy={!!hierarchy} />
           )}
           {selectedRole === 'finance_contract' && kpis.financeKPIs && (
-            <FinanceDashboard kpis={kpis.financeKPIs} projectList={kpis.seniorKPIs?.projectList} />
+            <FinanceDashboard kpis={kpis.financeKPIs} projectList={kpis.seniorKPIs?.projectList} onSelectProject={(projectId) => handleRecordChange(projectId)} />
           )}
           {selectedRole === 'risk_governance' && kpis.riskKPIs && (
-            <RiskGovernanceDashboard kpis={kpis.riskKPIs} projectList={kpis.seniorKPIs?.projectList} />
+            <RiskGovernanceDashboard kpis={kpis.riskKPIs} projectList={kpis.seniorKPIs?.projectList} onSelectProject={(projectId) => handleRecordChange(projectId)} />
           )}
         </>
       )}
