@@ -727,16 +727,50 @@ export function RecordDetailView({
       const util = (wbsActualHours / (wbsPlannedHours + 0.0001)) * 100;
       const productivity = wbsPlannedHours > 0 ? wbsActualHours / (wbsPlannedHours + 0.0001) : 0;
 
+      // Build contributing record data for WBS level
+      const wbsActivityContrib = childRecords.map(a => {
+        const ad = a.submission_data || {};
+        const aName = asText(ad[FIELDS.activityName]) || a.submission_ref_id;
+        const aStatus = asText(ad[FIELDS.activityStatus]);
+        const taskRefs = extractRefIds(ad[CROSSREF_FIELDS.ACTIVITY_TO_TASKS]);
+        const linkedTasks = taskRefs.map(ref => allTasks.find(t => t.submission_ref_id === ref)).filter(Boolean);
+        let ph = 0, ah = 0;
+        linkedTasks.forEach(t => { const h = getTaskRollupHours(t); ph += h.planned; ah += h.actual; });
+        return { refId: a.submission_ref_id, name: aName, status: aStatus, completed: isCompleted(aStatus), taskCount: linkedTasks.length, planned: ph, actual: ah };
+      });
+
+      const wbsTaskContrib = wbsTasks.map(t => {
+        const td2 = t.submission_data || {};
+        const tName = asText(td2[FIELDS.taskName]) || t.submission_ref_id;
+        const tStatus = asText(td2[FIELDS.taskStatus]);
+        const h = getTaskRollupHours(t);
+        const delay = getTaskDelayDays(t);
+        return { refId: t.submission_ref_id, name: tName, status: tStatus, planned: h.planned, actual: h.actual, delay, completed: isCompleted(tStatus), defects: asNum(td2[FIELDS.taskDefectCount]) };
+      });
+
       kpiCards.push(
         { label: 'Total Activities', value: totalActivities, icon: BarChart3, formula: 'COUNT(Activity_ID)',
-          breakdown: { formula: 'COUNT(Activity_ID)', variables: [{ label: 'Activity Count', value: totalActivities, highlight: true }], result: totalActivities } },
+          breakdown: { formula: 'COUNT(Activity_ID)', variables: [{ label: 'Activity Count', value: totalActivities, highlight: true }], result: totalActivities,
+          contributingRecords: { title: 'Activities under this WBS', valueLabel: 'Hours (Actual/Planned)', records: wbsActivityContrib.map(a => ({
+            refId: a.refId, name: a.name, status: a.status, value: `${a.actual}h / ${a.planned}h`,
+            variant: (a.completed ? 'success' : 'warning') as 'success' | 'warning',
+            detail: `${a.taskCount} tasks`
+          })) } } },
         { label: 'Completed Activities', value: completedAct, icon: CheckCircle2, trend: 'up',
           formula: 'COUNT_IF(Activity_Status = "Completed")',
-          breakdown: { formula: 'COUNT_IF(Activity_Status = "Completed")', variables: [{ label: 'Completed', value: completedAct, highlight: true }, { label: 'Total', value: totalActivities }], result: completedAct } },
+          breakdown: { formula: 'COUNT_IF(Activity_Status = "Completed")', variables: [{ label: 'Completed', value: completedAct, highlight: true }, { label: 'Total', value: totalActivities }], result: completedAct,
+          contributingRecords: { title: 'Completed Activities', valueLabel: 'Status', records: wbsActivityContrib.filter(a => a.completed).map(a => ({
+            refId: a.refId, name: a.name, status: a.status, value: '✅ Completed', variant: 'success' as const, detail: `${a.taskCount} tasks, ${a.actual}h`
+          })) } } },
         { label: 'WBS Progress', value: progress, unit: '%', icon: TrendingUp,
           trend: progress >= 75 ? 'up' : 'neutral',
           formula: '(Completed_Activities / MAX(1, Total_Activities)) × 100',
-          breakdown: { formula: '(Completed_Activities / MAX(1, Total_Activities)) × 100', variables: [{ label: 'Completed Activities', value: completedAct }, { label: 'Total Activities', value: totalActivities }], steps: [{ label: 'Progress', expression: `${completedAct} / MAX(1, ${totalActivities}) × 100`, result: `${progress.toFixed(1)}%` }], result: `${progress.toFixed(1)}%` } },
+          breakdown: { formula: '(Completed_Activities / MAX(1, Total_Activities)) × 100', variables: [{ label: 'Completed Activities', value: completedAct }, { label: 'Total Activities', value: totalActivities }], steps: [{ label: 'Progress', expression: `${completedAct} / MAX(1, ${totalActivities}) × 100`, result: `${progress.toFixed(1)}%` }], result: `${progress.toFixed(1)}%`,
+          contributingRecords: { title: 'Activity Status', valueLabel: 'Progress', records: wbsActivityContrib.map(a => ({
+            refId: a.refId, name: a.name, status: a.status, value: a.completed ? '100%' : 'In Progress',
+            variant: (a.completed ? 'success' : 'warning') as 'success' | 'warning',
+            detail: `${a.taskCount} tasks linked`
+          })) } } },
         { label: 'Task Progress', value: taskProgress, unit: '%', icon: Target,
           trend: taskProgress >= 75 ? 'up' : 'neutral',
           formula: '(Completed_Tasks / MAX(1, Total_Tasks)) × 100',
