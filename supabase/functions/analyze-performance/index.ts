@@ -200,155 +200,6 @@ const PERFORMANCE_ROLE_LABELS: Record<string, string> = {
   risk_governance: 'Risk / Governance',
 };
 
-function compareThreshold(operator: string, actualValue: number, thresholdVal: number): boolean {
-  switch (operator) {
-    case '>': return actualValue > thresholdVal;
-    case '<': return actualValue < thresholdVal;
-    case '>=': return actualValue >= thresholdVal;
-    case '<=': return actualValue <= thresholdVal;
-    case '=':
-    case '==':
-      return actualValue === thresholdVal;
-    case '!=':
-      return actualValue !== thresholdVal;
-    default:
-      return false;
-  }
-}
-
-function getSmtpTlsModes(config: { port?: number; use_tls?: boolean | null }) {
-  const modes: boolean[] = [];
-  const port = Number(config.port || 0);
-
-  if (port === 465) {
-    modes.push(true);
-  } else if (port === 587 || port === 25) {
-    modes.push(false);
-  } else if (typeof config.use_tls === 'boolean') {
-    modes.push(config.use_tls);
-  }
-
-  if (typeof config.use_tls === 'boolean' && !modes.includes(config.use_tls)) {
-    modes.push(config.use_tls);
-  }
-
-  if (!modes.length) {
-    modes.push(false);
-  }
-
-  return modes;
-}
-
-async function buildThresholdBreachAlerts(
-  supabase: any,
-  dataSources: any[],
-  thresholds: any[],
-  projectId: string,
-  performanceProjectId: string | null,
-  submissionId: string,
-  isAllRecords: boolean,
-  recommendations: any[],
-) {
-  const primarySource = dataSources?.[0];
-  const sourceFormId = primarySource?.source_form_id;
-  const orgId = primarySource?.organization_id;
-
-  if (!sourceFormId || !thresholds.length) {
-    return [];
-  }
-
-  let submissionsQuery = supabase
-    .from('form_submissions')
-    .select('id, submission_ref_id, submission_data, submitted_at')
-    .eq('form_id', sourceFormId)
-    .order('submitted_at', { ascending: false });
-
-  if (isAllRecords) {
-    const maxLimit = Math.max(...thresholds.map((th: any) => Number(th.data_limit) || 100), 100);
-    submissionsQuery = submissionsQuery.limit(Math.min(maxLimit, 500));
-  } else {
-    submissionsQuery = submissionsQuery.eq('id', submissionId).limit(1);
-  }
-
-  const { data: submissions, error } = await submissionsQuery;
-  if (error || !submissions?.length) {
-    if (error) console.error('Error loading submissions for threshold evaluation:', error);
-    return [];
-  }
-
-  const recommendationText = recommendations?.[0]?.description || null;
-  const breachedAlerts: any[] = [];
-
-  for (const th of thresholds) {
-    if (!th.form_field_id) continue;
-
-    const thresholdVal = parseFloat(th.threshold_value);
-    if (Number.isNaN(thresholdVal)) continue;
-
-    const matches = submissions
-      .map((submission: any) => {
-        const rawValue = submission.submission_data?.[th.form_field_id];
-        const actualValue = parseFloat(rawValue);
-        if (Number.isNaN(actualValue)) return null;
-        if (!compareThreshold(th.operator, actualValue, thresholdVal)) return null;
-
-        return {
-          actualValue,
-          submissionRef: submission.submission_ref_id || submission.id?.slice(0, 8) || 'Record',
-        };
-      })
-      .filter(Boolean);
-
-    if (!matches.length) continue;
-
-    const label = th.form_field_label || th.metric_name;
-
-    if (isAllRecords) {
-      const preview = matches
-        .slice(0, 3)
-        .map((match: any) => `${match.submissionRef} (${match.actualValue})`)
-        .join(', ');
-
-      breachedAlerts.push({
-        project_id: projectId,
-        organization_id: orgId,
-        alert_type: 'threshold_breach',
-        severity: th.severity || 'medium',
-        title: `Threshold Breach: ${label}`,
-        description: `${matches.length} record(s) breached ${label} ${th.operator} ${thresholdVal}. Recent matches: ${preview}`,
-        metric_name: th.metric_name,
-        threshold_value: thresholdVal,
-        actual_value: Math.max(...matches.map((match: any) => match.actualValue)),
-        ai_generated: false,
-        ai_reasoning: `Threshold rule matched across ${matches.length} record(s) for ${label}`,
-        ai_recommendation: recommendationText,
-        status: 'active',
-        ...(performanceProjectId ? { performance_project_id: performanceProjectId } : {}),
-      });
-    } else {
-      const match = matches[0] as any;
-      breachedAlerts.push({
-        project_id: projectId,
-        organization_id: orgId,
-        alert_type: 'threshold_breach',
-        severity: th.severity || 'medium',
-        title: `Threshold Breach: ${label} (${match.submissionRef})`,
-        description: `${label} value ${match.actualValue} ${th.operator} ${thresholdVal} (${th.severity})`,
-        metric_name: th.metric_name,
-        threshold_value: thresholdVal,
-        actual_value: match.actualValue,
-        ai_generated: false,
-        ai_reasoning: `Threshold rule matched for ${label} on ${match.submissionRef}`,
-        ai_recommendation: recommendationText,
-        status: 'active',
-        ...(performanceProjectId ? { performance_project_id: performanceProjectId } : {}),
-      });
-    }
-  }
-
-  return breachedAlerts;
-}
-
 function buildAlertEmailHtml(alerts: any[], projectName: string, perfProjectName: string | null): string {
   const timestamp = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'full', timeStyle: 'short' });
   
@@ -532,14 +383,17 @@ async function sendAlertNotifications(supabase: any, projectId: string, perfProj
 
     const projectName = projectInfo?.name || 'Unknown Project';
 
-    // Send in-app notifications to all users in the organization for now
-    const { data: orgUsers } = await supabase
-      .from('user_profiles')
-      .select('id')
-      .eq('organization_id', orgMembers.organization_id);
+    // Get project members for in-app notifications
+    const { data: members } = await supabase
+      .from('project_users')
+      .select('user_id')
+      .eq('project_id', projectId);
 
-    const orgUserIds = orgUsers?.map((member: any) => member.id).filter(Boolean) || [];
-    const uniqueIds = [...new Set([...orgUserIds, userId])];
+    const memberIds = members?.map((m: any) => m.user_id) || [userId];
+    // Also include performance role users so they get in-app notifications
+    const roleUserIds = [...userRoleMap.keys()];
+    const allTargetIds = [...memberIds, ...roleUserIds, userId];
+    const uniqueIds = [...new Set(allTargetIds)];
 
     // Create in-app notifications for all members and role users
     if (alerts.length > 0) {
@@ -559,13 +413,6 @@ async function sendAlertNotifications(supabase: any, projectId: string, perfProj
       }
     }
 
-    const thresholdBreachAlerts = alerts.filter((alert: any) => alert.alert_type === 'threshold_breach');
-
-    if (thresholdBreachAlerts.length === 0) {
-      console.log('No threshold breach alerts in this batch — skipping email delivery');
-      return;
-    }
-
     // --- Role-based email notifications via SMTP ---
     // Fetch thresholds that have notify_role_ids configured
     let thQuery = supabase
@@ -582,36 +429,9 @@ async function sendAlertNotifications(supabase: any, projectId: string, perfProj
       return;
     }
 
-    const breachedThresholdKeys = new Set(
-      thresholdBreachAlerts.flatMap((alert: any) => {
-        const titleKey = typeof alert.title === 'string'
-          ? alert.title.replace(/^Threshold Breach:\s*/i, '').trim()
-          : null;
-
-        return [alert.metric_name, titleKey]
-          .map((value) => typeof value === 'string' ? value.trim() : null)
-          .filter((value): value is string => !!value);
-      })
-    );
-
-    const emailEligibleThresholds = emailThresholds.filter((threshold: any) => {
-      const metricKey = typeof threshold.metric_name === 'string' ? threshold.metric_name.trim() : null;
-      const fieldLabelKey = typeof threshold.form_field_label === 'string' ? threshold.form_field_label.trim() : null;
-
-      return !!(
-        (metricKey && breachedThresholdKeys.has(metricKey)) ||
-        (fieldLabelKey && breachedThresholdKeys.has(fieldLabelKey))
-      );
-    });
-
-    if (emailEligibleThresholds.length === 0) {
-      console.log('Threshold breaches were detected, but none of the breached thresholds have email enabled');
-      return;
-    }
-
     // Collect all unique role_types that need notifying
     const allRoleTypes = new Set<string>();
-    for (const th of emailEligibleThresholds) {
+    for (const th of emailThresholds) {
       if (th.notify_role_ids && Array.isArray(th.notify_role_ids)) {
         th.notify_role_ids.forEach((r: string) => allRoleTypes.add(r));
       }
@@ -630,11 +450,7 @@ async function sendAlertNotifications(supabase: any, projectId: string, perfProj
       .select('user_id, role_type')
       .eq('project_id', projectId)
       .in('role_type', [...allRoleTypes]);
-    if (perfProjectId) {
-      roleQuery = roleQuery.or(`performance_project_id.eq.${perfProjectId},performance_project_id.is.null`);
-    } else {
-      roleQuery = roleQuery.is('performance_project_id', null);
-    }
+    if (perfProjectId) roleQuery = roleQuery.eq('performance_project_id', perfProjectId);
     const { data: roleAssignments } = await roleQuery;
 
     if (!roleAssignments || roleAssignments.length === 0) {
@@ -710,44 +526,40 @@ async function sendAlertNotifications(supabase: any, projectId: string, perfProj
         for (const config of smtpConfigs) {
           let client: InstanceType<typeof SMTPClient> | null = null;
 
-          for (const useTls of getSmtpTlsModes(config)) {
-            try {
-              console.log(`SMTP connecting: ${config.host}:${config.port} tls=${useTls} recipient=${target.email}`);
+          try {
+            // Port 587 uses STARTTLS (tls=false in denomailer); port 465 uses direct TLS
+            const useTls = config.port === 465;
+            console.log(`SMTP connecting: ${config.host}:${config.port} tls=${useTls} recipient=${target.email}`);
 
-              client = new SMTPClient({
-                connection: {
-                  hostname: config.host,
-                  port: config.port,
-                  tls: useTls,
-                  auth: { username: config.username, password: config.password },
-                },
-              });
+            client = new SMTPClient({
+              connection: {
+                hostname: config.host,
+                port: config.port,
+                tls: useTls,
+                auth: { username: config.username, password: config.password },
+              },
+            });
 
-              await client.send({
-                from: config.from_name ? `${config.from_name} <${config.from_email}>` : config.from_email,
-                to: target.email,
-                subject: emailSubject,
-                content: `Performance Alert — ${projectName}\n\nHello ${target.first_name || 'Team Member'},\n\nYou are receiving this alert because of your performance role: ${roleLabels}\n\n${plainText}\n\nPlease review the Performance Dashboard for details.\n\nThis is an automated alert from the Performance Monitoring System.`,
-                html: emailHtml,
-              });
+            await client.send({
+              from: config.from_name ? `${config.from_name} <${config.from_email}>` : config.from_email,
+              to: target.email,
+              subject: emailSubject,
+              content: `Performance Alert — ${projectName}\n\nHello ${target.first_name || 'Team Member'},\n\nYou are receiving this alert because of your performance role: ${roleLabels}\n\n${plainText}\n\nPlease review the Performance Dashboard for details.\n\nThis is an automated alert from the Performance Monitoring System.`,
+              html: emailHtml,
+            });
 
+            await client.close().catch(() => {});
+            delivered = true;
+            deliveredCount += 1;
+            console.log(`✅ Alert email sent to ${target.email} (Roles: ${roleLabels}) via ${config.host}`);
+            break;
+          } catch (emailErr) {
+            lastEmailError = emailErr;
+            console.error(`❌ Email send failed for ${target.email} via ${config.host}:`, emailErr);
+            if (client) {
               await client.close().catch(() => {});
-              delivered = true;
-              deliveredCount += 1;
-              console.log(`✅ Alert email sent to ${target.email} (Roles: ${roleLabels}) via ${config.host} tls=${useTls}`);
-              break;
-            } catch (emailErr) {
-              lastEmailError = emailErr;
-              console.error(`❌ Email send failed for ${target.email} via ${config.host} tls=${useTls}:`, emailErr);
-              if (client) {
-                await client.close().catch(() => {});
-              }
             }
-
-            if (delivered) break;
           }
-
-          if (delivered) break;
         }
 
         if (!delivered) {
@@ -815,8 +627,8 @@ serve(async (req) => {
       if (performance_project_id) thQuery = thQuery.eq("performance_project_id", performance_project_id);
       const { data: thresholds } = await thQuery;
 
-      // CLEAR previous alerts and predictions for this scope before generating fresh ones
-      let delAlertQuery = supabase.from("performance_alerts").delete().eq("project_id", project_id);
+      // CLEAR old alerts and predictions for this perf project before generating fresh ones
+      let delAlertQuery = supabase.from("performance_alerts").delete().eq("project_id", project_id).eq("ai_generated", true);
       let delPredQuery = supabase.from("performance_predictions").delete().eq("project_id", project_id);
       if (performance_project_id) {
         delAlertQuery = delAlertQuery.eq("performance_project_id", performance_project_id);
@@ -1089,24 +901,67 @@ Be SPECIFIC — reference actual field values, rupee amounts (₹), dates, and p
         await sendAlertNotifications(supabase, project_id, performance_project_id || null, alertInserts, user.id);
       }
 
-      // --- Threshold breach check (fresh, scoped to this analysis run) ---
+      // --- Threshold breach check (independent of AI anomalies) ---
+      // Check actual submission data against configured thresholds and send email alerts
       try {
+        let thresholdQuery = supabase
+          .from('performance_thresholds')
+          .select('*')
+          .eq('project_id', project_id)
+          .eq('is_active', true);
+
+        if (performance_project_id) {
+          thresholdQuery = thresholdQuery.eq('performance_project_id', performance_project_id);
+        }
+
+        const { data: thresholds } = await thresholdQuery;
         const allThresholds = thresholds || [];
 
-        if (allThresholds.length > 0) {
-          const breachedAlerts = await buildThresholdBreachAlerts(
-            supabase,
-            dataSources || [],
-            allThresholds,
-            project_id,
-            performance_project_id || null,
-            submission_id,
-            isAllRecords,
-            analysis.recommendations || [],
-          );
+        if (allThresholds.length > 0 && analysisContext?.recordData) {
+          const breachedAlerts: any[] = [];
+          const orgId = dataSources?.[0]?.organization_id;
+
+          for (const th of allThresholds) {
+            const fieldId = th.form_field_id;
+            const actualValue = fieldId ? parseFloat(analysisContext.recordData[fieldId]) : null;
+            
+            if (actualValue === null || isNaN(actualValue)) continue;
+
+            const thresholdVal = parseFloat(th.threshold_value);
+            if (isNaN(thresholdVal)) continue;
+
+            let breached = false;
+            switch (th.operator) {
+              case '>': breached = actualValue > thresholdVal; break;
+              case '<': breached = actualValue < thresholdVal; break;
+              case '>=': breached = actualValue >= thresholdVal; break;
+              case '<=': breached = actualValue <= thresholdVal; break;
+              case '=': case '==': breached = actualValue === thresholdVal; break;
+              case '!=': breached = actualValue !== thresholdVal; break;
+            }
+
+            if (breached) {
+              breachedAlerts.push({
+                project_id,
+                organization_id: orgId,
+                alert_type: 'threshold_breach',
+                severity: th.severity || 'medium',
+                title: `Threshold Breach: ${th.form_field_label || th.metric_name}`,
+                description: `${th.form_field_label || th.metric_name} value ${actualValue} ${th.operator} ${thresholdVal} (${th.severity})`,
+                metric_name: th.metric_name,
+                threshold_value: thresholdVal,
+                actual_value: actualValue,
+                ai_generated: false,
+                ai_reasoning: `Threshold rule matched for field ${th.form_field_label || th.metric_name}`,
+                ai_recommendation: analysis.recommendations?.[0]?.description || null,
+                status: 'active',
+                ...(performance_project_id ? { performance_project_id } : {}),
+              });
+            }
+          }
 
           if (breachedAlerts.length > 0) {
-            console.log(`🚨 ${breachedAlerts.length} threshold breach alert(s) detected — sending notifications`);
+            console.log(`🚨 ${breachedAlerts.length} threshold breach(es) detected — sending email alerts`);
 
             const { data: insertedThresholdAlerts, error: thresholdAlertError } = await supabase
               .from('performance_alerts')
@@ -1117,15 +972,24 @@ Be SPECIFIC — reference actual field values, rupee amounts (₹), dates, and p
               console.error('Error saving threshold alerts:', thresholdAlertError);
             }
 
+            const thresholdAlertsForNotification = insertedThresholdAlerts || breachedAlerts;
+
+            // Check if any breached thresholds have email enabled
+            const hasEmailEligible = allThresholds.some((th: any) => th.send_email);
+
             await sendAlertNotifications(
               supabase,
               project_id,
               performance_project_id || null,
-              insertedThresholdAlerts || breachedAlerts,
+              thresholdAlertsForNotification,
               user.id,
             );
+
+            if (!hasEmailEligible) {
+              console.log('Threshold alerts created in-app, but no thresholds had email enabled');
+            }
           } else {
-            console.log('✅ No threshold breaches detected for this analysis run');
+            console.log('✅ No threshold breaches detected in submission data');
           }
         }
       } catch (thErr) {
