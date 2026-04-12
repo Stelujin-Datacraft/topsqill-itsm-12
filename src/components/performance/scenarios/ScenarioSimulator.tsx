@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { usePerformanceMonitoring } from '@/hooks/usePerformanceMonitoring';
 import { supabase } from '@/integrations/supabase/client';
 import { useProject } from '@/contexts/ProjectContext';
 import { useQuery } from '@tanstack/react-query';
@@ -37,10 +37,11 @@ interface Props {
   selectedRecordId?: string;
 }
 
-interface FieldMapping {
-  formFieldId: string;
-  formFieldLabel: string;
-}
+const FIELD_LABELS = [
+  'Planned Budget', 'Actual Cost', 'Earned Value (EV)', 'Actual Cost Value (AC)',
+  'Planned Value (PV)', 'Planned Start Date', 'Planned End Date', 'Actual Start Date',
+  'Planned Hours', 'Actual Hours', 'Risk Score', 'Predicted Delay Days',
+];
 
 const DEFAULT_VARIABLES: ScenarioVariable[] = [
   { id: 'budget', name: 'Budget Allocation', baseValue: 100, adjustedValue: 100, unit: '%', min: 50, max: 200, step: 25 },
@@ -57,137 +58,78 @@ interface SimulationResult {
   unit: string;
 }
 
-function unwrapValue(value: any) {
-  if (value == null) return value;
-  if (typeof value === 'object') {
-    if ('amount' in value && value.amount != null) return value.amount;
-    if ('value' in value && value.value != null) return value.value;
-    if ('label' in value && value.label != null) return value.label;
-  }
-  return value;
-}
-
-function resolveMappedField(data: Record<string, any>, mappings: FieldMapping[], formFields: any[], label: string): any {
-  let mapping = mappings.find((m) => m.formFieldLabel === label);
-  if (!mapping) mapping = mappings.find((m) => m.formFieldLabel.toLowerCase() === label.toLowerCase());
-  if (!mapping) mapping = mappings.find((m) => m.formFieldLabel.toLowerCase().includes(label.toLowerCase()));
-  if (mapping) return data?.[mapping.formFieldId];
-
-  let field = formFields.find((f: any) => f.label === label);
-  if (!field) field = formFields.find((f: any) => f.label?.toLowerCase() === label.toLowerCase());
-  if (!field) field = formFields.find((f: any) => f.label?.toLowerCase().includes(label.toLowerCase()));
-  return field ? data?.[field.id] : undefined;
-}
-
-function getSubmissionLabel(s: any, fields: any[], mappings: FieldMapping[]): string {
-  const refId = s.submission_ref_id || s.id?.slice(0, 8);
-  if (!s.submission_data) return refId;
-
-  const preferredNameMapping = mappings.find((m) =>
-    m.formFieldLabel?.toLowerCase().includes('name') && !m.formFieldLabel?.toLowerCase().includes('schedule')
-  );
-
-  let value = preferredNameMapping ? s.submission_data?.[preferredNameMapping.formFieldId] : undefined;
-  if (value == null && fields.length) {
-    const nameField = fields.find((f: any) => /name|title|project/i.test(f.label) && f.field_type !== 'cross_reference');
-    value = nameField ? s.submission_data?.[nameField.id] : undefined;
-  }
-
-  const text = unwrapValue(value);
-  return text && typeof text === 'string' ? `${refId} — ${text}` : refId;
-}
-
 export function ScenarioSimulator({ perfProjectId, selectedRecordId }: Props) {
   const { currentProject } = useProject();
   const [variables, setVariables] = useState<ScenarioVariable[]>(DEFAULT_VARIABLES);
   const [isSimulating, setIsSimulating] = useState(false);
   const [results, setResults] = useState<SimulationResult[] | null>(null);
-  const [localRecordId, setLocalRecordId] = useState<string>('');
-
-  const isParentRecordValid = !!selectedRecordId && selectedRecordId !== '__all__' && selectedRecordId !== '';
-  const effectiveRecordId = isParentRecordValid ? selectedRecordId : localRecordId;
 
   const { data: dataSources = [] } = useQuery({
     queryKey: ['scenario-data-sources', currentProject?.id, perfProjectId],
     queryFn: async () => {
       if (!currentProject?.id) return [];
-      let q = (supabase.from('performance_data_sources').select('source_form_id, field_mappings') as any)
-        .eq('project_id', currentProject.id)
-        .eq('is_active', true);
+      let q = supabase.from('performance_data_sources').select('*')
+        .eq('project_id', currentProject.id).eq('is_active', true);
       if (perfProjectId) q = q.eq('performance_project_id', perfProjectId);
-      const { data } = await q.limit(1);
+      const { data } = await q;
       return data || [];
     },
     enabled: !!currentProject?.id,
   });
 
-  const dataSource = dataSources[0] as { source_form_id?: string; field_mappings?: any[] } | undefined;
-  const formId = dataSource?.source_form_id;
-
-  const fieldMappings = useMemo<FieldMapping[]>(() => {
-    const raw = Array.isArray(dataSource?.field_mappings) ? dataSource.field_mappings : [];
-    return raw.map((m: any) => ({
-      formFieldId: m.formFieldId || '',
-      formFieldLabel: m.formFieldLabel || '',
-    })).filter((m: FieldMapping) => m.formFieldId && m.formFieldLabel);
-  }, [dataSource]);
-
-  const { data: allSubmissions = [] } = useQuery({
-    queryKey: ['scenario-all-submissions', formId],
-    queryFn: async () => {
-      if (!formId) return [];
-      const { data } = await (supabase.from('form_submissions')
-        .select('id, submission_data, submitted_at, submission_ref_id') as any)
-        .eq('form_id', formId)
-        .order('submitted_at', { ascending: false })
-        .limit(200);
-      return (data || []) as Array<{ id: string; submission_data: any; submitted_at: string; submission_ref_id: string }>;
-    },
-    enabled: !!formId && !isParentRecordValid,
-  });
+  const formId = dataSources[0]?.source_form_id;
 
   const { data: submission } = useQuery({
-    queryKey: ['scenario-submission', effectiveRecordId],
+    queryKey: ['scenario-submission', selectedRecordId],
     queryFn: async () => {
-      if (!effectiveRecordId) return null;
-      const { data } = await (supabase.from('form_submissions')
-        .select('id, submission_data, submitted_at, submission_ref_id') as any)
-        .eq('id', effectiveRecordId)
-        .single();
+      if (!selectedRecordId) return null;
+      const { data } = await supabase.from('form_submissions')
+        .select('id, submission_data, submitted_at, submission_ref_id')
+        .eq('id', selectedRecordId).single();
       return data || null;
     },
-    enabled: !!effectiveRecordId,
+    enabled: !!selectedRecordId,
   });
 
   const { data: formFields = [] } = useQuery({
     queryKey: ['scenario-form-fields', formId],
     queryFn: async () => {
       if (!formId) return [];
-      const { data } = await (supabase.from('form_fields')
-        .select('id, label, field_type') as any)
-        .eq('form_id', formId);
+      const { data } = await supabase.from('form_fields')
+        .select('id, label, field_type').eq('form_id', formId);
       return data || [];
     },
     enabled: !!formId,
   });
 
+  const fieldLookup = useMemo(() => {
+    const map: Record<string, string> = {};
+    formFields.forEach((f: any) => { map[f.label] = f.id; });
+    return map;
+  }, [formFields]);
+
   const resolveNum = (data: any, label: string): number => {
-    const raw = resolveMappedField(data || {}, fieldMappings, formFields, label);
-    const value = unwrapValue(raw);
-    const parsed = Number(value);
-    return Number.isNaN(parsed) ? 0 : parsed;
+    const id = fieldLookup[label];
+    if (!id) return 0;
+    const raw = data?.[id];
+    if (raw == null) return 0;
+    const v = typeof raw === 'object' && raw.value !== undefined ? raw.value : raw;
+    const n = Number(v);
+    return isNaN(n) ? 0 : n;
   };
 
   const resolveDate = (data: any, label: string): Date | null => {
-    const raw = resolveMappedField(data || {}, fieldMappings, formFields, label);
-    const value = unwrapValue(raw);
-    if (!value) return null;
-    const parsed = new Date(value);
-    return Number.isNaN(parsed.getTime()) ? null : parsed;
+    const id = fieldLookup[label];
+    if (!id) return null;
+    const raw = data?.[id];
+    if (!raw) return null;
+    const v = typeof raw === 'object' && raw.value !== undefined ? raw.value : raw;
+    const d = new Date(v);
+    return isNaN(d.getTime()) ? null : d;
   };
 
   const updateVariable = (id: string, value: number) => {
-    setVariables((prev) => prev.map((v) => v.id === id ? { ...v, adjustedValue: value } : v));
+    setVariables(prev => prev.map(v => v.id === id ? { ...v, adjustedValue: value } : v));
     setResults(null);
   };
 
@@ -279,50 +221,15 @@ export function ScenarioSimulator({ perfProjectId, selectedRecordId }: Props) {
 
   const hasChanges = variables.some(v => v.adjustedValue !== v.baseValue);
 
-  if (!effectiveRecordId) {
+  if (!selectedRecordId) {
     return (
-      <div className="space-y-6">
-        <div>
-          <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-            <FlaskConical className="h-5 w-5 text-primary" />
-            What-If Scenario Simulator
-          </h2>
-          <p className="text-sm text-muted-foreground">Select a record to run what-if simulations</p>
-        </div>
-        {!isParentRecordValid && allSubmissions.length > 0 ? (
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm">Select a Record</CardTitle>
-              <CardDescription className="text-xs">Choose a project record to simulate scenario outcomes</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Select value={localRecordId} onValueChange={v => { setLocalRecordId(v); setResults(null); }}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Choose a record..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {allSubmissions.map((s: any) => {
-                    const label = getSubmissionLabel(s, formFields, fieldMappings);
-                    return (
-                      <SelectItem key={s.id} value={s.id}>
-                        {label}
-                      </SelectItem>
-                    );
-                  })}
-                </SelectContent>
-              </Select>
-            </CardContent>
-          </Card>
-        ) : (
-          <Card className="border-dashed">
-            <CardContent className="flex flex-col items-center justify-center py-12">
-              <FileText className="h-12 w-12 text-muted-foreground mb-4" />
-              <p className="font-medium text-foreground">Select a Record</p>
-              <p className="text-sm text-muted-foreground mt-1">Choose a record from the KPI Dashboard tab first, or configure a data source.</p>
-            </CardContent>
-          </Card>
-        )}
-      </div>
+      <Card className="border-dashed">
+        <CardContent className="flex flex-col items-center justify-center py-12">
+          <FileText className="h-12 w-12 text-muted-foreground mb-4" />
+          <p className="font-medium text-foreground">Select a Record</p>
+          <p className="text-sm text-muted-foreground mt-1">Choose a record from the selector above to run what-if simulations.</p>
+        </CardContent>
+      </Card>
     );
   }
 
@@ -334,32 +241,9 @@ export function ScenarioSimulator({ perfProjectId, selectedRecordId }: Props) {
           What-If Scenario Simulator
         </h2>
         <p className="text-sm text-muted-foreground">
-          Adjust variables to project outcomes for record: {submission?.submission_ref_id || effectiveRecordId.slice(0, 8)}
+          Adjust variables to project outcomes for record: {submission?.submission_ref_id || selectedRecordId.slice(0, 8)}
         </p>
       </div>
-
-      {/* Record selector when parent didn't provide one */}
-      {!isParentRecordValid && allSubmissions.length > 0 && (
-        <Card>
-          <CardContent className="pt-4">
-            <Select value={localRecordId} onValueChange={v => { setLocalRecordId(v); setResults(null); }}>
-              <SelectTrigger>
-                <SelectValue placeholder="Change record..." />
-              </SelectTrigger>
-              <SelectContent>
-                {allSubmissions.map((s: any) => {
-                  const label = getSubmissionLabel(s, formFields, fieldMappings);
-                  return (
-                    <SelectItem key={s.id} value={s.id}>
-                      {label}
-                    </SelectItem>
-                  );
-                })}
-              </SelectContent>
-            </Select>
-          </CardContent>
-        </Card>
-      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left Panel: Scenario Controls */}
