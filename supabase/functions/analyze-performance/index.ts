@@ -1114,9 +1114,10 @@ Be SPECIFIC — reference actual field values, rupee amounts (₹), dates, and p
 
       let analysis;
       try {
-        const aiResponse = await fetch(
-          "https://ai.gateway.lovable.dev/v1/chat/completions",
-          {
+        const aiResponse = await Promise.race([
+          fetch(
+            "https://ai.gateway.lovable.dev/v1/chat/completions",
+            {
             method: "POST",
             headers: {
               Authorization: `Bearer ${LOVABLE_API_KEY}`,
@@ -1245,8 +1246,12 @@ Be SPECIFIC — reference actual field values, rupee amounts (₹), dates, and p
                 function: { name: "performance_analysis" },
               },
             }),
-          },
-        );
+            },
+          ),
+          new Promise<Response>((_, reject) =>
+            setTimeout(() => reject(new Error("AI request timed out")), 12000)
+          ),
+        ]);
 
         if (!aiResponse.ok) {
           const errText = await aiResponse.text();
@@ -1367,12 +1372,14 @@ Be SPECIFIC — reference actual field values, rupee amounts (₹), dates, and p
         if (alertError) console.error("Error saving alerts:", alertError);
 
         // Send in-app and email notifications for alerts
-        await sendAlertNotifications(
-          supabase,
-          project_id,
-          performance_project_id || null,
-          alertInserts,
-          user.id,
+        runInBackground(
+          sendAlertNotifications(
+            supabase,
+            project_id,
+            performance_project_id || null,
+            alertInserts,
+            user.id,
+          ),
         );
       }
 
@@ -1401,12 +1408,14 @@ Be SPECIFIC — reference actual field values, rupee amounts (₹), dates, and p
         }
 
         // Send role-based notifications for threshold breaches
-        await sendThresholdBreachNotifications(
-          supabase,
-          project_id,
-          performance_project_id || null,
-          breachAlerts,
-          user.id,
+        runInBackground(
+          sendThresholdBreachNotifications(
+            supabase,
+            project_id,
+            performance_project_id || null,
+            breachAlerts,
+            user.id,
+          ),
         );
       }
       if (analysis.predictions?.length > 0) {
