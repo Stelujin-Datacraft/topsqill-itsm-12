@@ -930,6 +930,10 @@ Be SPECIFIC — reference actual field values, rupee amounts (₹), dates, and p
       } catch (aiError) {
         console.error("AI analysis unavailable, using fallback analysis:", aiError);
         analysis = buildFallbackAnalysis(analysisContext, thresholds || [], isAllRecords);
+        analysis.diagnostics = {
+          fallback_used: true,
+          reason: aiError instanceof Error ? aiError.message : 'AI service unavailable',
+        };
       }
 
       // Validate and normalize
