@@ -192,33 +192,236 @@ async function fetchSingleRecordData(supabase: any, dataSources: any[], submissi
   };
 }
 
+// Independent threshold breach check — evaluates each threshold against actual data
+async function checkThresholdBreaches(
+  supabase: any, projectId: string, perfProjectId: string | null,
+  thresholds: any[], analysisContext: any, isAllRecords: boolean, recordRef: string
+) {
+  if (!thresholds || thresholds.length === 0) return [];
+
+  const breachAlerts: any[] = [];
+  const orgId = null; // Will be set from data source
+
+  for (const th of thresholds) {
+    const fieldId = th.form_field_id;
+    const fieldLabel = th.form_field_label || th.metric_name;
+    const operator = th.operator;
+    const thresholdValue = parseFloat(th.threshold_value);
+    if (isNaN(thresholdValue)) continue;
+
+    let actualValue: number | null = null;
+
+    if (isAllRecords && analysisContext?.aggregatedMetrics) {
+      // For portfolio mode, check against aggregated avg
+      for (const [label, stats] of Object.entries(analysisContext.aggregatedMetrics as Record<string, any>)) {
+        if (label === fieldLabel || label === th.metric_name) {
+          actualValue = stats.avg;
+          break;
+        }
+      }
+    } else if (!isAllRecords && analysisContext?.recordData) {
+      // For single record, check the actual field value
+      const raw = analysisContext.recordData[fieldId];
+      if (raw != null) {
+        const parsed = parseFloat(String(raw));
+        if (!isNaN(parsed)) actualValue = parsed;
+      }
+      // Also try mapped fields
+      if (actualValue === null && analysisContext.mappedFields) {
+        for (const [label, info] of Object.entries(analysisContext.mappedFields as Record<string, any>)) {
+          if (label === fieldLabel || label === th.metric_name) {
+            const v = parseFloat(String((info as any).value));
+            if (!isNaN(v)) actualValue = v;
+            break;
+          }
+        }
+      }
+    }
+
+    if (actualValue === null) continue;
+
+    let breached = false;
+    switch (operator) {
+      case '>': breached = actualValue > thresholdValue; break;
+      case '>=': breached = actualValue >= thresholdValue; break;
+      case '<': breached = actualValue < thresholdValue; break;
+      case '<=': breached = actualValue <= thresholdValue; break;
+      case '==': breached = actualValue === thresholdValue; break;
+      case '!=': breached = actualValue !== thresholdValue; break;
+    }
+
+    if (breached) {
+      breachAlerts.push({
+        project_id: projectId,
+        alert_type: "threshold_breach",
+        severity: th.severity || "medium",
+        title: `Threshold Breach: ${fieldLabel} (${recordRef})`,
+        description: `${fieldLabel} = ${actualValue} (threshold: ${operator} ${thresholdValue})`,
+        ai_generated: false,
+        metric_name: fieldLabel,
+        threshold_value: thresholdValue,
+        actual_value: actualValue,
+        status: "active",
+        ...(perfProjectId ? { performance_project_id: perfProjectId } : {}),
+        // Carry threshold metadata for role-based notifications
+        _threshold: th,
+      });
+    }
+  }
+
+  return breachAlerts;
+}
+
+// Send role-based notifications for threshold breaches
+async function sendThresholdBreachNotifications(
+  supabase: any, projectId: string, perfProjectId: string | null,
+  breachAlerts: any[], userId: string
+) {
+  if (!breachAlerts || breachAlerts.length === 0) return;
+
+  try {
+    // Get the user's org
+    const { data: userProfile } = await supabase
+      .from('user_profiles')
+      .select('organization_id')
+      .eq('id', userId)
+      .single();
+
+    if (!userProfile?.organization_id) return;
+    const orgId = userProfile.organization_id;
+
+    // Group breaches by threshold's notify_role_ids
+    const roleIdSet = new Set<string>();
+    for (const alert of breachAlerts) {
+      const th = alert._threshold;
+      if (th?.notify_role_ids && Array.isArray(th.notify_role_ids)) {
+        th.notify_role_ids.forEach((rid: string) => roleIdSet.add(rid));
+      }
+    }
+
+    // Get users assigned to these roles
+    let targetUserIds: string[] = [];
+    if (roleIdSet.size > 0 && perfProjectId) {
+      const roleTypes = [...roleIdSet];
+      const { data: roleUsers } = await supabase
+        .from('performance_user_roles')
+        .select('user_id')
+        .eq('performance_project_id', perfProjectId)
+        .in('role_type', roleTypes);
+
+      if (roleUsers) {
+        targetUserIds = [...new Set(roleUsers.map((r: any) => r.user_id))];
+      }
+    }
+
+    // Fallback: if no role-based users found, notify all org members
+    if (targetUserIds.length === 0) {
+      const { data: orgUsers } = await supabase
+        .from('user_profiles')
+        .select('id')
+        .eq('organization_id', orgId);
+      targetUserIds = orgUsers?.map((u: any) => u.id) || [userId];
+    }
+
+    const uniqueIds = [...new Set(targetUserIds)];
+
+    // Create in-app notifications
+    const notifInserts = uniqueIds.map((uid: string) => ({
+      user_id: uid,
+      type: 'performance_alert',
+      title: `⚠️ Threshold Breach: ${breachAlerts.length} violation${breachAlerts.length > 1 ? 's' : ''}`,
+      message: breachAlerts.map((a: any) => `${a.severity.toUpperCase()}: ${a.title}`).join(' | '),
+      data: { source: 'performance_threshold', project_id: projectId, performance_project_id: perfProjectId, alert_count: breachAlerts.length },
+      read: false,
+    }));
+    await supabase.from('notifications').insert(notifInserts);
+
+    // Send email for breaches that have send_email enabled
+    const emailBreaches = breachAlerts.filter((a: any) => a._threshold?.send_email);
+    if (emailBreaches.length > 0) {
+      const { data: smtpConfigs } = await supabase
+        .from('smtp_configs')
+        .select('*')
+        .eq('organization_id', orgId)
+        .eq('is_active', true)
+        .limit(1);
+
+      if (smtpConfigs && smtpConfigs.length > 0) {
+        const { data: memberProfiles } = await supabase
+          .from('user_profiles')
+          .select('email')
+          .in('id', uniqueIds);
+
+        const emails = memberProfiles?.map((p: any) => p.email).filter(Boolean) || [];
+        if (emails.length > 0) {
+          const smtpConfig = smtpConfigs[0];
+          const htmlAlerts = emailBreaches.map((a: any) =>
+            `<tr><td style="padding:8px;border:1px solid #e5e7eb;"><span style="color:${a.severity === 'critical' ? '#ef4444' : a.severity === 'high' ? '#f59e0b' : '#3b82f6'};font-weight:bold;">${a.severity.toUpperCase()}</span></td><td style="padding:8px;border:1px solid #e5e7eb;">${a.title}</td><td style="padding:8px;border:1px solid #e5e7eb;">${a.description || ''}</td></tr>`
+          ).join('');
+
+          try {
+            const { SMTPClient } = await import("https://deno.land/x/denomailer@1.6.0/mod.ts");
+            const client = new SMTPClient({
+              connection: {
+                hostname: smtpConfig.host,
+                port: smtpConfig.port,
+                tls: smtpConfig.use_tls,
+                auth: { username: smtpConfig.username, password: smtpConfig.password },
+              },
+            });
+
+            for (const email of emails) {
+              try {
+                await client.send({
+                  from: smtpConfig.from_name ? `${smtpConfig.from_name} <${smtpConfig.from_email}>` : smtpConfig.from_email,
+                  to: email,
+                  subject: `🚨 Threshold Breach: ${emailBreaches.length} violation${emailBreaches.length > 1 ? 's' : ''} detected`,
+                  content: `Threshold Breach Alert\n\n${emailBreaches.map((a: any) => `• ${a.severity.toUpperCase()}: ${a.title} — ${a.description}`).join('\n')}\n\nPlease review the Performance Dashboard.`,
+                  html: `<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;padding:20px;"><h2 style="color:#ef4444;">🚨 Threshold Breach Alert</h2><p>${emailBreaches.length} threshold violation${emailBreaches.length > 1 ? 's' : ''} detected.</p><table style="width:100%;border-collapse:collapse;margin:16px 0;"><thead><tr style="background:#f3f4f6;"><th style="padding:8px;border:1px solid #e5e7eb;text-align:left;">Severity</th><th style="padding:8px;border:1px solid #e5e7eb;text-align:left;">Alert</th><th style="padding:8px;border:1px solid #e5e7eb;text-align:left;">Details</th></tr></thead><tbody>${htmlAlerts}</tbody></table><p style="color:#6b7280;font-size:12px;">This is an automated alert from your Performance Monitoring system.</p></body></html>`,
+                });
+              } catch (emailErr) {
+                console.error('Email send failed for', email, emailErr);
+              }
+            }
+            await client.close();
+          } catch (smtpErr) {
+            console.error('SMTP connection failed (non-blocking):', smtpErr);
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Threshold notification error (non-blocking):', err);
+  }
+}
+
+// Send notifications for AI-detected anomalies
 async function sendAlertNotifications(supabase: any, projectId: string, perfProjectId: string | null, alerts: any[], userId: string) {
   try {
-    // In-app notifications for all org members
-    const { data: orgMembers } = await supabase
-      .from('profiles')
+    const { data: userProfile } = await supabase
+      .from('user_profiles')
       .select('id, email, organization_id')
       .eq('id', userId)
       .single();
 
-    if (!orgMembers) return;
+    if (!userProfile) return;
 
     // Get project members
     const { data: members } = await supabase
-      .from('project_members')
+      .from('project_users')
       .select('user_id')
       .eq('project_id', projectId);
 
     const memberIds = members?.map((m: any) => m.user_id) || [userId];
     const uniqueIds = [...new Set(memberIds)];
 
-    // Create in-app notifications
+    // Create in-app notifications for high/critical
     const criticalAlerts = alerts.filter((a: any) => a.severity === 'high' || a.severity === 'critical');
     if (criticalAlerts.length > 0) {
       const notifInserts = uniqueIds.map((uid: string) => ({
         user_id: uid,
-        type: 'workflow_notification',
-        title: `⚠️ Performance Alert: ${criticalAlerts.length} issue${criticalAlerts.length > 1 ? 's' : ''} detected`,
+        type: 'performance_alert',
+        title: `⚠️ AI Alert: ${criticalAlerts.length} issue${criticalAlerts.length > 1 ? 's' : ''} detected`,
         message: criticalAlerts.map((a: any) => `${a.severity.toUpperCase()}: ${a.title}`).join(' | '),
         data: { source: 'performance_monitoring', project_id: projectId, performance_project_id: perfProjectId, alert_count: criticalAlerts.length },
         read: false,
@@ -227,25 +430,23 @@ async function sendAlertNotifications(supabase: any, projectId: string, perfProj
     }
 
     // Send email via SMTP for critical/high alerts
-    if (criticalAlerts.length > 0 && orgMembers.organization_id) {
+    if (criticalAlerts.length > 0 && userProfile.organization_id) {
       const { data: smtpConfigs } = await supabase
         .from('smtp_configs')
         .select('*')
-        .eq('organization_id', orgMembers.organization_id)
+        .eq('organization_id', userProfile.organization_id)
         .eq('is_active', true)
         .limit(1);
 
       if (smtpConfigs && smtpConfigs.length > 0) {
-        // Get emails of members
         const { data: memberProfiles } = await supabase
-          .from('profiles')
+          .from('user_profiles')
           .select('email')
           .in('id', uniqueIds);
 
         const emails = memberProfiles?.map((p: any) => p.email).filter(Boolean) || [];
         if (emails.length > 0) {
           const smtpConfig = smtpConfigs[0];
-          const alertSummary = criticalAlerts.map((a: any) => `• ${a.severity.toUpperCase()}: ${a.title} — ${a.description}`).join('\n');
           const htmlAlerts = criticalAlerts.map((a: any) =>
             `<tr><td style="padding:8px;border:1px solid #e5e7eb;"><span style="color:${a.severity === 'critical' ? '#ef4444' : '#f59e0b'};font-weight:bold;">${a.severity.toUpperCase()}</span></td><td style="padding:8px;border:1px solid #e5e7eb;">${a.title}</td><td style="padding:8px;border:1px solid #e5e7eb;">${a.description || ''}</td></tr>`
           ).join('');
@@ -267,8 +468,8 @@ async function sendAlertNotifications(supabase: any, projectId: string, perfProj
                   from: smtpConfig.from_name ? `${smtpConfig.from_name} <${smtpConfig.from_email}>` : smtpConfig.from_email,
                   to: email,
                   subject: `🚨 Performance Alert: ${criticalAlerts.length} issue${criticalAlerts.length > 1 ? 's' : ''} detected`,
-                  content: `Performance Monitoring Alert\n\n${alertSummary}\n\nPlease review the Performance Dashboard for details.`,
-                  html: `<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;padding:20px;"><h2 style="color:#ef4444;">🚨 Performance Alert</h2><p>${criticalAlerts.length} issue${criticalAlerts.length > 1 ? 's' : ''} detected in your project performance monitoring.</p><table style="width:100%;border-collapse:collapse;margin:16px 0;"><thead><tr style="background:#f3f4f6;"><th style="padding:8px;border:1px solid #e5e7eb;text-align:left;">Severity</th><th style="padding:8px;border:1px solid #e5e7eb;text-align:left;">Alert</th><th style="padding:8px;border:1px solid #e5e7eb;text-align:left;">Details</th></tr></thead><tbody>${htmlAlerts}</tbody></table><p style="color:#6b7280;font-size:12px;">This is an automated alert from your Performance Monitoring system.</p></body></html>`,
+                  content: `Performance Monitoring Alert\n\n${criticalAlerts.map((a: any) => `• ${a.severity.toUpperCase()}: ${a.title} — ${a.description}`).join('\n')}\n\nPlease review the Performance Dashboard.`,
+                  html: `<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;padding:20px;"><h2 style="color:#ef4444;">🚨 Performance Alert</h2><p>${criticalAlerts.length} issue${criticalAlerts.length > 1 ? 's' : ''} detected.</p><table style="width:100%;border-collapse:collapse;margin:16px 0;"><thead><tr style="background:#f3f4f6;"><th style="padding:8px;border:1px solid #e5e7eb;text-align:left;">Severity</th><th style="padding:8px;border:1px solid #e5e7eb;text-align:left;">Alert</th><th style="padding:8px;border:1px solid #e5e7eb;text-align:left;">Details</th></tr></thead><tbody>${htmlAlerts}</tbody></table><p style="color:#6b7280;font-size:12px;">This is an automated alert from your Performance Monitoring system.</p></body></html>`,
                 });
               } catch (emailErr) {
                 console.error('Email send failed for', email, emailErr);
