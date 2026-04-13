@@ -619,6 +619,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setPasswordExpired(false);
   };
 
+  const retryProfile = async () => {
+    if (user) {
+      setProfileError(null);
+      await loadUserProfile(user.id);
+    }
+  };
+
   return (
     <AuthContext.Provider value={{
       user,
@@ -626,6 +633,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       organization,
       session,
       isLoading,
+      profileError,
       pendingMfa,
       passwordExpired,
       signUp,
@@ -636,6 +644,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       requestToJoinOrganization,
       completeMfaVerification,
       clearPasswordExpired,
+      retryProfile,
     }}>
       {children}
     </AuthContext.Provider>
