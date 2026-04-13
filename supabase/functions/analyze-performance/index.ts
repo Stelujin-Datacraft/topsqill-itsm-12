@@ -272,6 +272,129 @@ async function checkThresholdBreaches(
   return breachAlerts;
 }
 
+// Native SMTP send using Deno.connect + Deno.startTls (works in edge functions)
+async function sendSmtpEmail(smtpConfig: any, to: string, subject: string, textContent: string, htmlContent: string) {
+  const encoder = new TextEncoder();
+  const decoder = new TextDecoder();
+
+  async function readLine(reader: ReadableStreamDefaultReader<Uint8Array>): Promise<string> {
+    let result = '';
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      result += decoder.decode(value);
+      if (result.includes('\r\n')) break;
+    }
+    return result.trim();
+  }
+
+  async function writeCmd(writer: WritableStreamDefaultWriter<Uint8Array>, cmd: string) {
+    await writer.write(encoder.encode(cmd + '\r\n'));
+  }
+
+  async function readAndCheck(reader: ReadableStreamDefaultReader<Uint8Array>, expectedCode: string) {
+    const line = await readLine(reader);
+    if (!line.startsWith(expectedCode)) {
+      throw new Error(`SMTP error: expected ${expectedCode}, got: ${line}`);
+    }
+    return line;
+  }
+
+  const port = smtpConfig.port || 587;
+  const hostname = smtpConfig.host;
+
+  let conn: Deno.TcpConn | Deno.TlsConn;
+
+  if (port === 465) {
+    // Direct TLS
+    conn = await Deno.connectTls({ hostname, port });
+  } else {
+    // STARTTLS (port 587)
+    conn = await Deno.connect({ hostname, port });
+  }
+
+  let reader = conn.readable.getReader();
+  let writer = conn.writable.getWriter();
+
+  try {
+    await readAndCheck(reader, '220');
+    await writeCmd(writer, `EHLO localhost`);
+    // Read all EHLO response lines
+    let ehloResp = '';
+    while (true) {
+      const line = await readLine(reader);
+      ehloResp += line + '\n';
+      if (line.match(/^250 /)) break; // last line has space not dash
+      if (!line.match(/^250[-\s]/)) throw new Error(`EHLO failed: ${line}`);
+    }
+
+    // STARTTLS for port 587
+    if (port !== 465) {
+      await writeCmd(writer, 'STARTTLS');
+      await readAndCheck(reader, '220');
+      reader.releaseLock();
+      writer.releaseLock();
+      conn = await Deno.startTls(conn as Deno.TcpConn, { hostname });
+      reader = conn.readable.getReader();
+      writer = conn.writable.getWriter();
+      await writeCmd(writer, `EHLO localhost`);
+      while (true) {
+        const line = await readLine(reader);
+        if (line.match(/^250 /)) break;
+        if (!line.match(/^250[-\s]/)) throw new Error(`EHLO2 failed: ${line}`);
+      }
+    }
+
+    // AUTH LOGIN
+    await writeCmd(writer, 'AUTH LOGIN');
+    await readAndCheck(reader, '334');
+    await writeCmd(writer, btoa(smtpConfig.username));
+    await readAndCheck(reader, '334');
+    await writeCmd(writer, btoa(smtpConfig.password));
+    await readAndCheck(reader, '235');
+
+    const fromAddr = smtpConfig.from_email;
+    const fromHeader = smtpConfig.from_name ? `${smtpConfig.from_name} <${fromAddr}>` : fromAddr;
+    const boundary = `boundary_${Date.now()}`;
+
+    await writeCmd(writer, `MAIL FROM:<${fromAddr}>`);
+    await readAndCheck(reader, '250');
+    await writeCmd(writer, `RCPT TO:<${to}>`);
+    await readAndCheck(reader, '250');
+    await writeCmd(writer, 'DATA');
+    await readAndCheck(reader, '354');
+
+    const msg = [
+      `From: ${fromHeader}`,
+      `To: ${to}`,
+      `Subject: ${subject}`,
+      `MIME-Version: 1.0`,
+      `Content-Type: multipart/alternative; boundary="${boundary}"`,
+      ``,
+      `--${boundary}`,
+      `Content-Type: text/plain; charset=UTF-8`,
+      ``,
+      textContent,
+      ``,
+      `--${boundary}`,
+      `Content-Type: text/html; charset=UTF-8`,
+      ``,
+      htmlContent,
+      ``,
+      `--${boundary}--`,
+      `.`,
+    ].join('\r\n');
+
+    await writeCmd(writer, msg);
+    await readAndCheck(reader, '250');
+    await writeCmd(writer, 'QUIT');
+  } finally {
+    try { reader.releaseLock(); } catch (_) {}
+    try { writer.releaseLock(); } catch (_) {}
+    try { conn.close(); } catch (_) {}
+  }
+}
+
 // Send role-based notifications for threshold breaches
 async function sendThresholdBreachNotifications(
   supabase: any, projectId: string, perfProjectId: string | null,
@@ -280,7 +403,6 @@ async function sendThresholdBreachNotifications(
   if (!breachAlerts || breachAlerts.length === 0) return;
 
   try {
-    // Get the user's org
     const { data: userProfile } = await supabase
       .from('user_profiles')
       .select('organization_id')
@@ -290,7 +412,6 @@ async function sendThresholdBreachNotifications(
     if (!userProfile?.organization_id) return;
     const orgId = userProfile.organization_id;
 
-    // Group breaches by threshold's notify_role_ids
     const roleIdSet = new Set<string>();
     for (const alert of breachAlerts) {
       const th = alert._threshold;
@@ -299,7 +420,6 @@ async function sendThresholdBreachNotifications(
       }
     }
 
-    // Get users assigned to these roles
     let targetUserIds: string[] = [];
     if (roleIdSet.size > 0 && perfProjectId) {
       const roleTypes = [...roleIdSet];
@@ -308,13 +428,11 @@ async function sendThresholdBreachNotifications(
         .select('user_id')
         .eq('performance_project_id', perfProjectId)
         .in('role_type', roleTypes);
-
       if (roleUsers) {
         targetUserIds = [...new Set(roleUsers.map((r: any) => r.user_id))];
       }
     }
 
-    // Fallback: if no role-based users found, notify all org members
     if (targetUserIds.length === 0) {
       const { data: orgUsers } = await supabase
         .from('user_profiles')
@@ -325,7 +443,7 @@ async function sendThresholdBreachNotifications(
 
     const uniqueIds = [...new Set(targetUserIds)];
 
-    // Create in-app notifications
+    // In-app notifications
     const notifInserts = uniqueIds.map((uid: string) => ({
       user_id: uid,
       type: 'performance_alert',
@@ -336,10 +454,9 @@ async function sendThresholdBreachNotifications(
     }));
     await supabase.from('notifications').insert(notifInserts);
 
-    // Send email for breaches that have send_email enabled
+    // Email for breaches with send_email enabled
     const emailBreaches = breachAlerts.filter((a: any) => a._threshold?.send_email);
     if (emailBreaches.length > 0) {
-      // Prefer the default SMTP config, fallback to any active one
       let { data: smtpConfigs } = await supabase
         .from('smtp_configs')
         .select('*')
@@ -348,57 +465,29 @@ async function sendThresholdBreachNotifications(
         .eq('is_default', true)
         .limit(1);
       if (!smtpConfigs || smtpConfigs.length === 0) {
-        const fallback = await supabase
-          .from('smtp_configs')
-          .select('*')
-          .eq('organization_id', orgId)
-          .eq('is_active', true)
-          .limit(1);
+        const fallback = await supabase.from('smtp_configs').select('*').eq('organization_id', orgId).eq('is_active', true).limit(1);
         smtpConfigs = fallback.data;
       }
 
       if (smtpConfigs && smtpConfigs.length > 0) {
-        const { data: memberProfiles } = await supabase
-          .from('user_profiles')
-          .select('email')
-          .in('id', uniqueIds);
-
+        const { data: memberProfiles } = await supabase.from('user_profiles').select('email').in('id', uniqueIds);
         const emails = memberProfiles?.map((p: any) => p.email).filter(Boolean) || [];
         if (emails.length > 0) {
           const smtpConfig = smtpConfigs[0];
           const htmlAlerts = emailBreaches.map((a: any) =>
             `<tr><td style="padding:8px;border:1px solid #e5e7eb;"><span style="color:${a.severity === 'critical' ? '#ef4444' : a.severity === 'high' ? '#f59e0b' : '#3b82f6'};font-weight:bold;">${a.severity.toUpperCase()}</span></td><td style="padding:8px;border:1px solid #e5e7eb;">${a.title}</td><td style="padding:8px;border:1px solid #e5e7eb;">${a.description || ''}</td></tr>`
           ).join('');
+          const subject = `🚨 Threshold Breach: ${emailBreaches.length} violation${emailBreaches.length > 1 ? 's' : ''} detected`;
+          const textContent = `Threshold Breach Alert\n\n${emailBreaches.map((a: any) => `• ${a.severity.toUpperCase()}: ${a.title} — ${a.description}`).join('\n')}\n\nPlease review the Performance Dashboard.`;
+          const htmlContent = `<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;padding:20px;"><h2 style="color:#ef4444;">🚨 Threshold Breach Alert</h2><p>${emailBreaches.length} threshold violation${emailBreaches.length > 1 ? 's' : ''} detected.</p><table style="width:100%;border-collapse:collapse;margin:16px 0;"><thead><tr style="background:#f3f4f6;"><th style="padding:8px;border:1px solid #e5e7eb;text-align:left;">Severity</th><th style="padding:8px;border:1px solid #e5e7eb;text-align:left;">Alert</th><th style="padding:8px;border:1px solid #e5e7eb;text-align:left;">Details</th></tr></thead><tbody>${htmlAlerts}</tbody></table><p style="color:#6b7280;font-size:12px;">This is an automated alert from your Performance Monitoring system.</p></body></html>`;
 
-          try {
-            const { SMTPClient } = await import("https://deno.land/x/denomailer@1.6.0/mod.ts");
-            // Gmail port 587 needs STARTTLS (tls:false), port 465 needs direct TLS (tls:true)
-            const useDirectTls = smtpConfig.port === 465;
-            const client = new SMTPClient({
-              connection: {
-                hostname: smtpConfig.host,
-                port: smtpConfig.port,
-                tls: useDirectTls,
-                auth: { username: smtpConfig.username, password: smtpConfig.password },
-              },
-            });
-
-            for (const email of emails) {
-              try {
-                await client.send({
-                  from: smtpConfig.from_name ? `${smtpConfig.from_name} <${smtpConfig.from_email}>` : smtpConfig.from_email,
-                  to: email,
-                  subject: `🚨 Threshold Breach: ${emailBreaches.length} violation${emailBreaches.length > 1 ? 's' : ''} detected`,
-                  content: `Threshold Breach Alert\n\n${emailBreaches.map((a: any) => `• ${a.severity.toUpperCase()}: ${a.title} — ${a.description}`).join('\n')}\n\nPlease review the Performance Dashboard.`,
-                  html: `<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;padding:20px;"><h2 style="color:#ef4444;">🚨 Threshold Breach Alert</h2><p>${emailBreaches.length} threshold violation${emailBreaches.length > 1 ? 's' : ''} detected.</p><table style="width:100%;border-collapse:collapse;margin:16px 0;"><thead><tr style="background:#f3f4f6;"><th style="padding:8px;border:1px solid #e5e7eb;text-align:left;">Severity</th><th style="padding:8px;border:1px solid #e5e7eb;text-align:left;">Alert</th><th style="padding:8px;border:1px solid #e5e7eb;text-align:left;">Details</th></tr></thead><tbody>${htmlAlerts}</tbody></table><p style="color:#6b7280;font-size:12px;">This is an automated alert from your Performance Monitoring system.</p></body></html>`,
-                });
-              } catch (emailErr) {
-                console.error('Email send failed for', email, emailErr);
-              }
+          for (const email of emails) {
+            try {
+              await sendSmtpEmail(smtpConfig, email, subject, textContent, htmlContent);
+              console.log('Threshold breach email sent to', email);
+            } catch (emailErr) {
+              console.error('Email send failed for', email, emailErr);
             }
-            await client.close();
-          } catch (smtpErr) {
-            console.error('SMTP connection failed (non-blocking):', smtpErr);
           }
         }
       }
@@ -444,7 +533,6 @@ async function sendAlertNotifications(supabase: any, projectId: string, perfProj
 
     // Send email via SMTP for critical/high alerts
     if (criticalAlerts.length > 0 && userProfile.organization_id) {
-      // Prefer the default SMTP config
       let { data: smtpConfigs } = await supabase
         .from('smtp_configs')
         .select('*')
@@ -453,56 +541,29 @@ async function sendAlertNotifications(supabase: any, projectId: string, perfProj
         .eq('is_default', true)
         .limit(1);
       if (!smtpConfigs || smtpConfigs.length === 0) {
-        const fallback = await supabase
-          .from('smtp_configs')
-          .select('*')
-          .eq('organization_id', userProfile.organization_id)
-          .eq('is_active', true)
-          .limit(1);
+        const fallback = await supabase.from('smtp_configs').select('*').eq('organization_id', userProfile.organization_id).eq('is_active', true).limit(1);
         smtpConfigs = fallback.data;
       }
 
       if (smtpConfigs && smtpConfigs.length > 0) {
-        const { data: memberProfiles } = await supabase
-          .from('user_profiles')
-          .select('email')
-          .in('id', uniqueIds);
-
+        const { data: memberProfiles } = await supabase.from('user_profiles').select('email').in('id', uniqueIds);
         const emails = memberProfiles?.map((p: any) => p.email).filter(Boolean) || [];
         if (emails.length > 0) {
           const smtpConfig = smtpConfigs[0];
           const htmlAlerts = criticalAlerts.map((a: any) =>
             `<tr><td style="padding:8px;border:1px solid #e5e7eb;"><span style="color:${a.severity === 'critical' ? '#ef4444' : '#f59e0b'};font-weight:bold;">${a.severity.toUpperCase()}</span></td><td style="padding:8px;border:1px solid #e5e7eb;">${a.title}</td><td style="padding:8px;border:1px solid #e5e7eb;">${a.description || ''}</td></tr>`
           ).join('');
+          const subject = `🚨 Performance Alert: ${criticalAlerts.length} issue${criticalAlerts.length > 1 ? 's' : ''} detected`;
+          const textContent = `Performance Monitoring Alert\n\n${criticalAlerts.map((a: any) => `• ${a.severity.toUpperCase()}: ${a.title} — ${a.description}`).join('\n')}\n\nPlease review the Performance Dashboard.`;
+          const htmlContent = `<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;padding:20px;"><h2 style="color:#ef4444;">🚨 Performance Alert</h2><p>${criticalAlerts.length} issue${criticalAlerts.length > 1 ? 's' : ''} detected.</p><table style="width:100%;border-collapse:collapse;margin:16px 0;"><thead><tr style="background:#f3f4f6;"><th style="padding:8px;border:1px solid #e5e7eb;text-align:left;">Severity</th><th style="padding:8px;border:1px solid #e5e7eb;text-align:left;">Alert</th><th style="padding:8px;border:1px solid #e5e7eb;text-align:left;">Details</th></tr></thead><tbody>${htmlAlerts}</tbody></table><p style="color:#6b7280;font-size:12px;">This is an automated alert from your Performance Monitoring system.</p></body></html>`;
 
-          try {
-            const { SMTPClient } = await import("https://deno.land/x/denomailer@1.6.0/mod.ts");
-            const useDirectTls2 = smtpConfig.port === 465;
-            const client = new SMTPClient({
-              connection: {
-                hostname: smtpConfig.host,
-                port: smtpConfig.port,
-                tls: useDirectTls2,
-                auth: { username: smtpConfig.username, password: smtpConfig.password },
-              },
-            });
-
-            for (const email of emails) {
-              try {
-                await client.send({
-                  from: smtpConfig.from_name ? `${smtpConfig.from_name} <${smtpConfig.from_email}>` : smtpConfig.from_email,
-                  to: email,
-                  subject: `🚨 Performance Alert: ${criticalAlerts.length} issue${criticalAlerts.length > 1 ? 's' : ''} detected`,
-                  content: `Performance Monitoring Alert\n\n${criticalAlerts.map((a: any) => `• ${a.severity.toUpperCase()}: ${a.title} — ${a.description}`).join('\n')}\n\nPlease review the Performance Dashboard.`,
-                  html: `<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;padding:20px;"><h2 style="color:#ef4444;">🚨 Performance Alert</h2><p>${criticalAlerts.length} issue${criticalAlerts.length > 1 ? 's' : ''} detected.</p><table style="width:100%;border-collapse:collapse;margin:16px 0;"><thead><tr style="background:#f3f4f6;"><th style="padding:8px;border:1px solid #e5e7eb;text-align:left;">Severity</th><th style="padding:8px;border:1px solid #e5e7eb;text-align:left;">Alert</th><th style="padding:8px;border:1px solid #e5e7eb;text-align:left;">Details</th></tr></thead><tbody>${htmlAlerts}</tbody></table><p style="color:#6b7280;font-size:12px;">This is an automated alert from your Performance Monitoring system.</p></body></html>`,
-                });
-              } catch (emailErr) {
-                console.error('Email send failed for', email, emailErr);
-              }
+          for (const email of emails) {
+            try {
+              await sendSmtpEmail(smtpConfig, email, subject, textContent, htmlContent);
+              console.log('AI alert email sent to', email);
+            } catch (emailErr) {
+              console.error('Email send failed for', email, emailErr);
             }
-            await client.close();
-          } catch (smtpErr) {
-            console.error('SMTP connection failed (non-blocking):', smtpErr);
           }
         }
       }
