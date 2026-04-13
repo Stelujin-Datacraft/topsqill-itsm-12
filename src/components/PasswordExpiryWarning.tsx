@@ -31,10 +31,14 @@ const PasswordExpiryWarning: React.FC = () => {
           .from('user_security_parameters')
           .select('last_password_change, password_expiry_days, password_expiry_warning_days')
           .eq('user_id', user.id)
-          .single();
+          .maybeSingle();
 
-        if (securityError && securityError.code !== 'PGRST116') {
-          console.error('Error checking password expiry:', securityError);
+        if (securityError) {
+          // Silently ignore transient DB errors (PGRST002) — don't block the UI
+          if (securityError.code === 'PGRST002') return;
+          if (securityError.code !== 'PGRST116') {
+            console.warn('Error checking password expiry:', securityError.code);
+          }
           return;
         }
 
