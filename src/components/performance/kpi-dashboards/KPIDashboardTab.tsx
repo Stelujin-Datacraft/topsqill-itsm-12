@@ -278,7 +278,7 @@ export function KPIDashboardTab({ perfProjectId, alerts = [], predictions = [], 
       try {
         const { data: newAlerts } = await (supabase as any)
           .from('performance_alerts')
-          .select('id, alert_type, severity, message')
+          .select('id, alert_type, severity, title')
           .eq('project_id', projectId)
           .eq('performance_project_id', perfProjectId)
           .eq('status', 'active')
@@ -295,7 +295,7 @@ export function KPIDashboardTab({ perfProjectId, alerts = [], predictions = [], 
 
             if (orgUsers && orgUsers.length > 0) {
               const alertSummary = newAlerts.length === 1
-                ? newAlerts[0].message
+                ? newAlerts[0].title
                 : `${newAlerts.length} alerts detected (${newAlerts.filter((a: any) => a.severity === 'critical').length} critical, ${newAlerts.filter((a: any) => a.severity === 'high').length} high)`;
 
               const notifications = orgUsers.map((u: any) => ({
