@@ -61,6 +61,8 @@ export function NotificationPanel() {
           window.dispatchEvent(event);
         }
       }, 100);
+    } else if (notification.type === 'performance_alert') {
+      navigate('/project-performance');
     }
   };
 
