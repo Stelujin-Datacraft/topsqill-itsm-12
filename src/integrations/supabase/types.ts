@@ -6549,6 +6549,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      can_access_submission: {
+        Args: { _submission_id: string; _user_id: string }
+        Returns: boolean
+      }
       can_create_asset_in_project: {
         Args: { _project_id: string; _user_id: string }
         Returns: boolean
@@ -6721,6 +6725,7 @@ export type Database = {
         }[]
       }
       get_user_org_id: { Args: { _user_id: string }; Returns: string }
+      get_user_org_id_cached: { Args: never; Returns: string }
       get_user_project_invitations: {
         Args: never
         Returns: {
@@ -6784,6 +6789,7 @@ export type Database = {
       }
       is_form_public: { Args: { _form_id: string }; Returns: boolean }
       is_ldap_user: { Args: { target_user_id: string }; Returns: boolean }
+      is_org_admin_cached: { Args: never; Returns: boolean }
       is_project_member: {
         Args: { _project_id: string; _user_id: string }
         Returns: boolean
