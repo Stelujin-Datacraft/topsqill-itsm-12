@@ -4,27 +4,42 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-function buildFallbackAnalysis(analysisContext: any, thresholds: any[] = [], isAllRecords = false) {
-  const numericSignals: Array<{ metric: string; value: number; avg?: number; stdDev?: number }> = [];
+function buildFallbackAnalysis(
+  analysisContext: any,
+  thresholds: any[] = [],
+  isAllRecords = false,
+) {
+  const numericSignals: Array<
+    { metric: string; value: number; avg?: number; stdDev?: number }
+  > = [];
 
   if (analysisContext?.mappedFields) {
-    for (const [label, info] of Object.entries(analysisContext.mappedFields as Record<string, any>)) {
+    for (
+      const [label, info] of Object.entries(
+        analysisContext.mappedFields as Record<string, any>,
+      )
+    ) {
       const value = Number((info as any)?.value);
       const stats = analysisContext?.portfolioStats?.[label];
       if (!Number.isNaN(value)) {
         numericSignals.push({
           metric: label,
           value,
-          avg: typeof stats?.avg === 'number' ? stats.avg : undefined,
-          stdDev: typeof stats?.stdDev === 'number' ? stats.stdDev : undefined,
+          avg: typeof stats?.avg === "number" ? stats.avg : undefined,
+          stdDev: typeof stats?.stdDev === "number" ? stats.stdDev : undefined,
         });
       }
     }
   } else if (analysisContext?.aggregatedMetrics) {
-    for (const [label, stats] of Object.entries(analysisContext.aggregatedMetrics as Record<string, any>)) {
+    for (
+      const [label, stats] of Object.entries(
+        analysisContext.aggregatedMetrics as Record<string, any>,
+      )
+    ) {
       const avg = Number((stats as any)?.avg);
       if (!Number.isNaN(avg)) {
         numericSignals.push({ metric: label, value: avg, avg });
@@ -33,12 +48,20 @@ function buildFallbackAnalysis(analysisContext: any, thresholds: any[] = [], isA
   }
 
   const anomalies = numericSignals
-    .filter((signal) => typeof signal.avg === 'number' && typeof signal.stdDev === 'number' && signal.stdDev > 0 && Math.abs(signal.value - signal.avg) > signal.stdDev * 2)
+    .filter((signal) =>
+      typeof signal.avg === "number" && typeof signal.stdDev === "number" &&
+      signal.stdDev > 0 &&
+      Math.abs(signal.value - signal.avg) > signal.stdDev * 2
+    )
     .slice(0, 5)
     .map((signal) => ({
       metric: signal.metric,
-      description: `${signal.metric} is ${signal.value}, which is materially outside the portfolio average of ${signal.avg}.`,
-      severity: Math.abs(signal.value - (signal.avg ?? 0)) > (signal.stdDev ?? 0) * 3 ? 'high' : 'medium',
+      description:
+        `${signal.metric} is ${signal.value}, which is materially outside the portfolio average of ${signal.avg}.`,
+      severity:
+        Math.abs(signal.value - (signal.avg ?? 0)) > (signal.stdDev ?? 0) * 3
+          ? "high"
+          : "medium",
       value: signal.value,
       expected_value: signal.avg,
     }));
@@ -46,57 +69,90 @@ function buildFallbackAnalysis(analysisContext: any, thresholds: any[] = [], isA
   const thresholdViolations = (thresholds || [])
     .map((threshold) => {
       const fieldLabel = threshold.form_field_label || threshold.metric_name;
-      const matchingSignal = numericSignals.find((signal) => signal.metric === fieldLabel || signal.metric === threshold.metric_name);
+      const matchingSignal = numericSignals.find((signal) =>
+        signal.metric === fieldLabel || signal.metric === threshold.metric_name
+      );
       if (!matchingSignal) return null;
 
       const actualValue = matchingSignal.value;
       const thresholdValue = Number(threshold.threshold_value);
-      if (Number.isNaN(actualValue) || Number.isNaN(thresholdValue)) return null;
+      if (Number.isNaN(actualValue) || Number.isNaN(thresholdValue)) {
+        return null;
+      }
 
       let breached = false;
       switch (threshold.operator) {
-        case '>': breached = actualValue > thresholdValue; break;
-        case '>=': breached = actualValue >= thresholdValue; break;
-        case '<': breached = actualValue < thresholdValue; break;
-        case '<=': breached = actualValue <= thresholdValue; break;
-        case '==': breached = actualValue === thresholdValue; break;
-        case '!=': breached = actualValue !== thresholdValue; break;
+        case ">":
+          breached = actualValue > thresholdValue;
+          break;
+        case ">=":
+          breached = actualValue >= thresholdValue;
+          break;
+        case "<":
+          breached = actualValue < thresholdValue;
+          break;
+        case "<=":
+          breached = actualValue <= thresholdValue;
+          break;
+        case "==":
+          breached = actualValue === thresholdValue;
+          break;
+        case "!=":
+          breached = actualValue !== thresholdValue;
+          break;
       }
 
-      return breached ? {
-        metric_name: fieldLabel,
-        threshold_value: thresholdValue,
-        actual_value: actualValue,
-        severity: threshold.severity || 'medium',
-      } : null;
+      return breached
+        ? {
+          metric_name: fieldLabel,
+          threshold_value: thresholdValue,
+          actual_value: actualValue,
+          severity: threshold.severity || "medium",
+        }
+        : null;
     })
     .filter(Boolean);
 
-  const riskScore = Math.min(100, Math.max(10, thresholdViolations.length * 20 + anomalies.length * 15));
-  const healthStatus = riskScore > 70 ? 'red' : riskScore > 40 ? 'orange' : riskScore > 20 ? 'yellow' : 'green';
-  const scopeLabel = isAllRecords ? 'portfolio' : 'selected record';
+  const riskScore = Math.min(
+    100,
+    Math.max(10, thresholdViolations.length * 20 + anomalies.length * 15),
+  );
+  const healthStatus = riskScore > 70
+    ? "red"
+    : riskScore > 40
+    ? "orange"
+    : riskScore > 20
+    ? "yellow"
+    : "green";
+  const scopeLabel = isAllRecords ? "portfolio" : "selected record";
   const summaryParts = [
     `AI analysis was temporarily unavailable, so this result was generated using rule-based checks for the ${scopeLabel}.`,
     thresholdViolations.length > 0
-      ? `${thresholdViolations.length} threshold violation${thresholdViolations.length > 1 ? 's were' : ' was'} detected from your configured monitoring rules.`
+      ? `${thresholdViolations.length} threshold violation${
+        thresholdViolations.length > 1 ? "s were" : " was"
+      } detected from your configured monitoring rules.`
       : `No configured threshold violations were detected in the ${scopeLabel}.`,
     anomalies.length > 0
-      ? `${anomalies.length} statistical outlier${anomalies.length > 1 ? 's were' : ' was'} identified against portfolio averages.`
+      ? `${anomalies.length} statistical outlier${
+        anomalies.length > 1 ? "s were" : " was"
+      } identified against portfolio averages.`
       : `No strong statistical outliers were identified from the available numeric metrics.`,
   ];
 
   return {
     risk_score: riskScore,
     health_status: healthStatus,
-    summary: summaryParts.join(' '),
+    summary: summaryParts.join(" "),
     anomalies,
     predictions: [],
     recommendations: [
       {
-        priority: thresholdViolations.length > 0 ? 'high' : 'medium',
-        title: 'Review automated analysis fallback',
-        description: 'The AI service was unavailable for this run, but threshold checks and alert delivery still completed using deterministic analysis rules.',
-        impact: 'Keeps monitoring operational while external AI availability recovers.',
+        priority: thresholdViolations.length > 0 ? "high" : "medium",
+        title: "Review automated analysis fallback",
+        description:
+          "The AI service was unavailable for this run, but threshold checks and alert delivery still completed using deterministic analysis rules.",
+        impact:
+          "Keeps monitoring operational while external AI availability recovers.",
       },
     ],
     threshold_violations: thresholdViolations,
@@ -104,15 +160,23 @@ function buildFallbackAnalysis(analysisContext: any, thresholds: any[] = [], isA
 }
 
 function extractJsonFromResponse(response: string): unknown {
-  let cleaned = response.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
+  let cleaned = response.replace(/```json\s*/gi, "").replace(/```\s*/g, "")
+    .trim();
   const jsonStart = cleaned.search(/[\{\[]/);
-  const jsonEnd = cleaned.lastIndexOf(jsonStart !== -1 && cleaned[jsonStart] === '[' ? ']' : '}');
-  if (jsonStart === -1 || jsonEnd === -1) throw new Error("No JSON found in response");
+  const jsonEnd = cleaned.lastIndexOf(
+    jsonStart !== -1 && cleaned[jsonStart] === "[" ? "]" : "}",
+  );
+  if (jsonStart === -1 || jsonEnd === -1) {
+    throw new Error("No JSON found in response");
+  }
   cleaned = cleaned.substring(jsonStart, jsonEnd + 1);
   try {
     return JSON.parse(cleaned);
   } catch {
-    cleaned = cleaned.replace(/,\s*}/g, "}").replace(/,\s*]/g, "]").replace(/[\x00-\x1F\x7F]/g, "");
+    cleaned = cleaned.replace(/,\s*}/g, "}").replace(/,\s*]/g, "]").replace(
+      /[\x00-\x1F\x7F]/g,
+      "",
+    );
     return JSON.parse(cleaned);
   }
 }
@@ -183,7 +247,9 @@ ANALYSIS RULES FOR THIS FORM:
 async function fetchAllRecordsData(supabase: any, dataSources: any[]) {
   if (!dataSources || dataSources.length === 0) return null;
   const ds = dataSources[0];
-  const fieldMappings = Array.isArray(ds.field_mappings) ? ds.field_mappings : [];
+  const fieldMappings = Array.isArray(ds.field_mappings)
+    ? ds.field_mappings
+    : [];
 
   const { data: allSubs } = await supabase
     .from("form_submissions")
@@ -197,7 +263,7 @@ async function fetchAllRecordsData(supabase: any, dataSources: any[]) {
   // Aggregate numeric fields
   const aggregated: Record<string, any> = {};
   for (const mapping of fieldMappings) {
-    if (mapping.metricRole !== 'numeric_metric') continue;
+    if (mapping.metricRole !== "numeric_metric") continue;
     const label = mapping.label || mapping.formFieldLabel;
     const values = allSubs
       .map((s: any) => parseFloat(s.submission_data?.[mapping.formFieldId]))
@@ -205,7 +271,13 @@ async function fetchAllRecordsData(supabase: any, dataSources: any[]) {
     if (values.length === 0) continue;
     const sum = values.reduce((a: number, b: number) => a + b, 0);
     const avg = sum / values.length;
-    aggregated[label] = { avg: Math.round(avg * 100) / 100, sum: Math.round(sum * 100) / 100, min: Math.min(...values), max: Math.max(...values), count: values.length };
+    aggregated[label] = {
+      avg: Math.round(avg * 100) / 100,
+      sum: Math.round(sum * 100) / 100,
+      min: Math.min(...values),
+      max: Math.max(...values),
+      count: values.length,
+    };
   }
 
   // Collect all record data summaries
@@ -226,11 +298,17 @@ async function fetchAllRecordsData(supabase: any, dataSources: any[]) {
   };
 }
 
-async function fetchSingleRecordData(supabase: any, dataSources: any[], submissionId: string) {
+async function fetchSingleRecordData(
+  supabase: any,
+  dataSources: any[],
+  submissionId: string,
+) {
   if (!dataSources || dataSources.length === 0) return null;
 
   const ds = dataSources[0];
-  const fieldMappings = Array.isArray(ds.field_mappings) ? ds.field_mappings : [];
+  const fieldMappings = Array.isArray(ds.field_mappings)
+    ? ds.field_mappings
+    : [];
 
   const { data: submission, error } = await supabase
     .from("form_submissions")
@@ -263,7 +341,7 @@ async function fetchSingleRecordData(supabase: any, dataSources: any[], submissi
   const portfolioStats: Record<string, any> = {};
   if (allSubs && allSubs.length > 0) {
     for (const mapping of fieldMappings) {
-      if (mapping.metricRole !== 'numeric_metric') continue;
+      if (mapping.metricRole !== "numeric_metric") continue;
       const values = allSubs
         .map((s: any) => parseFloat(s.submission_data?.[mapping.formFieldId]))
         .filter((v: number) => !isNaN(v));
@@ -271,9 +349,17 @@ async function fetchSingleRecordData(supabase: any, dataSources: any[], submissi
       const label = mapping.label || mapping.formFieldLabel;
       const sum = values.reduce((a: number, b: number) => a + b, 0);
       const avg = sum / values.length;
-      const variance = values.reduce((a: number, b: number) => a + Math.pow(b - avg, 2), 0) / values.length;
+      const variance = values.reduce((a: number, b: number) =>
+        a + Math.pow(b - avg, 2), 0) / values.length;
       const stdDev = Math.sqrt(variance);
-      portfolioStats[label] = { count: values.length, avg: Math.round(avg * 100) / 100, min: Math.min(...values), max: Math.max(...values), stdDev: Math.round(stdDev * 100) / 100, sum: Math.round(sum * 100) / 100 };
+      portfolioStats[label] = {
+        count: values.length,
+        avg: Math.round(avg * 100) / 100,
+        min: Math.min(...values),
+        max: Math.max(...values),
+        stdDev: Math.round(stdDev * 100) / 100,
+        sum: Math.round(sum * 100) / 100,
+      };
     }
   }
 
@@ -290,8 +376,13 @@ async function fetchSingleRecordData(supabase: any, dataSources: any[], submissi
 
 // Independent threshold breach check — evaluates each threshold against actual data
 async function checkThresholdBreaches(
-  supabase: any, projectId: string, perfProjectId: string | null,
-  thresholds: any[], analysisContext: any, isAllRecords: boolean, recordRef: string
+  supabase: any,
+  projectId: string,
+  perfProjectId: string | null,
+  thresholds: any[],
+  analysisContext: any,
+  isAllRecords: boolean,
+  recordRef: string,
 ) {
   if (!thresholds || thresholds.length === 0) return [];
 
@@ -309,7 +400,11 @@ async function checkThresholdBreaches(
 
     if (isAllRecords && analysisContext?.aggregatedMetrics) {
       // For portfolio mode, check against aggregated avg
-      for (const [label, stats] of Object.entries(analysisContext.aggregatedMetrics as Record<string, any>)) {
+      for (
+        const [label, stats] of Object.entries(
+          analysisContext.aggregatedMetrics as Record<string, any>,
+        )
+      ) {
         if (label === fieldLabel || label === th.metric_name) {
           actualValue = stats.avg;
           break;
@@ -324,7 +419,11 @@ async function checkThresholdBreaches(
       }
       // Also try mapped fields
       if (actualValue === null && analysisContext.mappedFields) {
-        for (const [label, info] of Object.entries(analysisContext.mappedFields as Record<string, any>)) {
+        for (
+          const [label, info] of Object.entries(
+            analysisContext.mappedFields as Record<string, any>,
+          )
+        ) {
           if (label === fieldLabel || label === th.metric_name) {
             const v = parseFloat(String((info as any).value));
             if (!isNaN(v)) actualValue = v;
@@ -338,12 +437,24 @@ async function checkThresholdBreaches(
 
     let breached = false;
     switch (operator) {
-      case '>': breached = actualValue > thresholdValue; break;
-      case '>=': breached = actualValue >= thresholdValue; break;
-      case '<': breached = actualValue < thresholdValue; break;
-      case '<=': breached = actualValue <= thresholdValue; break;
-      case '==': breached = actualValue === thresholdValue; break;
-      case '!=': breached = actualValue !== thresholdValue; break;
+      case ">":
+        breached = actualValue > thresholdValue;
+        break;
+      case ">=":
+        breached = actualValue >= thresholdValue;
+        break;
+      case "<":
+        breached = actualValue < thresholdValue;
+        break;
+      case "<=":
+        breached = actualValue <= thresholdValue;
+        break;
+      case "==":
+        breached = actualValue === thresholdValue;
+        break;
+      case "!=":
+        breached = actualValue !== thresholdValue;
+        break;
     }
 
     if (breached) {
@@ -352,7 +463,8 @@ async function checkThresholdBreaches(
         alert_type: "threshold_breach",
         severity: th.severity || "medium",
         title: `Threshold Breach: ${fieldLabel} (${recordRef})`,
-        description: `${fieldLabel} = ${actualValue} (threshold: ${operator} ${thresholdValue})`,
+        description:
+          `${fieldLabel} = ${actualValue} (threshold: ${operator} ${thresholdValue})`,
         ai_generated: false,
         metric_name: fieldLabel,
         threshold_value: thresholdValue,
@@ -369,26 +481,40 @@ async function checkThresholdBreaches(
 }
 
 // Native SMTP send using Deno.connect + Deno.startTls (works in edge functions)
-async function sendSmtpEmail(smtpConfig: any, to: string, subject: string, textContent: string, htmlContent: string) {
+async function sendSmtpEmail(
+  smtpConfig: any,
+  to: string,
+  subject: string,
+  textContent: string,
+  htmlContent: string,
+) {
   const encoder = new TextEncoder();
   const decoder = new TextDecoder();
 
-  async function readLine(reader: ReadableStreamDefaultReader<Uint8Array>): Promise<string> {
-    let result = '';
+  async function readLine(
+    reader: ReadableStreamDefaultReader<Uint8Array>,
+  ): Promise<string> {
+    let result = "";
     while (true) {
       const { value, done } = await reader.read();
       if (done) break;
       result += decoder.decode(value);
-      if (result.includes('\r\n')) break;
+      if (result.includes("\r\n")) break;
     }
     return result.trim();
   }
 
-  async function writeCmd(writer: WritableStreamDefaultWriter<Uint8Array>, cmd: string) {
-    await writer.write(encoder.encode(cmd + '\r\n'));
+  async function writeCmd(
+    writer: WritableStreamDefaultWriter<Uint8Array>,
+    cmd: string,
+  ) {
+    await writer.write(encoder.encode(cmd + "\r\n"));
   }
 
-  async function readAndCheck(reader: ReadableStreamDefaultReader<Uint8Array>, expectedCode: string) {
+  async function readAndCheck(
+    reader: ReadableStreamDefaultReader<Uint8Array>,
+    expectedCode: string,
+  ) {
     const line = await readLine(reader);
     if (!line.startsWith(expectedCode)) {
       throw new Error(`SMTP error: expected ${expectedCode}, got: ${line}`);
@@ -413,21 +539,21 @@ async function sendSmtpEmail(smtpConfig: any, to: string, subject: string, textC
   let writer = conn.writable.getWriter();
 
   try {
-    await readAndCheck(reader, '220');
+    await readAndCheck(reader, "220");
     await writeCmd(writer, `EHLO localhost`);
     // Read all EHLO response lines
-    let ehloResp = '';
+    let ehloResp = "";
     while (true) {
       const line = await readLine(reader);
-      ehloResp += line + '\n';
+      ehloResp += line + "\n";
       if (line.match(/^250 /)) break; // last line has space not dash
       if (!line.match(/^250[-\s]/)) throw new Error(`EHLO failed: ${line}`);
     }
 
     // STARTTLS for port 587
     if (port !== 465) {
-      await writeCmd(writer, 'STARTTLS');
-      await readAndCheck(reader, '220');
+      await writeCmd(writer, "STARTTLS");
+      await readAndCheck(reader, "220");
       reader.releaseLock();
       writer.releaseLock();
       conn = await Deno.startTls(conn as Deno.TcpConn, { hostname });
@@ -442,23 +568,25 @@ async function sendSmtpEmail(smtpConfig: any, to: string, subject: string, textC
     }
 
     // AUTH LOGIN
-    await writeCmd(writer, 'AUTH LOGIN');
-    await readAndCheck(reader, '334');
+    await writeCmd(writer, "AUTH LOGIN");
+    await readAndCheck(reader, "334");
     await writeCmd(writer, btoa(smtpConfig.username));
-    await readAndCheck(reader, '334');
+    await readAndCheck(reader, "334");
     await writeCmd(writer, btoa(smtpConfig.password));
-    await readAndCheck(reader, '235');
+    await readAndCheck(reader, "235");
 
     const fromAddr = smtpConfig.from_email;
-    const fromHeader = smtpConfig.from_name ? `${smtpConfig.from_name} <${fromAddr}>` : fromAddr;
+    const fromHeader = smtpConfig.from_name
+      ? `${smtpConfig.from_name} <${fromAddr}>`
+      : fromAddr;
     const boundary = `boundary_${Date.now()}`;
 
     await writeCmd(writer, `MAIL FROM:<${fromAddr}>`);
-    await readAndCheck(reader, '250');
+    await readAndCheck(reader, "250");
     await writeCmd(writer, `RCPT TO:<${to}>`);
-    await readAndCheck(reader, '250');
-    await writeCmd(writer, 'DATA');
-    await readAndCheck(reader, '354');
+    await readAndCheck(reader, "250");
+    await writeCmd(writer, "DATA");
+    await readAndCheck(reader, "354");
 
     const msg = [
       `From: ${fromHeader}`,
@@ -479,30 +607,39 @@ async function sendSmtpEmail(smtpConfig: any, to: string, subject: string, textC
       ``,
       `--${boundary}--`,
       `.`,
-    ].join('\r\n');
+    ].join("\r\n");
 
     await writeCmd(writer, msg);
-    await readAndCheck(reader, '250');
-    await writeCmd(writer, 'QUIT');
+    await readAndCheck(reader, "250");
+    await writeCmd(writer, "QUIT");
   } finally {
-    try { reader.releaseLock(); } catch (_) {}
-    try { writer.releaseLock(); } catch (_) {}
-    try { conn.close(); } catch (_) {}
+    try {
+      reader.releaseLock();
+    } catch (_) {}
+    try {
+      writer.releaseLock();
+    } catch (_) {}
+    try {
+      conn.close();
+    } catch (_) {}
   }
 }
 
 // Send role-based notifications for threshold breaches
 async function sendThresholdBreachNotifications(
-  supabase: any, projectId: string, perfProjectId: string | null,
-  breachAlerts: any[], userId: string
+  supabase: any,
+  projectId: string,
+  perfProjectId: string | null,
+  breachAlerts: any[],
+  userId: string,
 ) {
   if (!breachAlerts || breachAlerts.length === 0) return;
 
   try {
     const { data: userProfile } = await supabase
-      .from('user_profiles')
-      .select('organization_id')
-      .eq('id', userId)
+      .from("user_profiles")
+      .select("organization_id")
+      .eq("id", userId)
       .single();
 
     if (!userProfile?.organization_id) return;
@@ -520,20 +657,26 @@ async function sendThresholdBreachNotifications(
     if (roleIdSet.size > 0 && perfProjectId) {
       const roleTypes = [...roleIdSet];
       const { data: roleUsers } = await supabase
-        .from('performance_user_roles')
-        .select('user_id')
-        .eq('performance_project_id', perfProjectId)
-        .in('role_type', roleTypes);
+        .from("performance_user_roles")
+        .select("user_id")
+        .eq("performance_project_id", perfProjectId)
+        .in("role_type", roleTypes);
       if (roleUsers) {
-        targetUserIds = [...new Set((roleUsers as any[]).map((r: any) => String(r.user_id)).filter(Boolean))] as string[];
+        targetUserIds = [
+          ...new Set(
+            (roleUsers as any[]).map((r: any) => String(r.user_id)).filter(
+              Boolean,
+            ),
+          ),
+        ] as string[];
       }
     }
 
     if (targetUserIds.length === 0) {
       const { data: orgUsers } = await supabase
-        .from('user_profiles')
-        .select('id')
-        .eq('organization_id', orgId);
+        .from("user_profiles")
+        .select("id")
+        .eq("organization_id", orgId);
       targetUserIds = orgUsers?.map((u: any) => u.id) || [userId];
     }
 
@@ -542,135 +685,223 @@ async function sendThresholdBreachNotifications(
     // In-app notifications
     const notifInserts = uniqueIds.map((uid: string) => ({
       user_id: uid,
-      type: 'performance_alert',
-      title: `⚠️ Threshold Breach: ${breachAlerts.length} violation${breachAlerts.length > 1 ? 's' : ''}`,
-      message: breachAlerts.map((a: any) => `${a.severity.toUpperCase()}: ${a.title}`).join(' | '),
-      data: { source: 'performance_threshold', project_id: projectId, performance_project_id: perfProjectId, alert_count: breachAlerts.length },
+      type: "performance_alert",
+      title: `⚠️ Threshold Breach: ${breachAlerts.length} violation${
+        breachAlerts.length > 1 ? "s" : ""
+      }`,
+      message: breachAlerts.map((a: any) =>
+        `${a.severity.toUpperCase()}: ${a.title}`
+      ).join(" | "),
+      data: {
+        source: "performance_threshold",
+        project_id: projectId,
+        performance_project_id: perfProjectId,
+        alert_count: breachAlerts.length,
+      },
       read: false,
     }));
-    await supabase.from('notifications').insert(notifInserts);
+    await supabase.from("notifications").insert(notifInserts);
 
     // Email for breaches with send_email enabled
-    const emailBreaches = breachAlerts.filter((a: any) => a._threshold?.send_email);
+    const emailBreaches = breachAlerts.filter((a: any) =>
+      a._threshold?.send_email
+    );
     if (emailBreaches.length > 0) {
       let { data: smtpConfigs } = await supabase
-        .from('smtp_configs')
-        .select('*')
-        .eq('organization_id', orgId)
-        .eq('is_active', true)
-        .eq('is_default', true)
+        .from("smtp_configs")
+        .select("*")
+        .eq("organization_id", orgId)
+        .eq("is_active", true)
+        .eq("is_default", true)
         .limit(1);
       if (!smtpConfigs || smtpConfigs.length === 0) {
-        const fallback = await supabase.from('smtp_configs').select('*').eq('organization_id', orgId).eq('is_active', true).limit(1);
+        const fallback = await supabase.from("smtp_configs").select("*").eq(
+          "organization_id",
+          orgId,
+        ).eq("is_active", true).limit(1);
         smtpConfigs = fallback.data;
       }
 
       if (smtpConfigs && smtpConfigs.length > 0) {
-        const { data: memberProfiles } = await supabase.from('user_profiles').select('email').in('id', uniqueIds);
-        const emails = memberProfiles?.map((p: any) => p.email).filter(Boolean) || [];
+        const { data: memberProfiles } = await supabase.from("user_profiles")
+          .select("email").in("id", uniqueIds);
+        const emails = memberProfiles?.map((p: any) =>
+          p.email
+        ).filter(Boolean) || [];
         if (emails.length > 0) {
           const smtpConfig = smtpConfigs[0];
           const htmlAlerts = emailBreaches.map((a: any) =>
-            `<tr><td style="padding:8px;border:1px solid #e5e7eb;"><span style="color:${a.severity === 'critical' ? '#ef4444' : a.severity === 'high' ? '#f59e0b' : '#3b82f6'};font-weight:bold;">${a.severity.toUpperCase()}</span></td><td style="padding:8px;border:1px solid #e5e7eb;">${a.title}</td><td style="padding:8px;border:1px solid #e5e7eb;">${a.description || ''}</td></tr>`
-          ).join('');
-          const subject = `🚨 Threshold Breach: ${emailBreaches.length} violation${emailBreaches.length > 1 ? 's' : ''} detected`;
-          const textContent = `Threshold Breach Alert\n\n${emailBreaches.map((a: any) => `• ${a.severity.toUpperCase()}: ${a.title} — ${a.description}`).join('\n')}\n\nPlease review the Performance Dashboard.`;
-          const htmlContent = `<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;padding:20px;"><h2 style="color:#ef4444;">🚨 Threshold Breach Alert</h2><p>${emailBreaches.length} threshold violation${emailBreaches.length > 1 ? 's' : ''} detected.</p><table style="width:100%;border-collapse:collapse;margin:16px 0;"><thead><tr style="background:#f3f4f6;"><th style="padding:8px;border:1px solid #e5e7eb;text-align:left;">Severity</th><th style="padding:8px;border:1px solid #e5e7eb;text-align:left;">Alert</th><th style="padding:8px;border:1px solid #e5e7eb;text-align:left;">Details</th></tr></thead><tbody>${htmlAlerts}</tbody></table><p style="color:#6b7280;font-size:12px;">This is an automated alert from your Performance Monitoring system.</p></body></html>`;
+            `<tr><td style="padding:8px;border:1px solid #e5e7eb;"><span style="color:${
+              a.severity === "critical"
+                ? "#ef4444"
+                : a.severity === "high"
+                ? "#f59e0b"
+                : "#3b82f6"
+            };font-weight:bold;">${a.severity.toUpperCase()}</span></td><td style="padding:8px;border:1px solid #e5e7eb;">${a.title}</td><td style="padding:8px;border:1px solid #e5e7eb;">${
+              a.description || ""
+            }</td></tr>`
+          ).join("");
+          const subject =
+            `🚨 Threshold Breach: ${emailBreaches.length} violation${
+              emailBreaches.length > 1 ? "s" : ""
+            } detected`;
+          const textContent = `Threshold Breach Alert\n\n${
+            emailBreaches.map((a: any) =>
+              `• ${a.severity.toUpperCase()}: ${a.title} — ${a.description}`
+            ).join("\n")
+          }\n\nPlease review the Performance Dashboard.`;
+          const htmlContent =
+            `<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;padding:20px;"><h2 style="color:#ef4444;">🚨 Threshold Breach Alert</h2><p>${emailBreaches.length} threshold violation${
+              emailBreaches.length > 1 ? "s" : ""
+            } detected.</p><table style="width:100%;border-collapse:collapse;margin:16px 0;"><thead><tr style="background:#f3f4f6;"><th style="padding:8px;border:1px solid #e5e7eb;text-align:left;">Severity</th><th style="padding:8px;border:1px solid #e5e7eb;text-align:left;">Alert</th><th style="padding:8px;border:1px solid #e5e7eb;text-align:left;">Details</th></tr></thead><tbody>${htmlAlerts}</tbody></table><p style="color:#6b7280;font-size:12px;">This is an automated alert from your Performance Monitoring system.</p></body></html>`;
 
           for (const email of emails) {
             try {
-              await sendSmtpEmail(smtpConfig, email, subject, textContent, htmlContent);
-              console.log('Threshold breach email sent to', email);
+              await sendSmtpEmail(
+                smtpConfig,
+                email,
+                subject,
+                textContent,
+                htmlContent,
+              );
+              console.log("Threshold breach email sent to", email);
             } catch (emailErr) {
-              console.error('Email send failed for', email, emailErr);
+              console.error("Email send failed for", email, emailErr);
             }
           }
         }
       }
     }
   } catch (err) {
-    console.error('Threshold notification error (non-blocking):', err);
+    console.error("Threshold notification error (non-blocking):", err);
   }
 }
 
 // Send notifications for AI-detected anomalies
-async function sendAlertNotifications(supabase: any, projectId: string, perfProjectId: string | null, alerts: any[], userId: string) {
+async function sendAlertNotifications(
+  supabase: any,
+  projectId: string,
+  perfProjectId: string | null,
+  alerts: any[],
+  userId: string,
+) {
   try {
     const { data: userProfile } = await supabase
-      .from('user_profiles')
-      .select('id, email, organization_id')
-      .eq('id', userId)
+      .from("user_profiles")
+      .select("id, email, organization_id")
+      .eq("id", userId)
       .single();
 
     if (!userProfile) return;
 
     // Get project members
     const { data: members } = await supabase
-      .from('project_users')
-      .select('user_id')
-      .eq('project_id', projectId);
+      .from("project_users")
+      .select("user_id")
+      .eq("project_id", projectId);
 
-    const memberIds = ((members as any[] | null)?.map((m: any) => String(m.user_id)).filter(Boolean)) || [userId];
+    const memberIds = ((members as any[] | null)?.map((m: any) =>
+      String(m.user_id)
+    ).filter(Boolean)) || [userId];
     const uniqueIds = [...new Set(memberIds)] as string[];
 
     // Create in-app notifications for high/critical
-    const criticalAlerts = alerts.filter((a: any) => a.severity === 'high' || a.severity === 'critical');
+    const criticalAlerts = alerts.filter((a: any) =>
+      a.severity === "high" || a.severity === "critical"
+    );
     if (criticalAlerts.length > 0) {
       const notifInserts = uniqueIds.map((uid: string) => ({
         user_id: uid,
-        type: 'performance_alert',
-        title: `⚠️ AI Alert: ${criticalAlerts.length} issue${criticalAlerts.length > 1 ? 's' : ''} detected`,
-        message: criticalAlerts.map((a: any) => `${a.severity.toUpperCase()}: ${a.title}`).join(' | '),
-        data: { source: 'performance_monitoring', project_id: projectId, performance_project_id: perfProjectId, alert_count: criticalAlerts.length },
+        type: "performance_alert",
+        title: `⚠️ AI Alert: ${criticalAlerts.length} issue${
+          criticalAlerts.length > 1 ? "s" : ""
+        } detected`,
+        message: criticalAlerts.map((a: any) =>
+          `${a.severity.toUpperCase()}: ${a.title}`
+        ).join(" | "),
+        data: {
+          source: "performance_monitoring",
+          project_id: projectId,
+          performance_project_id: perfProjectId,
+          alert_count: criticalAlerts.length,
+        },
         read: false,
       }));
-      await supabase.from('notifications').insert(notifInserts);
+      await supabase.from("notifications").insert(notifInserts);
     }
 
     // Send email via SMTP for critical/high alerts
     if (criticalAlerts.length > 0 && userProfile.organization_id) {
       let { data: smtpConfigs } = await supabase
-        .from('smtp_configs')
-        .select('*')
-        .eq('organization_id', userProfile.organization_id)
-        .eq('is_active', true)
-        .eq('is_default', true)
+        .from("smtp_configs")
+        .select("*")
+        .eq("organization_id", userProfile.organization_id)
+        .eq("is_active", true)
+        .eq("is_default", true)
         .limit(1);
       if (!smtpConfigs || smtpConfigs.length === 0) {
-        const fallback = await supabase.from('smtp_configs').select('*').eq('organization_id', userProfile.organization_id).eq('is_active', true).limit(1);
+        const fallback = await supabase.from("smtp_configs").select("*").eq(
+          "organization_id",
+          userProfile.organization_id,
+        ).eq("is_active", true).limit(1);
         smtpConfigs = fallback.data;
       }
 
       if (smtpConfigs && smtpConfigs.length > 0) {
-        const { data: memberProfiles } = await supabase.from('user_profiles').select('email').in('id', uniqueIds);
-        const emails = memberProfiles?.map((p: any) => p.email).filter(Boolean) || [];
+        const { data: memberProfiles } = await supabase.from("user_profiles")
+          .select("email").in("id", uniqueIds);
+        const emails = memberProfiles?.map((p: any) =>
+          p.email
+        ).filter(Boolean) || [];
         if (emails.length > 0) {
           const smtpConfig = smtpConfigs[0];
           const htmlAlerts = criticalAlerts.map((a: any) =>
-            `<tr><td style="padding:8px;border:1px solid #e5e7eb;"><span style="color:${a.severity === 'critical' ? '#ef4444' : '#f59e0b'};font-weight:bold;">${a.severity.toUpperCase()}</span></td><td style="padding:8px;border:1px solid #e5e7eb;">${a.title}</td><td style="padding:8px;border:1px solid #e5e7eb;">${a.description || ''}</td></tr>`
-          ).join('');
-          const subject = `🚨 Performance Alert: ${criticalAlerts.length} issue${criticalAlerts.length > 1 ? 's' : ''} detected`;
-          const textContent = `Performance Monitoring Alert\n\n${criticalAlerts.map((a: any) => `• ${a.severity.toUpperCase()}: ${a.title} — ${a.description}`).join('\n')}\n\nPlease review the Performance Dashboard.`;
-          const htmlContent = `<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;padding:20px;"><h2 style="color:#ef4444;">🚨 Performance Alert</h2><p>${criticalAlerts.length} issue${criticalAlerts.length > 1 ? 's' : ''} detected.</p><table style="width:100%;border-collapse:collapse;margin:16px 0;"><thead><tr style="background:#f3f4f6;"><th style="padding:8px;border:1px solid #e5e7eb;text-align:left;">Severity</th><th style="padding:8px;border:1px solid #e5e7eb;text-align:left;">Alert</th><th style="padding:8px;border:1px solid #e5e7eb;text-align:left;">Details</th></tr></thead><tbody>${htmlAlerts}</tbody></table><p style="color:#6b7280;font-size:12px;">This is an automated alert from your Performance Monitoring system.</p></body></html>`;
+            `<tr><td style="padding:8px;border:1px solid #e5e7eb;"><span style="color:${
+              a.severity === "critical" ? "#ef4444" : "#f59e0b"
+            };font-weight:bold;">${a.severity.toUpperCase()}</span></td><td style="padding:8px;border:1px solid #e5e7eb;">${a.title}</td><td style="padding:8px;border:1px solid #e5e7eb;">${
+              a.description || ""
+            }</td></tr>`
+          ).join("");
+          const subject =
+            `🚨 Performance Alert: ${criticalAlerts.length} issue${
+              criticalAlerts.length > 1 ? "s" : ""
+            } detected`;
+          const textContent = `Performance Monitoring Alert\n\n${
+            criticalAlerts.map((a: any) =>
+              `• ${a.severity.toUpperCase()}: ${a.title} — ${a.description}`
+            ).join("\n")
+          }\n\nPlease review the Performance Dashboard.`;
+          const htmlContent =
+            `<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;padding:20px;"><h2 style="color:#ef4444;">🚨 Performance Alert</h2><p>${criticalAlerts.length} issue${
+              criticalAlerts.length > 1 ? "s" : ""
+            } detected.</p><table style="width:100%;border-collapse:collapse;margin:16px 0;"><thead><tr style="background:#f3f4f6;"><th style="padding:8px;border:1px solid #e5e7eb;text-align:left;">Severity</th><th style="padding:8px;border:1px solid #e5e7eb;text-align:left;">Alert</th><th style="padding:8px;border:1px solid #e5e7eb;text-align:left;">Details</th></tr></thead><tbody>${htmlAlerts}</tbody></table><p style="color:#6b7280;font-size:12px;">This is an automated alert from your Performance Monitoring system.</p></body></html>`;
 
           for (const email of emails) {
             try {
-              await sendSmtpEmail(smtpConfig, email, subject, textContent, htmlContent);
-              console.log('AI alert email sent to', email);
+              await sendSmtpEmail(
+                smtpConfig,
+                email,
+                subject,
+                textContent,
+                htmlContent,
+              );
+              console.log("AI alert email sent to", email);
             } catch (emailErr) {
-              console.error('Email send failed for', email, emailErr);
+              console.error("Email send failed for", email, emailErr);
             }
           }
         }
       }
     }
   } catch (err) {
-    console.error('Alert notification error (non-blocking):', err);
+    console.error("Alert notification error (non-blocking):", err);
   }
 }
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
 
   try {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -684,16 +915,23 @@ serve(async (req) => {
     if (!authHeader) throw new Error("No authorization header");
 
     const token = authHeader.replace("Bearer ", "");
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    const { data: { user }, error: authError } = await supabase.auth.getUser(
+      token,
+    );
     if (authError || !user) throw new Error("Unauthorized");
 
-    const { project_id, action, performance_project_id, submission_id } = await req.json();
+    const { project_id, action, performance_project_id, submission_id } =
+      await req.json();
     if (!project_id) throw new Error("project_id is required");
 
     if (action === "analyze") {
-      if (!submission_id) throw new Error("submission_id is required — select a record to analyze");
+      if (!submission_id) {
+        throw new Error(
+          "submission_id is required — select a record to analyze",
+        );
+      }
 
-      const isAllRecords = submission_id === '__all__';
+      const isAllRecords = submission_id === "__all__";
 
       // Fetch data sources
       let dsQuery = supabase
@@ -701,7 +939,9 @@ serve(async (req) => {
         .select("*")
         .eq("project_id", project_id)
         .eq("is_active", true);
-      if (performance_project_id) dsQuery = dsQuery.eq("performance_project_id", performance_project_id);
+      if (performance_project_id) {
+        dsQuery = dsQuery.eq("performance_project_id", performance_project_id);
+      }
       const { data: dataSources } = await dsQuery;
 
       // Fetch thresholds
@@ -710,15 +950,29 @@ serve(async (req) => {
         .select("*")
         .eq("project_id", project_id)
         .eq("is_active", true);
-      if (performance_project_id) thQuery = thQuery.eq("performance_project_id", performance_project_id);
+      if (performance_project_id) {
+        thQuery = thQuery.eq("performance_project_id", performance_project_id);
+      }
       const { data: thresholds } = await thQuery;
 
       // CLEAR old alerts and predictions for this perf project before generating fresh ones
-      let delAlertQuery = supabase.from("performance_alerts").delete().eq("project_id", project_id).eq("ai_generated", true);
-      let delPredQuery = supabase.from("performance_predictions").delete().eq("project_id", project_id);
+      let delAlertQuery = supabase.from("performance_alerts").delete().eq(
+        "project_id",
+        project_id,
+      ).eq("ai_generated", true);
+      let delPredQuery = supabase.from("performance_predictions").delete().eq(
+        "project_id",
+        project_id,
+      );
       if (performance_project_id) {
-        delAlertQuery = delAlertQuery.eq("performance_project_id", performance_project_id);
-        delPredQuery = delPredQuery.eq("performance_project_id", performance_project_id);
+        delAlertQuery = delAlertQuery.eq(
+          "performance_project_id",
+          performance_project_id,
+        );
+        delPredQuery = delPredQuery.eq(
+          "performance_project_id",
+          performance_project_id,
+        );
       }
       await delAlertQuery;
       await delPredQuery;
@@ -728,16 +982,31 @@ serve(async (req) => {
 
       if (isAllRecords) {
         // Aggregated analysis across all records
-        analysisContext = await fetchAllRecordsData(supabase, dataSources || []);
+        analysisContext = await fetchAllRecordsData(
+          supabase,
+          dataSources || [],
+        );
         if (!analysisContext) {
-          return new Response(JSON.stringify({
-            summary: "No records found. Ensure the data source is configured and submissions exist.",
-            anomalies: [], predictions: [], risk_score: 0, health_status: "green",
-            recommendations: [{ priority: "high", title: "Add Data", description: "Submit data through your form first." }],
-          }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+          return new Response(
+            JSON.stringify({
+              summary:
+                "No records found. Ensure the data source is configured and submissions exist.",
+              anomalies: [],
+              predictions: [],
+              risk_score: 0,
+              health_status: "green",
+              recommendations: [{
+                priority: "high",
+                title: "Add Data",
+                description: "Submit data through your form first.",
+              }],
+            }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
         }
 
-        prompt = `You are an expert project performance analyst conducting a PORTFOLIO-WIDE AGGREGATED ANALYSIS across ${analysisContext.totalRecords} records.
+        prompt =
+          `You are an expert project performance analyst conducting a PORTFOLIO-WIDE AGGREGATED ANALYSIS across ${analysisContext.totalRecords} records.
 
 ${ENTERPRISE_PORTFOLIO_TRACKER_CONTEXT}
 
@@ -768,16 +1037,31 @@ IMPORTANT: All monetary values are in Indian Rupees (₹ / INR). Always use the 
 Be SPECIFIC — reference actual aggregated values, averages, and trends.`;
       } else {
         // Single record analysis
-        analysisContext = await fetchSingleRecordData(supabase, dataSources || [], submission_id);
+        analysisContext = await fetchSingleRecordData(
+          supabase,
+          dataSources || [],
+          submission_id,
+        );
         if (!analysisContext) {
-          return new Response(JSON.stringify({
-            summary: "Could not find the selected record.",
-            anomalies: [], predictions: [], risk_score: 0, health_status: "green",
-            recommendations: [{ priority: "high", title: "Configure Data Source", description: "Go to the Data Sources tab." }],
-          }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+          return new Response(
+            JSON.stringify({
+              summary: "Could not find the selected record.",
+              anomalies: [],
+              predictions: [],
+              risk_score: 0,
+              health_status: "green",
+              recommendations: [{
+                priority: "high",
+                title: "Configure Data Source",
+                description: "Go to the Data Sources tab.",
+              }],
+            }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
         }
 
-        prompt = `You are an expert project performance analyst conducting a DETAILED SINGLE RECORD ANALYSIS.
+        prompt =
+          `You are an expert project performance analyst conducting a DETAILED SINGLE RECORD ANALYSIS.
 
 ${ENTERPRISE_PORTFOLIO_TRACKER_CONTEXT}
 
@@ -814,92 +1098,139 @@ Be SPECIFIC — reference actual field values, rupee amounts (₹), dates, and p
 
       let analysis;
       try {
-        const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${LOVABLE_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: "google/gemini-2.5-flash",
-            messages: [
-              { role: "system", content: "You are an expert project performance analyst specializing in enterprise project portfolio management. You have deep knowledge of project financial metrics (NPV, IRR, ROI, EAC, ETC), schedule performance (SPI, duration/effort variance), and risk scoring. Always respond with precise, data-driven analysis referencing actual values." },
-              { role: "user", content: prompt },
-            ],
-            max_tokens: 8192,
-            tools: [{
-              type: "function",
-              function: {
-                name: "performance_analysis",
-                description: "Return structured single-record performance analysis results",
-                parameters: {
-                  type: "object",
-                  properties: {
-                    risk_score: { type: "number", description: "Overall risk score 0-100 for this specific record" },
-                    health_status: { type: "string", enum: ["green", "yellow", "orange", "red"] },
-                    summary: { type: "string", description: "3-5 sentence executive summary of this record's health, referencing actual values (costs, dates, scores)" },
-                    anomalies: {
-                      type: "array",
-                      items: {
-                        type: "object",
-                        properties: {
-                          metric: { type: "string" },
-                          description: { type: "string" },
-                          severity: { type: "string", enum: ["low", "medium", "high", "critical"] },
-                          value: { type: "number" },
-                          expected_value: { type: "number" },
-                        },
-                        required: ["metric", "description", "severity"],
-                      },
-                    },
-                    predictions: {
-                      type: "array",
-                      items: {
-                        type: "object",
-                        properties: {
-                          type: { type: "string", enum: ["budget_forecast", "completion_date", "resource_need", "risk_trend", "milestone_delay"] },
-                          description: { type: "string" },
-                          predicted_value: { type: "number" },
-                          confidence: { type: "number", description: "Value between 0 and 1" },
-                          timeframe: { type: "string" },
-                        },
-                        required: ["type", "description", "confidence"],
-                      },
-                    },
-                    recommendations: {
-                      type: "array",
-                      items: {
-                        type: "object",
-                        properties: {
-                          priority: { type: "string", enum: ["low", "medium", "high", "critical"] },
-                          title: { type: "string" },
-                          description: { type: "string" },
-                          impact: { type: "string" },
-                        },
-                        required: ["priority", "title", "description"],
-                      },
-                    },
-                    threshold_violations: {
-                      type: "array",
-                      items: {
-                        type: "object",
-                        properties: {
-                          metric_name: { type: "string" },
-                          threshold_value: { type: "number" },
-                          actual_value: { type: "number" },
-                          severity: { type: "string" },
-                        },
-                        required: ["metric_name", "actual_value"],
-                      },
-                    },
-                  },
-                  required: ["risk_score", "health_status", "summary", "anomalies", "predictions", "recommendations"],
+        const aiResponse = await fetch(
+          "https://ai.gateway.lovable.dev/v1/chat/completions",
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${LOVABLE_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              model: "google/gemini-2.5-flash",
+              messages: [
+                {
+                  role: "system",
+                  content:
+                    "You are an expert project performance analyst specializing in enterprise project portfolio management. You have deep knowledge of project financial metrics (NPV, IRR, ROI, EAC, ETC), schedule performance (SPI, duration/effort variance), and risk scoring. Always respond with precise, data-driven analysis referencing actual values.",
                 },
+                { role: "user", content: prompt },
+              ],
+              max_tokens: 8192,
+              tools: [{
+                type: "function",
+                function: {
+                  name: "performance_analysis",
+                  description:
+                    "Return structured single-record performance analysis results",
+                  parameters: {
+                    type: "object",
+                    properties: {
+                      risk_score: {
+                        type: "number",
+                        description:
+                          "Overall risk score 0-100 for this specific record",
+                      },
+                      health_status: {
+                        type: "string",
+                        enum: ["green", "yellow", "orange", "red"],
+                      },
+                      summary: {
+                        type: "string",
+                        description:
+                          "3-5 sentence executive summary of this record's health, referencing actual values (costs, dates, scores)",
+                      },
+                      anomalies: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            metric: { type: "string" },
+                            description: { type: "string" },
+                            severity: {
+                              type: "string",
+                              enum: ["low", "medium", "high", "critical"],
+                            },
+                            value: { type: "number" },
+                            expected_value: { type: "number" },
+                          },
+                          required: ["metric", "description", "severity"],
+                        },
+                      },
+                      predictions: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            type: {
+                              type: "string",
+                              enum: [
+                                "budget_forecast",
+                                "completion_date",
+                                "resource_need",
+                                "risk_trend",
+                                "milestone_delay",
+                              ],
+                            },
+                            description: { type: "string" },
+                            predicted_value: { type: "number" },
+                            confidence: {
+                              type: "number",
+                              description: "Value between 0 and 1",
+                            },
+                            timeframe: { type: "string" },
+                          },
+                          required: ["type", "description", "confidence"],
+                        },
+                      },
+                      recommendations: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            priority: {
+                              type: "string",
+                              enum: ["low", "medium", "high", "critical"],
+                            },
+                            title: { type: "string" },
+                            description: { type: "string" },
+                            impact: { type: "string" },
+                          },
+                          required: ["priority", "title", "description"],
+                        },
+                      },
+                      threshold_violations: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            metric_name: { type: "string" },
+                            threshold_value: { type: "number" },
+                            actual_value: { type: "number" },
+                            severity: { type: "string" },
+                          },
+                          required: ["metric_name", "actual_value"],
+                        },
+                      },
+                    },
+                    required: [
+                      "risk_score",
+                      "health_status",
+                      "summary",
+                      "anomalies",
+                      "predictions",
+                      "recommendations",
+                    ],
+                  },
+                },
+              }],
+              tool_choice: {
+                type: "function",
+                function: { name: "performance_analysis" },
               },
-            }],
-            tool_choice: { type: "function", function: { name: "performance_analysis" } },
-          }),
-        });
+            }),
+          },
+        );
 
         if (!aiResponse.ok) {
           const errText = await aiResponse.text();
@@ -928,24 +1259,56 @@ Be SPECIFIC — reference actual field values, rupee amounts (₹), dates, and p
           }
         }
       } catch (aiError) {
-        console.error("AI analysis unavailable, using fallback analysis:", aiError);
-        analysis = buildFallbackAnalysis(analysisContext, thresholds || [], isAllRecords);
+        console.error(
+          "AI analysis unavailable, using fallback analysis:",
+          aiError,
+        );
+        analysis = buildFallbackAnalysis(
+          analysisContext,
+          thresholds || [],
+          isAllRecords,
+        );
         (analysis as any).diagnostics = {
           fallback_used: true,
-          reason: aiError instanceof Error ? aiError.message : 'AI service unavailable',
+          reason: aiError instanceof Error
+            ? aiError.message
+            : "AI service unavailable",
         };
       }
 
       // Validate and normalize
-      analysis.risk_score = Math.max(0, Math.min(100, Number(analysis.risk_score) || 0));
-      if (!['green', 'yellow', 'orange', 'red'].includes(analysis.health_status)) {
-        analysis.health_status = analysis.risk_score > 70 ? 'red' : analysis.risk_score > 40 ? 'orange' : analysis.risk_score > 20 ? 'yellow' : 'green';
+      analysis.risk_score = Math.max(
+        0,
+        Math.min(100, Number(analysis.risk_score) || 0),
+      );
+      if (
+        !["green", "yellow", "orange", "red"].includes(analysis.health_status)
+      ) {
+        analysis.health_status = analysis.risk_score > 70
+          ? "red"
+          : analysis.risk_score > 40
+          ? "orange"
+          : analysis.risk_score > 20
+          ? "yellow"
+          : "green";
       }
-      analysis.anomalies = Array.isArray(analysis.anomalies) ? analysis.anomalies : [];
-      analysis.predictions = Array.isArray(analysis.predictions) ? analysis.predictions : [];
-      analysis.recommendations = Array.isArray(analysis.recommendations) ? analysis.recommendations : [];
+      analysis.anomalies = Array.isArray(analysis.anomalies)
+        ? analysis.anomalies
+        : [];
+      analysis.predictions = Array.isArray(analysis.predictions)
+        ? analysis.predictions
+        : [];
+      analysis.recommendations = Array.isArray(analysis.recommendations)
+        ? analysis.recommendations
+        : [];
 
-      const VALID_PREDICTION_TYPES = ["budget_forecast", "completion_date", "resource_need", "risk_trend", "milestone_delay"];
+      const VALID_PREDICTION_TYPES = [
+        "budget_forecast",
+        "completion_date",
+        "resource_need",
+        "risk_trend",
+        "milestone_delay",
+      ];
       const PREDICTION_TYPE_MAP: Record<string, string> = {
         cost_overrun: "budget_forecast",
         schedule_slip: "milestone_delay",
@@ -953,12 +1316,16 @@ Be SPECIFIC — reference actual field values, rupee amounts (₹), dates, and p
       };
       analysis.predictions = analysis.predictions.map((p: any) => ({
         ...p,
-        type: VALID_PREDICTION_TYPES.includes(p.type) ? p.type : (PREDICTION_TYPE_MAP[p.type] || "risk_trend"),
+        type: VALID_PREDICTION_TYPES.includes(p.type)
+          ? p.type
+          : (PREDICTION_TYPE_MAP[p.type] || "risk_trend"),
         confidence: p.confidence > 1 ? p.confidence / 100 : p.confidence,
       }));
 
       // Store anomalies as fresh alerts
-      const recordRef = isAllRecords ? 'All Records' : (analysisContext.submissionRefId || submission_id.slice(0, 8));
+      const recordRef = isAllRecords
+        ? "All Records"
+        : (analysisContext.submissionRefId || submission_id.slice(0, 8));
       if (analysis.anomalies?.length > 0) {
         const orgId = dataSources?.[0]?.organization_id;
         const alertInserts = analysis.anomalies.map((a: any) => ({
@@ -979,17 +1346,29 @@ Be SPECIFIC — reference actual field values, rupee amounts (₹), dates, and p
           ...(performance_project_id ? { performance_project_id } : {}),
         }));
 
-        const { error: alertError } = await supabase.from("performance_alerts").insert(alertInserts);
+        const { error: alertError } = await supabase.from("performance_alerts")
+          .insert(alertInserts);
         if (alertError) console.error("Error saving alerts:", alertError);
 
         // Send in-app and email notifications for alerts
-        await sendAlertNotifications(supabase, project_id, performance_project_id || null, alertInserts, user.id);
+        await sendAlertNotifications(
+          supabase,
+          project_id,
+          performance_project_id || null,
+          alertInserts,
+          user.id,
+        );
       }
 
       // Independent threshold breach check (not relying on AI)
       const breachAlerts = await checkThresholdBreaches(
-        supabase, project_id, performance_project_id || null,
-        thresholds || [], analysisContext, isAllRecords, recordRef
+        supabase,
+        project_id,
+        performance_project_id || null,
+        thresholds || [],
+        analysisContext,
+        isAllRecords,
+        recordRef,
       );
 
       if (breachAlerts.length > 0) {
@@ -999,18 +1378,27 @@ Be SPECIFIC — reference actual field values, rupee amounts (₹), dates, and p
           return { ...alertData, organization_id: orgId };
         });
 
-        const { error: breachError } = await supabase.from("performance_alerts").insert(breachInserts);
-        if (breachError) console.error("Error saving threshold breach alerts:", breachError);
+        const { error: breachError } = await supabase.from("performance_alerts")
+          .insert(breachInserts);
+        if (breachError) {
+          console.error("Error saving threshold breach alerts:", breachError);
+        }
 
         // Send role-based notifications for threshold breaches
-        await sendThresholdBreachNotifications(supabase, project_id, performance_project_id || null, breachAlerts, user.id);
+        await sendThresholdBreachNotifications(
+          supabase,
+          project_id,
+          performance_project_id || null,
+          breachAlerts,
+          user.id,
+        );
       }
       if (analysis.predictions?.length > 0) {
         const orgId = dataSources?.[0]?.organization_id;
         const predInserts = analysis.predictions.map((p: any) => ({
           project_id,
           organization_id: orgId,
-          prediction_type: p.type || 'general',
+          prediction_type: p.type || "general",
           predicted_value: p.predicted_value ?? null,
           confidence_level: p.confidence ?? null,
           reasoning: `[${recordRef}] ${p.description}`,
@@ -1019,7 +1407,9 @@ Be SPECIFIC — reference actual field values, rupee amounts (₹), dates, and p
           ...(performance_project_id ? { performance_project_id } : {}),
         }));
 
-        const { error: predError } = await supabase.from("performance_predictions").insert(predInserts);
+        const { error: predError } = await supabase.from(
+          "performance_predictions",
+        ).insert(predInserts);
         if (predError) console.error("Error saving predictions:", predError);
       }
 
@@ -1029,12 +1419,19 @@ Be SPECIFIC — reference actual field values, rupee amounts (₹), dates, and p
     }
 
     return new Response(JSON.stringify({ error: "Invalid action" }), {
-      status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 400,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
     console.error("analyze-performance error:", e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({
+        error: e instanceof Error ? e.message : "Unknown error",
+      }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
   }
 });
