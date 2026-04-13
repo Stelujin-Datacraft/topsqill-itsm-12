@@ -84,6 +84,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const loadUserProfile = async (userId: string, retryCount = 0) => {
     const MAX_RETRIES = 3;
+    setProfileError(null);
     try {
       const { data: profile, error } = await supabase
         .from('user_profiles')
@@ -93,12 +94,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) {
         console.warn('Error loading user profile:', error.message, `(attempt ${retryCount + 1})`);
-        // Retry on transient errors (PGRST002, network issues)
         if (retryCount < MAX_RETRIES) {
           const delay = Math.min(1000 * Math.pow(2, retryCount), 5000);
           await new Promise(resolve => setTimeout(resolve, delay));
           return loadUserProfile(userId, retryCount + 1);
         }
+        setProfileError(error.message);
         return;
       }
 
