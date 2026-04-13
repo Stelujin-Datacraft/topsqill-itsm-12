@@ -48,6 +48,7 @@ interface AuthContextType {
   organization: Organization | null;
   session: Session | null;
   isLoading: boolean;
+  profileError: string | null;
   pendingMfa: { userId: string; email: string } | null;
   passwordExpired: boolean;
   signUp: (email: string, password: string, userData: { first_name: string; last_name: string; organization_id: string }) => Promise<{ error: any }>;
@@ -58,6 +59,7 @@ interface AuthContextType {
   requestToJoinOrganization: (orgId: string, userData: { email: string; first_name: string; last_name: string; message?: string }) => Promise<{ error: any }>;
   completeMfaVerification: () => void;
   clearPasswordExpired: () => void;
+  retryProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
