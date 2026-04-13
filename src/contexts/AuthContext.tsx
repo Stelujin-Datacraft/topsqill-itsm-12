@@ -248,12 +248,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (session?.user) {
           // Check if session is still valid in our database
-          setTimeout(async () => {
+          try {
             const isValid = await validateSessionInDb(session.user.id, session.access_token);
             if (isValid) {
-              loadUserProfile(session.user.id);
+              await loadUserProfile(session.user.id);
             }
-          }, 100);
+          } catch (err) {
+            console.error('Error during auth state change:', err);
+          }
         } else {
           setUserProfile(null);
           setOrganization(null);
@@ -266,9 +268,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        const isValid = await validateSessionInDb(session.user.id, session.access_token);
-        if (isValid) {
-          loadUserProfile(session.user.id);
+        try {
+          const isValid = await validateSessionInDb(session.user.id, session.access_token);
+          if (isValid) {
+            await loadUserProfile(session.user.id);
+          }
+        } catch (err) {
+          console.error('Error loading profile on init:', err);
         }
       }
       setIsLoading(false);
