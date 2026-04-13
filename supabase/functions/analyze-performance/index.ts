@@ -1,7 +1,6 @@
 // Performance Analysis Edge Function v5 - Single Record Analysis with Enterprise Project Portfolio Tracker Awareness
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 
 declare const EdgeRuntime:
   | {
@@ -497,6 +496,7 @@ async function checkThresholdBreaches(
   return breachAlerts;
 }
 
+// Native SMTP send using Deno.connect + Deno.startTls (works in edge functions)
 async function sendSmtpEmail(
   smtpConfig: any,
   to: string,
@@ -504,31 +504,139 @@ async function sendSmtpEmail(
   textContent: string,
   htmlContent: string,
 ) {
-  const client = new SMTPClient({
-    connection: {
-      hostname: smtpConfig.host,
-      port: smtpConfig.port,
-      tls: Boolean(smtpConfig.use_tls),
-      auth: {
-        username: smtpConfig.username,
-        password: smtpConfig.password,
-      },
-    },
-  });
+  const encoder = new TextEncoder();
+  const decoder = new TextDecoder();
+
+  async function readLine(
+    reader: ReadableStreamDefaultReader<Uint8Array>,
+  ): Promise<string> {
+    let result = "";
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      result += decoder.decode(value);
+      if (result.includes("\r\n")) break;
+    }
+    return result.trim();
+  }
+
+  async function writeCmd(
+    writer: WritableStreamDefaultWriter<Uint8Array>,
+    cmd: string,
+  ) {
+    await writer.write(encoder.encode(cmd + "\r\n"));
+  }
+
+  async function readAndCheck(
+    reader: ReadableStreamDefaultReader<Uint8Array>,
+    expectedCode: string,
+  ) {
+    const line = await readLine(reader);
+    if (!line.startsWith(expectedCode)) {
+      throw new Error(`SMTP error: expected ${expectedCode}, got: ${line}`);
+    }
+    return line;
+  }
+
+  const port = smtpConfig.port || 587;
+  const hostname = smtpConfig.host;
+
+  let conn: Deno.TcpConn | Deno.TlsConn;
+
+  if (port === 465) {
+    // Direct TLS
+    conn = await Deno.connectTls({ hostname, port });
+  } else {
+    // STARTTLS (port 587)
+    conn = await Deno.connect({ hostname, port });
+  }
+
+  let reader = conn.readable.getReader();
+  let writer = conn.writable.getWriter();
 
   try {
-    await client.send({
-      from: smtpConfig.from_name
-        ? `${smtpConfig.from_name} <${smtpConfig.from_email}>`
-        : smtpConfig.from_email,
-      to,
-      subject,
-      content: textContent,
-      html: htmlContent,
-    });
+    await readAndCheck(reader, "220");
+    await writeCmd(writer, `EHLO localhost`);
+    // Read all EHLO response lines
+    let ehloResp = "";
+    while (true) {
+      const line = await readLine(reader);
+      ehloResp += line + "\n";
+      if (line.match(/^250 /)) break; // last line has space not dash
+      if (!line.match(/^250[-\s]/)) throw new Error(`EHLO failed: ${line}`);
+    }
+
+    // STARTTLS for port 587
+    if (port !== 465) {
+      await writeCmd(writer, "STARTTLS");
+      await readAndCheck(reader, "220");
+      reader.releaseLock();
+      writer.releaseLock();
+      conn = await Deno.startTls(conn as Deno.TcpConn, { hostname });
+      reader = conn.readable.getReader();
+      writer = conn.writable.getWriter();
+      await writeCmd(writer, `EHLO localhost`);
+      while (true) {
+        const line = await readLine(reader);
+        if (line.match(/^250 /)) break;
+        if (!line.match(/^250[-\s]/)) throw new Error(`EHLO2 failed: ${line}`);
+      }
+    }
+
+    // AUTH LOGIN
+    await writeCmd(writer, "AUTH LOGIN");
+    await readAndCheck(reader, "334");
+    await writeCmd(writer, btoa(smtpConfig.username));
+    await readAndCheck(reader, "334");
+    await writeCmd(writer, btoa(smtpConfig.password));
+    await readAndCheck(reader, "235");
+
+    const fromAddr = smtpConfig.from_email;
+    const fromHeader = smtpConfig.from_name
+      ? `${smtpConfig.from_name} <${fromAddr}>`
+      : fromAddr;
+    const boundary = `boundary_${Date.now()}`;
+
+    await writeCmd(writer, `MAIL FROM:<${fromAddr}>`);
+    await readAndCheck(reader, "250");
+    await writeCmd(writer, `RCPT TO:<${to}>`);
+    await readAndCheck(reader, "250");
+    await writeCmd(writer, "DATA");
+    await readAndCheck(reader, "354");
+
+    const msg = [
+      `From: ${fromHeader}`,
+      `To: ${to}`,
+      `Subject: ${subject}`,
+      `MIME-Version: 1.0`,
+      `Content-Type: multipart/alternative; boundary="${boundary}"`,
+      ``,
+      `--${boundary}`,
+      `Content-Type: text/plain; charset=UTF-8`,
+      ``,
+      textContent,
+      ``,
+      `--${boundary}`,
+      `Content-Type: text/html; charset=UTF-8`,
+      ``,
+      htmlContent,
+      ``,
+      `--${boundary}--`,
+      `.`,
+    ].join("\r\n");
+
+    await writeCmd(writer, msg);
+    await readAndCheck(reader, "250");
+    await writeCmd(writer, "QUIT");
   } finally {
     try {
-      await client.close();
+      reader.releaseLock();
+    } catch (_) {}
+    try {
+      writer.releaseLock();
+    } catch (_) {}
+    try {
+      conn.close();
     } catch (_) {}
   }
 }
