@@ -533,7 +533,6 @@ async function sendAlertNotifications(supabase: any, projectId: string, perfProj
 
     // Send email via SMTP for critical/high alerts
     if (criticalAlerts.length > 0 && userProfile.organization_id) {
-      // Prefer the default SMTP config
       let { data: smtpConfigs } = await supabase
         .from('smtp_configs')
         .select('*')
@@ -542,56 +541,29 @@ async function sendAlertNotifications(supabase: any, projectId: string, perfProj
         .eq('is_default', true)
         .limit(1);
       if (!smtpConfigs || smtpConfigs.length === 0) {
-        const fallback = await supabase
-          .from('smtp_configs')
-          .select('*')
-          .eq('organization_id', userProfile.organization_id)
-          .eq('is_active', true)
-          .limit(1);
+        const fallback = await supabase.from('smtp_configs').select('*').eq('organization_id', userProfile.organization_id).eq('is_active', true).limit(1);
         smtpConfigs = fallback.data;
       }
 
       if (smtpConfigs && smtpConfigs.length > 0) {
-        const { data: memberProfiles } = await supabase
-          .from('user_profiles')
-          .select('email')
-          .in('id', uniqueIds);
-
+        const { data: memberProfiles } = await supabase.from('user_profiles').select('email').in('id', uniqueIds);
         const emails = memberProfiles?.map((p: any) => p.email).filter(Boolean) || [];
         if (emails.length > 0) {
           const smtpConfig = smtpConfigs[0];
           const htmlAlerts = criticalAlerts.map((a: any) =>
             `<tr><td style="padding:8px;border:1px solid #e5e7eb;"><span style="color:${a.severity === 'critical' ? '#ef4444' : '#f59e0b'};font-weight:bold;">${a.severity.toUpperCase()}</span></td><td style="padding:8px;border:1px solid #e5e7eb;">${a.title}</td><td style="padding:8px;border:1px solid #e5e7eb;">${a.description || ''}</td></tr>`
           ).join('');
+          const subject = `🚨 Performance Alert: ${criticalAlerts.length} issue${criticalAlerts.length > 1 ? 's' : ''} detected`;
+          const textContent = `Performance Monitoring Alert\n\n${criticalAlerts.map((a: any) => `• ${a.severity.toUpperCase()}: ${a.title} — ${a.description}`).join('\n')}\n\nPlease review the Performance Dashboard.`;
+          const htmlContent = `<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;padding:20px;"><h2 style="color:#ef4444;">🚨 Performance Alert</h2><p>${criticalAlerts.length} issue${criticalAlerts.length > 1 ? 's' : ''} detected.</p><table style="width:100%;border-collapse:collapse;margin:16px 0;"><thead><tr style="background:#f3f4f6;"><th style="padding:8px;border:1px solid #e5e7eb;text-align:left;">Severity</th><th style="padding:8px;border:1px solid #e5e7eb;text-align:left;">Alert</th><th style="padding:8px;border:1px solid #e5e7eb;text-align:left;">Details</th></tr></thead><tbody>${htmlAlerts}</tbody></table><p style="color:#6b7280;font-size:12px;">This is an automated alert from your Performance Monitoring system.</p></body></html>`;
 
-          try {
-            const { SMTPClient } = await import("https://deno.land/x/denomailer@1.6.0/mod.ts");
-            const useDirectTls2 = smtpConfig.port === 465;
-            const client = new SMTPClient({
-              connection: {
-                hostname: smtpConfig.host,
-                port: smtpConfig.port,
-                tls: useDirectTls2,
-                auth: { username: smtpConfig.username, password: smtpConfig.password },
-              },
-            });
-
-            for (const email of emails) {
-              try {
-                await client.send({
-                  from: smtpConfig.from_name ? `${smtpConfig.from_name} <${smtpConfig.from_email}>` : smtpConfig.from_email,
-                  to: email,
-                  subject: `🚨 Performance Alert: ${criticalAlerts.length} issue${criticalAlerts.length > 1 ? 's' : ''} detected`,
-                  content: `Performance Monitoring Alert\n\n${criticalAlerts.map((a: any) => `• ${a.severity.toUpperCase()}: ${a.title} — ${a.description}`).join('\n')}\n\nPlease review the Performance Dashboard.`,
-                  html: `<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;padding:20px;"><h2 style="color:#ef4444;">🚨 Performance Alert</h2><p>${criticalAlerts.length} issue${criticalAlerts.length > 1 ? 's' : ''} detected.</p><table style="width:100%;border-collapse:collapse;margin:16px 0;"><thead><tr style="background:#f3f4f6;"><th style="padding:8px;border:1px solid #e5e7eb;text-align:left;">Severity</th><th style="padding:8px;border:1px solid #e5e7eb;text-align:left;">Alert</th><th style="padding:8px;border:1px solid #e5e7eb;text-align:left;">Details</th></tr></thead><tbody>${htmlAlerts}</tbody></table><p style="color:#6b7280;font-size:12px;">This is an automated alert from your Performance Monitoring system.</p></body></html>`,
-                });
-              } catch (emailErr) {
-                console.error('Email send failed for', email, emailErr);
-              }
+          for (const email of emails) {
+            try {
+              await sendSmtpEmail(smtpConfig, email, subject, textContent, htmlContent);
+              console.log('AI alert email sent to', email);
+            } catch (emailErr) {
+              console.error('Email send failed for', email, emailErr);
             }
-            await client.close();
-          } catch (smtpErr) {
-            console.error('SMTP connection failed (non-blocking):', smtpErr);
           }
         }
       }
