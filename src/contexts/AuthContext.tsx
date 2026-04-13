@@ -249,17 +249,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
+    let initialSessionHandled = false;
+
+    // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        // Skip INITIAL_SESSION — handled by getSession below
+        if (event === 'INITIAL_SESSION') return;
+
         setSession(session);
         setUser(session?.user ?? null);
 
         if (session?.user) {
-          // Check if session is still valid in our database
           setTimeout(async () => {
             const isValid = await validateSessionInDb(session.user.id, session.access_token);
             if (isValid) {
-              loadUserProfile(session.user.id);
+              await loadUserProfile(session.user.id);
             }
           }, 100);
         } else {
@@ -270,25 +275,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     );
 
+    // Then restore session from storage
     supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (initialSessionHandled) return;
+      initialSessionHandled = true;
+
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
         const isValid = await validateSessionInDb(session.user.id, session.access_token);
         if (isValid) {
-          loadUserProfile(session.user.id);
+          await loadUserProfile(session.user.id);
         }
       }
       setIsLoading(false);
     });
 
-    // Set up interval to periodically check session validity
+    // Periodically check session validity
     const intervalId = setInterval(async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user?.id && session?.access_token) {
         await validateSessionInDb(session.user.id, session.access_token);
       }
-    }, 30000); // Check every 30 seconds
+    }, 30000);
 
     return () => {
       subscription.unsubscribe();
