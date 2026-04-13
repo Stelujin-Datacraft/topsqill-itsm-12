@@ -79,7 +79,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // QueryClient not available (e.g., during SSR or outside provider)
   }
 
-  const loadUserProfile = async (userId: string) => {
+  const loadUserProfile = async (userId: string, retryCount = 0) => {
+    const MAX_RETRIES = 3;
     try {
       const { data: profile, error } = await supabase
         .from('user_profiles')
@@ -88,6 +89,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .maybeSingle();
 
       if (error) {
+        console.warn('Error loading user profile:', error.message, `(attempt ${retryCount + 1})`);
+        // Retry on transient errors (PGRST002, network issues)
+        if (retryCount < MAX_RETRIES) {
+          const delay = Math.min(1000 * Math.pow(2, retryCount), 5000);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          return loadUserProfile(userId, retryCount + 1);
+        }
         return;
       }
 
@@ -241,17 +249,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
+    let initialSessionHandled = false;
+
+    // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        // Skip INITIAL_SESSION — handled by getSession below
+        if (event === 'INITIAL_SESSION') return;
+
         setSession(session);
         setUser(session?.user ?? null);
 
         if (session?.user) {
-          // Check if session is still valid in our database
           setTimeout(async () => {
             const isValid = await validateSessionInDb(session.user.id, session.access_token);
             if (isValid) {
-              loadUserProfile(session.user.id);
+              await loadUserProfile(session.user.id);
             }
           }, 100);
         } else {
@@ -262,25 +275,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     );
 
+    // Then restore session from storage
     supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (initialSessionHandled) return;
+      initialSessionHandled = true;
+
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
         const isValid = await validateSessionInDb(session.user.id, session.access_token);
         if (isValid) {
-          loadUserProfile(session.user.id);
+          await loadUserProfile(session.user.id);
         }
       }
       setIsLoading(false);
     });
 
-    // Set up interval to periodically check session validity
+    // Periodically check session validity
     const intervalId = setInterval(async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user?.id && session?.access_token) {
         await validateSessionInDb(session.user.id, session.access_token);
       }
-    }, 30000); // Check every 30 seconds
+    }, 30000);
 
     return () => {
       subscription.unsubscribe();
