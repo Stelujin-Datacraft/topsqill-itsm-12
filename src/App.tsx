@@ -17,7 +17,6 @@ import { ImpersonationBanner } from "@/components/ImpersonationBanner";
 import ProtectedLayout from "@/components/ProtectedLayout";
 import PasswordExpiryWarning from "./components/PasswordExpiryWarning";
 import { AIChatbot } from "./components/ai/AIChatbot";
-import { RoutePreloader } from "./components/RoutePreloader";
 import { RouteLoader } from "./components/RouteLoader";
 
 // Eagerly loaded routes (critical path - should load immediately)
@@ -133,7 +132,6 @@ const App = () => (
                   <SessionTimeoutWarning />
                   <ImpersonationBanner />
                   <BrowserRouter>
-                    <RoutePreloader />
                     <PasswordExpiryWarning />
                     <Routes>
                       {/* Public routes - eagerly loaded */}
