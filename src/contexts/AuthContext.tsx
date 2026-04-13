@@ -661,6 +661,7 @@ export const useAuth = () => {
       organization: null,
       session: null,
       isLoading: true,
+      profileError: null,
       pendingMfa: null,
       passwordExpired: false,
       signUp: async () => ({ error: new Error('AuthProvider not mounted') }),
@@ -671,6 +672,7 @@ export const useAuth = () => {
       requestToJoinOrganization: async () => ({ error: new Error('AuthProvider not mounted') }),
       completeMfaVerification: () => {},
       clearPasswordExpired: () => {},
+      retryProfile: async () => {},
     } as AuthContextType;
   }
   return context;
