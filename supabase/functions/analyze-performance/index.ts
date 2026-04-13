@@ -525,7 +525,7 @@ async function sendThresholdBreachNotifications(
         .eq('performance_project_id', perfProjectId)
         .in('role_type', roleTypes);
       if (roleUsers) {
-        targetUserIds = [...new Set(roleUsers.map((r: any) => r.user_id))];
+        targetUserIds = [...new Set((roleUsers as any[]).map((r: any) => String(r.user_id)).filter(Boolean))] as string[];
       }
     }
 
@@ -610,8 +610,8 @@ async function sendAlertNotifications(supabase: any, projectId: string, perfProj
       .select('user_id')
       .eq('project_id', projectId);
 
-    const memberIds = members?.map((m: any) => m.user_id) || [userId];
-    const uniqueIds = [...new Set(memberIds)];
+    const memberIds = ((members as any[] | null)?.map((m: any) => String(m.user_id)).filter(Boolean)) || [userId];
+    const uniqueIds = [...new Set(memberIds)] as string[];
 
     // Create in-app notifications for high/critical
     const criticalAlerts = alerts.filter((a: any) => a.severity === 'high' || a.severity === 'critical');
