@@ -7,6 +7,102 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+function buildFallbackAnalysis(analysisContext: any, thresholds: any[] = [], isAllRecords = false) {
+  const numericSignals: Array<{ metric: string; value: number; avg?: number; stdDev?: number }> = [];
+
+  if (analysisContext?.mappedFields) {
+    for (const [label, info] of Object.entries(analysisContext.mappedFields as Record<string, any>)) {
+      const value = Number((info as any)?.value);
+      const stats = analysisContext?.portfolioStats?.[label];
+      if (!Number.isNaN(value)) {
+        numericSignals.push({
+          metric: label,
+          value,
+          avg: typeof stats?.avg === 'number' ? stats.avg : undefined,
+          stdDev: typeof stats?.stdDev === 'number' ? stats.stdDev : undefined,
+        });
+      }
+    }
+  } else if (analysisContext?.aggregatedMetrics) {
+    for (const [label, stats] of Object.entries(analysisContext.aggregatedMetrics as Record<string, any>)) {
+      const avg = Number((stats as any)?.avg);
+      if (!Number.isNaN(avg)) {
+        numericSignals.push({ metric: label, value: avg, avg });
+      }
+    }
+  }
+
+  const anomalies = numericSignals
+    .filter((signal) => typeof signal.avg === 'number' && typeof signal.stdDev === 'number' && signal.stdDev > 0 && Math.abs(signal.value - signal.avg) > signal.stdDev * 2)
+    .slice(0, 5)
+    .map((signal) => ({
+      metric: signal.metric,
+      description: `${signal.metric} is ${signal.value}, which is materially outside the portfolio average of ${signal.avg}.`,
+      severity: Math.abs(signal.value - (signal.avg ?? 0)) > (signal.stdDev ?? 0) * 3 ? 'high' : 'medium',
+      value: signal.value,
+      expected_value: signal.avg,
+    }));
+
+  const thresholdViolations = (thresholds || [])
+    .map((threshold) => {
+      const fieldLabel = threshold.form_field_label || threshold.metric_name;
+      const matchingSignal = numericSignals.find((signal) => signal.metric === fieldLabel || signal.metric === threshold.metric_name);
+      if (!matchingSignal) return null;
+
+      const actualValue = matchingSignal.value;
+      const thresholdValue = Number(threshold.threshold_value);
+      if (Number.isNaN(actualValue) || Number.isNaN(thresholdValue)) return null;
+
+      let breached = false;
+      switch (threshold.operator) {
+        case '>': breached = actualValue > thresholdValue; break;
+        case '>=': breached = actualValue >= thresholdValue; break;
+        case '<': breached = actualValue < thresholdValue; break;
+        case '<=': breached = actualValue <= thresholdValue; break;
+        case '==': breached = actualValue === thresholdValue; break;
+        case '!=': breached = actualValue !== thresholdValue; break;
+      }
+
+      return breached ? {
+        metric_name: fieldLabel,
+        threshold_value: thresholdValue,
+        actual_value: actualValue,
+        severity: threshold.severity || 'medium',
+      } : null;
+    })
+    .filter(Boolean);
+
+  const riskScore = Math.min(100, Math.max(10, thresholdViolations.length * 20 + anomalies.length * 15));
+  const healthStatus = riskScore > 70 ? 'red' : riskScore > 40 ? 'orange' : riskScore > 20 ? 'yellow' : 'green';
+  const scopeLabel = isAllRecords ? 'portfolio' : 'selected record';
+  const summaryParts = [
+    `AI analysis was temporarily unavailable, so this result was generated using rule-based checks for the ${scopeLabel}.`,
+    thresholdViolations.length > 0
+      ? `${thresholdViolations.length} threshold violation${thresholdViolations.length > 1 ? 's were' : ' was'} detected from your configured monitoring rules.`
+      : `No configured threshold violations were detected in the ${scopeLabel}.`,
+    anomalies.length > 0
+      ? `${anomalies.length} statistical outlier${anomalies.length > 1 ? 's were' : ' was'} identified against portfolio averages.`
+      : `No strong statistical outliers were identified from the available numeric metrics.`,
+  ];
+
+  return {
+    risk_score: riskScore,
+    health_status: healthStatus,
+    summary: summaryParts.join(' '),
+    anomalies,
+    predictions: [],
+    recommendations: [
+      {
+        priority: thresholdViolations.length > 0 ? 'high' : 'medium',
+        title: 'Review automated analysis fallback',
+        description: 'The AI service was unavailable for this run, but threshold checks and alert delivery still completed using deterministic analysis rules.',
+        impact: 'Keeps monitoring operational while external AI availability recovers.',
+      },
+    ],
+    threshold_violations: thresholdViolations,
+  };
+}
+
 function extractJsonFromResponse(response: string): unknown {
   let cleaned = response.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
   const jsonStart = cleaned.search(/[\{\[]/);
@@ -716,129 +812,124 @@ IMPORTANT: All monetary values are in Indian Rupees (₹ / INR). Always use the 
 Be SPECIFIC — reference actual field values, rupee amounts (₹), dates, and percentages from the record data.`;
       }
 
-      const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
-          messages: [
-            { role: "system", content: "You are an expert project performance analyst specializing in enterprise project portfolio management. You have deep knowledge of project financial metrics (NPV, IRR, ROI, EAC, ETC), schedule performance (SPI, duration/effort variance), and risk scoring. Always respond with precise, data-driven analysis referencing actual values." },
-            { role: "user", content: prompt },
-          ],
-          max_tokens: 8192,
-          tools: [{
-            type: "function",
-            function: {
-              name: "performance_analysis",
-              description: "Return structured single-record performance analysis results",
-              parameters: {
-                type: "object",
-                properties: {
-                  risk_score: { type: "number", description: "Overall risk score 0-100 for this specific record" },
-                  health_status: { type: "string", enum: ["green", "yellow", "orange", "red"] },
-                  summary: { type: "string", description: "3-5 sentence executive summary of this record's health, referencing actual values (costs, dates, scores)" },
-                  anomalies: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        metric: { type: "string" },
-                        description: { type: "string" },
-                        severity: { type: "string", enum: ["low", "medium", "high", "critical"] },
-                        value: { type: "number" },
-                        expected_value: { type: "number" },
-                      },
-                      required: ["metric", "description", "severity"],
-                    },
-                  },
-                  predictions: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        type: { type: "string", enum: ["budget_forecast", "completion_date", "resource_need", "risk_trend", "milestone_delay"] },
-                        description: { type: "string" },
-                        predicted_value: { type: "number" },
-                        confidence: { type: "number", description: "Value between 0 and 1" },
-                        timeframe: { type: "string" },
-                      },
-                      required: ["type", "description", "confidence"],
-                    },
-                  },
-                  recommendations: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        priority: { type: "string", enum: ["low", "medium", "high", "critical"] },
-                        title: { type: "string" },
-                        description: { type: "string" },
-                        impact: { type: "string" },
-                      },
-                      required: ["priority", "title", "description"],
-                    },
-                  },
-                  threshold_violations: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        metric_name: { type: "string" },
-                        threshold_value: { type: "number" },
-                        actual_value: { type: "number" },
-                        severity: { type: "string" },
-                      },
-                      required: ["metric_name", "actual_value"],
-                    },
-                  },
-                },
-                required: ["risk_score", "health_status", "summary", "anomalies", "predictions", "recommendations"],
-              },
-            },
-          }],
-          tool_choice: { type: "function", function: { name: "performance_analysis" } },
-        }),
-      });
-
-      if (!aiResponse.ok) {
-        if (aiResponse.status === 429) {
-          return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), {
-            status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-        if (aiResponse.status === 402) {
-          return new Response(JSON.stringify({ error: "AI credits exhausted. Please add funds." }), {
-            status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-        const errText = await aiResponse.text();
-        console.error("AI gateway error:", aiResponse.status, errText);
-        throw new Error("AI analysis failed");
-      }
-
-      const aiData = await aiResponse.json();
-      const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
       let analysis;
+      try {
+        const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${LOVABLE_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "google/gemini-2.5-flash",
+            messages: [
+              { role: "system", content: "You are an expert project performance analyst specializing in enterprise project portfolio management. You have deep knowledge of project financial metrics (NPV, IRR, ROI, EAC, ETC), schedule performance (SPI, duration/effort variance), and risk scoring. Always respond with precise, data-driven analysis referencing actual values." },
+              { role: "user", content: prompt },
+            ],
+            max_tokens: 8192,
+            tools: [{
+              type: "function",
+              function: {
+                name: "performance_analysis",
+                description: "Return structured single-record performance analysis results",
+                parameters: {
+                  type: "object",
+                  properties: {
+                    risk_score: { type: "number", description: "Overall risk score 0-100 for this specific record" },
+                    health_status: { type: "string", enum: ["green", "yellow", "orange", "red"] },
+                    summary: { type: "string", description: "3-5 sentence executive summary of this record's health, referencing actual values (costs, dates, scores)" },
+                    anomalies: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        properties: {
+                          metric: { type: "string" },
+                          description: { type: "string" },
+                          severity: { type: "string", enum: ["low", "medium", "high", "critical"] },
+                          value: { type: "number" },
+                          expected_value: { type: "number" },
+                        },
+                        required: ["metric", "description", "severity"],
+                      },
+                    },
+                    predictions: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        properties: {
+                          type: { type: "string", enum: ["budget_forecast", "completion_date", "resource_need", "risk_trend", "milestone_delay"] },
+                          description: { type: "string" },
+                          predicted_value: { type: "number" },
+                          confidence: { type: "number", description: "Value between 0 and 1" },
+                          timeframe: { type: "string" },
+                        },
+                        required: ["type", "description", "confidence"],
+                      },
+                    },
+                    recommendations: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        properties: {
+                          priority: { type: "string", enum: ["low", "medium", "high", "critical"] },
+                          title: { type: "string" },
+                          description: { type: "string" },
+                          impact: { type: "string" },
+                        },
+                        required: ["priority", "title", "description"],
+                      },
+                    },
+                    threshold_violations: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        properties: {
+                          metric_name: { type: "string" },
+                          threshold_value: { type: "number" },
+                          actual_value: { type: "number" },
+                          severity: { type: "string" },
+                        },
+                        required: ["metric_name", "actual_value"],
+                      },
+                    },
+                  },
+                  required: ["risk_score", "health_status", "summary", "anomalies", "predictions", "recommendations"],
+                },
+              },
+            }],
+            tool_choice: { type: "function", function: { name: "performance_analysis" } },
+          }),
+        });
 
-      if (toolCall?.function?.arguments) {
-        const rawArgs = typeof toolCall.function.arguments === "string"
-          ? toolCall.function.arguments
-          : JSON.stringify(toolCall.function.arguments);
-        try {
-          analysis = JSON.parse(rawArgs);
-        } catch {
-          analysis = extractJsonFromResponse(rawArgs);
+        if (!aiResponse.ok) {
+          const errText = await aiResponse.text();
+          console.error("AI gateway error:", aiResponse.status, errText);
+          throw new Error(`AI gateway returned ${aiResponse.status}`);
         }
-      } else {
-        const content = aiData.choices?.[0]?.message?.content;
-        if (content) {
-          analysis = extractJsonFromResponse(content);
+
+        const aiData = await aiResponse.json();
+        const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
+
+        if (toolCall?.function?.arguments) {
+          const rawArgs = typeof toolCall.function.arguments === "string"
+            ? toolCall.function.arguments
+            : JSON.stringify(toolCall.function.arguments);
+          try {
+            analysis = JSON.parse(rawArgs);
+          } catch {
+            analysis = extractJsonFromResponse(rawArgs);
+          }
         } else {
-          throw new Error("AI did not return structured analysis");
+          const content = aiData.choices?.[0]?.message?.content;
+          if (content) {
+            analysis = extractJsonFromResponse(content);
+          } else {
+            throw new Error("AI did not return structured analysis");
+          }
         }
+      } catch (aiError) {
+        console.error("AI analysis unavailable, using fallback analysis:", aiError);
+        analysis = buildFallbackAnalysis(analysisContext, thresholds || [], isAllRecords);
       }
 
       // Validate and normalize
