@@ -243,6 +243,52 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
         description: isAll ? `All ${submissions.length} records, Risk score: ${result.risk_score}/100` : `Record: ${submissionId}, Risk score: ${result.risk_score}/100`,
         metadata: { risk_score: result.risk_score, health_status: result.health_status, submission_id: submissionId },
       });
+
+      // Send in-app notifications about new alerts to all org users
+      try {
+        const { data: newAlerts } = await (supabase as any)
+          .from('performance_alerts')
+          .select('id, alert_type, severity, message')
+          .eq('project_id', projectId)
+          .eq('performance_project_id', perfProjectId)
+          .eq('status', 'active')
+          .order('created_at', { ascending: false })
+          .limit(20);
+
+        if (newAlerts && newAlerts.length > 0) {
+          const orgId = userProfile?.organization_id;
+          if (orgId) {
+            const { data: orgUsers } = await supabase
+              .from('user_profiles')
+              .select('id')
+              .eq('organization_id', orgId);
+
+            if (orgUsers && orgUsers.length > 0) {
+              const alertSummary = newAlerts.length === 1
+                ? newAlerts[0].message
+                : `${newAlerts.length} alerts detected (${newAlerts.filter((a: any) => a.severity === 'critical').length} critical, ${newAlerts.filter((a: any) => a.severity === 'high').length} high)`;
+
+              const notifications = orgUsers.map((u: any) => ({
+                user_id: u.id,
+                type: 'performance_alert',
+                title: '⚠️ Performance Alert',
+                message: alertSummary,
+                data: {
+                  perf_project_id: perfProjectId,
+                  alert_count: newAlerts.length,
+                  severities: newAlerts.map((a: any) => a.severity),
+                  route: '/project-performance',
+                },
+              }));
+
+              await supabase.from('notifications').insert(notifications);
+            }
+          }
+        }
+      } catch (notifErr) {
+        console.error('Failed to send alert notifications:', notifErr);
+      }
+
       toast({ title: 'AI Analysis Complete', description: isAll ? 'Portfolio-wide insights generated.' : 'Insights generated for the selected record.' });
     } catch (err: any) {
       toast({ title: 'Analysis Failed', description: err.message, variant: 'destructive' });
