@@ -48,6 +48,7 @@ interface AuthContextType {
   organization: Organization | null;
   session: Session | null;
   isLoading: boolean;
+  profileError: string | null;
   pendingMfa: { userId: string; email: string } | null;
   passwordExpired: boolean;
   signUp: (email: string, password: string, userData: { first_name: string; last_name: string; organization_id: string }) => Promise<{ error: any }>;
@@ -58,6 +59,7 @@ interface AuthContextType {
   requestToJoinOrganization: (orgId: string, userData: { email: string; first_name: string; last_name: string; message?: string }) => Promise<{ error: any }>;
   completeMfaVerification: () => void;
   clearPasswordExpired: () => void;
+  retryProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -68,6 +70,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [organization, setOrganization] = useState<Organization | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [profileError, setProfileError] = useState<string | null>(null);
   const [pendingMfa, setPendingMfa] = useState<{ userId: string; email: string } | null>(null);
   const [passwordExpired, setPasswordExpired] = useState(false);
   
@@ -81,6 +84,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const loadUserProfile = async (userId: string, retryCount = 0) => {
     const MAX_RETRIES = 3;
+    setProfileError(null);
     try {
       const { data: profile, error } = await supabase
         .from('user_profiles')
@@ -90,12 +94,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) {
         console.warn('Error loading user profile:', error.message, `(attempt ${retryCount + 1})`);
-        // Retry on transient errors (PGRST002, network issues)
         if (retryCount < MAX_RETRIES) {
           const delay = Math.min(1000 * Math.pow(2, retryCount), 5000);
           await new Promise(resolve => setTimeout(resolve, delay));
           return loadUserProfile(userId, retryCount + 1);
         }
+        setProfileError(error.message);
         return;
       }
 
@@ -615,6 +619,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setPasswordExpired(false);
   };
 
+  const retryProfile = async () => {
+    if (user) {
+      setProfileError(null);
+      await loadUserProfile(user.id);
+    }
+  };
+
   return (
     <AuthContext.Provider value={{
       user,
@@ -622,6 +633,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       organization,
       session,
       isLoading,
+      profileError,
       pendingMfa,
       passwordExpired,
       signUp,
@@ -632,6 +644,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       requestToJoinOrganization,
       completeMfaVerification,
       clearPasswordExpired,
+      retryProfile,
     }}>
       {children}
     </AuthContext.Provider>
@@ -648,6 +661,7 @@ export const useAuth = () => {
       organization: null,
       session: null,
       isLoading: true,
+      profileError: null,
       pendingMfa: null,
       passwordExpired: false,
       signUp: async () => ({ error: new Error('AuthProvider not mounted') }),
@@ -658,6 +672,7 @@ export const useAuth = () => {
       requestToJoinOrganization: async () => ({ error: new Error('AuthProvider not mounted') }),
       completeMfaVerification: () => {},
       clearPasswordExpired: () => {},
+      retryProfile: async () => {},
     } as AuthContextType;
   }
   return context;

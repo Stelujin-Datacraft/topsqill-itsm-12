@@ -1,4 +1,5 @@
 
+import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Navigate, useLocation } from 'react-router-dom';
 
@@ -7,10 +8,9 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
-  const { user, userProfile, isLoading } = useAuth();
+  const { user, userProfile, isLoading, profileError, retryProfile } = useAuth();
   const location = useLocation();
-
-  console.log('ProtectedRoute - isLoading:', isLoading, 'user:', user?.email, 'userProfile:', userProfile?.id);
+  const [retrying, setRetrying] = useState(false);
 
   if (isLoading) {
     return (
@@ -21,15 +21,50 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   }
 
   if (!user) {
-    console.log('No user found, redirecting to auth with returnTo:', location.pathname);
-    // Preserve the intended destination URL so user is redirected back after login
     const returnTo = encodeURIComponent(location.pathname + location.search);
     return <Navigate to={`/auth?returnTo=${returnTo}`} replace />;
   }
 
-  // Check if user has a profile and organization
+  // Profile failed to load due to transient DB error — show retry UI
+  if (!userProfile && profileError) {
+    const handleRetry = async () => {
+      setRetrying(true);
+      await retryProfile();
+      setRetrying(false);
+    };
+
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <div className="text-center max-w-md">
+          <h2 className="text-xl font-semibold mb-2">Connection Issue</h2>
+          <p className="text-muted-foreground mb-4">
+            We're having trouble connecting to the database. This is usually temporary.
+          </p>
+          <p className="text-xs text-muted-foreground mb-4 font-mono bg-muted p-2 rounded">
+            {profileError}
+          </p>
+          <div className="flex gap-3 justify-center">
+            <button
+              onClick={handleRetry}
+              disabled={retrying}
+              className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50"
+            >
+              {retrying ? 'Retrying...' : 'Retry'}
+            </button>
+            <button
+              onClick={() => window.location.href = '/auth'}
+              className="px-4 py-2 border border-border rounded-md hover:bg-muted"
+            >
+              Sign out
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Profile genuinely doesn't exist
   if (!userProfile) {
-    console.log('No user profile found');
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
         <div className="text-center">
@@ -55,7 +90,6 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   }
 
   if (!userProfile.organization_id) {
-    console.log('User has no organization');
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
         <div className="text-center">
