@@ -192,316 +192,27 @@ async function fetchSingleRecordData(supabase: any, dataSources: any[], submissi
   };
 }
 
-const PERFORMANCE_ROLE_LABELS: Record<string, string> = {
-  senior_management: 'Senior Management',
-  project_manager: 'Project Manager',
-  discipline_engineer: 'Discipline Engineer',
-  finance_contract: 'Finance / Contract',
-  risk_governance: 'Risk / Governance',
-};
-
-function buildAlertEmailHtml(alerts: any[], projectName: string, perfProjectName: string | null): string {
-  const timestamp = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'full', timeStyle: 'short' });
-  
-  const severityColors: Record<string, { bg: string; text: string; border: string }> = {
-    critical: { bg: '#fef2f2', text: '#991b1b', border: '#fecaca' },
-    high: { bg: '#fff7ed', text: '#9a3412', border: '#fed7aa' },
-    medium: { bg: '#fefce8', text: '#854d0e', border: '#fef08a' },
-    low: { bg: '#f0fdf4', text: '#166534', border: '#bbf7d0' },
-  };
-
-  const alertRows = alerts.map((a: any) => {
-    const colors = severityColors[a.severity] || severityColors.medium;
-    return `
-      <tr>
-        <td style="padding:12px 16px;border-bottom:1px solid #e5e7eb;">
-          <span style="display:inline-block;padding:4px 10px;border-radius:4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;background:${colors.bg};color:${colors.text};border:1px solid ${colors.border};">${a.severity}</span>
-        </td>
-        <td style="padding:12px 16px;border-bottom:1px solid #e5e7eb;font-weight:600;color:#1f2937;">${a.title}</td>
-        <td style="padding:12px 16px;border-bottom:1px solid #e5e7eb;color:#4b5563;font-size:13px;">${a.description || '—'}</td>
-        <td style="padding:12px 16px;border-bottom:1px solid #e5e7eb;text-align:center;color:#6b7280;font-size:13px;">
-          ${a.metric_name || '—'}
-        </td>
-        <td style="padding:12px 16px;border-bottom:1px solid #e5e7eb;text-align:center;">
-          ${a.threshold_value != null ? `<span style="color:#6b7280;">Threshold: ${a.threshold_value}</span><br>` : ''}
-          ${a.actual_value != null ? `<span style="font-weight:600;color:${a.severity === 'critical' || a.severity === 'high' ? '#dc2626' : '#d97706'};">Actual: ${a.actual_value}</span>` : '—'}
-        </td>
-      </tr>`;
-  }).join('');
-
-  const criticalCount = alerts.filter((a: any) => a.severity === 'critical').length;
-  const highCount = alerts.filter((a: any) => a.severity === 'high').length;
-  const mediumCount = alerts.filter((a: any) => a.severity === 'medium').length;
-
-  const headerColor = criticalCount > 0 ? '#dc2626' : highCount > 0 ? '#ea580c' : '#d97706';
-
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Performance Alert</title>
-</head>
-<body style="margin:0;padding:0;font-family:'Segoe UI',Roboto,Arial,sans-serif;background-color:#f3f4f6;-webkit-font-smoothing:antialiased;">
-  <div style="max-width:700px;margin:0 auto;background-color:#ffffff;border-radius:8px;overflow:hidden;margin-top:20px;margin-bottom:20px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);">
-    
-    <!-- Header -->
-    <div style="background:linear-gradient(135deg, ${headerColor} 0%, ${headerColor}dd 100%);color:#ffffff;padding:32px 28px;">
-      <table style="width:100%;border-collapse:collapse;">
-        <tr>
-          <td>
-            <h1 style="margin:0;font-size:22px;font-weight:700;letter-spacing:-0.3px;">🚨 Performance Alert</h1>
-            <p style="margin:8px 0 0;font-size:14px;opacity:0.9;">
-              ${alerts.length} threshold violation${alerts.length > 1 ? 's' : ''} detected
-            </p>
-          </td>
-          <td style="text-align:right;vertical-align:top;">
-            <div style="background:rgba(255,255,255,0.2);border-radius:6px;padding:8px 14px;display:inline-block;">
-              <span style="font-size:24px;font-weight:800;">${alerts.length}</span>
-              <br><span style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">Alert${alerts.length > 1 ? 's' : ''}</span>
-            </div>
-          </td>
-        </tr>
-      </table>
-    </div>
-
-    <!-- Project Info -->
-    <div style="padding:20px 28px;background:#f9fafb;border-bottom:1px solid #e5e7eb;">
-      <table style="width:100%;border-collapse:collapse;">
-        <tr>
-          <td style="padding:4px 0;">
-            <span style="font-size:12px;text-transform:uppercase;letter-spacing:0.5px;color:#6b7280;font-weight:600;">Project</span><br>
-            <span style="font-size:14px;font-weight:600;color:#1f2937;">${projectName}</span>
-          </td>
-          ${perfProjectName ? `
-          <td style="padding:4px 0;">
-            <span style="font-size:12px;text-transform:uppercase;letter-spacing:0.5px;color:#6b7280;font-weight:600;">Performance Module</span><br>
-            <span style="font-size:14px;font-weight:600;color:#1f2937;">${perfProjectName}</span>
-          </td>` : ''}
-          <td style="padding:4px 0;text-align:right;">
-            <span style="font-size:12px;text-transform:uppercase;letter-spacing:0.5px;color:#6b7280;font-weight:600;">Generated</span><br>
-            <span style="font-size:13px;color:#1f2937;">${timestamp}</span>
-          </td>
-        </tr>
-      </table>
-    </div>
-
-    <!-- Summary Badges -->
-    <div style="padding:20px 28px;border-bottom:1px solid #e5e7eb;">
-      <table style="width:100%;border-collapse:collapse;">
-        <tr>
-          ${criticalCount > 0 ? `<td style="text-align:center;padding:8px;">
-            <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:12px;">
-              <div style="font-size:24px;font-weight:800;color:#991b1b;">${criticalCount}</div>
-              <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#b91c1c;font-weight:600;">Critical</div>
-            </div>
-          </td>` : ''}
-          ${highCount > 0 ? `<td style="text-align:center;padding:8px;">
-            <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:12px;">
-              <div style="font-size:24px;font-weight:800;color:#9a3412;">${highCount}</div>
-              <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#c2410c;font-weight:600;">High</div>
-            </div>
-          </td>` : ''}
-          ${mediumCount > 0 ? `<td style="text-align:center;padding:8px;">
-            <div style="background:#fefce8;border:1px solid #fef08a;border-radius:8px;padding:12px;">
-              <div style="font-size:24px;font-weight:800;color:#854d0e;">${mediumCount}</div>
-              <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#a16207;font-weight:600;">Medium</div>
-            </div>
-          </td>` : ''}
-        </tr>
-      </table>
-    </div>
-
-    <!-- Alert Table -->
-    <div style="padding:24px 28px;">
-      <h2 style="margin:0 0 16px;font-size:16px;font-weight:700;color:#1f2937;">Alert Details</h2>
-      <table style="width:100%;border-collapse:collapse;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
-        <thead>
-          <tr style="background:#f9fafb;">
-            <th style="padding:10px 16px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#6b7280;font-weight:600;border-bottom:2px solid #e5e7eb;">Severity</th>
-            <th style="padding:10px 16px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#6b7280;font-weight:600;border-bottom:2px solid #e5e7eb;">Alert</th>
-            <th style="padding:10px 16px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#6b7280;font-weight:600;border-bottom:2px solid #e5e7eb;">Details</th>
-            <th style="padding:10px 16px;text-align:center;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#6b7280;font-weight:600;border-bottom:2px solid #e5e7eb;">Metric</th>
-            <th style="padding:10px 16px;text-align:center;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#6b7280;font-weight:600;border-bottom:2px solid #e5e7eb;">Values</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${alertRows}
-        </tbody>
-      </table>
-    </div>
-
-    <!-- AI Recommendation -->
-    ${alerts[0]?.ai_recommendation ? `
-    <div style="padding:0 28px 24px;">
-      <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:16px;">
-        <h3 style="margin:0 0 8px;font-size:14px;font-weight:600;color:#1e40af;">💡 AI Recommendation</h3>
-        <p style="margin:0;font-size:13px;color:#1e3a5f;line-height:1.5;">${alerts[0].ai_recommendation}</p>
-      </div>
-    </div>` : ''}
-
-    <!-- Footer -->
-    <div style="background:#f9fafb;padding:20px 28px;border-top:1px solid #e5e7eb;">
-      <p style="margin:0;font-size:12px;color:#9ca3af;text-align:center;">
-        This is an automated alert from the <strong>Performance Monitoring System</strong>.<br>
-        You received this email because you are assigned to a performance role configured for threshold notifications.<br>
-        To manage alert preferences, go to the Thresholds tab in your KPI Dashboard.
-      </p>
-    </div>
-  </div>
-</body>
-</html>`;
-}
-
-// Raw SMTP email sender - avoids denomailer's BadResource bug in edge runtime
-async function sendSmtpEmail(
-  smtpConfig: { host: string; port: number; username: string; password: string; from_email: string; from_name?: string },
-  email: { to: string; subject: string; html: string; text: string }
-) {
-  const encoder = new TextEncoder();
-  const decoder = new TextDecoder();
-
-  // Connect raw TCP
-  const conn = await Deno.connect({ hostname: smtpConfig.host, port: smtpConfig.port });
-
-  async function readLine(): Promise<string> {
-    const buf = new Uint8Array(4096);
-    let result = '';
-    while (true) {
-      const n = await conn.read(buf);
-      if (n === null) break;
-      result += decoder.decode(buf.subarray(0, n));
-      if (result.includes('\r\n')) break;
-    }
-    return result.trim();
-  }
-
-  async function send(cmd: string): Promise<string> {
-    await conn.write(encoder.encode(cmd + '\r\n'));
-    return await readLine();
-  }
-
-  try {
-    // Read greeting
-    await readLine();
-
-    // EHLO
-    await send(`EHLO localhost`);
-
-    // STARTTLS for port 587
-    if (smtpConfig.port === 587) {
-      await send('STARTTLS');
-      const tlsConn = await Deno.startTls(conn, { hostname: smtpConfig.host });
-      
-      // Re-assign read/send to use TLS connection
-      const tlsReadLine = async (): Promise<string> => {
-        const buf = new Uint8Array(4096);
-        let result = '';
-        while (true) {
-          const n = await tlsConn.read(buf);
-          if (n === null) break;
-          result += decoder.decode(buf.subarray(0, n));
-          if (result.includes('\r\n')) break;
-        }
-        return result.trim();
-      };
-      const tlsSend = async (cmd: string): Promise<string> => {
-        await tlsConn.write(encoder.encode(cmd + '\r\n'));
-        return await tlsReadLine();
-      };
-
-      // EHLO again after STARTTLS
-      await tlsSend('EHLO localhost');
-
-      // AUTH LOGIN
-      await tlsSend('AUTH LOGIN');
-      await tlsSend(btoa(smtpConfig.username));
-      const authResult = await tlsSend(btoa(smtpConfig.password));
-      if (!authResult.startsWith('235')) {
-        throw new Error(`SMTP AUTH failed: ${authResult}`);
-      }
-
-      const fromAddr = smtpConfig.from_email;
-      await tlsSend(`MAIL FROM:<${fromAddr}>`);
-      await tlsSend(`RCPT TO:<${email.to}>`);
-      await tlsSend('DATA');
-
-      const boundary = `boundary_${Date.now()}`;
-      const message = [
-        `From: ${smtpConfig.from_name ? `${smtpConfig.from_name} <${fromAddr}>` : fromAddr}`,
-        `To: ${email.to}`,
-        `Subject: ${email.subject}`,
-        `MIME-Version: 1.0`,
-        `Content-Type: multipart/alternative; boundary="${boundary}"`,
-        ``,
-        `--${boundary}`,
-        `Content-Type: text/plain; charset=UTF-8`,
-        ``,
-        email.text,
-        ``,
-        `--${boundary}`,
-        `Content-Type: text/html; charset=UTF-8`,
-        ``,
-        email.html,
-        ``,
-        `--${boundary}--`,
-        `.`,
-      ].join('\r\n');
-
-      const quitResult = await tlsSend(message);
-      await tlsSend('QUIT');
-      
-      try { tlsConn.close(); } catch (_) { /* ignore */ }
-      return;
-    }
-
-    // Port 465 (direct TLS) - not handled here, use startTls approach above
-    throw new Error('Only port 587 STARTTLS is supported by this sender');
-  } finally {
-    try { conn.close(); } catch (_) { /* ignore */ }
-  }
-}
-
 async function sendAlertNotifications(supabase: any, projectId: string, perfProjectId: string | null, alerts: any[], userId: string) {
   try {
-    // Get current user's org
+    // In-app notifications for all org members
     const { data: orgMembers } = await supabase
-      .from('user_profiles')
+      .from('profiles')
       .select('id, email, organization_id')
       .eq('id', userId)
       .single();
 
     if (!orgMembers) return;
 
-    // Get project info for email context
-    const { data: projectInfo } = await supabase
-      .from('projects')
-      .select('name')
-      .eq('id', projectId)
-      .single();
-
-    let perfProjectName: string | null = null;
-    if (perfProjectId) {
-      const { data: perfProject } = await supabase
-        .from('performance_projects')
-        .select('name')
-        .eq('id', perfProjectId)
-        .single();
-      perfProjectName = perfProject?.name || null;
-    }
-
-    const projectName = projectInfo?.name || 'Unknown Project';
-
-    // Get project members for in-app notifications
+    // Get project members
     const { data: members } = await supabase
-      .from('project_users')
+      .from('project_members')
       .select('user_id')
       .eq('project_id', projectId);
 
     const memberIds = members?.map((m: any) => m.user_id) || [userId];
     const uniqueIds = [...new Set(memberIds)];
 
-    // Create in-app notifications for all members
+    // Create in-app notifications
     const criticalAlerts = alerts.filter((a: any) => a.severity === 'high' || a.severity === 'critical');
     if (criticalAlerts.length > 0) {
       const notifInserts = uniqueIds.map((uid: string) => ({
@@ -515,121 +226,61 @@ async function sendAlertNotifications(supabase: any, projectId: string, perfProj
       await supabase.from('notifications').insert(notifInserts);
     }
 
-    // --- Role-based email notifications via SMTP ---
-    // Fetch thresholds that have notify_role_ids configured
-    let thQuery = supabase
-      .from('performance_thresholds')
-      .select('notify_role_ids, metric_name, form_field_label')
-      .eq('project_id', projectId)
-      .eq('is_active', true)
-      .eq('send_email', true);
-    if (perfProjectId) thQuery = thQuery.eq('performance_project_id', perfProjectId);
-    const { data: emailThresholds } = await thQuery;
+    // Send email via SMTP for critical/high alerts
+    if (criticalAlerts.length > 0 && orgMembers.organization_id) {
+      const { data: smtpConfigs } = await supabase
+        .from('smtp_configs')
+        .select('*')
+        .eq('organization_id', orgMembers.organization_id)
+        .eq('is_active', true)
+        .limit(1);
 
-    if (!emailThresholds || emailThresholds.length === 0) {
-      console.log('No thresholds with email notifications configured');
-      return;
-    }
+      if (smtpConfigs && smtpConfigs.length > 0) {
+        // Get emails of members
+        const { data: memberProfiles } = await supabase
+          .from('profiles')
+          .select('email')
+          .in('id', uniqueIds);
 
-    // Collect all unique role_types that need notifying
-    const allRoleTypes = new Set<string>();
-    for (const th of emailThresholds) {
-      if (th.notify_role_ids && Array.isArray(th.notify_role_ids)) {
-        th.notify_role_ids.forEach((r: string) => allRoleTypes.add(r));
+        const emails = memberProfiles?.map((p: any) => p.email).filter(Boolean) || [];
+        if (emails.length > 0) {
+          const smtpConfig = smtpConfigs[0];
+          const alertSummary = criticalAlerts.map((a: any) => `• ${a.severity.toUpperCase()}: ${a.title} — ${a.description}`).join('\n');
+          const htmlAlerts = criticalAlerts.map((a: any) =>
+            `<tr><td style="padding:8px;border:1px solid #e5e7eb;"><span style="color:${a.severity === 'critical' ? '#ef4444' : '#f59e0b'};font-weight:bold;">${a.severity.toUpperCase()}</span></td><td style="padding:8px;border:1px solid #e5e7eb;">${a.title}</td><td style="padding:8px;border:1px solid #e5e7eb;">${a.description || ''}</td></tr>`
+          ).join('');
+
+          try {
+            const { SMTPClient } = await import("https://deno.land/x/denomailer@1.6.0/mod.ts");
+            const client = new SMTPClient({
+              connection: {
+                hostname: smtpConfig.host,
+                port: smtpConfig.port,
+                tls: smtpConfig.use_tls,
+                auth: { username: smtpConfig.username, password: smtpConfig.password },
+              },
+            });
+
+            for (const email of emails) {
+              try {
+                await client.send({
+                  from: smtpConfig.from_name ? `${smtpConfig.from_name} <${smtpConfig.from_email}>` : smtpConfig.from_email,
+                  to: email,
+                  subject: `🚨 Performance Alert: ${criticalAlerts.length} issue${criticalAlerts.length > 1 ? 's' : ''} detected`,
+                  content: `Performance Monitoring Alert\n\n${alertSummary}\n\nPlease review the Performance Dashboard for details.`,
+                  html: `<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;padding:20px;"><h2 style="color:#ef4444;">🚨 Performance Alert</h2><p>${criticalAlerts.length} issue${criticalAlerts.length > 1 ? 's' : ''} detected in your project performance monitoring.</p><table style="width:100%;border-collapse:collapse;margin:16px 0;"><thead><tr style="background:#f3f4f6;"><th style="padding:8px;border:1px solid #e5e7eb;text-align:left;">Severity</th><th style="padding:8px;border:1px solid #e5e7eb;text-align:left;">Alert</th><th style="padding:8px;border:1px solid #e5e7eb;text-align:left;">Details</th></tr></thead><tbody>${htmlAlerts}</tbody></table><p style="color:#6b7280;font-size:12px;">This is an automated alert from your Performance Monitoring system.</p></body></html>`,
+                });
+              } catch (emailErr) {
+                console.error('Email send failed for', email, emailErr);
+              }
+            }
+            await client.close();
+          } catch (smtpErr) {
+            console.error('SMTP connection failed (non-blocking):', smtpErr);
+          }
+        }
       }
     }
-
-    if (allRoleTypes.size === 0) {
-      console.log('No roles configured for email notifications');
-      return;
-    }
-
-    console.log('Roles to notify:', [...allRoleTypes]);
-
-    // Find users assigned to these performance roles
-    let roleQuery = supabase
-      .from('performance_user_roles')
-      .select('user_id, role_type')
-      .eq('project_id', projectId)
-      .in('role_type', [...allRoleTypes]);
-    if (perfProjectId) roleQuery = roleQuery.eq('performance_project_id', perfProjectId);
-    const { data: roleAssignments } = await roleQuery;
-
-    if (!roleAssignments || roleAssignments.length === 0) {
-      console.log('No users assigned to the notified performance roles');
-      return;
-    }
-
-    // Get unique user IDs and their roles
-    const userRoleMap = new Map<string, Set<string>>();
-    for (const ra of roleAssignments) {
-      if (!userRoleMap.has(ra.user_id)) userRoleMap.set(ra.user_id, new Set());
-      userRoleMap.get(ra.user_id)!.add(ra.role_type);
-    }
-
-    const targetUserIds = [...userRoleMap.keys()];
-
-    // Get email addresses
-    const { data: userProfiles } = await supabase
-      .from('user_profiles')
-      .select('id, email, first_name, last_name')
-      .in('id', targetUserIds);
-
-    const emailTargets = userProfiles?.filter((p: any) => p.email) || [];
-    if (emailTargets.length === 0) {
-      console.log('No email addresses found for notified users');
-      return;
-    }
-
-    // Fetch SMTP config
-    const { data: smtpConfigs } = await supabase
-      .from('smtp_configs')
-      .select('*')
-      .eq('organization_id', orgMembers.organization_id)
-      .eq('is_active', true)
-      .order('is_default', { ascending: false })
-      .limit(1);
-
-    if (!smtpConfigs || smtpConfigs.length === 0) {
-      console.error('No active SMTP configuration found — cannot send alert emails');
-      return;
-    }
-
-    const smtpConfig = smtpConfigs[0];
-    console.log('Using SMTP config:', smtpConfig.name, smtpConfig.host);
-
-    // Build email content
-    const emailHtml = buildAlertEmailHtml(alerts, projectName, perfProjectName);
-    const critCount = alerts.filter((a: any) => a.severity === 'critical').length;
-    const highCount = alerts.filter((a: any) => a.severity === 'high').length;
-
-    const severityLabel = critCount > 0 ? '🔴 CRITICAL' : highCount > 0 ? '🟠 HIGH' : '🟡 MEDIUM';
-    const emailSubject = `${severityLabel} | ${alerts.length} Performance Alert${alerts.length > 1 ? 's' : ''} — ${projectName}${perfProjectName ? ` / ${perfProjectName}` : ''}`;
-
-    const plainText = alerts.map((a: any) => {
-      const roles = userRoleMap.get(userId);
-      const roleLabels = roles ? [...roles].map(r => PERFORMANCE_ROLE_LABELS[r] || r).join(', ') : '';
-      return `• [${a.severity.toUpperCase()}] ${a.title}\n  ${a.description || ''}\n  Metric: ${a.metric_name || '—'} | Threshold: ${a.threshold_value ?? '—'} | Actual: ${a.actual_value ?? '—'}`;
-    }).join('\n\n');
-
-    // Send emails using raw SMTP over TCP (denomailer has BadResource bug in edge runtime)
-    for (const target of emailTargets) {
-      const userRoles = userRoleMap.get(target.id);
-      const roleLabels = userRoles ? [...userRoles].map((r: string) => PERFORMANCE_ROLE_LABELS[r] || r).join(', ') : '';
-      
-      try {
-        await sendSmtpEmail(smtpConfig, {
-          to: target.email,
-          subject: emailSubject,
-          html: emailHtml,
-          text: `Performance Alert — ${projectName}\n\nHello ${target.first_name || 'Team Member'},\n\nYou are receiving this alert because of your performance role: ${roleLabels}\n\n${plainText}\n\nPlease review the Performance Dashboard for details.\n\nThis is an automated alert from the Performance Monitoring System.`,
-        });
-        console.log(`✅ Alert email sent to ${target.email} (Roles: ${roleLabels})`);
-      } catch (emailErr) {
-        console.error(`❌ Email send failed for ${target.email}:`, emailErr);
-      }
-    }
-    console.log(`📧 Alert emails completed: ${emailTargets.length} recipient(s)`);
   } catch (err) {
     console.error('Alert notification error (non-blocking):', err);
   }
@@ -951,75 +602,6 @@ Be SPECIFIC — reference actual field values, rupee amounts (₹), dates, and p
 
         // Send in-app and email notifications for alerts
         await sendAlertNotifications(supabase, project_id, performance_project_id || null, alertInserts, user.id);
-      }
-
-      // --- Threshold breach check (independent of AI anomalies) ---
-      // Check actual submission data against configured thresholds and send email alerts
-      try {
-        const { data: thresholds } = await supabase
-          .from('performance_thresholds')
-          .select('*')
-          .eq('project_id', project_id)
-          .eq('is_active', true)
-          .eq('send_email', true)
-          .eq('performance_project_id', performance_project_id || '');
-        
-        // Also try without perf project filter if none found
-        let allThresholds = thresholds || [];
-        if (allThresholds.length === 0) {
-          const { data: th2 } = await supabase
-            .from('performance_thresholds')
-            .select('*')
-            .eq('project_id', project_id)
-            .eq('is_active', true)
-            .eq('send_email', true);
-          allThresholds = th2 || [];
-        }
-
-        if (allThresholds.length > 0 && analysisContext?.recordData) {
-          const breachedAlerts: any[] = [];
-
-          for (const th of allThresholds) {
-            const fieldId = th.form_field_id;
-            const actualValue = fieldId ? parseFloat(analysisContext.recordData[fieldId]) : null;
-            
-            if (actualValue === null || isNaN(actualValue)) continue;
-
-            const thresholdVal = parseFloat(th.threshold_value);
-            if (isNaN(thresholdVal)) continue;
-
-            let breached = false;
-            switch (th.operator) {
-              case '>': breached = actualValue > thresholdVal; break;
-              case '<': breached = actualValue < thresholdVal; break;
-              case '>=': breached = actualValue >= thresholdVal; break;
-              case '<=': breached = actualValue <= thresholdVal; break;
-              case '=': case '==': breached = actualValue === thresholdVal; break;
-              case '!=': breached = actualValue !== thresholdVal; break;
-            }
-
-            if (breached) {
-              breachedAlerts.push({
-                severity: th.severity || 'medium',
-                title: `Threshold Breach: ${th.form_field_label || th.metric_name}`,
-                description: `${th.form_field_label || th.metric_name} value ${actualValue} ${th.operator} ${thresholdVal} (${th.severity})`,
-                metric_name: th.metric_name,
-                threshold_value: thresholdVal,
-                actual_value: actualValue,
-                ai_recommendation: analysis.recommendations?.[0]?.description || null,
-              });
-            }
-          }
-
-          if (breachedAlerts.length > 0) {
-            console.log(`🚨 ${breachedAlerts.length} threshold breach(es) detected — sending email alerts`);
-            await sendAlertNotifications(supabase, project_id, performance_project_id || null, breachedAlerts, user.id);
-          } else {
-            console.log('✅ No threshold breaches detected in submission data');
-          }
-        }
-      } catch (thErr) {
-        console.error('Threshold breach check error (non-blocking):', thErr);
       }
 
       // Store predictions
