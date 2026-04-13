@@ -339,12 +339,23 @@ async function sendThresholdBreachNotifications(
     // Send email for breaches that have send_email enabled
     const emailBreaches = breachAlerts.filter((a: any) => a._threshold?.send_email);
     if (emailBreaches.length > 0) {
-      const { data: smtpConfigs } = await supabase
+      // Prefer the default SMTP config, fallback to any active one
+      let { data: smtpConfigs } = await supabase
         .from('smtp_configs')
         .select('*')
         .eq('organization_id', orgId)
         .eq('is_active', true)
+        .eq('is_default', true)
         .limit(1);
+      if (!smtpConfigs || smtpConfigs.length === 0) {
+        const fallback = await supabase
+          .from('smtp_configs')
+          .select('*')
+          .eq('organization_id', orgId)
+          .eq('is_active', true)
+          .limit(1);
+        smtpConfigs = fallback.data;
+      }
 
       if (smtpConfigs && smtpConfigs.length > 0) {
         const { data: memberProfiles } = await supabase
@@ -361,11 +372,13 @@ async function sendThresholdBreachNotifications(
 
           try {
             const { SMTPClient } = await import("https://deno.land/x/denomailer@1.6.0/mod.ts");
+            // Gmail port 587 needs STARTTLS (tls:false), port 465 needs direct TLS (tls:true)
+            const useDirectTls = smtpConfig.port === 465;
             const client = new SMTPClient({
               connection: {
                 hostname: smtpConfig.host,
                 port: smtpConfig.port,
-                tls: smtpConfig.use_tls,
+                tls: useDirectTls,
                 auth: { username: smtpConfig.username, password: smtpConfig.password },
               },
             });
@@ -431,12 +444,23 @@ async function sendAlertNotifications(supabase: any, projectId: string, perfProj
 
     // Send email via SMTP for critical/high alerts
     if (criticalAlerts.length > 0 && userProfile.organization_id) {
-      const { data: smtpConfigs } = await supabase
+      // Prefer the default SMTP config
+      let { data: smtpConfigs } = await supabase
         .from('smtp_configs')
         .select('*')
         .eq('organization_id', userProfile.organization_id)
         .eq('is_active', true)
+        .eq('is_default', true)
         .limit(1);
+      if (!smtpConfigs || smtpConfigs.length === 0) {
+        const fallback = await supabase
+          .from('smtp_configs')
+          .select('*')
+          .eq('organization_id', userProfile.organization_id)
+          .eq('is_active', true)
+          .limit(1);
+        smtpConfigs = fallback.data;
+      }
 
       if (smtpConfigs && smtpConfigs.length > 0) {
         const { data: memberProfiles } = await supabase
@@ -453,11 +477,12 @@ async function sendAlertNotifications(supabase: any, projectId: string, perfProj
 
           try {
             const { SMTPClient } = await import("https://deno.land/x/denomailer@1.6.0/mod.ts");
+            const useDirectTls2 = smtpConfig.port === 465;
             const client = new SMTPClient({
               connection: {
                 hostname: smtpConfig.host,
                 port: smtpConfig.port,
-                tls: smtpConfig.use_tls,
+                tls: useDirectTls2,
                 auth: { username: smtpConfig.username, password: smtpConfig.password },
               },
             });
