@@ -52,7 +52,7 @@ function ContentLoader() {
  * This prevents the "full page loading" flash when navigating between lazy-loaded routes.
  */
 const ProtectedLayout: React.FC = () => {
-  const { user, userProfile, isLoading } = useAuth();
+  const { user, userProfile, isLoading, profileError, retryProfile } = useAuth();
   const { currentProject } = useProject();
   const { isImpersonating } = useImpersonation();
   const location = useLocation();
