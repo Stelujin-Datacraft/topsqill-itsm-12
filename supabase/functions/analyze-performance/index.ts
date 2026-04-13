@@ -2,6 +2,12 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
+declare const EdgeRuntime:
+  | {
+    waitUntil: (promise: Promise<unknown>) => void;
+  }
+  | undefined;
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -157,6 +163,16 @@ function buildFallbackAnalysis(
     ],
     threshold_violations: thresholdViolations,
   };
+}
+
+function runInBackground(task: Promise<unknown>) {
+  const handledTask = task.catch((error) => {
+    console.error("Background task failed:", error);
+  });
+
+  if (typeof EdgeRuntime !== "undefined" && EdgeRuntime?.waitUntil) {
+    EdgeRuntime.waitUntil(handledTask);
+  }
 }
 
 function extractJsonFromResponse(response: string): unknown {
