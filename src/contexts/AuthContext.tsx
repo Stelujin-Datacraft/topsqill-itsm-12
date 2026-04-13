@@ -70,6 +70,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [organization, setOrganization] = useState<Organization | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [profileError, setProfileError] = useState<string | null>(null);
   const [pendingMfa, setPendingMfa] = useState<{ userId: string; email: string } | null>(null);
   const [passwordExpired, setPasswordExpired] = useState(false);
   
