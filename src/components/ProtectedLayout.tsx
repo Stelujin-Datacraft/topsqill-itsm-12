@@ -167,7 +167,38 @@ const ProtectedLayout: React.FC = () => {
     return <Navigate to={`/auth?returnTo=${returnTo}`} replace />;
   }
 
-  // No user profile - show setup message
+  // Profile failed to load due to transient DB error — show retry UI
+  if (!userProfile && profileError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <div className="text-center max-w-md">
+          <h2 className="text-xl font-semibold mb-2">Connection Issue</h2>
+          <p className="text-muted-foreground mb-4">
+            We're having trouble connecting to the database. This is usually temporary.
+          </p>
+          <p className="text-xs text-muted-foreground mb-4 font-mono bg-muted p-2 rounded">
+            {profileError}
+          </p>
+          <div className="flex gap-3 justify-center">
+            <button
+              onClick={async () => { await retryProfile(); }}
+              className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:opacity-90"
+            >
+              Retry
+            </button>
+            <button
+              onClick={() => window.location.href = '/auth'}
+              className="px-4 py-2 border border-border rounded-md hover:bg-muted"
+            >
+              Sign out
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // No user profile genuinely doesn't exist
   if (!userProfile) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
