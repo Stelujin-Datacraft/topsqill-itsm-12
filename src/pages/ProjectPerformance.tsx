@@ -29,12 +29,12 @@ export default function ProjectPerformance() {
 
   // Restore persisted state
   const getPersistedState = () => {
-    if (!storageKey) return { tab: 'dashboard', project: null, record: '' };
+    if (!storageKey) return { tab: 'dashboard', project: null, record: '__all__' };
     try {
       const raw = localStorage.getItem(storageKey);
       if (raw) return JSON.parse(raw);
     } catch {}
-    return { tab: 'dashboard', project: null, record: '' };
+    return { tab: 'dashboard', project: null, record: '__all__' };
   };
 
   const persisted = getPersistedState();
