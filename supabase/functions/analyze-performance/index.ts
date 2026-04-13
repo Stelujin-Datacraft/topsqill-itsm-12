@@ -805,7 +805,25 @@ Be SPECIFIC — reference actual field values, rupee amounts (₹), dates, and p
         await sendAlertNotifications(supabase, project_id, performance_project_id || null, alertInserts, user.id);
       }
 
-      // Store predictions
+      // Independent threshold breach check (not relying on AI)
+      const breachAlerts = await checkThresholdBreaches(
+        supabase, project_id, performance_project_id || null,
+        thresholds || [], analysisContext, isAllRecords, recordRef
+      );
+
+      if (breachAlerts.length > 0) {
+        const orgId = dataSources?.[0]?.organization_id;
+        const breachInserts = breachAlerts.map((a: any) => {
+          const { _threshold, ...alertData } = a;
+          return { ...alertData, organization_id: orgId };
+        });
+
+        const { error: breachError } = await supabase.from("performance_alerts").insert(breachInserts);
+        if (breachError) console.error("Error saving threshold breach alerts:", breachError);
+
+        // Send role-based notifications for threshold breaches
+        await sendThresholdBreachNotifications(supabase, project_id, performance_project_id || null, breachAlerts, user.id);
+      }
       if (analysis.predictions?.length > 0) {
         const orgId = dataSources?.[0]?.organization_id;
         const predInserts = analysis.predictions.map((p: any) => ({
