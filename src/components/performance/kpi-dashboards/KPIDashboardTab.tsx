@@ -238,13 +238,7 @@ export function KPIDashboardTab({ perfProjectId, alerts = [], predictions = [], 
     }
   }, [savedAnalysis]);
 
-  useEffect(() => {
-    if (!selectedRecordId || !savedAnalysisFetched) return;
-    if (doesMatch(selectedRecordId, savedAnalysis)) return;
-    if (analysisRanForRef.current === selectedRecordId) return;
-    setAiResult(null);
-    runAIAnalysis(selectedRecordId);
-  }, [selectedRecordId, savedAnalysisFetched]);
+  // Auto AI analysis removed — use the "Run AI Analysis" button instead
 
   const runAIAnalysis = async (submissionId: string) => {
     if (!submissionId || !projectId || !perfProjectId) return;
@@ -410,8 +404,13 @@ export function KPIDashboardTab({ perfProjectId, alerts = [], predictions = [], 
             {/* Actions */}
             <div className="flex items-center gap-2 mb-0.5">
               {selectedRecordId && !aiRunning && (
-                <Button variant="outline" size="sm" className="gap-1.5 border-primary/30 text-primary hover:bg-primary/10" onClick={() => runAIAnalysis(selectedRecordId)}>
-                  <Brain className="h-3.5 w-3.5" />Re-run AI
+                <Button variant="default" size="sm" className="gap-1.5" onClick={() => runAIAnalysis(selectedRecordId)}>
+                  <Brain className="h-3.5 w-3.5" />Run AI Analysis
+                </Button>
+              )}
+              {aiRunning && (
+                <Button variant="outline" size="sm" className="gap-1.5" disabled>
+                  <Brain className="h-3.5 w-3.5 animate-pulse" />Analyzing...
                 </Button>
               )}
               <Badge variant="outline" className="text-xs">
