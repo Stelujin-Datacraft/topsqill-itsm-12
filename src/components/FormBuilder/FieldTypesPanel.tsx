@@ -30,8 +30,8 @@ export function FieldTypesPanel({
 
   return (
     <TooltipProvider>
-      <Card className="col-span-3">
-        <CardHeader className="pb-3">
+      <Card className="col-span-3 flex flex-col h-full">
+        <CardHeader className="pb-3 flex-shrink-0">
           <CardTitle className="text-lg">Field Types</CardTitle>
           {/* Search Box */}
           <div className="relative">
@@ -54,7 +54,7 @@ export function FieldTypesPanel({
             )}
           </div>
         </CardHeader>
-        <CardContent className="space-y-4 max-h-[calc(100vh-20rem)] overflow-y-auto">
+        <CardContent className="space-y-4 flex-1 min-h-0 overflow-y-auto">
           {/* Full-Width Components */}
           <div>
             <h4 className="text-sm font-medium text-muted-foreground mb-2">Full-Width Components</h4>
