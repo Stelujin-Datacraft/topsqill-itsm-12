@@ -509,8 +509,8 @@ function FormBuilderContent({
             <TabsContent value="builder" className="p-0 pt-4 flex-1 overflow-hidden mt-0 min-h-0 data-[state=active]:flex data-[state=active]:flex-col">
               <div className="grid grid-cols-12 flex-1 min-h-0 gap-0">
                 {/* Left Panel - Navigation (Fixed) */}
-                <div className={`${state.isNavigationCollapsed ? 'col-span-1' : 'col-span-3'} border-r bg-muted/30 overflow-hidden flex flex-col transition-all duration-200`}>
-                  <div className="flex-1 min-h-0 overflow-hidden">
+                <div className={`${state.isNavigationCollapsed ? 'col-span-1' : 'col-span-3'} border-r bg-muted/30 overflow-y-auto flex flex-col transition-all duration-200`}>
+                  <div className="flex-1 min-h-0 overflow-y-auto">
                      <FormNavigationPanel pages={pages} fields={workingForm?.fields || []} currentPageId={state.currentPageId} selectedField={state.selectedField} onPageChange={state.setCurrentPageId} onFieldSelect={field => {
                      // Navigate to field's page and highlight it
                      const fieldPage = pages.find(page => page.fields.includes(field.id) || field.pageId === page.id);
@@ -584,8 +584,8 @@ function FormBuilderContent({
                 </div>
 
                 {/* Right Panel - Field Types (Fixed) */}
-                <div className="col-span-3 border-l bg-muted/30 flex flex-col">
-                  <div className="flex-shrink-0 h-full">
+                <div className="col-span-3 border-l bg-muted/30 flex flex-col overflow-hidden">
+                  <div className="flex-1 min-h-0 overflow-y-auto">
                     <FieldTypesPanel fieldTypeSearch={state.fieldTypeSearch} setFieldTypeSearch={state.setFieldTypeSearch} onAddField={fieldOperations.handleAddField} disabled={state.isSaving} />
                   </div>
                 </div>
