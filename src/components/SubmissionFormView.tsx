@@ -505,7 +505,7 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
   };
 
   return (
-    <div className="space-y-6 h-full">
+    <div className="flex flex-col h-full min-h-0">
 
 
       {/*Action bar */}
@@ -732,7 +732,7 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
 
 
       {/* Main Content Area with Navigation */}
-      <div className={`grid gap-6 h-[calc(100vh-16rem)] ${
+      <div className={`grid gap-4 flex-1 min-h-0 ${
         navigationVisible 
           ? 'grid-cols-1 lg:grid-cols-4' 
           : 'grid-cols-1'
