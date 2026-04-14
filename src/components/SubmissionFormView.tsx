@@ -12,6 +12,8 @@ import { FormNavigationPanel } from './FormNavigationPanel';
 import { SubmissionFormRenderer } from './SubmissionFormRenderer';
 import { LifecycleStatusBar } from './LifecycleStatusBar';
 import { RecordHistoryDialog } from './RecordHistoryDialog';
+import { LifecycleHistoryDialog } from './LifecycleHistoryDialog';
+import { useLifecycleHistory } from '@/hooks/useLifecycleHistory';
 import { SubmissionCommentBox } from './SubmissionCommentBox';
 import { ManualWorkflowTrigger } from './ManualWorkflowTrigger';
 import { Form, FormField } from '@/types/form';
@@ -36,6 +38,11 @@ interface FormSubmission {
   approval_timestamp?: string;
 }
 
+function StageHistoryWrapper({ field, submissionId, open, onClose }: { field: FormField; submissionId: string; open: boolean; onClose: () => void }) {
+  const { history, loading } = useLifecycleHistory(submissionId, field.id);
+  return <LifecycleHistoryDialog open={open} onClose={onClose} history={history} loading={loading} fieldLabel={field.label} />;
+}
+
 export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewProps) {
   const [submission, setSubmission] = useState<FormSubmission | null>(null);
   const [form, setForm] = useState<Form | null>(null);
@@ -51,6 +58,7 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
   const [highlightedFieldId, setHighlightedFieldId] = useState<string | null>(null);
   const [showRecordHistory, setShowRecordHistory] = useState(false);
   const [showCommentBox, setShowCommentBox] = useState(false);
+  const [showStageHistory, setShowStageHistory] = useState(false);
 
   // Find lifecycle dropdown fields (select fields with displayAsLifecycle enabled)
   // Must be called before any early returns to follow Rules of Hooks
@@ -575,9 +583,6 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
             
             )}
 
-            {/* Stage History button moved from LifecycleStatusBar */}
-     
-
             <Button
               variant="outline"
               size="sm"
@@ -586,6 +591,17 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
               <MessageSquare className="h-4 w-4 mr-1" />
               Comments
             </Button>
+
+            {lifecycleFields.length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowStageHistory(true)}
+              >
+                <Clock className="h-4 w-4 mr-1" />
+                Stage History
+              </Button>
+            )}
 
             <Button
             variant="outline"
@@ -616,6 +632,7 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
           isEditing={isEditing}
           submissionId={submission.id}
           formId={form?.id}
+          hideHistoryButton
         />
       </div>
     ))}
@@ -804,6 +821,16 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
           submissionId={submissionId}
           formFields={form.fields}
           formData={formData}
+        />
+      )}
+
+      {/* Stage History Dialog - show first lifecycle field's history */}
+      {lifecycleFields.length > 0 && showStageHistory && (
+        <StageHistoryWrapper
+          field={lifecycleFields[0]}
+          submissionId={submissionId}
+          open={showStageHistory}
+          onClose={() => setShowStageHistory(false)}
         />
       )}
     </div>

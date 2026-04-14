@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { FormField } from '@/types/form';
-import { Check, Circle, ChevronRight, History, Clock } from 'lucide-react';
+import { Check, Circle, ChevronRight, History, Clock, ArrowRight } from 'lucide-react';
 import { StageChangeDialog } from './StageChangeDialog';
 import { LifecycleHistoryDialog } from './LifecycleHistoryDialog';
 import { useLifecycleHistory } from '@/hooks/useLifecycleHistory';
@@ -25,6 +25,34 @@ interface LifecycleStatusBarProps {
   isEditing?: boolean;
   submissionId?: string;
   formId?: string;
+  hideHistoryButton?: boolean;
+  onOpenHistory?: () => void;
+}
+
+// Default color palette for stages without configured colors
+const STAGE_COLORS = [
+  { bg: '#6366f1', light: '#eef2ff', text: '#4338ca', border: '#a5b4fc' }, // indigo
+  { bg: '#0ea5e9', light: '#e0f2fe', text: '#0369a1', border: '#7dd3fc' }, // sky
+  { bg: '#8b5cf6', light: '#f3e8ff', text: '#6d28d9', border: '#c4b5fd' }, // violet
+  { bg: '#14b8a6', light: '#ccfbf1', text: '#0f766e', border: '#5eead4' }, // teal
+  { bg: '#f59e0b', light: '#fef3c7', text: '#b45309', border: '#fcd34d' }, // amber
+  { bg: '#ec4899', light: '#fce7f3', text: '#be185d', border: '#f9a8d4' }, // pink
+  { bg: '#10b981', light: '#d1fae5', text: '#047857', border: '#6ee7b7' }, // emerald
+  { bg: '#f97316', light: '#fff7ed', text: '#c2410c', border: '#fdba74' }, // orange
+];
+
+// Semantic color mapping based on stage labels
+function getSemanticColor(label: string) {
+  const l = label.toLowerCase();
+  if (l.includes('complete') || l.includes('done') || l.includes('approved') || l.includes('success') || l.includes('resolved'))
+    return { bg: '#10b981', light: '#d1fae5', text: '#047857', border: '#6ee7b7' };
+  if (l.includes('reject') || l.includes('cancel') || l.includes('fail') || l.includes('error') || l.includes('closed'))
+    return { bg: '#ef4444', light: '#fee2e2', text: '#b91c1c', border: '#fca5a5' };
+  if (l.includes('pending') || l.includes('wait') || l.includes('hold') || l.includes('new') || l.includes('open'))
+    return { bg: '#f59e0b', light: '#fef3c7', text: '#b45309', border: '#fcd34d' };
+  if (l.includes('progress') || l.includes('review') || l.includes('process') || l.includes('active'))
+    return { bg: '#3b82f6', light: '#dbeafe', text: '#1d4ed8', border: '#93c5fd' };
+  return null;
 }
 
 export function LifecycleStatusBar({ 
@@ -34,7 +62,9 @@ export function LifecycleStatusBar({
   disabled = false,
   isEditing = false,
   submissionId,
-  formId
+  formId,
+  hideHistoryButton = false,
+  onOpenHistory
 }: LifecycleStatusBarProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
@@ -52,10 +82,8 @@ export function LifecycleStatusBar({
     refetch: refetchHistory
   } = useLifecycleHistory(submissionId || '', field.id);
 
-  // SLA Tracking hook
   const { handleStageChange: triggerSLATracking } = useSLATracking();
 
-  // Parse options from the field
   const options = Array.isArray(field.options) 
     ? field.options 
     : typeof field.options === 'string' 
@@ -71,7 +99,6 @@ export function LifecycleStatusBar({
   const escalationChainId = customConfig.escalationChainId || null;
   const slaTrackedStages = customConfig.slaTrackedStages || [];
 
-  // SLA Notification hook
   useSLANotification({
     submissionId: submissionId || '',
     fieldId: field.id,
@@ -83,33 +110,20 @@ export function LifecycleStatusBar({
 
   const getOptionLabel = (option: any): string => {
     if (typeof option === 'string') return option;
-    if (option && typeof option === 'object') {
-      return option.label || option.value || String(option);
-    }
+    if (option && typeof option === 'object') return option.label || option.value || String(option);
     return String(option);
   };
 
   const getOptionValue = (option: any): string => {
     if (typeof option === 'string') return option;
-    if (option && typeof option === 'object') {
-      return option.value || option.label || String(option);
-    }
+    if (option && typeof option === 'object') return option.value || option.label || String(option);
     return String(option);
   };
 
-  // Create initial history entry if value exists but no history
   useEffect(() => {
     const createInitialHistory = async () => {
-      if (
-        submissionId && 
-        value && 
-        !historyLoading && 
-        history.length === 0 && 
-        user &&
-        !initialHistoryCreated.current
-      ) {
+      if (submissionId && value && !historyLoading && history.length === 0 && user && !initialHistoryCreated.current) {
         initialHistoryCreated.current = true;
-        console.log('Creating initial lifecycle history entry for:', value);
         await addHistoryEntry(null, value, 'Initial stage');
         await refetchHistory();
       }
@@ -117,45 +131,24 @@ export function LifecycleStatusBar({
     createInitialHistory();
   }, [submissionId, value, historyLoading, history.length, user, addHistoryEntry, refetchHistory]);
 
-  // Send in-app notification on stage change
   const sendStageChangeNotification = async (fromStage: string | null, toStage: string) => {
     if (!submissionId) return;
-    
     try {
       const { data: submission, error: subError } = await supabase
         .from('form_submissions')
         .select('submitted_by, form_id, submission_ref_id')
         .eq('id', submissionId)
         .single();
-      
-      if (subError || !submission) {
-        console.log('Could not fetch submission for notification');
-        return;
-      }
-
+      if (subError || !submission) return;
       if (submission.submitted_by) {
         const recordRef = submission.submission_ref_id || submissionId.slice(0, 8);
-        const { error: notifError } = await supabase.from('notifications').insert({
+        await supabase.from('notifications').insert({
           user_id: submission.submitted_by,
           type: 'lifecycle_stage_change',
           title: 'Record Stage Updated',
           message: `Record ${recordRef} has moved from "${fromStage || 'Initial'}" to "${toStage}" for field "${field.label}".`,
-          data: { 
-            submissionId, 
-            submissionRefId: submission.submission_ref_id,
-            fieldId: field.id, 
-            fieldLabel: field.label,
-            fromStage, 
-            toStage,
-            changedAt: new Date().toISOString()
-          }
+          data: { submissionId, submissionRefId: submission.submission_ref_id, fieldId: field.id, fieldLabel: field.label, fromStage, toStage, changedAt: new Date().toISOString() }
         });
-
-        if (notifError) {
-          console.error('Error creating notification:', notifError);
-        } else {
-          console.log('In-app notification sent to submitter');
-        }
       }
     } catch (err) {
       console.error('Error sending stage change notification:', err);
@@ -169,54 +162,18 @@ export function LifecycleStatusBar({
     return allowedTransitions.includes(toStage);
   };
 
-
-  const getColorForOption = (option: any, index: number) => {
-    // Use the configured color from the option if available
+  const getStageColor = (option: any, index: number) => {
+    // 1. Use configured color from the option
     const configuredColor = typeof option === 'object' && option?.color ? option.color : null;
-    
     if (configuredColor) {
-      // Return inline style-based colors for configured hex/color values
-      return { 
-        bg: '', 
-        hover: '', 
-        border: '', 
-        text: '',
-        style: { backgroundColor: configuredColor },
-        hoverStyle: { backgroundColor: configuredColor, filter: 'brightness(0.9)' },
-        borderStyle: { borderColor: configuredColor },
-        textStyle: { color: configuredColor }
-      };
+      return { bg: configuredColor, light: configuredColor + '20', text: configuredColor, border: configuredColor + '60' };
     }
-    
-    // Fallback to label-based colors
-    const optionLabel = typeof option === 'string' ? option : (option?.label || option?.value || '');
-    const label = optionLabel.toLowerCase();
-    
-    if (label.includes('complete') || label.includes('done') || label.includes('approved') || label.includes('success')) {
-      return { bg: 'bg-green-600', hover: 'hover:bg-green-700', border: 'border-green-500', text: 'text-green-600' };
-    }
-    if (label.includes('reject') || label.includes('cancel') || label.includes('fail') || label.includes('error')) {
-      return { bg: 'bg-red-600', hover: 'hover:bg-red-700', border: 'border-red-500', text: 'text-red-600' };
-    }
-    if (label.includes('pending') || label.includes('wait') || label.includes('hold') || label.includes('new')) {
-      return { bg: 'bg-amber-600', hover: 'hover:bg-amber-700', border: 'border-amber-500', text: 'text-amber-600' };
-    }
-    if (label.includes('progress') || label.includes('review') || label.includes('process') || label.includes('active')) {
-      return { bg: 'bg-blue-600', hover: 'hover:bg-blue-700', border: 'border-blue-500', text: 'text-blue-600' };
-    }
-    const colors = [
-      { bg: 'bg-slate-600', hover: 'hover:bg-slate-700', border: 'border-slate-500', text: 'text-slate-600' },
-      { bg: 'bg-indigo-600', hover: 'hover:bg-indigo-700', border: 'border-indigo-500', text: 'text-indigo-600' },
-      { bg: 'bg-purple-600', hover: 'hover:bg-purple-700', border: 'border-purple-500', text: 'text-purple-600' },
-      { bg: 'bg-teal-600', hover: 'hover:bg-teal-700', border: 'border-teal-500', text: 'text-teal-600' },
-    ];
-    return colors[index % colors.length];
-  };
-
-  const getStageIcon = (optionValue: string, index: number, currentIndex: number) => {
-    if (optionValue === value) return <Clock className="h-4 w-4" />;
-    if (index < currentIndex) return <Check className="h-4 w-4" />;
-    return <Circle className="h-4 w-4" />;
+    // 2. Try semantic color from label
+    const label = getOptionLabel(option);
+    const semantic = getSemanticColor(label);
+    if (semantic) return semantic;
+    // 3. Fallback to palette
+    return STAGE_COLORS[index % STAGE_COLORS.length];
   };
 
   const handleOptionClick = (optionValue: string) => {
@@ -236,46 +193,22 @@ export function LifecycleStatusBar({
   };
 
   const handleStageChange = async (newStage: string, comment: string) => {
-    console.log('handleStageChange called:', { newStage, comment, submissionId, hasOnChange: !!onChange });
     if (onChange) {
       const previousStage = value;
-      // Update UI immediately
       onChange(newStage);
       toast({ title: "Stage Updated", description: `Changed to "${newStage}"` });
-      
       if (submissionId) {
-        console.log('Adding history entry with comment:', comment);
-        // Run all async operations in parallel for speed, including SLA tracking
         const operations: Promise<any>[] = [
           addHistoryEntry(previousStage, newStage, comment || undefined),
           sendStageChangeNotification(previousStage, newStage)
         ];
-        
-        // Trigger SLA tracking if enabled
-        if (enableSlaTracking && slaTemplateId && submissionId && formId) {
-          operations.push(
-            triggerSLATracking({
-              submissionId,
-              fieldId: field.id,
-              formId,
-              currentStage: newStage,
-              config: {
-                enableSlaTracking,
-                slaTemplateId,
-                escalationChainId,
-                slaTrackedStages
-              }
-            })
-          );
+        if (enableSlaTracking && slaTemplateId && formId) {
+          operations.push(triggerSLATracking({
+            submissionId, fieldId: field.id, formId, currentStage: newStage,
+            config: { enableSlaTracking, slaTemplateId, escalationChainId, slaTrackedStages }
+          }));
         }
-        
-        Promise.all(operations).then(() => {
-          refetchHistory();
-        }).catch(err => {
-          console.error('Error in stage change operations:', err);
-        });
-      } else {
-        console.log('No submissionId, skipping history entry');
+        Promise.all(operations).then(() => refetchHistory()).catch(err => console.error('Error in stage change operations:', err));
       }
     }
   };
@@ -289,110 +222,137 @@ export function LifecycleStatusBar({
   const currentIndex = options.findIndex((o: any) => getOptionValue(o) === value);
   const pendingStageLabel = pendingStage ? getOptionLabel(options.find((o: any) => getOptionValue(o) === pendingStage) || pendingStage) : '';
   const currentStageLabel = value ? getOptionLabel(options.find((o: any) => getOptionValue(o) === value) || value) : '';
+  const timeInStage = getTimeInCurrentStage();
 
   return (
     <TooltipProvider>
-      <div className="flex items-center gap-2 w-full">
-        {/* Connected Progress Bar - White background */}
-        <div className="flex items-center flex-1 bg-white dark:bg-slate-100 rounded-lg p-1 shadow-sm border border-border">
+      <div className="w-full space-y-1">
+        {/* Stage Progress Bar */}
+        <div className="flex items-center w-full rounded-xl border border-border bg-card shadow-sm overflow-hidden">
           {options.map((option: any, index: number) => {
             const optionValue = getOptionValue(option);
             const optionLabel = getOptionLabel(option);
             const isSelected = value === optionValue;
             const isPast = index < currentIndex;
-            const color = getColorForOption(option, index);
+            const isFuture = index > currentIndex;
+            const color = getStageColor(option, index);
             const canTransition = isTransitionAllowed(value, optionValue);
-            const hasConfiguredColor = 'style' in color;
+            const isLast = index === options.length - 1;
             
             return (
-              <React.Fragment key={optionValue}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant={isSelected ? "default" : "ghost"}
-                      size="sm"
-                      onClick={() => handleOptionClick(optionValue)}
-                      disabled={disabled || !isEditing || isSelected}
-                      className={`text-xs px-3 py-1 flex-1 flex items-center justify-center gap-1.5 transition-all ${
-                        hasConfiguredColor
-                          ? isSelected 
-                            ? 'text-white font-semibold shadow-md border'
-                            : isPast
-                              ? 'text-white opacity-90'
-                              : `bg-slate-200 text-slate-500 ${isEditing ? 'hover:bg-slate-300' : ''}`
-                          : isSelected 
-                            ? `${color.bg} ${color.hover} text-white ${color.border} font-semibold shadow-md` 
-                            : isPast
-                              ? `${color.bg} ${color.hover} text-white opacity-90`
-                              : `bg-slate-200 text-slate-500 ${isEditing ? 'hover:bg-slate-300' : ''}`
-                      } ${!canTransition && isEditing && !isSelected ? 'opacity-60 cursor-not-allowed' : ''}`}
-                      style={
-                        hasConfiguredColor && (isSelected || isPast)
-                          ? { 
-                              backgroundColor: color.style?.backgroundColor,
-                              borderColor: color.borderStyle?.borderColor
-                            }
-                          : undefined
-                      }
-                    >
-                      {getStageIcon(optionValue, index, currentIndex)}
-                      <span className="truncate">{optionLabel}</span>
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>{optionLabel}</p>
-                    {!canTransition && isEditing && !isSelected && (
-                      <p className="text-xs text-red-400">Transition not allowed</p>
+              <Tooltip key={optionValue}>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => handleOptionClick(optionValue)}
+                    disabled={disabled || !isEditing || isSelected}
+                    className={`
+                      relative flex items-center justify-center gap-1.5 py-2.5 px-3 flex-1
+                      text-xs font-medium transition-all duration-200
+                      ${!isLast ? 'border-r border-border/50' : ''}
+                      ${isEditing && !isSelected && canTransition ? 'cursor-pointer' : ''}
+                      ${!canTransition && isEditing && !isSelected ? 'opacity-50 cursor-not-allowed' : ''}
+                      ${isSelected ? 'font-semibold' : ''}
+                      ${isFuture && !isEditing ? 'opacity-60' : ''}
+                    `}
+                    style={{
+                      backgroundColor: isSelected
+                        ? color.bg
+                        : isPast
+                          ? color.light
+                          : 'transparent',
+                      color: isSelected
+                        ? '#ffffff'
+                        : isPast
+                          ? color.text
+                          : isFuture
+                            ? 'var(--muted-foreground)'
+                            : color.text,
+                    }}
+                  >
+                    {/* Icon */}
+                    <span className="flex-shrink-0">
+                      {isPast ? (
+                        <span
+                          className="flex items-center justify-center w-4 h-4 rounded-full"
+                          style={{ backgroundColor: isSelected ? 'rgba(255,255,255,0.3)' : color.bg }}
+                        >
+                          <Check className="h-3 w-3 text-white" />
+                        </span>
+                      ) : isSelected ? (
+                        <span className="flex items-center justify-center w-4 h-4 rounded-full bg-white/30">
+                          <Circle className="h-2.5 w-2.5 fill-white text-white" />
+                        </span>
+                      ) : (
+                        <span
+                          className="flex items-center justify-center w-4 h-4 rounded-full border-2"
+                          style={{ borderColor: isFuture ? 'var(--border)' : color.border }}
+                        >
+                          <Circle className="h-2 w-2" style={{ color: isFuture ? 'var(--border)' : color.border }} />
+                        </span>
+                      )}
+                    </span>
+
+                    {/* Label */}
+                    <span className="truncate">{optionLabel}</span>
+
+                    {/* Time indicator for current stage */}
+                    {isSelected && timeInStage && (
+                      <span className="text-[10px] opacity-80 whitespace-nowrap ml-0.5">
+                        ({timeInStage})
+                      </span>
                     )}
-                  </TooltipContent>
-                </Tooltip>
-                {index < options.length - 1 && (
-                  <ChevronRight 
-                    className={`h-4 w-4 mx-0.5 ${!hasConfiguredColor && index <= currentIndex ? color.text : 'text-slate-400'}`}
-                    style={hasConfiguredColor && index <= currentIndex ? color.textStyle : undefined}
-                  />
-                )}
-              </React.Fragment>
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  <div className="text-center">
+                    <p className="font-medium">{optionLabel}</p>
+                    {isSelected && <p className="text-xs opacity-70">Current stage</p>}
+                    {isPast && <p className="text-xs opacity-70">Completed</p>}
+                    {isFuture && <p className="text-xs opacity-70">Upcoming</p>}
+                    {!canTransition && isEditing && !isSelected && (
+                      <p className="text-xs text-destructive">Transition not allowed</p>
+                    )}
+                  </div>
+                </TooltipContent>
+              </Tooltip>
             );
           })}
         </div>
 
-
-        {/* View History Button */}
-        <Tooltip>
-          <TooltipTrigger asChild>
+        {/* History Button - only if not hidden */}
+        {!hideHistoryButton && (
+          <div className="flex justify-end">
             <Button 
-              variant="outline" 
+              variant="ghost" 
               size="sm" 
-              className="h-8 px-3 gap-1.5 border-border bg-background hover:bg-accent text-foreground whitespace-nowrap shadow-sm"
-              onClick={() => setHistoryDialogOpen(true)}
+              className="h-6 px-2 gap-1 text-xs text-muted-foreground hover:text-foreground"
+              onClick={() => onOpenHistory ? onOpenHistory() : setHistoryDialogOpen(true)}
             >
-              <History className="h-3.5 w-3.5" />
+              <History className="h-3 w-3" />
               Stage History
             </Button>
-          </TooltipTrigger>
-          <TooltipContent>View stage history</TooltipContent>
-        </Tooltip>
-
-        <StageChangeDialog
-          open={dialogOpen}
-          onClose={() => { setDialogOpen(false); setPendingStage(null); }}
-          onConfirm={handleDialogConfirm}
-          fromStage={currentStageLabel}
-          toStage={pendingStageLabel}
-          requireComment={requireCommentOnChange}
-          transitionBlocked={pendingStage ? !isTransitionAllowed(value, pendingStage) : false}
-          blockReason={`Transition from "${currentStageLabel}" to "${pendingStageLabel}" is not allowed.`}
-        />
-
-        <LifecycleHistoryDialog
-          open={historyDialogOpen}
-          onClose={() => setHistoryDialogOpen(false)}
-          history={history}
-          loading={historyLoading}
-          fieldLabel={field.label}
-        />
+          </div>
+        )}
       </div>
+
+      <StageChangeDialog
+        open={dialogOpen}
+        onClose={() => { setDialogOpen(false); setPendingStage(null); }}
+        onConfirm={handleDialogConfirm}
+        fromStage={currentStageLabel}
+        toStage={pendingStageLabel}
+        requireComment={requireCommentOnChange}
+        transitionBlocked={pendingStage ? !isTransitionAllowed(value, pendingStage) : false}
+        blockReason={`Transition from "${currentStageLabel}" to "${pendingStageLabel}" is not allowed.`}
+      />
+
+      <LifecycleHistoryDialog
+        open={historyDialogOpen}
+        onClose={() => setHistoryDialogOpen(false)}
+        history={history}
+        loading={historyLoading}
+        fieldLabel={field.label}
+      />
     </TooltipProvider>
   );
 }
