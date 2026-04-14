@@ -585,10 +585,8 @@ function FormBuilderContent({
 
                 {/* Right Panel - Field Types (Fixed) */}
                 <div className="col-span-3 border-l bg-muted/30 flex flex-col">
-                  <div className="flex-shrink-0 h-full overflow-y-auto">
-                    <div className="p-4 px-0 py-0">
-                      <FieldTypesPanel fieldTypeSearch={state.fieldTypeSearch} setFieldTypeSearch={state.setFieldTypeSearch} onAddField={fieldOperations.handleAddField} disabled={state.isSaving} />
-                    </div>
+                  <div className="flex-shrink-0 h-full">
+                    <FieldTypesPanel fieldTypeSearch={state.fieldTypeSearch} setFieldTypeSearch={state.setFieldTypeSearch} onAddField={fieldOperations.handleAddField} disabled={state.isSaving} />
                   </div>
                 </div>
               </div>
