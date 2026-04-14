@@ -397,21 +397,19 @@ export function FormPreview({ form, showNavigation = false }: FormPreviewProps) 
           ? 'grid-cols-1 lg:grid-cols-4' 
           : 'grid-cols-1'
       }`}>
-        {/* Navigation Panel - sticky, own scroll */}
-        <div className={`${navigationVisible ? "lg:col-span-1" : ""} h-full overflow-y-auto`}>
-          <div className="sticky top-0">
-            <FormNavigationPanel
-              pages={Array.isArray(pages) ? pages : []}
-              fields={Array.isArray(form.fields) ? form.fields : []}
-              currentPageId={currentPageId}
-              selectedField={selectedField}
-              onPageChange={handlePageChange}
-              onFieldSelect={setSelectedField}
-              onFieldHighlight={handleFieldHighlight}
-              onToggleNavigation={() => setNavigationVisible(!navigationVisible)}
-              isCollapsed={!navigationVisible}
-            />
-          </div>
+        {/* Navigation Panel - independent scroll */}
+        <div className={`${navigationVisible ? "lg:col-span-1" : ""} h-full overflow-hidden`}>
+          <FormNavigationPanel
+            pages={Array.isArray(pages) ? pages : []}
+            fields={Array.isArray(form.fields) ? form.fields : []}
+            currentPageId={currentPageId}
+            selectedField={selectedField}
+            onPageChange={handlePageChange}
+            onFieldSelect={setSelectedField}
+            onFieldHighlight={handleFieldHighlight}
+            onToggleNavigation={() => setNavigationVisible(!navigationVisible)}
+            isCollapsed={!navigationVisible}
+          />
         </div>
         
         {/* Professional Preview Content - independent scroll */}
