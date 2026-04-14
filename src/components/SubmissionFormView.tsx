@@ -642,19 +642,30 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
   </div>
       {/* Page Tabs */}
       {pages.length > 1 && (
-        <div className="flex items-center gap-1 px-1 py-1 bg-muted/50 border rounded-lg shrink-0 overflow-x-auto">
+        <div className="flex items-center border rounded-lg shrink-0 overflow-hidden bg-card shadow-sm">
           {pages.map((page, idx) => (
             <button
               key={page.id}
               onClick={() => handlePageChange(page.id)}
               className={`
-                px-4 py-2 text-sm font-medium rounded-md transition-all whitespace-nowrap
-                ${currentPageId === page.id 
-                  ? 'bg-background text-foreground shadow-sm' 
-                  : 'text-muted-foreground hover:text-foreground hover:bg-background/50'}
+                relative flex-1 px-5 py-2.5 text-sm font-medium transition-all
+                ${idx !== pages.length - 1 ? 'border-r border-border/50' : ''}
+                ${currentPageId === page.id
+                  ? 'bg-primary text-primary-foreground shadow-inner'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'}
               `}
             >
-              {page.name}
+              <span className="flex items-center justify-center gap-2">
+                <span className={`
+                  flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-bold
+                  ${currentPageId === page.id
+                    ? 'bg-primary-foreground/20 text-primary-foreground'
+                    : 'bg-muted text-muted-foreground'}
+                `}>
+                  {idx + 1}
+                </span>
+                <span className="truncate">{page.name}</span>
+              </span>
             </button>
           ))}
         </div>
