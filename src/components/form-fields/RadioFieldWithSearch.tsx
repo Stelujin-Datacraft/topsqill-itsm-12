@@ -32,7 +32,7 @@ export function RadioFieldWithSearch({
   const options = fieldState?.options || field.options || [];
   const config = field.customConfig || {};
   const orientation = config.orientation || 'vertical';
-  const clearable = config.clearable || false;
+  const clearable = config.clearable !== false;
   
   const filteredOptions = options.filter(option =>
     option.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
