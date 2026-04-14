@@ -48,6 +48,38 @@ export function AddressField({ field, value = {}, onChange, error, disabled }: A
   // Track the previous value to prevent unnecessary updates
   const prevValueRef = useRef<string>('');
 
+  // Fetch countries with flags from API
+  useEffect(() => {
+    const fetchCountries = async () => {
+      try {
+        setCountriesLoading(true);
+        const response = await axios.get('https://restcountries.com/v3.1/all?fields=name,flags,cca2');
+        const data = response.data.map((c: any) => ({
+          name: c.name?.common || '',
+          flag: c.flags?.svg || c.flags?.png || '',
+          code: c.cca2 || '',
+        }));
+        setCountries(data.sort((a: CountryData, b: CountryData) => a.name.localeCompare(b.name)));
+      } catch (err) {
+        console.error('Error fetching countries:', err);
+      } finally {
+        setCountriesLoading(false);
+      }
+    };
+    fetchCountries();
+  }, []);
+
+  // Close country dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (countryContainerRef.current && !countryContainerRef.current.contains(event.target as Node)) {
+        setCountryOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   // Update addressData when value prop changes (for rule-based updates)
   useEffect(() => {
     // Serialize value for comparison to prevent infinite loops from object reference changes
