@@ -124,8 +124,18 @@ export function FieldPropertiesDialog({
 
         // Transform database data to FormField format
         const transformedField = transformToFormField(dbFieldData, selectedField.pageId);
-        setFieldForConfig(transformedField);
-        initializeLocalConfig(transformedField);
+        
+        // Merge: prefer snapshot (selectedField) customConfig over DB if snapshot has it
+        // This ensures unsaved config changes from the snapshot are preserved
+        const mergedField = {
+          ...transformedField,
+          customConfig: {
+            ...transformedField.customConfig,
+            ...(selectedField.customConfig || {}),
+          },
+        };
+        setFieldForConfig(mergedField);
+        initializeLocalConfig(mergedField);
 
         // Auto-load form fields if target form is already selected
         if (transformedField.customConfig?.targetFormId) {

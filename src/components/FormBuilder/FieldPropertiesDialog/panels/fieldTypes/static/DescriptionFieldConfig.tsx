@@ -72,25 +72,6 @@ export function DescriptionFieldConfig({ config, onUpdate, errors }: Description
       )}
 
       <div>
-        <Label htmlFor="font-family">Font Family</Label>
-        <Select
-          value={customConfig.fontFamily || 'inherit'}
-          onValueChange={(value) => handleConfigUpdate('fontFamily', value)}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Select font family" />
-          </SelectTrigger>
-          <SelectContent>
-            {FONT_FAMILIES.map((font) => (
-              <SelectItem key={font.value} value={font.value}>
-                {font.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div>
         <Label htmlFor="font-size">Font Size (px)</Label>
         <Input
           id="font-size"
@@ -101,42 +82,6 @@ export function DescriptionFieldConfig({ config, onUpdate, errors }: Description
           min="10"
           max="24"
         />
-      </div>
-
-      <div>
-        <Label htmlFor="font-weight">Font Weight</Label>
-        <Select
-          value={customConfig.fontWeight || 'normal'}
-          onValueChange={(value) => handleConfigUpdate('fontWeight', value)}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Select font weight" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="normal">Normal</SelectItem>
-            <SelectItem value="bold">Bold</SelectItem>
-            <SelectItem value="lighter">Light</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div>
-        <Label htmlFor="text-alignment">Text Alignment</Label>
-        <Select
-          value={customConfig.alignment || 'left'}
-          onValueChange={(value) => handleConfigUpdate('alignment', value)}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Select alignment" />
-          </SelectTrigger>
-          <SelectContent>
-            {ALIGNMENTS.map((alignment) => (
-              <SelectItem key={alignment.value} value={alignment.value}>
-                {alignment.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
       </div>
 
       <div>
