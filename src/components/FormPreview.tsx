@@ -14,6 +14,7 @@ import { validateFieldValue } from '@/utils/fieldValidation';
 interface FormPreviewProps {
   form: Form;
   showNavigation?: boolean;
+  headerActions?: React.ReactNode;
 }
 
 export function FormPreview({ form, showNavigation = false }: FormPreviewProps) {
