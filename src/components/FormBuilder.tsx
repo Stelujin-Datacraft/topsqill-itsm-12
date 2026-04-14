@@ -661,7 +661,7 @@ function FormBuilderContent({
               </div>
             </TabsContent>
 
-            <TabsContent value="preview">
+            <TabsContent value="preview" className="overflow-y-auto max-h-[calc(100vh-200px)]">
               {workingForm ? <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                   <FormPreview form={workingForm} showNavigation={true} />
                 </div> : <Card className="bg-white shadow-sm">

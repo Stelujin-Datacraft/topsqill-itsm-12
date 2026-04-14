@@ -135,23 +135,6 @@ const handleConfigUpdate = (key: string, value: any) => {
         />
       </div> */}
 
-      <div>
-        <Label htmlFor="font-weight">Font Weight</Label>
-        <Select
-          value={customConfig.fontWeight || 'normal'}
-          onValueChange={(value) => handleConfigUpdate('fontWeight', value)}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Select font weight" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="normal">Normal</SelectItem>
-            <SelectItem value="bold">Bold</SelectItem>
-            <SelectItem value="lighter">Light</SelectItem>
-            <SelectItem value="bolder">Extra Bold</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
     </div>
   );
 }
