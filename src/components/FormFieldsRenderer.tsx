@@ -605,14 +605,8 @@ case 'text':
         onChange={(e) => onFieldChange(field.id, e.target.value)}
       />
 
-      {/* Minimum length alert - only show when user has typed something */}
-      {field.validation?.minLength !== undefined &&
-        formData[field.id] && formData[field.id].length > 0 &&
-        formData[field.id].length < field.validation.minLength && (
-          <p className="text-sm text-red-500">
-            Minimum length is {field.validation.minLength} characters
-          </p>
-        )}
+      {/* Combined validation hint - shows on focus/type, auto-vanishes */}
+      <ValidationHint field={field} value={formData[field.id]} type="text" />
 
       {/* Pattern validation error */}
       {textPattern && textValue && !patternValid && (
@@ -651,14 +645,8 @@ case 'textarea':
         onChange={(e) => onFieldChange(field.id, e.target.value)}
       />
 
-      {/* Minimum length alert - only show when user has typed something */}
-      {field.validation?.minLength !== undefined &&
-        formData[field.id] && formData[field.id].length > 0 &&
-        formData[field.id].length < field.validation.minLength && (
-          <p className="text-sm text-red-500">
-            Minimum length is {field.validation.minLength} characters
-          </p>
-        )}
+      {/* Combined validation hint - shows on focus/type, auto-vanishes */}
+      <ValidationHint field={field} value={formData[field.id]} type="text" />
 
       {/* Pattern validation error */}
       {textareaPattern && textareaValue && !textareaPatternValid && (
@@ -706,23 +694,8 @@ case 'textarea':
               max={field.validation?.max}
               step={field.customConfig?.step || 1}
             />
-            {/* Max length warning */}
-            {field.validation?.maxLength && (formData[field.id]?.toString().length || 0) >= field.validation.maxLength && (
-              <p className="text-sm text-red-500">
-                Maximum length is {field.validation.maxLength} digits
-              </p>
-            )}
-            {/* Min/Max validation warnings */}
-            {field.validation?.min !== undefined && formData[field.id] && Number(formData[field.id]) < field.validation.min && (
-              <p className="text-sm text-red-500">
-                Minimum value is {field.validation.min}
-              </p>
-            )}
-            {field.validation?.max !== undefined && formData[field.id] && Number(formData[field.id]) > field.validation.max && (
-              <p className="text-sm text-red-500">
-                Maximum value is {field.validation.max}
-              </p>
-            )}
+            {/* Combined validation hint - shows on type, auto-vanishes */}
+            <ValidationHint field={field} value={formData[field.id]} type="number" />
             {errors[field.id] && (
               <p className="text-sm text-red-500">{errors[field.id]}</p>
             )}
