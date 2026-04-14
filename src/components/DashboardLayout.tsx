@@ -40,7 +40,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           {actions && <div className="flex items-center gap-2">{actions}</div>}
         </div>
       </header>
-      <div className="flex-1 px-[10px] mx-0 py-[10px] overflow-hidden min-h-0 flex flex-col">
+      <div className="flex-1 px-[10px] mx-0 py-[10px] overflow-auto min-h-0 flex flex-col">
         {children}
       </div>
     </>
