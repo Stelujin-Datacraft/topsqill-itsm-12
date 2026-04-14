@@ -234,7 +234,7 @@ export function CountryField({ field, value, onChange, error, disabled = false }
                 ))}
               </div>
             )}
-          </ScrollArea>
+          </div>
         </div>
       )}
       {error && <p className="text-sm text-destructive mt-1">{error}</p>}
