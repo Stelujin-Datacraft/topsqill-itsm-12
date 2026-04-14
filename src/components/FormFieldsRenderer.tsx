@@ -1,6 +1,60 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { FormField } from '@/types/form';
+
+/**
+ * Auto-vanishing validation hint that shows both min and max limits in one message.
+ */
+function ValidationHint({ field, value, type }: { field: FormField; value: any; type: 'text' | 'number' }) {
+  const [visible, setVisible] = useState(false);
+  const [message, setMessage] = useState('');
+
+  useEffect(() => {
+    if (value === undefined || value === null || value === '') {
+      setVisible(false);
+      return;
+    }
+
+    const parts: string[] = [];
+
+    if (type === 'text') {
+      const len = String(value).length;
+      if (field.validation?.minLength !== undefined) {
+        parts.push(`Min length: ${field.validation.minLength}`);
+      }
+      if (field.validation?.maxLength !== undefined) {
+        parts.push(`Max length: ${field.validation.maxLength}`);
+      }
+      // Only show if user is typing and has constraints
+      if (parts.length === 0) { setVisible(false); return; }
+    } else if (type === 'number') {
+      if (field.validation?.min !== undefined) {
+        parts.push(`Min value: ${field.validation.min}`);
+      }
+      if (field.validation?.max !== undefined) {
+        parts.push(`Max value: ${field.validation.max}`);
+      }
+      if (field.validation?.maxLength !== undefined) {
+        parts.push(`Max digits: ${field.validation.maxLength}`);
+      }
+      if (parts.length === 0) { setVisible(false); return; }
+    }
+
+    setMessage(parts.join(' | '));
+    setVisible(true);
+
+    const timer = setTimeout(() => setVisible(false), 3000);
+    return () => clearTimeout(timer);
+  }, [value, field.validation, type]);
+
+  if (!visible || !message) return null;
+
+  return (
+    <p className="text-xs text-amber-600 dark:text-amber-400 animate-in fade-in duration-200">
+      {message}
+    </p>
+  );
+}
 import { ParsedFieldReference } from '@/utils/fieldReferenceParser';
 import { RecordTableField } from './form-fields/RecordTableField';
 import { CrossReferenceField } from './form-fields/CrossReferenceField';
@@ -605,14 +659,8 @@ case 'text':
         onChange={(e) => onFieldChange(field.id, e.target.value)}
       />
 
-      {/* Minimum length alert - only show when user has typed something */}
-      {field.validation?.minLength !== undefined &&
-        formData[field.id] && formData[field.id].length > 0 &&
-        formData[field.id].length < field.validation.minLength && (
-          <p className="text-sm text-red-500">
-            Minimum length is {field.validation.minLength} characters
-          </p>
-        )}
+      {/* Combined validation hint - shows on focus/type, auto-vanishes */}
+      <ValidationHint field={field} value={formData[field.id]} type="text" />
 
       {/* Pattern validation error */}
       {textPattern && textValue && !patternValid && (
@@ -651,14 +699,8 @@ case 'textarea':
         onChange={(e) => onFieldChange(field.id, e.target.value)}
       />
 
-      {/* Minimum length alert - only show when user has typed something */}
-      {field.validation?.minLength !== undefined &&
-        formData[field.id] && formData[field.id].length > 0 &&
-        formData[field.id].length < field.validation.minLength && (
-          <p className="text-sm text-red-500">
-            Minimum length is {field.validation.minLength} characters
-          </p>
-        )}
+      {/* Combined validation hint - shows on focus/type, auto-vanishes */}
+      <ValidationHint field={field} value={formData[field.id]} type="text" />
 
       {/* Pattern validation error */}
       {textareaPattern && textareaValue && !textareaPatternValid && (
@@ -706,23 +748,8 @@ case 'textarea':
               max={field.validation?.max}
               step={field.customConfig?.step || 1}
             />
-            {/* Max length warning */}
-            {field.validation?.maxLength && (formData[field.id]?.toString().length || 0) >= field.validation.maxLength && (
-              <p className="text-sm text-red-500">
-                Maximum length is {field.validation.maxLength} digits
-              </p>
-            )}
-            {/* Min/Max validation warnings */}
-            {field.validation?.min !== undefined && formData[field.id] && Number(formData[field.id]) < field.validation.min && (
-              <p className="text-sm text-red-500">
-                Minimum value is {field.validation.min}
-              </p>
-            )}
-            {field.validation?.max !== undefined && formData[field.id] && Number(formData[field.id]) > field.validation.max && (
-              <p className="text-sm text-red-500">
-                Maximum value is {field.validation.max}
-              </p>
-            )}
+            {/* Combined validation hint - shows on type, auto-vanishes */}
+            <ValidationHint field={field} value={formData[field.id]} type="number" />
             {errors[field.id] && (
               <p className="text-sm text-red-500">{errors[field.id]}</p>
             )}
