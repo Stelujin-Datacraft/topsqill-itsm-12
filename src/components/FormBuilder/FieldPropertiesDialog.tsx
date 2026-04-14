@@ -124,33 +124,29 @@ export function FieldPropertiesDialog({
 
         // Transform database data to FormField format
         const transformedField = transformToFormField(dbFieldData, selectedField.pageId);
-        
-        // Smart merge: prefer DB customConfig as base, only overlay snapshot values
-        // that are meaningfully different (non-empty, non-default)
-        const dbConfig = transformedField.customConfig || {};
-        const snapshotConfig = selectedField.customConfig || {};
-        
-        // Smart merge: start with DB config as base, overlay snapshot values
-        // that are non-empty/non-default (preserves saved DB config while
-        // respecting any unsaved local changes)
-        const mergedCustomConfig = { ...dbConfig };
-        Object.entries(snapshotConfig).forEach(([key, value]) => {
-          if (value === undefined || value === null) return;
-          if (value === '' && dbConfig[key] !== undefined) return;
-          if (Array.isArray(value) && value.length === 0 && Array.isArray(dbConfig[key]) && dbConfig[key].length > 0) return;
-          mergedCustomConfig[key] = value;
-        });
-        
-        const mergedField = {
+
+        // Use the current snapshot field as the source of truth for any unsaved edits
+        // while keeping DB data as the fallback for properties not yet in the snapshot.
+        const mergedField: FormField = {
           ...transformedField,
-          customConfig: mergedCustomConfig,
+          ...selectedField,
+          validation: {
+            ...(transformedField.validation || {}),
+            ...(selectedField.validation || {}),
+          },
+          customConfig: {
+            ...(transformedField.customConfig || {}),
+            ...(selectedField.customConfig || {}),
+          },
+          pageId: selectedField.pageId || transformedField.pageId,
         };
+
         setFieldForConfig(mergedField);
         initializeLocalConfig(mergedField);
 
         // Auto-load form fields if target form is already selected
-        if (transformedField.customConfig?.targetFormId) {
-          await fetchFormFields(transformedField.customConfig.targetFormId);
+        if (mergedField.customConfig?.targetFormId) {
+          await fetchFormFields(mergedField.customConfig.targetFormId);
         }
       } catch (error) {
         toast({
