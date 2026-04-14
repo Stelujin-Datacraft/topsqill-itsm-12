@@ -762,8 +762,8 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
           <CardContent className="p-0 flex-1 overflow-y-auto min-h-0">
             {/* Professional Form Content */}
             <div className="relative">
-              <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-slate-200 dark:via-slate-700 to-transparent"></div>
-              <div className="px-16 py-16 bg-white dark:bg-gray-950 min-h-[500px]">
+              <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-border to-transparent"></div>
+              <div className="px-16 py-16 bg-card min-h-[500px]">
                 <div className="max-w-5xl mx-auto space-y-8">
                   <SubmissionFormRenderer
                     form={form}
@@ -778,7 +778,7 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
                   />
                 </div>
               </div>
-              <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-slate-200 dark:via-slate-700 to-transparent"></div>
+              <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-border to-transparent"></div>
             </div>
           </CardContent>
         </Card>
