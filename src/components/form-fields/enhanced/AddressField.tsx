@@ -142,7 +142,7 @@ export function AddressField({ field, value = {}, onChange, error, disabled }: A
     }
   };
 
-const selectedCountry = COUNTRIES.find(
+const selectedCountry = countries.find(
   (country) => country.code === addressData.country
 );
 
