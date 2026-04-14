@@ -885,6 +885,38 @@ const { localConfig: fieldConfig, updateConfig } = useFieldConfiguration(selecte
                         );
                       }
                       
+                      // Multi-select field
+                      if (fieldType === 'multi-select') {
+                        const optionsArray = Array.isArray(options) ? options : [];
+                        const currentDefaults: string[] = Array.isArray(localConfig.defaultValue) ? localConfig.defaultValue : [];
+                        return (
+                          <div className="space-y-2 border rounded-md p-3 max-h-48 overflow-y-auto">
+                            {optionsArray.length === 0 ? (
+                              <p className="text-sm text-muted-foreground">Add options first to set defaults</p>
+                            ) : optionsArray.map((opt: any, idx: number) => {
+                              const optValue = typeof opt === 'string' ? opt : (opt.value || '');
+                              const optLabel = typeof opt === 'string' ? opt : (opt.label || opt.value || '');
+                              if (!optValue) return null;
+                              return (
+                                <div key={idx} className="flex items-center space-x-2">
+                                  <Checkbox
+                                    id={`default-ms-${idx}`}
+                                    checked={currentDefaults.includes(optValue)}
+                                    onCheckedChange={(checked) => {
+                                      const newDefaults = checked
+                                        ? [...currentDefaults, optValue]
+                                        : currentDefaults.filter(v => v !== optValue);
+                                      updateField('defaultValue', newDefaults.length > 0 ? newDefaults : '');
+                                    }}
+                                  />
+                                  <Label htmlFor={`default-ms-${idx}`} className="text-sm cursor-pointer">{optLabel}</Label>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      }
+                      
                       // Toggle field
                       if (fieldType === 'toggle-switch') {
                         return (
