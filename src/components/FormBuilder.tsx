@@ -346,9 +346,19 @@ function FormBuilderContent({
     // Update in snapshot immediately
     updateFieldInSnapshot(fieldId, updates);
     if (state.selectedField && state.selectedField.id === fieldId) {
-      state.setSelectedField({
-        ...state.selectedField,
-        ...updates
+      state.setSelectedField((prevField: FormField | null) => {
+        if (!prevField || prevField.id !== fieldId) return prevField;
+
+        return {
+          ...prevField,
+          ...updates,
+          validation: updates.validation
+            ? { ...(prevField.validation || {}), ...updates.validation }
+            : prevField.validation,
+          customConfig: updates.customConfig
+            ? { ...(prevField.customConfig || {}), ...updates.customConfig }
+            : prevField.customConfig,
+        };
       });
     }
 
