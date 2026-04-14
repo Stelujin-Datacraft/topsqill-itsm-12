@@ -9,8 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { FormPagination } from '@/components/FormPagination';
 import { FieldLayoutRenderer } from './FieldLayoutRenderer';
 import { Form, FormPage, FormField } from '@/types/form';
-import { FileStack, Settings2, Grid3X3, Calendar, Hash } from 'lucide-react';
-import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
+import { FileStack, Grid3X3, Calendar, Hash } from 'lucide-react';
 
 
 interface FormDetailsPanelProps {
@@ -152,7 +151,7 @@ export function FormDetailsPanel({
   showFormDetails,
   setShowFormDetails
 }: FormDetailsPanelProps) {
-  const [showLayoutControls, setShowLayoutControls] = useState(false);
+  
 
   // If showing form details, render the details section
   if (showFormDetails) {
