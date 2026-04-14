@@ -605,9 +605,10 @@ case 'text':
         onChange={(e) => onFieldChange(field.id, e.target.value)}
       />
 
-      {/* Minimum length alert */}
+      {/* Minimum length alert - only show when user has typed something */}
       {field.validation?.minLength !== undefined &&
-        (formData[field.id]?.length || 0) < field.validation.minLength && (
+        formData[field.id] && formData[field.id].length > 0 &&
+        formData[field.id].length < field.validation.minLength && (
           <p className="text-sm text-red-500">
             Minimum length is {field.validation.minLength} characters
           </p>
@@ -650,9 +651,10 @@ case 'textarea':
         onChange={(e) => onFieldChange(field.id, e.target.value)}
       />
 
-      {/* Minimum length alert */}
+      {/* Minimum length alert - only show when user has typed something */}
       {field.validation?.minLength !== undefined &&
-        (formData[field.id]?.length || 0) < field.validation.minLength && (
+        formData[field.id] && formData[field.id].length > 0 &&
+        formData[field.id].length < field.validation.minLength && (
           <p className="text-sm text-red-500">
             Minimum length is {field.validation.minLength} characters
           </p>
