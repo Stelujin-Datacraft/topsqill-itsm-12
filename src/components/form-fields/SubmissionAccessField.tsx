@@ -345,7 +345,7 @@ export function SubmissionAccessField({ field, value, onChange, error, disabled 
                   )}
                 </div>
               )}
-            </ScrollArea>
+            </div>
           </div>
         )}
       </div>

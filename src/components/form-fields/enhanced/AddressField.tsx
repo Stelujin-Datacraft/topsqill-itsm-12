@@ -289,7 +289,7 @@ const selectedCountry = countries.find(
                 </button>
               ))}
           </div>
-        </ScrollArea>
+        </div>
       </div>
     )}
   </div>
