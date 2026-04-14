@@ -219,54 +219,79 @@ const selectedCountry = countries.find(
           </div>
         )}
 {addressFields.includes('country') && (
-  <div>
+  <div ref={countryContainerRef} className="relative">
     <Label htmlFor={`${field.id}-country`}>Country</Label>
+    <Button
+      variant="outline"
+      role="combobox"
+      aria-expanded={countryOpen}
+      className="w-full justify-between"
+      disabled={disabled || countriesLoading}
+      onClick={() => setCountryOpen(!countryOpen)}
+      type="button"
+    >
+      {countriesLoading ? (
+        <span className="flex items-center gap-2">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Loading...
+        </span>
+      ) : selectedCountry ? (
+        <span className="flex items-center gap-2">
+          <img src={selectedCountry.flag} alt="" className="w-4 h-3 object-cover rounded-sm" />
+          {selectedCountry.name}
+        </span>
+      ) : (
+        "Select country..."
+      )}
+      {countryOpen ? (
+        <ChevronUp className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+      ) : (
+        <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+      )}
+    </Button>
 
-    <Popover open={countryOpen} onOpenChange={setCountryOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          role="combobox"
-          aria-expanded={countryOpen}
-          className="w-full justify-between"
-          disabled={disabled}
-        >
-          {selectedCountry ? selectedCountry.name : "Select country..."}
-          <svg
-            className="ml-2 h-4 w-4 opacity-50"
-            viewBox="0 0 20 20"
-            fill="currentColor"
-          >
-            <path
-              fillRule="evenodd"
-              d="M5.23 7.21a.75.75 0 011.06-.02L10 10.584l3.71-3.4a.75.75 0 111.02 1.1l-4.2 3.847a.75.75 0 01-1.02 0L5.25 8.29a.75.75 0 01-.02-1.08z"
-              clipRule="evenodd"
+    {countryOpen && (
+      <div className="absolute z-50 w-full mt-1 border border-input bg-popover rounded-md shadow-md">
+        <div className="p-2">
+          <div className="relative">
+            <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search countries..."
+              value={countrySearch}
+              onChange={(e) => setCountrySearch(e.target.value)}
+              className="pl-8 h-8"
+              autoFocus
             />
-          </svg>
-        </Button>
-      </PopoverTrigger>
-
-<PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
-  <div className="max-h-60 overflow-auto">
-    {COUNTRIES.map((country) => (
-      <button
-        key={country.code}
-        type="button"
-        className={`w-full px-3 py-2 text-left hover:bg-accent/40 ${
-          selectedCountry?.code === country.code ? "bg-accent/20" : ""
-        }`}
-        onClick={() => {
-          handleFieldChange("country", country.code);
-          setCountryOpen(false);
-        }}
-      >
-        <span className="text-sm">{country.name}</span>
-      </button>
-    ))}
-  </div>
-</PopoverContent>
-
-    </Popover>
+          </div>
+        </div>
+        <ScrollArea className="max-h-60">
+          <div className="p-1">
+            {countries
+              .filter(c => c.name.toLowerCase().includes(countrySearch.toLowerCase()) || c.code.toLowerCase().includes(countrySearch.toLowerCase()))
+              .map((country) => (
+                <button
+                  key={country.code}
+                  type="button"
+                  className={cn(
+                    "w-full flex items-center gap-2 px-2 py-1.5 text-left rounded-sm hover:bg-accent transition-colors text-sm",
+                    selectedCountry?.code === country.code && "bg-accent"
+                  )}
+                  onClick={() => {
+                    handleFieldChange("country", country.code);
+                    setCountryOpen(false);
+                    setCountrySearch('');
+                  }}
+                >
+                  <Check className={cn("h-4 w-4 shrink-0", selectedCountry?.code === country.code ? "opacity-100" : "opacity-0")} />
+                  <img src={country.flag} alt="" className="w-4 h-3 object-cover rounded-sm" />
+                  {country.name}
+                  <span className="text-muted-foreground text-xs ml-auto">({country.code})</span>
+                </button>
+              ))}
+          </div>
+        </ScrollArea>
+      </div>
+    )}
   </div>
 )}
 
