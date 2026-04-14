@@ -297,19 +297,6 @@ export function LifecycleStatusBar({
                         {timeInStage}
                       </span>
                     )}
-                        </span>
-                      )}
-                    </span>
-
-                    {/* Label */}
-                    <span className="truncate">{optionLabel}</span>
-
-                    {/* Time indicator for current stage */}
-                    {isSelected && timeInStage && (
-                      <span className="text-[10px] opacity-80 whitespace-nowrap ml-0.5">
-                        ({timeInStage})
-                      </span>
-                    )}
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom">
