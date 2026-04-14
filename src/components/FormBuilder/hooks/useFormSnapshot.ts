@@ -14,14 +14,14 @@ const LOCAL_STORAGE_PREFIX = 'form-draft-';
 
 export function useFormSnapshot(initialForm: Form | null) {
   const [snapshot, setSnapshot] = useState<FormSnapshot>(() => {
-    // Don't load from localStorage during initial state — let initializeSnapshot handle it
-    // This prevents stale drafts from overriding fresh DB data
+    // Start uninitialized so initializeSnapshot always gets a chance
+    // to restore any local draft from localStorage on mount/remount.
     return {
       form: initialForm,
-      isInitialized: !!initialForm,
+      isInitialized: false,
       isDirty: false,
       lastSaved: initialForm ? new Date() : null,
-      initializedFormId: initialForm?.id || null,
+      initializedFormId: null,
     };
   });
 

@@ -88,14 +88,11 @@ function FormBuilderContent({
 
   // Initialize snapshot when form loads
   useEffect(() => {
-    if (currentForm?.id) {
-      // Only initialize if form ID changed or not initialized yet
-      if (!snapshot.isInitialized || snapshot.initializedFormId !== currentForm.id) {
-        console.log('🚀 Form ID changed or not initialized, initializing snapshot for:', currentForm.id);
-        initializeSnapshot(currentForm);
-      }
+    if (currentForm?.id && snapshot.initializedFormId !== currentForm.id) {
+      console.log('🚀 Initializing snapshot for form:', currentForm.id);
+      initializeSnapshot(currentForm);
     }
-  }, [currentForm?.id, snapshot.isInitialized, snapshot.initializedFormId, initializeSnapshot]);
+  }, [currentForm, snapshot.initializedFormId, initializeSnapshot]);
 
   // Initialize current page and ensure Page 1 exists for new forms
   useEffect(() => {
@@ -705,16 +702,10 @@ export function FormBuilder({
   
   const loading = formLoading || formsLoading;
   
-  if (loading) {
-    return <div className="flex-1 flex items-center justify-center">
-        <div className="text-muted-foreground">Loading forms...</div>
-      </div>;
-  }
-  
-  // Use the form from useFormLoader (complete with all field data and IDs)
-  // instead of forms.find() which may have incomplete data
   return <FormSnapshotProvider initialForm={loadedForm}>
-      <FormBuilderContent formId={formId} />
+      {loading && !loadedForm ? <div className="flex-1 flex items-center justify-center">
+          <div className="text-muted-foreground">Loading forms...</div>
+        </div> : <FormBuilderContent formId={formId} />}
     </FormSnapshotProvider>;
 }
 export default FormBuilder;
