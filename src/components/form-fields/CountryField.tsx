@@ -196,7 +196,7 @@ export function CountryField({ field, value, onChange, error, disabled = false }
               />
             </div>
           </div>
-          <ScrollArea className="max-h-60">
+          <div className="max-h-60 overflow-y-auto">
             {filteredCountries.length === 0 ? (
               <div className="p-3 text-center text-sm text-muted-foreground">No country found.</div>
             ) : (
@@ -234,7 +234,7 @@ export function CountryField({ field, value, onChange, error, disabled = false }
                 ))}
               </div>
             )}
-          </ScrollArea>
+          </div>
         </div>
       )}
       {error && <p className="text-sm text-destructive mt-1">{error}</p>}
