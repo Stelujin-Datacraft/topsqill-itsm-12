@@ -599,7 +599,7 @@ function FormBuilderContent({
               </WorkingFormProvider>
             </TabsContent>
 
-            <TabsContent value="rules" className="flex-1 overflow-y-auto min-h-0">
+            <TabsContent value="rules" className="flex-1 overflow-y-auto min-h-0 pt-4">
               <div className="space-y-4 p-6">
                 {workingForm && (
                   <div className="flex justify-end">
@@ -662,7 +662,7 @@ function FormBuilderContent({
                 </Card>}
             </TabsContent>
 
-            <TabsContent value="submissions" className="flex-1 overflow-y-auto min-h-0 p-6">
+            <TabsContent value="submissions" className="flex-1 overflow-y-auto min-h-0 p-6 pt-4">
               {currentForm ? <div className="bg-white rounded-lg shadow-sm border border-gray-200">
                   <FormSubmissions form={currentForm} />
                 </div> : <Card className="bg-white shadow-sm">
@@ -672,7 +672,7 @@ function FormBuilderContent({
                 </Card>}
             </TabsContent>
 
-            <TabsContent value="access" className="flex-1 overflow-y-auto min-h-0 p-6">
+            <TabsContent value="access" className="flex-1 overflow-y-auto min-h-0 p-6 pt-4">
               {currentForm ? <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                   <FormUserAccess form={currentForm} onUpdateForm={updates => updateForm(currentForm.id, updates)} />
                 </div> : <Card className="bg-white shadow-sm">
