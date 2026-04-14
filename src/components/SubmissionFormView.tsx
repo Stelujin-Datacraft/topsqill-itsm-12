@@ -38,7 +38,11 @@ interface FormSubmission {
   approval_timestamp?: string;
 }
 
-export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewProps) {
+function StageHistoryWrapper({ field, submissionId, open, onClose }: { field: FormField; submissionId: string; open: boolean; onClose: () => void }) {
+  const { history, loading } = useLifecycleHistory(submissionId, field.id);
+  return <LifecycleHistoryDialog open={open} onClose={onClose} history={history} loading={loading} fieldLabel={field.label} />;
+}
+
   const [submission, setSubmission] = useState<FormSubmission | null>(null);
   const [form, setForm] = useState<Form | null>(null);
   const [loading, setLoading] = useState(true);
