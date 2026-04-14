@@ -602,16 +602,26 @@ function FormBuilderContent({
             <TabsContent value="rules" className="flex-1 overflow-y-auto min-h-0 pt-4">
               <div className="space-y-4 px-6 pb-6">
                 {workingForm && (
-                  <div className="flex justify-end">
-                    <AIRuleSuggester
-                      formFields={workingForm.fields}
-                      formName={workingForm.name}
-                      formDescription={workingForm.description || ''}
-                      existingFieldRules={workingForm.fieldRules || []}
-                      existingFormRules={workingForm.formRules || []}
-                      onApplyFieldRules={(rules) => updateFormDetails({ fieldRules: rules })}
-                      onApplyFormRules={(rules) => updateFormDetails({ formRules: rules })}
-                    />
+                  <div className="rounded-lg border bg-card px-4 py-3 shadow-sm">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="space-y-1">
+                        <h3 className="text-sm font-semibold text-foreground">AI rule suggestions</h3>
+                        <p className="text-sm text-muted-foreground">
+                          Generate field and form rules based on your current form structure.
+                        </p>
+                      </div>
+                      <div className="flex justify-start sm:justify-end">
+                        <AIRuleSuggester
+                          formFields={workingForm.fields}
+                          formName={workingForm.name}
+                          formDescription={workingForm.description || ''}
+                          existingFieldRules={workingForm.fieldRules || []}
+                          existingFormRules={workingForm.formRules || []}
+                          onApplyFieldRules={(rules) => updateFormDetails({ fieldRules: rules })}
+                          onApplyFormRules={(rules) => updateFormDetails({ formRules: rules })}
+                        />
+                      </div>
+                    </div>
                   </div>
                 )}
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
