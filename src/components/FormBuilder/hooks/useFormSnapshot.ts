@@ -14,28 +14,14 @@ const LOCAL_STORAGE_PREFIX = 'form-draft-';
 
 export function useFormSnapshot(initialForm: Form | null) {
   const [snapshot, setSnapshot] = useState<FormSnapshot>(() => {
-    let formFromState: Form | null = initialForm;
-
-    if (initialForm?.id) {
-      try {
-        const storageKey = `${LOCAL_STORAGE_PREFIX}${initialForm.id}`;
-        const stored = localStorage.getItem(storageKey);
-        if (stored) {
-          const { form } = JSON.parse(stored);
-          console.log('📂 Initialized snapshot from localStorage (state init):', storageKey, 'fields:', form?.fields?.length || 0);
-          formFromState = form;
-        }
-      } catch (error) {
-        console.error('❌ Failed to load initial form draft from local storage in state initializer:', error);
-      }
-    }
-
+    // Don't load from localStorage during initial state — let initializeSnapshot handle it
+    // This prevents stale drafts from overriding fresh DB data
     return {
-      form: formFromState,
-      isInitialized: !!formFromState,
+      form: initialForm,
+      isInitialized: !!initialForm,
       isDirty: false,
-      lastSaved: formFromState ? new Date() : null,
-      initializedFormId: formFromState?.id || initialForm?.id || null,
+      lastSaved: initialForm ? new Date() : null,
+      initializedFormId: initialForm?.id || null,
     };
   });
 
