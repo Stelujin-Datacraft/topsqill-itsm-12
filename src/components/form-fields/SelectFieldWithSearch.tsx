@@ -1,12 +1,12 @@
+
 import React, { useState } from 'react';
 import { FormField } from '@/types/form';
 import { Label } from '@/components/ui/label';
-import { Button } from '@/components/ui/button';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { Check, ChevronDown, X } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Check, Search, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { HelpTooltip } from '@/components/ui/help-tooltip';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 interface SelectFieldWithSearchProps {
   field: FormField;
@@ -27,7 +27,6 @@ export function SelectFieldWithSearch({
   required,
   fieldState 
 }: SelectFieldWithSearchProps) {
-  const [open, setOpen] = useState(false);
   const [searchValue, setSearchValue] = useState('');
 
   const config = field.customConfig || {};
@@ -35,7 +34,6 @@ export function SelectFieldWithSearch({
 
   // Use fieldState.options if available (from rules), otherwise use field.options
   const options = fieldState?.options || field.options || [];
-  const selectedOption = options.find(opt => opt.value === value);
   
   const filteredOptions = options.filter(option =>
     option.label.toLowerCase().includes(searchValue.toLowerCase()) ||
@@ -44,15 +42,10 @@ export function SelectFieldWithSearch({
 
   const handleSelect = (optionValue: string) => {
     onChange(optionValue === value ? '' : optionValue);
-    setOpen(false);
-    setSearchValue('');
   };
 
-  const handleClear = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
+  const handleClear = () => {
     onChange('');
-    setOpen(false);
   };
 
   return (
@@ -64,107 +57,77 @@ export function SelectFieldWithSearch({
         </Label>
         <HelpTooltip content={field.tooltip || fieldState.tooltip} />
       </div>
-      
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <Button
-            variant="outline"
-            role="combobox"
-            aria-expanded={open}
-            className="w-full justify-between"
-            disabled={disabled}
-          >
-            {selectedOption ? (
-              <div className="flex items-center gap-2 flex-1">
-                {selectedOption.image && (
-                  <img 
-                    src={selectedOption.image} 
-                    alt={selectedOption.label || 'Selected option'} 
-                    className="w-10 h-10 object-cover rounded"
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none';
-                    }}
-                  />
-                )}
-                {!selectedOption.image && selectedOption.color && (
-                  <div 
-                    className="w-4 h-4 rounded-full border border-gray-300 flex-shrink-0" 
-                    style={{ backgroundColor: selectedOption.color }}
-                  />
-                )}
-                {selectedOption.label && <span className="text-sm">{selectedOption.label}</span>}
-              </div>
-            ) : (
-              <span className="text-muted-foreground">{field.placeholder || "Select an option..."}</span>
+
+      {/* Inline search input */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Search options..."
+          value={searchValue}
+          onChange={(e) => setSearchValue(e.target.value)}
+          className="pl-10"
+          disabled={disabled}
+        />
+      </div>
+
+      {/* Clear selection */}
+      {clearable && value && !disabled && (
+        <button
+          type="button"
+          onClick={handleClear}
+          className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
+        >
+          <X className="h-3 w-3" /> Clear selection
+        </button>
+      )}
+
+      {/* Inline radio-style list */}
+      <div className={`space-y-1 border rounded-md p-3 bg-background ${filteredOptions.length > 7 ? 'max-h-64 overflow-y-auto' : ''}`}>
+        {filteredOptions.length === 0 && (
+          <p className="text-sm text-muted-foreground py-2 text-center">No options found.</p>
+        )}
+        {filteredOptions.map((option) => (
+          <div
+            key={option.id}
+            className={cn(
+              "flex items-center gap-3 p-2 rounded-md cursor-pointer hover:bg-accent transition-colors",
+              value === option.value && "bg-accent"
             )}
-            <div className="flex items-center gap-1">
-              {clearable && value && !disabled && (
-                <span
-                  role="button"
-                  tabIndex={0}
-                  className="h-4 w-4 flex items-center justify-center opacity-50 hover:opacity-100 cursor-pointer"
-                  onClick={handleClear}
-                  onMouseDown={(e) => e.preventDefault()}
-                  onKeyDown={(e) => e.key === 'Enter' && handleClear(e as any)}
-                >
-                  <X className="h-4 w-4" />
-                </span>
+            onClick={() => !disabled && handleSelect(option.value)}
+          >
+            <div className={cn(
+              "h-4 w-4 rounded-full border-2 flex items-center justify-center flex-shrink-0",
+              value === option.value ? "border-primary" : "border-muted-foreground/40"
+            )}>
+              {value === option.value && (
+                <div className="h-2 w-2 rounded-full bg-primary" />
               )}
-              <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
             </div>
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-full p-0" align="start">
-          <Command>
-            <CommandInput 
-              placeholder="Search options..." 
-              value={searchValue}
-              onValueChange={setSearchValue}
-            />
-            <CommandList>
-              <CommandEmpty>No options found.</CommandEmpty>
-              <CommandGroup>
-                {filteredOptions.map((option) => (
-                  <CommandItem
-                    key={option.id}
-                    value={option.value || `option-${option.id}`}
-                    onSelect={() => handleSelect(option.value)}
-                  >
-                    <Check
-                      className={cn(
-                        "mr-2 h-4 w-4",
-                        value === option.value ? "opacity-100" : "opacity-0"
-                      )}
-                    />
-                    <div className="flex items-center gap-3">
-                      {option.image && (
-                        <img 
-                          src={option.image} 
-                          alt={option.label || 'Option image'} 
-                          className="w-16 h-16 object-cover rounded border border-border flex-shrink-0"
-                          onError={(e) => {
-                            e.currentTarget.style.display = 'none';
-                          }}
-                        />
-                      )}
-                      {!option.image && option.color && (
-                        <div 
-                          className="w-4 h-4 rounded-full border border-gray-300 flex-shrink-0" 
-                          style={{ backgroundColor: option.color }}
-                        />
-                      )}
-                      {option.label && <span className="text-sm">{option.label}</span>}
-                    </div>
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            </CommandList>
-          </Command>
-        </PopoverContent>
-      </Popover>
+            <div className="flex items-center gap-2 flex-1">
+              {option.image && (
+                <img 
+                  src={option.image} 
+                  alt={option.label || 'Option image'} 
+                  className="w-10 h-10 object-cover rounded border border-border flex-shrink-0"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                  }}
+                />
+              )}
+              {!option.image && option.color && (
+                <div 
+                  className="w-4 h-4 rounded-full border border-border flex-shrink-0" 
+                  style={{ backgroundColor: option.color }}
+                />
+              )}
+              {option.label && <span className="text-sm">{option.label}</span>}
+            </div>
+          </div>
+        ))}
+      </div>
       
       {error && (
-        <p className="text-sm text-red-500">{error}</p>
+        <p className="text-sm text-destructive">{error}</p>
       )}
     </div>
   );

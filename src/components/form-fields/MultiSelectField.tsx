@@ -61,48 +61,10 @@ export function MultiSelectField({ field, value = [], onChange, error, disabled,
 
   return (
     <>
-      {/* Selected items display */}
-      {value.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {value.map((selectedValue) => {
-            const option = options.find(opt => opt.value === selectedValue);
-            const displayLabel = option ? option.label : 
-              selectedValue.startsWith('other:') ? selectedValue.replace('other:', '') : selectedValue;
-            
-            return (
-              <Badge key={selectedValue} variant="secondary" className="flex items-center gap-2 px-2 py-1">
-                {option?.image && (
-                  <img 
-                    src={option.image} 
-                    alt={displayLabel || 'Option image'} 
-                    className="w-8 h-8 object-cover rounded"
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none';
-                    }}
-                  />
-                )}
-                {!option?.image && option?.color && (
-                  <div 
-                    className="w-3 h-3 rounded-full border border-gray-300 flex-shrink-0" 
-                    style={{ backgroundColor: option.color }}
-                  />
-                )}
-                {displayLabel && <span className="text-xs">{displayLabel}</span>}
-                {!disabled && (
-                  <X 
-                    className="h-3 w-3 cursor-pointer" 
-                    onClick={() => handleRemoveSelection(selectedValue)}
-                  />
-                )}
-              </Badge>
-            );
-          })}
-        </div>
-      )}
 
       {/* Search input */}
       {config.searchable !== false && (
-        <div className={`relative ${value.length > 0 ? 'mt-2' : ''}`}>
+        <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
           <Input
             placeholder="Search options..."
