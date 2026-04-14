@@ -12,6 +12,8 @@ import { FormNavigationPanel } from './FormNavigationPanel';
 import { SubmissionFormRenderer } from './SubmissionFormRenderer';
 import { LifecycleStatusBar } from './LifecycleStatusBar';
 import { RecordHistoryDialog } from './RecordHistoryDialog';
+import { LifecycleHistoryDialog } from './LifecycleHistoryDialog';
+import { useLifecycleHistory } from '@/hooks/useLifecycleHistory';
 import { SubmissionCommentBox } from './SubmissionCommentBox';
 import { ManualWorkflowTrigger } from './ManualWorkflowTrigger';
 import { Form, FormField } from '@/types/form';
@@ -816,6 +818,17 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
           formData={formData}
         />
       )}
+
+      {/* Stage History Dialog */}
+      {lifecycleFields.length > 0 && lifecycleFields.map(lf => (
+        <StageHistoryDialogWrapper
+          key={lf.id}
+          field={lf}
+          submissionId={submissionId}
+          open={showStageHistory}
+          onClose={() => setShowStageHistory(false)}
+        />
+      ))}
     </div>
   );
 }
