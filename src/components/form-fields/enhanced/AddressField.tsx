@@ -1,13 +1,13 @@
 
 import React, { useState, useEffect, useRef } from 'react';
+import axios from 'axios';
 import { FormField } from '@/types/form';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { MapPin, Search } from 'lucide-react';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { MapPin, Search, ChevronDown, ChevronUp, Check, Loader2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface AddressFieldProps {
   field: FormField;
