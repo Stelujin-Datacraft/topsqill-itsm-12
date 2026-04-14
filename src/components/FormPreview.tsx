@@ -345,7 +345,7 @@ export function FormPreview({ form, showNavigation = false }: FormPreviewProps) 
                 <FormFieldsRenderer
                   fields={[field]}
                   formData={formData}
-                  errors={{}}
+                  errors={errors}
                   fieldStates={fieldStates}
                   columns={1}
                   onFieldChange={handleFieldChange}
@@ -380,7 +380,7 @@ export function FormPreview({ form, showNavigation = false }: FormPreviewProps) 
             <FormFieldsRenderer
               fields={[field]}
               formData={formData}
-              errors={{}}
+              errors={errors}
               fieldStates={fieldStates}
               columns={1}
               onFieldChange={handleFieldChange}
