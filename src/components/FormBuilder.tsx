@@ -516,7 +516,7 @@ function FormBuilderContent({
               <div className="grid grid-cols-12 flex-1 min-h-0 gap-0">
                 {/* Left Panel - Navigation (Fixed) */}
                 <div className={`${state.isNavigationCollapsed ? 'col-span-1' : 'col-span-3'} border-r bg-muted/30 overflow-hidden flex flex-col transition-all duration-200`}>
-                  <div className="flex-shrink-0">
+                  <div className="flex-1 min-h-0 overflow-hidden">
                      <FormNavigationPanel pages={pages} fields={workingForm?.fields || []} currentPageId={state.currentPageId} selectedField={state.selectedField} onPageChange={state.setCurrentPageId} onFieldSelect={field => {
                      // Navigate to field's page and highlight it
                      const fieldPage = pages.find(page => page.fields.includes(field.id) || field.pageId === page.id);
