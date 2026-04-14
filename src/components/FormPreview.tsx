@@ -398,7 +398,7 @@ export function FormPreview({ form, showNavigation = false }: FormPreviewProps) 
           : 'grid-cols-1'
       }`}>
         {/* Navigation Panel - independent scroll */}
-        <div className={`${navigationVisible ? "lg:col-span-1" : ""} h-full overflow-hidden`}>
+        <div className={`${navigationVisible ? "lg:col-span-1" : ""} h-full overflow-y-auto`}>
           <FormNavigationPanel
             pages={Array.isArray(pages) ? pages : []}
             fields={Array.isArray(form.fields) ? form.fields : []}
