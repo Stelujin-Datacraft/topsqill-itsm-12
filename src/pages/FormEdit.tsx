@@ -26,9 +26,9 @@ const FormEdit = () => {
   }, [id, forms, setCurrentForm, navigate]);
 
   const actions = (
-    <Button variant="outline" onClick={() => navigate('/forms')}>
-      <ArrowLeft className="h-4 w-4 mr-2" />
-      Back to Forms
+    <Button variant="outline" size="sm" onClick={() => navigate('/forms')}>
+      <ArrowLeft className="h-3.5 w-3.5 mr-1.5" />
+      Back
     </Button>
   );
   
