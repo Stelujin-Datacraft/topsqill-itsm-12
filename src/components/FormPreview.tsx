@@ -479,7 +479,7 @@ export function FormPreview({ form, showNavigation = false }: FormPreviewProps) 
               
               {/* Page Navigation Section */}
               {pages.length > 1 && (
-                <div className="px-16 py-8 bg-white dark:bg-gray-950 border-b border-slate-100 dark:border-slate-800">
+              <div className="px-16 py-4 bg-white dark:bg-gray-950 border-b border-slate-100 dark:border-slate-800">
                   <div className="max-w-5xl mx-auto">
                     <FormPagination
                       pages={pages}
@@ -497,7 +497,7 @@ export function FormPreview({ form, showNavigation = false }: FormPreviewProps) 
               {/* Enhanced Form Fields Section with Light Lines */}
               <div className="relative">
                 <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-slate-200 dark:via-slate-700 to-transparent"></div>
-                <div className="px-16 py-16 bg-white dark:bg-gray-950 min-h-[500px]">
+                <div className="px-16 py-8 bg-white dark:bg-gray-950 min-h-[500px]">
                   <div className="max-w-5xl mx-auto space-y-8">
                     {renderFieldsWithSmartLayout()}
                   </div>
@@ -562,7 +562,7 @@ export function FormPreview({ form, showNavigation = false }: FormPreviewProps) 
         
         {/* Page Navigation Section */}
         {pages.length > 1 && (
-          <div className="px-16 py-8 bg-white dark:bg-gray-950 border-b border-slate-100 dark:border-slate-800">
+          <div className="px-16 py-4 bg-white dark:bg-gray-950 border-b border-slate-100 dark:border-slate-800">
             <div className="max-w-5xl mx-auto">
               <FormPagination
                 pages={pages}
@@ -580,7 +580,7 @@ export function FormPreview({ form, showNavigation = false }: FormPreviewProps) 
         {/* Enhanced Form Fields Section with Light Lines */}
         <div className="relative">
           <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-slate-200 dark:via-slate-700 to-transparent"></div>
-          <div className="px-16 py-16 bg-white dark:bg-gray-950 min-h-[500px]">
+          <div className="px-16 py-8 bg-white dark:bg-gray-950 min-h-[500px]">
             <div className="max-w-5xl mx-auto space-y-8">
               {renderFieldsWithSmartLayout()}
             </div>
