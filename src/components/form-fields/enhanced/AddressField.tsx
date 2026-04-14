@@ -264,7 +264,7 @@ const selectedCountry = countries.find(
             />
           </div>
         </div>
-        <ScrollArea className="max-h-60">
+        <div className="max-h-60 overflow-y-auto">
           <div className="p-1">
             {countries
               .filter(c => c.name.toLowerCase().includes(countrySearch.toLowerCase()) || c.code.toLowerCase().includes(countrySearch.toLowerCase()))

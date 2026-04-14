@@ -285,7 +285,7 @@ export function SubmissionAccessField({ field, value, onChange, error, disabled 
               </div>
             </div>
             
-            <ScrollArea className="max-h-80">
+            <div className="max-h-80 overflow-y-auto">
               {(usersLoading || groupsLoading) ? (
                 <div className="p-4 text-center text-sm text-muted-foreground">Loading...</div>
               ) : groupsError ? (
