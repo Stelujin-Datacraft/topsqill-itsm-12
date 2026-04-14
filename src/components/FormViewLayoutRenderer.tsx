@@ -527,25 +527,27 @@ export function FormViewLayoutRenderer({
         ? 'grid-cols-1 lg:grid-cols-4' 
         : 'grid-cols-1'
     }`}>
-      {/* Navigation Panel */}
+      {/* Navigation Panel - sticky, own scroll */}
       {showNavigation && (
-        <div className={`print:hidden ${navigationVisible ? "lg:col-span-1" : ""}`}>
-          <FormNavigationPanel
-            pages={pages}
-            fields={Array.isArray(form.fields) ? form.fields : []}
-            currentPageId={currentPageId}
-            selectedField={selectedField}
-            onPageChange={handlePageChange}
-            onFieldSelect={setSelectedField}
-            onFieldHighlight={handleFieldHighlight}
-            onToggleNavigation={() => setNavigationVisible(!navigationVisible)}
-            isCollapsed={!navigationVisible}
-          />
+        <div className={`print:hidden ${navigationVisible ? "lg:col-span-1" : ""} h-full overflow-y-auto`}>
+          <div className="sticky top-0">
+            <FormNavigationPanel
+              pages={pages}
+              fields={Array.isArray(form.fields) ? form.fields : []}
+              currentPageId={currentPageId}
+              selectedField={selectedField}
+              onPageChange={handlePageChange}
+              onFieldSelect={setSelectedField}
+              onFieldHighlight={handleFieldHighlight}
+              onToggleNavigation={() => setNavigationVisible(!navigationVisible)}
+              isCollapsed={!navigationVisible}
+            />
+          </div>
         </div>
       )}
       
-      {/* Professional Form Content */}
-      <div className={`print:col-span-1 ${navigationVisible && showNavigation ? "lg:col-span-3" : "lg:col-span-4"}`}>
+      {/* Professional Form Content - independent scroll */}
+      <div className={`print:col-span-1 ${navigationVisible && showNavigation ? "lg:col-span-3" : "lg:col-span-4"} h-full overflow-y-auto`}>
         <Card className="h-full overflow-hidden bg-white dark:bg-gray-950">
           <CardHeader className="pb-4 border-b bg-slate-50/80 dark:bg-gray-900/80">
            <CardTitle className="flex flex-col gap-1">
