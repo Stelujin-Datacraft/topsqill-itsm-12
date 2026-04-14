@@ -640,31 +640,25 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
 )}
         
   </div>
-      {/* Pagination */}
-{/* Pagination */}
-{pages.length > 1 && (
-  <div className="w-full px-4 py-3 bg-white border rounded-lg shrink-0">
-    <FormPagination
-      pages={pages}
-      currentPageId={currentPageId}
-      currentPageIndex={currentPageIndex}
-      onPageChange={handlePageChange}
-      onPrevious={() => {
-        const currentIndex = pages.findIndex(p => p.id === currentPageId);
-        if (currentIndex > 0) {
-          handlePageChange(pages[currentIndex - 1].id);
-        }
-      }}
-      onNext={() => {
-        const currentIndex = pages.findIndex(p => p.id === currentPageId);
-        if (currentIndex < pages.length - 1) {
-          handlePageChange(pages[currentIndex + 1].id);
-        }
-      }}
-      readOnly={true}
-    />
-  </div>
-)}
+      {/* Page Tabs */}
+      {pages.length > 1 && (
+        <div className="flex items-center gap-1 px-1 py-1 bg-muted/50 border rounded-lg shrink-0 overflow-x-auto">
+          {pages.map((page, idx) => (
+            <button
+              key={page.id}
+              onClick={() => handlePageChange(page.id)}
+              className={`
+                px-4 py-2 text-sm font-medium rounded-md transition-all whitespace-nowrap
+                ${currentPageId === page.id 
+                  ? 'bg-background text-foreground shadow-sm' 
+                  : 'text-muted-foreground hover:text-foreground hover:bg-background/50'}
+              `}
+            >
+              {page.name}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Action Bar */}
      {/* <div className="flex items-center justify-between bg-card border rounded-lg px-4 py-3 shadow-sm">

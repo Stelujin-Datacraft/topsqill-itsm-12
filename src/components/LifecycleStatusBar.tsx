@@ -255,27 +255,15 @@ export function LifecycleStatusBar({
                       ${isFuture && !isEditing ? 'opacity-60' : ''}
                     `}
                     style={{
-                      backgroundColor: isSelected
-                        ? color.bg
-                        : isPast
-                          ? color.light
-                          : 'transparent',
-                      color: isSelected
-                        ? '#ffffff'
-                        : isPast
-                          ? color.text
-                          : isFuture
-                            ? 'var(--muted-foreground)'
-                            : color.text,
+                      backgroundColor: color.bg,
+                      color: '#ffffff',
+                      opacity: isFuture && !isEditing ? 0.55 : 1,
                     }}
                   >
                     {/* Icon */}
                     <span className="flex-shrink-0">
                       {isPast ? (
-                        <span
-                          className="flex items-center justify-center w-4 h-4 rounded-full"
-                          style={{ backgroundColor: isSelected ? 'rgba(255,255,255,0.3)' : color.bg }}
-                        >
+                        <span className="flex items-center justify-center w-4 h-4 rounded-full bg-white/30">
                           <Check className="h-3 w-3 text-white" />
                         </span>
                       ) : isSelected ? (
@@ -283,11 +271,8 @@ export function LifecycleStatusBar({
                           <Circle className="h-2.5 w-2.5 fill-white text-white" />
                         </span>
                       ) : (
-                        <span
-                          className="flex items-center justify-center w-4 h-4 rounded-full border-2"
-                          style={{ borderColor: isFuture ? 'var(--border)' : color.border }}
-                        >
-                          <Circle className="h-2 w-2" style={{ color: isFuture ? 'var(--border)' : color.border }} />
+                        <span className="flex items-center justify-center w-4 h-4 rounded-full border-2 border-white/40">
+                          <Circle className="h-2 w-2 text-white/40" />
                         </span>
                       )}
                     </span>
