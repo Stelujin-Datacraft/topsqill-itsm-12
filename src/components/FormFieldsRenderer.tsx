@@ -857,12 +857,25 @@ case 'radio':
   return (
     <div className="space-y-2">
       {/* Field Label */}
-      <div className="flex items-center">
-        <Label htmlFor={field.id}>
-          {fieldState.label}
-          {isRequired && <span className="text-red-500 ml-1">*</span>}
-        </Label>
-        <HelpTooltip content={field.tooltip || fieldState.tooltip} />
+      <div className="flex items-center justify-between">
+        <div className="flex items-center">
+          <Label htmlFor={field.id}>
+            {fieldState.label}
+            {isRequired && <span className="text-red-500 ml-1">*</span>}
+          </Label>
+          <HelpTooltip content={field.tooltip || fieldState.tooltip} />
+        </div>
+        {radioConfig.clearable !== false && formData[field.id] && fieldState.isEnabled && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => onFieldChange(field.id, '')}
+            className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
+          >
+            Clear
+          </Button>
+        )}
       </div>
 
       {/* Radio Options */}
