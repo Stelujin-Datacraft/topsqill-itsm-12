@@ -59,7 +59,7 @@ export function FieldRenderer({
     }
   };
   return <Draggable key={field.id} draggableId={field.id} index={index}>
-      {(provided, snapshot) => <div ref={provided.innerRef} {...provided.draggableProps} style={{ ...provided.draggableProps.style, ...getGridStyle() }} className={`group p-4 border rounded-lg transition-all duration-300 cursor-pointer hover:shadow-md ${selectedFieldId === field.id ? 'ring-2 ring-primary' : ''} ${highlightedFieldId === field.id ? 'ring-2 ring-blue-500 bg-blue-50 animate-pulse' : ''} ${snapshot.isDragging ? 'shadow-lg opacity-90' : ''}`} onClick={() => onFieldClick(field)}>
+      {(provided, snapshot) => <div ref={provided.innerRef} {...provided.draggableProps} data-field-id={field.id} style={{ ...provided.draggableProps.style, ...getGridStyle() }} className={`group p-4 border rounded-lg transition-all duration-300 cursor-pointer hover:shadow-md ${selectedFieldId === field.id ? 'ring-2 ring-primary' : ''} ${highlightedFieldId === field.id ? 'ring-2 ring-blue-500 bg-blue-50 animate-pulse' : ''} ${snapshot.isDragging ? 'shadow-lg opacity-90' : ''}`} onClick={() => onFieldClick(field)}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div {...provided.dragHandleProps}>
