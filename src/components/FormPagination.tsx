@@ -268,9 +268,6 @@ export function FormPagination({
 
       {/* Footer */}
       <div className="flex items-center justify-center mt-2">
-        <span className="text-xs text-muted-foreground">
-          Page {currentPageIndex + 1} of {pages.length}
-        </span>
 
         {showSave && onSavePage && (
           <Button
