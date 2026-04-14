@@ -937,7 +937,7 @@ if (['file', 'image'].includes(fieldType) && value) {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => window.open(f.url, '_blank')}
+              onClick={() => window.open(f.url, '_blank', 'noopener,noreferrer')}
               className="h-7 px-2 text-xs"
               title="Preview file"
             >
@@ -946,11 +946,22 @@ if (['file', 'image'].includes(fieldType) && value) {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => {
-                const link = document.createElement('a');
-                link.href = f.url;
-                link.download = f.name;
-                link.click();
+              onClick={async () => {
+                try {
+                  const response = await fetch(f.url);
+                  if (!response.ok) throw new Error('Download failed');
+                  const blob = await response.blob();
+                  const blobUrl = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = blobUrl;
+                  a.download = f.name;
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                  URL.revokeObjectURL(blobUrl);
+                } catch {
+                  window.open(f.url, '_blank');
+                }
               }}
               className="h-7 px-2 text-xs"
               title="Download file"
