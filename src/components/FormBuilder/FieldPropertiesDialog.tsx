@@ -577,7 +577,7 @@ const { localConfig: fieldConfig, updateConfig } = useFieldConfiguration(selecte
   // Date/Time
   'date', 'time', 'datetime',
   // Geographic
-  'address', 'geo-location',
+  'geo-location',
   // Record
   'record-table', 'matrix-grid', 'cross-reference',
   // New Field Types
@@ -790,7 +790,7 @@ const { localConfig: fieldConfig, updateConfig } = useFieldConfiguration(selecte
 
 
             {/* General Options - hidden for layout/display-only fields */}
-            {!['header', 'description', 'section-break', 'horizontal-line', 'rich-text', 'file', 'signature', 'record-table', 'matrix-grid', 'cross-reference', 'full-width-container', 'address', 'currency', 'multi-select', 'tags', 'submission-access', 'query-field'].includes(fieldForConfig?.type || '') && (
+            {!['header', 'description', 'section-break', 'horizontal-line', 'rich-text', 'file', 'signature', 'record-table', 'matrix-grid', 'cross-reference', 'full-width-container', 'address', 'currency', 'barcode', 'tags', 'submission-access', 'query-field'].includes(fieldForConfig?.type || '') && (
               <Card>
                 <CardHeader>
                   <CardTitle className="text-lg flex items-center gap-2">
@@ -882,6 +882,38 @@ const { localConfig: fieldConfig, updateConfig } = useFieldConfiguration(selecte
                               })}
                             </SelectContent>
                           </Select>
+                        );
+                      }
+                      
+                      // Multi-select field
+                      if (fieldType === 'multi-select') {
+                        const optionsArray = Array.isArray(options) ? options : [];
+                        const currentDefaults: string[] = Array.isArray(localConfig.defaultValue) ? localConfig.defaultValue : [];
+                        return (
+                          <div className="space-y-2 border rounded-md p-3 max-h-48 overflow-y-auto">
+                            {optionsArray.length === 0 ? (
+                              <p className="text-sm text-muted-foreground">Add options first to set defaults</p>
+                            ) : optionsArray.map((opt: any, idx: number) => {
+                              const optValue = typeof opt === 'string' ? opt : (opt.value || '');
+                              const optLabel = typeof opt === 'string' ? opt : (opt.label || opt.value || '');
+                              if (!optValue) return null;
+                              return (
+                                <div key={idx} className="flex items-center space-x-2">
+                                  <Checkbox
+                                    id={`default-ms-${idx}`}
+                                    checked={currentDefaults.includes(optValue)}
+                                    onCheckedChange={(checked) => {
+                                      const newDefaults = checked
+                                        ? [...currentDefaults, optValue]
+                                        : currentDefaults.filter(v => v !== optValue);
+                                      updateField('defaultValue', newDefaults.length > 0 ? newDefaults : '');
+                                    }}
+                                  />
+                                  <Label htmlFor={`default-ms-${idx}`} className="text-sm cursor-pointer">{optLabel}</Label>
+                                </div>
+                              );
+                            })}
+                          </div>
                         );
                       }
                       
