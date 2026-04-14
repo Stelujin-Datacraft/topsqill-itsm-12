@@ -600,7 +600,7 @@ function FormBuilderContent({
             </TabsContent>
 
             <TabsContent value="rules" className="flex-1 overflow-y-auto min-h-0 pt-4">
-              <div className="space-y-4 p-6">
+              <div className="space-y-4 px-6 pb-6">
                 {workingForm && (
                   <div className="flex justify-end">
                     <AIRuleSuggester
