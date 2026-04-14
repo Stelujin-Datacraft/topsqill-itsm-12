@@ -505,7 +505,7 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
   };
 
   return (
-    <div className="flex flex-col h-full min-h-0">
+    <div className="flex flex-col h-full min-h-0 gap-4">
 
 
       {/*Action bar */}
@@ -738,7 +738,7 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
           : 'grid-cols-1'
       }`}>
         {/* Navigation Panel */}
-        <div className={navigationVisible ? "lg:col-span-1" : ""}>
+        <div className={`${navigationVisible ? "lg:col-span-1" : ""} overflow-hidden min-h-0`}>
           <FormNavigationPanel
             pages={pages}
             fields={form?.fields || []}
