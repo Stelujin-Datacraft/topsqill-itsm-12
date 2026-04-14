@@ -640,36 +640,7 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
 )}
         
   </div>
-      {/* Page Tabs */}
-      {pages.length > 1 && (
-        <div className="flex items-center border rounded-lg shrink-0 overflow-hidden bg-card shadow-sm">
-          {pages.map((page, idx) => (
-            <button
-              key={page.id}
-              onClick={() => handlePageChange(page.id)}
-              className={`
-                relative flex-1 px-5 py-2.5 text-sm font-medium transition-all
-                ${idx !== pages.length - 1 ? 'border-r border-border/50' : ''}
-                ${currentPageId === page.id
-                  ? 'bg-primary text-primary-foreground shadow-inner'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'}
-              `}
-            >
-              <span className="flex items-center justify-center gap-2">
-                <span className={`
-                  flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-bold
-                  ${currentPageId === page.id
-                    ? 'bg-primary-foreground/20 text-primary-foreground'
-                    : 'bg-muted text-muted-foreground'}
-                `}>
-                  {idx + 1}
-                </span>
-                <span className="truncate">{page.name}</span>
-              </span>
-            </button>
-          ))}
-        </div>
-      )}
+      
 
       {/* Action Bar */}
      {/* <div className="flex items-center justify-between bg-card border rounded-lg px-4 py-3 shadow-sm">
@@ -781,10 +752,41 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
 
         {/* Form Fields - Professional Content */}
         <Card className={`flex flex-col overflow-hidden bg-card ${navigationVisible ? "lg:col-span-3" : "lg:col-span-4"}`}>
-          <CardHeader className="pb-4 border-b bg-muted/50 shrink-0">
-            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              Submission Data
-            </CardTitle>
+          <CardHeader className="pb-0 pt-0 px-0 border-b bg-muted/50 shrink-0">
+            {pages.length > 1 ? (
+              <div className="flex items-center overflow-x-auto">
+                {pages.map((page, idx) => (
+                  <button
+                    key={page.id}
+                    onClick={() => handlePageChange(page.id)}
+                    className={`
+                      relative flex-1 px-5 py-3 text-sm font-medium transition-all border-b-2
+                      ${currentPageId === page.id
+                        ? 'border-primary text-primary bg-background'
+                        : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/50'}
+                    `}
+                  >
+                    <span className="flex items-center justify-center gap-2">
+                      <span className={`
+                        flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-bold
+                        ${currentPageId === page.id
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-muted text-muted-foreground'}
+                      `}>
+                        {idx + 1}
+                      </span>
+                      <span className="truncate">{page.name}</span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="px-4 py-3">
+                <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  Submission Data
+                </CardTitle>
+              </div>
+            )}
           </CardHeader>
           <CardContent className="p-0 flex-1 overflow-y-auto min-h-0">
             {/* Professional Form Content */}
