@@ -505,11 +505,11 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
   };
 
   return (
-    <div className="space-y-6 h-full">
+    <div className="flex flex-col h-full min-h-0">
 
 
       {/*Action bar */}
-      <div className='bg-card border rounded-lg px-4 py-3 space-y-3'>
+      <div className='bg-card border rounded-lg px-4 py-3 space-y-3 shrink-0'>
 
         {/* Row 1: Form name/info on left, action buttons on right */}
 
@@ -621,7 +621,7 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
       {/* Pagination */}
 {/* Pagination */}
 {pages.length > 1 && (
-  <div className="w-full px-4 py-3 bg-white border rounded-lg">
+  <div className="w-full px-4 py-3 bg-white border rounded-lg shrink-0">
     <FormPagination
       pages={pages}
       currentPageId={currentPageId}
@@ -732,7 +732,7 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
 
 
       {/* Main Content Area with Navigation */}
-      <div className={`grid gap-6 h-[calc(100vh-16rem)] ${
+      <div className={`grid gap-4 flex-1 min-h-0 ${
         navigationVisible 
           ? 'grid-cols-1 lg:grid-cols-4' 
           : 'grid-cols-1'
@@ -753,17 +753,17 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
         </div>
 
         {/* Form Fields - Professional Content */}
-        <Card className={`h-full overflow-hidden bg-white dark:bg-gray-950 ${navigationVisible ? "lg:col-span-3" : "lg:col-span-4"}`}>
-          <CardHeader className="pb-4 border-b bg-slate-50/80 dark:bg-gray-900/80">
-            <CardTitle className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+        <Card className={`flex flex-col overflow-hidden bg-card ${navigationVisible ? "lg:col-span-3" : "lg:col-span-4"}`}>
+          <CardHeader className="pb-4 border-b bg-muted/50 shrink-0">
+            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
               Submission Data
             </CardTitle>
           </CardHeader>
-          <CardContent className="p-0 h-full overflow-y-auto">
+          <CardContent className="p-0 flex-1 overflow-y-auto min-h-0">
             {/* Professional Form Content */}
             <div className="relative">
-              <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-slate-200 dark:via-slate-700 to-transparent"></div>
-              <div className="px-16 py-16 bg-white dark:bg-gray-950 min-h-[500px]">
+              <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-border to-transparent"></div>
+              <div className="px-16 py-16 bg-card min-h-[500px]">
                 <div className="max-w-5xl mx-auto space-y-8">
                   <SubmissionFormRenderer
                     form={form}
@@ -778,7 +778,7 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
                   />
                 </div>
               </div>
-              <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-slate-200 dark:via-slate-700 to-transparent"></div>
+              <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-border to-transparent"></div>
             </div>
           </CardContent>
         </Card>
