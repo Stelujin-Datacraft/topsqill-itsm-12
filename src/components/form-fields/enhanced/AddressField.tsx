@@ -40,6 +40,10 @@ export function AddressField({ field, value = {}, onChange, error, disabled }: A
   });
 
   const [countryOpen, setCountryOpen] = useState(false);
+  const [countrySearch, setCountrySearch] = useState('');
+  const [countries, setCountries] = useState<CountryData[]>([]);
+  const [countriesLoading, setCountriesLoading] = useState(true);
+  const countryContainerRef = useRef<HTMLDivElement>(null);
   
   // Track the previous value to prevent unnecessary updates
   const prevValueRef = useRef<string>('');
