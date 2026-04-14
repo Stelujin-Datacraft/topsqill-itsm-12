@@ -489,7 +489,7 @@ function FormBuilderContent({
             </div>
 
             {/* Form Details Tab */}
-            <TabsContent value="details" className="p-0 flex-1 overflow-y-auto min-h-0">
+            <TabsContent value="details" className="p-0 pt-4 flex-1 overflow-y-auto min-h-0">
               <FormDetailsPanel formName={workingForm?.name || state.formName} setFormName={name => {
               state.setFormName(name);
               updateFormDetails({
@@ -506,7 +506,7 @@ function FormBuilderContent({
             }} onFieldDelete={fieldOperations.handleFieldDelete} onDragEnd={fieldOperations.handleDragEnd} showFormDetails={true} setShowFormDetails={() => {}} />
             </TabsContent>
 
-            <TabsContent value="builder" className="p-0 flex-1 overflow-hidden mt-0 min-h-0 data-[state=active]:flex data-[state=active]:flex-col">
+            <TabsContent value="builder" className="p-0 pt-4 flex-1 overflow-hidden mt-0 min-h-0 data-[state=active]:flex data-[state=active]:flex-col">
               <div className="grid grid-cols-12 flex-1 min-h-0 gap-0">
                 {/* Left Panel - Navigation (Fixed) */}
                 <div className={`${state.isNavigationCollapsed ? 'col-span-1' : 'col-span-3'} border-r bg-muted/30 overflow-hidden flex flex-col transition-all duration-200`}>
