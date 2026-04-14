@@ -447,6 +447,7 @@ export function FormPreview({ form, showNavigation = false, headerActions }: For
                       )}
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
+                      {headerActions}
                       <AIAutoFillInput
                         formFields={Array.isArray(form.fields) ? form.fields : []}
                         currentValues={formData}
