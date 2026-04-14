@@ -448,17 +448,17 @@ function FormBuilderContent({
                 Back to Forms
               </Button>
               
-              {/* Combined Save/Publish Button */}
+              {/* Combined Save/Publish/Reset Buttons */}
               <div className="flex items-center gap-2">
                 <Button onClick={() => handleSave(true)} disabled={state.isSaving || state.isPublishing} className="flex items-center gap-2">
                   <Save className="h-4 w-4" />
                   {state.isPublishing ? 'Publishing...' : state.isSaving ? 'Saving...' : state.isCreating ? 'Create & Publish' : 'Save & Publish'}
                 </Button>
                 
-                {/* Discard Changes Button */}
-                {snapshot.isDirty && <Button variant="outline" size="sm" onClick={resetSnapshot} disabled={state.isSaving || state.isPublishing} className="px-2">
-                    <Undo2 className="h-4 w-4" />
-                  </Button>}
+                <Button variant="outline" size="sm" onClick={resetSnapshot} disabled={state.isSaving || state.isPublishing || !snapshot.isDirty}>
+                  <Undo2 className="h-4 w-4 mr-2" />
+                  Reset
+                </Button>
               </div>
             </div>
             
