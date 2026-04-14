@@ -9,6 +9,7 @@ import { FormPagination } from './FormPagination';
 import { FormNavigationPanel } from './FormNavigationPanel';
 import { AIAutoFillInput } from './form-fields/AIAutoFillInput';
 import { Separator } from '@/components/ui/separator';
+import { validateFieldValue } from '@/utils/fieldValidation';
 
 interface FormPreviewProps {
   form: Form;
@@ -17,6 +18,7 @@ interface FormPreviewProps {
 
 export function FormPreview({ form, showNavigation = false }: FormPreviewProps) {
   const [formData, setFormData] = useState<Record<string, any>>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [currentPageId, setCurrentPageId] = useState<string>('');
   const [selectedField, setSelectedField] = useState<FormField | null>(null);
   const [highlightedFieldId, setHighlightedFieldId] = useState<string | null>(null);
@@ -243,6 +245,20 @@ export function FormPreview({ form, showNavigation = false }: FormPreviewProps) 
       ...prev,
       [fieldId]: value
     }));
+
+    // Real-time validation
+    const field = form.fields.find(f => f.id === fieldId);
+    if (field) {
+      const error = validateFieldValue(field, value);
+      setErrors(prev => {
+        if (error) {
+          return { ...prev, [fieldId]: error };
+        }
+        const newErrors = { ...prev };
+        delete newErrors[fieldId];
+        return newErrors;
+      });
+    }
   };
 
   const getCurrentPageFields = () => {
@@ -329,7 +345,7 @@ export function FormPreview({ form, showNavigation = false }: FormPreviewProps) 
                 <FormFieldsRenderer
                   fields={[field]}
                   formData={formData}
-                  errors={{}}
+                  errors={errors}
                   fieldStates={fieldStates}
                   columns={1}
                   onFieldChange={handleFieldChange}
@@ -364,7 +380,7 @@ export function FormPreview({ form, showNavigation = false }: FormPreviewProps) 
             <FormFieldsRenderer
               fields={[field]}
               formData={formData}
-              errors={{}}
+              errors={errors}
               fieldStates={fieldStates}
               columns={1}
               onFieldChange={handleFieldChange}

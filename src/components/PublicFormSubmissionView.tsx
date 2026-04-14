@@ -7,6 +7,7 @@ import { ArrowRight, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { UserRoleAssignmentService } from '@/services/userRoleAssignmentService';
 import { useUniqueFieldValidation } from '@/hooks/useUniqueFieldValidation';
+import { validateFieldValue } from '@/utils/fieldValidation';
 
 interface PublicFormSubmissionViewProps {
   form: Form;
@@ -83,9 +84,14 @@ export function PublicFormSubmissionView({ form, onSubmit, initialData = {}, isE
       [fieldId]: value
     }));
 
-    // Clear error when user starts typing
-    if (errors[fieldId]) {
+    // Real-time validation
+    const field = form.fields.find(f => f.id === fieldId);
+    if (field) {
+      const error = validateFieldValue(field, value);
       setErrors(prev => {
+        if (error) {
+          return { ...prev, [fieldId]: error };
+        }
         const newErrors = { ...prev };
         delete newErrors[fieldId];
         return newErrors;

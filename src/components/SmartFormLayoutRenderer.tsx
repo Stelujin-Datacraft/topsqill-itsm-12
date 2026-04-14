@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { FormFieldsRenderer } from './FormFieldsRenderer';
 import { FormField, Form } from '@/types/form';
+import { validateFieldValue } from '@/utils/fieldValidation';
 
 interface SmartFormLayoutRendererProps {
   form: Form;
@@ -81,6 +82,20 @@ export function SmartFormLayoutRenderer({
       ...prev,
       [fieldId]: value
     }));
+
+    // Real-time validation
+    const field = form.fields.find(f => f.id === fieldId);
+    if (field) {
+      const error = validateFieldValue(field, value);
+      setErrors(prev => {
+        if (error) {
+          return { ...prev, [fieldId]: error };
+        }
+        const newErrors = { ...prev };
+        delete newErrors[fieldId];
+        return newErrors;
+      });
+    }
   };
 
   if (!form) {
