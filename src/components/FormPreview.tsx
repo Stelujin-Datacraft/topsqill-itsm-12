@@ -429,8 +429,8 @@ export function FormPreview({ form, showNavigation = false }: FormPreviewProps) 
         </div>
         
         {/* Professional Preview Content - independent scroll */}
-        <div className={`${navigationVisible ? "lg:col-span-3" : "lg:col-span-4"} h-full overflow-y-auto`}>
-          <Card className="h-full overflow-hidden bg-white dark:bg-gray-950">
+        <div className={`${navigationVisible ? "lg:col-span-3" : "lg:col-span-4"} h-full overflow-hidden flex flex-col`}>
+          <Card className="flex-1 flex flex-col overflow-hidden bg-white dark:bg-gray-950">
             <CardHeader className="pb-4 border-b bg-slate-50/80 dark:bg-gray-900/80">
               <CardTitle className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                 <CardTitle className="flex flex-col gap-1">
