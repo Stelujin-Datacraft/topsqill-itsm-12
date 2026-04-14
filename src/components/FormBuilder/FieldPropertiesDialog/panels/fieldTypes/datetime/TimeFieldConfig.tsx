@@ -39,24 +39,7 @@ export function TimeFieldConfig({ config, onUpdate, errors }: TimeFieldConfigPro
         <Label htmlFor="auto-populate">Auto-fill with current time</Label>
       </div>
 
-      <div>
-        <Label htmlFor="time-format">Time Format</Label>
-        <Select
-          value={customConfig.format || '12'}
-          onValueChange={(value) => handleConfigUpdate('format', value)}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Select time format" />
-          </SelectTrigger>
-          <SelectContent>
-            {TIME_FORMATS.map((format) => (
-              <SelectItem key={format.value} value={format.value}>
-                {format.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      {/* Time format is hidden - defaults to 12-hour */}
 
     </div>
   );
