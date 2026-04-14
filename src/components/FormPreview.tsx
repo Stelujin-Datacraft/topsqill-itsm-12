@@ -397,23 +397,25 @@ export function FormPreview({ form, showNavigation = false }: FormPreviewProps) 
           ? 'grid-cols-1 lg:grid-cols-4' 
           : 'grid-cols-1'
       }`}>
-        {/* Navigation Panel */}
-        <div className={navigationVisible ? "lg:col-span-1" : ""}>
-          <FormNavigationPanel
-            pages={Array.isArray(pages) ? pages : []}
-            fields={Array.isArray(form.fields) ? form.fields : []}
-            currentPageId={currentPageId}
-            selectedField={selectedField}
-            onPageChange={handlePageChange}
-            onFieldSelect={setSelectedField}
-            onFieldHighlight={handleFieldHighlight}
-            onToggleNavigation={() => setNavigationVisible(!navigationVisible)}
-            isCollapsed={!navigationVisible}
-          />
+        {/* Navigation Panel - sticky, own scroll */}
+        <div className={`${navigationVisible ? "lg:col-span-1" : ""} h-full overflow-y-auto`}>
+          <div className="sticky top-0">
+            <FormNavigationPanel
+              pages={Array.isArray(pages) ? pages : []}
+              fields={Array.isArray(form.fields) ? form.fields : []}
+              currentPageId={currentPageId}
+              selectedField={selectedField}
+              onPageChange={handlePageChange}
+              onFieldSelect={setSelectedField}
+              onFieldHighlight={handleFieldHighlight}
+              onToggleNavigation={() => setNavigationVisible(!navigationVisible)}
+              isCollapsed={!navigationVisible}
+            />
+          </div>
         </div>
         
-        {/* Professional Preview Content */}
-        <div className={navigationVisible ? "lg:col-span-3" : "lg:col-span-4"}>
+        {/* Professional Preview Content - independent scroll */}
+        <div className={`${navigationVisible ? "lg:col-span-3" : "lg:col-span-4"} h-full overflow-y-auto`}>
           <Card className="h-full overflow-hidden bg-white dark:bg-gray-950">
             <CardHeader className="pb-4 border-b bg-slate-50/80 dark:bg-gray-900/80">
               <CardTitle className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
