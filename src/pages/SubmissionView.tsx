@@ -22,20 +22,12 @@ const SubmissionView = () => {
   }
 
   const handleBack = () => {
-    navigate('/my-submissions');
+    navigate(-1);
   };
 
   return (
     <DashboardLayout 
       title={isEditing ? "Edit Submission" : "Submission Details"}
-      actions={
-        <button 
-          onClick={handleBack}
-          className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground"
-        >
-          Back to Submissions
-        </button>
-      }
     >
       <div className="h-full flex flex-col min-h-0">
         <SubmissionFormView 
