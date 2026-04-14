@@ -188,18 +188,6 @@ export function SignatureField({ field, value, onChange, error, disabled }: Sign
             Clear
           </Button>
           
-          {config.undoEnabled !== false && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={undoLastStroke}
-              disabled={disabled || !hasSignature}
-            >
-              <RotateCcw className="h-4 w-4 mr-1" />
-              Undo
-            </Button>
-          )}
           
           <Button
             type="button"
