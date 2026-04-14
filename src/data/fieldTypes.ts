@@ -245,14 +245,6 @@ export const fieldTypes: FieldTypeConfig[] = [
     isFullWidth: false,
   },
   {
-    type: 'currency',
-    label: 'Currency Input',
-    icon: DollarSign,
-    description: 'Numeric amount plus currency code selector',
-    category: 'standard',
-    isFullWidth: false,
-  },
-  {
     type: 'email',
     label: 'Email Address',
     icon: Mail,
