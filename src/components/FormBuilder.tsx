@@ -668,8 +668,8 @@ function FormBuilderContent({
               </div>
             </TabsContent>
 
-            <TabsContent value="preview" className="flex-1 overflow-y-auto min-h-0 p-6">
-              {workingForm ? <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <TabsContent value="preview" className="flex-1 overflow-hidden min-h-0 p-6">
+              {workingForm ? <div className="h-full overflow-hidden">
                   <FormPreview form={workingForm} showNavigation={true} />
                 </div> : <Card className="bg-white shadow-sm">
                   <CardContent className="py-12 text-center">
