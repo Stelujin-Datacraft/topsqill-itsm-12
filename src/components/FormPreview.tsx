@@ -494,10 +494,8 @@ export function FormPreview({ form, showNavigation = false }: FormPreviewProps) 
                 </div>
               )}
               
-              {/* Enhanced Form Fields Section with Light Lines */}
               <div className="relative">
-                <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-slate-200 dark:via-slate-700 to-transparent"></div>
-                <div className="px-16 py-8 bg-white dark:bg-gray-950 min-h-[500px]">
+                <div className="px-16 py-4 bg-white dark:bg-gray-950">
                   <div className="max-w-5xl mx-auto space-y-8">
                     {renderFieldsWithSmartLayout()}
                   </div>
@@ -577,10 +575,8 @@ export function FormPreview({ form, showNavigation = false }: FormPreviewProps) 
           </div>
         )}
         
-        {/* Enhanced Form Fields Section with Light Lines */}
         <div className="relative">
-          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-slate-200 dark:via-slate-700 to-transparent"></div>
-          <div className="px-16 py-8 bg-white dark:bg-gray-950 min-h-[500px]">
+          <div className="px-16 py-4 bg-white dark:bg-gray-950">
             <div className="max-w-5xl mx-auto space-y-8">
               {renderFieldsWithSmartLayout()}
             </div>
