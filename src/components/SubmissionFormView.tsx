@@ -575,9 +575,6 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
             
             )}
 
-            {/* Stage History button moved from LifecycleStatusBar */}
-     
-
             <Button
               variant="outline"
               size="sm"
@@ -586,6 +583,17 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
               <MessageSquare className="h-4 w-4 mr-1" />
               Comments
             </Button>
+
+            {lifecycleFields.length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowStageHistory(true)}
+              >
+                <Clock className="h-4 w-4 mr-1" />
+                Stage History
+              </Button>
+            )}
 
             <Button
             variant="outline"
