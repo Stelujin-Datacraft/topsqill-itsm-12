@@ -458,7 +458,7 @@ export function FormPreview({ form, showNavigation = false }: FormPreviewProps) 
                 </CardTitle>
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-0 h-full overflow-y-auto">
+            <CardContent className="p-0 flex-1 overflow-y-auto min-h-0">
               {/* Professional Form Header with Light Lines */}
               <div className="relative">
                 <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-slate-200 dark:via-slate-700 to-transparent"></div>
