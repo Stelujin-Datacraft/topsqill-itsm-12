@@ -37,7 +37,7 @@ const SubmissionView = () => {
         </button>
       }
     >
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-7xl mx-auto h-full flex flex-col">
         <SubmissionFormView 
           submissionId={submissionId} 
           onBack={handleBack}
