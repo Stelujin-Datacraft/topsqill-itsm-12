@@ -12,7 +12,11 @@ export function validateFieldValue(field: FormField, value: any): string | undef
   const { validation, customConfig } = field;
 
   switch (field.type) {
+    // Number field inline validation is handled directly in FormFieldsRenderer
+    // Skip to avoid duplicate messages
     case 'number':
+      break;
+
     case 'currency':
     case 'slider': {
       const numVal = typeof value === 'number' ? value : parseFloat(value);
@@ -27,18 +31,18 @@ export function validateFieldValue(field: FormField, value: any): string | undef
       if (max !== undefined && numVal > max) {
         return validation?.message || `Value must be at most ${max}`;
       }
-      
-      if (validation?.maxLength) {
-        const digits = String(numVal).replace(/[^0-9]/g, '');
-        if (digits.length > validation.maxLength) {
-          return validation?.message || `Must not exceed ${validation.maxLength} digits`;
-        }
-      }
       break;
     }
 
+    // text/textarea inline validation is handled directly in FormFieldsRenderer
+    // Only validate here for fields that don't have inline checks
     case 'text':
-    case 'textarea':
+    case 'textarea': {
+      // These are handled inline in FormFieldsRenderer (minLength, maxLength, pattern)
+      // Skip to avoid duplicate messages
+      break;
+    }
+
     case 'email':
     case 'url':
     case 'password':
@@ -61,12 +65,6 @@ export function validateFieldValue(field: FormField, value: any): string | undef
         } catch {
           // Invalid regex, skip
         }
-      }
-      if (validation?.min !== undefined && strVal.length < validation.min) {
-        return validation?.message || `Must be at least ${validation.min} characters`;
-      }
-      if (validation?.max !== undefined && strVal.length > validation.max) {
-        return validation?.message || `Must not exceed ${validation.max} characters`;
       }
       break;
     }
