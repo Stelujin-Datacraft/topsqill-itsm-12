@@ -819,16 +819,15 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
         />
       )}
 
-      {/* Stage History Dialog */}
-      {lifecycleFields.length > 0 && lifecycleFields.map(lf => (
-        <StageHistoryDialogWrapper
-          key={lf.id}
-          field={lf}
+      {/* Stage History Dialog - show first lifecycle field's history */}
+      {lifecycleFields.length > 0 && showStageHistory && (
+        <StageHistoryWrapper
+          field={lifecycleFields[0]}
           submissionId={submissionId}
           open={showStageHistory}
           onClose={() => setShowStageHistory(false)}
         />
-      ))}
+      )}
     </div>
   );
 }
