@@ -14,9 +14,10 @@ import { validateFieldValue } from '@/utils/fieldValidation';
 interface FormPreviewProps {
   form: Form;
   showNavigation?: boolean;
+  headerActions?: React.ReactNode;
 }
 
-export function FormPreview({ form, showNavigation = false }: FormPreviewProps) {
+export function FormPreview({ form, showNavigation = false, headerActions }: FormPreviewProps) {
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [currentPageId, setCurrentPageId] = useState<string>('');
@@ -446,6 +447,7 @@ export function FormPreview({ form, showNavigation = false }: FormPreviewProps) 
                       )}
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
+                      {headerActions}
                       <AIAutoFillInput
                         formFields={Array.isArray(form.fields) ? form.fields : []}
                         currentValues={formData}
