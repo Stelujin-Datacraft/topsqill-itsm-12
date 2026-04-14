@@ -81,25 +81,30 @@ export function useFormSnapshot(initialForm: Form | null) {
       if (draftForm && form) {
         // Compare: if database has fields missing from draft, merge them in
         const draftFieldIds = new Set(draftForm.fields?.map(f => f.id) || []);
+        const dbFieldIds = new Set(form.fields.map(f => f.id));
+        
         const missingFieldsFromDB = form.fields.filter(
           f => !draftFieldIds.has(f.id)
         );
         
-        // Also check if draft has fields that no longer exist in DB (stale fields)
-        const dbFieldIds = new Set(form.fields.map(f => f.id));
-        const staleFieldsInDraft = (draftForm.fields || []).filter(
+        // Fields in draft but not in DB — could be NEWLY ADDED (unsaved) or truly stale
+        const extraFieldsInDraft = (draftForm.fields || []).filter(
           f => !dbFieldIds.has(f.id)
         );
         
-        // If draft is significantly out of sync (missing many fields or has stale ones),
-        // prefer the database version entirely
-        if (staleFieldsInDraft.length > 0 || missingFieldsFromDB.length > (form.fields.length * 0.3)) {
-          console.log('⚠️ Draft is stale (missing:', missingFieldsFromDB.length, 'stale:', staleFieldsInDraft.length, '). Using database version with', form.fields.length, 'fields');
+        // Only consider the draft truly stale if:
+        // - It has extra fields AND is also missing a significant chunk of DB fields
+        //   (indicates the draft is from a completely different version of the form)
+        // - It's missing MORE than 50% of DB fields (major structural mismatch)
+        const isMajorMismatch = missingFieldsFromDB.length > (form.fields.length * 0.5);
+        
+        if (isMajorMismatch) {
+          console.log('⚠️ Draft has major structural mismatch (missing:', missingFieldsFromDB.length, 'of', form.fields.length, 'DB fields). Using database version.');
           formToUse = form;
-          // Clear the stale draft
           clearLocalStorage(form.id);
         } else if (missingFieldsFromDB.length > 0) {
-          console.log('📥 Merging', missingFieldsFromDB.length, 'missing fields from database into draft');
+          // Draft is mostly valid but missing some DB fields — merge them in
+          console.log('📥 Merging', missingFieldsFromDB.length, 'missing fields from database into draft (keeping', extraFieldsInDraft.length, 'new unsaved fields)');
           
           const firstPageId = draftForm.pages?.[0]?.id || form.pages?.[0]?.id || 'default';
           const fieldsWithPageId = missingFieldsFromDB.map(f => ({
@@ -128,9 +133,10 @@ export function useFormSnapshot(initialForm: Form | null) {
             pages: mergedPages
           };
         } else {
+          // Draft has all DB fields (plus possibly new unsaved ones) — use it
+          console.log('📂 Using draft with', draftForm.fields?.length || 0, 'fields (', extraFieldsInDraft.length, 'unsaved new fields)');
           formToUse = draftForm;
         }
-        console.log('📂 Using form with', formToUse.fields?.length || 0, 'fields');
       } else if (draftForm) {
         formToUse = draftForm;
         console.log('📂 Loaded draft from localStorage with', draftForm.fields?.length || 0, 'fields');
@@ -149,7 +155,7 @@ export function useFormSnapshot(initialForm: Form | null) {
     });
     
     console.log('✅ Snapshot initialized with', formToUse?.fields?.length || 0, 'fields');
-  }, [loadFromLocalStorage]);
+  }, [loadFromLocalStorage, clearLocalStorage]);
 
   // Update form details
   const updateFormDetails = useCallback((updates: Partial<Form>) => {
