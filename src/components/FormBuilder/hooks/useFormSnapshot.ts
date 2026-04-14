@@ -14,28 +14,14 @@ const LOCAL_STORAGE_PREFIX = 'form-draft-';
 
 export function useFormSnapshot(initialForm: Form | null) {
   const [snapshot, setSnapshot] = useState<FormSnapshot>(() => {
-    let formFromState: Form | null = initialForm;
-
-    if (initialForm?.id) {
-      try {
-        const storageKey = `${LOCAL_STORAGE_PREFIX}${initialForm.id}`;
-        const stored = localStorage.getItem(storageKey);
-        if (stored) {
-          const { form } = JSON.parse(stored);
-          console.log('📂 Initialized snapshot from localStorage (state init):', storageKey, 'fields:', form?.fields?.length || 0);
-          formFromState = form;
-        }
-      } catch (error) {
-        console.error('❌ Failed to load initial form draft from local storage in state initializer:', error);
-      }
-    }
-
+    // Don't load from localStorage during initial state — let initializeSnapshot handle it
+    // This prevents stale drafts from overriding fresh DB data
     return {
-      form: formFromState,
-      isInitialized: !!formFromState,
+      form: initialForm,
+      isInitialized: !!initialForm,
       isDirty: false,
-      lastSaved: formFromState ? new Date() : null,
-      initializedFormId: formFromState?.id || initialForm?.id || null,
+      lastSaved: initialForm ? new Date() : null,
+      initializedFormId: initialForm?.id || null,
     };
   });
 
@@ -93,32 +79,39 @@ export function useFormSnapshot(initialForm: Form | null) {
     if (form?.id) {
       const draftForm = loadFromLocalStorage(form.id);
       if (draftForm && form) {
-        // IMPORTANT: Merge child-cross-reference fields from database into localStorage draft
-        // These fields are created externally (by parent form) and may not exist in the draft
+        // Compare: if database has fields missing from draft, merge them in
         const draftFieldIds = new Set(draftForm.fields?.map(f => f.id) || []);
-        const childCrossRefFieldsFromDB = form.fields.filter(
-          f => f.type === 'child-cross-reference' && !draftFieldIds.has(f.id)
+        const missingFieldsFromDB = form.fields.filter(
+          f => !draftFieldIds.has(f.id)
         );
         
-        if (childCrossRefFieldsFromDB.length > 0) {
-          console.log('📥 Merging', childCrossRefFieldsFromDB.length, 'child-cross-reference fields from database into draft');
+        // Also check if draft has fields that no longer exist in DB (stale fields)
+        const dbFieldIds = new Set(form.fields.map(f => f.id));
+        const staleFieldsInDraft = (draftForm.fields || []).filter(
+          f => !dbFieldIds.has(f.id)
+        );
+        
+        // If draft is significantly out of sync (missing many fields or has stale ones),
+        // prefer the database version entirely
+        if (staleFieldsInDraft.length > 0 || missingFieldsFromDB.length > (form.fields.length * 0.3)) {
+          console.log('⚠️ Draft is stale (missing:', missingFieldsFromDB.length, 'stale:', staleFieldsInDraft.length, '). Using database version with', form.fields.length, 'fields');
+          formToUse = form;
+          // Clear the stale draft
+          clearLocalStorage(form.id);
+        } else if (missingFieldsFromDB.length > 0) {
+          console.log('📥 Merging', missingFieldsFromDB.length, 'missing fields from database into draft');
           
-          // Get the first page ID to assign to child fields
           const firstPageId = draftForm.pages?.[0]?.id || form.pages?.[0]?.id || 'default';
-          
-          // Add missing child fields to the draft with pageId set
-          const childFieldsWithPageId = childCrossRefFieldsFromDB.map(f => ({
+          const fieldsWithPageId = missingFieldsFromDB.map(f => ({
             ...f,
-            pageId: f.pageId || firstPageId // Ensure pageId is set
+            pageId: f.pageId || firstPageId
           }));
-          const mergedFields = [...(draftForm.fields || []), ...childFieldsWithPageId];
+          const mergedFields = [...(draftForm.fields || []), ...fieldsWithPageId];
           
-          // Also update pages to include the new field IDs
           const mergedPages = draftForm.pages?.map((page, index) => {
             if (index === 0) {
-              // Add child cross-ref fields to the first page if not already there
               const existingFieldIds = new Set(page.fields || []);
-              const newFieldIds = childFieldsWithPageId
+              const newFieldIds = fieldsWithPageId
                 .filter(f => !existingFieldIds.has(f.id))
                 .map(f => f.id);
               return {
@@ -137,7 +130,7 @@ export function useFormSnapshot(initialForm: Form | null) {
         } else {
           formToUse = draftForm;
         }
-        console.log('📂 Loaded draft from localStorage with', formToUse.fields?.length || 0, 'fields');
+        console.log('📂 Using form with', formToUse.fields?.length || 0, 'fields');
       } else if (draftForm) {
         formToUse = draftForm;
         console.log('📂 Loaded draft from localStorage with', draftForm.fields?.length || 0, 'fields');
