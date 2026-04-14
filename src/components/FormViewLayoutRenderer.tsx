@@ -527,22 +527,20 @@ export function FormViewLayoutRenderer({
         ? 'grid-cols-1 lg:grid-cols-4' 
         : 'grid-cols-1'
     }`}>
-      {/* Navigation Panel - sticky, own scroll */}
+      {/* Navigation Panel - independent scroll */}
       {showNavigation && (
-        <div className={`print:hidden ${navigationVisible ? "lg:col-span-1" : ""} h-full overflow-y-auto`}>
-          <div className="sticky top-0">
-            <FormNavigationPanel
-              pages={pages}
-              fields={Array.isArray(form.fields) ? form.fields : []}
-              currentPageId={currentPageId}
-              selectedField={selectedField}
-              onPageChange={handlePageChange}
-              onFieldSelect={setSelectedField}
-              onFieldHighlight={handleFieldHighlight}
-              onToggleNavigation={() => setNavigationVisible(!navigationVisible)}
-              isCollapsed={!navigationVisible}
-            />
-          </div>
+        <div className={`print:hidden ${navigationVisible ? "lg:col-span-1" : ""} h-full overflow-hidden`}>
+          <FormNavigationPanel
+            pages={pages}
+            fields={Array.isArray(form.fields) ? form.fields : []}
+            currentPageId={currentPageId}
+            selectedField={selectedField}
+            onPageChange={handlePageChange}
+            onFieldSelect={setSelectedField}
+            onFieldHighlight={handleFieldHighlight}
+            onToggleNavigation={() => setNavigationVisible(!navigationVisible)}
+            isCollapsed={!navigationVisible}
+          />
         </div>
       )}
       
