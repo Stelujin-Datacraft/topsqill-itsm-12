@@ -625,6 +625,7 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
           isEditing={isEditing}
           submissionId={submission.id}
           formId={form?.id}
+          hideHistoryButton
         />
       </div>
     ))}
