@@ -514,7 +514,12 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
         {/* Row 1: Form name/info on left, action buttons on right */}
 
         <div className='flex items-center justify-between'>
-          <div className='flex items-center gap-4'>
+          <div className='flex items-center gap-3'>
+            {onBack && (
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onBack}>
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+            )}
             <div className='flex flex-col'>
               <h2 className='text-lg font-semibold'>{submission.form_name}</h2>
               <div className='flex items-center gap-4 text-sm text-muted-foreground'>
