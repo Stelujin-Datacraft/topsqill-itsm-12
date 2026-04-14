@@ -130,18 +130,16 @@ export function FieldPropertiesDialog({
         const dbConfig = transformedField.customConfig || {};
         const snapshotConfig = selectedField.customConfig || {};
         
-        // Check if snapshot config has meaningful data (not just defaults)
-        const snapshotHasMeaningfulData = Object.entries(snapshotConfig).some(([key, value]) => {
-          if (value === '' || value === undefined || value === null) return false;
-          if (Array.isArray(value) && value.length === 0) return false;
-          // Check if snapshot has a non-empty targetFormId (key indicator of real config)
-          if (key === 'targetFormId' && value) return true;
-          return false;
+        // Smart merge: start with DB config as base, overlay snapshot values
+        // that are non-empty/non-default (preserves saved DB config while
+        // respecting any unsaved local changes)
+        const mergedCustomConfig = { ...dbConfig };
+        Object.entries(snapshotConfig).forEach(([key, value]) => {
+          if (value === undefined || value === null) return;
+          if (value === '' && dbConfig[key] !== undefined) return;
+          if (Array.isArray(value) && value.length === 0 && Array.isArray(dbConfig[key]) && dbConfig[key].length > 0) return;
+          mergedCustomConfig[key] = value;
         });
-        
-        const mergedCustomConfig = snapshotHasMeaningfulData
-          ? { ...dbConfig, ...snapshotConfig }
-          : dbConfig;
         
         const mergedField = {
           ...transformedField,
