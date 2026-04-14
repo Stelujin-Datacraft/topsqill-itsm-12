@@ -264,10 +264,10 @@ const FormView = () => {
     };
 
     return (
-      <div className="min-h-screen bg-background flex flex-col">
+      <div className="h-screen bg-background flex flex-col overflow-hidden">
         <FormBackButton />
-        <div className="flex-1 bg-muted/20 py-4 px-2 overflow-auto">
-          <div className="max-w-full mx-auto">
+        <div className="flex-1 bg-muted/20 py-4 px-2 overflow-hidden min-h-0">
+          <div className="max-w-full mx-auto h-full">
             <FormViewLayoutRenderer 
               form={form}
               onSubmit={onFormSubmit}
@@ -410,10 +410,10 @@ const FormView = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="h-screen bg-background flex flex-col overflow-hidden">
       <FormBackButton />
-      <div className="flex-1 bg-muted/20 py-4 px-2 overflow-auto">
-        <div className="max-w-full mx-auto">
+      <div className="flex-1 bg-muted/20 py-4 px-2 overflow-hidden min-h-0">
+        <div className="max-w-full mx-auto h-full">
           <FormViewLayoutRenderer 
             form={form}
             onSubmit={onFormSubmit}

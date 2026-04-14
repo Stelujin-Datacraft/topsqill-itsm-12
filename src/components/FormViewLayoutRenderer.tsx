@@ -522,7 +522,7 @@ export function FormViewLayoutRenderer({
   }
 
   const mainContent = (
-    <div className={`grid gap-6 h-[calc(100vh-12rem)] print:block ${
+    <div className={`grid gap-6 h-full print:block ${
       navigationVisible 
         ? 'grid-cols-1 lg:grid-cols-4' 
         : 'grid-cols-1'
