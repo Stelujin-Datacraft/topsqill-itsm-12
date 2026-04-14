@@ -17,7 +17,7 @@ interface FormPreviewProps {
   headerActions?: React.ReactNode;
 }
 
-export function FormPreview({ form, showNavigation = false }: FormPreviewProps) {
+export function FormPreview({ form, showNavigation = false, headerActions }: FormPreviewProps) {
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [currentPageId, setCurrentPageId] = useState<string>('');
