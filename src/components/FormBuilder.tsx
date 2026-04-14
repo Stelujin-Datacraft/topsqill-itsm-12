@@ -498,7 +498,7 @@ function FormBuilderContent({
             </div>
 
             {/* Form Details Tab */}
-            <TabsContent value="details" className="p-0">
+            <TabsContent value="details" className="p-0 flex-1 overflow-y-auto min-h-0">
               <FormDetailsPanel formName={workingForm?.name || state.formName} setFormName={name => {
               state.setFormName(name);
               updateFormDetails({
@@ -608,8 +608,8 @@ function FormBuilderContent({
               </WorkingFormProvider>
             </TabsContent>
 
-            <TabsContent value="rules">
-              <div className="space-y-4">
+            <TabsContent value="rules" className="flex-1 overflow-y-auto min-h-0">
+              <div className="space-y-4 p-6">
                 {workingForm && (
                   <div className="flex justify-end">
                     <AIRuleSuggester
@@ -661,7 +661,7 @@ function FormBuilderContent({
               </div>
             </TabsContent>
 
-            <TabsContent value="preview" className="overflow-y-auto max-h-[calc(100vh-200px)]">
+            <TabsContent value="preview" className="flex-1 overflow-y-auto min-h-0 p-6">
               {workingForm ? <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                   <FormPreview form={workingForm} showNavigation={true} />
                 </div> : <Card className="bg-white shadow-sm">
@@ -671,7 +671,7 @@ function FormBuilderContent({
                 </Card>}
             </TabsContent>
 
-            <TabsContent value="submissions">
+            <TabsContent value="submissions" className="flex-1 overflow-y-auto min-h-0 p-6">
               {currentForm ? <div className="bg-white rounded-lg shadow-sm border border-gray-200">
                   <FormSubmissions form={currentForm} />
                 </div> : <Card className="bg-white shadow-sm">
@@ -681,7 +681,7 @@ function FormBuilderContent({
                 </Card>}
             </TabsContent>
 
-            <TabsContent value="access">
+            <TabsContent value="access" className="flex-1 overflow-y-auto min-h-0 p-6">
               {currentForm ? <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                   <FormUserAccess form={currentForm} onUpdateForm={updates => updateForm(currentForm.id, updates)} />
                 </div> : <Card className="bg-white shadow-sm">
