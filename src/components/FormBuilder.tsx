@@ -446,40 +446,11 @@ function FormBuilderContent({
   }
   return <TooltipProvider>
       <div className="flex-1 min-h-0 flex flex-col bg-white px-[15px] py-[10px] overflow-hidden">
-        {/* Top Action Bar */}
-        <div className="bg-white border-b border-gray-200 px-6 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Button variant="outline" onClick={() => navigate('/forms')}>
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Forms
-              </Button>
-              
-              {/* Combined Save/Publish Button */}
-              <div className="flex items-center gap-2">
-                <Button onClick={() => handleSave(true)} disabled={state.isSaving || state.isPublishing} className="flex items-center gap-2">
-                  <Save className="h-4 w-4" />
-                  {state.isPublishing ? 'Publishing...' : state.isSaving ? 'Saving...' : state.isCreating ? 'Create & Publish' : 'Save & Publish'}
-                </Button>
-                
-                {/* Discard Changes Button */}
-                {snapshot.isDirty && <Button variant="outline" size="sm" onClick={resetSnapshot} disabled={state.isSaving || state.isPublishing} className="px-2">
-                    <Undo2 className="h-4 w-4" />
-                  </Button>}
-              </div>
-            </div>
-            
-            {workingForm && <div className="text-sm text-muted-foreground">
-                Last updated: {new Date(workingForm.updatedAt || Date.now()).toLocaleDateString()}
-              </div>}
-          </div>
-        </div>
-
         {/* Main Content with Tabs at Top */}
         <div className="flex-1 bg-white overflow-hidden min-h-0">
           <Tabs defaultValue="builder" className="w-full h-full flex flex-col">
-            <div className="bg-white border-b border-gray-200 px-6">
-              <TabsList className="grid w-full grid-cols-6 max-w-2xl">
+            <div className="bg-white border-b border-gray-200 px-4 flex items-center justify-between gap-2">
+              <TabsList className="grid grid-cols-6 max-w-2xl">
                 <TabsTrigger value="details" className="flex items-center gap-2">
                   <Settings className="h-4 w-4" />
                   Details
@@ -502,6 +473,19 @@ function FormBuilderContent({
                   Access
                 </TabsTrigger>
               </TabsList>
+              <div className="flex items-center gap-2">
+                {snapshot.isDirty && <Button variant="outline" size="sm" onClick={resetSnapshot} disabled={state.isSaving || state.isPublishing} className="px-2">
+                    <Undo2 className="h-4 w-4" />
+                  </Button>}
+                <Button size="sm" onClick={() => handleSave(true)} disabled={state.isSaving || state.isPublishing} className="flex items-center gap-1.5">
+                  <Save className="h-3.5 w-3.5" />
+                  {state.isPublishing ? 'Publishing...' : state.isSaving ? 'Saving...' : state.isCreating ? 'Create & Publish' : 'Save & Publish'}
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => navigate('/forms')}>
+                  <ArrowLeft className="h-3.5 w-3.5 mr-1" />
+                  Back
+                </Button>
+              </div>
             </div>
 
             {/* Form Details Tab */}
