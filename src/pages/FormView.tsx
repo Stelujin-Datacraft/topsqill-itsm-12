@@ -15,18 +15,6 @@ import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { FormLoadingView } from '@/components/FormLoadingView';
 
-const FormBackButton = () => (
-  <div className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
-      <Link to="/forms">
-        <Button variant="ghost" size="sm" className="gap-2">
-          <ArrowLeft className="h-4 w-4" />
-          Back to Forms
-        </Button>
-      </Link>
-    </div>
-  </div>
-);
 
 const FormView = () => {
   const { id } = useParams<{ id: string }>();
@@ -222,7 +210,6 @@ const FormView = () => {
   if (submissionResult) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
-        <FormBackButton />
         <div className="flex-1 bg-muted/30 py-4 px-4 relative overflow-hidden">
           {/* Subtle skeleton-style background pattern */}
           <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-50">
@@ -265,8 +252,7 @@ const FormView = () => {
 
     return (
       <div className="h-screen bg-background flex flex-col overflow-hidden">
-        <FormBackButton />
-        <div className="flex-1 bg-muted/20 py-4 px-2 overflow-hidden min-h-0">
+        <div className="flex-1 bg-muted/20 overflow-hidden min-h-0">
           <div className="max-w-full mx-auto h-full">
             <FormViewLayoutRenderer 
               form={form}
@@ -410,19 +396,18 @@ const FormView = () => {
   };
 
   return (
-    <div className="h-screen bg-background flex flex-col overflow-hidden">
-      <FormBackButton />
-      <div className="flex-1 bg-muted/20 py-4 px-2 overflow-hidden min-h-0">
-        <div className="max-w-full mx-auto h-full">
-          <FormViewLayoutRenderer 
-            form={form}
-            onSubmit={onFormSubmit}
-            showNavigation={true}
-            showPublicHeader={false}
-          />
-        </div>
-      </div>    
-    </div>
+      <div className="h-screen bg-background flex flex-col overflow-hidden">
+        <div className="flex-1 bg-muted/20 overflow-hidden min-h-0">
+          <div className="max-w-full mx-auto h-full">
+            <FormViewLayoutRenderer 
+              form={form}
+              onSubmit={onFormSubmit}
+              showNavigation={true}
+              showPublicHeader={false}
+            />
+          </div>
+        </div>    
+      </div>
   );
 };
 
