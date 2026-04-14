@@ -14,16 +14,9 @@ const FormPreviewPage = () => {
 
   const form = id ? getFormById(id) : null;
 
-  const headerActions = (
-    <Button variant="outline" onClick={() => navigate('/dashboard')}>
-      <ArrowLeft className="h-4 w-4 mr-2" />
-      Back to Dashboard
-    </Button>
-  );
-
   if (!form) {
     return (
-      <DashboardLayout title="Form Not Found" actions={headerActions}>
+      <DashboardLayout title="Form Not Found">
         <Card>
           <CardContent className="text-center py-12">
             <AlertCircle className="h-16 w-16 text-destructive mx-auto mb-4" />
