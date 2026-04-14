@@ -55,7 +55,7 @@ export function RadioFieldWithSearch({
           </Label>
           <HelpTooltip content={field.tooltip || fieldState.tooltip} />
         </div>
-        {value && !disabled && (
+        {clearable && value && !disabled && (
           <Button
             type="button"
             variant="ghost"
