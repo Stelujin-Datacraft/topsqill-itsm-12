@@ -43,6 +43,7 @@ function StageHistoryWrapper({ field, submissionId, open, onClose }: { field: Fo
   return <LifecycleHistoryDialog open={open} onClose={onClose} history={history} loading={loading} fieldLabel={field.label} />;
 }
 
+export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewProps) {
   const [submission, setSubmission] = useState<FormSubmission | null>(null);
   const [form, setForm] = useState<Form | null>(null);
   const [loading, setLoading] = useState(true);
