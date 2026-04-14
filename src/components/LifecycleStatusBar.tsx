@@ -255,18 +255,9 @@ export function LifecycleStatusBar({
                       ${isFuture && !isEditing ? 'opacity-60' : ''}
                     `}
                     style={{
-                      backgroundColor: isSelected
-                        ? color.bg
-                        : isPast
-                          ? color.light
-                          : 'transparent',
-                      color: isSelected
-                        ? '#ffffff'
-                        : isPast
-                          ? color.text
-                          : isFuture
-                            ? 'var(--muted-foreground)'
-                            : color.text,
+                      backgroundColor: color.bg,
+                      color: '#ffffff',
+                      opacity: isFuture && !isEditing ? 0.55 : 1,
                     }}
                   >
                     {/* Icon */}
