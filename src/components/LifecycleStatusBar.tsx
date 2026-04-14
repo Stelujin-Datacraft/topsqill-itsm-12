@@ -227,8 +227,8 @@ export function LifecycleStatusBar({
   return (
     <TooltipProvider>
       <div className="w-full space-y-1">
-        {/* Stage Progress Bar */}
-        <div className="flex items-center w-full rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+        {/* ServiceNow-style Stage Progress Bar - all stages colored */}
+        <div className="flex items-stretch w-full rounded-lg overflow-hidden shadow-sm border border-border/40">
           {options.map((option: any, index: number) => {
             const optionValue = getOptionValue(option);
             const optionLabel = getOptionLabel(option);
@@ -238,6 +238,7 @@ export function LifecycleStatusBar({
             const color = getStageColor(option, index);
             const canTransition = isTransitionAllowed(value, optionValue);
             const isLast = index === options.length - 1;
+            const isFirst = index === 0;
             
             return (
               <Tooltip key={optionValue}>
@@ -247,47 +248,55 @@ export function LifecycleStatusBar({
                     disabled={disabled || !isEditing || isSelected}
                     className={`
                       relative flex items-center justify-center gap-1.5 py-2.5 px-3 flex-1
-                      text-xs font-medium transition-all duration-200
-                      ${!isLast ? 'border-r border-border/50' : ''}
-                      ${isEditing && !isSelected && canTransition ? 'cursor-pointer' : ''}
-                      ${!canTransition && isEditing && !isSelected ? 'opacity-50 cursor-not-allowed' : ''}
-                      ${isSelected ? 'font-semibold' : ''}
-                      ${isFuture && !isEditing ? 'opacity-60' : ''}
+                      text-xs font-medium transition-all duration-200 min-w-0
+                      ${isEditing && !isSelected && canTransition ? 'cursor-pointer hover:brightness-110' : ''}
+                      ${!canTransition && isEditing && !isSelected ? 'cursor-not-allowed' : ''}
+                      ${isSelected ? 'font-bold text-sm' : ''}
                     `}
                     style={{
                       backgroundColor: isSelected
                         ? color.bg
                         : isPast
-                          ? color.light
-                          : 'transparent',
+                          ? color.bg
+                          : color.light,
                       color: isSelected
                         ? '#ffffff'
                         : isPast
-                          ? color.text
-                          : isFuture
-                            ? 'var(--muted-foreground)'
-                            : color.text,
+                          ? '#ffffff'
+                          : color.text,
+                      opacity: isFuture ? 0.85 : 1,
+                      borderRight: !isLast ? '2px solid rgba(255,255,255,0.4)' : 'none',
                     }}
                   >
-                    {/* Icon */}
+                    {/* Status Icon */}
                     <span className="flex-shrink-0">
                       {isPast ? (
-                        <span
-                          className="flex items-center justify-center w-4 h-4 rounded-full"
-                          style={{ backgroundColor: isSelected ? 'rgba(255,255,255,0.3)' : color.bg }}
-                        >
-                          <Check className="h-3 w-3 text-white" />
+                        <span className="flex items-center justify-center w-[18px] h-[18px] rounded-full bg-white/30">
+                          <Check className="h-3.5 w-3.5 text-white" strokeWidth={3} />
                         </span>
                       ) : isSelected ? (
-                        <span className="flex items-center justify-center w-4 h-4 rounded-full bg-white/30">
-                          <Circle className="h-2.5 w-2.5 fill-white text-white" />
+                        <span className="flex items-center justify-center w-[18px] h-[18px] rounded-full bg-white/30 ring-2 ring-white/50">
+                          <ArrowRight className="h-3 w-3 text-white" strokeWidth={3} />
                         </span>
                       ) : (
                         <span
-                          className="flex items-center justify-center w-4 h-4 rounded-full border-2"
-                          style={{ borderColor: isFuture ? 'var(--border)' : color.border }}
+                          className="flex items-center justify-center w-[18px] h-[18px] rounded-full"
+                          style={{ backgroundColor: color.bg + '30' }}
                         >
-                          <Circle className="h-2 w-2" style={{ color: isFuture ? 'var(--border)' : color.border }} />
+                          <Circle className="h-2.5 w-2.5" style={{ color: color.text }} />
+                        </span>
+                      )}
+                    </span>
+
+                    {/* Label */}
+                    <span className="truncate">{optionLabel}</span>
+
+                    {/* Time in current stage */}
+                    {isSelected && timeInStage && (
+                      <span className="text-[10px] opacity-75 whitespace-nowrap font-normal">
+                        {timeInStage}
+                      </span>
+                    )}
                         </span>
                       )}
                     </span>
