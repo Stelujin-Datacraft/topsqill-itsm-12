@@ -406,17 +406,241 @@ async function executeUpdateField(supabase: any, config: any, submissionId?: str
 
 async function executeNotification(supabase: any, config: any, triggerData: any, submitterId?: string): Promise<any> {
   const notificationConfig = config?.notificationConfig || {}
+  const notificationType = notificationConfig.type || 'in_app'
   const title = notificationConfig.subject || notificationConfig.title || 'Workflow Notification'
   const message = notificationConfig.message || 'You have a notification from a workflow'
   const recipientType = notificationConfig.recipientType || config?.recipientType || 'submitter'
 
+  console.log('🔔 executeNotification called with:', { notificationType, recipientType, title })
+
+  // Resolve recipient(s)
   let recipientId = submitterId
+  let recipientEmails: string[] = []
+
   if (recipientType === 'specific_user') {
     recipientId = notificationConfig.specificUserId || config?.specificUserId
   }
 
+  // Resolve recipient emails from recipientConfig
+  const recipientConfig = notificationConfig.recipientConfig
+  if (recipientConfig) {
+    console.log('📧 Resolving recipients from recipientConfig:', recipientConfig.type)
+    
+    if (recipientConfig.type === 'form_submitter' && submitterId) {
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('email')
+        .eq('id', submitterId)
+        .single()
+      if (profile?.email) {
+        recipientEmails.push(profile.email)
+        recipientId = submitterId
+      }
+    } else if (recipientConfig.type === 'static' && recipientConfig.emails?.length > 0) {
+      recipientEmails = recipientConfig.emails.filter((e: string) => e && e.includes('@'))
+      // Try to find user ID for the first email
+      if (recipientEmails.length > 0 && !recipientId) {
+        const { data: profile } = await supabase
+          .from('user_profiles')
+          .select('id')
+          .eq('email', recipientEmails[0])
+          .single()
+        if (profile?.id) recipientId = profile.id
+      }
+    } else if (recipientConfig.type === 'dynamic' && recipientConfig.dynamicFieldPath) {
+      const fieldValue = triggerData?.submissionData?.[recipientConfig.dynamicFieldPath]
+      if (typeof fieldValue === 'string' && fieldValue.includes('@')) {
+        recipientEmails.push(fieldValue)
+      }
+    }
+  }
+
+  // Fallback: get email from submitterId if no emails resolved
+  if (recipientEmails.length === 0 && recipientId) {
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('email')
+      .eq('id', recipientId)
+      .single()
+    if (profile?.email) {
+      recipientEmails.push(profile.email)
+    }
+  }
+
+  console.log('📧 Resolved recipients:', { recipientId, recipientEmails, notificationType })
+
+  // Handle EMAIL notification type
+  if (notificationType === 'email') {
+    console.log('📧 Sending EMAIL notification')
+    
+    const emailTemplateId = notificationConfig.emailTemplateId
+    
+    if (emailTemplateId) {
+      // Use email template via send-template-email edge function
+      console.log('📧 Using email template:', emailTemplateId)
+      
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+      const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+      
+      const templateData = {
+        ...(triggerData?.submissionData || {}),
+        ...triggerData,
+        timestamp: new Date().toISOString(),
+      }
+      
+      const emailResponse = await fetch(`${supabaseUrl}/functions/v1/send-template-email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabaseServiceKey}`,
+        },
+        body: JSON.stringify({
+          templateId: emailTemplateId,
+          recipients: recipientEmails,
+          templateData,
+          triggerContext: {
+            trigger_type: 'workflow_notification',
+            notification_type: 'email'
+          }
+        })
+      })
+
+      const emailResult = await emailResponse.json()
+      console.log('📧 Email send result:', emailResult)
+
+      if (!emailResponse.ok) {
+        console.error('❌ Email sending failed:', emailResult)
+        return { success: false, error: emailResult.error || 'Email sending failed' }
+      }
+
+      return { 
+        success: true, 
+        recipientId, 
+        recipientEmails,
+        title, 
+        notificationType: 'email',
+        emailResult 
+      }
+    } else {
+      // No template - send direct email via SMTP
+      console.log('📧 No email template, sending direct SMTP email')
+      
+      if (recipientEmails.length === 0) {
+        return { success: false, error: 'No recipient email found for email notification' }
+      }
+
+      // Get the organization's default SMTP config
+      // First find the workflow to get project_id
+      const { data: workflowData } = await supabase
+        .from('workflows')
+        .select('project_id')
+        .eq('id', config?.workflowId || triggerData?.workflowId)
+        .single()
+
+      let orgId = null
+      if (workflowData?.project_id) {
+        const { data: project } = await supabase
+          .from('projects')
+          .select('organization_id')
+          .eq('id', workflowData.project_id)
+          .single()
+        orgId = project?.organization_id
+      }
+
+      if (!orgId && submitterId) {
+        const { data: profile } = await supabase
+          .from('user_profiles')
+          .select('organization_id')
+          .eq('id', submitterId)
+          .single()
+        orgId = profile?.organization_id
+      }
+
+      if (!orgId) {
+        return { success: false, error: 'Cannot determine organization for SMTP config' }
+      }
+
+      const { data: smtpConfig } = await supabase
+        .from('smtp_configs')
+        .select('*')
+        .eq('organization_id', orgId)
+        .eq('is_active', true)
+        .order('is_default', { ascending: false })
+        .limit(1)
+        .single()
+
+      if (!smtpConfig) {
+        return { success: false, error: 'No active SMTP configuration found' }
+      }
+
+      console.log('📧 Using SMTP config:', smtpConfig.from_email)
+
+      // Import SMTPClient and send email
+      const { SMTPClient } = await import("https://deno.land/x/denomailer@1.6.0/mod.ts")
+      
+      const client = new SMTPClient({
+        connection: {
+          hostname: smtpConfig.host,
+          port: smtpConfig.port,
+          tls: smtpConfig.use_tls,
+          auth: {
+            username: smtpConfig.username,
+            password: smtpConfig.password,
+          },
+        },
+      })
+
+      try {
+        // Replace template variables in message
+        let processedMessage = message
+        let processedSubject = title
+        const submissionData = triggerData?.submissionData || {}
+        
+        for (const [key, value] of Object.entries(submissionData)) {
+          const regex = new RegExp(`{{\\s*${key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*}}`, 'g')
+          const strValue = typeof value === 'string' ? value : JSON.stringify(value)
+          processedMessage = processedMessage.replace(regex, strValue)
+          processedSubject = processedSubject.replace(regex, strValue)
+        }
+
+        await client.send({
+          from: smtpConfig.from_name 
+            ? `${smtpConfig.from_name} <${smtpConfig.from_email}>` 
+            : smtpConfig.from_email,
+          to: recipientEmails,
+          subject: processedSubject,
+          html: processedMessage,
+        })
+        
+        await client.close()
+
+        // Log the email
+        for (const email of recipientEmails) {
+          await supabase.from('email_logs').insert({
+            organization_id: orgId,
+            from_email: smtpConfig.from_email,
+            to_email: email,
+            subject: processedSubject,
+            content: processedMessage,
+            status: 'sent',
+            sent_at: new Date().toISOString(),
+            trigger_context: { trigger_type: 'workflow_notification' }
+          })
+        }
+
+        console.log('✅ Email sent successfully to:', recipientEmails)
+        return { success: true, recipientId, recipientEmails, title, notificationType: 'email' }
+      } catch (smtpError) {
+        console.error('❌ SMTP send failed:', smtpError)
+        await client.close().catch(() => {})
+        return { success: false, error: `SMTP send failed: ${smtpError.message}` }
+      }
+    }
+  }
+
+  // Handle IN-APP notification (default)
   if (!recipientId) {
-    return { success: false, error: 'No recipient found' }
+    return { success: false, error: 'No recipient found for in-app notification' }
   }
 
   const { error } = await supabase
@@ -433,7 +657,7 @@ async function executeNotification(supabase: any, config: any, triggerData: any,
     return { success: false, error: error.message }
   }
 
-  return { success: true, recipientId, title }
+  return { success: true, recipientId, title, notificationType: 'in_app' }
 }
 
 async function executeNotificationNode(supabase: any, node: WorkflowNode, executionId: string, triggerData: any, submitterId?: string): Promise<any> {
