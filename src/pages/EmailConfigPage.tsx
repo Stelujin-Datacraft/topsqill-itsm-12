@@ -276,10 +276,10 @@ export default function EmailConfigPage() {
         </div>
       }
     >
-      <div className="space-y-6">
+      <div className="space-y-6 w-full">
 
         {/* Existing Configurations */}
-        <div className="grid gap-4">
+        <div className="grid grid-cols-1 gap-4 w-full">
           {configs.map((config) => (
             <Card key={config.id}>
               <CardHeader>
