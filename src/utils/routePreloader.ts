@@ -65,8 +65,8 @@ export function preloadCriticalRoutes(): void {
     if (index >= routes.length) return;
     
     const scheduleNext = () => {
-      // Stagger with 100ms to avoid overwhelming the browser
-      setTimeout(() => preloadNext(index + 1), 100);
+      // Stagger with 300ms to avoid overwhelming the browser
+      setTimeout(() => preloadNext(index + 1), 300);
     };
 
     if ('requestIdleCallback' in window) {
