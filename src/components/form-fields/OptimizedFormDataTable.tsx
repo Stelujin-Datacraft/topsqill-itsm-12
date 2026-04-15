@@ -690,7 +690,7 @@ export function OptimizedFormDataTable({
             <Badge variant="outline">
               {isCrossReference ? selectedRecords.length : totalRecords} record{(isCrossReference ? selectedRecords.length : totalRecords) !== 1 ? 's' : ''}
             </Badge>
-            {canCreateRecord && onCreateRecord && (
+            {canCreateRecord && onCreateRecord && !disabled && (
               <Button
                 type="button"
                 variant="outline"
@@ -702,7 +702,7 @@ export function OptimizedFormDataTable({
                 {createRecordLabel}
               </Button>
             )}
-            {isCrossReference && <Dialog open={isSelectionModalOpen} onOpenChange={setIsSelectionModalOpen}>
+            {isCrossReference && !disabled && <Dialog open={isSelectionModalOpen} onOpenChange={setIsSelectionModalOpen}>
                 <DialogTrigger asChild>
                   <Button variant="outline" size="sm" onClick={handleModalOpen}>
                     <Plus className="h-4 w-4 mr-2" />
