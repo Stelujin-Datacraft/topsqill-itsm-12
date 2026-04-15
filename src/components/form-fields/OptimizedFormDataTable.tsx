@@ -911,14 +911,14 @@ export function OptimizedFormDataTable({
             </TableHeader>
             <TableBody>
               {loading ? <TableRow>
-                  <TableCell colSpan={visibleColumns.length + (isCrossReference ? 2 : 4)} className="text-center py-8">
+                  <TableCell colSpan={visibleColumns.length + (isCrossReference ? 2 : 4) - (disabled ? 1 : 0)} className="text-center py-8">
                     <div className="flex items-center justify-center gap-2">
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
                       Loading...
                     </div>
                   </TableCell>
                 </TableRow> : displayData.length === 0 ? <TableRow>
-                  <TableCell colSpan={visibleColumns.length + (isCrossReference ? 2 : 4)} className="text-center py-8 text-gray-500">
+                  <TableCell colSpan={visibleColumns.length + (isCrossReference ? 2 : 4) - (disabled ? 1 : 0)} className="text-center py-8 text-gray-500">
                     {error ? 'Error loading data' : isCrossReference ? 'No records selected' : 'No submissions have been made yet!'}
                     {config.isParentReference && !error && !isCrossReference && <div className="text-sm mt-1">
                         Parent form records will appear here when available
