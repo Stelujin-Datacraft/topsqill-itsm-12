@@ -489,7 +489,7 @@ function FormBuilderContent({
             </div>
 
             {/* Form Details Tab */}
-            <TabsContent value="details" className="p-0 pt-4 flex-1 overflow-y-auto min-h-0 mt-0">
+            <TabsContent value="details" className="p-0 pt-4 flex-1 overflow-hidden mt-0 min-h-0 data-[state=active]:flex data-[state=active]:flex-col">
               <FormDetailsPanel formName={workingForm?.name || state.formName} setFormName={name => {
               state.setFormName(name);
               updateFormDetails({
@@ -597,7 +597,7 @@ function FormBuilderContent({
               </WorkingFormProvider>
             </TabsContent>
 
-            <TabsContent value="rules" className="p-0 pt-4 flex-1 overflow-y-auto min-h-0 mt-0">
+            <TabsContent value="rules" className="p-0 pt-4 flex-1 overflow-y-auto min-h-0 mt-0 data-[state=active]:flex data-[state=active]:flex-col">
               <div className="space-y-4 pb-6">
                 {workingForm && (
                   <div className="rounded-lg border bg-card px-4 py-3 shadow-sm">
@@ -660,7 +660,7 @@ function FormBuilderContent({
               </div>
             </TabsContent>
 
-            <TabsContent value="preview" className="p-0 pt-4 flex-1 overflow-hidden min-h-0 mt-0">
+            <TabsContent value="preview" className="p-0 pt-4 flex-1 overflow-hidden min-h-0 mt-0 data-[state=active]:flex data-[state=active]:flex-col">
               {workingForm ? <div className="h-full overflow-hidden">
                   <FormPreview form={workingForm} showNavigation={true} />
                 </div> : <Card className="bg-white shadow-sm">
@@ -670,7 +670,7 @@ function FormBuilderContent({
                 </Card>}
             </TabsContent>
 
-            <TabsContent value="submissions" className="p-0 pt-4 flex-1 overflow-y-auto min-h-0 mt-0">
+            <TabsContent value="submissions" className="p-0 pt-4 flex-1 overflow-y-auto min-h-0 mt-0 data-[state=active]:flex data-[state=active]:flex-col">
               {currentForm ? <div className="bg-white rounded-lg shadow-sm border border-gray-200">
                   <FormSubmissions form={currentForm} />
                 </div> : <Card className="bg-white shadow-sm">
@@ -680,7 +680,7 @@ function FormBuilderContent({
                 </Card>}
             </TabsContent>
 
-            <TabsContent value="access" className="p-0 pt-4 flex-1 overflow-y-auto min-h-0 mt-0">
+            <TabsContent value="access" className="p-0 pt-4 flex-1 overflow-y-auto min-h-0 mt-0 data-[state=active]:flex data-[state=active]:flex-col">
               {currentForm ? <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                   <FormUserAccess form={currentForm} onUpdateForm={updates => updateForm(currentForm.id, updates)} />
                 </div> : <Card className="bg-white shadow-sm">
