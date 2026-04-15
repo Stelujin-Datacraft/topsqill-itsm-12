@@ -1408,7 +1408,7 @@ export function DynamicTable({
                                compact
                              />
                              {canDeleteSubmissions && (
-                               <DeleteSubmissionButton submissionId={row.id} onDelete={() => handleDeleteSubmission(row.id)} checkPermission={() => checkDeletePermission(row.id)} />
+                               <DeleteSubmissionButton submissionId={row.id} onDelete={() => handleDeleteSubmission(row.id)} />
                              )}
                           </div>
                         </TableCell>
