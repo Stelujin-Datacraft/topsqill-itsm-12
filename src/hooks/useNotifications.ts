@@ -254,7 +254,7 @@ interface Notification {
         } catch {
           // Silent polling error
         }
-      }, 10000);
+      }, 2000);
 
       return () => {
         clearInterval(pollInterval);
