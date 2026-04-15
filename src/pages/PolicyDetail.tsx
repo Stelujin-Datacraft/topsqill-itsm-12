@@ -687,12 +687,12 @@ const PolicyDetail = () => {
       if (!policy.form_id) return;
       try {
         const displayFormat = dynamicFieldsFormat;
-        const [formRes, fieldsRes, subsRes] = await Promise.all([
-          supabase.from('forms').select('name').eq('id', policy.form_id).single(),
+        const [formName, fieldsRes, subsRes] = await Promise.all([
+          getCachedFormName(policy.form_id),
           supabase.from('form_fields').select('id, label, field_type, options, field_order, custom_config').eq('form_id', policy.form_id).order('field_order'),
           supabase.from('form_submissions').select('id, submission_ref_id, submission_data').eq('form_id', policy.form_id).order('submitted_at', { ascending: true }),
         ]);
-        const formName = formRes.data?.name || 'Linked Form';
+        const resolvedFormName = formName || 'Linked Form';
         const allFields = (fieldsRes.data || []).filter(f => !['section', 'divider', 'heading', 'paragraph', 'spacer', 'page-break'].includes(f.field_type));
         const selectedFieldIds = policy.content?.selected_field_ids as string[] | undefined;
         const selectedRecordIds = policy.content?.selected_record_ids as string[] | undefined;
@@ -720,14 +720,14 @@ const PolicyDetail = () => {
             if (data) data.forEach(r => { linkedRecords[r.id] = r; });
           }
           const formIds = [...new Set(Object.values(linkedRecords).map((r: any) => r.form_id))];
-          for (const fid of formIds) {
-            const { data: ff } = await supabase.from('form_fields').select('id, label, field_type').eq('form_id', fid).order('field_order');
-            if (ff) {
-              linkedFieldLabels[fid] = {};
-              ff.filter(f => !['section','divider','heading','paragraph','spacer','page-break','child-cross-reference'].includes(f.field_type))
-                .forEach(f => { linkedFieldLabels[fid][f.id] = f.label; });
-            }
-          }
+          // Use cached form fields instead of individual queries
+          await Promise.all(formIds.map(async fid => {
+            const cachedFields = await getCachedFormFields(fid);
+            linkedFieldLabels[fid] = {};
+            cachedFields
+              .filter(f => !['section','divider','heading','paragraph','spacer','page-break','child-cross-reference'].includes(f.field_type))
+              .forEach(f => { linkedFieldLabels[fid][f.id] = f.label; });
+          }));
         }
 
         const pdfResolveCrossRef = (value: any): string => {
