@@ -30,8 +30,9 @@ export function useSavedQueries() {
 
   const saveQueryMutation = useMutation({
     mutationFn: async ({ name, query }: { name: string; query: string }) => {
-      // Get current user or sign in anonymously
-      let { data: { user } } = await supabase.auth.getUser();
+      // Get current user from session (cached, no network call)
+      let { data: { session } } = await supabase.auth.getSession();
+      let user = session?.user || null;
       
       if (!user) {
         const { data: authData, error: authError } = await supabase.auth.signInAnonymously();
