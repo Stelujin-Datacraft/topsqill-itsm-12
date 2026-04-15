@@ -31,6 +31,7 @@ export function FormViewLayoutRenderer({
   showNavigation = true,
   showPublicHeader = false 
 }: FormViewLayoutRendererProps) {
+  const navigate = useNavigate();
   const { user } = useAuth();
   // Initialize with draft from localStorage if available
   const [formData, setFormData] = useState<Record<string, any>>(() => {
