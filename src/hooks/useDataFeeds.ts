@@ -80,7 +80,7 @@ export function useDataFeeds(projectId: string) {
           schedule: data.schedule,
           is_active: data.is_active,
           project_id: projectId,
-          created_by: user.user.id,
+          created_by: user.id,
         } as any)
         .select()
         .single();
