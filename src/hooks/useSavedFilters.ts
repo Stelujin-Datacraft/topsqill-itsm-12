@@ -22,11 +22,12 @@ export function useSavedFilters(formId: string | null) {
       setLoading(true);
       setError(null);
       
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) {
         setError('User not authenticated');
         return;
       }
+      const user = session.user;
 
       const { data, error: fetchError } = await supabase
         .from('saved_filters')
@@ -59,11 +60,12 @@ export function useSavedFilters(formId: string | null) {
     try {
       setError(null);
       
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) {
         setError('User not authenticated');
         return null;
       }
+      const user = session.user;
 
       const { data, error: saveError } = await supabase
         .from('saved_filters')
