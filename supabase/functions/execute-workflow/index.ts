@@ -579,11 +579,12 @@ async function executeNotification(supabase: any, config: any, triggerData: any,
       // Import SMTPClient and send email
       const { SMTPClient } = await import("https://deno.land/x/denomailer@1.6.0/mod.ts")
       
+      const useDirectTls = smtpConfig.port === 465;
       const client = new SMTPClient({
         connection: {
           hostname: smtpConfig.host,
           port: smtpConfig.port,
-          tls: smtpConfig.use_tls,
+          tls: useDirectTls,
           auth: {
             username: smtpConfig.username,
             password: smtpConfig.password,

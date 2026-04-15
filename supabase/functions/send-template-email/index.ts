@@ -438,11 +438,15 @@ const handler = async (req: Request): Promise<Response> => {
     const emailResults = [];
     
     // Create SMTP client
+    // Port 587 uses STARTTLS (tls: false in denomailer), Port 465 uses implicit TLS (tls: true)
+    const useDirectTls = smtpConfig.port === 465;
+    console.log(`🔒 SMTP TLS config: port=${smtpConfig.port}, useDirectTls=${useDirectTls}`);
+    
     const smtpClient = new SMTPClient({
       connection: {
         hostname: smtpConfig.host,
         port: smtpConfig.port,
-        tls: smtpConfig.use_tls,
+        tls: useDirectTls,
         auth: {
           username: smtpConfig.username,
           password: smtpConfig.password,
@@ -456,9 +460,9 @@ const handler = async (req: Request): Promise<Response> => {
         from: smtpConfig.from_name 
           ? `${smtpConfig.from_name} <${smtpConfig.from_email}>` 
           : smtpConfig.from_email,
-        to: finalToRecipients.length > 0 ? finalToRecipients.map(e => ({ email: e })) : undefined,
-        cc: finalCcRecipients.length > 0 ? finalCcRecipients.map(e => ({ email: e })) : undefined,
-        bcc: finalBccRecipients.length > 0 ? finalBccRecipients.map(e => ({ email: e })) : undefined,
+        to: finalToRecipients.length > 0 ? finalToRecipients.join(', ') : undefined,
+        cc: finalCcRecipients.length > 0 ? finalCcRecipients.join(', ') : undefined,
+        bcc: finalBccRecipients.length > 0 ? finalBccRecipients.join(', ') : undefined,
         subject: processedSubject,
         content: processedTextContent || processedHtmlContent.replace(/<[^>]*>/g, ''),
         html: processedHtmlContent,
@@ -477,12 +481,12 @@ const handler = async (req: Request): Promise<Response> => {
       // If no TO but has CC/BCC, we need at least one TO recipient
       // Some SMTP servers require a TO field, so use the first CC as TO if needed
       if (!emailPayload.to && finalCcRecipients.length > 0) {
-        emailPayload.to = [{ email: finalCcRecipients[0] }];
-        emailPayload.cc = finalCcRecipients.length > 1 ? finalCcRecipients.slice(1).map(e => ({ email: e })) : undefined;
+        emailPayload.to = finalCcRecipients[0];
+        emailPayload.cc = finalCcRecipients.length > 1 ? finalCcRecipients.slice(1).join(', ') : undefined;
         if (!emailPayload.cc) delete emailPayload.cc;
       } else if (!emailPayload.to && finalBccRecipients.length > 0) {
-        emailPayload.to = [{ email: finalBccRecipients[0] }];
-        emailPayload.bcc = finalBccRecipients.length > 1 ? finalBccRecipients.slice(1).map(e => ({ email: e })) : undefined;
+        emailPayload.to = finalBccRecipients[0];
+        emailPayload.bcc = finalBccRecipients.length > 1 ? finalBccRecipients.slice(1).join(', ') : undefined;
         if (!emailPayload.bcc) delete emailPayload.bcc;
       }
       
