@@ -67,6 +67,8 @@ interface OptimizedFormDataTableProps {
   currentFormData?: Record<string, any>;
   // Whether we're editing an existing submission (auto-selection only runs in edit mode)
   isEditing?: boolean;
+  // Whether the entire field is in read-only mode
+  disabled?: boolean;
 }
 interface SelectedRecord {
   id: string;
@@ -86,7 +88,8 @@ export function OptimizedFormDataTable({
   canCreateRecord = false,
   createRecordDisabled = false,
   currentFormData = {},
-  isEditing = false
+  isEditing = false,
+  disabled = false
 }: OptimizedFormDataTableProps) {
   const navigate = useNavigate();
   const { getUserDisplayName, getGroupDisplayName } = useUsersAndGroups();
@@ -687,7 +690,7 @@ export function OptimizedFormDataTable({
             <Badge variant="outline">
               {isCrossReference ? selectedRecords.length : totalRecords} record{(isCrossReference ? selectedRecords.length : totalRecords) !== 1 ? 's' : ''}
             </Badge>
-            {canCreateRecord && onCreateRecord && (
+            {canCreateRecord && onCreateRecord && !disabled && (
               <Button
                 type="button"
                 variant="outline"
@@ -699,7 +702,7 @@ export function OptimizedFormDataTable({
                 {createRecordLabel}
               </Button>
             )}
-            {isCrossReference && <Dialog open={isSelectionModalOpen} onOpenChange={setIsSelectionModalOpen}>
+            {isCrossReference && !disabled && <Dialog open={isSelectionModalOpen} onOpenChange={setIsSelectionModalOpen}>
                 <DialogTrigger asChild>
                   <Button variant="outline" size="sm" onClick={handleModalOpen}>
                     <Plus className="h-4 w-4 mr-2" />
@@ -868,9 +871,9 @@ export function OptimizedFormDataTable({
             return <Badge key={record.id} variant="outline" className={`flex items-center gap-1 ${isAutoSelected ? 'bg-blue-50 border-blue-300 text-blue-700' : ''}`} title={isAutoSelected ? 'Auto-selected from parent form' : 'Manually selected'}>
                     {isAutoSelected && <span className="text-xs mr-1">🔗</span>}
                     {getDisplayValue(record)}
-                    <Button variant="ghost" size="sm" className="h-4 w-4 p-0 ml-1 hover:bg-red-100" onClick={() => handleRemoveSelectedRecord(record.id)} title={isAutoSelected ? 'Remove auto-selected record' : 'Remove selected record'}>
+                    {!disabled && <Button variant="ghost" size="sm" className="h-4 w-4 p-0 ml-1 hover:bg-red-100" onClick={() => handleRemoveSelectedRecord(record.id)} title={isAutoSelected ? 'Remove auto-selected record' : 'Remove selected record'}>
                       <X className="h-3 w-3" />
-                    </Button>
+                    </Button>}
                   </Badge>;
           })}
             </div>

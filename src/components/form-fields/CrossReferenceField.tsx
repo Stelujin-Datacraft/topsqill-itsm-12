@@ -222,6 +222,7 @@ export function CrossReferenceField({ field, value, onChange, onFieldUpdate, isP
         createRecordDisabled={disabled}
         currentFormData={formData}
         isEditing={isEditing}
+        disabled={disabled}
       />
       
       {error && <p className="text-sm text-red-500">{error}</p>}
