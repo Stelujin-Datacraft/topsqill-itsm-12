@@ -160,7 +160,7 @@ export function ChildCrossReferenceField({
 
   // Show the optimized data table with auto-generated configuration
   return <div className="w-full space-y-2">
-      <OptimizedFormDataTable config={tableConfig} fieldType="child-cross-reference" value={value} onChange={handleSelectionChange} autoSelectedRecords={autoSelectedRecords} isAutoSelectionLoading={autoSelectionLoading} key={refreshTrigger} canCreateRecord={canCreateRecord} onCreateRecord={handleCreateRecord} createRecordLabel="Create & Link" createRecordDisabled={disabled} />
+      <OptimizedFormDataTable config={tableConfig} fieldType="child-cross-reference" value={value} onChange={handleSelectionChange} autoSelectedRecords={autoSelectedRecords} isAutoSelectionLoading={autoSelectionLoading} key={refreshTrigger} canCreateRecord={canCreateRecord} onCreateRecord={handleCreateRecord} createRecordLabel="Create & Link" createRecordDisabled={disabled} disabled={disabled} />
       
       {error && <p className="text-sm text-red-500">{error}</p>}
 
