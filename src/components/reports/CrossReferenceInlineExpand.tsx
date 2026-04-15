@@ -323,8 +323,8 @@ function MultiRecordTable({ linkedRecords, formId, formName, depth = 0 }: { link
           if (field.field_type === 'cross-reference') {
             const tFormId = customConfig?.targetFormId;
             if (tFormId) {
-              const { data: tf } = await supabase.from('forms').select('name').eq('id', tFormId).single();
-              crCols.push({ fieldId: field.id, label: field.label, targetFormId: tFormId, targetFormName: tf?.name || customConfig?.targetFormName || 'Linked Form' });
+              const tfName = await getCachedFormName(tFormId);
+              crCols.push({ fieldId: field.id, label: field.label, targetFormId: tFormId, targetFormName: tfName || customConfig?.targetFormName || 'Linked Form' });
             }
           } else if (!['section', 'divider', 'description', 'child-cross-reference'].includes(field.field_type)) {
             regular.push({ id: field.id, label: field.label, fieldType: field.field_type, options: field.options });
