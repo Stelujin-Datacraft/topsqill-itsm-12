@@ -222,9 +222,6 @@ const Forms = () => {
         />
       )}
       {canCreateForm && !permissionLoading && <CreateFormDialog />}
-      {canCreateForm && !permissionLoading && (
-        <ExcelFormImporter onImport={handleAIFormApply} />
-      )}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="outline" size="sm">
