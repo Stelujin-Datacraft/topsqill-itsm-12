@@ -67,6 +67,8 @@ interface OptimizedFormDataTableProps {
   currentFormData?: Record<string, any>;
   // Whether we're editing an existing submission (auto-selection only runs in edit mode)
   isEditing?: boolean;
+  // Whether the entire field is in read-only mode
+  disabled?: boolean;
 }
 interface SelectedRecord {
   id: string;
@@ -86,7 +88,8 @@ export function OptimizedFormDataTable({
   canCreateRecord = false,
   createRecordDisabled = false,
   currentFormData = {},
-  isEditing = false
+  isEditing = false,
+  disabled = false
 }: OptimizedFormDataTableProps) {
   const navigate = useNavigate();
   const { getUserDisplayName, getGroupDisplayName } = useUsersAndGroups();
