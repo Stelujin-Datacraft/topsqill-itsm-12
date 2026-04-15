@@ -18,6 +18,94 @@ const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 const inflightFormName = new Map<string, Promise<string | null>>();
 const inflightFormFields = new Map<string, Promise<any[]>>();
 
+// ── Submission batching: coalesce all submission queries for the same formId ──
+// When multiple cells request submissions from the same form within a short window,
+// we collect all ref IDs and make ONE query.
+interface BatchEntry {
+  refIds: Set<string>;
+  promise: Promise<any[]> | null;
+  timer: ReturnType<typeof setTimeout> | null;
+  resolvers: Array<() => void>;
+  result: any[] | null;
+}
+const submissionBatches = new Map<string, BatchEntry>();
+const BATCH_DELAY = 15; // ms - wait this long to collect more ref IDs before firing
+
+function requestSubmissionBatch(formId: string, refIds: string[]): Promise<any[]> {
+  let batch = submissionBatches.get(formId);
+
+  if (!batch) {
+    batch = { refIds: new Set(), promise: null, timer: null, resolvers: [], result: null };
+    submissionBatches.set(formId, batch);
+  }
+
+  // Add new ref IDs to the batch
+  for (const id of refIds) batch.refIds.add(id);
+
+  // If we already have a result that covers these IDs, return immediately
+  if (batch.result) {
+    const allCovered = refIds.every(id =>
+      batch!.result!.some((s: any) => s.submission_ref_id === id)
+    );
+    // Even if not all covered, if batch already fired we can check cache
+    if (batch.promise && !batch.timer) {
+      // Batch already fired - check if we need new IDs
+      const missing = refIds.filter(id =>
+        !batch!.result!.some((s: any) => s.submission_ref_id === id)
+      );
+      if (missing.length === 0) {
+        return Promise.resolve(batch.result);
+      }
+      // Some IDs are missing - need a fresh fetch for those
+      // Reset the batch for a new round
+      batch.result = null;
+      batch.promise = null;
+    }
+  }
+
+  // Reset the timer to allow more IDs to accumulate
+  if (batch.timer) clearTimeout(batch.timer);
+
+  const batchRef = batch;
+  return new Promise<any[]>((resolve) => {
+    batchRef.resolvers.push(() => resolve(batchRef.result || []));
+
+    batchRef.timer = setTimeout(async () => {
+      batchRef.timer = null;
+      const allRefIds = Array.from(batchRef.refIds);
+
+      if (!batchRef.promise) {
+        batchRef.promise = (async () => {
+          // Supabase .in() has a practical limit, chunk if needed
+          const CHUNK = 200;
+          let allResults: any[] = [];
+          for (let i = 0; i < allRefIds.length; i += CHUNK) {
+            const chunk = allRefIds.slice(i, i + CHUNK);
+            const { data, error } = await supabase
+              .from('form_submissions')
+              .select('id, submission_ref_id, form_id, submission_data')
+              .eq('form_id', formId)
+              .in('submission_ref_id', chunk);
+            if (!error && data) allResults = allResults.concat(data);
+          }
+          batchRef.result = allResults;
+
+          // Clean up after 60s so stale data doesn't persist forever
+          setTimeout(() => submissionBatches.delete(formId), 60_000);
+
+          return allResults;
+        })();
+      }
+
+      await batchRef.promise;
+      // Resolve all waiting consumers
+      const resolvers = [...batchRef.resolvers];
+      batchRef.resolvers = [];
+      resolvers.forEach((r) => r());
+    }, BATCH_DELAY);
+  });
+}
+
 async function getCachedFormName(formId: string): Promise<string | null> {
   const cached = formNameCache.get(formId);
   if (cached && Date.now() - cached.ts < CACHE_TTL) return cached.name;
@@ -90,29 +178,28 @@ export function useCrossReferenceData(
       try {
         setLoading(true);
 
-        // Run all three fetches in parallel, with caching for form name & fields
-        const [formName, formFields, submissionsResult] = await Promise.all([
+        // Run all three fetches in parallel, with caching + batching
+        const [formName, formFields, allSubmissions] = await Promise.all([
           getCachedFormName(targetFormId),
           getCachedFormFields(targetFormId),
-          supabase
-            .from('form_submissions')
-            .select('id, submission_ref_id, form_id, submission_data')
-            .eq('form_id', targetFormId)
-            .in('submission_ref_id', submissionRefIds),
+          requestSubmissionBatch(targetFormId, submissionRefIds),
         ]);
 
-        // Abort if a newer call has started
         if (generation !== abortRef.current) return;
 
         if (formName) setTargetFormName(formName);
 
-        if (submissionsResult.error) throw submissionsResult.error;
+        // Filter the batched result to only our requested ref IDs
+        const refIdSet = new Set(submissionRefIds);
+        const submissions = allSubmissions.filter(
+          (s: any) => refIdSet.has(s.submission_ref_id)
+        );
 
         const fieldMap = new Map(
           formFields.map((f: any) => [f.id, { label: f.label, type: f.field_type, options: f.options }])
         );
 
-        const formattedRecords: CrossReferenceRecord[] = (submissionsResult.data || []).map(sub => {
+        const formattedRecords: CrossReferenceRecord[] = submissions.map((sub: any) => {
           let displayParts: string[] = [];
 
           if (normalizedDisplayFieldIds.length > 0) {
