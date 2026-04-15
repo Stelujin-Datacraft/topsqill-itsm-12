@@ -150,78 +150,120 @@ interface Notification {
      }
    }, [userProfile?.id]);
  
-   // Single shared real-time subscription per user (prevents subscription explosion)
-   useEffect(() => {
-     if (!userProfile?.id) return;
- 
-     // Clean up existing channel before creating new one
-     if (channelRef.current) {
-       supabase.removeChannel(channelRef.current);
-       channelRef.current = null;
-     }
- 
-     // Create single channel for both INSERT and UPDATE
-     const channel = supabase
-       .channel(`notifications-${userProfile.id}`)
-       .on(
-         'postgres_changes',
-         {
-           event: 'INSERT',
-           schema: 'public',
-           table: 'notifications',
-           filter: `user_id=eq.${userProfile.id}`
-         },
-         (payload) => {
-           const newNotif = payload.new as any;
-           setNotifications(prev => {
-             // Prevent duplicates and enforce max limit
-             if (prev.some(n => n.id === newNotif.id)) return prev;
-             const updated = [{
-               id: newNotif.id,
-               type: newNotif.type,
-               title: newNotif.title,
-               message: newNotif.message,
-               data: newNotif.data,
-               created_at: newNotif.created_at,
-               read: newNotif.read || false
-             }, ...prev];
-             return updated.slice(0, MAX_NOTIFICATIONS_LIMIT);
-           });
-           setUnreadCount(prev => prev + 1);
-         }
-       )
-       .on(
-         'postgres_changes',
-         {
-           event: 'UPDATE',
-           schema: 'public',
-           table: 'notifications',
-           filter: `user_id=eq.${userProfile.id}`
-         },
-         (payload) => {
-           const updatedNotif = payload.new as any;
-           setNotifications(prev => {
-             const updated = prev.map(n => 
-               n.id === updatedNotif.id 
-                 ? { ...n, read: updatedNotif.read, title: updatedNotif.title, message: updatedNotif.message }
-                 : n
-             );
-             setUnreadCount(updated.filter(n => !n.read).length);
-             return updated;
-           });
-         }
-       )
-       .subscribe();
- 
-     channelRef.current = channel;
- 
-     return () => {
-       if (channelRef.current) {
-         supabase.removeChannel(channelRef.current);
-         channelRef.current = null;
-       }
-     };
-   }, [userProfile?.id]);
+    // Single shared real-time subscription per user (prevents subscription explosion)
+    // Also includes a polling fallback for service-role inserts that bypass RLS-filtered realtime
+    useEffect(() => {
+      if (!userProfile?.id) return;
+
+      // Clean up existing channel before creating new one
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
+
+      // Create single channel for both INSERT and UPDATE
+      const channel = supabase
+        .channel(`notifications-${userProfile.id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'notifications',
+            filter: `user_id=eq.${userProfile.id}`
+          },
+          (payload) => {
+            const newNotif = payload.new as any;
+            setNotifications(prev => {
+              // Prevent duplicates and enforce max limit
+              if (prev.some(n => n.id === newNotif.id)) return prev;
+              const updated = [{
+                id: newNotif.id,
+                type: newNotif.type,
+                title: newNotif.title,
+                message: newNotif.message,
+                data: newNotif.data,
+                created_at: newNotif.created_at,
+                read: newNotif.read || false
+              }, ...prev];
+              return updated.slice(0, MAX_NOTIFICATIONS_LIMIT);
+            });
+            setUnreadCount(prev => prev + 1);
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'notifications',
+            filter: `user_id=eq.${userProfile.id}`
+          },
+          (payload) => {
+            const updatedNotif = payload.new as any;
+            setNotifications(prev => {
+              const updated = prev.map(n => 
+                n.id === updatedNotif.id 
+                  ? { ...n, read: updatedNotif.read, title: updatedNotif.title, message: updatedNotif.message }
+                  : n
+              );
+              setUnreadCount(updated.filter(n => !n.read).length);
+              return updated;
+            });
+          }
+        )
+        .subscribe();
+
+      channelRef.current = channel;
+
+      // Polling fallback: service-role inserts may not trigger RLS-filtered realtime events.
+      // Poll every 10 seconds for new unread notifications and merge them into state.
+      const pollInterval = setInterval(async () => {
+        try {
+          const { data, error } = await supabase
+            .from('notifications')
+            .select('id, type, title, message, data, created_at, read')
+            .eq('user_id', userProfile.id)
+            .eq('read', false)
+            .order('created_at', { ascending: false })
+            .limit(20);
+
+          if (!error && data && data.length > 0) {
+            setNotifications(prev => {
+              const existingIds = new Set(prev.map(n => n.id));
+              const newOnes = data
+                .filter(n => !existingIds.has(n.id))
+                .map(n => ({
+                  id: n.id,
+                  type: n.type as Notification['type'],
+                  title: n.title,
+                  message: n.message,
+                  data: n.data,
+                  created_at: n.created_at,
+                  read: n.read
+                }));
+
+              if (newOnes.length === 0) return prev;
+
+              const updated = [...newOnes, ...prev].slice(0, MAX_NOTIFICATIONS_LIMIT);
+              updated.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+              setUnreadCount(updated.filter(n => !n.read).length);
+              return updated;
+            });
+          }
+        } catch {
+          // Silent polling error
+        }
+      }, 10000);
+
+      return () => {
+        clearInterval(pollInterval);
+        if (channelRef.current) {
+          supabase.removeChannel(channelRef.current);
+          channelRef.current = null;
+        }
+      };
+    }, [userProfile?.id]);
 
   const markAsRead = async (notificationId: string) => {
     setNotifications(prev => 
