@@ -37,6 +37,7 @@ interface ExcelFormImporterProps {
       validation?: any;
     }>;
   }) => void;
+  children?: React.ReactNode;
 }
 
 const VALID_FIELD_TYPES = new Set([
@@ -309,7 +310,7 @@ function generateTemplate() {
   toast.success('New sample template downloaded');
 }
 
-export function ExcelFormImporter({ onImport }: ExcelFormImporterProps) {
+export function ExcelFormImporter({ onImport, children }: ExcelFormImporterProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [parsedFields, setParsedFields] = useState<ParsedField[]>([]);
   const [formName, setFormName] = useState('');
@@ -477,10 +478,12 @@ export function ExcelFormImporter({ onImport }: ExcelFormImporterProps) {
   return (
     <Dialog open={isOpen} onOpenChange={(open) => { setIsOpen(open); if (!open) resetState(); }}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="default" className="gap-2">
-          <FileSpreadsheet className="h-4 w-4" />
-          Import from Excel
-        </Button>
+        {children || (
+          <Button variant="outline" size="default" className="gap-2">
+            <FileSpreadsheet className="h-4 w-4" />
+            Import from Excel
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent className="max-w-4xl h-[90vh] flex flex-col overflow-hidden">        <DialogHeader>
         <DialogTitle className="flex items-center gap-2">

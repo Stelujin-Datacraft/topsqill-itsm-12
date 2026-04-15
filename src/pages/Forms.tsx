@@ -15,7 +15,7 @@ import {
 import { useUnifiedAccessControl } from '@/hooks/useUnifiedAccessControl';
 import { useProject } from '@/contexts/ProjectContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { BarChart3, History, FileText, Timer, MoreVertical } from 'lucide-react';
+import { BarChart3, History, FileText, Timer, MoreVertical, FileSpreadsheet } from 'lucide-react';
 import NoProjectSelected from '@/components/NoProjectSelected';
 import { AIFormGenerator } from '@/components/ai/AIFormGenerator';
 import { ExcelFormImporter } from '@/components/ExcelFormImporter';
@@ -222,9 +222,6 @@ const Forms = () => {
         />
       )}
       {canCreateForm && !permissionLoading && <CreateFormDialog />}
-      {canCreateForm && !permissionLoading && (
-        <ExcelFormImporter onImport={handleAIFormApply} />
-      )}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="outline" size="sm">
@@ -232,6 +229,14 @@ const Forms = () => {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
+          {canCreateForm && !permissionLoading && (
+            <ExcelFormImporter onImport={handleAIFormApply}>
+              <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                <FileSpreadsheet className="h-4 w-4 mr-2 text-primary" />
+                Import from Excel
+              </DropdownMenuItem>
+            </ExcelFormImporter>
+          )}
           <DropdownMenuItem onClick={() => navigate('/my-submissions')}>
             <FileText className="h-4 w-4 mr-2 text-primary" />
             My Submissions
