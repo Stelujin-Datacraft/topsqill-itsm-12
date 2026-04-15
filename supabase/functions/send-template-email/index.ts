@@ -477,12 +477,12 @@ const handler = async (req: Request): Promise<Response> => {
       // If no TO but has CC/BCC, we need at least one TO recipient
       // Some SMTP servers require a TO field, so use the first CC as TO if needed
       if (!emailPayload.to && finalCcRecipients.length > 0) {
-        emailPayload.to = finalCcRecipients[0];
-        emailPayload.cc = finalCcRecipients.slice(1).join(', ') || undefined;
+        emailPayload.to = [{ email: finalCcRecipients[0] }];
+        emailPayload.cc = finalCcRecipients.length > 1 ? finalCcRecipients.slice(1).map(e => ({ email: e })) : undefined;
         if (!emailPayload.cc) delete emailPayload.cc;
       } else if (!emailPayload.to && finalBccRecipients.length > 0) {
-        emailPayload.to = finalBccRecipients[0];
-        emailPayload.bcc = finalBccRecipients.slice(1).join(', ') || undefined;
+        emailPayload.to = [{ email: finalBccRecipients[0] }];
+        emailPayload.bcc = finalBccRecipients.length > 1 ? finalBccRecipients.slice(1).map(e => ({ email: e })) : undefined;
         if (!emailPayload.bcc) delete emailPayload.bcc;
       }
       
