@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { getCachedFormName, getCachedFormFields } from '@/hooks/useCrossReferenceData';
 import { Loader2, ExternalLink, Link2, Plus, Minus, Download } from 'lucide-react';
 import { SubmissionRefDisplay } from '@/components/SubmissionRefDisplay';
 import { Button } from '@/components/ui/button';
