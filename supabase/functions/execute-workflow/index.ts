@@ -362,7 +362,8 @@ async function executeActionNode(
     case 'update_field':
       return await executeUpdateField(supabase, config, submissionId, triggerData)
     case 'send_email':
-      return { emailQueued: true, message: 'Email action triggered' }
+      // Treat send_email same as send_notification with email type
+      return await executeNotification(supabase, { ...config, notificationConfig: { ...config.notificationConfig, type: 'email' } }, triggerData, submitterId)
     case 'send_notification':
       return await executeNotification(supabase, config, triggerData, submitterId)
     default:
