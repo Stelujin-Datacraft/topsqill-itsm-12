@@ -479,8 +479,8 @@ export function FormPreview({ form, showNavigation = false }: FormPreviewProps) 
               
               {/* Page Navigation Section */}
               {pages.length > 1 && (
-              <div className="px-16 py-4 bg-white dark:bg-gray-950 border-b border-slate-100 dark:border-slate-800">
-                  <div className="max-w-5xl mx-auto">
+              <div className="px-6 py-4 bg-white dark:bg-gray-950 border-b border-slate-100 dark:border-slate-800">
+                  <div className="mx-auto">
                     <FormPagination
                       pages={pages}
                       currentPageId={currentPageId}
@@ -495,8 +495,8 @@ export function FormPreview({ form, showNavigation = false }: FormPreviewProps) 
               )}
               
               <div className="relative">
-                <div className="px-16 py-4 bg-white dark:bg-gray-950">
-                  <div className="max-w-5xl mx-auto space-y-8">
+                <div className="px-6 py-4 bg-white dark:bg-gray-950">
+                  <div className="mx-auto space-y-8">
                     {renderFieldsWithSmartLayout()}
                   </div>
                 </div>
@@ -504,8 +504,8 @@ export function FormPreview({ form, showNavigation = false }: FormPreviewProps) 
               </div>
               
               {/* Minimalistic Action Buttons */}
-              <div className="px-16 py-8 bg-slate-50/40 dark:bg-gray-900/20">
-                <div className="max-w-5xl mx-auto">
+              <div className="px-6 py-8 bg-slate-50/40 dark:bg-gray-900/20">
+                <div className="mx-auto">
                   <div className="flex flex-col sm:flex-row gap-3 justify-end">
                     <Button 
                       variant="outline" 
@@ -543,8 +543,8 @@ export function FormPreview({ form, showNavigation = false }: FormPreviewProps) 
         {/* Professional Form Header with Light Lines */}
         <div className="relative">
           <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-slate-200 dark:via-slate-700 to-transparent"></div>
-          <div className="px-16 py-12 bg-white dark:bg-gray-950">
-            <div className="max-w-5xl mx-auto text-left space-y-4">
+          <div className="px-6 py-12 bg-white dark:bg-gray-950">
+            <div className="mx-auto text-left space-y-4">
               <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100 leading-tight font-['Inter',system-ui,sans-serif]">
                 {form.name}
               </h1>
@@ -560,8 +560,8 @@ export function FormPreview({ form, showNavigation = false }: FormPreviewProps) 
         
         {/* Page Navigation Section */}
         {pages.length > 1 && (
-          <div className="px-16 py-4 bg-white dark:bg-gray-950 border-b border-slate-100 dark:border-slate-800">
-            <div className="max-w-5xl mx-auto">
+          <div className="px-6 py-4 bg-white dark:bg-gray-950 border-b border-slate-100 dark:border-slate-800">
+            <div className="mx-auto">
               <FormPagination
                 pages={pages}
                 currentPageId={currentPageId}
@@ -576,8 +576,8 @@ export function FormPreview({ form, showNavigation = false }: FormPreviewProps) 
         )}
         
         <div className="relative">
-          <div className="px-16 py-4 bg-white dark:bg-gray-950">
-            <div className="max-w-5xl mx-auto space-y-8">
+          <div className="px-6 py-4 bg-white dark:bg-gray-950">
+            <div className="mx-auto space-y-8">
               {renderFieldsWithSmartLayout()}
             </div>
           </div>
@@ -585,8 +585,8 @@ export function FormPreview({ form, showNavigation = false }: FormPreviewProps) 
         </div>
         
         {/* Minimalistic Action Buttons */}
-        <div className="px-16 py-8 bg-slate-50/40 dark:bg-gray-900/20">
-          <div className="max-w-5xl mx-auto">
+        <div className="px-6 py-8 bg-slate-50/40 dark:bg-gray-900/20">
+          <div className="mx-auto">
             <div className="flex flex-col sm:flex-row gap-3 justify-end">
               <Button 
                 variant="outline" 
