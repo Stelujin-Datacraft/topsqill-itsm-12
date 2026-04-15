@@ -305,12 +305,21 @@ export function AIFormGenerator({
 
             {generatedForm && (
               <div className="flex gap-2">
-                <Button variant="outline" onClick={handleGenerate} disabled={isLoading} className="flex-1">
+                <Button variant="outline" onClick={handleGenerate} disabled={isLoading || isApplying} className="flex-1">
                   Regenerate
                 </Button>
-                <Button onClick={handleApply} className="flex-1">
-                  <Check className="h-4 w-4 mr-2" />
-                  Apply Form
+                <Button onClick={handleApply} disabled={isApplying} className="flex-1">
+                  {isApplying ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Creating Form...
+                    </>
+                  ) : (
+                    <>
+                      <Check className="h-4 w-4 mr-2" />
+                      Apply Form
+                    </>
+                  )}
                 </Button>
               </div>
             )}
