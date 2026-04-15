@@ -176,6 +176,8 @@ const Forms = () => {
             placeholder: field.placeholder,
             options: mappedOptions,
             validation: field.validation,
+            tooltip: field.tooltip,
+            customConfig: field.isFullWidth ? { columnSpan: 'full' } : undefined,
             pageId
           });
 
