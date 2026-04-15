@@ -455,9 +455,6 @@ const handler = async (req: Request): Promise<Response> => {
     });
     
     try {
-      // Prepare email payload with TO, CC, and BCC
-      // denomailer requires individual send per recipient for reliability
-      // Send to each TO recipient individually, with CC/BCC on first send only
       const fromField = smtpConfig.from_name 
         ? `${smtpConfig.from_name} <${smtpConfig.from_email}>` 
         : smtpConfig.from_email;
@@ -470,104 +467,103 @@ const handler = async (req: Request): Promise<Response> => {
         throw new Error('No recipients specified');
       }
 
-      const emailPayload: any = {
-        from: fromField,
-        to: allToRecipients.join(', '),
-        subject: processedSubject,
-        content: processedTextContent || processedHtmlContent.replace(/<[^>]*>/g, ''),
-        html: processedHtmlContent,
-      };
-      
-      if (finalCcRecipients.length > 0) {
-        emailPayload.cc = finalCcRecipients.join(', ');
-      }
-      if (finalBccRecipients.length > 0) {
-        emailPayload.bcc = finalBccRecipients.join(', ');
-      }
-      
-      console.log('📧 Email payload:', {
-        from: emailPayload.from,
-        to: emailPayload.to,
-        cc: emailPayload.cc,
-        bcc: emailPayload.bcc,
-        subject: emailPayload.subject,
-        hasHtml: !!emailPayload.html,
-        attachmentCount: attachments.length
-      });
-      
-      // Add attachments if any
-      if (attachments.length > 0) {
-        emailPayload.attachments = attachments.map(att => ({
-          filename: att.filename,
-          content: att.content,
-          contentType: att.contentType,
-        }));
-      }
-      
-      // Send email using SMTP
-      await smtpClient.send(emailPayload);
+      // denomailer validates each email strictly - send individually per recipient
+      for (const recipient of allToRecipients) {
+        try {
+          const emailPayload: any = {
+            from: fromField,
+            to: recipient,
+            subject: processedSubject,
+            content: processedTextContent || processedHtmlContent.replace(/<[^>]*>/g, ''),
+            html: processedHtmlContent,
+          };
 
-      // Close connection after successful send
-      await smtpClient.close();
+          if (attachments.length > 0) {
+            emailPayload.attachments = attachments.map(att => ({
+              filename: att.filename,
+              content: att.content,
+              contentType: att.contentType,
+            }));
+          }
 
-      console.log(`✅ Email sent successfully`);
-      
-      // Log successful email for all recipients
-      const allRecipients = [...finalToRecipients, ...finalCcRecipients, ...finalBccRecipients];
-      for (const recipient of allRecipients) {
-        await supabaseClient.from('email_logs').insert({
-          organization_id: project.organization_id,
-          project_id: template.project_id,
-          template_id: templateId,
-          smtp_config_id: smtpConfig.id,
-          to_email: recipient,
-          from_email: smtpConfig.from_email,
-          subject: processedSubject,
-          content: processedHtmlContent,
-          status: 'sent',
-          sent_at: new Date().toISOString(),
-          trigger_context: {
-            ...triggerContext,
-            recipientType: finalToRecipients.includes(recipient) ? 'to' : 
-                          finalCcRecipients.includes(recipient) ? 'cc' : 'bcc'
-          },
-        });
+          console.log('📧 Sending to:', recipient);
+          await smtpClient.send(emailPayload);
+          console.log(`✅ Email sent to ${recipient}`);
 
-        emailResults.push({
-          recipient,
-          status: 'sent',
-          type: finalToRecipients.includes(recipient) ? 'to' : 
-                finalCcRecipients.includes(recipient) ? 'cc' : 'bcc'
-        });
+          await supabaseClient.from('email_logs').insert({
+            organization_id: project.organization_id,
+            project_id: template.project_id,
+            template_id: templateId,
+            smtp_config_id: smtpConfig.id,
+            to_email: recipient,
+            from_email: smtpConfig.from_email,
+            subject: processedSubject,
+            content: processedHtmlContent,
+            status: 'sent',
+            sent_at: new Date().toISOString(),
+            trigger_context: { ...triggerContext, recipientType: 'to' },
+          });
+
+          emailResults.push({ recipient, status: 'sent', type: 'to' });
+        } catch (sendErr: any) {
+          console.error(`❌ Failed to send to ${recipient}:`, sendErr.message);
+          await supabaseClient.from('email_logs').insert({
+            organization_id: project.organization_id,
+            project_id: template.project_id,
+            template_id: templateId,
+            smtp_config_id: smtpConfig.id,
+            to_email: recipient,
+            from_email: smtpConfig.from_email,
+            subject: processedSubject,
+            content: processedHtmlContent,
+            status: 'failed',
+            error_message: sendErr.message,
+            trigger_context: triggerContext || {},
+          });
+          emailResults.push({ recipient, status: 'failed', error: sendErr.message });
+        }
       }
+
+      // Send to CC recipients individually
+      for (const recipient of finalCcRecipients) {
+        try {
+          await smtpClient.send({
+            from: fromField,
+            to: recipient,
+            subject: processedSubject,
+            content: processedTextContent || processedHtmlContent.replace(/<[^>]*>/g, ''),
+            html: processedHtmlContent,
+          });
+          emailResults.push({ recipient, status: 'sent', type: 'cc' });
+        } catch (sendErr: any) {
+          emailResults.push({ recipient, status: 'failed', error: sendErr.message });
+        }
+      }
+
+      // Send to BCC recipients individually
+      for (const recipient of finalBccRecipients) {
+        try {
+          await smtpClient.send({
+            from: fromField,
+            to: recipient,
+            subject: processedSubject,
+            content: processedTextContent || processedHtmlContent.replace(/<[^>]*>/g, ''),
+            html: processedHtmlContent,
+          });
+          emailResults.push({ recipient, status: 'sent', type: 'bcc' });
+        } catch (sendErr: any) {
+          emailResults.push({ recipient, status: 'failed', error: sendErr.message });
+        }
+      }
+
+      try { await smtpClient.close(); } catch (_) { /* ignore */ }
     } catch (error: any) {
       console.error(`❌ Failed to send email:`, error);
+      try { await smtpClient.close(); } catch (_) { /* ignore */ }
       
-      // Ensure connection is closed even on error
-      try { await smtpClient.close(); } catch (_) { /* ignore close errors */ }
-      
-      // Log failed email
       const allRecipients = [...finalToRecipients, ...finalCcRecipients, ...finalBccRecipients];
       for (const recipient of allRecipients) {
-        await supabaseClient.from('email_logs').insert({
-          organization_id: project.organization_id,
-          project_id: template.project_id,
-          template_id: templateId,
-          smtp_config_id: smtpConfig.id,
-          to_email: recipient,
-          from_email: smtpConfig.from_email,
-          subject: processedSubject,
-          content: processedHtmlContent,
-          status: 'failed',
-          error_message: error.message,
-          trigger_context: triggerContext || {},
-        });
-
-        emailResults.push({
-          recipient,
-          status: 'failed',
-          error: error.message,
-        });
+        emailResults.push({ recipient, status: 'failed', error: error.message });
       }
     }
 
