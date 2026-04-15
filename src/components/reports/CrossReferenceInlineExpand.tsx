@@ -100,12 +100,32 @@ export function CrossReferenceInlineExpand({
           return { id: sub.id, submissionRefId: sub.submission_ref_id || sub.id.slice(0, 8), fields: regularFields, crossRefFields: crossRefs };
         });
 
+        // Batch-fetch all cross-ref form names in parallel using shared cache
+        const allCrEntries = details.flatMap(d => d.crossRefFields);
+        const uniqueFormIds = [...new Set(allCrEntries.map(cr => cr.targetFormId))];
+        
+        // Fetch form names and linked submissions in parallel
+        const [formNames, ...linkedResults] = await Promise.all([
+          Promise.all(uniqueFormIds.map(async fid => ({ fid, name: await getCachedFormName(fid) }))),
+          ...allCrEntries.map(cr =>
+            supabase.from('form_submissions')
+              .select('id, submission_ref_id, submission_data')
+              .eq('form_id', cr.targetFormId)
+              .in('submission_ref_id', cr.linkedRefIds)
+              .then(res => ({ fieldId: cr.fieldId, parentId: allCrEntries.indexOf(cr), data: res.data || [] }))
+          )
+        ]);
+
+        const formNameMap = new Map(formNames.map(f => [f.fid, f.name]));
+        
+        let crIdx = 0;
         for (const detail of details) {
           for (const cr of detail.crossRefFields) {
-            const { data: linkedSubs } = await supabase.from('form_submissions').select('id, submission_ref_id, submission_data').eq('form_id', cr.targetFormId).in('submission_ref_id', cr.linkedRefIds);
-            const { data: targetForm } = await supabase.from('forms').select('name').eq('id', cr.targetFormId).single();
-            cr.linkedRecords = linkedSubs || [];
-            if (targetForm?.name) cr.targetFormName = targetForm.name;
+            const result = linkedResults[crIdx] as any;
+            cr.linkedRecords = result?.data || [];
+            const cachedName = formNameMap.get(cr.targetFormId);
+            if (cachedName) cr.targetFormName = cachedName;
+            crIdx++;
           }
         }
 
