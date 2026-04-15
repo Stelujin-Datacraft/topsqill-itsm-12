@@ -762,7 +762,7 @@ const PolicyDetail = () => {
           yPos += 8;
           ensureSpace(30);
           doc.setFontSize(13);
-          doc.text(`Dynamic Data — ${formName}`, 14, yPos);
+          doc.text(`Dynamic Data — ${resolvedFormName}`, 14, yPos);
           yPos += 8;
 
           submissions.forEach((sub: any, idx: number) => {
