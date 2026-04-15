@@ -216,7 +216,7 @@ export function NotificationPanel() {
   );
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         <Button variant="ghost" size="sm" className="relative hover:bg-muted/80 transition-colors">
           <Bell className="h-4 w-4" />
