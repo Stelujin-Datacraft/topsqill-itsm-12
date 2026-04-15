@@ -910,30 +910,36 @@ Return JSON:
 
       // NEW: Form Generation
       case 'generate-form':
-        temperature = 0.4;
-        maxTokens = 4000;
+        temperature = 0.5;
+        maxTokens = 6000;
         
-        systemPrompt = `You are an expert enterprise form designer who creates professional, well-structured forms. Generate complete form schemas from natural language descriptions.
+        systemPrompt = `You are an expert enterprise form designer who creates comprehensive, professional forms. Your goal is to generate THOROUGH forms that cover ALL aspects related to the topic — even from a short one-line prompt.
+
+COMPREHENSIVENESS RULES (CRITICAL):
+1. From even a brief prompt like "employee onboarding", you MUST infer and include ALL logically related fields. Think like a domain expert — what would a real-world version of this form include?
+2. Always aim for 20-40+ data fields (plus structural fields like headers, descriptions, section-breaks). Short prompts should generate MORE fields, not fewer.
+3. Think in categories: WHO (personal info, contacts), WHAT (details, specifics), WHEN (dates, timelines), WHERE (location, address), HOW (preferences, methods), WHY (reasons, justifications), ATTACHMENTS (documents, photos, signatures)
+4. For every topic, consider: identification fields, contact fields, date fields, status/category fields, description/notes fields, approval fields, attachment fields, preference fields, emergency/backup fields
+5. Use diverse field types — don't just use "text" for everything. Use email for emails, phone for phones, date for dates, currency for money, rating for satisfaction, select for categories, multi-select for multiple choices, toggle-switch for yes/no preferences, signature for sign-offs, file for attachments, country for nationality/location, address for addresses, tags for keywords
 
 DESIGN PRINCIPLES:
 1. ALWAYS start each logical section with a "header" field as a section title, followed by a "description" field for context when useful
 2. Use "section-break" between major sections for clear visual separation
 3. Use "horizontal-line" for subtle visual breaks within sections
 4. Group related fields together logically (e.g., personal info, contact details, address)
-5. For forms with 8+ fields, split into multiple pages with descriptive page names
-6. Use 2-column layout for forms with many short fields (name, email, phone), 1-column for complex fields (textarea, address)
+5. Split into multiple pages (3-5 pages for comprehensive forms) with descriptive page names
+6. Use 2-column layout for forms with many short fields, 1-column for complex fields
 7. Mark only truly essential fields as required — don't over-require
-8. Add meaningful placeholders that show expected format (e.g., "+91 98765 43210", "john.doe@company.com")
+8. Add meaningful placeholders showing expected format (e.g., "+91 98765 43210", "john.doe@company.com")
 9. Add tooltips for fields that might confuse users
-10. For select/radio fields, provide comprehensive real-world options (at least 4-6 options)
-11. Use appropriate field types: email for emails, phone for phones, date for dates, currency for money, rating for satisfaction, signature for approvals
-12. Include validation rules: min/max for numbers, minLength/maxLength for text, patterns for specific formats
+10. For select/radio fields, provide comprehensive real-world options (5-8 options)
+11. Include validation rules: min/max for numbers, minLength/maxLength for text
 
 STRUCTURAL FIELD USAGE:
-- "header": Use as section titles (e.g., "Personal Information", "Emergency Contact", "Preferences"). These create visual hierarchy.
-- "description": Use after headers to provide instructions or context (e.g., "Please provide your current residential address")
-- "section-break": Use between major form sections for clear visual breaks with a title
-- "horizontal-line": Use as subtle dividers within a section
+- "header": Section titles creating visual hierarchy
+- "description": Instructions or context after headers
+- "section-break": Clear breaks between major sections
+- "horizontal-line": Subtle dividers within a section
 
 FIELD TYPE REFERENCE (use EXACTLY these values):
 Layout/Display: header, description, section-break, horizontal-line
@@ -944,20 +950,27 @@ Selection: select, multi-select, radio, checkbox, toggle-switch
 Media: file, image, signature
 Special: tags, country, color, barcode
 
-PAGE STRUCTURE GUIDELINES:
-- Page 1: Core/primary information (personal details, main purpose)
-- Page 2: Secondary details (preferences, additional info)
-- Page 3+: Supplementary sections (attachments, agreements, review)
-- Each page should have 5-10 fields (including structural fields like headers)
-- Every page should start with a "header" field as the page title`;
+PAGE STRUCTURE:
+- Page 1: Core/primary information
+- Page 2: Details and specifics
+- Page 3: Preferences and additional info
+- Page 4: Documents, attachments, agreements
+- Page 5: Review, sign-off, declarations
+- Each page: 6-12 fields including structural elements
+- Every page starts with a "header" field`;
 
-        userPrompt = `Generate a professional, well-structured form based on this request:
+        userPrompt = `Generate a COMPREHENSIVE, professional form based on this request. Even if the prompt is short, infer ALL related fields a domain expert would include.
 
 Request: "${context.userInput}"
 Purpose: ${context.formPurpose || 'General purpose form'}
 Industry: ${context.industry || 'General'}
 
-IMPORTANT: Create a form that looks professional with proper section headers, descriptions, and logical grouping. Use structural elements (header, description, section-break, horizontal-line) to create visual hierarchy.
+IMPORTANT: 
+- Generate 20-40+ data fields covering every aspect of the topic
+- Use diverse field types (NOT just text — use email, phone, date, select, multi-select, toggle-switch, currency, rating, signature, file, country, address, tags, etc.)
+- Create 3-5 pages with logical grouping
+- Include structural elements (header, description, section-break, horizontal-line) for professional layout
+- Think: What would a real company's version of this form look like? Include EVERYTHING.
 
 Return JSON with this exact format:
 {
