@@ -28,9 +28,8 @@ export async function replaceQueryVariables(
 ): Promise<string> {
   let processedQuery = query;
 
-  // Get current user from cached session
-  const { data: { session } } = await supabase.auth.getSession();
-  const user = session?.user || null;
+  // Get current user
+  const { data: { user } } = await supabase.auth.getUser();
   
   // Date helpers
   const today = new Date();

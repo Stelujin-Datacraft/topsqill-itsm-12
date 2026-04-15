@@ -84,8 +84,9 @@ export function useGroups() {
     mutationFn: async (data: CreateGroupData) => {
       if (!currentOrganization?.id) throw new Error('No organization selected');
       
-      const { data: { session } } = await supabase.auth.getSession();
-      const currentUserId = session?.user?.id;
+      // Get current user
+      const { data: userData } = await supabase.auth.getUser();
+      const currentUserId = userData.user?.id;
       
       if (!currentUserId) throw new Error('User not authenticated');
 
@@ -132,8 +133,9 @@ export function useGroups() {
 
   const updateGroupMutation = useMutation({
     mutationFn: async ({ groupId, data }: { groupId: string; data: CreateGroupData }) => {
-      const { data: { session } } = await supabase.auth.getSession();
-      const currentUserId = session?.user?.id;
+      // Get current user
+      const { data: userData } = await supabase.auth.getUser();
+      const currentUserId = userData.user?.id;
       
       if (!currentUserId) throw new Error('User not authenticated');
 

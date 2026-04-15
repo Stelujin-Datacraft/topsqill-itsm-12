@@ -51,9 +51,8 @@ export function useDataFeeds(projectId: string) {
 
   const createFeedMutation = useMutation({
     mutationFn: async (data: DataFeedFormData) => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) throw new Error('Not authenticated');
-      const user = session.user;
+      const { data: user } = await supabase.auth.getUser();
+      if (!user.user) throw new Error('Not authenticated');
 
       const { data: newFeed, error } = await supabase
         .from('data_feeds')
@@ -80,7 +79,7 @@ export function useDataFeeds(projectId: string) {
           schedule: data.schedule,
           is_active: data.is_active,
           project_id: projectId,
-          created_by: user.id,
+          created_by: user.user.id,
         } as any)
         .select()
         .single();

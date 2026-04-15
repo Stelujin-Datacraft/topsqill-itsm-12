@@ -2692,7 +2692,7 @@ async function executeInsertQuery(sql: string, loopContext?: LoopContext): Promi
         .insert({
           form_id: formId,
           submission_data: data,
-          submitted_by: (await supabase.auth.getSession()).data.session?.user?.id || 'system'
+          submitted_by: (await supabase.auth.getUser()).data.user?.id || 'system'
         })
         .select()
         .single();

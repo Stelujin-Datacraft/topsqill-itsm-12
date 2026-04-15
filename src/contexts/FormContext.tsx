@@ -96,12 +96,11 @@ export const FormProvider: React.FC<FormProviderProps> = ({ children }) => {
         return;
       }
 
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
         setForms([]);
         return;
       }
-      const user = session.user;
 
       const [projectUserResult, userProfileResult] = await Promise.all([
         supabase
@@ -186,11 +185,10 @@ export const FormProvider: React.FC<FormProviderProps> = ({ children }) => {
         throw new Error('No project selected');
       }
 
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
         throw new Error('No authenticated user');
       }
-      const user = session.user;
 
       const newFormData = {
         name: formData.name || 'Untitled Form',
@@ -306,11 +304,10 @@ export const FormProvider: React.FC<FormProviderProps> = ({ children }) => {
         throw new Error('Form not found');
       }
 
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
         throw new Error('No authenticated user');
       }
-      const user = session.user;
 
       const duplicateData = {
         ...transformAppFormToDatabaseForm(originalForm),

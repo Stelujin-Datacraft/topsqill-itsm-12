@@ -224,9 +224,9 @@ export function PolicyGeneratorDialog({
       const filename = `${formName.replace(/[^a-zA-Z0-9]/g, '_')}_${modeSuffix}_${new Date().toISOString().slice(0, 10)}.docx`;
 
       // Save to Supabase Storage
-      const { data: { session } } = await supabase.auth.getSession();
-      const userId = session?.user?.id;
-      const userEmail = session?.user?.email;
+      const { data: userData } = await supabase.auth.getUser();
+      const userId = userData?.user?.id;
+      const userEmail = userData?.user?.email;
       const filePath = `${organizationId || 'default'}/${formId}/${Date.now()}_${filename}`;
 
       const { error: uploadError } = await supabase.storage

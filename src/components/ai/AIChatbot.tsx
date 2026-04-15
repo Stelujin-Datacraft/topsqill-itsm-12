@@ -91,9 +91,8 @@ export function AIChatbot() {
    // Execute copilot action
    const executeCopilotAction = async (action: string, params: Record<string, any>) => {
      try {
-       const { data: { session } } = await supabase.auth.getSession();
-       if (!session?.user) throw new Error('Not authenticated');
-       const user = session.user;
+       const { data: { user } } = await supabase.auth.getUser();
+       if (!user) throw new Error('Not authenticated');
  
        const { data, error } = await supabase.functions.invoke('ai-copilot-action', {
          body: {
