@@ -549,7 +549,7 @@ export function FormViewLayoutRenderer({
       {/* Professional Form Content - independent scroll */}
       <div className={`print:col-span-1 ${navigationVisible && showNavigation ? "lg:col-span-3" : "lg:col-span-4"} h-full overflow-hidden flex flex-col`}>
         <Card className="flex-1 flex flex-col overflow-hidden bg-white dark:bg-gray-950">
-          <CardHeader className="pb-4 border-b bg-slate-50/80 dark:bg-gray-900/80 shrink-0">
+          <CardHeader className="px-6 py-4 border-b bg-slate-50/80 dark:bg-gray-900/80 shrink-0">
            <CardTitle className="flex flex-col gap-1">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
