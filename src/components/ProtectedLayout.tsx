@@ -10,6 +10,7 @@ import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { PageSkeleton } from '@/components/loading/PageSkeleton';
 import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
+import { preloadCriticalRoutes } from '@/utils/routePreloader';
 
 // Context to signal that we're inside ProtectedLayout
 // DashboardLayout checks this to avoid double-wrapping
