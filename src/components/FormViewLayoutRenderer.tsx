@@ -8,8 +8,7 @@ import { FormFieldsRenderer } from './FormFieldsRenderer';
 import { FormPagination } from './FormPagination';
 import { FormNavigationPanel } from './FormNavigationPanel';
 import { AIAutoFillInput } from './form-fields/AIAutoFillInput';
-import { CheckCircle, FileDown, ArrowLeft } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { CheckCircle, FileDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { PublicHeader } from './PublicHeader';
 import { RuleProcessor, RuleProcessingContext } from '@/utils/ruleProcessor';
@@ -31,7 +30,6 @@ export function FormViewLayoutRenderer({
   showNavigation = true,
   showPublicHeader = false 
 }: FormViewLayoutRendererProps) {
-  const navigate = useNavigate();
   const { user } = useAuth();
   // Initialize with draft from localStorage if available
   const [formData, setFormData] = useState<Record<string, any>>(() => {
@@ -549,7 +547,7 @@ export function FormViewLayoutRenderer({
       {/* Professional Form Content - independent scroll */}
       <div className={`print:col-span-1 ${navigationVisible && showNavigation ? "lg:col-span-3" : "lg:col-span-4"} h-full overflow-hidden flex flex-col`}>
         <Card className="flex-1 flex flex-col overflow-hidden bg-white dark:bg-gray-950">
-          <CardHeader className="px-6 py-4 border-b bg-slate-50/80 dark:bg-gray-900/80 shrink-0">
+          <CardHeader className="pb-4 border-b bg-slate-50/80 dark:bg-gray-900/80 shrink-0">
            <CardTitle className="flex flex-col gap-1">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
@@ -563,15 +561,6 @@ export function FormViewLayoutRenderer({
                   )}
                 </div>
                 <div className="flex items-center gap-2 shrink-0 print:hidden">
-                  <Button
-                    onClick={() => navigate(-1)}
-                    variant="outline"
-                    size="sm"
-                    className="flex items-center gap-1"
-                  >
-                    <ArrowLeft className="h-4 w-4" />
-                    Back
-                  </Button>
                   <AIAutoFillInput
                     formFields={Array.isArray(form.fields) ? form.fields : []}
                     currentValues={formData}
