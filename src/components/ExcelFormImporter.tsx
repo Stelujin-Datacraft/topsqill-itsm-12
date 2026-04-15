@@ -478,10 +478,12 @@ export function ExcelFormImporter({ onImport }: ExcelFormImporterProps) {
   return (
     <Dialog open={isOpen} onOpenChange={(open) => { setIsOpen(open); if (!open) resetState(); }}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="default" className="gap-2">
-          <FileSpreadsheet className="h-4 w-4" />
-          Import from Excel
-        </Button>
+        {children || (
+          <Button variant="outline" size="default" className="gap-2">
+            <FileSpreadsheet className="h-4 w-4" />
+            Import from Excel
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent className="max-w-4xl h-[90vh] flex flex-col overflow-hidden">        <DialogHeader>
         <DialogTitle className="flex items-center gap-2">
