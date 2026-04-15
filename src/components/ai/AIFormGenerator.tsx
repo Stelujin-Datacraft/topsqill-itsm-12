@@ -41,7 +41,7 @@ interface GeneratedForm {
 }
 
 interface AIFormGeneratorProps {
-  onApply: (form: GeneratedForm) => void;
+  onApply: (form: GeneratedForm) => void | Promise<void>;
   buttonLabel?: string;
   buttonVariant?: 'default' | 'outline' | 'ghost' | 'secondary';
   buttonSize?: 'default' | 'sm' | 'lg' | 'icon';
