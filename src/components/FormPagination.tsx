@@ -133,12 +133,12 @@ export function FormPagination({
           ref={scrollContainerRef}
           className="flex-1 overflow-x-auto scrollbar-hide min-w-0"
         >
-          <div className="flex gap-2 pb-1 justify-center">
+          <div className="flex pb-1" style={{ gap: pages.length <= 5 ? '0' : '4px' }}>
             {pages.map((page) => (
               <div
                 key={page.id}
                 data-page-id={page.id}
-                className="flex items-center group flex-shrink-0"
+                className={`flex items-center group ${pages.length <= 5 ? 'flex-1 min-w-0' : 'flex-shrink-0'}`}
               >
                 {editingPageId === page.id && !readOnly ? (
                   <div className="flex items-center gap-1 px-2 py-1">
@@ -166,7 +166,7 @@ export function FormPagination({
                     </Button>
                   </div>
                 ) : (
-                  <div className="flex items-center">
+                  <div className={`flex items-center ${pages.length <= 5 ? 'w-full' : ''}`}>
                     <Button
                       type="button"
                       variant={
@@ -174,7 +174,7 @@ export function FormPagination({
                       }
                       size="sm"
                       onClick={(e) => handlePageClick(e, page.id)}
-                      className="h-8 text-sm px-3 whitespace-nowrap"
+                      className={`h-9 text-sm px-4 whitespace-nowrap ${pages.length <= 5 ? 'w-full justify-center' : ''}`}
                     >
                       {page.name}
                     </Button>
