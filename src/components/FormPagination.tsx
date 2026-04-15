@@ -49,11 +49,9 @@ export function FormPagination({
   const canGoPrevious = currentPageIndex > 0;
   const canGoNext = currentPageIndex < pages.length - 1;
 
-  const isFewPages = pages.length <= 4;
-
-  // Auto-scroll for many pages only
+  // Auto-scroll active page into view
   useEffect(() => {
-    if (!isFewPages && scrollContainerRef.current && currentPageId) {
+    if (scrollContainerRef.current && currentPageId) {
       const activePageElement = scrollContainerRef.current.querySelector(
         `[data-page-id="${currentPageId}"]`
       );
@@ -76,7 +74,7 @@ export function FormPagination({
         });
       }
     }
-  }, [currentPageId, isFewPages]);
+  }, [currentPageId]);
 
   const handleStartEdit = (page: FormPage) => {
     if (readOnly) return;
