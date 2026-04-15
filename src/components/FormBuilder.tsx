@@ -99,9 +99,13 @@ function FormBuilderContent({
     if (state.isCreating && pages.length === 0) {
       // For new forms, create a default page
       state.setCurrentPageId('default');
-    } else if (pages.length > 0 && !state.currentPageId) {
-      console.log('Setting initial page:', pages[0].id);
-      state.setCurrentPageId(pages[0].id);
+    } else if (pages.length > 0) {
+      // Always default to first page if current page doesn't exist in this form's pages
+      const currentPageExists = pages.some(p => p.id === state.currentPageId);
+      if (!state.currentPageId || !currentPageExists) {
+        console.log('Setting initial page:', pages[0].id);
+        state.setCurrentPageId(pages[0].id);
+      }
     } else if (!state.isCreating && workingForm && pages.length === 0) {
       // If form exists but has no pages, create Page 1 automatically
       handleAddPage();

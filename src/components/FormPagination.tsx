@@ -49,11 +49,9 @@ export function FormPagination({
   const canGoPrevious = currentPageIndex > 0;
   const canGoNext = currentPageIndex < pages.length - 1;
 
-  const isFewPages = pages.length <= 4;
-
-  // Auto-scroll for many pages only
+  // Auto-scroll active page into view
   useEffect(() => {
-    if (!isFewPages && scrollContainerRef.current && currentPageId) {
+    if (scrollContainerRef.current && currentPageId) {
       const activePageElement = scrollContainerRef.current.querySelector(
         `[data-page-id="${currentPageId}"]`
       );
@@ -76,7 +74,7 @@ export function FormPagination({
         });
       }
     }
-  }, [currentPageId, isFewPages]);
+  }, [currentPageId]);
 
   const handleStartEdit = (page: FormPage) => {
     if (readOnly) return;
@@ -117,7 +115,7 @@ export function FormPagination({
   return (
     <div className="w-full">
       {/* Pagination */}
-      <div className="flex items-center gap-2 w-full">
+      <div className="flex items-center gap-1 w-full">
         {/* Left Arrow */}
         <Button
           type="button"
@@ -130,25 +128,17 @@ export function FormPagination({
           <ChevronLeft className="h-4 w-4" />
         </Button>
 
-        {/* Pages */}
+        {/* Pages - always scrollable to prevent overflow */}
         <div
           ref={scrollContainerRef}
-          className={`flex-1 ${
-            isFewPages ? '' : 'overflow-x-auto scrollbar-hide'
-          }`}
+          className="flex-1 overflow-x-auto scrollbar-hide min-w-0"
         >
-          <div
-            className={`flex pb-2 w-full ${
-              isFewPages
-                ? 'justify-evenly items-center'
-                : 'min-w-max gap-1'
-            }`}
-          >
+          <div className="flex gap-1 pb-1 w-max">
             {pages.map((page) => (
               <div
                 key={page.id}
                 data-page-id={page.id}
-                className="flex items-center group"
+                className="flex items-center group flex-shrink-0"
               >
                 {editingPageId === page.id && !readOnly ? (
                   <div className="flex items-center gap-1 px-2 py-1">
@@ -184,11 +174,7 @@ export function FormPagination({
                       }
                       size="sm"
                       onClick={(e) => handlePageClick(e, page.id)}
-                      className={`h-8 text-sm ${
-                        isFewPages
-                          ? 'px-4'
-                          : 'px-3 whitespace-nowrap'
-                      }`}
+                      className="h-8 text-sm px-3 whitespace-nowrap"
                     >
                       {page.name}
                     </Button>
