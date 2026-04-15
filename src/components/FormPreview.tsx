@@ -408,7 +408,7 @@ export function FormPreview({ form, showNavigation = false }: FormPreviewProps) 
 
   if (showNavigation) {
     return (
-      <div className={`grid gap-6 h-[calc(100vh-12rem)] ${
+      <div className={`grid gap-6 h-full ${
         navigationVisible 
           ? 'grid-cols-1 lg:grid-cols-4' 
           : 'grid-cols-1'
