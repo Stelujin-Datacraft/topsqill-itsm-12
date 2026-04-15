@@ -8,7 +8,8 @@ import { FormFieldsRenderer } from './FormFieldsRenderer';
 import { FormPagination } from './FormPagination';
 import { FormNavigationPanel } from './FormNavigationPanel';
 import { AIAutoFillInput } from './form-fields/AIAutoFillInput';
-import { CheckCircle, FileDown } from 'lucide-react';
+import { CheckCircle, FileDown, ArrowLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { PublicHeader } from './PublicHeader';
 import { RuleProcessor, RuleProcessingContext } from '@/utils/ruleProcessor';
@@ -30,6 +31,7 @@ export function FormViewLayoutRenderer({
   showNavigation = true,
   showPublicHeader = false 
 }: FormViewLayoutRendererProps) {
+  const navigate = useNavigate();
   const { user } = useAuth();
   // Initialize with draft from localStorage if available
   const [formData, setFormData] = useState<Record<string, any>>(() => {
@@ -561,6 +563,15 @@ export function FormViewLayoutRenderer({
                   )}
                 </div>
                 <div className="flex items-center gap-2 shrink-0 print:hidden">
+                  <Button
+                    onClick={() => navigate(-1)}
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center gap-1"
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                    Back
+                  </Button>
                   <AIAutoFillInput
                     formFields={Array.isArray(form.fields) ? form.fields : []}
                     currentValues={formData}
