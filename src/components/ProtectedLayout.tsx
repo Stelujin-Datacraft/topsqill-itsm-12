@@ -59,9 +59,20 @@ const ProtectedLayout: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const defaultDashboardChecked = useRef(false);
+  const preloadTriggered = useRef(false);
  
    // Enable real-time permission sync for authenticated users
    usePermissionRealtimeSync();
+
+  // Deferred route preloading - wait 3s after auth is confirmed, then preload in idle time
+  useEffect(() => {
+    if (!user || !userProfile || preloadTriggered.current) return;
+    preloadTriggered.current = true;
+    const timer = setTimeout(() => {
+      preloadCriticalRoutes();
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [user, userProfile]);
 
   // Auto-redirect to default dashboard on initial login (when landing on /dashboard)
   useEffect(() => {
