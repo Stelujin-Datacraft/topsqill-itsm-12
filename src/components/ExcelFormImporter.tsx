@@ -310,7 +310,7 @@ function generateTemplate() {
   toast.success('New sample template downloaded');
 }
 
-export function ExcelFormImporter({ onImport }: ExcelFormImporterProps) {
+export function ExcelFormImporter({ onImport, children }: ExcelFormImporterProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [parsedFields, setParsedFields] = useState<ParsedField[]>([]);
   const [formName, setFormName] = useState('');
