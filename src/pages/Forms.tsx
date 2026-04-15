@@ -100,8 +100,10 @@ const Forms = () => {
       type: string;
       required: boolean;
       placeholder?: string;
+      tooltip?: string;
       options?: Array<{ label: string; value: string }>;
       validation?: any;
+      isFullWidth?: boolean;
     }>;
     pages?: Array<{ name: string; description?: string; fieldIndexes: number[] }>;
     suggestedLayout?: 1 | 2 | 3;
@@ -176,6 +178,7 @@ const Forms = () => {
             placeholder: field.placeholder,
             options: mappedOptions,
             validation: field.validation,
+            tooltip: field.tooltip,
             pageId
           });
 
