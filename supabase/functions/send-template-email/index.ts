@@ -456,38 +456,33 @@ const handler = async (req: Request): Promise<Response> => {
     
     try {
       // Prepare email payload with TO, CC, and BCC
+      // denomailer requires individual send per recipient for reliability
+      // Send to each TO recipient individually, with CC/BCC on first send only
+      const fromField = smtpConfig.from_name 
+        ? `${smtpConfig.from_name} <${smtpConfig.from_email}>` 
+        : smtpConfig.from_email;
+
+      const allToRecipients = finalToRecipients.length > 0 
+        ? finalToRecipients 
+        : (finalCcRecipients.length > 0 ? [finalCcRecipients[0]] : (finalBccRecipients.length > 0 ? [finalBccRecipients[0]] : []));
+      
+      if (allToRecipients.length === 0) {
+        throw new Error('No recipients specified');
+      }
+
       const emailPayload: any = {
-        from: smtpConfig.from_name 
-          ? `${smtpConfig.from_name} <${smtpConfig.from_email}>` 
-          : smtpConfig.from_email,
-        to: finalToRecipients.length > 0 ? finalToRecipients.join(', ') : undefined,
-        cc: finalCcRecipients.length > 0 ? finalCcRecipients.join(', ') : undefined,
-        bcc: finalBccRecipients.length > 0 ? finalBccRecipients.join(', ') : undefined,
+        from: fromField,
+        to: allToRecipients.join(', '),
         subject: processedSubject,
         content: processedTextContent || processedHtmlContent.replace(/<[^>]*>/g, ''),
         html: processedHtmlContent,
       };
       
-      // Remove undefined fields
-      if (!emailPayload.to) delete emailPayload.to;
-      if (!emailPayload.cc) delete emailPayload.cc;
-      if (!emailPayload.bcc) delete emailPayload.bcc;
-      
-      // Ensure at least one recipient exists
-      if (!emailPayload.to && !emailPayload.cc && !emailPayload.bcc) {
-        throw new Error('No recipients specified');
+      if (finalCcRecipients.length > 0) {
+        emailPayload.cc = finalCcRecipients.join(', ');
       }
-      
-      // If no TO but has CC/BCC, we need at least one TO recipient
-      // Some SMTP servers require a TO field, so use the first CC as TO if needed
-      if (!emailPayload.to && finalCcRecipients.length > 0) {
-        emailPayload.to = finalCcRecipients[0];
-        emailPayload.cc = finalCcRecipients.length > 1 ? finalCcRecipients.slice(1).join(', ') : undefined;
-        if (!emailPayload.cc) delete emailPayload.cc;
-      } else if (!emailPayload.to && finalBccRecipients.length > 0) {
-        emailPayload.to = finalBccRecipients[0];
-        emailPayload.bcc = finalBccRecipients.length > 1 ? finalBccRecipients.slice(1).join(', ') : undefined;
-        if (!emailPayload.bcc) delete emailPayload.bcc;
+      if (finalBccRecipients.length > 0) {
+        emailPayload.bcc = finalBccRecipients.join(', ');
       }
       
       console.log('📧 Email payload:', {
