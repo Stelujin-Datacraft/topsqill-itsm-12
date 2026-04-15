@@ -734,52 +734,37 @@ export function DynamicTable({
 
     return await triggerWorkflowsForRecords(recordsToTrigger);
   };
-  const checkDeletePermission = async (submissionId: string): Promise<boolean> => {
-    try {
-      const {
-        data: submission
-      } = await supabase.from('form_submissions').select('form_id').eq('id', submissionId).single();
-      if (!submission) return false;
-      const {
-        data: form
-      } = await supabase.from('forms').select('created_by, organization_id').eq('id', submission.form_id).single();
-      if (!form) return false;
-      const {
-        data: user
-      } = await supabase.auth.getUser();
-      if (!user?.user) return false;
-      const {
-        data: profile
-      } = await supabase.from('user_profiles').select('email, role, organization_id').eq('id', user.user.id).single();
-      if (!profile) return false;
-      return form.created_by === profile.email || profile.role === 'admin' && form.organization_id === profile.organization_id;
-    } catch (error) {
-      console.error('Error checking delete permission:', error);
-      return false;
+  // Single permission check using already-loaded currentForm and userProfile from AuthContext
+  // Eliminates 3 redundant queries (form, auth.getUser, user_profiles) per check
+  const checkUserPermissions = useCallback(async () => {
+    if (!config.formId || !userProfile) {
+      setCanDeleteSubmissions(false);
+      return;
     }
-  };
-  const checkUserPermissions = async () => {
-    if (!config.formId) return;
     try {
-      const {
-        data: form
-      } = await supabase.from('forms').select('created_by, organization_id').eq('id', config.formId).single();
-      if (!form) return;
-      const {
-        data: user
-      } = await supabase.auth.getUser();
-      if (!user?.user) return;
-      const {
-        data: profile
-      } = await supabase.from('user_profiles').select('email, role, organization_id').eq('id', user.user.id).single();
-      if (!profile) return;
-      const canDelete = form.created_by === profile.email || profile.role === 'admin' && form.organization_id === profile.organization_id;
+      // Use currentForm if already loaded, otherwise fetch once
+      let formCreatedBy = currentForm?.createdBy;
+      let formOrgId = currentForm?.organizationId;
+      
+      if (!formCreatedBy) {
+        const { data: form } = await supabase
+          .from('forms')
+          .select('created_by, organization_id')
+          .eq('id', config.formId)
+          .single();
+        if (!form) { setCanDeleteSubmissions(false); return; }
+        formCreatedBy = form.created_by;
+        formOrgId = form.organization_id;
+      }
+
+      const canDelete = formCreatedBy === userProfile.email || 
+        (userProfile.role === 'admin' && formOrgId === userProfile.organization_id);
       setCanDeleteSubmissions(canDelete);
     } catch (error) {
       console.error('Error checking user permissions:', error);
       setCanDeleteSubmissions(false);
     }
-  };
+  }, [config.formId, userProfile, currentForm]);
   const loadFormFields = async () => {
     try {
       // Define excluded field types at the query level
