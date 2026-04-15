@@ -1,0 +1,1 @@
+UPDATE smtp_configs SET port = 465 WHERE id = '4d3ed0b4-e742-4d92-aaaa-7616bee9a045' AND host = 'smtp.gmail.com' AND port = 587;

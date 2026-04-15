@@ -549,7 +549,7 @@ const handler = async (req: Request): Promise<Response> => {
       console.error(`❌ Failed to send email:`, error);
       
       // Ensure connection is closed even on error
-      await smtpClient.close().catch(() => {});
+      try { await smtpClient.close(); } catch (_) { /* ignore close errors */ }
       
       // Log failed email
       const allRecipients = [...finalToRecipients, ...finalCcRecipients, ...finalBccRecipients];
