@@ -1,5 +1,6 @@
 import * as XLSX from 'xlsx';
 import { supabase } from '@/integrations/supabase/client';
+import { getCachedFormName as getSharedFormName, getCachedFormFields as getSharedFormFields } from '@/hooks/useCrossReferenceData';
 
 interface FieldMeta {
   id: string;
@@ -39,13 +40,10 @@ function extractRefIds(value: any): string[] {
   return [];
 }
 
-async function getFormFields(formId: string): Promise<FieldMeta[]> {
-  const { data } = await supabase
-    .from('form_fields')
-    .select('id, label, field_type, options, custom_config')
-    .eq('form_id', formId)
-    .order('field_order');
-  return (data || []).map(f => ({
+// Use shared caches from useCrossReferenceData instead of separate caches
+async function getCachedFields(formId: string): Promise<FieldMeta[]> {
+  const fields = await getSharedFormFields(formId);
+  return fields.map(f => ({
     id: f.id,
     label: f.label,
     fieldType: f.field_type,
@@ -54,27 +52,8 @@ async function getFormFields(formId: string): Promise<FieldMeta[]> {
   }));
 }
 
-async function getFormName(formId: string): Promise<string> {
-  const { data } = await supabase.from('forms').select('name').eq('id', formId).single();
-  return data?.name || 'Unknown Form';
-}
-
-// Cache for form fields to avoid re-fetching
-const fieldCache = new Map<string, FieldMeta[]>();
-const nameCache = new Map<string, string>();
-
-async function getCachedFields(formId: string): Promise<FieldMeta[]> {
-  if (!fieldCache.has(formId)) {
-    fieldCache.set(formId, await getFormFields(formId));
-  }
-  return fieldCache.get(formId)!;
-}
-
 async function getCachedFormName(formId: string): Promise<string> {
-  if (!nameCache.has(formId)) {
-    nameCache.set(formId, await getFormName(formId));
-  }
-  return nameCache.get(formId)!;
+  return (await getSharedFormName(formId)) || 'Unknown Form';
 }
 
 /**
