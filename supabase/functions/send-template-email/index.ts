@@ -438,11 +438,15 @@ const handler = async (req: Request): Promise<Response> => {
     const emailResults = [];
     
     // Create SMTP client
+    // Port 587 uses STARTTLS (tls: false in denomailer), Port 465 uses implicit TLS (tls: true)
+    const useDirectTls = smtpConfig.port === 465;
+    console.log(`🔒 SMTP TLS config: port=${smtpConfig.port}, useDirectTls=${useDirectTls}`);
+    
     const smtpClient = new SMTPClient({
       connection: {
         hostname: smtpConfig.host,
         port: smtpConfig.port,
-        tls: smtpConfig.use_tls,
+        tls: useDirectTls,
         auth: {
           username: smtpConfig.username,
           password: smtpConfig.password,
