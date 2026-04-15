@@ -2,6 +2,7 @@ import React, { useState, useRef, useCallback } from 'react';
 import html2canvas from 'html2canvas';
 import PizZip from 'pizzip';
 import { supabase } from '@/integrations/supabase/client';
+import { getCachedFormName, getCachedFormFields } from '@/hooks/useCrossReferenceData';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Edit, Trash2, Save, Send, Archive, History, CheckCircle, Clock, FileText, Download, Plus, AlertOctagon, CalendarClock, Shield, BookOpen, Upload, Loader2, FileDown, Users, Eye, EyeOff, RotateCcw, MessageSquare, GripVertical } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd';
