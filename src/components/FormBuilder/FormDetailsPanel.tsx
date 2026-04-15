@@ -156,7 +156,7 @@ export function FormDetailsPanel({
 
   // If showing form details, render the details section
   if (showFormDetails) {
-    return <div className="h-full px-4 pb-6 bg-white overflow-y-auto">
+    return <div className="h-full px-6 pb-6 bg-white overflow-y-auto">
         <FormDetailsSection formName={formName} setFormName={setFormName} formDescription={formDescription} setFormDescription={setFormDescription} currentForm={currentForm} />
       </div>;
   }
