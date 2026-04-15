@@ -252,8 +252,8 @@ const FormView = () => {
 
     return (
       <div className="h-screen bg-background flex flex-col overflow-hidden">
-        <div className="flex-1 bg-muted/20 overflow-hidden min-h-0">
-          <div className="max-w-full mx-auto h-full">
+        <div className="flex-1 overflow-hidden min-h-0">
+          <div className="h-full">
             <FormViewLayoutRenderer 
               form={form}
               onSubmit={onFormSubmit}
@@ -261,7 +261,7 @@ const FormView = () => {
               showPublicHeader={false}
             />
           </div>
-        </div>      
+        </div>
       </div>
     );
   }
@@ -397,8 +397,8 @@ const FormView = () => {
 
   return (
       <div className="h-screen bg-background flex flex-col overflow-hidden">
-        <div className="flex-1 bg-muted/20 overflow-hidden min-h-0">
-          <div className="max-w-full mx-auto h-full">
+        <div className="flex-1 overflow-hidden min-h-0">
+          <div className="h-full">
             <FormViewLayoutRenderer 
               form={form}
               onSubmit={onFormSubmit}
@@ -406,7 +406,7 @@ const FormView = () => {
               showPublicHeader={false}
             />
           </div>
-        </div>    
+        </div>
       </div>
   );
 };
