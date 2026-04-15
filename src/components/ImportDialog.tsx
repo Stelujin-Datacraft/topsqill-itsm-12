@@ -348,9 +348,9 @@ export function ImportDialog({ isOpen, onOpenChange, formId, formFields, onImpor
     try {
       setIsProcessing(true);
 
-      // Get current user once
-      const { data: userData } = await supabase.auth.getUser();
-      const currentUserId = userData.user?.id;
+      // Get current user from cached session
+      const { data: { session } } = await supabase.auth.getSession();
+      const currentUserId = session?.user?.id;
 
       const submissions = csvData.rows.map(row => {
         const submissionData: Record<string, any> = {};
