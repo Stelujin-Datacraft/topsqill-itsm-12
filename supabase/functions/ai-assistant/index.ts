@@ -959,13 +959,18 @@ PAGE STRUCTURE:
 - Each page: 6-12 fields including structural elements
 - Every page starts with a "header" field`;
 
-        userPrompt = `Generate a professional, well-structured form based on this request:
+        userPrompt = `Generate a COMPREHENSIVE, professional form based on this request. Even if the prompt is short, infer ALL related fields a domain expert would include.
 
 Request: "${context.userInput}"
 Purpose: ${context.formPurpose || 'General purpose form'}
 Industry: ${context.industry || 'General'}
 
-IMPORTANT: Create a form that looks professional with proper section headers, descriptions, and logical grouping. Use structural elements (header, description, section-break, horizontal-line) to create visual hierarchy.
+IMPORTANT: 
+- Generate 20-40+ data fields covering every aspect of the topic
+- Use diverse field types (NOT just text — use email, phone, date, select, multi-select, toggle-switch, currency, rating, signature, file, country, address, tags, etc.)
+- Create 3-5 pages with logical grouping
+- Include structural elements (header, description, section-break, horizontal-line) for professional layout
+- Think: What would a real company's version of this form look like? Include EVERYTHING.
 
 Return JSON with this exact format:
 {
