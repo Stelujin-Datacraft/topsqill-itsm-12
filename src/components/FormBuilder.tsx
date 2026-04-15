@@ -489,7 +489,7 @@ function FormBuilderContent({
             </div>
 
             {/* Form Details Tab */}
-            <TabsContent value="details" className="p-0 flex-1 overflow-y-auto min-h-0 mt-0 border-t-0">
+            <TabsContent value="details" className="p-0 pt-4 flex-1 overflow-y-auto min-h-0 mt-0">
               <FormDetailsPanel formName={workingForm?.name || state.formName} setFormName={name => {
               state.setFormName(name);
               updateFormDetails({
@@ -506,7 +506,7 @@ function FormBuilderContent({
             }} onFieldDelete={fieldOperations.handleFieldDelete} onDragEnd={fieldOperations.handleDragEnd} showFormDetails={true} setShowFormDetails={() => {}} />
             </TabsContent>
 
-            <TabsContent value="builder" className="p-0 flex-1 overflow-hidden mt-0 min-h-0 data-[state=active]:flex data-[state=active]:flex-col">
+            <TabsContent value="builder" className="p-0 pt-4 flex-1 overflow-hidden mt-0 min-h-0 data-[state=active]:flex data-[state=active]:flex-col">
               <div className="grid grid-cols-12 flex-1 min-h-0 gap-0">
                 {/* Left Panel - Navigation (Fixed) */}
                 <div className={`${state.isNavigationCollapsed ? 'col-span-1' : 'col-span-3'} border-r bg-muted/30 overflow-y-auto flex flex-col transition-all duration-200`}>
@@ -597,8 +597,8 @@ function FormBuilderContent({
               </WorkingFormProvider>
             </TabsContent>
 
-            <TabsContent value="rules" className="p-0 flex-1 overflow-y-auto min-h-0 mt-0">
-              <div className="space-y-4 p-6">
+            <TabsContent value="rules" className="p-0 pt-4 flex-1 overflow-y-auto min-h-0 mt-0">
+              <div className="space-y-4 pb-6">
                 {workingForm && (
                   <div className="rounded-lg border bg-card px-4 py-3 shadow-sm">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -660,7 +660,7 @@ function FormBuilderContent({
               </div>
             </TabsContent>
 
-            <TabsContent value="preview" className="p-0 flex-1 overflow-hidden min-h-0 mt-0">
+            <TabsContent value="preview" className="p-0 pt-4 flex-1 overflow-hidden min-h-0 mt-0">
               {workingForm ? <div className="h-full overflow-hidden">
                   <FormPreview form={workingForm} showNavigation={true} />
                 </div> : <Card className="bg-white shadow-sm">
@@ -670,8 +670,8 @@ function FormBuilderContent({
                 </Card>}
             </TabsContent>
 
-            <TabsContent value="submissions" className="p-0 flex-1 overflow-y-auto min-h-0 mt-0">
-              {currentForm ? <div className="bg-white">
+            <TabsContent value="submissions" className="p-0 pt-4 flex-1 overflow-y-auto min-h-0 mt-0">
+              {currentForm ? <div className="bg-white rounded-lg shadow-sm border border-gray-200">
                   <FormSubmissions form={currentForm} />
                 </div> : <Card className="bg-white shadow-sm">
                   <CardContent className="py-12 text-center">
@@ -680,8 +680,8 @@ function FormBuilderContent({
                 </Card>}
             </TabsContent>
 
-            <TabsContent value="access" className="p-0 flex-1 overflow-y-auto min-h-0 mt-0">
-              {currentForm ? <div className="bg-white p-6">
+            <TabsContent value="access" className="p-0 pt-4 flex-1 overflow-y-auto min-h-0 mt-0">
+              {currentForm ? <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                   <FormUserAccess form={currentForm} onUpdateForm={updates => updateForm(currentForm.id, updates)} />
                 </div> : <Card className="bg-white shadow-sm">
                   <CardContent className="py-12 text-center">
