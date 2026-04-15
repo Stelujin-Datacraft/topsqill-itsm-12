@@ -911,89 +911,108 @@ Return JSON:
       // NEW: Form Generation
       case 'generate-form':
         temperature = 0.4;
-        maxTokens = 3000;
+        maxTokens = 4000;
         
-        systemPrompt = `You are an expert form designer. Generate complete form schemas from natural language descriptions.
+        systemPrompt = `You are an expert enterprise form designer who creates professional, well-structured forms. Generate complete form schemas from natural language descriptions.
 
-Rules:
-- Create well-structured forms with appropriate field types
-- Include validation rules where applicable
-- Group related fields logically
-- Consider user experience and flow
-- Add helpful placeholders and tooltips
-- For select/radio fields, include sensible options
-- CRITICAL: You must ONLY use the exact field types listed below. Do NOT invent new types.
+DESIGN PRINCIPLES:
+1. ALWAYS start each logical section with a "header" field as a section title, followed by a "description" field for context when useful
+2. Use "section-break" between major sections for clear visual separation
+3. Use "horizontal-line" for subtle visual breaks within sections
+4. Group related fields together logically (e.g., personal info, contact details, address)
+5. For forms with 8+ fields, split into multiple pages with descriptive page names
+6. Use 2-column layout for forms with many short fields (name, email, phone), 1-column for complex fields (textarea, address)
+7. Mark only truly essential fields as required — don't over-require
+8. Add meaningful placeholders that show expected format (e.g., "+91 98765 43210", "john.doe@company.com")
+9. Add tooltips for fields that might confuse users
+10. For select/radio fields, provide comprehensive real-world options (at least 4-6 options)
+11. Use appropriate field types: email for emails, phone for phones, date for dates, currency for money, rating for satisfaction, signature for approvals
+12. Include validation rules: min/max for numbers, minLength/maxLength for text, patterns for specific formats
 
-Available field types (use EXACTLY these values):
-- text: Single line text input
-- textarea: Multi-line text input
-- number: Numeric input
-- email: Email with validation
-- phone: Phone number
-- date: Date picker
-- time: Time picker
-- datetime: Date and time picker
-- select: Dropdown selection
-- multi-select: Multiple selection dropdown
-- radio: Radio button group
-- checkbox: Checkbox (for multiple options, use multiple checkboxes)
-- toggle-switch: On/off toggle switch
-- file: File upload
-- image: Image upload
-- signature: Signature capture
-- rating: Star rating
-- slider: Range slider
-- header: Section header/title
-- description: Help text or description
-- horizontal-line: Visual separator
-- section-break: Section break with title
-- tags: Tag input
-- country: Country selector
-- address: Address input
-- currency: Currency input
-- url: URL input
-- color: Color picker
-- barcode: Barcode scanner`;
+STRUCTURAL FIELD USAGE:
+- "header": Use as section titles (e.g., "Personal Information", "Emergency Contact", "Preferences"). These create visual hierarchy.
+- "description": Use after headers to provide instructions or context (e.g., "Please provide your current residential address")
+- "section-break": Use between major form sections for clear visual breaks with a title
+- "horizontal-line": Use as subtle dividers within a section
 
-        userPrompt = `Generate a complete form schema based on this request:
+FIELD TYPE REFERENCE (use EXACTLY these values):
+Layout/Display: header, description, section-break, horizontal-line
+Text: text, textarea, email, url, phone, address
+Numbers: number, slider, rating, currency
+Date/Time: date, time, datetime
+Selection: select, multi-select, radio, checkbox, toggle-switch
+Media: file, image, signature
+Special: tags, country, color, barcode
+
+PAGE STRUCTURE GUIDELINES:
+- Page 1: Core/primary information (personal details, main purpose)
+- Page 2: Secondary details (preferences, additional info)
+- Page 3+: Supplementary sections (attachments, agreements, review)
+- Each page should have 5-10 fields (including structural fields like headers)
+- Every page should start with a "header" field as the page title`;
+
+        userPrompt = `Generate a professional, well-structured form based on this request:
 
 Request: "${context.userInput}"
 Purpose: ${context.formPurpose || 'General purpose form'}
 Industry: ${context.industry || 'General'}
 
-Return JSON with format:
+IMPORTANT: Create a form that looks professional with proper section headers, descriptions, and logical grouping. Use structural elements (header, description, section-break, horizontal-line) to create visual hierarchy.
+
+Return JSON with this exact format:
 {
-  "name": "Suggested Form Name",
-  "description": "Clear description of the form's purpose",
+  "name": "Professional Form Name",
+  "description": "Clear description of the form's purpose and who should fill it",
   "fields": [
     {
-      "type": "field_type",
+      "type": "header",
+      "label": "Section Title",
+      "required": false
+    },
+    {
+      "type": "description",
+      "label": "Helpful instructions for this section",
+      "required": false
+    },
+    {
+      "type": "text",
       "label": "Field Label",
-      "required": true|false,
-      "placeholder": "Helpful placeholder text",
-      "tooltip": "Help text for users",
-      "options": [{"value": "opt1", "label": "Option 1"}] // for select/radio/checkbox-group only
-      "validation": {
-        "min": number, // for number/slider
-        "max": number,
-        "minLength": number, // for text
-        "maxLength": number,
-        "pattern": "regex" // for text
-      },
-      "defaultValue": "optional default",
-      "isFullWidth": true|false
+      "required": true,
+      "placeholder": "e.g., John Doe",
+      "tooltip": "Enter your full legal name as it appears on official documents",
+      "validation": { "minLength": 2, "maxLength": 100 },
+      "isFullWidth": false
+    },
+    {
+      "type": "select",
+      "label": "Department",
+      "required": true,
+      "options": [{"value": "engineering", "label": "Engineering"}, {"value": "hr", "label": "Human Resources"}]
     }
   ],
   "pages": [
     {
-      "name": "Page Name",
-      "description": "Page description",
-      "fieldIndexes": [0, 1, 2] // indexes of fields on this page
+      "name": "Basic Information",
+      "description": "Core details and primary information",
+      "fieldIndexes": [0, 1, 2, 3]
+    },
+    {
+      "name": "Additional Details",
+      "description": "Secondary information and preferences",
+      "fieldIndexes": [4, 5, 6, 7]
     }
   ],
-  "suggestedLayout": 1|2|3, // recommended column layout
-  "estimatedCompletionTime": "5 minutes"
-}`;
+  "suggestedLayout": 2,
+  "estimatedCompletionTime": "5-8 minutes"
+}
+
+Remember:
+- Start each section/page with a "header" field
+- Add "description" fields for user guidance
+- Use "horizontal-line" or "section-break" between groups
+- Include realistic options for select/radio fields (4-6 minimum)
+- Set isFullWidth: true for textarea, address, description, header, section-break, horizontal-line
+- Set isFullWidth: false for short fields like text, email, phone, date, select in 2+ column layouts`;
         break;
 
       // NEW: Workflow Suggestions
