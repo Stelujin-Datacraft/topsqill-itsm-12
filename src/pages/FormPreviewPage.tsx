@@ -39,15 +39,13 @@ const FormPreviewPage = () => {
 
   return (
     <DashboardLayout title={`Preview: ${form.name}`} actions={headerActions}>
-      <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
-        <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg dark:bg-blue-900/20 dark:border-blue-800 shrink-0">
+      <div className="space-y-4">
+        <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg dark:bg-blue-900/20 dark:border-blue-800">
           <p className="text-blue-800 font-medium dark:text-blue-200">Preview Mode</p>
           <p className="text-blue-600 text-sm dark:text-blue-300">This is a preview of your form. Submissions will not be saved.</p>
         </div>
         
-        <div className="flex-1 min-h-0 overflow-hidden mt-4">
-          <FormPreview form={form} showNavigation={true} />
-        </div>
+        <FormPreview form={form} />
       </div>
     </DashboardLayout>
   );
