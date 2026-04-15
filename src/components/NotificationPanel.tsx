@@ -24,9 +24,16 @@ interface ExtendedNotification {
 }
 
 export function NotificationPanel() {
-  const { notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification, deleteAllRead } = useNotifications();
+  const { notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification, deleteAllRead, loadNotifications } = useNotifications();
   const { acceptInvitation, rejectInvitation } = useUserInvitations();
   const [open, setOpen] = useState(false);
+
+  const handleOpenChange = (isOpen: boolean) => {
+    setOpen(isOpen);
+    if (isOpen) {
+      loadNotifications();
+    }
+  };
   const [activeTab, setActiveTab] = useState<'unread' | 'read'>('unread');
   const navigate = useNavigate();
 
@@ -209,7 +216,7 @@ export function NotificationPanel() {
   );
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         <Button variant="ghost" size="sm" className="relative hover:bg-muted/80 transition-colors">
           <Bell className="h-4 w-4" />
