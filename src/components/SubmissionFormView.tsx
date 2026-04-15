@@ -320,7 +320,7 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
       // Set approval timestamp and user for approved/rejected statuses
       if (newStatus === 'approved' || newStatus === 'rejected') {
         updateData.approval_timestamp = new Date().toISOString();
-        updateData.approved_by = (await supabase.auth.getUser()).data.user?.id;
+        updateData.approved_by = (await supabase.auth.getSession()).data.session?.user?.id;
       } else {
         // Clear approval data for other statuses
         updateData.approval_timestamp = null;

@@ -2,6 +2,7 @@ import React, { useState, useRef, useCallback } from 'react';
 import html2canvas from 'html2canvas';
 import PizZip from 'pizzip';
 import { supabase } from '@/integrations/supabase/client';
+import { getCachedFormName, getCachedFormFields } from '@/hooks/useCrossReferenceData';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Edit, Trash2, Save, Send, Archive, History, CheckCircle, Clock, FileText, Download, Plus, AlertOctagon, CalendarClock, Shield, BookOpen, Upload, Loader2, FileDown, Users, Eye, EyeOff, RotateCcw, MessageSquare, GripVertical } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd';
@@ -686,12 +687,12 @@ const PolicyDetail = () => {
       if (!policy.form_id) return;
       try {
         const displayFormat = dynamicFieldsFormat;
-        const [formRes, fieldsRes, subsRes] = await Promise.all([
-          supabase.from('forms').select('name').eq('id', policy.form_id).single(),
+        const [formName, fieldsRes, subsRes] = await Promise.all([
+          getCachedFormName(policy.form_id),
           supabase.from('form_fields').select('id, label, field_type, options, field_order, custom_config').eq('form_id', policy.form_id).order('field_order'),
           supabase.from('form_submissions').select('id, submission_ref_id, submission_data').eq('form_id', policy.form_id).order('submitted_at', { ascending: true }),
         ]);
-        const formName = formRes.data?.name || 'Linked Form';
+        const resolvedFormName = formName || 'Linked Form';
         const allFields = (fieldsRes.data || []).filter(f => !['section', 'divider', 'heading', 'paragraph', 'spacer', 'page-break'].includes(f.field_type));
         const selectedFieldIds = policy.content?.selected_field_ids as string[] | undefined;
         const selectedRecordIds = policy.content?.selected_record_ids as string[] | undefined;
@@ -719,14 +720,14 @@ const PolicyDetail = () => {
             if (data) data.forEach(r => { linkedRecords[r.id] = r; });
           }
           const formIds = [...new Set(Object.values(linkedRecords).map((r: any) => r.form_id))];
-          for (const fid of formIds) {
-            const { data: ff } = await supabase.from('form_fields').select('id, label, field_type').eq('form_id', fid).order('field_order');
-            if (ff) {
-              linkedFieldLabels[fid] = {};
-              ff.filter(f => !['section','divider','heading','paragraph','spacer','page-break','child-cross-reference'].includes(f.field_type))
-                .forEach(f => { linkedFieldLabels[fid][f.id] = f.label; });
-            }
-          }
+          // Use cached form fields instead of individual queries
+          await Promise.all(formIds.map(async fid => {
+            const cachedFields = await getCachedFormFields(fid);
+            linkedFieldLabels[fid] = {};
+            cachedFields
+              .filter(f => !['section','divider','heading','paragraph','spacer','page-break','child-cross-reference'].includes(f.field_type))
+              .forEach(f => { linkedFieldLabels[fid][f.id] = f.label; });
+          }));
         }
 
         const pdfResolveCrossRef = (value: any): string => {
@@ -761,7 +762,7 @@ const PolicyDetail = () => {
           yPos += 8;
           ensureSpace(30);
           doc.setFontSize(13);
-          doc.text(`Dynamic Data — ${formName}`, 14, yPos);
+          doc.text(`Dynamic Data — ${resolvedFormName}`, 14, yPos);
           yPos += 8;
 
           submissions.forEach((sub: any, idx: number) => {
@@ -1398,21 +1399,21 @@ const PolicyDetail = () => {
       const linkedRecords: Record<string, any> = {};
       const linkedFieldLabels: Record<string, Record<string, string>> = {};
       if (linkedIds.size > 0) {
-        const ids = Array.from(linkedIds);
-        for (let i = 0; i < ids.length; i += 50) {
-          const { data } = await supabase.from('form_submissions').select('id,submission_ref_id,submission_data,form_id').in('id', ids.slice(i, i + 50));
-          if (data) data.forEach(r => { linkedRecords[r.id] = r; });
-        }
-        const formIds = [...new Set(Object.values(linkedRecords).map((r: any) => r.form_id))];
-        for (const fid of formIds) {
-          const { data: ff } = await supabase.from('form_fields').select('id,label,field_type').eq('form_id', fid).order('field_order');
-          if (ff) {
-            linkedFieldLabels[fid] = {};
-            ff.filter(f => !['section', 'divider', 'heading', 'paragraph', 'spacer', 'page-break', 'child-cross-reference'].includes(f.field_type))
-              .forEach(f => { linkedFieldLabels[fid][f.id] = f.label; });
+          const ids = Array.from(linkedIds);
+          for (let i = 0; i < ids.length; i += 50) {
+            const { data } = await supabase.from('form_submissions').select('id,submission_ref_id,submission_data,form_id').in('id', ids.slice(i, i + 50));
+            if (data) data.forEach(r => { linkedRecords[r.id] = r; });
           }
+          const formIds = [...new Set(Object.values(linkedRecords).map((r: any) => r.form_id))];
+          // Use cached form fields instead of individual queries
+          await Promise.all(formIds.map(async fid => {
+            const cachedFields = await getCachedFormFields(fid);
+            linkedFieldLabels[fid] = {};
+            cachedFields
+              .filter(f => !['section', 'divider', 'heading', 'paragraph', 'spacer', 'page-break', 'child-cross-reference'].includes(f.field_type))
+              .forEach(f => { linkedFieldLabels[fid][f.id] = f.label; });
+          }));
         }
-      }
 
       const resolveCrossRef = (v: any): string => {
         if (!v) return '\u2014';

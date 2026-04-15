@@ -106,7 +106,7 @@ function requestSubmissionBatch(formId: string, refIds: string[]): Promise<any[]
   });
 }
 
-async function getCachedFormName(formId: string): Promise<string | null> {
+export async function getCachedFormName(formId: string): Promise<string | null> {
   const cached = formNameCache.get(formId);
   if (cached && Date.now() - cached.ts < CACHE_TTL) return cached.name;
 
@@ -128,7 +128,7 @@ async function getCachedFormName(formId: string): Promise<string | null> {
   return promise;
 }
 
-async function getCachedFormFields(formId: string): Promise<any[]> {
+export async function getCachedFormFields(formId: string): Promise<any[]> {
   const cached = formFieldsCache.get(formId);
   if (cached && Date.now() - cached.ts < CACHE_TTL) return cached.fields;
 

@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Loader2, GitBranch, ExternalLink, Download, Image, FileImage } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { supabase } from '@/integrations/supabase/client';
+import { getCachedFormName as getSharedFormName, getCachedFormFields as getSharedFormFields } from '@/hooks/useCrossReferenceData';
 import { useForm } from '@/contexts/FormContext';
 import { useProject } from '@/contexts/ProjectContext';
 import { exportAsPng, exportAsSvg } from '@/utils/diagramExport';
@@ -70,8 +71,7 @@ async function getCrossRefFields(formId: string) {
 
 async function getFormName(formId: string): Promise<string> {
   if (formNameCache[formId]) return formNameCache[formId];
-  const { data } = await supabase.from('forms').select('name').eq('id', formId).single();
-  const name = data?.name || 'Unknown';
+  const name = (await getSharedFormName(formId)) || 'Unknown';
   formNameCache[formId] = name;
   formPrefixCache[formId] = getFormPrefix(name);
   return name;
@@ -79,9 +79,9 @@ async function getFormName(formId: string): Promise<string> {
 
 async function getFieldLabels(formId: string): Promise<Record<string, string>> {
   if (formFieldLabelsCache[formId]) return formFieldLabelsCache[formId];
-  const { data } = await supabase.from('form_fields').select('id, label').eq('form_id', formId);
+  const fields = await getSharedFormFields(formId);
   const labels: Record<string, string> = {};
-  (data || []).forEach(f => { labels[f.id] = f.label; });
+  fields.forEach(f => { labels[f.id] = f.label; });
   formFieldLabelsCache[formId] = labels;
   return labels;
 }
