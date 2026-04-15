@@ -456,9 +456,9 @@ const handler = async (req: Request): Promise<Response> => {
         from: smtpConfig.from_name 
           ? `${smtpConfig.from_name} <${smtpConfig.from_email}>` 
           : smtpConfig.from_email,
-        to: finalToRecipients.length > 0 ? finalToRecipients.map(e => ({ email: e })) : undefined,
-        cc: finalCcRecipients.length > 0 ? finalCcRecipients.map(e => ({ email: e })) : undefined,
-        bcc: finalBccRecipients.length > 0 ? finalBccRecipients.map(e => ({ email: e })) : undefined,
+        to: finalToRecipients.length > 0 ? finalToRecipients.join(', ') : undefined,
+        cc: finalCcRecipients.length > 0 ? finalCcRecipients.join(', ') : undefined,
+        bcc: finalBccRecipients.length > 0 ? finalBccRecipients.join(', ') : undefined,
         subject: processedSubject,
         content: processedTextContent || processedHtmlContent.replace(/<[^>]*>/g, ''),
         html: processedHtmlContent,
