@@ -957,7 +957,7 @@ PAGE STRUCTURE:
 - Page 4: Documents, attachments, agreements
 - Page 5: Review, sign-off, declarations
 - Each page: 6-12 fields including structural elements
-- Every page starts with a "header" field`;
+- Every page starts with a "header" field (NOT a section-break — never use section-break as the first field on any page, it creates an ugly gap at the top)`;
 
         userPrompt = `Generate a COMPREHENSIVE, professional form based on this request. Even if the prompt is short, infer ALL related fields a domain expert would include.
 

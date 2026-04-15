@@ -41,7 +41,7 @@ interface GeneratedForm {
 }
 
 interface AIFormGeneratorProps {
-  onApply: (form: GeneratedForm) => void;
+  onApply: (form: GeneratedForm) => void | Promise<void>;
   buttonLabel?: string;
   buttonVariant?: 'default' | 'outline' | 'ghost' | 'secondary';
   buttonSize?: 'default' | 'sm' | 'lg' | 'icon';
@@ -107,17 +107,25 @@ export function AIFormGenerator({
     }
   };
 
-  const handleApply = () => {
+  const [isApplying, setIsApplying] = useState(false);
+
+  const handleApply = async () => {
     if (generatedForm) {
-      // Ensure fields is always an array before passing to parent
-      const safeForm = {
-        ...generatedForm,
-        fields: Array.isArray(generatedForm.fields) ? generatedForm.fields : [],
-      };
-      onApply(safeForm);
-      setIsOpen(false);
-      resetForm();
-      toast.success('Form schema applied');
+      setIsApplying(true);
+      try {
+        const safeForm = {
+          ...generatedForm,
+          fields: Array.isArray(generatedForm.fields) ? generatedForm.fields : [],
+        };
+        await onApply(safeForm);
+        setIsOpen(false);
+        resetForm();
+        toast.success('Form created successfully!');
+      } catch (error) {
+        toast.error('Failed to create form');
+      } finally {
+        setIsApplying(false);
+      }
     }
   };
 
@@ -297,12 +305,21 @@ export function AIFormGenerator({
 
             {generatedForm && (
               <div className="flex gap-2">
-                <Button variant="outline" onClick={handleGenerate} disabled={isLoading} className="flex-1">
+                <Button variant="outline" onClick={handleGenerate} disabled={isLoading || isApplying} className="flex-1">
                   Regenerate
                 </Button>
-                <Button onClick={handleApply} className="flex-1">
-                  <Check className="h-4 w-4 mr-2" />
-                  Apply Form
+                <Button onClick={handleApply} disabled={isApplying} className="flex-1">
+                  {isApplying ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Creating Form...
+                    </>
+                  ) : (
+                    <>
+                      <Check className="h-4 w-4 mr-2" />
+                      Apply Form
+                    </>
+                  )}
                 </Button>
               </div>
             )}
