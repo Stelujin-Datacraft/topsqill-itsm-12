@@ -107,17 +107,25 @@ export function AIFormGenerator({
     }
   };
 
-  const handleApply = () => {
+  const [isApplying, setIsApplying] = useState(false);
+
+  const handleApply = async () => {
     if (generatedForm) {
-      // Ensure fields is always an array before passing to parent
-      const safeForm = {
-        ...generatedForm,
-        fields: Array.isArray(generatedForm.fields) ? generatedForm.fields : [],
-      };
-      onApply(safeForm);
-      setIsOpen(false);
-      resetForm();
-      toast.success('Form schema applied');
+      setIsApplying(true);
+      try {
+        const safeForm = {
+          ...generatedForm,
+          fields: Array.isArray(generatedForm.fields) ? generatedForm.fields : [],
+        };
+        await onApply(safeForm);
+        setIsOpen(false);
+        resetForm();
+        toast.success('Form created successfully!');
+      } catch (error) {
+        toast.error('Failed to create form');
+      } finally {
+        setIsApplying(false);
+      }
     }
   };
 
