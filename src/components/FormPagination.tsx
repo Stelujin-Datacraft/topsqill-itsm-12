@@ -133,7 +133,7 @@ export function FormPagination({
           ref={scrollContainerRef}
           className="flex-1 overflow-x-auto scrollbar-hide min-w-0"
         >
-          <div className="flex gap-1 pb-1 w-max">
+          <div className="flex gap-2 pb-1 justify-center">
             {pages.map((page) => (
               <div
                 key={page.id}
