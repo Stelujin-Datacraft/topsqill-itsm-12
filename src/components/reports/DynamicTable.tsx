@@ -516,9 +516,20 @@ export function DynamicTable({
   // useEffect hooks
   useEffect(() => {
     if (config.formId) {
-      loadData();
-      loadFormFields();
-      checkUserPermissions();
+      // Reset state immediately for instant visual feedback on form switch
+      setData([]);
+      setFormFields([]);
+      setSelectedColumns([]);
+      setHasUserInteractedWithColumns(false);
+      setCurrentPage(1);
+      setLoading(true);
+      
+      // Run all async loads in parallel
+      Promise.all([
+        loadData(),
+        loadFormFields(),
+        checkUserPermissions()
+      ]);
     }
   }, [config.formId]);
   useEffect(() => {
