@@ -229,6 +229,14 @@ const Forms = () => {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
+          {canCreateForm && !permissionLoading && (
+            <ExcelFormImporter onImport={handleAIFormApply}>
+              <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                <FileSpreadsheet className="h-4 w-4 mr-2 text-primary" />
+                Import from Excel
+              </DropdownMenuItem>
+            </ExcelFormImporter>
+          )}
           <DropdownMenuItem onClick={() => navigate('/my-submissions')}>
             <FileText className="h-4 w-4 mr-2 text-primary" />
             My Submissions

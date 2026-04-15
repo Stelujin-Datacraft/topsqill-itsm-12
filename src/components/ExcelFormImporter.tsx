@@ -37,6 +37,7 @@ interface ExcelFormImporterProps {
       validation?: any;
     }>;
   }) => void;
+  children?: React.ReactNode;
 }
 
 const VALID_FIELD_TYPES = new Set([
