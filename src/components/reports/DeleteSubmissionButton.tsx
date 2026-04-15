@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Trash2 } from 'lucide-react';
 import {
@@ -17,21 +17,11 @@ import { toast } from '@/hooks/use-toast';
 interface DeleteSubmissionButtonProps {
   submissionId: string;
   onDelete: () => Promise<void>;
-  checkPermission: () => Promise<boolean>;
+  checkPermission?: () => Promise<boolean>;
 }
 
-export function DeleteSubmissionButton({ submissionId, onDelete, checkPermission }: DeleteSubmissionButtonProps) {
-  const [canDelete, setCanDelete] = useState(false);
+export function DeleteSubmissionButton({ submissionId, onDelete }: DeleteSubmissionButtonProps) {
   const [isDeleting, setIsDeleting] = useState(false);
-
-  useEffect(() => {
-    const checkDeletePermission = async () => {
-      const hasPermission = await checkPermission();
-      setCanDelete(hasPermission);
-    };
-
-    checkDeletePermission();
-  }, [checkPermission]);
 
   const handleDelete = async () => {
     try {
@@ -52,10 +42,6 @@ export function DeleteSubmissionButton({ submissionId, onDelete, checkPermission
       setIsDeleting(false);
     }
   };
-
-  if (!canDelete) {
-    return null;
-  }
 
   return (
     <AlertDialog>
