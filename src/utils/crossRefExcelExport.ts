@@ -138,9 +138,7 @@ export async function exportCrossRefHierarchyToExcel(
   parentFormId: string,
   parentFormName: string,
 ): Promise<void> {
-  // Clear caches
-  fieldCache.clear();
-  nameCache.clear();
+  // Shared caches are managed by useCrossReferenceData with TTL - no need to clear
 
   const rows: SheetRow[] = [];
   const allFieldKeys: string[] = [];
