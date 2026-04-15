@@ -15,7 +15,7 @@ import {
 import { useUnifiedAccessControl } from '@/hooks/useUnifiedAccessControl';
 import { useProject } from '@/contexts/ProjectContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { BarChart3, History, FileText, Timer, MoreVertical } from 'lucide-react';
+import { BarChart3, History, FileText, Timer, MoreVertical, FileSpreadsheet } from 'lucide-react';
 import NoProjectSelected from '@/components/NoProjectSelected';
 import { AIFormGenerator } from '@/components/ai/AIFormGenerator';
 import { ExcelFormImporter } from '@/components/ExcelFormImporter';
