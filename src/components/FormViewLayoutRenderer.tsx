@@ -563,6 +563,15 @@ export function FormViewLayoutRenderer({
                   )}
                 </div>
                 <div className="flex items-center gap-2 shrink-0 print:hidden">
+                  <Button
+                    onClick={() => navigate(-1)}
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center gap-1"
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                    Back
+                  </Button>
                   <AIAutoFillInput
                     formFields={Array.isArray(form.fields) ? form.fields : []}
                     currentValues={formData}
