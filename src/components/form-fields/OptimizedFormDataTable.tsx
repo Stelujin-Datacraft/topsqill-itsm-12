@@ -906,7 +906,7 @@ export function OptimizedFormDataTable({
                   </TableHead>)}
                 {!isCrossReference && <TableHead>Status</TableHead>}
                 {!isCrossReference && <TableHead>Submitted</TableHead>}
-                <TableHead className="w-24">Actions</TableHead>
+                {!disabled && <TableHead className="w-24">Actions</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -946,11 +946,11 @@ export function OptimizedFormDataTable({
                     {!isCrossReference && <TableCell className="text-sm text-gray-500">
                       {row.submitted_at ? new Date(row.submitted_at).toLocaleDateString() : '-'}
                     </TableCell>}
-                    <TableCell>
+                    {!disabled && <TableCell>
                       <Button variant="ghost" size="sm" onClick={() => handleViewSubmission(row.id)} className="h-8 w-8 p-0" title="View Submission">
                         <Eye className="h-4 w-4" />
                       </Button>
-                    </TableCell>
+                    </TableCell>}
                   </TableRow>)}
             </TableBody>
           </Table>
