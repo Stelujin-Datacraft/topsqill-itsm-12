@@ -734,16 +734,46 @@ export function DynamicTable({
 
     return await triggerWorkflowsForRecords(recordsToTrigger);
   };
+  const checkDeletePermission = async (submissionId: string): Promise<boolean> => {
+    try {
+      const {
+        data: submission
+      } = await supabase.from('form_submissions').select('form_id').eq('id', submissionId).single();
+      if (!submission) return false;
+      const {
+        data: form
+      } = await supabase.from('forms').select('created_by, organization_id').eq('id', submission.form_id).single();
+      if (!form) return false;
+      const {
+        data: user
+      } = await supabase.auth.getUser();
+      if (!user?.user) return false;
+      const {
+        data: profile
+      } = await supabase.from('user_profiles').select('email, role, organization_id').eq('id', user.user.id).single();
+      if (!profile) return false;
+      return form.created_by === profile.email || profile.role === 'admin' && form.organization_id === profile.organization_id;
+    } catch (error) {
+      console.error('Error checking delete permission:', error);
+      return false;
+    }
+  };
   const checkUserPermissions = async () => {
     if (!config.formId) return;
     try {
-      // Use userProfile from AuthContext instead of making redundant API calls
-      if (!userProfile) return;
       const {
         data: form
       } = await supabase.from('forms').select('created_by, organization_id').eq('id', config.formId).single();
       if (!form) return;
-      const canDelete = form.created_by === userProfile.email || userProfile.role === 'admin' && form.organization_id === userProfile.organization_id;
+      const {
+        data: user
+      } = await supabase.auth.getUser();
+      if (!user?.user) return;
+      const {
+        data: profile
+      } = await supabase.from('user_profiles').select('email, role, organization_id').eq('id', user.user.id).single();
+      if (!profile) return;
+      const canDelete = form.created_by === profile.email || profile.role === 'admin' && form.organization_id === profile.organization_id;
       setCanDeleteSubmissions(canDelete);
     } catch (error) {
       console.error('Error checking user permissions:', error);
@@ -1393,7 +1423,7 @@ export function DynamicTable({
                                compact
                              />
                              {canDeleteSubmissions && (
-                               <DeleteSubmissionButton submissionId={row.id} onDelete={() => handleDeleteSubmission(row.id)} />
+                               <DeleteSubmissionButton submissionId={row.id} onDelete={() => handleDeleteSubmission(row.id)} checkPermission={() => checkDeletePermission(row.id)} />
                              )}
                           </div>
                         </TableCell>
