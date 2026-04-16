@@ -540,6 +540,36 @@ export function useTableData(
     }
   }, [formId, currentPage, pageSize, filters, drilldownFilters, joinConfig, loadData]);
 
+  // Realtime subscription for instant updates when submission data changes
+  useEffect(() => {
+    if (!formId) return;
+
+    const channel = supabase
+      .channel(`table-data-realtime-${formId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'form_submissions',
+          filter: `form_id=eq.${formId}`,
+        },
+        (payload) => {
+          console.log('🔄 Realtime table data change:', payload.eventType);
+          loadData(
+            JSON.parse(filtersRef.current) as FilterGroup[],
+            JSON.parse(drilldownFiltersRef.current) as DrilldownFilter[],
+            JSON.parse(joinConfigRef.current) as JoinConfig | undefined
+          );
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [formId, loadData]);
+
   return {
     data,
     loading,
