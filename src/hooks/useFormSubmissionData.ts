@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
@@ -32,6 +32,8 @@ interface DatabaseSubmission {
 export function useFormSubmissionData(formId?: string) {
   const [submissions, setSubmissions] = useState<FormSubmission[]>([]);
   const [loading, setLoading] = useState(false);
+  const formIdRef = useRef(formId);
+  formIdRef.current = formId;
 
   const loadSubmissions = useCallback(async (selectedFormId: string) => {
     if (!selectedFormId) return;
@@ -78,6 +80,35 @@ export function useFormSubmissionData(formId?: string) {
     if (formId) {
       loadSubmissions(formId);
     }
+  }, [formId, loadSubmissions]);
+
+  // Realtime subscription for instant updates
+  useEffect(() => {
+    if (!formId) return;
+
+    const channel = supabase
+      .channel(`form-submissions-realtime-${formId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'form_submissions',
+          filter: `form_id=eq.${formId}`,
+        },
+        (payload) => {
+          console.log('🔄 Realtime form_submissions change:', payload.eventType);
+          // Re-fetch on any change
+          if (formIdRef.current) {
+            loadSubmissions(formIdRef.current);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [formId, loadSubmissions]);
 
   return {

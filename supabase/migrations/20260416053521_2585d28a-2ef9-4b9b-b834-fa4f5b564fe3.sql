@@ -1,0 +1,3 @@
+ALTER PUBLICATION supabase_realtime ADD TABLE form_submissions;
+ALTER PUBLICATION supabase_realtime ADD TABLE workflow_executions;
+ALTER PUBLICATION supabase_realtime ADD TABLE workflow_instance_logs;
