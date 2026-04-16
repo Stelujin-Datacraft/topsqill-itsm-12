@@ -50,9 +50,11 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Use the production URL for password reset redirect
     const productionUrl = 'https://topsqill-itsm-12.lovable.app';
-    const finalRedirectUrl = redirectUrl || `${productionUrl}/change-password?mode=reset`;
+    const baseRedirectUrl = redirectUrl || `${productionUrl}/change-password`;
+    const parsedRedirectUrl = new URL(baseRedirectUrl);
+    parsedRedirectUrl.searchParams.set('mode', 'reset');
+    const finalRedirectUrl = parsedRedirectUrl.toString();
     
     console.log(`Using redirect URL: ${finalRedirectUrl}`);
 
