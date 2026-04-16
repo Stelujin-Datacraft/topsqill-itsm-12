@@ -35,6 +35,32 @@ export function WorkflowInstances({ workflowId }: WorkflowInstancesProps) {
     }
   }, [workflowId]);
 
+  // Realtime subscription for instant execution history updates
+  useEffect(() => {
+    if (!workflowId) return;
+
+    const channel = supabase
+      .channel(`workflow-executions-realtime-${workflowId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'workflow_executions',
+          filter: `workflow_id=eq.${workflowId}`,
+        },
+        () => {
+          console.log('🔄 Realtime workflow execution change');
+          loadExecutions();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [workflowId]);
+
   const loadExecutions = async () => {
     if (!workflowId) return;
 
