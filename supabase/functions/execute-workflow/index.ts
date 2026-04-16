@@ -1355,8 +1355,12 @@ async function executeNotification(supabase: any, config: any, triggerData: any,
         return { success: true, recipientId, recipientEmails, title, notificationType: 'email' }
       } catch (smtpError) {
         console.error('❌ SMTP send failed:', smtpError)
-        await client.close().catch(() => {})
-        return { success: false, error: `SMTP send failed: ${smtpError.message}` }
+        try {
+          await client.close()
+        } catch {
+        }
+        const smtpErrorMessage = smtpError instanceof Error ? smtpError.message : 'Unknown SMTP error'
+        return { success: false, error: `SMTP send failed: ${smtpErrorMessage}` }
       }
     }
   }
