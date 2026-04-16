@@ -362,12 +362,230 @@ async function executeActionNode(
     case 'update_field':
       return await executeUpdateField(supabase, config, submissionId, triggerData)
     case 'send_email':
-      // Treat send_email same as send_notification with email type
       return await executeNotification(supabase, { ...config, notificationConfig: { ...config.notificationConfig, type: 'email' } }, triggerData, submitterId)
     case 'send_notification':
       return await executeNotification(supabase, config, triggerData, submitterId)
+    case 'change_field_value':
+      return await executeChangeFieldValue(supabase, config, triggerData, submissionId)
+    case 'change_record_status':
+      return await executeChangeRecordStatus(supabase, config, triggerData, submissionId)
     default:
       return { executed: true, actionType }
+  }
+}
+
+async function executeChangeFieldValue(supabase: any, config: any, triggerData: any, submissionId?: string): Promise<any> {
+  console.log('🔧 Executing change_field_value action')
+  
+  const triggerSubmissionData = triggerData?.submissionData || triggerData || {}
+  const triggerSubmissionId = triggerData?.submissionId || submissionId
+  const triggerFormId = triggerData?.formId
+
+  // Support both multi-field and legacy single-field format
+  interface FieldUpdate {
+    targetFieldId: string
+    targetFieldName?: string
+    targetFieldType?: string
+    valueType: 'static' | 'dynamic'
+    staticValue?: any
+    dynamicValuePath?: string
+    dynamicFieldName?: string
+    dynamicFieldType?: string
+  }
+
+  let fieldUpdates: FieldUpdate[] = []
+
+  if (config.fieldUpdates && Array.isArray(config.fieldUpdates) && config.fieldUpdates.length > 0) {
+    fieldUpdates = config.fieldUpdates
+  } else if (config.targetFieldId && config.valueType) {
+    fieldUpdates = [{
+      targetFieldId: config.targetFieldId,
+      targetFieldName: config.targetFieldName,
+      targetFieldType: config.targetFieldType,
+      valueType: config.valueType,
+      staticValue: config.staticValue,
+      dynamicValuePath: config.dynamicValuePath,
+      dynamicFieldName: config.dynamicFieldName,
+      dynamicFieldType: config.dynamicFieldType
+    }]
+  }
+
+  if (!config.targetFormId || fieldUpdates.length === 0) {
+    return { success: false, error: 'Missing required configuration for field value change' }
+  }
+
+  const fieldValueMap: Record<string, any> = {}
+  const results: Array<{ fieldId: string; fieldName?: string; newValue: any; success: boolean; error?: string }> = []
+
+  for (const update of fieldUpdates) {
+    let newValue: any = undefined
+
+    if (update.valueType === 'static') {
+      newValue = update.staticValue
+      console.log(`📝 Static value for ${update.targetFieldName}: ${newValue}`)
+    } else if (update.valueType === 'dynamic') {
+      const dynamicPath = update.dynamicValuePath
+      if (dynamicPath && dynamicPath in triggerSubmissionData) {
+        newValue = triggerSubmissionData[dynamicPath]
+      } else {
+        const matchingKey = Object.keys(triggerSubmissionData).find(key =>
+          key === dynamicPath || key.toLowerCase() === dynamicPath?.toLowerCase()
+        )
+        if (matchingKey) newValue = triggerSubmissionData[matchingKey]
+      }
+
+      if (newValue === undefined) {
+        console.log(`⚠️ Could not find value for: ${update.dynamicFieldName || update.dynamicValuePath}`)
+        results.push({ fieldId: update.targetFieldId, fieldName: update.targetFieldName, newValue: undefined, success: false, error: `Value not found for: ${update.dynamicFieldName || update.dynamicValuePath}` })
+        continue
+      }
+
+      // Normalize numeric values
+      const numericTypes = ['number', 'currency', 'slider', 'rating']
+      if (numericTypes.includes(update.targetFieldType?.toLowerCase() || '') && typeof newValue === 'string' && newValue.trim() !== '') {
+        const parsed = parseFloat(newValue.replace(/[,$€£¥₹\s]/g, '').trim())
+        if (!isNaN(parsed)) newValue = parsed
+      }
+    }
+
+    // Fetch target field for type validation
+    const { data: targetField } = await supabase
+      .from('form_fields')
+      .select('id, field_type, custom_config')
+      .eq('id', update.targetFieldId)
+      .single()
+
+    if (targetField) {
+      // Handle submission-access field
+      if (targetField.field_type === 'submission-access') {
+        let parsedValue = typeof newValue === 'string' ? (() => { try { return JSON.parse(newValue) } catch { return null } })() : newValue
+        let sourceUsers: string[] = []
+        let sourceGroups: string[] = []
+        const customConfig = typeof targetField.custom_config === 'string' ? (() => { try { return JSON.parse(targetField.custom_config) } catch { return {} } })() : (targetField.custom_config || {})
+        const allowedUsers = customConfig.allowedUsers || []
+        const allowedGroups = customConfig.allowedGroups || []
+
+        if (parsedValue && typeof parsedValue === 'object' && !Array.isArray(parsedValue)) {
+          sourceUsers = parsedValue.users || []
+          sourceGroups = parsedValue.groups || []
+        } else if (Array.isArray(parsedValue)) {
+          parsedValue.forEach((item: string) => {
+            if (typeof item === 'string') {
+              if (item.startsWith('user:')) sourceUsers.push(item.replace('user:', ''))
+              else if (item.startsWith('group:')) sourceGroups.push(item.replace('group:', ''))
+            }
+          })
+        }
+
+        const validUsers = sourceUsers.filter((u: string) => allowedUsers.includes(u))
+        const validGroups = sourceGroups.filter((g: string) => allowedGroups.includes(g))
+
+        if (validUsers.length > 0 || validGroups.length > 0) {
+          newValue = { users: validUsers, groups: validGroups }
+        } else {
+          results.push({ fieldId: update.targetFieldId, fieldName: update.targetFieldName, newValue: undefined, success: false, error: 'Invalid submission-access value' })
+          continue
+        }
+      }
+
+      // Handle numeric normalization from target field type
+      const numericTargetTypes = ['number', 'currency', 'slider', 'rating']
+      if (numericTargetTypes.includes(targetField.field_type?.toLowerCase()) && typeof newValue === 'string' && newValue.trim() !== '') {
+        const parsed = parseFloat(newValue.replace(/[,$€£¥₹\s]/g, '').trim())
+        if (!isNaN(parsed)) newValue = parsed
+      }
+    }
+
+    console.log(`📝 Final value for ${update.targetFieldName} (${update.targetFieldId}): ${JSON.stringify(newValue)}`)
+    fieldValueMap[update.targetFieldId] = newValue
+    results.push({ fieldId: update.targetFieldId, fieldName: update.targetFieldName, newValue, success: true })
+  }
+
+  const successfulUpdates = results.filter(r => r.success)
+  if (successfulUpdates.length === 0) {
+    return { success: false, error: `All field updates failed: ${results.map(r => r.error).join('; ')}` }
+  }
+
+  const isTargetFormDifferent = config.targetFormId !== triggerFormId
+
+  if (isTargetFormDifferent) {
+    console.log('🔄 Bulk update on target form:', config.targetFormId)
+    let totalUpdated = 0
+    for (const [fieldId, newValue] of Object.entries(fieldValueMap)) {
+      const { data: rpcResult, error: rpcError } = await supabase.rpc('bulk_update_submission_field', {
+        _form_id: config.targetFormId,
+        _field_id: fieldId,
+        _new_value: newValue
+      })
+      if (rpcError) console.error('❌ Bulk update error:', fieldId, rpcError)
+      else totalUpdated = Math.max(totalUpdated, rpcResult || 0)
+    }
+    console.log(`✅ Bulk updated ${totalUpdated} records`)
+    return { updatedCount: totalUpdated, targetFormId: config.targetFormId, fieldsUpdated: successfulUpdates.length, fieldDetails: results, success: true }
+  } else {
+    if (!triggerSubmissionId) {
+      return { success: false, error: 'Cannot update trigger submission: no submission ID' }
+    }
+
+    const { data: currentSubmission, error: fetchError } = await supabase
+      .from('form_submissions')
+      .select('submission_data')
+      .eq('id', triggerSubmissionId)
+      .single()
+
+    if (fetchError) return { success: false, error: `Submission not found: ${fetchError.message}` }
+
+    const currentData = currentSubmission?.submission_data || {}
+    const updatedData = { ...(typeof currentData === 'object' ? currentData : {}), ...fieldValueMap }
+
+    const { error: updateError } = await supabase
+      .from('form_submissions')
+      .update({ submission_data: updatedData })
+      .eq('id', triggerSubmissionId)
+
+    if (updateError) return { success: false, error: `Update failed: ${updateError.message}` }
+
+    console.log(`✅ Updated ${successfulUpdates.length} field(s) in submission ${triggerSubmissionId}`)
+    return { submissionId: triggerSubmissionId, fieldsUpdated: successfulUpdates.length, fieldDetails: results, success: true }
+  }
+}
+
+async function executeChangeRecordStatus(supabase: any, config: any, triggerData: any, submissionId?: string): Promise<any> {
+  console.log('🔧 Executing change_record_status action')
+  
+  const targetFormId = config?.targetFormId
+  const newStatus = config?.newStatus
+  const statusNotes = config?.statusNotes || ''
+  const triggerSubmissionId = triggerData?.submissionId || submissionId
+
+  if (!targetFormId || !newStatus) {
+    return { success: false, error: 'Missing targetFormId or newStatus' }
+  }
+
+  const triggerFormId = triggerData?.formId
+  const isTargetFormDifferent = targetFormId !== triggerFormId
+
+  if (isTargetFormDifferent) {
+    const { data, error } = await supabase
+      .from('form_submissions')
+      .update({ status: newStatus })
+      .eq('form_id', targetFormId)
+      .select('id')
+
+    if (error) return { success: false, error: error.message }
+    console.log(`✅ Updated status to "${newStatus}" for ${data?.length || 0} records`)
+    return { success: true, updatedCount: data?.length || 0, newStatus }
+  } else {
+    if (!triggerSubmissionId) return { success: false, error: 'No submission ID for status update' }
+
+    const { error } = await supabase
+      .from('form_submissions')
+      .update({ status: newStatus })
+      .eq('id', triggerSubmissionId)
+
+    if (error) return { success: false, error: error.message }
+    console.log(`✅ Updated status to "${newStatus}" for submission ${triggerSubmissionId}`)
+    return { success: true, submissionId: triggerSubmissionId, newStatus }
   }
 }
 
