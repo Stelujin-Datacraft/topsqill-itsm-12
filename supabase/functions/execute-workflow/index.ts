@@ -369,8 +369,511 @@ async function executeActionNode(
       return await executeChangeFieldValue(supabase, config, triggerData, submissionId)
     case 'change_record_status':
       return await executeChangeRecordStatus(supabase, config, triggerData, submissionId)
+    case 'create_record':
+      return await executeCreateRecord(supabase, config, triggerData, submissionId, submitterId)
+    case 'create_linked_record':
+      return await executeCreateLinkedRecord(supabase, config, triggerData, submissionId, submitterId)
+    case 'update_linked_records':
+      return await executeUpdateLinkedRecords(supabase, config, triggerData)
+    case 'create_combination_records':
+      return await executeCreateCombinationRecords(supabase, config, triggerData, submissionId, submitterId)
     default:
-      return { executed: true, actionType }
+      return { success: false, error: `Unsupported action type: ${actionType}`, actionType }
+  }
+}
+
+async function executeCreateRecord(
+  supabase: any,
+  config: any,
+  triggerData: any,
+  _submissionId?: string,
+  submitterId?: string
+): Promise<any> {
+  console.log('➕ Executing create_record action')
+
+  if (!config?.targetFormId) {
+    return { success: false, error: 'Missing target form ID for record creation' }
+  }
+
+  const recordCount = Math.min(Math.max(config.recordCount || 1, 1), 100)
+  const fieldValues = Array.isArray(config.fieldValues) ? config.fieldValues : []
+  const fieldMappings = Array.isArray(config.fieldMappings) ? config.fieldMappings : []
+  const createdRecords: string[] = []
+  const triggerSubmissionData = triggerData?.submissionData || triggerData || {}
+
+  const { data: targetFormFields, error: fieldsError } = await supabase
+    .from('form_fields')
+    .select('id, field_type, custom_config')
+    .eq('form_id', config.targetFormId)
+
+  if (fieldsError) {
+    console.error('❌ Error fetching target form fields:', fieldsError)
+  }
+
+  const submissionAccessFieldConfigs: Record<string, { allowedUsers: string[]; allowedGroups: string[] }> = {}
+  for (const field of targetFormFields || []) {
+    if (field.field_type === 'submission-access') {
+      const customConfig = typeof field.custom_config === 'string'
+        ? (() => { try { return JSON.parse(field.custom_config) } catch { return {} } })()
+        : (field.custom_config || {})
+
+      submissionAccessFieldConfigs[field.id] = {
+        allowedUsers: customConfig.allowedUsers || [],
+        allowedGroups: customConfig.allowedGroups || []
+      }
+    }
+  }
+
+  let createdBy: string | null = null
+  if (config.setSubmittedBy === 'specific_user' && config.specificSubmitterId) {
+    createdBy = config.specificSubmitterId
+  } else if (config.setSubmittedBy === 'system') {
+    createdBy = null
+  } else {
+    createdBy = submitterId || triggerData?.submitterId || triggerData?.submittedBy || null
+  }
+
+  const initialStatus = config.initialStatus || 'pending'
+
+  for (let i = 0; i < recordCount; i++) {
+    const submissionData: Record<string, any> = {}
+
+    if (config.fieldConfigMode === 'field_mapping') {
+      for (const mapping of fieldMappings) {
+        const sourceValue = triggerSubmissionData?.[mapping.sourceFieldId]
+        if (sourceValue !== undefined && sourceValue !== null && sourceValue !== '') {
+          const accessConfig = submissionAccessFieldConfigs[mapping.targetFieldId]
+          submissionData[mapping.targetFieldId] = accessConfig
+            ? validateSubmissionAccessValue(sourceValue, accessConfig) || undefined
+            : sourceValue
+
+          if (submissionData[mapping.targetFieldId] === undefined) {
+            delete submissionData[mapping.targetFieldId]
+          }
+        }
+      }
+    }
+
+    for (const fieldValue of fieldValues) {
+      if (!fieldValue?.fieldId) continue
+
+      let value: any = undefined
+      if (fieldValue.valueType === 'static') {
+        value = fieldValue.staticValue
+      } else if (fieldValue.valueType === 'dynamic') {
+        const dynamicPath = fieldValue.dynamicValuePath
+        if (dynamicPath && dynamicPath in triggerSubmissionData) {
+          value = triggerSubmissionData[dynamicPath]
+        } else {
+          value = getNestedValue(triggerData, dynamicPath)
+        }
+      }
+
+      if (value !== undefined && value !== null && value !== '') {
+        const accessConfig = submissionAccessFieldConfigs[fieldValue.fieldId]
+        if (accessConfig) {
+          const validated = validateSubmissionAccessValue(value, accessConfig)
+          if (validated && (validated.users.length > 0 || validated.groups.length > 0)) {
+            submissionData[fieldValue.fieldId] = validated
+          }
+        } else {
+          submissionData[fieldValue.fieldId] = value
+        }
+      }
+    }
+
+    const { data: newSubmission, error: insertError } = await supabase
+      .from('form_submissions')
+      .insert({
+        form_id: config.targetFormId,
+        submission_data: submissionData,
+        submitted_by: createdBy,
+        approval_status: initialStatus
+      })
+      .select('id')
+      .single()
+
+    if (insertError) {
+      return { success: false, error: `Failed to create record ${i + 1}: ${insertError.message}` }
+    }
+
+    if (newSubmission?.id) {
+      createdRecords.push(newSubmission.id)
+    }
+  }
+
+  return {
+    success: true,
+    createdRecordIds: createdRecords,
+    recordCount: createdRecords.length,
+    targetFormId: config.targetFormId
+  }
+}
+
+async function executeCreateLinkedRecord(
+  supabase: any,
+  config: any,
+  triggerData: any,
+  submissionId?: string,
+  submitterId?: string
+): Promise<any> {
+  console.log('🔗 Executing create_linked_record action')
+
+  const crossRefFieldId = config.crossRefFieldId || config.crossReferenceFieldId
+  const childCrossRefFieldId = config.childCrossRefFieldId
+  const targetFormId = config.targetFormId
+  const triggerSubmissionId = triggerData?.submissionId || submissionId
+  const triggerFormId = triggerData?.formId
+  const triggerSubmissionData = triggerData?.submissionData || {}
+
+  if (!crossRefFieldId || !targetFormId || !triggerSubmissionId) {
+    return { success: false, error: 'Missing required configuration for linked record creation' }
+  }
+
+  const { data: triggerSub, error: triggerSubError } = await supabase
+    .from('form_submissions')
+    .select('submission_ref_id')
+    .eq('id', triggerSubmissionId)
+    .single()
+
+  if (triggerSubError || !triggerSub?.submission_ref_id) {
+    return { success: false, error: 'Could not find trigger submission reference ID' }
+  }
+
+  const recordCount = Math.min(Math.max(config.recordCount || 1, 1), 100)
+  const createdRecords: Array<{ id: string; submission_ref_id: string }> = []
+
+  for (let i = 0; i < recordCount; i++) {
+    const childSubmissionData: Record<string, any> = {}
+
+    if (childCrossRefFieldId) {
+      childSubmissionData[childCrossRefFieldId] = [{
+        submission_ref_id: triggerSub.submission_ref_id,
+        form_id: triggerFormId
+      }]
+    }
+
+    if (Array.isArray(config.fieldMappings)) {
+      for (const mapping of config.fieldMappings) {
+        const value = triggerSubmissionData?.[mapping.sourceFieldId]
+        if (value !== undefined) {
+          childSubmissionData[mapping.targetFieldId] = value
+        }
+      }
+    }
+
+    if (Array.isArray(config.fieldValues)) {
+      for (const fieldValue of config.fieldValues) {
+        if (!fieldValue?.fieldId) continue
+
+        if (fieldValue.valueType === 'static') {
+          childSubmissionData[fieldValue.fieldId] = fieldValue.staticValue
+        } else if (fieldValue.valueType === 'dynamic') {
+          const dynamicPath = fieldValue.dynamicValuePath || fieldValue.dynamicFieldId
+          const value = dynamicPath && dynamicPath in triggerSubmissionData
+            ? triggerSubmissionData[dynamicPath]
+            : getNestedValue(triggerData, dynamicPath)
+          if (value !== undefined) {
+            childSubmissionData[fieldValue.fieldId] = value
+          }
+        }
+      }
+    }
+
+    const { data: newRecord, error: createError } = await supabase
+      .from('form_submissions')
+      .insert({
+        form_id: targetFormId,
+        submission_data: childSubmissionData,
+        submitted_by: submitterId || triggerData?.submitterId || null,
+        approval_status: config.initialStatus || 'pending'
+      })
+      .select('id, submission_ref_id')
+      .single()
+
+    if (createError) {
+      return { success: false, error: `Failed to create linked record ${i + 1}: ${createError.message}` }
+    }
+
+    createdRecords.push(newRecord)
+  }
+
+  const { data: currentParent, error: parentError } = await supabase
+    .from('form_submissions')
+    .select('submission_data')
+    .eq('id', triggerSubmissionId)
+    .single()
+
+  if (parentError) {
+    return { success: false, error: `Created linked records, but failed to update parent link field: ${parentError.message}` }
+  }
+
+  const currentData = currentParent?.submission_data || {}
+  const existingRefs = (currentData as any)?.[crossRefFieldId] || []
+  const mergedRefs = Array.isArray(existingRefs) ? [...existingRefs] : []
+
+  for (const record of createdRecords) {
+    mergedRefs.push({
+      submission_ref_id: record.submission_ref_id,
+      form_id: targetFormId
+    })
+  }
+
+  const { error: updateParentError } = await supabase
+    .from('form_submissions')
+    .update({
+      submission_data: {
+        ...(typeof currentData === 'object' ? currentData : {}),
+        [crossRefFieldId]: mergedRefs
+      }
+    })
+    .eq('id', triggerSubmissionId)
+
+  if (updateParentError) {
+    return { success: false, error: `Created linked records, but failed to sync parent references: ${updateParentError.message}` }
+  }
+
+  return {
+    success: true,
+    createdCount: createdRecords.length,
+    createdRecordIds: createdRecords.map(record => record.id),
+    targetFormId
+  }
+}
+
+async function executeUpdateLinkedRecords(
+  supabase: any,
+  config: any,
+  triggerData: any
+): Promise<any> {
+  console.log('🔄 Executing update_linked_records action')
+
+  const crossRefFieldId = config.crossRefFieldId || config.crossReferenceFieldId
+  const triggerSubmissionData = triggerData?.submissionData || {}
+
+  if (!crossRefFieldId || !Array.isArray(config.fieldMappings) || config.fieldMappings.length === 0) {
+    return { success: false, error: 'Missing required configuration for update linked records' }
+  }
+
+  const crossRefValue = triggerSubmissionData[crossRefFieldId]
+  if (!crossRefValue) {
+    return { success: true, updatedCount: 0, message: 'No linked records to update' }
+  }
+
+  let linkedRefIds: string[] = []
+  if (Array.isArray(crossRefValue)) {
+    linkedRefIds = crossRefValue
+      .map((item: any) => typeof item === 'string' ? item : item?.submission_ref_id)
+      .filter(Boolean)
+  } else if (typeof crossRefValue === 'string') {
+    linkedRefIds = [crossRefValue]
+  } else if (crossRefValue?.submission_ref_id) {
+    linkedRefIds = [crossRefValue.submission_ref_id]
+  }
+
+  let targetRefIds = linkedRefIds
+  if (config.updateScope === 'first' && linkedRefIds.length > 0) {
+    targetRefIds = [linkedRefIds[0]]
+  } else if (config.updateScope === 'last' && linkedRefIds.length > 0) {
+    targetRefIds = [linkedRefIds[linkedRefIds.length - 1]]
+  }
+
+  const { data: linkedSubmissions, error: fetchError } = await supabase
+    .from('form_submissions')
+    .select('id, submission_data')
+    .in('submission_ref_id', targetRefIds)
+
+  if (fetchError) {
+    return { success: false, error: `Failed to fetch linked submissions: ${fetchError.message}` }
+  }
+
+  let updatedCount = 0
+  for (const linkedSub of linkedSubmissions || []) {
+    const currentData = linkedSub.submission_data || {}
+    const updatedData = { ...(typeof currentData === 'object' ? currentData : {}) }
+
+    for (const mapping of config.fieldMappings) {
+      const sourceValue = triggerSubmissionData?.[mapping.sourceFieldId]
+      if (sourceValue !== undefined) {
+        updatedData[mapping.targetFieldId] = sourceValue
+      }
+    }
+
+    const { error: updateError } = await supabase
+      .from('form_submissions')
+      .update({ submission_data: updatedData })
+      .eq('id', linkedSub.id)
+
+    if (!updateError) {
+      updatedCount += 1
+    }
+  }
+
+  return {
+    success: true,
+    updatedCount,
+    totalLinked: linkedRefIds.length,
+    updateScope: config.updateScope || 'all'
+  }
+}
+
+async function executeCreateCombinationRecords(
+  supabase: any,
+  config: any,
+  triggerData: any,
+  _submissionId?: string,
+  submitterId?: string
+): Promise<any> {
+  console.log('🔗✨ Executing create_combination_records action')
+
+  const combinationMode = config.combinationMode || 'single'
+  const triggerSubmissionData = triggerData?.submissionData || {}
+
+  if (!config.targetFormId || !config.sourceCrossRefFieldId || !config.sourceLinkedFormId) {
+    return { success: false, error: 'Missing required configuration for combination records' }
+  }
+
+  const firstSourceRefsRaw = triggerSubmissionData[config.sourceCrossRefFieldId]
+  const secondSourceRefsRaw = combinationMode === 'dual' ? triggerSubmissionData[config.secondSourceCrossRefFieldId] : null
+
+  const normalizeRefs = (value: any): Array<{ submission_ref_id: string; form_id?: string }> => {
+    if (!value) return []
+    if (Array.isArray(value)) {
+      return value
+        .map((item: any) => typeof item === 'string'
+          ? { submission_ref_id: item }
+          : { submission_ref_id: item?.submission_ref_id, form_id: item?.form_id })
+        .filter((item: any) => item.submission_ref_id)
+    }
+    if (typeof value === 'string') return [{ submission_ref_id: value }]
+    if (value?.submission_ref_id) return [{ submission_ref_id: value.submission_ref_id, form_id: value.form_id }]
+    return []
+  }
+
+  const firstSourceRefs = normalizeRefs(firstSourceRefsRaw)
+  const secondSourceRefs = combinationMode === 'dual' ? normalizeRefs(secondSourceRefsRaw) : [{ submission_ref_id: '', form_id: undefined }]
+
+  if (firstSourceRefs.length === 0 || secondSourceRefs.length === 0) {
+    return { success: true, createdCount: 0, message: 'No linked records available for combination' }
+  }
+
+  const createdRecordIds: string[] = []
+  const initialStatus = config.initialStatus || 'pending'
+  const fieldMappings = Array.isArray(config.fieldMappings) ? config.fieldMappings : []
+
+  for (const firstRef of firstSourceRefs) {
+    for (const secondRef of secondSourceRefs) {
+      const submissionData: Record<string, any> = {}
+
+      if (Array.isArray(config.targetLinkFields)) {
+        for (const targetLinkField of config.targetLinkFields) {
+          if (targetLinkField.linkTo === 'first_source') {
+            submissionData[targetLinkField.targetFieldId] = [{
+              submission_ref_id: firstRef.submission_ref_id,
+              form_id: config.sourceLinkedFormId
+            }]
+          }
+
+          if (targetLinkField.linkTo === 'second_source' && combinationMode === 'dual' && secondRef.submission_ref_id) {
+            submissionData[targetLinkField.targetFieldId] = [{
+              submission_ref_id: secondRef.submission_ref_id,
+              form_id: config.secondSourceLinkedFormId
+            }]
+          }
+        }
+      } else {
+        if (config.targetLinkedCrossRefFieldId) {
+          submissionData[config.targetLinkedCrossRefFieldId] = [{
+            submission_ref_id: firstRef.submission_ref_id,
+            form_id: config.sourceLinkedFormId
+          }]
+        }
+
+        if (config.targetTriggerCrossRefFieldId && combinationMode === 'dual' && secondRef.submission_ref_id) {
+          submissionData[config.targetTriggerCrossRefFieldId] = [{
+            submission_ref_id: secondRef.submission_ref_id,
+            form_id: config.secondSourceLinkedFormId
+          }]
+        }
+      }
+
+      for (const mapping of fieldMappings) {
+        const value = triggerSubmissionData?.[mapping.sourceFieldId]
+        if (value !== undefined) {
+          submissionData[mapping.targetFieldId] = value
+        }
+      }
+
+      const { data: created, error: createError } = await supabase
+        .from('form_submissions')
+        .insert({
+          form_id: config.targetFormId,
+          submission_data: submissionData,
+          submitted_by: submitterId || triggerData?.submitterId || null,
+          approval_status: initialStatus
+        })
+        .select('id')
+        .single()
+
+      if (createError) {
+        return { success: false, error: `Failed to create combination record: ${createError.message}` }
+      }
+
+      createdRecordIds.push(created.id)
+    }
+  }
+
+  return {
+    success: true,
+    createdCount: createdRecordIds.length,
+    createdRecordIds,
+    targetFormId: config.targetFormId,
+    combinationMode
+  }
+}
+
+function getNestedValue(obj: any, path?: string): any {
+  if (!path || !obj) return undefined
+  return path.split('.').reduce((acc, key) => acc?.[key], obj)
+}
+
+function validateSubmissionAccessValue(
+  value: any,
+  config: { allowedUsers: string[]; allowedGroups: string[] }
+): { users: string[]; groups: string[] } | null {
+  try {
+    let parsedValue = value
+    if (typeof value === 'string') {
+      try {
+        parsedValue = JSON.parse(value)
+      } catch {
+        return null
+      }
+    }
+
+    if (!parsedValue) return null
+
+    let sourceUsers: string[] = []
+    let sourceGroups: string[] = []
+
+    if (typeof parsedValue === 'object' && !Array.isArray(parsedValue)) {
+      sourceUsers = parsedValue.users || []
+      sourceGroups = parsedValue.groups || []
+    } else if (Array.isArray(parsedValue)) {
+      parsedValue.forEach((item: string) => {
+        if (typeof item === 'string') {
+          if (item.startsWith('user:')) sourceUsers.push(item.replace('user:', ''))
+          if (item.startsWith('group:')) sourceGroups.push(item.replace('group:', ''))
+        }
+      })
+    }
+
+    return {
+      users: sourceUsers.filter(userId => config.allowedUsers.includes(userId)),
+      groups: sourceGroups.filter(groupId => config.allowedGroups.includes(groupId))
+    }
+  } catch {
+    return null
   }
 }
 
