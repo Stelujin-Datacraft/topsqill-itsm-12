@@ -31,39 +31,68 @@ const ChangePassword = () => {
   const [recoveryUser, setRecoveryUser] = useState<any>(null);
 
   useEffect(() => {
-    // Check if this is a password reset flow (user came from email link)
     const checkRecoveryFlow = async () => {
+      // Check for reset mode via query param (set by our redirect URL)
+      const searchParams = new URLSearchParams(window.location.search);
+      const modeParam = searchParams.get('mode');
+      
+      // Also check hash params as fallback
       const hashParams = new URLSearchParams(window.location.hash.substring(1));
       const accessToken = hashParams.get('access_token');
       const type = hashParams.get('type');
       
-      console.log('ChangePassword: Checking reset mode', { accessToken: !!accessToken, type, hash: window.location.hash });
+      console.log('ChangePassword: Checking reset mode', { modeParam, accessToken: !!accessToken, type });
       
-      if (accessToken && type === 'recovery') {
+      const isRecovery = modeParam === 'reset' || (accessToken && type === 'recovery');
+      
+      if (isRecovery) {
         setIsResetMode(true);
-        try {
-          // Set the session from the recovery token
-          const { data, error } = await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: hashParams.get('refresh_token') || '',
+        
+        // If we have hash tokens, set session manually
+        if (accessToken && type === 'recovery') {
+          try {
+            const { data, error } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: hashParams.get('refresh_token') || '',
+            });
+            
+            if (error) {
+              console.error('Error setting session:', error);
+              toast({
+                title: 'Session Error',
+                description: 'Invalid or expired reset link. Please request a new one.',
+                variant: 'destructive',
+              });
+              navigate('/forgot-password');
+            } else if (data.user) {
+              console.log('Session set successfully for password reset, user:', data.user.email);
+              setRecoveryUser(data.user);
+              loadPasswordPolicyForUser(data.user.id);
+            }
+          } catch (err) {
+            console.error('Recovery flow error:', err);
+          }
+        } else {
+          // mode=reset but Supabase already consumed hash tokens - listen for auth state
+          const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+            console.log('ChangePassword auth event:', event);
+            if (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN') {
+              if (session?.user) {
+                setRecoveryUser(session.user);
+                loadPasswordPolicyForUser(session.user.id);
+              }
+            }
           });
           
-          if (error) {
-            console.error('Error setting session:', error);
-            toast({
-              title: 'Session Error',
-              description: 'Invalid or expired reset link. Please request a new one.',
-              variant: 'destructive',
-            });
-            navigate('/forgot-password');
-          } else if (data.user) {
-            console.log('Session set successfully for password reset, user:', data.user.email);
-            setRecoveryUser(data.user);
-            // Load policy for the recovered user
-            loadPasswordPolicyForUser(data.user.id);
+          // Also check if user is already authenticated from the recovery
+          const { data: { user: existingUser } } = await supabase.auth.getUser();
+          if (existingUser) {
+            setRecoveryUser(existingUser);
+            loadPasswordPolicyForUser(existingUser.id);
           }
-        } catch (err) {
-          console.error('Recovery flow error:', err);
+          
+          // Cleanup subscription after a timeout
+          setTimeout(() => subscription.unsubscribe(), 10000);
         }
       }
       setIsCheckingRecovery(false);
