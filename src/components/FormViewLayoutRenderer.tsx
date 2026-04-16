@@ -524,7 +524,7 @@ export function FormViewLayoutRenderer({
   }
 
   const mainContent = (
-    <div className={`grid gap-6 h-full print:block ${
+    <div className={`grid gap-4 h-full p-4 lg:p-6 ${
       navigationVisible 
         ? 'grid-cols-1 lg:grid-cols-4' 
         : 'grid-cols-1'
@@ -614,7 +614,7 @@ export function FormViewLayoutRenderer({
             
             {/* Page Navigation Section */}
             {pages.length > 1 && (
-              <div className="px-16 py-4 bg-white dark:bg-gray-950 border-b border-slate-100 dark:border-slate-800">
+              <div className="px-8 lg:px-16 py-3 bg-white dark:bg-gray-950 border-b border-slate-100 dark:border-slate-800">
                 <div className="max-w-5xl mx-auto">
                   <FormPagination
                     pages={pages}
@@ -631,15 +631,15 @@ export function FormViewLayoutRenderer({
             
             {/* Form Fields Section */}
             <div className="relative">
-              <div className="px-16 py-4 bg-white dark:bg-gray-950">
-                <div className="max-w-5xl mx-auto space-y-8">
+              <div className="px-8 lg:px-16 py-6 bg-white dark:bg-gray-950">
+                <div className="max-w-5xl mx-auto space-y-6">
                   {renderFieldsWithSmartLayout()}
                 </div>
               </div>
             </div>
             
             {/* Action Buttons */}
-            <div className="px-16 py-8 bg-slate-50/40 dark:bg-gray-900/20">
+            <div className="px-8 lg:px-16 py-6 bg-slate-50/40 dark:bg-gray-900/20">
               <div className="max-w-5xl mx-auto">
                 <div className="flex flex-col sm:flex-row gap-3 justify-end">
                   <Button 
@@ -669,14 +669,18 @@ export function FormViewLayoutRenderer({
 
   if (showPublicHeader) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background p-4 lg:p-8">
         <PublicHeader />
-        <div className="container mx-auto px-4 py-8">
+        <div className="mt-4 lg:mt-6">
           {mainContent}
         </div>
       </div>
     );
   }
 
-  return mainContent;
+  return (
+    <div className="p-4 lg:p-6">
+      {mainContent}
+    </div>
+  );
 }
