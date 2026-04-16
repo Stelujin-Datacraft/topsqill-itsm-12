@@ -574,7 +574,7 @@ function FormBuilderContent({
                   </div>
                   
                   {/* Scrollable Form Fields */}
-                  <div className="flex-1 overflow-y-auto p-6">
+                  <div className="flex-1 overflow-y-auto p-4">
                     <div className="min-h-full">
                       {currentPageFields.length > 0 ? <FieldLayoutRenderer fields={currentPageFields} columnLayout={workingForm?.layout?.columns as (1 | 2 | 3) || state.columnLayout} selectedFieldId={state.selectedField?.id} highlightedFieldId={state.highlightedFieldId} onFieldClick={field => {
                       state.setSelectedField(field);
