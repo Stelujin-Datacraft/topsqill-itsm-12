@@ -85,7 +85,7 @@ Deno.serve(async (req) => {
 
     console.log(`Reset link generated for ${email}`);
 
-    // Get SMTP config - prioritize Hostinger
+    // Get SMTP config - use the default active config first
     let smtpConfig = null;
     let emailSent = false;
 
@@ -98,18 +98,18 @@ Deno.serve(async (req) => {
         .order('is_default', { ascending: false });
 
       if (configs && configs.length > 0) {
-        // Prioritize Hostinger SMTP
-        smtpConfig = configs.find(c => c.host.includes('hostinger')) || configs[0];
+        // Use the default SMTP config (is_default=true comes first due to ordering)
+        smtpConfig = configs[0];
       }
     }
 
-    // If no org SMTP, try to get any active Hostinger config
+    // Fallback: get any active default config
     if (!smtpConfig) {
       const { data: configs } = await supabase
         .from('smtp_configs')
         .select('*')
         .eq('is_active', true)
-        .ilike('host', '%hostinger%')
+        .eq('is_default', true)
         .limit(1);
 
       if (configs && configs.length > 0) {
