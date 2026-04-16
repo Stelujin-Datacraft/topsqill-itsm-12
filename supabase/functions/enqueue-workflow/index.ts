@@ -276,17 +276,33 @@ async function checkEnrollmentAllowed(
        throw insertError;
      }
      
-     const duration = Date.now() - startTime;
-     console.log(`[enqueue-workflow] Successfully queued workflow, queue_id: ${queueItem.id}, duration: ${duration}ms`);
-     
-     return new Response(JSON.stringify({
-       success: true,
-       queue_id: queueItem.id,
-       message: 'Workflow queued successfully'
-     } as EnqueueResponse), {
-       status: 200,
-       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-     });
+      const duration = Date.now() - startTime;
+      console.log(`[enqueue-workflow] Successfully queued workflow, queue_id: ${queueItem.id}, duration: ${duration}ms`);
+      
+      // Immediately trigger queue processing for instant execution
+      try {
+        const processUrl = `${supabaseUrl}/functions/v1/process-workflow-queue`;
+        fetch(processUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${supabaseServiceKey}`,
+          },
+          body: JSON.stringify({ immediate: true }),
+        }).catch(err => console.warn('[enqueue-workflow] Background process trigger failed (non-blocking):', err));
+        console.log(`[enqueue-workflow] Triggered immediate queue processing`);
+      } catch (e) {
+        console.warn('[enqueue-workflow] Could not trigger immediate processing:', e);
+      }
+      
+      return new Response(JSON.stringify({
+        success: true,
+        queue_id: queueItem.id,
+        message: 'Workflow queued successfully'
+      } as EnqueueResponse), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
      
    } catch (error) {
      const duration = Date.now() - startTime;
