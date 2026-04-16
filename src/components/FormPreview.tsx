@@ -502,30 +502,30 @@ export function FormPreview({ form, showNavigation = false }: FormPreviewProps) 
                 </div>
                 <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-slate-200 dark:via-slate-700 to-transparent"></div>
               </div>
-            </CardContent>
-            
-            {/* Sticky Action Buttons */}
-            <div className="shrink-0 px-16 py-4 bg-slate-50/80 dark:bg-gray-900/50 border-t border-slate-200 dark:border-slate-700">
-              <div className="max-w-5xl mx-auto">
-                <div className="flex flex-col sm:flex-row gap-3 justify-end">
-                  <Button 
-                    variant="outline" 
-                    size="default"
-                    className="px-6 py-2 text-sm font-medium border-slate-300 dark:border-slate-600 hover:border-slate-400 dark:hover:border-slate-500 bg-white dark:bg-gray-950 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors duration-200"
-                    disabled
-                  >
-                    Save Draft 
-                  </Button>
-                  <Button 
-                    size="default"
-                    className="px-6 py-2 text-sm font-medium bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:hover:bg-slate-200 text-white dark:text-slate-900 transition-colors duration-200"
-                    disabled
-                  >
-                    Submit Form
-                  </Button>
+              
+              {/* Minimalistic Action Buttons */}
+              <div className="px-16 py-8 bg-slate-50/40 dark:bg-gray-900/20">
+                <div className="max-w-5xl mx-auto">
+                  <div className="flex flex-col sm:flex-row gap-3 justify-end">
+                    <Button 
+                      variant="outline" 
+                      size="default"
+                      className="px-6 py-2 text-sm font-medium border-slate-300 dark:border-slate-600 hover:border-slate-400 dark:hover:border-slate-500 bg-white dark:bg-gray-950 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors duration-200"
+                      disabled
+                   >
+                      Save Draft 
+                    </Button>
+                    <Button 
+                      size="default"
+                      className="px-6 py-2 text-sm font-medium bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:hover:bg-slate-200 text-white dark:text-slate-900 transition-colors duration-200"
+                      disabled
+                    >
+                      Submit Form
+                    </Button>
+                  </div>
                 </div>
               </div>
-            </div>
+            </CardContent>
           </Card>
         </div>
       </div>
@@ -533,13 +533,13 @@ export function FormPreview({ form, showNavigation = false }: FormPreviewProps) 
   }
 
   return (
-    <Card className="h-full flex flex-col overflow-hidden bg-white dark:bg-gray-950">
-      <CardHeader className="pb-4 border-b bg-slate-50/80 dark:bg-gray-900/80 shrink-0">
+    <Card className="h-full overflow-hidden bg-white dark:bg-gray-950">
+      <CardHeader className="pb-4 border-b bg-slate-50/80 dark:bg-gray-900/80">
         <CardTitle className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
           Form Preview
         </CardTitle>
       </CardHeader>
-      <CardContent className="p-0 flex-1 overflow-y-auto min-h-0">
+      <CardContent className="p-0 h-full overflow-y-auto">
         {/* Professional Form Header with Light Lines */}
         <div className="relative">
           <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-slate-200 dark:via-slate-700 to-transparent"></div>
@@ -583,28 +583,28 @@ export function FormPreview({ form, showNavigation = false }: FormPreviewProps) 
           </div>
           <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-slate-200 dark:via-slate-700 to-transparent"></div>
         </div>
-      </CardContent>
-      
-      {/* Sticky Action Buttons */}
-      <div className="shrink-0 px-16 py-4 bg-slate-50/80 dark:bg-gray-900/50 border-t border-slate-200 dark:border-slate-700">
-        <div className="max-w-5xl mx-auto">
-          <div className="flex flex-col sm:flex-row gap-3 justify-end">
-            <Button 
-              variant="outline" 
-              size="default"
-              className="px-6 py-2 text-sm font-medium border-slate-300 dark:border-slate-600 hover:border-slate-400 dark:hover:border-slate-500 bg-white dark:bg-gray-950 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors duration-200"
-            >
-              Save Draft
-            </Button>
-            <Button 
-              size="default"
-              className="px-6 py-2 text-sm font-medium bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:hover:bg-slate-200 text-white dark:text-slate-900 transition-colors duration-200"
-            >
-              Submit Form
-            </Button>
+        
+        {/* Minimalistic Action Buttons */}
+        <div className="px-16 py-8 bg-slate-50/40 dark:bg-gray-900/20">
+          <div className="max-w-5xl mx-auto">
+            <div className="flex flex-col sm:flex-row gap-3 justify-end">
+              <Button 
+                variant="outline" 
+                size="default"
+                className="px-6 py-2 text-sm font-medium border-slate-300 dark:border-slate-600 hover:border-slate-400 dark:hover:border-slate-500 bg-white dark:bg-gray-950 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors duration-200"
+              >
+                Save Draft
+              </Button>
+              <Button 
+                size="default"
+                className="px-6 py-2 text-sm font-medium bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:hover:bg-slate-200 text-white dark:text-slate-900 transition-colors duration-200"
+              >
+                Submit Form
+              </Button>
+            </div>
           </div>
         </div>
-      </div>
+      </CardContent>
     </Card>
   );
 }
