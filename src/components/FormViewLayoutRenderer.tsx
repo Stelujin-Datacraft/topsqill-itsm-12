@@ -678,5 +678,5 @@ export function FormViewLayoutRenderer({
     );
   }
 
-  return mainContent;
+  return <div className="p-2 h-full">{mainContent}</div>;
 }
