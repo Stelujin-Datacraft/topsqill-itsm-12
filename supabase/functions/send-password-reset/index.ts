@@ -50,12 +50,14 @@ Deno.serve(async (req) => {
       );
     }
 
-    const productionUrl = 'https://topsqill-itsm-12.lovable.app';
-    const baseRedirectUrl = redirectUrl || `${productionUrl}/change-password`;
-    const parsedRedirectUrl = new URL(baseRedirectUrl);
+    const requestOrigin = req.headers.get('origin');
+    const fallbackOrigin = 'https://topsqill-itsm-12.lovable.app';
+    const baseRedirectUrl = redirectUrl || `${fallbackOrigin}/change-password`;
+    const parsedRedirectUrl = new URL(baseRedirectUrl, requestOrigin || fallbackOrigin);
+    parsedRedirectUrl.pathname = '/change-password';
     parsedRedirectUrl.searchParams.set('mode', 'reset');
     const finalRedirectUrl = parsedRedirectUrl.toString();
-    
+
     console.log(`Using redirect URL: ${finalRedirectUrl}`);
 
     // Generate password reset using Supabase Auth

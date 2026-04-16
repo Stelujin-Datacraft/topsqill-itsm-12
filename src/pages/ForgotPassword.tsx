@@ -32,7 +32,7 @@ const ForgotPassword = () => {
 
       // Use our custom edge function to send password reset via Hostinger SMTP
       // Use production URL for redirect
-      const redirectUrl = 'https://topsqill-itsm-12.lovable.app/change-password?mode=reset';
+      const redirectUrl = `${window.location.origin}/change-password?mode=reset`;
       
       const { data, error } = await supabase.functions.invoke('send-password-reset', {
         body: { 
