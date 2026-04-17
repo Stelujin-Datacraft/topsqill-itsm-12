@@ -8,10 +8,12 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/contexts/AuthContext';
+import { useProject } from '@/contexts/ProjectContext';
 import { schemaCache, FormDefinition, FieldDefinition, SystemColumnDefinition } from '@/services/schemaCache';
 import { SavedQueriesSection } from './SavedQueriesSection';
 import { useSavedQueries } from '@/hooks/useSavedQueries';
 import { SavedQuery } from '@/types/queries';
+import { supabase } from '@/integrations/supabase/client';
 
 interface FormsSidebarProps {
   onInsertText: (text: string) => void;
@@ -148,6 +150,7 @@ export const FormsSidebar = memo(function FormsSidebar({
   const [isSystemTablesExpanded, setIsSystemTablesExpanded] = useState(false);
   const { savedQueries, isLoading, deleteQuery } = useSavedQueries();
   const { userProfile } = useAuth();
+  const { currentProject } = useProject();
 
   // Define system tables with organization filtering requirements
   const systemTables = [
@@ -155,11 +158,9 @@ export const FormsSidebar = memo(function FormsSidebar({
     { name: 'organizations', icon: '🏢', description: 'Organization details', orgFilter: 'id' },
     { name: 'projects', icon: '📁', description: 'Projects in organization', orgFilter: 'organization_id' },
     { name: 'forms', icon: '📋', description: 'Forms metadata', orgFilter: 'organization_id' },
-    { name: 'form_fields', icon: '📝', description: 'Form field definitions', orgFilter: null },
     { name: 'form_submissions', icon: '📤', description: 'Form submission data', orgFilter: null },
     { name: 'workflows', icon: '🔄', description: 'Workflow definitions', orgFilter: 'organization_id' },
     { name: 'reports', icon: '📊', description: 'Report configurations', orgFilter: 'organization_id' },
-    { name: 'form_rules', icon: '⚙️', description: 'Form rule configurations', orgFilter: null },
   ];
 
   // Generate WHERE clause for system table based on organization context
@@ -190,11 +191,29 @@ export const FormsSidebar = memo(function FormsSidebar({
 
   useEffect(() => {
     const loadForms = async () => {
+      setLoading(true);
       try {
         // Force refresh cache to get latest forms (including status changes)
         await schemaCache.refreshCache();
         const cache = await schemaCache.getCache();
-        setForms(cache.forms);
+
+        // If a project is selected, only show forms belonging to that project
+        if (currentProject?.id) {
+          const { data: projectForms } = await supabase
+            .from('forms')
+            .select('id')
+            .eq('project_id', currentProject.id)
+            .neq('status', 'deleted');
+
+          const allowedIds = new Set((projectForms || []).map(f => f.id));
+          const filtered: Record<string, FormDefinition> = {};
+          Object.entries(cache.forms).forEach(([id, form]) => {
+            if (allowedIds.has(id)) filtered[id] = form;
+          });
+          setForms(filtered);
+        } else {
+          setForms(cache.forms);
+        }
       } catch (error) {
         console.error('Error loading forms:', error);
       } finally {
@@ -202,7 +221,7 @@ export const FormsSidebar = memo(function FormsSidebar({
       }
     };
     loadForms();
-  }, []);
+  }, [currentProject?.id]);
 
   const toggleForm = useCallback((formId: string) => {
     setOpenForms(prev => {
