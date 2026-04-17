@@ -81,6 +81,7 @@ export function DynamicTable({
   const [currentForm, setCurrentForm] = useState<Form | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const debouncedSearchTerm = useDebounce(searchTerm, 250);
   const [sortConfigs, setSortConfigs] = useState<SortConfig[]>([]);
   const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
   const [complexFilters, setComplexFilters] = useState<FilterGroup[]>([]);
@@ -204,18 +205,17 @@ export function DynamicTable({
     let filtered = applyAccessFilter(data);
     console.log('🔒 After access control filter:', filtered.length);
 
-    // Apply search
-    if (searchTerm && config.enableSearch) {
-      console.log('🔍 Applying search filter for term:', searchTerm);
-      const beforeSearch = filtered.length;
+    // Apply search (debounced)
+    if (debouncedSearchTerm && config.enableSearch) {
+      const term = debouncedSearchTerm.toLowerCase();
       filtered = filtered.filter(row => {
         // Search in submission ID
-        if (row.submission_ref_id && row.submission_ref_id.toLowerCase().includes(searchTerm.toLowerCase())) {
+        if (row.submission_ref_id && row.submission_ref_id.toLowerCase().includes(term)) {
           return true;
         }
 
         // Search in internal ID
-        if (row.id && row.id.toLowerCase().includes(searchTerm.toLowerCase())) {
+        if (row.id && row.id.toLowerCase().includes(term)) {
           return true;
         }
 
