@@ -228,22 +228,22 @@ const [showCreateDialog, setShowCreateDialog] = useState(false);
 
   const configurationFormContent = (
     <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-      <TabsList className="grid w-full grid-cols-4 mb-6">
-        <TabsTrigger value="connection" className="gap-2">
-          <Network className="h-4 w-4" />
-          <span className="hidden sm:inline">Connection</span>
+      <TabsList className="grid w-full grid-cols-4 mb-6 h-auto">
+        <TabsTrigger value="connection" className="gap-1 sm:gap-2 text-xs sm:text-sm px-2">
+          <Network className="h-4 w-4 shrink-0" />
+          <span>Connection</span>
         </TabsTrigger>
-        <TabsTrigger value="search" className="gap-2">
-          <Users className="h-4 w-4" />
-          <span className="hidden sm:inline">Search</span>
+        <TabsTrigger value="search" className="gap-1 sm:gap-2 text-xs sm:text-sm px-2">
+          <Users className="h-4 w-4 shrink-0" />
+          <span>Search</span>
         </TabsTrigger>
-        <TabsTrigger value="attributes" className="gap-2">
-          <Key className="h-4 w-4" />
-          <span className="hidden sm:inline">Attributes</span>
+        <TabsTrigger value="attributes" className="gap-1 sm:gap-2 text-xs sm:text-sm px-2">
+          <Key className="h-4 w-4 shrink-0" />
+          <span>Attributes</span>
         </TabsTrigger>
-        <TabsTrigger value="behavior" className="gap-2">
-          <Zap className="h-4 w-4" />
-          <span className="hidden sm:inline">Behavior</span>
+        <TabsTrigger value="behavior" className="gap-1 sm:gap-2 text-xs sm:text-sm px-2">
+          <Zap className="h-4 w-4 shrink-0" />
+          <span>Behavior</span>
         </TabsTrigger>
       </TabsList>
 

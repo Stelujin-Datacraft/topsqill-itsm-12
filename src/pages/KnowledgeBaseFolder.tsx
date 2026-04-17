@@ -161,8 +161,8 @@ const KnowledgeBaseFolder = () => {
             onBulkDelete={async (ids) => { await bulkDelete.mutateAsync(ids); }}
             onClone={async (id) => { await clonePolicy.mutateAsync(id); }}
           />
-          <div className="flex flex-wrap gap-3">
-            <div className="relative flex-1 min-w-[280px]">
+          <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3">
+            <div className="relative flex-1 sm:min-w-[280px] w-full">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search by name, description, or doc number..."
@@ -171,8 +171,9 @@ const KnowledgeBaseFolder = () => {
                 className="pl-10"
               />
             </div>
+            <div className="grid grid-cols-2 sm:flex sm:flex-row gap-3">
             <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger className="w-[130px]"><SelectValue placeholder="Type" /></SelectTrigger>
+              <SelectTrigger className="w-full sm:w-[130px]"><SelectValue placeholder="Type" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Types</SelectItem>
                 <SelectItem value="policy">Doc</SelectItem>
@@ -180,7 +181,7 @@ const KnowledgeBaseFolder = () => {
               </SelectContent>
             </Select>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[160px]"><SelectValue placeholder="Status" /></SelectTrigger>
+              <SelectTrigger className="w-full sm:w-[160px]"><SelectValue placeholder="Status" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Statuses</SelectItem>
                 {POLICY_STATUSES.map(s => (
@@ -189,7 +190,7 @@ const KnowledgeBaseFolder = () => {
               </SelectContent>
             </Select>
             <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger className="w-[160px]"><SelectValue placeholder="Category" /></SelectTrigger>
+              <SelectTrigger className="w-full sm:w-[160px]"><SelectValue placeholder="Category" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Categories</SelectItem>
                 {POLICY_CATEGORIES.map(c => (
@@ -197,6 +198,7 @@ const KnowledgeBaseFolder = () => {
                 ))}
               </SelectContent>
             </Select>
+            </div>
           </div>
 
           {isLoading ? (

@@ -67,25 +67,25 @@
 
        {/* Main Tabs */}
        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList className="grid w-full max-w-3xl grid-cols-5">
-            <TabsTrigger value="predictions" className="flex items-center gap-2">
-              <Brain className="h-4 w-4" />
-              AI Predictions
+          <TabsList className="flex w-full max-w-3xl justify-start sm:grid sm:grid-cols-5 h-auto">
+            <TabsTrigger value="predictions" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm whitespace-nowrap">
+              <Brain className="h-4 w-4 shrink-0" />
+              <span className="hidden sm:inline">AI </span>Predictions
             </TabsTrigger>
-           <TabsTrigger value="dashboard" className="flex items-center gap-2">
-             <TrendingUp className="h-4 w-4" />
+           <TabsTrigger value="dashboard" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm whitespace-nowrap">
+             <TrendingUp className="h-4 w-4 shrink-0" />
              Dashboard
            </TabsTrigger>
-           <TabsTrigger value="templates" className="flex items-center gap-2">
-             <Clock className="h-4 w-4" />
-             SLA Templates
+           <TabsTrigger value="templates" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm whitespace-nowrap">
+             <Clock className="h-4 w-4 shrink-0" />
+             <span className="sm:hidden">SLAs</span><span className="hidden sm:inline">SLA Templates</span>
            </TabsTrigger>
-           <TabsTrigger value="escalations" className="flex items-center gap-2">
-             <AlertTriangle className="h-4 w-4" />
-             Escalation Chains
+           <TabsTrigger value="escalations" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm whitespace-nowrap">
+             <AlertTriangle className="h-4 w-4 shrink-0" />
+             <span className="sm:hidden">Escalation</span><span className="hidden sm:inline">Escalation Chains</span>
            </TabsTrigger>
-           <TabsTrigger value="holidays" className="flex items-center gap-2">
-             <Calendar className="h-4 w-4" />
+           <TabsTrigger value="holidays" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm whitespace-nowrap">
+             <Calendar className="h-4 w-4 shrink-0" />
              Holidays
            </TabsTrigger>
          </TabsList>
