@@ -267,10 +267,14 @@ export function OrganizationDialog({
               <Input
                 id="domain"
                 value={formData.domain}
-                onChange={(e) => setFormData({ ...formData, domain: e.target.value })}
-                placeholder="Enter organization domain"
-                required
+                placeholder="Organization domain"
+                readOnly
+                disabled
+                className="bg-muted cursor-not-allowed"
               />
+              <p className="text-xs text-muted-foreground mt-1">
+                Domain cannot be changed
+              </p>
             </div>
             <div>
               <Label htmlFor="admin_email">Admin Email</Label>
@@ -278,10 +282,14 @@ export function OrganizationDialog({
                 id="admin_email"
                 type="email"
                 value={formData.admin_email}
-                onChange={(e) => setFormData({ ...formData, admin_email: e.target.value })}
-                placeholder="Enter admin email"
-                required
+                placeholder="Admin email"
+                readOnly
+                disabled
+                className="bg-muted cursor-not-allowed"
               />
+              <p className="text-xs text-muted-foreground mt-1">
+                Admin email cannot be changed
+              </p>
             </div>
           </div>
           <DialogFooter className="mt-6">
