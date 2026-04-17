@@ -293,6 +293,10 @@ export default function QueryPage() {
 
   return (
     <DashboardLayout title="Query Builder" description="Execute SQL queries and explore your data">
+      <DesktopOnlyNotice
+        toolName="Query Builder"
+        description="Writing SQL and viewing wide result tables needs a larger screen. Please use a tablet or desktop."
+      >
       <div className="h-[calc(100vh-8rem)] flex overflow-hidden">
         <ResizablePanelGroup direction="horizontal" className="w-full">
           {/* Forms Sidebar */}
@@ -375,6 +379,7 @@ export default function QueryPage() {
           </ResizablePanel>
         </ResizablePanelGroup>
       </div>
+      </DesktopOnlyNotice>
       
       <SaveQueryDialog
         open={showSaveDialog}
