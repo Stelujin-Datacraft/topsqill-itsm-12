@@ -128,12 +128,27 @@ export default function QueryPage() {
     });
   }, [activeTabId, addToHistory, toast]); // Removed 'tabs' dependency!
 
+  // Helper: find the smallest unused "Query N" number
+  const getNextQueryNumber = useCallback((existing: QueryTab[]) => {
+    const used = new Set(
+      existing
+        .map(t => {
+          const m = t.name.match(/^Query (\d+)$/);
+          return m ? parseInt(m[1], 10) : null;
+        })
+        .filter((n): n is number => n !== null)
+    );
+    let n = 1;
+    while (used.has(n)) n++;
+    return n;
+  }, []);
+
   const handleNewTab = useCallback(() => {
     const newId = Date.now().toString();
     setTabs(prevTabs => {
       const newTab: QueryTab = {
         id: newId,
-        name: `Query ${prevTabs.length + 1}`,
+        name: `Query ${getNextQueryNumber(prevTabs)}`,
         query: '',
         isActive: false,
         isDirty: false
@@ -141,7 +156,7 @@ export default function QueryPage() {
       return [...prevTabs, newTab];
     });
     setActiveTabId(newId);
-  }, []);
+  }, [getNextQueryNumber]);
 
   // CRITICAL FIX: Use ref instead of tabs dependency
   const handleTabClose = useCallback((tabId: string) => {
