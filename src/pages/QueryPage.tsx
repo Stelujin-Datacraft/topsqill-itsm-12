@@ -180,16 +180,23 @@ export default function QueryPage() {
       if (prevTabs.length === 1) return prevTabs;
       return prevTabs.filter(tab => tab.id !== tabId);
     });
-    
+
+    // Drop the closed tab's stored result so memory doesn't leak
+    setTabResults(prev => {
+      if (!(tabId in prev)) return prev;
+      const next = { ...prev };
+      delete next[tabId];
+      return next;
+    });
+
     setActiveTabId(prevActiveId => {
       if (prevActiveId === tabId) {
-        // Use ref to find next tab without dependency
         const currentTabs = tabsRef.current;
         return currentTabs.find(t => t.id !== tabId)?.id || '1';
       }
       return prevActiveId;
     });
-  }, []); // No dependencies needed - uses ref
+  }, []);
 
   // CRITICAL FIX: Use ref instead of tabs dependency
   const handleSaveQuery = useCallback(async (name: string) => {
