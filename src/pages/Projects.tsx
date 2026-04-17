@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useProject } from '@/contexts/ProjectContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -6,8 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Search } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 import { CreateProjectDialog } from '@/components/projects/CreateProjectDialog';
 import { ProjectsTable } from '@/components/projects/ProjectsTable';
 import { Project } from '@/types/project';
@@ -19,80 +17,72 @@ const Projects = () => {
   const { userProfile } = useAuth();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
 
   const canCreateProject = userProfile?.role === 'admin';
 
   const handleSelectProject = (project: Project) => {
-    console.log('Setting current project:', project.id);
     setCurrentProject(project);
   };
 
   const handleManageAccess = (project: Project) => {
-    console.log('Navigating to access management for project:', project.id);
     navigate(`/projects/${project.id}/access`);
   };
 
-  const handleManageSettings = (project: Project) => {
-    console.log('Manage settings for project:', project.id);
+  const handleManageSettings = (_project: Project) => {
     // Navigate to settings page when implemented
-    // navigate(`/projects/${project.id}/settings`);
   };
 
-  const handleProjectCreated = (projectId: string) => {
-    console.log('New project created:', projectId);
-  };
+  const handleProjectCreated = (_projectId: string) => {};
 
-  const handleInvitationAccepted = (projectId: string) => {
-    console.log('Invitation accepted for project:', projectId);
-  };
+  const handleInvitationAccepted = (_projectId: string) => {};
 
-  const filteredProjects = projects.filter(project => {
-    const matchesSearch = project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         project.description?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || project.status === statusFilter;
-    return matchesSearch && matchesStatus;
+  const filteredProjects = projects.filter((project) => {
+    const term = searchTerm.toLowerCase();
+    return (
+      project.name.toLowerCase().includes(term) ||
+      project.description?.toLowerCase().includes(term)
+    );
   });
 
   return (
     <DashboardLayout title="Projects" description="Manage your projects and collaborate with team members">
       <div className="space-y-6">
-
         {/* Project Invitations */}
         <ProjectInvitationsCard onInvitationAccepted={handleInvitationAccepted} />
 
-        {/* Search and Filter Controls */}
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-            <Input
-              placeholder="Search projects..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full sm:w-[180px]">
-              <SelectValue placeholder="Filter by status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="active">Active</SelectItem>
-              <SelectItem value="archived">Archived</SelectItem>
-            </SelectContent>
-          </Select>
+        {/* Search Bar */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4 pointer-events-none" />
+          <Input
+            placeholder="Search projects by name or description..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10 pr-10 h-11 bg-background border-border/60 focus-visible:ring-primary/30"
+          />
+          {searchTerm && (
+            <button
+              type="button"
+              onClick={() => setSearchTerm('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              aria-label="Clear search"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
         </div>
 
         {/* Projects Table */}
         <Card>
-<CardHeader className="flex flex-row items-center justify-between">
-  <CardTitle>Your Projects</CardTitle>
-
-  {canCreateProject && (
-    <CreateProjectDialog onProjectCreated={handleProjectCreated} />
-  )}
-</CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle>Your Projects</CardTitle>
+              <p className="text-sm text-muted-foreground mt-1">
+                {filteredProjects.length} {filteredProjects.length === 1 ? 'project' : 'projects'}
+                {searchTerm && ` matching "${searchTerm}"`}
+              </p>
+            </div>
+            {canCreateProject && <CreateProjectDialog onProjectCreated={handleProjectCreated} />}
+          </CardHeader>
           <CardContent>
             {loading ? (
               <div className="flex items-center justify-center h-32">
@@ -100,15 +90,14 @@ const Projects = () => {
               </div>
             ) : (
               <>
-                <ProjectsTable 
+                <ProjectsTable
                   projects={filteredProjects}
                   currentProject={currentProject}
                   onSelectProject={handleSelectProject}
                   onManageAccess={handleManageAccess}
                   onManageSettings={handleManageSettings}
                 />
-                
-                {/* Create Project Button */}
+
                 {canCreateProject && (
                   <div className="flex justify-center mt-6 pt-4 border-t">
                     <CreateProjectDialog onProjectCreated={handleProjectCreated} />
