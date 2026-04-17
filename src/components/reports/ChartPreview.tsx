@@ -2704,6 +2704,21 @@ export function ChartPreview({
       sanitizedChartData = sanitizedChartData.slice(0, config.maxDataPoints);
     }
 
+    // ---- Responsive axis sizing & label helpers ----
+    // Reduce font sizes & truncate tick labels as the number of data points grows
+    const dataCount = sanitizedChartData.length;
+    const tickFontSize = dataCount > 20 ? 9 : dataCount > 12 ? 10 : 11;
+    const axisLabelFontSize = dataCount > 20 ? 10 : dataCount > 12 ? 11 : 12;
+    const xTickMaxChars = dataCount > 25 ? 6 : dataCount > 15 ? 10 : dataCount > 8 ? 14 : 20;
+    const xAxisHeight = dataCount > 20 ? 96 : 80;
+    const formatXTick = (v: any) => {
+      const s = v === null || v === undefined ? '' : String(v);
+      return s.length > xTickMaxChars ? `${s.slice(0, xTickMaxChars - 1)}…` : s;
+    };
+    // Derive the dimension (X-axis) field label so the X axis title is NOT a duplicate of the Y metric
+    const dimensionFieldId = config.dimensions?.[0] || config.xAxis;
+    const dimensionFieldLabel = dimensionFieldId ? getFormFieldName(dimensionFieldId) : 'Category';
+
     // Calculate safe domain for Y axis to prevent NaN errors - use 0.5 increments
     const getYAxisDomain = (data: any[], metricKey: string): [number, number] => {
       if (!data || data.length === 0) return [0, 5]; // Safe default with nice 0.5 range
