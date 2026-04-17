@@ -117,6 +117,21 @@ const QueryResultsTableInner: React.FC<QueryResultsTableProps> = ({
             </ContextMenu>
           );
         },
+        // CRITICAL FIX: Custom filter that coerces ALL value types (numbers, booleans,
+        // dates, objects) to a string before substring matching. The default
+        // includesString filter only handles strings and silently fails on other types.
+        filterFn: (row, columnId, filterValue) => {
+          if (filterValue === undefined || filterValue === null || filterValue === '') return true;
+          const cell = row.getValue(columnId);
+          if (cell === null || cell === undefined) return false;
+          let cellStr: string;
+          if (typeof cell === 'object') {
+            try { cellStr = JSON.stringify(cell); } catch { cellStr = String(cell); }
+          } else {
+            cellStr = String(cell);
+          }
+          return cellStr.toLowerCase().includes(String(filterValue).toLowerCase());
+        },
         size: 150,
         minSize: 100,
         maxSize: 200,
