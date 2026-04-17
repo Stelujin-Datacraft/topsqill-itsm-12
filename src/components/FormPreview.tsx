@@ -439,11 +439,6 @@ export function FormPreview({ form, showNavigation = false }: FormPreviewProps) 
                       <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100 leading-tight font-['Inter',system-ui,sans-serif]">
                         {form.name}
                       </h1>
-                      {form.description && (
-                        <p className="text-base text-slate-600 dark:text-slate-300 leading-relaxed font-['Inter',system-ui,sans-serif]">
-                          {form.description}
-                        </p>
-                      )}
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       <AIAutoFillInput
@@ -548,11 +543,6 @@ export function FormPreview({ form, showNavigation = false }: FormPreviewProps) 
               <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100 leading-tight font-['Inter',system-ui,sans-serif]">
                 {form.name}
               </h1>
-              {form.description && (
-                <p className="text-lg text-slate-600 dark:text-slate-300 leading-relaxed font-['Inter',system-ui,sans-serif] font-normal">
-                  {form.description}
-                </p>
-              )}
             </div>
           </div>
           <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-slate-200 dark:via-slate-700 to-transparent"></div>

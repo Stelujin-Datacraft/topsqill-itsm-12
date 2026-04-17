@@ -556,11 +556,6 @@ export function FormViewLayoutRenderer({
                   <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100 leading-tight font-['Inter',system-ui,sans-serif]">
                     {form.name}
                   </h1>
-                  {form.description && (
-                    <p className="text-base text-slate-600 dark:text-slate-300 leading-relaxed font-['Inter',system-ui,sans-serif]">
-                      {form.description}
-                    </p>
-                  )}
                 </div>
                 <div className="flex items-center gap-2 shrink-0 print:hidden">
                   <Button
