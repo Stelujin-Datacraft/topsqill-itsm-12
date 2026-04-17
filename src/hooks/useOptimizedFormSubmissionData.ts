@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProject } from '@/contexts/ProjectContext';
@@ -135,18 +135,10 @@ export function useOptimizedFormSubmissionData({
     setError(null);
 
     try {
-      // Get total count first
-      const { count, error: countError } = await supabase
-        .from('form_submissions')
-        .select('*', { count: 'exact', head: true })
-        .eq('form_id', targetFormId);
-
-      if (countError) throw countError;
-
-      // Get paginated data with basic query
+      // Single query with exact count - eliminates N+1 round trip
       let query = supabase
         .from('form_submissions')
-        .select('id, submission_ref_id, submitted_at, submitted_by, approval_status, form_id, submission_data')
+        .select('id, submission_ref_id, submitted_at, submitted_by, approval_status, form_id, submission_data', { count: 'exact' })
         .eq('form_id', targetFormId);
 
       // Apply sorting
@@ -161,7 +153,7 @@ export function useOptimizedFormSubmissionData({
       }
 
       const offset = (currentPage - 1) * pageSize;
-      const { data: submissions, error: queryError } = await query
+      const { data: submissions, error: queryError, count } = await query
         .range(offset, offset + pageSize - 1);
 
       if (queryError) throw queryError;
@@ -227,6 +219,11 @@ export function useOptimizedFormSubmissionData({
     }
   };
 
+  // Stable hash keys to avoid JSON.stringify on every render
+  const filtersKey = useMemo(() => JSON.stringify(filters), [filters]);
+  const sortKey = useMemo(() => JSON.stringify(sortConditions), [sortConditions]);
+  const columnsKey = useMemo(() => JSON.stringify(displayColumns), [displayColumns]);
+
   // Fetch form fields and target form info on mount
   useEffect(() => {
     fetchFormFields();
@@ -236,14 +233,8 @@ export function useOptimizedFormSubmissionData({
   // Fetch data when dependencies change
   useEffect(() => {
     fetchData();
-  }, [
-    targetFormId,
-    currentPage,
-    searchTerm,
-    JSON.stringify(filters),
-    JSON.stringify(sortConditions),
-    JSON.stringify(displayColumns)
-  ]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [targetFormId, currentPage, searchTerm, filtersKey, sortKey, columnsKey]);
 
   return {
     data,
