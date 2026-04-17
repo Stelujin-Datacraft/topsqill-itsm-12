@@ -115,9 +115,6 @@ export function SmartFormLayoutRenderer({
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="text-2xl">{form.name}</CardTitle>
-              {form.description && (
-                <p className="text-muted-foreground mt-2">{form.description}</p>
-              )}
             </div>
             <Badge variant="outline">{form.status}</Badge>
           </div>
