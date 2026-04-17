@@ -4179,6 +4179,11 @@ export function ChartPreview({
       );
     }
     
+    // Resolve correct axis labels: X-axis should reflect the dimension, Y-axis the metric
+    const xAxisDimensionField = config.dimensions?.[0] || config.xAxis;
+    const xAxisDisplayLabel = config.xAxisLabel || (xAxisDimensionField ? getFormFieldName(xAxisDimensionField) : 'Category');
+    const yAxisDisplayLabel = config.yAxisLabel || (primaryMetric && primaryMetric !== 'value' && primaryMetric !== 'count' ? getFormFieldName(primaryMetric) : 'Value');
+
     switch (chartType) {
       case 'bar':
         // Bar chart = vertical bars (categories on X-axis, values on Y-axis)
