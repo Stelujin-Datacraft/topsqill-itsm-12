@@ -12,6 +12,17 @@ export interface QueryHistoryItem {
 
 const STORAGE_KEY = 'sql_query_history';
 const MAX_HISTORY_ITEMS = 50;
+const MAX_AGE_MS = 24 * 60 * 60 * 1000; // 1 day
+
+const pruneOld = (items: QueryHistoryItem[]): QueryHistoryItem[] => {
+  const cutoff = Date.now() - MAX_AGE_MS;
+  return items.filter(item => {
+    const ts = item.executedAt instanceof Date
+      ? item.executedAt.getTime()
+      : new Date(item.executedAt as any).getTime();
+    return ts >= cutoff;
+  });
+};
 
 export function useQueryHistory() {
   const [history, setHistory] = useState<QueryHistoryItem[]>([]);
@@ -30,7 +41,11 @@ export function useQueryHistory() {
           ...item,
           executedAt: new Date(item.executedAt)
         }));
-        setHistory(historyWithDates);
+        const fresh = pruneOld(historyWithDates);
+        if (fresh.length !== historyWithDates.length) {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(fresh));
+        }
+        setHistory(fresh);
       }
     } catch (error) {
       console.error('Failed to load query history:', error);
@@ -45,7 +60,7 @@ export function useQueryHistory() {
     };
 
     setHistory(prev => {
-      const updated = [newItem, ...prev].slice(0, MAX_HISTORY_ITEMS);
+      const updated = pruneOld([newItem, ...prev]).slice(0, MAX_HISTORY_ITEMS);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
       return updated;
     });
