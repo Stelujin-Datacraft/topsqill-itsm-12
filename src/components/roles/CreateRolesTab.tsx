@@ -7,7 +7,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Edit, Trash2, Save, X, Shield, Users, FileText, Workflow, BarChart, FolderOpen, BookOpen, LayoutDashboard, Briefcase } from 'lucide-react';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Plus, Edit, Trash2, Save, X, Shield, Users, FileText, Workflow, BarChart, FolderOpen, BookOpen, LayoutDashboard, Briefcase, AlertTriangle } from 'lucide-react';
 import { useRoles, Role } from '@/hooks/useRoles';
 import { useCreateRole } from '@/hooks/useCreateRole';
 import { useProject } from '@/contexts/ProjectContext';
@@ -37,6 +41,8 @@ export function CreateRolesTab() {
   const [roleDescription, setRoleDescription] = useState('');
   const [resourcePermissions, setResourcePermissions] = useState<ResourcePermissions>({});
   const [selectedAssetTypes, setSelectedAssetTypes] = useState<Record<string, string>>({});
+  const [roleToDelete, setRoleToDelete] = useState<Role | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const { roles, loading, refetchRoles } = useRoles();
   const { createRole, updateRole, loading: createLoading } = useCreateRole();
@@ -285,20 +291,23 @@ export function CreateRolesTab() {
     }
   };
 
-  const handleDeleteRole = async (roleId: string) => {
+  const handleDeleteRole = async () => {
+    if (!roleToDelete) return;
+    setDeleting(true);
     try {
       const { error } = await supabase
         .from('roles')
         .delete()
-        .eq('id', roleId);
+        .eq('id', roleToDelete.id);
 
       if (error) throw error;
 
       toast({
         title: "Success",
-        description: "Role deleted successfully",
+        description: `Role "${roleToDelete.name}" deleted successfully`,
       });
 
+      setRoleToDelete(null);
       refetchRoles();
     } catch (error: any) {
       toast({
@@ -306,6 +315,8 @@ export function CreateRolesTab() {
         description: error.message || "Failed to delete role",
         variant: "destructive",
       });
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -362,10 +373,14 @@ export function CreateRolesTab() {
               <Textarea
                 id="roleDescription"
                 value={roleDescription}
-                onChange={(e) => setRoleDescription(e.target.value)}
-                placeholder="Describe the purpose and scope of this role"
-                rows={3}
+                onChange={(e) => setRoleDescription(e.target.value.slice(0, 250))}
+                placeholder="Briefly describe this role"
+                rows={2}
+                className="resize-none min-h-[60px]"
               />
+              <p className="text-xs text-muted-foreground mt-1 text-right">
+                {roleDescription.length}/250
+              </p>
             </div>
 
             {/* Project Permissions */}
@@ -387,27 +402,44 @@ export function CreateRolesTab() {
                       <CardContent>
                         <div className="space-y-4">
                           {/* Project Level Permissions - Updated message */}
-                          <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                            <div className="flex items-center gap-6">
-                               <span className="text-sm text-muted-foreground">
-                                 Only Admin can Manage Project
-                               </span>
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 bg-muted/50 rounded-lg">
+                            <div className="flex items-center gap-2">
+                              <Shield className="h-4 w-4 text-muted-foreground" />
+                              <span className="text-sm text-muted-foreground">
+                                Only Admin can Manage Project
+                              </span>
                             </div>
-                            
+
                             {/* Asset Type Dropdown */}
-                            <div className="w-40">
-                                <Select 
-                                value={selectedAssetType} 
+                            <div className="w-full sm:w-64">
+                              <Select
+                                value={selectedAssetType}
                                 onValueChange={(value) => handleAssetTypeChange(project.id, value)}
                               >
-                                <SelectTrigger>
-                                  <SelectValue />
+                                <SelectTrigger className="w-full bg-background">
+                                  <SelectValue placeholder="Select asset type" />
                                 </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="dashboards">Dashboards & Reports</SelectItem>
-                                  <SelectItem value="forms">Forms</SelectItem>
-                                  <SelectItem value="workflows">Workflows</SelectItem>
-                                  <SelectItem value="policies">Knowledge Base</SelectItem>
+                                <SelectContent className="bg-popover z-50">
+                                  <SelectItem value="dashboards">
+                                    <span className="flex items-center gap-2">
+                                      <LayoutDashboard className="h-4 w-4" /> Dashboards & Reports
+                                    </span>
+                                  </SelectItem>
+                                  <SelectItem value="forms">
+                                    <span className="flex items-center gap-2">
+                                      <FileText className="h-4 w-4" /> Forms
+                                    </span>
+                                  </SelectItem>
+                                  <SelectItem value="workflows">
+                                    <span className="flex items-center gap-2">
+                                      <Workflow className="h-4 w-4" /> Workflows
+                                    </span>
+                                  </SelectItem>
+                                  <SelectItem value="policies">
+                                    <span className="flex items-center gap-2">
+                                      <BookOpen className="h-4 w-4" /> Knowledge Base
+                                    </span>
+                                  </SelectItem>
                                 </SelectContent>
                               </Select>
                             </div>
@@ -518,7 +550,8 @@ export function CreateRolesTab() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleDeleteRole(role.id)}
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => setRoleToDelete(role)}
                         >
                           <Trash2 className="h-4 w-4 mr-2" />
                           Delete
@@ -532,6 +565,36 @@ export function CreateRolesTab() {
           </CardContent>
         </Card>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!roleToDelete} onOpenChange={(open) => !open && setRoleToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              Delete Role?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete the role{' '}
+              <strong className="text-foreground">"{roleToDelete?.name}"</strong>?
+              <br />
+              <br />
+              This action cannot be undone. All users assigned to this role will lose its
+              {roleToDelete ? ` ${roleToDelete.permissions.length}` : ''} associated permissions.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); handleDeleteRole(); }}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? 'Deleting...' : 'Delete Role'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
