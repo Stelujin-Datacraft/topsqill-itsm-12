@@ -289,14 +289,16 @@ export function FormsList() {
       const deleteButtonState = getButtonState('forms', 'delete', form.id);
       const statusBadgeProps = getStatusBadgeProps(form.status);
       return <Card key={form.id} className="hover:shadow-lg transition-all duration-300">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4 flex-1">
-                  <FileText className="h-8 w-8 text-primary" />
-                  <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-foreground">{form.name}</h3>
-                    <p className="text-sm text-muted-foreground">{form.description}</p>
-                    <div className="flex items-center space-x-4 mt-2">
+            <CardContent className="p-3 sm:p-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="flex items-start sm:items-center gap-3 sm:gap-4 flex-1 min-w-0">
+                  <FileText className="h-7 w-7 sm:h-8 sm:w-8 text-primary shrink-0 mt-0.5 sm:mt-0" />
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-base sm:text-lg font-semibold text-foreground truncate">{form.name}</h3>
+                    {form.description && (
+                      <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2">{form.description}</p>
+                    )}
+                    <div className="flex items-center flex-wrap gap-2 sm:gap-4 mt-2">
                       <div className="flex items-center space-x-1 text-xs text-muted-foreground">
                         <Calendar className="h-3 w-3 text-primary" />
                         <span>{format(new Date(form.createdAt), 'MMM d, yyyy')}</span>
@@ -304,16 +306,10 @@ export function FormsList() {
                       <Badge {...statusBadgeProps}>
                         {form.status.replace('_', ' ')}
                       </Badge>
-                      {/*<Badge variant={form.isPublic ? 'default' : 'secondary'} className={form.isPublic ? 'bg-cyan-500 hover:bg-cyan-600 text-white border-cyan-400' : 'bg-slate-600 hover:bg-slate-700 text-white border-slate-500'}>
-                        {form.isPublic ? <><Globe className="h-3 w-3 mr-1" />Public</> : <><Lock className="h-3 w-3 mr-1" />Private</>}
-                      </Badge>*/}
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center space-x-0">
-                  {/* <Button variant="ghost" size="sm" onClick={() => handleCopyId(form.id)} title="Copy Form ID">
-                    <Copy className="h-4 w-4 text-primary" />
-                  </Button> */}
+                <div className="flex items-center flex-wrap sm:flex-nowrap gap-1 -mx-1 sm:mx-0 sm:justify-end shrink-0">
                   <Button variant="ghost" size="sm" onClick={() => handleCopyForm(form)} disabled={copyingFormId === form.id} title="Duplicate Form">
                     <Files className="h-4 w-4 text-primary" />
                   </Button>
