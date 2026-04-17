@@ -1,20 +1,30 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEffectiveUser } from '@/hooks/useEffectiveUser';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
+import { formatDistanceToNow, differenceInMinutes, differenceInSeconds } from 'date-fns';
 import DashboardLayout from '@/components/DashboardLayout';
 import { BackToMembersButton } from '@/components/users/BackToMembersButton';
-import { 
-  Monitor, 
-  Smartphone, 
-  Globe, 
-  Clock, 
-  LogOut, 
+import {
+  Monitor,
+  Smartphone,
+  Globe,
+  Clock,
+  LogOut,
   RefreshCw,
+  Search,
+  Users,
+  Activity,
+  Wifi,
+  WifiOff,
+  Tablet,
+  ShieldCheck,
 } from 'lucide-react';
 import {
   AlertDialog,
@@ -49,6 +59,9 @@ interface UserInfo {
   role: string;
 }
 
+// "Online" if active within the last 5 minutes
+const ONLINE_THRESHOLD_MIN = 5;
+
 const ManageSessions: React.FC = () => {
   const { user, session, signOut } = useAuth();
   const { effectiveUserId, effectiveRole } = useEffectiveUser();
@@ -57,6 +70,15 @@ const ManageSessions: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [terminatingId, setTerminatingId] = useState<string | null>(null);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'online' | 'idle'>('all');
+  // Tick every 30s so "time ago" stays fresh
+  const [, setTick] = useState(0);
+
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 30_000);
+    return () => clearInterval(id);
+  }, []);
 
   const handleSignOutCurrentSession = async () => {
     try {
@@ -69,48 +91,43 @@ const ManageSessions: React.FC = () => {
 
   const fetchSessions = async () => {
     if (!user) return;
-    
+
     setLoading(true);
     try {
-      // Admins see all sessions, users only their own
       let query = supabase
         .from('user_sessions')
         .select('*')
         .eq('is_active', true)
         .order('last_activity', { ascending: false });
 
-      // Admins see all sessions, users only their own (respects impersonation)
       if (effectiveRole !== 'admin') {
         query = query.eq('user_id', effectiveUserId);
       }
 
       const { data, error } = await query;
-
       if (error) throw error;
-      
-      // Show all active sessions (not just one per user)
+
       const allSessions = data || [];
       setSessions(allSessions);
 
-      // Identify current session for the current user (most recent one matching current access token or user)
       if (user && session?.access_token) {
-        // First try to find session by exact token match
-        const exactMatch = allSessions.find(s => s.session_token === session.access_token);
+        const exactMatch = allSessions.find((s) => s.session_token === session.access_token);
         if (exactMatch) {
           setCurrentSessionId(exactMatch.id);
         } else {
-          // Fallback: find the most recently created session for current user
           const userSessions = allSessions
-            .filter(s => s.user_id === user.id)
-            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+            .filter((s) => s.user_id === user.id)
+            .sort(
+              (a, b) =>
+                new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+            );
           if (userSessions.length > 0) {
             setCurrentSessionId(userSessions[0].id);
           }
         }
       }
 
-      // Fetch user info for all unique user IDs
-      const userIds = [...new Set(allSessions.map(s => s.user_id))];
+      const userIds = [...new Set(allSessions.map((s) => s.user_id))];
       if (userIds.length > 0) {
         const { data: usersData, error: usersError } = await supabase
           .from('user_profiles')
@@ -119,7 +136,9 @@ const ManageSessions: React.FC = () => {
 
         if (!usersError && usersData) {
           const map: Record<string, UserInfo> = {};
-          usersData.forEach(u => { map[u.id] = u; });
+          usersData.forEach((u) => {
+            map[u.id] = u;
+          });
           setUsersMap(map);
         }
       }
@@ -133,18 +152,16 @@ const ManageSessions: React.FC = () => {
 
   useEffect(() => {
     fetchSessions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, effectiveUserId, effectiveRole]);
 
-  const terminateSession = async (sessionId: string, sessionToken: string) => {
+  const terminateSession = async (sessionId: string, _sessionToken: string) => {
     setTerminatingId(sessionId);
     try {
-      // Call edge function to terminate the session
-      const { data, error } = await supabase.functions.invoke('terminate-session', {
-        body: { sessionId }
+      const { error } = await supabase.functions.invoke('terminate-session', {
+        body: { sessionId },
       });
-
       if (error) throw error;
-
       toast.success('Session terminated successfully');
       fetchSessions();
     } catch (error) {
@@ -155,69 +172,42 @@ const ManageSessions: React.FC = () => {
     }
   };
 
-  const terminateAllOtherSessions = async () => {
-    try {
-      const currentSessionToken = session?.access_token;
-      
-      const { error } = await supabase
-        .from('user_sessions')
-        .update({ is_active: false })
-        .eq('user_id', user?.id)
-        .eq('is_active', true)
-        .neq('session_token', currentSessionToken || '');
+  // -------- Helpers (device, browser, online) --------
 
-      if (error) throw error;
+  const isOnline = (lastActivity: string) =>
+    differenceInMinutes(new Date(), new Date(lastActivity)) < ONLINE_THRESHOLD_MIN;
 
-      // Log the action
-      await supabase.from('audit_logs').insert({
-        user_id: user?.id,
-        event_type: 'all_sessions_terminated',
-        event_category: 'security',
-        description: 'User terminated all other sessions'
-      });
-
-      toast.success('All other sessions terminated');
-      fetchSessions();
-    } catch (error) {
-      console.error('Error terminating sessions:', error);
-      toast.error('Failed to terminate sessions');
-    }
+  const getDeviceType = (userAgent: string | null): 'mobile' | 'tablet' | 'desktop' | 'unknown' => {
+    if (!userAgent) return 'unknown';
+    const ua = userAgent.toLowerCase();
+    if (ua.includes('ipad') || (ua.includes('android') && !ua.includes('mobile'))) return 'tablet';
+    if (ua.includes('mobile') || ua.includes('iphone') || ua.includes('android')) return 'mobile';
+    return 'desktop';
   };
 
   const getDeviceIcon = (userAgent: string | null) => {
-    if (!userAgent) return <Globe className="h-5 w-5" />;
-    const ua = userAgent.toLowerCase();
-    if (ua.includes('mobile') || ua.includes('android') || ua.includes('iphone') || ua.includes('ipad')) {
-      return <Smartphone className="h-5 w-5" />;
-    }
-    return <Monitor className="h-5 w-5" />;
+    const t = getDeviceType(userAgent);
+    if (t === 'mobile') return <Smartphone className="h-5 w-5" />;
+    if (t === 'tablet') return <Tablet className="h-5 w-5" />;
+    if (t === 'desktop') return <Monitor className="h-5 w-5" />;
+    return <Globe className="h-5 w-5" />;
   };
 
   const getDeviceName = (userAgent: string | null): string => {
     if (!userAgent) return 'Unknown Device';
     const ua = userAgent.toLowerCase();
-    
-    // Mobile devices
     if (ua.includes('iphone')) return 'iPhone';
     if (ua.includes('ipad')) return 'iPad';
-    if (ua.includes('android')) {
-      if (ua.includes('mobile')) return 'Android Phone';
-      return 'Android Tablet';
-    }
-    
-    // Desktop OS
+    if (ua.includes('android')) return ua.includes('mobile') ? 'Android Phone' : 'Android Tablet';
     if (ua.includes('windows')) return 'Windows PC';
     if (ua.includes('macintosh') || ua.includes('mac os')) return 'Mac';
     if (ua.includes('linux')) return 'Linux PC';
     if (ua.includes('chromeos')) return 'Chromebook';
-    
     return 'Desktop';
   };
 
   const getBrowserInfo = (userAgent: string | null): string => {
     if (!userAgent) return 'Unknown Browser';
-    
-    // Order matters - check Edge before Chrome as Edge contains Chrome in UA
     if (userAgent.includes('Edg/') || userAgent.includes('Edge/')) return 'Microsoft Edge';
     if (userAgent.includes('OPR/') || userAgent.includes('Opera')) return 'Opera';
     if (userAgent.includes('Firefox/')) return 'Mozilla Firefox';
@@ -226,28 +216,83 @@ const ManageSessions: React.FC = () => {
     return 'Unknown Browser';
   };
 
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleString();
+  const isCurrentSession = (sessionId: string) => currentSessionId === sessionId;
+
+  const getUserInitials = (u: UserInfo | undefined): string => {
+    if (!u) return '?';
+    const first = u.first_name?.charAt(0) || '';
+    const last = u.last_name?.charAt(0) || '';
+    return (first + last).toUpperCase() || u.email.charAt(0).toUpperCase();
   };
 
-  const isCurrentSession = (sessionId: string) => {
-    return currentSessionId === sessionId;
+  const getUserDisplayName = (u: UserInfo | undefined): string => {
+    if (!u) return 'Unknown User';
+    if (u.first_name || u.last_name) return `${u.first_name || ''} ${u.last_name || ''}`.trim();
+    return u.email;
   };
 
-  const getUserInitials = (userInfo: UserInfo | undefined): string => {
-    if (!userInfo) return '?';
-    const first = userInfo.first_name?.charAt(0) || '';
-    const last = userInfo.last_name?.charAt(0) || '';
-    return (first + last).toUpperCase() || userInfo.email.charAt(0).toUpperCase();
+  const formatDuration = (createdAt: string) => {
+    const seconds = differenceInSeconds(new Date(), new Date(createdAt));
+    if (seconds < 60) return `${seconds}s`;
+    const mins = Math.floor(seconds / 60);
+    if (mins < 60) return `${mins}m`;
+    const hours = Math.floor(mins / 60);
+    const rem = mins % 60;
+    if (hours < 24) return rem ? `${hours}h ${rem}m` : `${hours}h`;
+    const days = Math.floor(hours / 24);
+    const remH = hours % 24;
+    return remH ? `${days}d ${remH}h` : `${days}d`;
   };
 
-  const getUserDisplayName = (userInfo: UserInfo | undefined): string => {
-    if (!userInfo) return 'Unknown User';
-    if (userInfo.first_name || userInfo.last_name) {
-      return `${userInfo.first_name || ''} ${userInfo.last_name || ''}`.trim();
-    }
-    return userInfo.email;
-  };
+  // -------- Stats + Filtering --------
+
+  const stats = useMemo(() => {
+    const onlineSessions = sessions.filter((s) => isOnline(s.last_activity));
+    const uniqueUsers = new Set(sessions.map((s) => s.user_id)).size;
+    const onlineUsers = new Set(onlineSessions.map((s) => s.user_id)).size;
+    const desktops = sessions.filter((s) => getDeviceType(s.user_agent) === 'desktop').length;
+    const mobiles = sessions.filter((s) =>
+      ['mobile', 'tablet'].includes(getDeviceType(s.user_agent))
+    ).length;
+    const admins = sessions.filter((s) => usersMap[s.user_id]?.role === 'admin').length;
+    return {
+      total: sessions.length,
+      online: onlineSessions.length,
+      idle: sessions.length - onlineSessions.length,
+      uniqueUsers,
+      onlineUsers,
+      desktops,
+      mobiles,
+      admins,
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessions, usersMap]);
+
+  const filteredSessions = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    return sessions.filter((s) => {
+      if (statusFilter === 'online' && !isOnline(s.last_activity)) return false;
+      if (statusFilter === 'idle' && isOnline(s.last_activity)) return false;
+      if (!term) return true;
+      const u = usersMap[s.user_id];
+      const haystack = [
+        u?.email,
+        u?.first_name,
+        u?.last_name,
+        u?.role,
+        s.ip_address,
+        getDeviceName(s.user_agent),
+        getBrowserInfo(s.user_agent),
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return haystack.includes(term);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessions, usersMap, searchTerm, statusFilter]);
+
+  // -------- Render --------
 
   const headerActions = (
     <div className="flex items-center gap-2">
@@ -259,171 +304,328 @@ const ManageSessions: React.FC = () => {
     </div>
   );
 
+  const StatCard = ({
+    label,
+    value,
+    icon: Icon,
+    accent,
+  }: {
+    label: string;
+    value: number;
+    icon: React.ComponentType<{ className?: string }>;
+    accent: string;
+  }) => (
+    <Card>
+      <CardContent className="p-4 flex items-center gap-3">
+        <div className={`p-2.5 rounded-lg ${accent}`}>
+          <Icon className="h-5 w-5" />
+        </div>
+        <div>
+          <div className="text-2xl font-bold leading-tight">{value}</div>
+          <div className="text-xs text-muted-foreground">{label}</div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+
   return (
-    <DashboardLayout title="Manage Sessions" description="View and manage your active sessions across devices" actions={headerActions}>
+    <DashboardLayout
+      title="Manage Sessions"
+      description="Monitor live user activity and manage active sessions across devices"
+      actions={headerActions}
+    >
       <div className="space-y-6">
+        {/* Stats Overview */}
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+          <StatCard
+            label="Total Sessions"
+            value={stats.total}
+            icon={Activity}
+            accent="bg-primary/10 text-primary"
+          />
+          <StatCard
+            label="Online Now"
+            value={stats.online}
+            icon={Wifi}
+            accent="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
+          />
+          <StatCard
+            label="Idle"
+            value={stats.idle}
+            icon={WifiOff}
+            accent="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
+          />
+          {effectiveRole === 'admin' && (
+            <>
+              <StatCard
+                label="Users Logged In"
+                value={stats.uniqueUsers}
+                icon={Users}
+                accent="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
+              />
+              <StatCard
+                label="Users Online"
+                value={stats.onlineUsers}
+                icon={Users}
+                accent="bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300"
+              />
+              <StatCard
+                label="Desktops"
+                value={stats.desktops}
+                icon={Monitor}
+                accent="bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300"
+              />
+              <StatCard
+                label="Admins"
+                value={stats.admins}
+                icon={ShieldCheck}
+                accent="bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300"
+              />
+            </>
+          )}
+        </div>
 
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Monitor className="h-5 w-5" />
-              Active Sessions
-            </CardTitle>
-            <CardDescription>
-              {sessions.length} active session{sessions.length !== 1 ? 's' : ''} found
-            </CardDescription>
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Monitor className="h-5 w-5" />
+                  Active Sessions
+                </CardTitle>
+                <CardDescription>
+                  Showing {filteredSessions.length} of {sessions.length} session
+                  {sessions.length !== 1 ? 's' : ''}
+                  {' · Online = active within last '}
+                  {ONLINE_THRESHOLD_MIN} min
+                </CardDescription>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder="Search user, IP, device..."
+                    className="pl-8 w-full sm:w-64"
+                  />
+                </div>
+                <Tabs value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
+                  <TabsList>
+                    <TabsTrigger value="all">All</TabsTrigger>
+                    <TabsTrigger value="online">
+                      <span className="h-2 w-2 rounded-full bg-emerald-500 mr-1.5 inline-block animate-pulse" />
+                      Online
+                    </TabsTrigger>
+                    <TabsTrigger value="idle">Idle</TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             {loading ? (
               <div className="flex justify-center py-8">
                 <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
-            ) : sessions.length === 0 ? (
+            ) : filteredSessions.length === 0 ? (
               <div className="text-center py-12">
                 <Monitor className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">No active sessions found</p>
-                <p className="text-sm text-muted-foreground mt-1">Sessions will appear here after you log in</p>
+                <p className="text-muted-foreground">
+                  {sessions.length === 0
+                    ? 'No active sessions found'
+                    : 'No sessions match your filters'}
+                </p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {sessions.length === 0
+                    ? 'Sessions will appear here after users log in'
+                    : 'Try adjusting search or status filter'}
+                </p>
               </div>
             ) : (
-              <div className="space-y-4">
-                {sessions.map((sess) => {
+              <div className="space-y-3">
+                {filteredSessions.map((sess) => {
                   const userInfo = usersMap[sess.user_id];
+                  const online = isOnline(sess.last_activity);
+                  const current = isCurrentSession(sess.id);
                   return (
-                  <div
-                    key={sess.id}
-                    className={`grid grid-cols-12 gap-4 p-4 rounded-lg border transition-colors items-start ${
-                      isCurrentSession(sess.id)
-                        ? 'border-primary bg-primary/5'
-                        : 'border-border hover:bg-muted/50'
-                    }`}
-                  >
-                    {/* Device Icon */}
-                    <div className="col-span-1 flex justify-center">
-                      <div className="p-3 rounded-lg bg-muted">
-                        {getDeviceIcon(sess.user_agent)}
+                    <div
+                      key={sess.id}
+                      className={`grid grid-cols-12 gap-4 p-4 rounded-lg border transition-colors items-start ${
+                        current
+                          ? 'border-primary bg-primary/5'
+                          : 'border-border hover:bg-muted/50'
+                      }`}
+                    >
+                      {/* Device Icon + Online indicator */}
+                      <div className="col-span-1 flex justify-center">
+                        <div className="relative">
+                          <div className="p-3 rounded-lg bg-muted">
+                            {getDeviceIcon(sess.user_agent)}
+                          </div>
+                          <span
+                            className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-background ${
+                              online ? 'bg-emerald-500' : 'bg-muted-foreground/40'
+                            }`}
+                            title={online ? 'Online' : 'Idle'}
+                          />
+                        </div>
                       </div>
-                    </div>
-                    
-                    {/* Device & Browser */}
-                    <div className="col-span-3">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-medium">
-                          {getDeviceName(sess.user_agent)}
-                        </span>
-                        <Badge variant="outline" className="text-xs bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800">
-                          Active
-                        </Badge>
-                        {isCurrentSession(sess.id) && (
-                          <Badge variant="default" className="text-xs bg-blue-500 hover:bg-blue-600">
-                            Current
+
+                      {/* Device & Browser */}
+                      <div className="col-span-3">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-medium">{getDeviceName(sess.user_agent)}</span>
+                          <Badge
+                            variant="outline"
+                            className={`text-xs ${
+                              online
+                                ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                                : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border-amber-200 dark:border-amber-800'
+                            }`}
+                          >
+                            {online ? 'Online' : 'Idle'}
                           </Badge>
+                          {current && (
+                            <Badge variant="default" className="text-xs bg-blue-500 hover:bg-blue-600">
+                              Current
+                            </Badge>
+                          )}
+                        </div>
+                        <span className="text-sm text-muted-foreground mt-1 block">
+                          {getBrowserInfo(sess.user_agent)}
+                        </span>
+                        {sess.ip_address && (
+                          <span className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+                            <Globe className="h-3 w-3" />
+                            {sess.ip_address}
+                          </span>
                         )}
                       </div>
-                      <span className="text-sm text-muted-foreground mt-1 block">
-                        {getBrowserInfo(sess.user_agent)}
-                      </span>
-                      {sess.ip_address && (
-                        <span className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
-                          <Globe className="h-3 w-3" />
-                          {sess.ip_address}
-                        </span>
-                      )}
-                    </div>
-                    
-                    {/* User Info */}
-                    <div className="col-span-4">
-                      <div className="flex items-center gap-2">
-                        <Avatar className="h-6 w-6">
-                          <AvatarFallback className="text-xs bg-primary/10 text-primary">
-                            {getUserInitials(userInfo)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium">{getUserDisplayName(userInfo)}</span>
-                            {userInfo?.role && (
-                              <Badge 
-                                variant="outline" 
-                                className={`text-xs capitalize ${
-                                  userInfo.role === 'admin' 
-                                    ? 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300 border-violet-200 dark:border-violet-800' 
-                                    : 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300 border-sky-200 dark:border-sky-800'
-                                }`}
-                              >
-                                {userInfo.role}
-                              </Badge>
+
+                      {/* User Info */}
+                      <div className="col-span-3">
+                        <div className="flex items-center gap-2">
+                          <Avatar className="h-7 w-7">
+                            <AvatarFallback className="text-xs bg-primary/10 text-primary">
+                              {getUserInitials(userInfo)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium truncate">
+                                {getUserDisplayName(userInfo)}
+                              </span>
+                              {userInfo?.role && (
+                                <Badge
+                                  variant="outline"
+                                  className={`text-xs capitalize ${
+                                    userInfo.role === 'admin'
+                                      ? 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300 border-violet-200 dark:border-violet-800'
+                                      : 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300 border-sky-200 dark:border-sky-800'
+                                  }`}
+                                >
+                                  {userInfo.role}
+                                </Badge>
+                              )}
+                            </div>
+                            {userInfo?.email && (userInfo.first_name || userInfo.last_name) && (
+                              <span className="text-xs text-muted-foreground truncate block">
+                                {userInfo.email}
+                              </span>
                             )}
                           </div>
-                          {userInfo?.email && (userInfo.first_name || userInfo.last_name) && (
-                            <span className="text-xs text-muted-foreground">{userInfo.email}</span>
+                        </div>
+                      </div>
+
+                      {/* Activity Timing */}
+                      <div className="col-span-4">
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div>
+                            <p className="text-muted-foreground">Last Activity</p>
+                            <p className="font-medium flex items-center gap-1">
+                              <Clock className="h-3 w-3" />
+                              {formatDistanceToNow(new Date(sess.last_activity), {
+                                addSuffix: true,
+                              })}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground">Logged In For</p>
+                            <p className="font-medium">{formatDuration(sess.created_at)}</p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground">Started</p>
+                            <p className="font-medium">
+                              {new Date(sess.created_at).toLocaleString()}
+                            </p>
+                          </div>
+                          {sess.expires_at && (
+                            <div>
+                              <p className="text-muted-foreground">Expires</p>
+                              <p className="font-medium">
+                                {formatDistanceToNow(new Date(sess.expires_at), {
+                                  addSuffix: true,
+                                })}
+                              </p>
+                            </div>
                           )}
                         </div>
                       </div>
-                    </div>
-                    
-                    {/* Timestamps */}
-                    <div className="col-span-3">
-                      <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <Clock className="h-3 w-3" />
-                        Last: {formatDate(sess.last_activity)}
-                      </span>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Created: {formatDate(sess.created_at)}
-                      </p>
-                    </div>
-                    
-                    {/* Action */}
-                    <div className="col-span-1 flex justify-end">
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            disabled={terminatingId === sess.id}
-                          >
-                            {terminatingId === sess.id ? (
-                              <>
-                                <RefreshCw className="h-4 w-4 mr-1 animate-spin" />
-                                Signing Out...
-                              </>
-                            ) : (
-                              <>
-                                <LogOut className="h-4 w-4 mr-1" />
-                                Sign Out
-                              </>
-                            )}
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent className="bg-background">
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>
-                              {isCurrentSession(sess.id) 
-                                ? 'Sign out of your current session?' 
-                                : 'Sign out this session?'}
-                            </AlertDialogTitle>
-                            <AlertDialogDescription>
-                              {isCurrentSession(sess.id)
-                                ? 'You will be logged out immediately and redirected to the login page.'
-                                : "This will sign you out from this device. You'll need to sign in again to access your account from that device."}
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction
-                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                              onClick={() => 
-                                isCurrentSession(sess.id)
-                                  ? handleSignOutCurrentSession()
-                                  : terminateSession(sess.id, sess.session_token)
-                              }
+
+                      {/* Action */}
+                      <div className="col-span-1 flex justify-end">
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled={terminatingId === sess.id}
                             >
-                              Sign Out
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
+                              {terminatingId === sess.id ? (
+                                <>
+                                  <RefreshCw className="h-4 w-4 mr-1 animate-spin" />
+                                  ...
+                                </>
+                              ) : (
+                                <>
+                                  <LogOut className="h-4 w-4 mr-1" />
+                                  Sign Out
+                                </>
+                              )}
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent className="bg-background">
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>
+                                {current
+                                  ? 'Sign out of your current session?'
+                                  : 'Sign out this session?'}
+                              </AlertDialogTitle>
+                              <AlertDialogDescription>
+                                {current
+                                  ? 'You will be logged out immediately and redirected to the login page.'
+                                  : "This will sign out this session. The user will need to sign in again from that device."}
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                onClick={() =>
+                                  current
+                                    ? handleSignOutCurrentSession()
+                                    : terminateSession(sess.id, sess.session_token)
+                                }
+                              >
+                                Sign Out
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
                     </div>
-                  </div>
                   );
                 })}
               </div>
