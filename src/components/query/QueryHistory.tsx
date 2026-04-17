@@ -1,7 +1,7 @@
 import React, { memo, useCallback } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { Clock, Trash2, CheckCircle, XCircle } from 'lucide-react';
+import { Clock, Trash2, CheckCircle, XCircle, X } from 'lucide-react';
 import { QueryHistoryItem } from '@/hooks/useQueryHistory';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -10,6 +10,7 @@ interface QueryHistoryProps {
   onSelectQuery: (query: string) => void;
   onRemove: (id: string) => void;
   onClear: () => void;
+  onClose?: () => void;
 }
 
 // Individual history item component - memoized to prevent re-renders
