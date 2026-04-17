@@ -166,7 +166,7 @@ export function FormPagination({
                     </Button>
                   </div>
                 ) : (
-                  <div className={`flex items-center ${pages.length <= 5 ? 'w-full' : ''}`}>
+                  <div className="flex items-center">
                     <Button
                       type="button"
                       variant={
@@ -174,9 +174,10 @@ export function FormPagination({
                       }
                       size="sm"
                       onClick={(e) => handlePageClick(e, page.id)}
-                      className={`h-9 text-sm px-4 whitespace-nowrap ${pages.length <= 5 ? 'w-full justify-center' : ''}`}
+                      className="h-9 text-sm px-4 whitespace-nowrap max-w-[200px] truncate"
+                      title={page.name}
                     >
-                      {page.name}
+                      <span className="truncate">{page.name}</span>
                     </Button>
 
                     {!readOnly && (
