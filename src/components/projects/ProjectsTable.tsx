@@ -168,6 +168,64 @@ export function ProjectsTable({
         <CardTitle>Your Projects</CardTitle>
       </CardHeader>
       <CardContent>
+        {/* Mobile cards */}
+        <div className="sm:hidden space-y-3">
+          {projects.map((project) => {
+            const userRole = getUserProjectRole(project);
+            const canManage = canManageProject(project);
+            const isCurrent = currentProject?.id === project.id;
+            return (
+              <Card
+                key={project.id}
+                className={`cursor-pointer hover:bg-muted/30 transition-colors ${isCurrent ? 'border-primary/50 bg-primary/5' : ''}`}
+                onClick={() => handleRowClick(project)}
+              >
+                <CardContent className="p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium truncate">{project.name}</div>
+                      {project.description && (
+                        <div className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{project.description}</div>
+                      )}
+                    </div>
+                    {isCurrent && (
+                      <Badge variant="outline" className="shrink-0 text-xs">
+                        <Eye className="h-3 w-3 mr-1" />Current
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap text-xs">
+                    <div className="flex items-center gap-1">
+                      {getStatusIcon(project.status)}
+                      <Badge variant={project.status === 'active' ? 'default' : 'secondary'} className="text-xs">{project.status}</Badge>
+                    </div>
+                    <Badge variant="outline" className="text-xs">{userRole}</Badge>
+                    <span className="text-muted-foreground flex items-center gap-1">
+                      <Calendar className="h-3 w-3" />
+                      {format(new Date(project.created_at), 'MMM d, yyyy')}
+                    </span>
+                  </div>
+                  {canManage && (
+                    <div className="flex items-center gap-1 pt-1 border-t">
+                      <Button size="sm" variant="ghost" className="h-8 px-2" onClick={(e) => handleCopyId(e, project.id)} title="Copy ID">
+                        <Copy className="h-4 w-4 text-primary" />
+                      </Button>
+                      <Button size="sm" variant="ghost" className="h-8 px-2" onClick={(e) => handleManageAccess(e, project)} title="Access">
+                        <Shield className="h-4 w-4 text-primary" />
+                      </Button>
+                      <Button size="sm" variant="ghost" className="h-8 px-2 ml-auto" onClick={(e) => handleDeleteProject(e, project)} title="Delete">
+                        <Trash2 className="h-4 w-4 text-primary" />
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+
+        {/* Desktop table */}
+        <div className="hidden sm:block overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
@@ -263,14 +321,6 @@ export function ProjectsTable({
                           >
                             <Shield className="h-4 w-4 text-primary" />
                           </Button>
-                          {/* <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={(e) => handleManageSettings(e, project)}
-                            title="Settings"
-                          >
-                            <Settings className="h-4 w-4" />
-                          </Button> */}
                           <Button
                             size="sm"
                             variant="outline"
@@ -293,6 +343,7 @@ export function ProjectsTable({
             })}
           </TableBody>
         </Table>
+        </div>
       </CardContent>
     </Card>
   );
