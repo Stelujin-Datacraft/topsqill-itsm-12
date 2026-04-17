@@ -1,12 +1,12 @@
-
 import React from 'react';
 import { useUserInvitations } from '@/hooks/useUserInvitations';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Mail, Clock, Check, X, Loader2 } from 'lucide-react';
+import { Mail, Clock, Check, X, Loader2, Inbox } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { cn } from '@/lib/utils';
 
 interface ProjectInvitationsCardProps {
   showTitle?: boolean;
@@ -14,67 +14,25 @@ interface ProjectInvitationsCardProps {
   onInvitationAccepted?: (projectId: string) => void;
 }
 
-export function ProjectInvitationsCard({ 
-  showTitle = true, 
+export function ProjectInvitationsCard({
+  showTitle = true,
   maxItems,
-  onInvitationAccepted 
+  onInvitationAccepted,
 }: ProjectInvitationsCardProps) {
-  const { 
-    invitations, 
-    loading, 
-    acceptInvitation, 
+  const {
+    invitations,
+    loading,
+    acceptInvitation,
     rejectInvitation,
     acceptingId,
-    rejectingId 
+    rejectingId,
   } = useUserInvitations();
   const navigate = useNavigate();
-
-  if (loading) {
-    return (
-      <Card>
-        {showTitle && (
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Mail className="h-5 w-5" />
-              Project Invitations
-            </CardTitle>
-          </CardHeader>
-        )}
-        <CardContent>
-          <div className="flex items-center justify-center gap-2 text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Loading invitations...
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  const displayInvitations = maxItems ? invitations.slice(0, maxItems) : invitations;
-
-  if (invitations.length === 0) {
-    return (
-      <Card>
-        {showTitle && (
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Mail className="h-5 w-5" />
-              Project Invitations
-            </CardTitle>
-          </CardHeader>
-        )}
-        <CardContent>
-          <div className="text-center text-muted-foreground">No pending invitations</div>
-        </CardContent>
-      </Card>
-    );
-  }
 
   const formatTimeAgo = (dateString: string) => {
     const now = new Date();
     const date = new Date(dateString);
     const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
-    
     if (diffInMinutes < 1) return 'Just now';
     if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
     const diffInHours = Math.floor(diffInMinutes / 60);
@@ -87,19 +45,23 @@ export function ProjectInvitationsCard({
     const now = new Date();
     const date = new Date(dateString);
     const diffInHours = Math.floor((date.getTime() - now.getTime()) / (1000 * 60 * 60));
-    
+    if (diffInHours < 0) return 'Expired';
     if (diffInHours < 1) return 'Expires soon';
     if (diffInHours < 24) return `Expires in ${diffInHours}h`;
     const diffInDays = Math.floor(diffInHours / 24);
     return `Expires in ${diffInDays}d`;
   };
 
-  const getRoleBadgeColor = (role: string) => {
+  const getRoleStyles = (role: string) => {
     switch (role) {
-      case 'admin': return 'bg-red-100 text-red-800';
-      case 'editor': return 'bg-blue-100 text-blue-800';
-      case 'viewer': return 'bg-green-100 text-green-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'admin':
+        return 'bg-destructive/10 text-destructive border-destructive/20';
+      case 'editor':
+        return 'bg-primary/10 text-primary border-primary/20';
+      case 'viewer':
+        return 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20';
+      default:
+        return 'bg-muted text-muted-foreground border-border';
     }
   };
 
@@ -107,10 +69,7 @@ export function ProjectInvitationsCard({
     const result = await acceptInvitation(invitation.id);
     if (result.success) {
       onInvitationAccepted?.(result.projectId || invitation.project_id);
-      // Navigate to the project after successful acceptance
-      setTimeout(() => {
-        navigate(`/projects`);
-      }, 1000);
+      setTimeout(() => navigate('/projects'), 800);
     }
   };
 
@@ -118,90 +77,151 @@ export function ProjectInvitationsCard({
     await rejectInvitation(invitationId);
   };
 
-  return (
-    <Card>
-      {showTitle && (
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Mail className="h-5 w-5" />
-            Project Invitations ({invitations.length})
-          </CardTitle>
-        </CardHeader>
+  // Header (shared)
+  const Header = ({ count }: { count?: number }) => (
+    <div className="flex items-center justify-between gap-3 px-5 py-4 border-b bg-gradient-to-r from-primary/5 via-primary/[0.02] to-transparent">
+      <div className="flex items-center gap-3">
+        <div className="h-9 w-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+          <Mail className="h-4.5 w-4.5" />
+        </div>
+        <div>
+          <h3 className="font-semibold text-base leading-tight">Project Invitations</h3>
+          <p className="text-xs text-muted-foreground">
+            Pending project memberships awaiting your response
+          </p>
+        </div>
+      </div>
+      {count !== undefined && count > 0 && (
+        <Badge variant="secondary" className="rounded-full px-2.5 font-medium">
+          {count} pending
+        </Badge>
       )}
-      <CardContent className="space-y-4">
-        {displayInvitations.map((invitation) => (
-          <div key={invitation.id} className="border rounded-lg p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Avatar className="h-8 w-8">
-                  <AvatarFallback>
-                    {invitation.project_name[0].toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <div className="font-medium">{invitation.project_name}</div>
-                  <div className="text-sm text-muted-foreground">
-                    Invited by {invitation.inviter_name}
+    </div>
+  );
+
+  if (loading) {
+    return (
+      <Card className="overflow-hidden border-border/60">
+        {showTitle && <Header />}
+        <CardContent className="py-8">
+          <div className="flex items-center justify-center gap-2 text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Loading invitations...
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (invitations.length === 0) {
+    return (
+      <Card className="overflow-hidden border-border/60">
+        {showTitle && <Header />}
+        <CardContent className="py-10">
+          <div className="flex flex-col items-center justify-center text-center gap-2">
+            <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
+              <Inbox className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <p className="text-sm font-medium text-foreground">No pending invitations</p>
+            <p className="text-xs text-muted-foreground">
+              You're all caught up — new invites will show up here.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const displayInvitations = maxItems ? invitations.slice(0, maxItems) : invitations;
+
+  return (
+    <Card className="overflow-hidden border-border/60">
+      {showTitle && <Header count={invitations.length} />}
+      <CardContent className="p-4 space-y-3">
+        {displayInvitations.map((invitation) => {
+          const isProcessing = acceptingId === invitation.id || rejectingId === invitation.id;
+          return (
+            <div
+              key={invitation.id}
+              className="group rounded-lg border border-border/60 bg-card hover:border-primary/30 hover:shadow-sm transition-all p-4 space-y-3"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <Avatar className="h-10 w-10 border border-border/60 flex-shrink-0">
+                    <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+                      {invitation.project_name[0].toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0 flex-1">
+                    <div className="font-semibold text-sm truncate">{invitation.project_name}</div>
+                    <div className="text-xs text-muted-foreground truncate">
+                      Invited by <span className="font-medium text-foreground/80">{invitation.inviter_name}</span>
+                    </div>
                   </div>
                 </div>
+                <Badge variant="outline" className={cn('text-xs font-medium', getRoleStyles(invitation.role))}>
+                  {invitation.role === 'admin'
+                    ? 'Project Admin'
+                    : invitation.role === 'editor'
+                    ? 'Project Editor'
+                    : 'Project Viewer'}
+                </Badge>
               </div>
-              <Badge className={getRoleBadgeColor(invitation.role)}>
-                {invitation.role === 'admin' ? 'Project Admin' :
-                 invitation.role === 'editor' ? 'Project Editor' :
-                 'Project Viewer'}
-              </Badge>
-            </div>
 
-            {invitation.message && (
-              <div className="text-sm text-muted-foreground bg-muted/50 p-2 rounded">
-                "{invitation.message}"
+              {invitation.message && (
+                <div className="text-sm text-muted-foreground bg-muted/40 border-l-2 border-primary/30 px-3 py-2 rounded-r italic">
+                  "{invitation.message}"
+                </div>
+              )}
+
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1">
+                    <Clock className="h-3 w-3" />
+                    Invited {formatTimeAgo(invitation.invited_at)}
+                  </span>
+                  <span className="text-border">•</span>
+                  <span className="text-amber-600 dark:text-amber-400 font-medium">
+                    {formatExpiresIn(invitation.expires_at)}
+                  </span>
+                </div>
+
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleRejectInvitation(invitation.id)}
+                    disabled={isProcessing}
+                    className="h-8"
+                  >
+                    {rejectingId === invitation.id ? (
+                      <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                    ) : (
+                      <X className="h-3.5 w-3.5 mr-1.5" />
+                    )}
+                    Decline
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => handleAcceptInvitation(invitation)}
+                    disabled={isProcessing}
+                    className="h-8"
+                  >
+                    {acceptingId === invitation.id ? (
+                      <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                    ) : (
+                      <Check className="h-3.5 w-3.5 mr-1.5" />
+                    )}
+                    Accept
+                  </Button>
+                </div>
               </div>
-            )}
-
-            <div className="flex items-center justify-between text-sm text-muted-foreground">
-              <div className="flex items-center gap-4">
-                <span>Invited {formatTimeAgo(invitation.invited_at)}</span>
-                <span className="flex items-center gap-1">
-                  <Clock className="h-3 w-3" />
-                  {formatExpiresIn(invitation.expires_at)}
-                </span>
-              </div>
             </div>
-
-            <div className="flex gap-2">
-              <Button
-                size="sm"
-                onClick={() => handleAcceptInvitation(invitation)}
-                disabled={acceptingId === invitation.id || rejectingId === invitation.id}
-                className="flex-1"
-              >
-                {acceptingId === invitation.id ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <Check className="h-4 w-4 mr-2" />
-                )}
-                {acceptingId === invitation.id ? 'Accepting...' : 'Accept'}
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => handleRejectInvitation(invitation.id)}
-                disabled={acceptingId === invitation.id || rejectingId === invitation.id}
-                className="flex-1"
-              >
-                {rejectingId === invitation.id ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <X className="h-4 w-4 mr-2" />
-                )}
-                {rejectingId === invitation.id ? 'Declining...' : 'Decline'}
-              </Button>
-            </div>
-          </div>
-        ))}
+          );
+        })}
 
         {maxItems && invitations.length > maxItems && (
-          <div className="text-center">
+          <div className="text-center pt-1">
             <Button variant="ghost" size="sm" onClick={() => navigate('/projects')}>
               View all {invitations.length} invitations
             </Button>
