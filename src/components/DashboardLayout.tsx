@@ -28,16 +28,20 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   // Content with header - shared between both modes
   const content = (
     <>
-      <header className="border-b bg-background/95 backdrop-blur p-4 shrink-0">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <SidebarTrigger />
-            <div>
-              {title && <h1 className="text-2xl font-semibold">{title}</h1>}
-              {description && <p className="text-sm text-muted-foreground">{description}</p>}
+      <header className="border-b bg-background/95 backdrop-blur p-3 sm:p-4 shrink-0">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+            <SidebarTrigger className="shrink-0" />
+            <div className="min-w-0 flex-1">
+              {title && <h1 className="text-lg sm:text-2xl font-semibold truncate">{title}</h1>}
+              {description && <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2">{description}</p>}
             </div>
           </div>
-          {actions && <div className="flex items-center gap-2">{actions}</div>}
+          {actions && (
+            <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap [&>*]:shrink-0 overflow-x-auto scrollbar-hide -mx-1 px-1">
+              {actions}
+            </div>
+          )}
         </div>
       </header>
       <div className="flex-1 px-[10px] mx-0 py-[10px] overflow-auto min-h-0 flex flex-col">
