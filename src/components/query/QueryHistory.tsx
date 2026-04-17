@@ -76,31 +76,63 @@ const HistoryItem = memo(function HistoryItem({
   );
 });
 
-export const QueryHistory = memo(function QueryHistory({ history, onSelectQuery, onRemove, onClear }: QueryHistoryProps) {
+export const QueryHistory = memo(function QueryHistory({ history, onSelectQuery, onRemove, onClear, onClose }: QueryHistoryProps) {
   if (history.length === 0) {
     return (
-      <div className="p-4 text-center text-muted-foreground">
-        <Clock className="h-8 w-8 mx-auto mb-2 opacity-50 text-primary" />
-        <p className="text-sm">No query history yet</p>
+      <div className="flex flex-col h-full">
+        <div className="p-3 border-b border-border flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Clock className="h-4 w-4 text-primary" />
+            <span className="text-sm font-medium">Query History</span>
+          </div>
+          {onClose && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onClose}
+              className="h-7 w-7 p-0"
+              title="Close history"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+        <div className="p-4 text-center text-muted-foreground flex-1 flex flex-col items-center justify-center">
+          <Clock className="h-8 w-8 mx-auto mb-2 opacity-50 text-primary" />
+          <p className="text-sm">No query history yet</p>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="flex flex-col h-full">
-      <div className="p-3 border-b border-border flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Clock className="h-4 w-4 text-primary" />
-          <span className="text-sm font-medium">Query History</span>
+      <div className="p-3 border-b border-border flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <Clock className="h-4 w-4 text-primary flex-shrink-0" />
+          <span className="text-sm font-medium truncate">Query History</span>
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onClear}
-          className="h-7 text-xs"
-        >
-          Clear All
-        </Button>
+        <div className="flex items-center gap-1 flex-shrink-0">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onClear}
+            className="h-7 text-xs"
+          >
+            Clear All
+          </Button>
+          {onClose && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onClose}
+              className="h-7 w-7 p-0"
+              title="Close history"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
       </div>
       <ScrollArea className="flex-1">
         <div className="p-2 space-y-2">

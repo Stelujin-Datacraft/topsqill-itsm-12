@@ -272,6 +272,7 @@ export default function QueryPage() {
                   onSelectQuery={handleSelectQuery}
                   onRemove={removeFromHistory}
                   onClear={clearHistory}
+                  onClose={() => setShowHistory(false)}
                 />
               </ResizablePanel>
               <ResizableHandle withHandle />
