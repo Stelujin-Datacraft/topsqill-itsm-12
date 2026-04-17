@@ -25,14 +25,12 @@ export function SimpleFormSelector({ forms, selectedFormId, onFormSelect, disabl
         </SelectTrigger>
         <SelectContent>
           {forms.map((form) => (
-              <SelectItem key={form.id} value={form.id}>
+            <SelectItem key={form.id} value={form.id}>
               <div className="flex items-center justify-between w-full">
                 <span>{form.name}</span>
-                {form.fields.length > 0 && (
-                  <Badge variant="outline" className="ml-2 text-xs">
-                    {form.fields.length} fields
-                  </Badge>
-                )}
+                <Badge variant="outline" className="ml-2 text-xs">
+                  {form.fields.length} fields
+                </Badge>
               </div>
             </SelectItem>
           ))}
