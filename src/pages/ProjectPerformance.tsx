@@ -105,15 +105,15 @@ export default function ProjectPerformance() {
   }
 
   return (
-    <div className="flex-1 overflow-auto p-6 space-y-6">
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => { setSelectedPerfProject(null); setActiveTab('dashboard'); setSelectedRecordId(''); }}>
+    <div className="flex-1 overflow-auto p-4 sm:p-6 space-y-6">
+      <div className="flex items-start gap-2 sm:gap-3">
+        <Button variant="ghost" size="icon" className="shrink-0" onClick={() => { setSelectedPerfProject(null); setActiveTab('dashboard'); setSelectedRecordId(''); }}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <div className="flex-1">
-          <h1 className="text-2xl font-bold text-foreground">{selectedPerfProject.name}</h1>
+        <div className="flex-1 min-w-0">
+          <h1 className="text-xl sm:text-2xl font-bold text-foreground truncate">{selectedPerfProject.name}</h1>
           {selectedPerfProject.form_name && (
-            <p className="text-muted-foreground text-sm mt-0.5">
+            <p className="text-muted-foreground text-xs sm:text-sm mt-0.5 truncate">
               Analyzing: <span className="font-medium text-foreground">{selectedPerfProject.form_name}</span>
             </p>
           )}

@@ -13,42 +13,42 @@ const ITAssets = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
 
   return (
-    <div className="flex-1 space-y-6 p-6 overflow-y-auto max-h-[calc(100vh-4rem)]">
+    <div className="flex-1 space-y-6 p-4 sm:p-6 overflow-y-auto max-h-[calc(100vh-4rem)]">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">IT Asset Management</h1>
-        <p className="text-muted-foreground mt-1">
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">IT Asset Management</h1>
+        <p className="text-sm text-muted-foreground mt-1">
           Track, manage, and monitor all IT assets across your organization
         </p>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-7">
-          <TabsTrigger value="dashboard" className="flex items-center gap-2">
-            <BarChart3 className="h-4 w-4" />
+        <TabsList className="flex w-full justify-start overflow-x-auto sm:grid sm:grid-cols-7 h-auto">
+          <TabsTrigger value="dashboard" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm whitespace-nowrap">
+            <BarChart3 className="h-4 w-4 shrink-0" />
             Dashboard
           </TabsTrigger>
-          <TabsTrigger value="assets" className="flex items-center gap-2">
-            <Monitor className="h-4 w-4" />
+          <TabsTrigger value="assets" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm whitespace-nowrap">
+            <Monitor className="h-4 w-4 shrink-0" />
             Assets
           </TabsTrigger>
-          <TabsTrigger value="software" className="flex items-center gap-2">
-            <Cpu className="h-4 w-4" />
+          <TabsTrigger value="software" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm whitespace-nowrap">
+            <Cpu className="h-4 w-4 shrink-0" />
             Software
           </TabsTrigger>
-          <TabsTrigger value="warranty" className="flex items-center gap-2">
-            <ShieldCheck className="h-4 w-4" />
+          <TabsTrigger value="warranty" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm whitespace-nowrap">
+            <ShieldCheck className="h-4 w-4 shrink-0" />
             Warranty
           </TabsTrigger>
-          <TabsTrigger value="agents" className="flex items-center gap-2">
-            <Download className="h-4 w-4" />
+          <TabsTrigger value="agents" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm whitespace-nowrap">
+            <Download className="h-4 w-4 shrink-0" />
             Agents
           </TabsTrigger>
-          <TabsTrigger value="reports" className="flex items-center gap-2">
-            <FileText className="h-4 w-4" />
+          <TabsTrigger value="reports" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm whitespace-nowrap">
+            <FileText className="h-4 w-4 shrink-0" />
             Reports
           </TabsTrigger>
-          <TabsTrigger value="history" className="flex items-center gap-2">
-            <History className="h-4 w-4" />
+          <TabsTrigger value="history" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm whitespace-nowrap">
+            <History className="h-4 w-4 shrink-0" />
             History
           </TabsTrigger>
         </TabsList>
