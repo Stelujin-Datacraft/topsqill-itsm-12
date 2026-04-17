@@ -58,11 +58,11 @@ const ActionButtons = memo(function ActionButtons({
   
   if (type === 'form') {
     return (
-      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className="flex gap-0.5 flex-shrink-0">
         <Button
           size="sm"
           variant="ghost"
-          className="h-6 w-6 p-0"
+          className="h-6 w-6 p-0 opacity-60 hover:opacity-100 hover:bg-primary/10"
           onClick={handleCopy}
           title="Copy Form ID"
         >
@@ -71,7 +71,7 @@ const ActionButtons = memo(function ActionButtons({
         <Button
           size="sm"
           variant="ghost"
-          className="h-6 w-6 p-0"
+          className="h-6 w-6 p-0 opacity-60 hover:opacity-100 hover:bg-primary/10"
           onClick={handleInsertId}
           title="Insert Form Reference"
         >
@@ -81,11 +81,11 @@ const ActionButtons = memo(function ActionButtons({
     );
   } else if (type === 'system') {
     return (
-      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className="flex gap-0.5 flex-shrink-0">
         <Button
           size="sm"
           variant="ghost"
-          className="h-6 w-6 p-0"
+          className="h-6 w-6 p-0 opacity-60 hover:opacity-100 hover:bg-primary/10"
           onClick={handleCopy}
           title="Copy Column Name"
         >
@@ -94,7 +94,7 @@ const ActionButtons = memo(function ActionButtons({
         <Button
           size="sm"
           variant="ghost"
-          className="h-6 w-6 p-0"
+          className="h-6 w-6 p-0 opacity-60 hover:opacity-100 hover:bg-primary/10"
           onClick={handleInsertId}
           title="Insert Column Reference"
         >
@@ -104,11 +104,11 @@ const ActionButtons = memo(function ActionButtons({
     );
   } else {
     return (
-      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className="flex gap-0.5 flex-shrink-0">
         <Button
           size="sm"
           variant="ghost"
-          className="h-6 w-6 p-0"
+          className="h-6 w-6 p-0 opacity-60 hover:opacity-100 hover:bg-primary/10"
           onClick={handleCopy}
           title="Copy Field ID"
         >
@@ -117,7 +117,7 @@ const ActionButtons = memo(function ActionButtons({
         <Button
           size="sm"
           variant="ghost"
-          className="h-6 w-6 p-0"
+          className="h-6 w-6 p-0 opacity-60 hover:opacity-100 hover:bg-primary/10"
           onClick={handleInsertId}
           title="Insert Field Reference"
         >
@@ -126,9 +126,9 @@ const ActionButtons = memo(function ActionButtons({
         <Button
           size="sm"
           variant="ghost"
-          className="h-6 w-6 p-0"
+          className="h-6 w-6 p-0 opacity-60 hover:opacity-100 hover:bg-primary/10"
           onClick={handleInsertSelect}
-          title="Select Field"
+          title="Insert SELECT for this field"
         >
           <Database className={`h-3 w-3 ${sidebarIconClass}`} />
         </Button>
