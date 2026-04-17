@@ -370,8 +370,66 @@ const Users = () => {
               </div>
             </div>
 
-            {/* Table */}
-            <div className="overflow-x-auto">
+            {/* Mobile card view */}
+            <div className="sm:hidden divide-y divide-border/40">
+              {filteredUsers.length === 0 ? (
+                <div className="text-center py-16 text-muted-foreground">
+                  <div className="flex flex-col items-center gap-2">
+                    <UsersIcon className="h-10 w-10 text-muted-foreground/50" />
+                    <p>{searchTerm ? 'No members match your search.' : 'No members found.'}</p>
+                  </div>
+                </div>
+              ) : (
+                filteredUsers.map((user) => (
+                  <div key={user.id} className="p-4 space-y-3">
+                    <div className="flex items-start gap-3">
+                      <Avatar className="h-10 w-10 border-2 border-border/40 shadow-sm shrink-0">
+                        <AvatarFallback className="bg-gradient-to-br from-primary/10 to-primary/5 text-sm font-semibold text-primary">
+                          {getInitials(user.first_name, user.last_name, user.email)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm truncate">
+                          {user.first_name && user.last_name ? `${user.first_name} ${user.last_name}` : user.email.split('@')[0]}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                        <div className="flex items-center gap-2 mt-2 flex-wrap">
+                          <Badge variant="outline" className={`text-xs font-medium capitalize px-2 py-0 ${getStatusBadge(user.status)}`}>
+                            {user.status}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">
+                            Joined {new Date(user.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <Select value={user.role} onValueChange={(value) => handleRoleChange(user.id, value)}>
+                        <SelectTrigger className="w-[110px] h-8 text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="user">User</SelectItem>
+                          <SelectItem value="admin">Admin</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <div className="flex items-center gap-1">
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setSelectedUserForEdit(user); setEditDialogOpen(true); }} title="Edit User">
+                          <Pencil className="h-4 w-4 text-primary" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setSelectedUserForSecurity({ id: user.id, name: user.first_name && user.last_name ? `${user.first_name} ${user.last_name}` : user.email.split('@')[0], email: user.email }); setSecurityDialogOpen(true); }} title="Security">
+                          <Shield className="h-4 w-4 text-primary" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => confirmDelete(user.id, user.first_name && user.last_name ? `${user.first_name} ${user.last_name}` : user.email)}>
+                          <Trash2 className="h-4 w-4 text-primary" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Desktop table view */}
+            <div className="hidden sm:block overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent border-border/40 bg-muted/20">
