@@ -198,6 +198,7 @@ const KnowledgeBaseFolder = () => {
                 ))}
               </SelectContent>
             </Select>
+            </div>
           </div>
 
           {isLoading ? (
