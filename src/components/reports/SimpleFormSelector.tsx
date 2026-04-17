@@ -26,12 +26,7 @@ export function SimpleFormSelector({ forms, selectedFormId, onFormSelect, disabl
         <SelectContent>
           {forms.map((form) => (
             <SelectItem key={form.id} value={form.id}>
-              <div className="flex items-center justify-between w-full">
-                <span>{form.name}</span>
-                <Badge variant="outline" className="ml-2 text-xs">
-                  {form.fields.length} fields
-                </Badge>
-              </div>
+              <span>{form.name}</span>
             </SelectItem>
           ))}
         </SelectContent>
