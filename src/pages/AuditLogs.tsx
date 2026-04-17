@@ -173,6 +173,7 @@ const AuditLogs: React.FC = () => {
 
   const headerActions = (
     <div className="flex gap-2">
+      <BackToMembersButton />
       {effectiveRole === 'admin' && (
         <DeleteLogsDialog 
           tableName="audit_logs" 
