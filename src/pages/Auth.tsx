@@ -372,7 +372,7 @@ const Auth = () => {
                 Register your organization and become an administrator
               </div>
               <form onSubmit={handleRegisterOrganization} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="org-name">Organization Name</Label>
                     <Input
@@ -404,7 +404,7 @@ const Auth = () => {
                     rows={3}
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="admin-first-name">Admin First Name</Label>
                     <Input
@@ -481,7 +481,7 @@ const Auth = () => {
                     required
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="join-first-name">First Name</Label>
                     <Input
