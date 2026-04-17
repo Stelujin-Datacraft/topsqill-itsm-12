@@ -60,30 +60,6 @@ class SchemaCacheService {
         label: 'Submitted At',
         type: 'datetime',
         description: 'Date and time of submission'
-      },
-      'approval_status': {
-        id: 'approval_status',
-        label: 'Approval Status',
-        type: 'text',
-        description: 'Current approval status'
-      },
-      'approved_by': {
-        id: 'approved_by',
-        label: 'Approved By',
-        type: 'text',
-        description: 'User who approved the submission'
-      },
-      'approved_at': {
-        id: 'approved_at',
-        label: 'Approved At',
-        type: 'datetime',
-        description: 'Date and time of approval'
-      },
-      'form_id': {
-        id: 'form_id',
-        label: 'Form ID',
-        type: 'text',
-        description: 'ID of the form'
       }
     };
   }

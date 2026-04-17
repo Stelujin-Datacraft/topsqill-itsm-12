@@ -1289,6 +1289,22 @@ export async function executeUserQuery(
       });
     }
     
+    // Resolve submitted_by UUIDs to user emails / names
+    const submitterIds = Array.from(new Set(
+      submissions.map(s => s.submitted_by).filter((v): v is string => !!v)
+    ));
+    const submitterMap: Record<string, string> = {};
+    if (submitterIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from('user_profiles')
+        .select('id, email, first_name, last_name')
+        .in('id', submitterIds);
+      (profiles || []).forEach(p => {
+        const name = [p.first_name, p.last_name].filter(Boolean).join(' ').trim();
+        submitterMap[p.id] = name || p.email || p.id;
+      });
+    }
+    
     // Expand SELECT * to all form fields
     let expandedSelectExpr = selectExpr;
     if (selectExpr.trim() === '*') {
@@ -1321,7 +1337,7 @@ export async function executeUserQuery(
         submission_id: sub.submission_ref_id || sub.id,
         submission_ref_id: sub.submission_ref_id,
         id: sub.id,
-        submitted_by: sub.submitted_by,
+        submitted_by: sub.submitted_by ? (submitterMap[sub.submitted_by] || sub.submitted_by) : null,
         submitted_at: sub.submitted_at,
         ...(sub.submission_data as Record<string, any>)
       };

@@ -16,8 +16,16 @@ import { Button } from '@/components/ui/button';
 import { History } from 'lucide-react';
 // QueryHistory and QueryResultsTable are already memoized in their own files
 
+interface TabResult {
+  result: QueryResult;
+  executionTime: number;
+}
+
+const EMPTY_RESULT: QueryResult = { columns: [], rows: [], errors: [] };
+
 export default function QueryPage() {
-  const [queryResult, setQueryResult] = useState<QueryResult>({ columns: [], rows: [], errors: [] });
+  // Per-tab results map keyed by tabId so switching tabs shows that tab's own result
+  const [tabResults, setTabResults] = useState<Record<string, TabResult>>({});
   const [isExecuting, setIsExecuting] = useState(false);
   const [tabs, setTabs] = useState<QueryTab[]>([
     { id: '1', name: 'Query 1', query: '', isActive: true, isDirty: false }
@@ -25,7 +33,6 @@ export default function QueryPage() {
   const [activeTabId, setActiveTabId] = useState('1');
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-  const [executionTime, setExecutionTime] = useState(0);
   const { toast } = useToast();
   const { saveQuery } = useSavedQueries();
   const { history, addToHistory, removeFromHistory, clearHistory } = useQueryHistory();
@@ -37,6 +44,11 @@ export default function QueryPage() {
   // PERFORMANCE FIX: Memoize activeTab to prevent recalculation
   const activeTab = useMemo(() => tabs.find(tab => tab.id === activeTabId), [tabs, activeTabId]);
   const currentQuery = activeTab?.query || '';
+
+  // Active tab's result + execution time (defaults to empty when tab has no result yet)
+  const activeTabResult = tabResults[activeTabId];
+  const queryResult = activeTabResult?.result || EMPTY_RESULT;
+  const executionTime = activeTabResult?.executionTime || 0;
 
   // CRITICAL FIX: Memoize updateTabQuery with stable reference
   const updateTabQuery = useCallback((query: string) => {
@@ -56,28 +68,28 @@ export default function QueryPage() {
   // executeQuery from being recreated on every keystroke
   // Use requestAnimationFrame to batch state updates and prevent UI freeze
   const executeQuery = useCallback(async (sql: string) => {
-    // CRITICAL: Use requestAnimationFrame to allow React to finish current render cycle
-    // before starting the expensive operation - this prevents UI freeze
+    // Capture which tab triggered the execution so the result is stored against
+    // *that* tab even if the user switches tabs while it's running
+    const execTabId = activeTabId;
+
     requestAnimationFrame(async () => {
       setIsExecuting(true);
       const startTime = performance.now();
       
       try {
-        // CRITICAL: Use ref to get current tabs without dependency
-        const currentTabQuery = tabsRef.current.find(t => t.id === activeTabId)?.query || '';
+        const currentTabQuery = tabsRef.current.find(t => t.id === execTabId)?.query || '';
         
-        // Wrap in setTimeout(0) to yield to the browser and prevent freeze
         await new Promise(resolve => setTimeout(resolve, 0));
         
         const result = await executeUserQuery(currentTabQuery);
         const endTime = performance.now();
         const execTime = Math.round(endTime - startTime);
         
-        // Batch state updates using React's automatic batching
-        setQueryResult(result);
-        setExecutionTime(execTime);
+        setTabResults(prev => ({
+          ...prev,
+          [execTabId]: { result, executionTime: execTime }
+        }));
         
-        // Add to history
         addToHistory({
           query: currentTabQuery,
           executionTime: execTime,
@@ -104,11 +116,15 @@ export default function QueryPage() {
         const execTime = Math.round(endTime - startTime);
         const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
         
-        setQueryResult({ columns: [], rows: [], errors: [errorMessage] });
-        setExecutionTime(execTime);
+        setTabResults(prev => ({
+          ...prev,
+          [execTabId]: {
+            result: { columns: [], rows: [], errors: [errorMessage] },
+            executionTime: execTime,
+          }
+        }));
         
-        // Add failed query to history - use ref
-        const currentTabQuery = tabsRef.current.find(t => t.id === activeTabId)?.query || '';
+        const currentTabQuery = tabsRef.current.find(t => t.id === execTabId)?.query || '';
         addToHistory({
           query: currentTabQuery,
           executionTime: execTime,
@@ -126,7 +142,7 @@ export default function QueryPage() {
         setIsExecuting(false);
       }
     });
-  }, [activeTabId, addToHistory, toast]); // Removed 'tabs' dependency!
+  }, [activeTabId, addToHistory, toast]);
 
   // Helper: find the smallest unused "Query N" number
   const getNextQueryNumber = useCallback((existing: QueryTab[]) => {
@@ -164,16 +180,23 @@ export default function QueryPage() {
       if (prevTabs.length === 1) return prevTabs;
       return prevTabs.filter(tab => tab.id !== tabId);
     });
-    
+
+    // Drop the closed tab's stored result so memory doesn't leak
+    setTabResults(prev => {
+      if (!(tabId in prev)) return prev;
+      const next = { ...prev };
+      delete next[tabId];
+      return next;
+    });
+
     setActiveTabId(prevActiveId => {
       if (prevActiveId === tabId) {
-        // Use ref to find next tab without dependency
         const currentTabs = tabsRef.current;
         return currentTabs.find(t => t.id !== tabId)?.id || '1';
       }
       return prevActiveId;
     });
-  }, []); // No dependencies needed - uses ref
+  }, []);
 
   // CRITICAL FIX: Use ref instead of tabs dependency
   const handleSaveQuery = useCallback(async (name: string) => {
