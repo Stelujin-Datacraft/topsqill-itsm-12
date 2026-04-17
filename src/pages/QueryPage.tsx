@@ -234,7 +234,7 @@ export default function QueryPage() {
         return [...prevTabs, newTab];
       }
     });
-  }, [activeTabId]); // NO currentQuery dependency!
+  }, [activeTabId, getNextQueryNumber]);
 
   // CRITICAL FIX: Memoize resultsData to prevent expensive recalculations on every keystroke
   const resultsData = useMemo(() => {
