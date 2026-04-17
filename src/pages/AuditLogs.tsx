@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import DashboardLayout from '@/components/DashboardLayout';
+import { BackToMembersButton } from '@/components/users/BackToMembersButton';
 import {
   RefreshCw,
   Search,

@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import DashboardLayout from '@/components/DashboardLayout';
+import { BackToMembersButton } from '@/components/users/BackToMembersButton';
 import { 
   Monitor, 
   Smartphone, 
