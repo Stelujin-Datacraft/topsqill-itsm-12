@@ -4204,32 +4204,36 @@ export function ChartPreview({
                 top: 20,
                 right: 30,
                 left: 60,
-                bottom: 80
+                bottom: 90
               }}>
                   <XAxis 
                     dataKey="name" 
-                    tick={{ fontSize: 11 }}
+                    tick={{ fontSize: tickFontSize }}
+                    tickFormatter={formatXTick}
                     angle={-45}
                     textAnchor="end"
-                    height={80}
+                    height={xAxisHeight}
                     interval={0}
                     label={{
-                      value: config.xAxisLabel || getFormFieldName(primaryMetric),
+                      value: config.xAxisLabel || dimensionFieldLabel,
                       position: 'insideBottom',
-                      offset: -5
+                      offset: -10,
+                      style: { fontSize: axisLabelFontSize, fill: 'hsl(var(--foreground))' }
                     }} 
                   />
                   <YAxis 
                     type="number" 
-                    tick={{ fontSize: 11 }}
+                    tick={{ fontSize: tickFontSize }}
                     domain={getYAxisDomain(sanitizedChartData, primaryMetric)} 
                     ticks={getYAxisTicks(sanitizedChartData, primaryMetric)} 
                     allowDataOverflow={false}
+                    width={60}
                     label={{
-                      value: config.yAxisLabel || 'Value',
+                      value: config.yAxisLabel || getFormFieldName(primaryMetric) || 'Value',
                       angle: -90,
                       position: 'insideLeft',
-                      offset: 10
+                      offset: 10,
+                      style: { fontSize: axisLabelFontSize, fill: 'hsl(var(--foreground))', textAnchor: 'middle' }
                     }} 
                   />
                    <Tooltip 
@@ -4307,21 +4311,24 @@ export function ChartPreview({
                 top: 20,
                 right: 30,
                 left: 40,
-                bottom: 80
+                bottom: 90
               }}>
                   <XAxis dataKey="name" tick={{
-                  fontSize: 11
-                }} angle={-45} textAnchor="end" height={80} interval={0} label={{
-                  value: config.xAxisLabel || getFormFieldName(primaryMetric),
+                  fontSize: tickFontSize
+                }} tickFormatter={formatXTick} angle={-45} textAnchor="end" height={xAxisHeight} interval={0} label={{
+                  value: config.xAxisLabel || dimensionFieldLabel,
                   position: 'insideBottom',
-                  offset: -5
+                  offset: -10,
+                  style: { fontSize: axisLabelFontSize, fill: 'hsl(var(--foreground))' }
                 }} />
                   <YAxis tick={{
-                  fontSize: 11
-                }} label={{
-                  value: config.yAxisLabel || 'Value',
+                  fontSize: tickFontSize
+                }} width={60} label={{
+                  value: config.yAxisLabel || getFormFieldName(primaryMetric) || 'Value',
                   angle: -90,
-                  position: 'insideLeft'
+                  position: 'insideLeft',
+                  offset: 10,
+                  style: { fontSize: axisLabelFontSize, fill: 'hsl(var(--foreground))', textAnchor: 'middle' }
                 }} domain={getYAxisDomain(sanitizedChartData, primaryMetric)} ticks={getYAxisTicks(sanitizedChartData, primaryMetric)} allowDataOverflow={false} />
                   <Tooltip 
                     content={({ payload, label }) => getEnhancedTooltipContent(payload, label)}
@@ -4492,21 +4499,24 @@ export function ChartPreview({
                 top: 20,
                 right: 30,
                 left: 40,
-                bottom: 80
+                bottom: 90
               }}>
                   <XAxis dataKey="name" tick={{
-                  fontSize: 11
-                }} angle={-45} textAnchor="end" height={80} interval={0} label={{
-                  value: config.xAxisLabel || getFormFieldName(primaryMetric),
+                  fontSize: tickFontSize
+                }} tickFormatter={formatXTick} angle={-45} textAnchor="end" height={xAxisHeight} interval={0} label={{
+                  value: config.xAxisLabel || dimensionFieldLabel,
                   position: 'insideBottom',
-                  offset: -5
+                  offset: -10,
+                  style: { fontSize: axisLabelFontSize, fill: 'hsl(var(--foreground))' }
                 }} />
                   <YAxis tick={{
-                  fontSize: 11
-                }} label={{
-                  value: config.yAxisLabel || 'Value',
+                  fontSize: tickFontSize
+                }} width={60} label={{
+                  value: config.yAxisLabel || getFormFieldName(primaryMetric) || 'Value',
                   angle: -90,
-                  position: 'insideLeft'
+                  position: 'insideLeft',
+                  offset: 10,
+                  style: { fontSize: axisLabelFontSize, fill: 'hsl(var(--foreground))', textAnchor: 'middle' }
                 }} domain={getYAxisDomain(sanitizedChartData, primaryMetric)} ticks={getYAxisTicks(sanitizedChartData, primaryMetric)} allowDataOverflow={false} />
                   <Tooltip 
                     content={({ payload, label }) => {
@@ -4610,21 +4620,24 @@ export function ChartPreview({
                 top: 20,
                 right: 30,
                 left: 40,
-                bottom: 80
+                bottom: 90
               }}>
                   <XAxis dataKey="name" tick={{
-                  fontSize: 11
-                }} angle={-45} textAnchor="end" height={80} interval={0} label={{
-                  value: config.xAxisLabel || getFormFieldName(primaryMetric),
+                  fontSize: tickFontSize
+                }} tickFormatter={formatXTick} angle={-45} textAnchor="end" height={xAxisHeight} interval={0} label={{
+                  value: config.xAxisLabel || dimensionFieldLabel,
                   position: 'insideBottom',
-                  offset: -5
+                  offset: -10,
+                  style: { fontSize: axisLabelFontSize, fill: 'hsl(var(--foreground))' }
                 }} />
                   <YAxis tick={{
-                  fontSize: 11
-                }} label={{
-                  value: config.yAxisLabel || 'Value',
+                  fontSize: tickFontSize
+                }} width={60} label={{
+                  value: config.yAxisLabel || getFormFieldName(primaryMetric) || 'Value',
                   angle: -90,
-                  position: 'insideLeft'
+                  position: 'insideLeft',
+                  offset: 10,
+                  style: { fontSize: axisLabelFontSize, fill: 'hsl(var(--foreground))', textAnchor: 'middle' }
                 }} domain={getYAxisDomain(sanitizedChartData, primaryMetric)} ticks={getYAxisTicks(sanitizedChartData, primaryMetric)} allowDataOverflow={false} />
                   <Tooltip 
                     content={({ payload, label }) => {
