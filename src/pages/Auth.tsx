@@ -264,10 +264,10 @@ const Auth = () => {
         </CardHeader>
         <CardContent>
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="signin">Sign In</TabsTrigger>
-              <TabsTrigger value="register-org">Register Organization</TabsTrigger>
-              <TabsTrigger value="join-org">Join Organization</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-3 h-auto gap-1">
+              <TabsTrigger value="signin" className="text-xs sm:text-sm px-1 sm:px-3 py-2 whitespace-normal sm:whitespace-nowrap leading-tight">Sign In</TabsTrigger>
+              <TabsTrigger value="register-org" className="text-xs sm:text-sm px-1 sm:px-3 py-2 whitespace-normal sm:whitespace-nowrap leading-tight">Register Org</TabsTrigger>
+              <TabsTrigger value="join-org" className="text-xs sm:text-sm px-1 sm:px-3 py-2 whitespace-normal sm:whitespace-nowrap leading-tight">Join Org</TabsTrigger>
             </TabsList>
 
             <TabsContent value="signin" className="space-y-4">
