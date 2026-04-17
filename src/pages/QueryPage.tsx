@@ -1,5 +1,6 @@
 import React, { useState, useRef, useMemo, useCallback } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
+import { DesktopOnlyNotice } from '@/components/DesktopOnlyNotice';
 import { QueryEditor, QueryEditorRef } from '@/components/query/QueryEditor';
 import { QueryResultsTable } from '@/components/query/QueryResultsTable';
 import { FormsSidebar } from '@/components/query/FormsSidebar';
