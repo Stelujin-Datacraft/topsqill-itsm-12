@@ -110,7 +110,20 @@ export default function InvestigateAccess() {
 
         {/* User Overview Card */}
         {data.profile && (
-          <UserOverviewCard profile={data.profile} loading={loading} />
+          <UserOverviewCard
+            profile={data.profile}
+            loading={loading}
+            stats={{
+              rolesCount: data.roleAssignments.length,
+              groupsCount: data.groupMemberships.length,
+              projectsCount: data.projectAccess.length,
+              activeSessionsCount: data.activeSessions.length,
+              permissionsCount: data.topLevelPermissions.length + data.resourcePermissions.length,
+              lastLogin: data.securitySettings?.last_login ?? null,
+              mfaEnabled: data.securitySettings?.mfa_required ?? false,
+              accountLockedUntil: data.securitySettings?.account_locked_until ?? null,
+            }}
+          />
         )}
 
         {/* Access Details Tabs */}
