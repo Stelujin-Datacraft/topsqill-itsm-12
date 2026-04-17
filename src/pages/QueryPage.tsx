@@ -16,8 +16,16 @@ import { Button } from '@/components/ui/button';
 import { History } from 'lucide-react';
 // QueryHistory and QueryResultsTable are already memoized in their own files
 
+interface TabResult {
+  result: QueryResult;
+  executionTime: number;
+}
+
+const EMPTY_RESULT: QueryResult = { columns: [], rows: [], errors: [] };
+
 export default function QueryPage() {
-  const [queryResult, setQueryResult] = useState<QueryResult>({ columns: [], rows: [], errors: [] });
+  // Per-tab results map keyed by tabId so switching tabs shows that tab's own result
+  const [tabResults, setTabResults] = useState<Record<string, TabResult>>({});
   const [isExecuting, setIsExecuting] = useState(false);
   const [tabs, setTabs] = useState<QueryTab[]>([
     { id: '1', name: 'Query 1', query: '', isActive: true, isDirty: false }
@@ -25,7 +33,6 @@ export default function QueryPage() {
   const [activeTabId, setActiveTabId] = useState('1');
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-  const [executionTime, setExecutionTime] = useState(0);
   const { toast } = useToast();
   const { saveQuery } = useSavedQueries();
   const { history, addToHistory, removeFromHistory, clearHistory } = useQueryHistory();
@@ -37,6 +44,11 @@ export default function QueryPage() {
   // PERFORMANCE FIX: Memoize activeTab to prevent recalculation
   const activeTab = useMemo(() => tabs.find(tab => tab.id === activeTabId), [tabs, activeTabId]);
   const currentQuery = activeTab?.query || '';
+
+  // Active tab's result + execution time (defaults to empty when tab has no result yet)
+  const activeTabResult = tabResults[activeTabId];
+  const queryResult = activeTabResult?.result || EMPTY_RESULT;
+  const executionTime = activeTabResult?.executionTime || 0;
 
   // CRITICAL FIX: Memoize updateTabQuery with stable reference
   const updateTabQuery = useCallback((query: string) => {
