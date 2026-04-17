@@ -4179,11 +4179,6 @@ export function ChartPreview({
       );
     }
     
-    // Resolve correct axis labels: X-axis should reflect the dimension, Y-axis the metric
-    const xAxisDimensionField = config.dimensions?.[0] || config.xAxis;
-    const xAxisDisplayLabel = config.xAxisLabel || (xAxisDimensionField ? getFormFieldName(xAxisDimensionField) : 'Category');
-    const yAxisDisplayLabel = config.yAxisLabel || (primaryMetric && primaryMetric !== 'value' && primaryMetric !== 'count' ? getFormFieldName(primaryMetric) : 'Value');
-
     switch (chartType) {
       case 'bar':
         // Bar chart = vertical bars (categories on X-axis, values on Y-axis)
@@ -4193,35 +4188,33 @@ export function ChartPreview({
                 <BarChart data={sanitizedChartData} margin={{
                 top: 20,
                 right: 30,
-                left: 70,
-                bottom: 100
+                left: 60,
+                bottom: 80
               }}>
                   <XAxis 
                     dataKey="name" 
-                    tick={{ fontSize: 10 }}
+                    tick={{ fontSize: 11 }}
                     angle={-45}
                     textAnchor="end"
-                    height={100}
+                    height={80}
                     interval={0}
                     label={{
-                      value: xAxisDisplayLabel,
+                      value: config.xAxisLabel || getFormFieldName(primaryMetric),
                       position: 'insideBottom',
-                      offset: -10,
-                      style: { fontSize: 12, fontWeight: 500 }
+                      offset: -5
                     }} 
                   />
                   <YAxis 
                     type="number" 
-                    tick={{ fontSize: 10 }}
+                    tick={{ fontSize: 11 }}
                     domain={getYAxisDomain(sanitizedChartData, primaryMetric)} 
                     ticks={getYAxisTicks(sanitizedChartData, primaryMetric)} 
                     allowDataOverflow={false}
                     label={{
-                      value: yAxisDisplayLabel,
+                      value: config.yAxisLabel || 'Value',
                       angle: -90,
                       position: 'insideLeft',
-                      offset: 0,
-                      style: { fontSize: 12, fontWeight: 500, textAnchor: 'middle' }
+                      offset: 10
                     }} 
                   />
                    <Tooltip 
@@ -4298,25 +4291,22 @@ export function ChartPreview({
                 <BarChart data={sanitizedChartData} margin={{
                 top: 20,
                 right: 30,
-                left: 70,
-                bottom: 100
+                left: 40,
+                bottom: 80
               }}>
                   <XAxis dataKey="name" tick={{
-                  fontSize: 10
-                }} angle={-45} textAnchor="end" height={100} interval={0} label={{
-                  value: xAxisDisplayLabel,
+                  fontSize: 11
+                }} angle={-45} textAnchor="end" height={80} interval={0} label={{
+                  value: config.xAxisLabel || getFormFieldName(primaryMetric),
                   position: 'insideBottom',
-                  offset: -10,
-                  style: { fontSize: 12, fontWeight: 500 }
+                  offset: -5
                 }} />
                   <YAxis tick={{
-                  fontSize: 10
+                  fontSize: 11
                 }} label={{
-                  value: yAxisDisplayLabel,
+                  value: config.yAxisLabel || 'Value',
                   angle: -90,
-                  position: 'insideLeft',
-                  offset: 0,
-                  style: { fontSize: 12, fontWeight: 500, textAnchor: 'middle' }
+                  position: 'insideLeft'
                 }} domain={getYAxisDomain(sanitizedChartData, primaryMetric)} ticks={getYAxisTicks(sanitizedChartData, primaryMetric)} allowDataOverflow={false} />
                   <Tooltip 
                     content={({ payload, label }) => getEnhancedTooltipContent(payload, label)}
@@ -4486,25 +4476,22 @@ export function ChartPreview({
                 <RechartsLineChart data={sanitizedChartData} margin={{
                 top: 20,
                 right: 30,
-                left: 70,
-                bottom: 100
+                left: 40,
+                bottom: 80
               }}>
                   <XAxis dataKey="name" tick={{
-                  fontSize: 10
-                }} angle={-45} textAnchor="end" height={100} interval={0} label={{
-                  value: xAxisDisplayLabel,
+                  fontSize: 11
+                }} angle={-45} textAnchor="end" height={80} interval={0} label={{
+                  value: config.xAxisLabel || getFormFieldName(primaryMetric),
                   position: 'insideBottom',
-                  offset: -10,
-                  style: { fontSize: 12, fontWeight: 500 }
+                  offset: -5
                 }} />
                   <YAxis tick={{
-                  fontSize: 10
+                  fontSize: 11
                 }} label={{
-                  value: yAxisDisplayLabel,
+                  value: config.yAxisLabel || 'Value',
                   angle: -90,
-                  position: 'insideLeft',
-                  offset: 0,
-                  style: { fontSize: 12, fontWeight: 500, textAnchor: 'middle' }
+                  position: 'insideLeft'
                 }} domain={getYAxisDomain(sanitizedChartData, primaryMetric)} ticks={getYAxisTicks(sanitizedChartData, primaryMetric)} allowDataOverflow={false} />
                   <Tooltip 
                     content={({ payload, label }) => {
@@ -4607,25 +4594,22 @@ export function ChartPreview({
                 <RechartsAreaChart data={sanitizedChartData} margin={{
                 top: 20,
                 right: 30,
-                left: 70,
-                bottom: 100
+                left: 40,
+                bottom: 80
               }}>
                   <XAxis dataKey="name" tick={{
-                  fontSize: 10
-                }} angle={-45} textAnchor="end" height={100} interval={0} label={{
-                  value: xAxisDisplayLabel,
+                  fontSize: 11
+                }} angle={-45} textAnchor="end" height={80} interval={0} label={{
+                  value: config.xAxisLabel || getFormFieldName(primaryMetric),
                   position: 'insideBottom',
-                  offset: -10,
-                  style: { fontSize: 12, fontWeight: 500 }
+                  offset: -5
                 }} />
                   <YAxis tick={{
-                  fontSize: 10
+                  fontSize: 11
                 }} label={{
-                  value: yAxisDisplayLabel,
+                  value: config.yAxisLabel || 'Value',
                   angle: -90,
-                  position: 'insideLeft',
-                  offset: 0,
-                  style: { fontSize: 12, fontWeight: 500, textAnchor: 'middle' }
+                  position: 'insideLeft'
                 }} domain={getYAxisDomain(sanitizedChartData, primaryMetric)} ticks={getYAxisTicks(sanitizedChartData, primaryMetric)} allowDataOverflow={false} />
                   <Tooltip 
                     content={({ payload, label }) => {
