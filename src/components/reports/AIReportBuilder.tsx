@@ -201,7 +201,9 @@ export function AIReportBuilder({ open, onOpenChange, reportId, onComponentGener
                   <SelectItem key={form.id} value={form.id}>
                     <div className="flex items-center gap-2">
                       <span>{form.name}</span>
-                      <Badge variant="outline" className="text-xs">{form.fields.length} fields</Badge>
+                      {form.fields.length > 0 && (
+                        <Badge variant="outline" className="text-xs">{form.fields.length} fields</Badge>
+                      )}
                     </div>
                   </SelectItem>
                 ))}
