@@ -18,7 +18,7 @@ interface FormDataCellProps {
   submissionId?: string;
 }
 
-export function FormDataCell({ value, fieldType, field, submissionId }: FormDataCellProps) {
+function FormDataCellImpl({ value, fieldType, field, submissionId }: FormDataCellProps) {
   const isHyperlink = field?.custom_config?.isHyperlink || field?.customConfig?.isHyperlink;
   const { getUserDisplayName, getGroupDisplayName } = useUsersAndGroups();
 
@@ -1104,3 +1104,13 @@ if (fieldType === "user-picker") {
   // Default case - display as string
   return wrapWithHyperlink(<span className="text-sm">{value.toString()}</span>);
 }
+
+// Memoized: rendered hundreds of times per table page. Stable props -> skip re-render.
+export const FormDataCell = React.memo(FormDataCellImpl, (prev, next) => {
+  return (
+    prev.value === next.value &&
+    prev.fieldType === next.fieldType &&
+    prev.submissionId === next.submissionId &&
+    prev.field === next.field
+  );
+});
