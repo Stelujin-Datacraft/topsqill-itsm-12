@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/DashboardLayout';
+import { DesktopOnlyNotice } from '@/components/DesktopOnlyNotice';
 import { WorkflowDesigner } from '@/components/workflows/WorkflowDesigner';
 import { WorkflowInstances } from '@/components/workflows/WorkflowInstances';
 import { WorkflowSettingsPanel } from '@/components/workflows/WorkflowSettingsPanel';
@@ -638,6 +639,10 @@ const WorkflowDesignerPage = () => {
         </div>
       }
     >
+      <DesktopOnlyNotice
+        toolName="Workflow Designer"
+        description="Designing workflows requires drag-and-drop on a wide canvas. Please use a tablet or desktop."
+      >
       <div className="h-[calc(100vh-140px)] flex flex-col">
         
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
@@ -680,6 +685,7 @@ const WorkflowDesignerPage = () => {
           </TabsContent>
         </Tabs>
       </div>
+      </DesktopOnlyNotice>
     </DashboardLayout>
   );
 };
