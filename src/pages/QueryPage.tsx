@@ -223,7 +223,7 @@ export default function QueryPage() {
         const newId = Date.now().toString();
         const newTab: QueryTab = {
           id: newId,
-          name: `Query ${prevTabs.length + 1}`,
+          name: `Query ${getNextQueryNumber(prevTabs)}`,
           query,
           isActive: false,
           isDirty: true
