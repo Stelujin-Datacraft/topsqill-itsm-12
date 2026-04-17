@@ -264,10 +264,10 @@ const Auth = () => {
         </CardHeader>
         <CardContent>
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="signin">Sign In</TabsTrigger>
-              <TabsTrigger value="register-org">Register Organization</TabsTrigger>
-              <TabsTrigger value="join-org">Join Organization</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-3 h-auto gap-1">
+              <TabsTrigger value="signin" className="text-xs sm:text-sm px-1 sm:px-3 py-2 whitespace-normal sm:whitespace-nowrap leading-tight">Sign In</TabsTrigger>
+              <TabsTrigger value="register-org" className="text-xs sm:text-sm px-1 sm:px-3 py-2 whitespace-normal sm:whitespace-nowrap leading-tight">Register Org</TabsTrigger>
+              <TabsTrigger value="join-org" className="text-xs sm:text-sm px-1 sm:px-3 py-2 whitespace-normal sm:whitespace-nowrap leading-tight">Join Org</TabsTrigger>
             </TabsList>
 
             <TabsContent value="signin" className="space-y-4">
@@ -372,7 +372,7 @@ const Auth = () => {
                 Register your organization and become an administrator
               </div>
               <form onSubmit={handleRegisterOrganization} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="org-name">Organization Name</Label>
                     <Input
@@ -404,7 +404,7 @@ const Auth = () => {
                     rows={3}
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="admin-first-name">Admin First Name</Label>
                     <Input
@@ -481,7 +481,7 @@ const Auth = () => {
                     required
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="join-first-name">First Name</Label>
                     <Input
