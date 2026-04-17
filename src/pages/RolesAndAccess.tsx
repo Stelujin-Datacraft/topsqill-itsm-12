@@ -37,10 +37,10 @@ const RolesAndAccess = () => {
       <div className="space-y-6">
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="user-roles">User Roles</TabsTrigger>
-            <TabsTrigger value="group-roles">Group Roles</TabsTrigger>
-            <TabsTrigger value="create-roles">Create Roles</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-3 h-auto gap-1">
+            <TabsTrigger value="user-roles" className="text-xs sm:text-sm whitespace-normal sm:whitespace-nowrap leading-tight px-1 sm:px-3">User Roles</TabsTrigger>
+            <TabsTrigger value="group-roles" className="text-xs sm:text-sm whitespace-normal sm:whitespace-nowrap leading-tight px-1 sm:px-3">Group Roles</TabsTrigger>
+            <TabsTrigger value="create-roles" className="text-xs sm:text-sm whitespace-normal sm:whitespace-nowrap leading-tight px-1 sm:px-3">Create Roles</TabsTrigger>
           </TabsList>
 
           <TabsContent value="user-roles" className="space-y-6">
