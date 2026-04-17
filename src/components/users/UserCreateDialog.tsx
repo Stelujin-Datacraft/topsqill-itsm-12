@@ -32,7 +32,6 @@ export interface UserCreateData {
 
 const ROLE_OPTIONS = [
   { value: 'user', label: 'User' },
-  { value: 'moderator', label: 'Moderator' },
   { value: 'admin', label: 'Admin' },
 ];
 

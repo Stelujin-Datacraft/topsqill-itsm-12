@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import DashboardLayout from '@/components/DashboardLayout';
+import { BackToMembersButton } from '@/components/users/BackToMembersButton';
 import {
   RefreshCw,
   Search,
@@ -173,6 +174,7 @@ const AuditLogs: React.FC = () => {
 
   const headerActions = (
     <div className="flex gap-2">
+      <BackToMembersButton />
       {effectiveRole === 'admin' && (
         <DeleteLogsDialog 
           tableName="audit_logs" 

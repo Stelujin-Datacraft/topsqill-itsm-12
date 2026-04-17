@@ -7,6 +7,7 @@ import { GroupRolesTab } from '@/components/roles/GroupRolesTab';
 import { CreateRolesTab } from '@/components/roles/CreateRolesTab';
 import { Shield } from 'lucide-react';
 import { useEffectiveUser } from '@/hooks/useEffectiveUser';
+import { BackToMembersButton } from '@/components/users/BackToMembersButton';
 
 const RolesAndAccess = () => {
   const { effectiveRole } = useEffectiveUser();
@@ -15,7 +16,7 @@ const RolesAndAccess = () => {
   // Only admins can access this page (respects impersonation)
   if (effectiveRole !== 'admin') {
     return (
-      <DashboardLayout title="Access Denied">
+      <DashboardLayout title="Access Denied" actions={<BackToMembersButton />}>
         <div className="text-center py-12">
           <Shield className="h-12 w-12 text-red-500 mx-auto mb-4" />
           <h3 className="text-lg font-semibold mb-2">Access Denied</h3>
@@ -28,7 +29,11 @@ const RolesAndAccess = () => {
   }
 
   return (
-    <DashboardLayout title="Roles and Access" description="Manage user roles and access permissions across your organization">
+    <DashboardLayout
+      title="Roles and Access"
+      description="Manage user roles and access permissions across your organization"
+      actions={<BackToMembersButton />}
+    >
       <div className="space-y-6">
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">

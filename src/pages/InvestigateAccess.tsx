@@ -18,6 +18,7 @@ import { SessionsTab } from '@/components/investigate/SessionsTab';
 import { ProjectsTab } from '@/components/investigate/ProjectsTab';
 import { ExportAccessReport } from '@/components/investigate/ExportAccessReport';
 import { ExportAllUsersReport } from '@/components/investigate/ExportAllUsersReport';
+import { BackToMembersButton } from '@/components/users/BackToMembersButton';
 
 export default function InvestigateAccess() {
   const { userProfile } = useAuth();
@@ -53,6 +54,7 @@ export default function InvestigateAccess() {
     <DashboardLayout 
       title={isAdmin ? 'Investigate Access' : 'My Access'}
       description={isAdmin ? 'View comprehensive access rights for any user in the system' : 'View your access permissions, roles, and security settings'}
+      actions={<BackToMembersButton />}
     >
       <div className="space-y-6">
         {/* Header */}

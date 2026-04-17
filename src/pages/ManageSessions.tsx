@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import DashboardLayout from '@/components/DashboardLayout';
+import { BackToMembersButton } from '@/components/users/BackToMembersButton';
 import { 
   Monitor, 
   Smartphone, 
@@ -249,10 +250,13 @@ const ManageSessions: React.FC = () => {
   };
 
   const headerActions = (
-    <Button variant="outline" onClick={fetchSessions} disabled={loading}>
-      <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-      Refresh
-    </Button>
+    <div className="flex items-center gap-2">
+      <BackToMembersButton />
+      <Button variant="outline" onClick={fetchSessions} disabled={loading}>
+        <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+        Refresh
+      </Button>
+    </div>
   );
 
   return (
