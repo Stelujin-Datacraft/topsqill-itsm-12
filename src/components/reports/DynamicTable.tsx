@@ -26,6 +26,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubmissionAccessFilter } from '@/hooks/useSubmissionAccessFilter';
 import { Form } from '@/types/form';
+import { useDebounce } from '@/hooks/useDebounce';
 import { DynamicTableColumnSelector } from './DynamicTableColumnSelector';
 import { SubmissionAnalytics } from './SubmissionAnalytics';
 import { FormDataCell } from './FormDataCell';
