@@ -68,28 +68,28 @@ export default function QueryPage() {
   // executeQuery from being recreated on every keystroke
   // Use requestAnimationFrame to batch state updates and prevent UI freeze
   const executeQuery = useCallback(async (sql: string) => {
-    // CRITICAL: Use requestAnimationFrame to allow React to finish current render cycle
-    // before starting the expensive operation - this prevents UI freeze
+    // Capture which tab triggered the execution so the result is stored against
+    // *that* tab even if the user switches tabs while it's running
+    const execTabId = activeTabId;
+
     requestAnimationFrame(async () => {
       setIsExecuting(true);
       const startTime = performance.now();
       
       try {
-        // CRITICAL: Use ref to get current tabs without dependency
-        const currentTabQuery = tabsRef.current.find(t => t.id === activeTabId)?.query || '';
+        const currentTabQuery = tabsRef.current.find(t => t.id === execTabId)?.query || '';
         
-        // Wrap in setTimeout(0) to yield to the browser and prevent freeze
         await new Promise(resolve => setTimeout(resolve, 0));
         
         const result = await executeUserQuery(currentTabQuery);
         const endTime = performance.now();
         const execTime = Math.round(endTime - startTime);
         
-        // Batch state updates using React's automatic batching
-        setQueryResult(result);
-        setExecutionTime(execTime);
+        setTabResults(prev => ({
+          ...prev,
+          [execTabId]: { result, executionTime: execTime }
+        }));
         
-        // Add to history
         addToHistory({
           query: currentTabQuery,
           executionTime: execTime,
@@ -116,11 +116,15 @@ export default function QueryPage() {
         const execTime = Math.round(endTime - startTime);
         const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
         
-        setQueryResult({ columns: [], rows: [], errors: [errorMessage] });
-        setExecutionTime(execTime);
+        setTabResults(prev => ({
+          ...prev,
+          [execTabId]: {
+            result: { columns: [], rows: [], errors: [errorMessage] },
+            executionTime: execTime,
+          }
+        }));
         
-        // Add failed query to history - use ref
-        const currentTabQuery = tabsRef.current.find(t => t.id === activeTabId)?.query || '';
+        const currentTabQuery = tabsRef.current.find(t => t.id === execTabId)?.query || '';
         addToHistory({
           query: currentTabQuery,
           executionTime: execTime,
@@ -138,7 +142,7 @@ export default function QueryPage() {
         setIsExecuting(false);
       }
     });
-  }, [activeTabId, addToHistory, toast]); // Removed 'tabs' dependency!
+  }, [activeTabId, addToHistory, toast]);
 
   // Helper: find the smallest unused "Query N" number
   const getNextQueryNumber = useCallback((existing: QueryTab[]) => {
