@@ -58,7 +58,7 @@ const Dashboard = () => {
   try {
     return (
       <DashboardLayout 
-        title="Dashboard"
+        title="Overview"
         description={currentProject ? `Currently working on: ${currentProject.name}` : 'Select a project to get started or create a new one'}
         actions={
           userProfile?.role === 'admin' ? (
@@ -177,7 +177,7 @@ const Dashboard = () => {
   } catch (error) {
     console.error('Dashboard render error:', error);
     return (
-      <DashboardLayout title="Dashboard">
+      <DashboardLayout title="Overview">
         <div className="flex items-center justify-center min-h-[50vh]">
           <Card className="p-6 text-center">
             <CardHeader>
