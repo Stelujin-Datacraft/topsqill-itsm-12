@@ -33,8 +33,6 @@ interface UserData {
 const ROLE_OPTIONS = [
   { value: 'user', label: 'User' },
   { value: 'admin', label: 'Admin' },
-  { value: 'manager', label: 'Manager' },
-  { value: 'viewer', label: 'Viewer' },
 ];
 
 const TIMEZONE_OPTIONS = [
@@ -315,7 +313,7 @@ export function UserEditDialog({ open, onOpenChange, user, onUserUpdated }: User
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit User</DialogTitle>
           <DialogDescription>Update user profile information for {user.email}</DialogDescription>
