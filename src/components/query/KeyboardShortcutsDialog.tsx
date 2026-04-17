@@ -14,17 +14,19 @@ interface KeyboardShortcutsDialogProps {
 }
 
 export function KeyboardShortcutsDialog({ open, onOpenChange }: KeyboardShortcutsDialogProps) {
+  const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPod|iPad/i.test(navigator.platform);
+  const mod = isMac ? '⌘' : 'Ctrl';
+
   const shortcuts = [
-    { keys: ['Ctrl', 'Enter'], description: 'Execute query' },
-    { keys: ['Ctrl', 'S'], description: 'Save query' },
-    { keys: ['Ctrl', 'F'], description: 'Format query' },
-    { keys: ['Ctrl', 'K'], description: 'Clear editor' },
-    { keys: ['Ctrl', '/'], description: 'Toggle comment' },
+    { keys: [mod, 'Enter'], description: 'Execute query' },
+    { keys: [mod, 'S'], description: 'Save query' },
+    { keys: [mod, 'F'], description: 'Format query' },
+    { keys: [mod, 'K'], description: 'Clear editor' },
+    { keys: [mod, '/'], description: 'Show shortcuts' },
     { keys: ['Tab'], description: 'Indent' },
     { keys: ['Shift', 'Tab'], description: 'Outdent' },
-    { keys: ['Ctrl', 'D'], description: 'Duplicate line' },
-    { keys: ['Ctrl', 'Z'], description: 'Undo' },
-    { keys: ['Ctrl', 'Y'], description: 'Redo' },
+    { keys: [mod, 'Z'], description: 'Undo' },
+    { keys: [mod, 'Y'], description: 'Redo' },
   ];
 
   return (

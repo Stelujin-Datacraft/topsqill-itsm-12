@@ -141,29 +141,33 @@ export const QueryEditor = memo(forwardRef<QueryEditorRef, QueryEditorProps>(({
   }, [value, onChange, toast]);
 
   // PERFORMANCE FIX: Memoize keyboard handler to prevent constant listener churn
+  // Cross-platform: support both Ctrl (Windows/Linux) and Cmd/Meta (Mac)
   const handleKeyDown = useCallback((event: KeyboardEvent) => {
-    // Ctrl+Enter: Execute
-    if (event.ctrlKey && event.key === 'Enter') {
+    const mod = event.ctrlKey || event.metaKey;
+    if (!mod) return;
+
+    // Mod+Enter: Execute
+    if (event.key === 'Enter') {
       event.preventDefault();
       handleExecute();
     }
-    // Ctrl+S: Save
-    else if (event.ctrlKey && event.key === 's') {
+    // Mod+S: Save
+    else if (event.key === 's' || event.key === 'S') {
       event.preventDefault();
       onSave();
     }
-    // Ctrl+F: Format
-    else if (event.ctrlKey && event.key === 'f') {
+    // Mod+F: Format (avoid clashing with browser find on Cmd+F by allowing only when editor focused — keep behaviour consistent)
+    else if (event.key === 'f' || event.key === 'F') {
       event.preventDefault();
       handleFormat();
     }
-    // Ctrl+K: Clear
-    else if (event.ctrlKey && event.key === 'k') {
+    // Mod+K: Clear
+    else if (event.key === 'k' || event.key === 'K') {
       event.preventDefault();
       onChange('');
     }
-    // Ctrl+?: Show shortcuts
-    else if (event.ctrlKey && event.key === '?') {
+    // Mod+/: Show shortcuts
+    else if (event.key === '/' || event.key === '?') {
       event.preventDefault();
       setShortcutsOpen(true);
     }
@@ -296,11 +300,6 @@ export const QueryEditor = memo(forwardRef<QueryEditorRef, QueryEditorProps>(({
         {/* Bottom Content Panel */}
         <ResizablePanel defaultSize={40} minSize={20}>
           <div className="h-full overflow-y-auto flex flex-col">
-            {/* Help Text */}
-            <div className="p-3 border-t border-border bg-muted/10 text-xs text-muted-foreground">
-              Press <kbd>Ctrl+Enter</kbd> (or <kbd>Cmd+Enter</kbd> on Mac) to execute • SELECT and UPDATE FORM statements allowed
-            </div>
-
             {/* Errors */}
             {parseResult.errors.length > 0 && (
               <div className="p-3 border-t border-border space-y-2">
@@ -311,16 +310,6 @@ export const QueryEditor = memo(forwardRef<QueryEditorRef, QueryEditorProps>(({
                     </AlertDescription>
                   </Alert>
                 ))}
-              </div>
-            )}
-
-            {/* Generated SQL Preview */}
-            {parseResult.sql && parseResult.errors.length === 0 && (
-              <div className="p-3 border-t border-border bg-muted/10">
-                <h4 className="text-sm font-medium text-muted-foreground mb-2">Generated SQL:</h4>
-                <pre className="text-xs text-muted-foreground font-mono bg-muted/20 p-2 rounded border overflow-x-auto whitespace-pre-wrap">
-                  {parseResult.sql.startsWith('UPDATE::BATCH::') ? 'UPDATE query validated (bulk update ready)' : parseResult.sql}
-                </pre>
               </div>
             )}
 

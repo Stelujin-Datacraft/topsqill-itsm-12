@@ -267,7 +267,13 @@ const QueryResultsTableInner: React.FC<QueryResultsTableProps> = ({
                 className="flex-1 overflow-auto rounded-lg border border-border"
                 style={{ height: '500px', contain: 'strict' }}
               >
-                <table className="w-full border-collapse min-w-full">
+                <table className="w-full border-collapse" style={{ tableLayout: 'fixed' }}>
+                  {/* Column group ensures header/body widths stay aligned */}
+                  <colgroup>
+                    {table.getVisibleLeafColumns().map((col) => (
+                      <col key={col.id} style={{ width: `${col.getSize()}px` }} />
+                    ))}
+                  </colgroup>
                   {/* Table Header - Sticky */}
                   <thead className="sticky top-0 bg-muted z-10">
                     {table.getHeaderGroups().map(headerGroup => (
@@ -275,12 +281,7 @@ const QueryResultsTableInner: React.FC<QueryResultsTableProps> = ({
                         {headerGroup.headers.map(header => (
                           <th
                             key={header.id}
-                            className="border-r border-border bg-muted hover:bg-muted/80 transition-colors"
-                            style={{ 
-                              width: header.getSize(),
-                              maxWidth: '150px',
-                              minWidth: '100px'
-                            }}
+                            className="border-r border-border bg-muted hover:bg-muted/80 transition-colors text-left"
                           >
                             {header.isPlaceholder
                               ? null
@@ -295,7 +296,7 @@ const QueryResultsTableInner: React.FC<QueryResultsTableProps> = ({
                   </thead>
                   
                   {/* Virtualized Table Body */}
-                  <tbody style={{ height: `${rowVirtualizer.getTotalSize()}px`, position: 'relative' }}>
+                  <tbody style={{ height: `${rowVirtualizer.getTotalSize()}px`, position: 'relative', display: 'block' }}>
                     {rowVirtualizer.getVirtualItems().map(virtualRow => {
                       const row = rows[virtualRow.index];
                       return (
@@ -310,17 +311,19 @@ const QueryResultsTableInner: React.FC<QueryResultsTableProps> = ({
                             top: 0,
                             left: 0,
                             width: '100%',
-                            display: 'table-row',
+                            display: 'table',
+                            tableLayout: 'fixed',
                           }}
                         >
+                          <colgroup>
+                            {table.getVisibleLeafColumns().map((col) => (
+                              <col key={col.id} style={{ width: `${col.getSize()}px` }} />
+                            ))}
+                          </colgroup>
                           {row.getVisibleCells().map(cell => (
                             <td
                               key={cell.id}
-                              className="border-r border-border"
-                              style={{ 
-                                width: cell.column.getSize(),
-                                maxWidth: '150px'
-                              }}
+                              className="border-r border-border overflow-hidden"
                             >
                               {flexRender(cell.column.columnDef.cell, cell.getContext())}
                             </td>
