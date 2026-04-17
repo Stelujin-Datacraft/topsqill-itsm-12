@@ -223,10 +223,9 @@ export function DynamicTable({
         // Search in form fields
         return displayFields.some(field => {
           const value = row.submission_data?.[field.id];
-          return value && value.toString().toLowerCase().includes(searchTerm.toLowerCase());
+          return value && value.toString().toLowerCase().includes(term);
         });
       });
-      console.log('🔍 After search filter:', beforeSearch, '->', filtered.length);
     }
 
     // Apply column filters
@@ -452,7 +451,7 @@ export function DynamicTable({
 
     console.log('✅ Final filtered count:', filtered.length);
     return filtered;
-  }, [data, searchTerm, columnFilters, appliedFilters, sortConfigs, displayFields, config, evaluateCondition, applyAccessFilter, aiQueryFilters, aiQuerySort]);
+  }, [data, debouncedSearchTerm, columnFilters, appliedFilters, sortConfigs, displayFields, config, evaluateCondition, applyAccessFilter, aiQueryFilters, aiQuerySort]);
   const paginatedData = useMemo(() => {
     const startIndex = (currentPage - 1) * pageSize;
     const endIndex = startIndex + pageSize;
