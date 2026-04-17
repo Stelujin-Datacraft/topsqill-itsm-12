@@ -21,7 +21,7 @@ interface KPIMetricCardProps {
   onClick?: () => void;
 }
 
-export function KPIMetricCard({
+function KPIMetricCardImpl({
   title,
   value,
   subtitle,
@@ -181,6 +181,10 @@ export function KPIMetricCard({
     </>
   );
 }
+
+// Memoized to skip re-renders when props are referentially equal.
+// Heavy on dashboards that render many cards.
+export const KPIMetricCard = React.memo(KPIMetricCardImpl);
 
 /* ================= VALUE FORMATTER ================= */
 function formatValue(val: number): string {

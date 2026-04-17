@@ -26,6 +26,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubmissionAccessFilter } from '@/hooks/useSubmissionAccessFilter';
 import { Form } from '@/types/form';
+import { useDebounce } from '@/hooks/useDebounce';
 import { DynamicTableColumnSelector } from './DynamicTableColumnSelector';
 import { SubmissionAnalytics } from './SubmissionAnalytics';
 import { FormDataCell } from './FormDataCell';
@@ -81,6 +82,7 @@ export function DynamicTable({
   const [currentForm, setCurrentForm] = useState<Form | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const debouncedSearchTerm = useDebounce(searchTerm, 250);
   const [sortConfigs, setSortConfigs] = useState<SortConfig[]>([]);
   const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
   const [complexFilters, setComplexFilters] = useState<FilterGroup[]>([]);
@@ -204,28 +206,26 @@ export function DynamicTable({
     let filtered = applyAccessFilter(data);
     console.log('🔒 After access control filter:', filtered.length);
 
-    // Apply search
-    if (searchTerm && config.enableSearch) {
-      console.log('🔍 Applying search filter for term:', searchTerm);
-      const beforeSearch = filtered.length;
+    // Apply search (debounced)
+    if (debouncedSearchTerm && config.enableSearch) {
+      const term = debouncedSearchTerm.toLowerCase();
       filtered = filtered.filter(row => {
         // Search in submission ID
-        if (row.submission_ref_id && row.submission_ref_id.toLowerCase().includes(searchTerm.toLowerCase())) {
+        if (row.submission_ref_id && row.submission_ref_id.toLowerCase().includes(term)) {
           return true;
         }
 
         // Search in internal ID
-        if (row.id && row.id.toLowerCase().includes(searchTerm.toLowerCase())) {
+        if (row.id && row.id.toLowerCase().includes(term)) {
           return true;
         }
 
         // Search in form fields
         return displayFields.some(field => {
           const value = row.submission_data?.[field.id];
-          return value && value.toString().toLowerCase().includes(searchTerm.toLowerCase());
+          return value && value.toString().toLowerCase().includes(term);
         });
       });
-      console.log('🔍 After search filter:', beforeSearch, '->', filtered.length);
     }
 
     // Apply column filters
@@ -451,7 +451,7 @@ export function DynamicTable({
 
     console.log('✅ Final filtered count:', filtered.length);
     return filtered;
-  }, [data, searchTerm, columnFilters, appliedFilters, sortConfigs, displayFields, config, evaluateCondition, applyAccessFilter, aiQueryFilters, aiQuerySort]);
+  }, [data, debouncedSearchTerm, columnFilters, appliedFilters, sortConfigs, displayFields, config, evaluateCondition, applyAccessFilter, aiQueryFilters, aiQuerySort]);
   const paginatedData = useMemo(() => {
     const startIndex = (currentPage - 1) * pageSize;
     const endIndex = startIndex + pageSize;

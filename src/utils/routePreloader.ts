@@ -53,8 +53,14 @@ async function preloadModule(path: string): Promise<void> {
 export function preloadCriticalRoutes(): void {
   // Don't preload if user is on slow connection
   const connection = (navigator as any).connection;
-  if (connection?.saveData || connection?.effectiveType === 'slow-2g') {
+  if (connection?.saveData || connection?.effectiveType === 'slow-2g' || connection?.effectiveType === '2g') {
     console.log('Skipping route preload due to slow connection');
+    return;
+  }
+
+  // Don't preload on small/mobile viewports — saves bandwidth + CPU
+  if (typeof window !== 'undefined' && window.innerWidth < 768) {
+    console.log('Skipping route preload on mobile viewport');
     return;
   }
 
