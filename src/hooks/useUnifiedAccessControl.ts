@@ -340,47 +340,9 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
 
   const checkPermissionWithAlert = (entityType: EntityType, action: ActionType, resourceId?: string): boolean => {
     const hasAccess = hasPermission(entityType, action, resourceId);
-    
     if (!hasAccess) {
-      if (state.isOrgAdmin || state.isProjectAdmin) {
-        return hasAccess;
-      }
-
-      const hasAssignedRole = !!state.userRole;
-      
-      if (!hasAssignedRole) {
-        toast.error(`You do not have ${action} permission for ${entityType}`);
-      } else {
-        const topLevelPerm = state.topLevelPermissions[entityType];
-        let topLevelAllows = false;
-        
-        switch (action) {
-          case 'create':
-            topLevelAllows = topLevelPerm.can_create;
-            break;
-          case 'read':
-            topLevelAllows = topLevelPerm.can_read;
-            break;
-          case 'update':
-            topLevelAllows = topLevelPerm.can_update;
-            break;
-          case 'delete':
-            topLevelAllows = topLevelPerm.can_delete;
-            break;
-        }
-
-        if (!topLevelAllows) {
-          toast.error(`You do not have top-level ${action} permission for ${entityType}`);
-        } else {
-          if (resourceId) {
-            toast.error(`Your role does not have ${action} permission for this specific ${entityType.slice(0, -1)}`);
-          } else {
-            toast.error(`Your role does not have ${action} permission for any ${entityType}`);
-          }
-        }
-      }
+      toast.error(`You do not have ${action} permission for ${entityType}`);
     }
-    
     return hasAccess;
   };
 
@@ -396,51 +358,8 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
 
   const getButtonState = (entityType: EntityType, action: ActionType, resourceId?: string) => {
     const hasAccess = hasPermission(entityType, action, resourceId);
-    
-    if (hasAccess) {
-      return { disabled: false, tooltip: '' };
-    }
-
-    if (state.isOrgAdmin || state.isProjectAdmin) {
-      return { disabled: false, tooltip: '' };
-    }
-
-    const hasAssignedRole = !!state.userRole;
-    let tooltip = '';
-
-    if (!hasAssignedRole) {
-      tooltip = `No ${action} permission for ${entityType}`;
-    } else {
-      const topLevelPerm = state.topLevelPermissions[entityType];
-      let topLevelAllows = false;
-      
-      switch (action) {
-        case 'create':
-          topLevelAllows = topLevelPerm.can_create;
-          break;
-        case 'read':
-          topLevelAllows = topLevelPerm.can_read;
-          break;
-        case 'update':
-          topLevelAllows = topLevelPerm.can_update;
-          break;
-        case 'delete':
-          topLevelAllows = topLevelPerm.can_delete;
-          break;
-      }
-
-      if (!topLevelAllows) {
-        tooltip = `No top-level ${action} permission for ${entityType}`;
-      } else {
-        if (resourceId) {
-          tooltip = `Role lacks ${action} permission for this specific ${entityType.slice(0, -1)}`;
-        } else {
-          tooltip = `Role lacks ${action} permission for ${entityType}`;
-        }
-      }
-    }
-
-    return { disabled: true, tooltip };
+    if (hasAccess) return { disabled: false, tooltip: '' };
+    return { disabled: true, tooltip: `No ${action} permission for ${entityType}` };
   };
 
   return {
