@@ -94,7 +94,7 @@ export function TopLevelPermissions({ projectId, userId, isCurrentUserAdmin }: T
 
       await updatePermissions(updates);
       setHasChanges(false);
-      toast.success('Top-level permissions updated successfully');
+      toast.success('Project-wide capabilities updated successfully');
     } catch (error) {
       console.error('Error saving permissions:', error);
       toast.error('Failed to update permissions');
