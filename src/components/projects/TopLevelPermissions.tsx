@@ -94,7 +94,7 @@ export function TopLevelPermissions({ projectId, userId, isCurrentUserAdmin }: T
 
       await updatePermissions(updates);
       setHasChanges(false);
-      toast.success('Top-level permissions updated successfully');
+      toast.success('Capabilities updated successfully');
     } catch (error) {
       console.error('Error saving permissions:', error);
       toast.error('Failed to update permissions');
@@ -135,10 +135,10 @@ export function TopLevelPermissions({ projectId, userId, isCurrentUserAdmin }: T
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Settings className="h-5 w-5" />
-          Top-Level Permissions
+          Additional Capabilities
         </CardTitle>
         <p className="text-sm text-muted-foreground">
-          Set the maximum permissions this user can have in this project. Role permissions work within these limits.
+          Grant baseline access to all items of an entity type. These capabilities are <strong>additive</strong> — they expand what a user can do on top of their assigned roles and resource shares. Owners and project admins always retain full access regardless of these settings.
         </p>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -172,7 +172,7 @@ export function TopLevelPermissions({ projectId, userId, isCurrentUserAdmin }: T
 
         {!isCurrentUserAdmin && (
           <div className="text-sm text-muted-foreground bg-muted p-3 rounded-md">
-            Only project administrators can modify top-level permissions.
+            Only project administrators can modify capabilities.
           </div>
         )}
 

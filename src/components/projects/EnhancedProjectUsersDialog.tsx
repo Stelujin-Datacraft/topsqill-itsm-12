@@ -317,7 +317,7 @@ export function EnhancedProjectUsersDialog({ projectId, isOpen, onClose }: Enhan
                   <div>
                     <h3 className="text-lg font-semibold">User Settings</h3>
                     <p className="text-sm text-muted-foreground">
-                      Configure top-level permissions for {
+                      Configure additional capabilities for {
                         users.find(u => u.user_id === selectedUserForSettings)?.email
                       }
                     </p>
