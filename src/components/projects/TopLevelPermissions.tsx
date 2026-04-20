@@ -94,7 +94,7 @@ export function TopLevelPermissions({ projectId, userId, isCurrentUserAdmin }: T
 
       await updatePermissions(updates);
       setHasChanges(false);
-      toast.success('Project-wide capabilities updated successfully');
+      toast.success('Top-level permissions updated successfully');
     } catch (error) {
       console.error('Error saving permissions:', error);
       toast.error('Failed to update permissions');
@@ -135,10 +135,10 @@ export function TopLevelPermissions({ projectId, userId, isCurrentUserAdmin }: T
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Settings className="h-5 w-5" />
-          Project-Wide Capabilities
+          Top-Level Permissions
         </CardTitle>
         <p className="text-sm text-muted-foreground">
-          Grant this user blanket access to entity types across the project. These grants are <strong>additive</strong> — they expand access on top of role-based shares and resource ownership. They never restrict it.
+          Set the maximum permissions this user can have in this project. Role permissions work within these limits.
         </p>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -172,7 +172,7 @@ export function TopLevelPermissions({ projectId, userId, isCurrentUserAdmin }: T
 
         {!isCurrentUserAdmin && (
           <div className="text-sm text-muted-foreground bg-muted p-3 rounded-md">
-            Only project administrators can modify project-wide capabilities.
+            Only project administrators can modify top-level permissions.
           </div>
         )}
 
