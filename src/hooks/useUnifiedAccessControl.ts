@@ -364,51 +364,9 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
 
   const getButtonState = (entityType: EntityType, action: ActionType, resourceId?: string) => {
     const hasAccess = hasPermission(entityType, action, resourceId);
-    
-    if (hasAccess) {
-      return { disabled: false, tooltip: '' };
-    }
-
-    if (state.isOrgAdmin || state.isProjectAdmin) {
-      return { disabled: false, tooltip: '' };
-    }
-
-    const hasAssignedRole = !!state.userRole;
-    let tooltip = '';
-
-    if (!hasAssignedRole) {
-      tooltip = `No ${action} permission for ${entityType}`;
-    } else {
-      const topLevelPerm = state.topLevelPermissions[entityType];
-      let topLevelAllows = false;
-      
-      switch (action) {
-        case 'create':
-          topLevelAllows = topLevelPerm.can_create;
-          break;
-        case 'read':
-          topLevelAllows = topLevelPerm.can_read;
-          break;
-        case 'update':
-          topLevelAllows = topLevelPerm.can_update;
-          break;
-        case 'delete':
-          topLevelAllows = topLevelPerm.can_delete;
-          break;
-      }
-
-      if (!topLevelAllows) {
-        tooltip = `No top-level ${action} permission for ${entityType}`;
-      } else {
-        if (resourceId) {
-          tooltip = `Role lacks ${action} permission for this specific ${entityType.slice(0, -1)}`;
-        } else {
-          tooltip = `Role lacks ${action} permission for ${entityType}`;
-        }
-      }
-    }
-
-    return { disabled: true, tooltip };
+    if (hasAccess) return { disabled: false, tooltip: '' };
+    const target = resourceId ? `this ${entityType.slice(0, -1)}` : entityType;
+    return { disabled: true, tooltip: `No ${action} permission for ${target}` };
   };
 
   return {
