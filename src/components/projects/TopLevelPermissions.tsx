@@ -172,7 +172,7 @@ export function TopLevelPermissions({ projectId, userId, isCurrentUserAdmin }: T
 
         {!isCurrentUserAdmin && (
           <div className="text-sm text-muted-foreground bg-muted p-3 rounded-md">
-            Only project administrators can modify top-level permissions.
+            Only project administrators can modify project-wide capabilities.
           </div>
         )}
 
