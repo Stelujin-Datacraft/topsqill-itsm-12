@@ -135,10 +135,10 @@ export function TopLevelPermissions({ projectId, userId, isCurrentUserAdmin }: T
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Settings className="h-5 w-5" />
-          Top-Level Permissions
+          Project-Wide Capabilities
         </CardTitle>
         <p className="text-sm text-muted-foreground">
-          Set the maximum permissions this user can have in this project. Role permissions work within these limits.
+          Grant this user blanket access to entity types across the project. These grants are <strong>additive</strong> — they expand access on top of role-based shares and resource ownership. They never restrict it.
         </p>
       </CardHeader>
       <CardContent className="space-y-6">
