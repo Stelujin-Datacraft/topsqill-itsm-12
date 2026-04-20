@@ -273,82 +273,164 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
     return false;
   };
 
-  // Helper: read a permission flag from a perm object
-  const readFlag = (perm: TopLevelPermissions | undefined, action: ActionType): boolean => {
-    if (!perm) return false;
-    switch (action) {
-      case 'create': return perm.can_create;
-      case 'read':   return perm.can_read;
-      case 'update': return perm.can_update;
-      case 'delete': return perm.can_delete;
-      default: return false;
-    }
-  };
-
-  /**
-   * Layered RBAC — additive (OR-gate) model.
-   * Access is granted if ANY layer allows it:
-   *   1. Org/Project admin (full access)
-   *   2. Resource owner (full access to own resource)
-   *   3. Public resource (read only)
-   *   4. Top-level capability for the entity-type
-   *   5. Role-based grant on the specific resource
-   * Layers ONLY expand access — none of them can subtract from another.
-   */
   const hasPermission = (entityType: EntityType, action: ActionType, resourceId?: string, resource?: any): boolean => {
-    // Layer 1: admin bypass
-    if (state.isOrgAdmin || state.isProjectAdmin) return true;
+    if (state.isOrgAdmin || state.isProjectAdmin) {
+      return true;
+    }
 
-    // Layer 2: resource owner bypass
-    if (resource && isResourceOwner(resource)) return true;
+    // Resource owners always have full access to their own resource
+    if (resource && isResourceOwner(resource)) {
+      return true;
+    }
 
-    // Layer 3: public form read
-    if (action === 'read' && resource?.isPublic === true) return true;
+    const hasAssignedRole = !!state.userRole;
 
-    // Layer 4: top-level capability
-    if (readFlag(state.topLevelPermissions[entityType], action)) return true;
+    const topLevelPerm = state.topLevelPermissions[entityType];
+    let topLevelAllows = false;
+    
+    switch (action) {
+      case 'create':
+        topLevelAllows = topLevelPerm.can_create;
+        break;
+      case 'read':
+        topLevelAllows = topLevelPerm.can_read;
+        break;
+      case 'update':
+        topLevelAllows = topLevelPerm.can_update;
+        break;
+      case 'delete':
+        topLevelAllows = topLevelPerm.can_delete;
+        break;
+    }
 
-    // Layer 5: role-based grant on this specific resource
+    if (!topLevelAllows) {
+      return false;
+    }
+
+    if (!hasAssignedRole) {
+      return topLevelAllows;
+    }
+
     if (resourceId) {
       const rolePerms = state.rolePermissions[entityType][resourceId];
-      if (rolePerms && readFlag(rolePerms as TopLevelPermissions, action)) return true;
+      
+      if (!rolePerms) {
+        return false;
+      }
+      
+      let roleAllows = false;
+      switch (action) {
+        case 'create':
+          roleAllows = rolePerms.can_create;
+          break;
+        case 'read':
+          roleAllows = rolePerms.can_read;
+          break;
+        case 'update':
+          roleAllows = rolePerms.can_update;
+          break;
+        case 'delete':
+          roleAllows = rolePerms.can_delete;
+          break;
+      }
+      
+      return roleAllows;
     } else {
-      // No specific resource → check if role grants this action on ANY resource of this type
-      const anyRoleGrant = Object.values(state.rolePermissions[entityType] || {}).some(
-        (rp) => readFlag(rp as TopLevelPermissions, action)
-      );
-      if (anyRoleGrant) return true;
+      return true;
     }
-
-    return false;
   };
 
   const getVisibleResources = (entityType: EntityType, allResources: any[]): any[] => {
-    // Admins see everything
-    if (state.isOrgAdmin || state.isProjectAdmin) return allResources;
+    if (state.isOrgAdmin || state.isProjectAdmin) {
+      return allResources;
+    }
+
+    const hasAssignedRole = !!state.userRole;
+
+    if (!hasAssignedRole) {
+      const canRead = state.topLevelPermissions[entityType]?.can_read;
+      
+      if (!canRead) {
+        // Even without top-level read, owners should see their own resources
+        return allResources.filter(resource => isResourceOwner(resource));
+      }
+
+      if (entityType === 'forms') {
+        return allResources.filter(resource => 
+          resource.isPublic === true || isResourceOwner(resource)
+        );
+      }
+
+      return allResources;
+    }
 
     const topLevelCanRead = state.topLevelPermissions[entityType]?.can_read;
+    
+    if (!topLevelCanRead) {
+      // Owners still see their own resources
+      return allResources.filter(resource => isResourceOwner(resource));
+    }
+
+    if (entityType === 'forms') {
+      return allResources.filter(resource => {
+        if (resource.isPublic === true) return true;
+        if (isResourceOwner(resource)) return true;
+
+        const rolePerms = state.rolePermissions[entityType][resource.id];
+        return rolePerms?.can_read || false;
+      });
+    }
 
     return allResources.filter(resource => {
-      // Owner always sees their own
       if (isResourceOwner(resource)) return true;
-      // Public forms are visible to everyone
-      if (entityType === 'forms' && resource.isPublic === true) return true;
-      // Top-level read grants visibility to all of this type
-      if (topLevelCanRead) return true;
-      // Role-level grant on this specific resource
       const rolePerms = state.rolePermissions[entityType][resource.id];
-      if (rolePerms?.can_read) return true;
-      return false;
+      return rolePerms?.can_read || false;
     });
   };
 
   const checkPermissionWithAlert = (entityType: EntityType, action: ActionType, resourceId?: string): boolean => {
     const hasAccess = hasPermission(entityType, action, resourceId);
+    
     if (!hasAccess) {
-      const target = resourceId ? `this ${entityType.slice(0, -1)}` : entityType;
-      toast.error(`You do not have ${action} permission for ${target}`);
+      if (state.isOrgAdmin || state.isProjectAdmin) {
+        return hasAccess;
+      }
+
+      const hasAssignedRole = !!state.userRole;
+      
+      if (!hasAssignedRole) {
+        toast.error(`You do not have ${action} permission for ${entityType}`);
+      } else {
+        const topLevelPerm = state.topLevelPermissions[entityType];
+        let topLevelAllows = false;
+        
+        switch (action) {
+          case 'create':
+            topLevelAllows = topLevelPerm.can_create;
+            break;
+          case 'read':
+            topLevelAllows = topLevelPerm.can_read;
+            break;
+          case 'update':
+            topLevelAllows = topLevelPerm.can_update;
+            break;
+          case 'delete':
+            topLevelAllows = topLevelPerm.can_delete;
+            break;
+        }
+
+        if (!topLevelAllows) {
+          toast.error(`You do not have top-level ${action} permission for ${entityType}`);
+        } else {
+          if (resourceId) {
+            toast.error(`Your role does not have ${action} permission for this specific ${entityType.slice(0, -1)}`);
+          } else {
+            toast.error(`Your role does not have ${action} permission for any ${entityType}`);
+          }
+        }
+      }
     }
+    
     return hasAccess;
   };
 
@@ -364,9 +446,51 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
 
   const getButtonState = (entityType: EntityType, action: ActionType, resourceId?: string) => {
     const hasAccess = hasPermission(entityType, action, resourceId);
-    if (hasAccess) return { disabled: false, tooltip: '' };
-    const target = resourceId ? `this ${entityType.slice(0, -1)}` : entityType;
-    return { disabled: true, tooltip: `No ${action} permission for ${target}` };
+    
+    if (hasAccess) {
+      return { disabled: false, tooltip: '' };
+    }
+
+    if (state.isOrgAdmin || state.isProjectAdmin) {
+      return { disabled: false, tooltip: '' };
+    }
+
+    const hasAssignedRole = !!state.userRole;
+    let tooltip = '';
+
+    if (!hasAssignedRole) {
+      tooltip = `No ${action} permission for ${entityType}`;
+    } else {
+      const topLevelPerm = state.topLevelPermissions[entityType];
+      let topLevelAllows = false;
+      
+      switch (action) {
+        case 'create':
+          topLevelAllows = topLevelPerm.can_create;
+          break;
+        case 'read':
+          topLevelAllows = topLevelPerm.can_read;
+          break;
+        case 'update':
+          topLevelAllows = topLevelPerm.can_update;
+          break;
+        case 'delete':
+          topLevelAllows = topLevelPerm.can_delete;
+          break;
+      }
+
+      if (!topLevelAllows) {
+        tooltip = `No top-level ${action} permission for ${entityType}`;
+      } else {
+        if (resourceId) {
+          tooltip = `Role lacks ${action} permission for this specific ${entityType.slice(0, -1)}`;
+        } else {
+          tooltip = `Role lacks ${action} permission for ${entityType}`;
+        }
+      }
+    }
+
+    return { disabled: true, tooltip };
   };
 
   return {
