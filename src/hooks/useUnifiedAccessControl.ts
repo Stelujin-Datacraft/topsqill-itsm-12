@@ -263,8 +263,23 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
     await queryClient.invalidateQueries({ queryKey });
   };
 
-  const hasPermission = (entityType: EntityType, action: ActionType, resourceId?: string): boolean => {
+  // Check if the current user owns the given resource (createdBy can be UUID or email)
+  const isResourceOwner = (resource: any): boolean => {
+    if (!resource || !targetUserId) return false;
+    const createdBy = resource.createdBy ?? resource.created_by;
+    if (!createdBy) return false;
+    if (createdBy === targetUserId) return true;
+    if (userProfile?.email && createdBy === userProfile.email) return true;
+    return false;
+  };
+
+  const hasPermission = (entityType: EntityType, action: ActionType, resourceId?: string, resource?: any): boolean => {
     if (state.isOrgAdmin || state.isProjectAdmin) {
+      return true;
+    }
+
+    // Resource owners always have full access to their own resource
+    if (resource && isResourceOwner(resource)) {
       return true;
     }
 
@@ -336,11 +351,14 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
       const canRead = state.topLevelPermissions[entityType]?.can_read;
       
       if (!canRead) {
-        return [];
+        // Even without top-level read, owners should see their own resources
+        return allResources.filter(resource => isResourceOwner(resource));
       }
 
       if (entityType === 'forms') {
-        return allResources.filter(resource => resource.isPublic === true);
+        return allResources.filter(resource => 
+          resource.isPublic === true || isResourceOwner(resource)
+        );
       }
 
       return allResources;
@@ -349,23 +367,22 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
     const topLevelCanRead = state.topLevelPermissions[entityType]?.can_read;
     
     if (!topLevelCanRead) {
-      return [];
+      // Owners still see their own resources
+      return allResources.filter(resource => isResourceOwner(resource));
     }
 
     if (entityType === 'forms') {
       return allResources.filter(resource => {
-        if (resource.isPublic === true) {
-          return true;
-        }
+        if (resource.isPublic === true) return true;
+        if (isResourceOwner(resource)) return true;
 
         const rolePerms = state.rolePermissions[entityType][resource.id];
-        const hasRoleReadAccess = rolePerms?.can_read || false;
-        
-        return hasRoleReadAccess;
+        return rolePerms?.can_read || false;
       });
     }
 
     return allResources.filter(resource => {
+      if (isResourceOwner(resource)) return true;
       const rolePerms = state.rolePermissions[entityType][resource.id];
       return rolePerms?.can_read || false;
     });
