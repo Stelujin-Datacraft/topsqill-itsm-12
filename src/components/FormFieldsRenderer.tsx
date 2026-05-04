@@ -261,9 +261,6 @@ case 'multi-select':
         disabled={!fieldState.isEnabled}
         fieldState={fieldState}
       />
-      {errors[field.id] && (
-        <p className="text-sm text-red-500">{errors[field.id]}</p>
-      )}
     </div>
   );
 
@@ -281,9 +278,6 @@ case 'signature':
         error={errors[field.id]}
         disabled={!fieldState.isEnabled}
       />
-      {errors[field.id] && (
-        <p className="text-sm text-red-500">{errors[field.id]}</p>
-      )}
     </>
   );
 
@@ -306,9 +300,6 @@ case 'currency':
         error={errors[field.id]}
         disabled={!fieldState.isEnabled}
       />
-      {errors[field.id] && (
-        <p className="text-sm text-red-500">{errors[field.id]}</p>
-      )}
     </div>
   );
 
@@ -326,9 +317,6 @@ case 'country':
         error={errors[field.id]}
         disabled={!fieldState.isEnabled}
       />
-      {errors[field.id] && (
-        <p className="text-sm text-red-500">{errors[field.id]}</p>
-      )}
     </div>
   );
 
@@ -346,9 +334,6 @@ case 'phone':
         error={errors[field.id]}
         disabled={!fieldState.isEnabled}
       />
-      {errors[field.id] && (
-        <p className="text-sm text-red-500">{errors[field.id]}</p>
-      )}
     </>
   );
 
