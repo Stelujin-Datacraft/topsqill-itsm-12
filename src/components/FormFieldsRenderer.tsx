@@ -1040,7 +1040,7 @@ case 'rating':
     <div className="space-y-2">
       <Label htmlFor={field.id}>
         {fieldState.label}
-        {fieldState.isRequired && <span className="text-red-500 ml-1">*</span>}
+        {isRequired && <span className="text-red-500 ml-1">*</span>}
       </Label>
       <RatingField {...commonProps} />
       {errors[field.id] && (
@@ -1054,7 +1054,7 @@ case 'record-table':
     <div className="space-y-2">
       <Label htmlFor={field.id}>
         {fieldState.label}
-        {fieldState.isRequired && <span className="text-red-500 ml-1">*</span>}
+        {isRequired && <span className="text-red-500 ml-1">*</span>}
       </Label>
       <RecordTableField {...commonProps} />
       {errors[field.id] && (
@@ -1068,7 +1068,7 @@ case 'matrix-grid':
     <div className="space-y-2">
       <Label htmlFor={field.id}>
         {fieldState.label}
-        {fieldState.isRequired && <span className="text-red-500 ml-1">*</span>}
+        {isRequired && <span className="text-red-500 ml-1">*</span>}
       </Label>
       <MatrixGridField {...commonProps} />
       {errors[field.id] && (
@@ -1082,7 +1082,7 @@ case 'cross-reference':
     <div className="space-y-2">
       <Label htmlFor={field.id}>
         {fieldState.label}
-        {fieldState.isRequired && <span className="text-red-500 ml-1">*</span>}
+        {isRequired && <span className="text-red-500 ml-1">*</span>}
       </Label>
       <CrossReferenceField {...commonProps} formData={formData} isEditing={!!currentSubmissionId} />
       {errors[field.id] && (
@@ -1097,7 +1097,7 @@ case 'barcode':
     <div className="space-y">
       <Label htmlFor={field.id}>
         {fieldState.label}
-        {fieldState.isRequired && <span className="text-red-500 ml-1">*</span>}
+        {isRequired && <span className="text-red-500 ml-1">*</span>}
       </Label>
       <BarcodeField {...commonProps} />
       {errors[field.id] && (
@@ -1111,7 +1111,7 @@ case 'approval':
     <div className="space-y-2">
       <Label htmlFor={field.id}>
         {fieldState.label}
-        {fieldState.isRequired && <span className="text-red-500 ml-1">*</span>}
+        {isRequired && <span className="text-red-500 ml-1">*</span>}
       </Label>
       <ApprovalField 
         {...commonProps} 
@@ -1129,7 +1129,7 @@ case 'dynamic-dropdown':
     <div className="space-y-2">
       <Label htmlFor={field.id}>
         {fieldState.label}
-        {fieldState.isRequired && <span className="text-red-500 ml-1">*</span>}
+        {isRequired && <span className="text-red-500 ml-1">*</span>}
       </Label>
       <DynamicDropdownField {...commonProps} formData={formData} />
       {errors[field.id] && (
@@ -1143,7 +1143,7 @@ case 'calculated':
     <div className="space-y-2">
       <Label htmlFor={field.id}>
         {fieldState.label}
-        {fieldState.isRequired && <span className="text-red-500 ml-1">*</span>}
+        {isRequired && <span className="text-red-500 ml-1">*</span>}
       </Label>
       <CalculatedField {...commonProps} formData={formData} allFormFields={allFormFields} />
       {errors[field.id] && (
@@ -1157,7 +1157,7 @@ case 'conditional-section':
     <div className="space-y-2">
       <Label htmlFor={field.id}>
         {fieldState.label}
-        {fieldState.isRequired && <span className="text-red-500 ml-1">*</span>}
+        {isRequired && <span className="text-red-500 ml-1">*</span>}
       </Label>
       <ConditionalSectionField {...commonProps} formData={formData} />
       {errors[field.id] && (
@@ -1171,7 +1171,7 @@ case 'geo-location':
     <div className="space-y-2">
       <Label htmlFor={field.id}>
         {fieldState.label}
-        {fieldState.isRequired && <span className="text-red-500 ml-1">*</span>}
+        {isRequired && <span className="text-red-500 ml-1">*</span>}
       </Label>
       <GeoLocationField {...commonProps} />
       {errors[field.id] && (
@@ -1185,7 +1185,7 @@ case 'child-cross-reference':
     <div className="space-y-2">
       <Label htmlFor={field.id}>
         {fieldState.label}
-        {fieldState.isRequired && <span className="text-red-500 ml-1">*</span>}
+        {isRequired && <span className="text-red-500 ml-1">*</span>}
       </Label>
       <ChildCrossReferenceField
         {...commonProps}
@@ -1203,7 +1203,7 @@ case 'query-field':
     <div className="space-y-2">
       <Label htmlFor={field.id}>
         {fieldState.label}
-        {fieldState.isRequired && <span className="text-red-500 ml-1">*</span>}
+        {isRequired && <span className="text-red-500 ml-1">*</span>}
       </Label>
       <QueryField
         field={field}
