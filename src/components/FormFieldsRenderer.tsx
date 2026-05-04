@@ -251,7 +251,7 @@ case 'multi-select':
     <div className="space-y">
       <Label htmlFor={field.id}>
         {fieldState.label}
-        {fieldState.isRequired && <span className="text-red-500 ml-1">*</span>}
+        {isRequired && <span className="text-red-500 ml-1">*</span>}
       </Label>
       <MultiSelectField
         field={field}
@@ -272,7 +272,7 @@ case 'signature':
     <>
       <Label htmlFor={field.id}>
         {fieldState.label}
-        {fieldState.isRequired && <span className="text-red-500 ml-1">*</span>}
+        {isRequired && <span className="text-red-500 ml-1">*</span>}
       </Label>
       <SignatureField
         field={field}
@@ -292,7 +292,7 @@ case 'currency':
     <div className="space-y">
       <Label htmlFor={field.id}>
         {fieldState.label}
-        {fieldState.isRequired && <span className="text-red-500 ml-1">*</span>}
+        {isRequired && <span className="text-red-500 ml-1">*</span>}
       </Label>
       <CurrencyField
         field={field}
@@ -317,7 +317,7 @@ case 'country':
    <div className="space-y"> 
       <Label htmlFor={field.id}>
         {fieldState.label}
-        {fieldState.isRequired && <span className="text-red-500 ml-1">*</span>}
+        {isRequired && <span className="text-red-500 ml-1">*</span>}
       </Label>
       <CountryField
         field={field}
@@ -337,7 +337,7 @@ case 'phone':
     <>
       <Label htmlFor={field.id}>
         {fieldState.label}
-        {fieldState.isRequired && <span className="text-red-500 ml-1">*</span>}
+        {isRequired && <span className="text-red-500 ml-1">*</span>}
       </Label>
       <PhoneField
         field={field}
@@ -357,7 +357,7 @@ case 'submission-access':
     <>
       <Label htmlFor={field.id}>
         {fieldState.label}
-        {fieldState.isRequired && <span className="text-red-500 ml-1">*</span>}
+        {isRequired && <span className="text-red-500 ml-1">*</span>}
       </Label>
       <SubmissionAccessField
         field={field}
