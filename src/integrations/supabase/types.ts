@@ -1142,7 +1142,7 @@ export type Database = {
           schedule: string | null
           source_filter_logic: string | null
           source_filters: Json | null
-          source_form_id: string
+          source_form_id: string | null
           source_type: string | null
           target_form_id: string
           updated_at: string
@@ -1174,7 +1174,7 @@ export type Database = {
           schedule?: string | null
           source_filter_logic?: string | null
           source_filters?: Json | null
-          source_form_id: string
+          source_form_id?: string | null
           source_type?: string | null
           target_form_id: string
           updated_at?: string
@@ -1206,7 +1206,7 @@ export type Database = {
           schedule?: string | null
           source_filter_logic?: string | null
           source_filters?: Json | null
-          source_form_id?: string
+          source_form_id?: string | null
           source_type?: string | null
           target_form_id?: string
           updated_at?: string
