@@ -206,6 +206,10 @@ const PolicyDetail = () => {
   // PDF Preview mode - auto-generate PDF preview (hooks must be before early returns)
   const pdfGenerated = React.useRef(false);
 
+  // Folder-level access control (view/edit/admin based on knowledge_base_folder_access)
+  // MUST be called before any early return to keep hook order stable across renders.
+  const { canEdit, canAdmin, isLoading: permLoading } = useKnowledgeBasePermission(policy?.folder_id);
+
   React.useEffect(() => {
     if (!isPdfPreviewMode || !policy || pdfGenerated.current) return;
     // Check if the edge function already handled it (PDF/DOCX file served directly)
@@ -1703,8 +1707,6 @@ const PolicyDetail = () => {
   const priorityDef = POLICY_PRIORITIES.find(p => p.value === (policy.priority || 'medium'));
   const isOverdueReview = policy.next_review_date && isPast(new Date(policy.next_review_date));
 
-  // Folder-level access control (view/edit/admin based on knowledge_base_folder_access)
-  const { canEdit, canAdmin, isLoading: permLoading } = useKnowledgeBasePermission(policy.folder_id);
   const isDesignatedApprover = (approvalId: string) => {
     const approval = approvals.find(a => a.id === approvalId);
     return approval?.approver_id === user?.id;
