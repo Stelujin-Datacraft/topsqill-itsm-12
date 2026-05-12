@@ -19,6 +19,32 @@ import PasswordExpiryWarning from "./components/PasswordExpiryWarning";
 import { AIChatbot } from "./components/ai/AIChatbot";
 import { RouteLoader } from "./components/RouteLoader";
 
+// Wrap React.lazy with retry + reload-on-failure to handle stale chunk hashes after redeploys
+const lazyWithRetry = <T extends React.ComponentType<any>>(
+  factory: () => Promise<{ default: T }>
+) =>
+  lazy(async () => {
+    const RELOAD_KEY = 'lovable:chunk-reloaded';
+    try {
+      return await factory();
+    } catch (err: any) {
+      const msg = String(err?.message || '');
+      const isChunkErr =
+        msg.includes('Failed to fetch dynamically imported module') ||
+        msg.includes('Importing a module script failed') ||
+        msg.includes('error loading dynamically imported module');
+      if (isChunkErr && typeof window !== 'undefined') {
+        if (!sessionStorage.getItem(RELOAD_KEY)) {
+          sessionStorage.setItem(RELOAD_KEY, '1');
+          window.location.reload();
+          // Return a never-resolving promise while reload happens
+          return new Promise(() => {}) as any;
+        }
+      }
+      throw err;
+    }
+  });
+
 // Eagerly loaded routes (critical path - should load immediately)
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
