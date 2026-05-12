@@ -19,86 +19,112 @@ import PasswordExpiryWarning from "./components/PasswordExpiryWarning";
 import { AIChatbot } from "./components/ai/AIChatbot";
 import { RouteLoader } from "./components/RouteLoader";
 
+// Wrap React.lazy with retry + reload-on-failure to handle stale chunk hashes after redeploys
+const lazyWithRetry = <T extends React.ComponentType<any>>(
+  factory: () => Promise<{ default: T }>
+) =>
+  lazy(async () => {
+    const RELOAD_KEY = 'lovable:chunk-reloaded';
+    try {
+      return await factory();
+    } catch (err: any) {
+      const msg = String(err?.message || '');
+      const isChunkErr =
+        msg.includes('Failed to fetch dynamically imported module') ||
+        msg.includes('Importing a module script failed') ||
+        msg.includes('error loading dynamically imported module');
+      if (isChunkErr && typeof window !== 'undefined') {
+        if (!sessionStorage.getItem(RELOAD_KEY)) {
+          sessionStorage.setItem(RELOAD_KEY, '1');
+          window.location.reload();
+          // Return a never-resolving promise while reload happens
+          return new Promise(() => {}) as any;
+        }
+      }
+      throw err;
+    }
+  });
+
 // Eagerly loaded routes (critical path - should load immediately)
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
 // Lazy loaded routes - split by feature area for optimal chunking
-const Documentation = lazy(() => import("./pages/Documentation"));
-const Dashboard = lazy(() => import("./pages/Dashboard"));
-const QueryPage = lazy(() => import("./pages/QueryPage"));
-const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
-const AcceptInvitation = lazy(() => import("./pages/AcceptInvitation"));
+const Documentation = lazyWithRetry(() => import("./pages/Documentation"));
+const Dashboard = lazyWithRetry(() => import("./pages/Dashboard"));
+const QueryPage = lazyWithRetry(() => import("./pages/QueryPage"));
+const ForgotPassword = lazyWithRetry(() => import("./pages/ForgotPassword"));
+const AcceptInvitation = lazyWithRetry(() => import("./pages/AcceptInvitation"));
 
 // Forms feature
-const Forms = lazy(() => import("./pages/Forms"));
-const FormBuilder = lazy(() => import("./pages/FormBuilder"));
-const FormEdit = lazy(() => import("./pages/FormEdit"));
-const FormView = lazy(() => import("./pages/FormView"));
-const FormSubmission = lazy(() => import("./pages/FormSubmission"));
-const PublicFormView = lazy(() => import("./pages/PublicFormView"));
-const FormPreviewPage = lazy(() => import("./pages/FormPreviewPage"));
-const FormAccessManagement = lazy(() => import("./pages/FormAccessManagement"));
-const MySubmissions = lazy(() => import("./pages/MySubmissions"));
-const SubmissionView = lazy(() => import("./pages/SubmissionView"));
-const FormSubmissionsTable = lazy(() => import("./pages/FormSubmissionsTable"));
+const Forms = lazyWithRetry(() => import("./pages/Forms"));
+const FormBuilder = lazyWithRetry(() => import("./pages/FormBuilder"));
+const FormEdit = lazyWithRetry(() => import("./pages/FormEdit"));
+const FormView = lazyWithRetry(() => import("./pages/FormView"));
+const FormSubmission = lazyWithRetry(() => import("./pages/FormSubmission"));
+const PublicFormView = lazyWithRetry(() => import("./pages/PublicFormView"));
+const FormPreviewPage = lazyWithRetry(() => import("./pages/FormPreviewPage"));
+const FormAccessManagement = lazyWithRetry(() => import("./pages/FormAccessManagement"));
+const MySubmissions = lazyWithRetry(() => import("./pages/MySubmissions"));
+const SubmissionView = lazyWithRetry(() => import("./pages/SubmissionView"));
+const FormSubmissionsTable = lazyWithRetry(() => import("./pages/FormSubmissionsTable"));
 
 // Workflows feature
-const Workflows = lazy(() => import("./pages/Workflows"));
-const WorkflowDesignerPage = lazy(() => import("./pages/WorkflowDesignerPage"));
-const WorkflowViewerPage = lazy(() => import("./pages/WorkflowViewer"));
-const WorkflowAccessManagement = lazy(() => import("./pages/WorkflowAccessManagement"));
+const Workflows = lazyWithRetry(() => import("./pages/Workflows"));
+const WorkflowDesignerPage = lazyWithRetry(() => import("./pages/WorkflowDesignerPage"));
+const WorkflowViewerPage = lazyWithRetry(() => import("./pages/WorkflowViewer"));
+const WorkflowAccessManagement = lazyWithRetry(() => import("./pages/WorkflowAccessManagement"));
 
 // Reports feature
-const Reports = lazy(() => import("./pages/Reports"));
-const ReportEditor = lazy(() => import("./pages/ReportEditor"));
-const ReportViewerPage = lazy(() => import("./pages/ReportViewer"));
-const ReportAccessManagement = lazy(() => import("./pages/ReportAccessManagement"));
-const DashboardView = lazy(() => import("./pages/DashboardView"));
-const RelationshipMap = lazy(() => import("./pages/RelationshipMap"));
+const Reports = lazyWithRetry(() => import("./pages/Reports"));
+const ReportEditor = lazyWithRetry(() => import("./pages/ReportEditor"));
+const ReportViewerPage = lazyWithRetry(() => import("./pages/ReportViewer"));
+const ReportAccessManagement = lazyWithRetry(() => import("./pages/ReportAccessManagement"));
+const DashboardView = lazyWithRetry(() => import("./pages/DashboardView"));
+const RelationshipMap = lazyWithRetry(() => import("./pages/RelationshipMap"));
 
 // Admin & Settings
-const Users = lazy(() => import("./pages/Users"));
-const ApiIntegration = lazy(() => import("./pages/ApiIntegration"));
-const ApiDocs = lazy(() => import("./pages/ApiDocs"));
-const RolesAndAccess = lazy(() => import("./pages/RolesAndAccess"));
-const Projects = lazy(() => import("./pages/Projects"));
-const ProjectOverview = lazy(() => import("./components/projects/ProjectOverview"));
-const ProjectAccessPage = lazy(() => import("./components/projects/ProjectAccessPage"));
-const Organizations = lazy(() => import("./pages/Organizations"));
-const Settings = lazy(() => import("./pages/Settings"));
-const AnalyticsDashboard = lazy(() => import("./pages/AnalyticsDashboard"));
-const DataTableBuilder = lazy(() => import("./pages/DataTableBuilder"));
-const EmailConfigPage = lazy(() => import("./pages/EmailConfigPage"));
-const DataFeeds = lazy(() => import("./pages/DataFeeds"));
-const EmailTemplatesPage = lazy(() => import("./pages/EmailTemplatesPage"));
-const SettingsPage = lazy(() => import("./pages/SettingsPage"));
-const UserProfile = lazy(() => import("./pages/UserProfile"));
-const ChangePassword = lazy(() => import("./pages/ChangePassword"));
-const ManageSessions = lazy(() => import("./pages/ManageSessions"));
-const AuditLogs = lazy(() => import("./pages/AuditLogs"));
-const FormAuditLogs = lazy(() => import("./pages/FormAuditLogs"));
-const InvestigateAccess = lazy(() => import("./pages/InvestigateAccess"));
-const LdapSettings = lazy(() => import("./pages/LdapSettings"));
-const SLAManagementPage = lazy(() => import("./pages/SLAManagementPage"));
+const Users = lazyWithRetry(() => import("./pages/Users"));
+const ApiIntegration = lazyWithRetry(() => import("./pages/ApiIntegration"));
+const ApiDocs = lazyWithRetry(() => import("./pages/ApiDocs"));
+const RolesAndAccess = lazyWithRetry(() => import("./pages/RolesAndAccess"));
+const Projects = lazyWithRetry(() => import("./pages/Projects"));
+const ProjectOverview = lazyWithRetry(() => import("./components/projects/ProjectOverview"));
+const ProjectAccessPage = lazyWithRetry(() => import("./components/projects/ProjectAccessPage"));
+const Organizations = lazyWithRetry(() => import("./pages/Organizations"));
+const Settings = lazyWithRetry(() => import("./pages/Settings"));
+const AnalyticsDashboard = lazyWithRetry(() => import("./pages/AnalyticsDashboard"));
+const DataTableBuilder = lazyWithRetry(() => import("./pages/DataTableBuilder"));
+const EmailConfigPage = lazyWithRetry(() => import("./pages/EmailConfigPage"));
+const DataFeeds = lazyWithRetry(() => import("./pages/DataFeeds"));
+const EmailTemplatesPage = lazyWithRetry(() => import("./pages/EmailTemplatesPage"));
+const SettingsPage = lazyWithRetry(() => import("./pages/SettingsPage"));
+const UserProfile = lazyWithRetry(() => import("./pages/UserProfile"));
+const ChangePassword = lazyWithRetry(() => import("./pages/ChangePassword"));
+const ManageSessions = lazyWithRetry(() => import("./pages/ManageSessions"));
+const AuditLogs = lazyWithRetry(() => import("./pages/AuditLogs"));
+const FormAuditLogs = lazyWithRetry(() => import("./pages/FormAuditLogs"));
+const InvestigateAccess = lazyWithRetry(() => import("./pages/InvestigateAccess"));
+const LdapSettings = lazyWithRetry(() => import("./pages/LdapSettings"));
+const SLAManagementPage = lazyWithRetry(() => import("./pages/SLAManagementPage"));
 
 // Policies / Knowledge Base feature
-const Policies = lazy(() => import("./pages/Policies"));
-const KnowledgeBase = lazy(() => import("./pages/KnowledgeBase"));
-const KnowledgeBaseFolder = lazy(() => import("./pages/KnowledgeBaseFolder"));
-const PolicyDetail = lazy(() => import("./pages/PolicyDetail"));
-const CreatePolicy = lazy(() => import("./pages/CreatePolicy"));
-const CreateTemplate = lazy(() => import("./pages/CreateTemplate"));
+const Policies = lazyWithRetry(() => import("./pages/Policies"));
+const KnowledgeBase = lazyWithRetry(() => import("./pages/KnowledgeBase"));
+const KnowledgeBaseFolder = lazyWithRetry(() => import("./pages/KnowledgeBaseFolder"));
+const PolicyDetail = lazyWithRetry(() => import("./pages/PolicyDetail"));
+const CreatePolicy = lazyWithRetry(() => import("./pages/CreatePolicy"));
+const CreateTemplate = lazyWithRetry(() => import("./pages/CreateTemplate"));
 
 // Compliance, Audit, Evidence
-const CompliancePage = lazy(() => import("./pages/CompliancePage"));
-const AuditProgramsPage = lazy(() => import("./pages/AuditProgramsPage"));
-const EvidenceLockerPage = lazy(() => import("./pages/EvidenceLockerPage"));
+const CompliancePage = lazyWithRetry(() => import("./pages/CompliancePage"));
+const AuditProgramsPage = lazyWithRetry(() => import("./pages/AuditProgramsPage"));
+const EvidenceLockerPage = lazyWithRetry(() => import("./pages/EvidenceLockerPage"));
 
 // IT Asset Management
-const ITAssets = lazy(() => import("./pages/ITAssets"));
-const ProjectPerformance = lazy(() => import("./pages/ProjectPerformance"));
+const ITAssets = lazyWithRetry(() => import("./pages/ITAssets"));
+const ProjectPerformance = lazyWithRetry(() => import("./pages/ProjectPerformance"));
 
 // Performance-optimized React Query configuration
 const queryClient = new QueryClient({
