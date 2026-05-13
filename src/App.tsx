@@ -56,6 +56,7 @@ const Dashboard = lazyWithRetry(() => import("./pages/Dashboard"));
 const QueryPage = lazyWithRetry(() => import("./pages/QueryPage"));
 const ForgotPassword = lazyWithRetry(() => import("./pages/ForgotPassword"));
 const AcceptInvitation = lazyWithRetry(() => import("./pages/AcceptInvitation"));
+const AuthCallback = lazyWithRetry(() => import("./pages/AuthCallback"));
 
 // Forms feature
 const Forms = lazyWithRetry(() => import("./pages/Forms"));
@@ -164,6 +165,11 @@ const App = () => (
                       <Route path="/" element={<Index />} />
                       <Route path="/auth" element={<Auth />} />
                       <Route path="/login" element={<Navigate to="/auth" replace />} />
+                      <Route path="/auth/callback" element={
+                        <Suspense fallback={<RouteLoader />}>
+                          <AuthCallback />
+                        </Suspense>
+                      } />
                       
                       {/* Public routes - lazy loaded */}
                       <Route path="/docs" element={
