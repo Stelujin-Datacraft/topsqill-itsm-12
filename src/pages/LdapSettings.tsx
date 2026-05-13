@@ -904,6 +904,9 @@ const [showCreateDialog, setShowCreateDialog] = useState(false);
                       <div>
                         <CardTitle className="flex items-center gap-3">
                           {config.name}
+                          <Badge variant="outline" className="text-xs">
+                            {getProviderLabel(config.provider_type)}
+                          </Badge>
                           {config.is_enabled ? (
                             <Badge className="bg-green-500 hover:bg-green-600">Enabled</Badge>
                           ) : (
@@ -911,7 +914,9 @@ const [showCreateDialog, setShowCreateDialog] = useState(false);
                           )}
                         </CardTitle>
                         <CardDescription className="font-mono text-xs mt-1">
-                          {config.server_url}
+                          {isOidcProvider(config.provider_type)
+                            ? config.oidc_issuer_url
+                            : config.server_url}
                         </CardDescription>
                       </div>
                     </div>
