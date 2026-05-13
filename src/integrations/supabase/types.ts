@@ -2636,7 +2636,7 @@ export type Database = {
         Row: {
           allow_self_signed_certs: boolean | null
           auto_provision_users: boolean | null
-          base_dn: string
+          base_dn: string | null
           bind_dn: string | null
           bind_password_encrypted: string | null
           connection_timeout_seconds: number | null
@@ -2656,8 +2656,17 @@ export type Database = {
           last_sync_status: string | null
           member_of_attribute: string | null
           name: string
+          oidc_client_id: string | null
+          oidc_client_secret_encrypted: string | null
+          oidc_groups_claim: string | null
+          oidc_issuer_url: string | null
+          oidc_redirect_uri: string | null
+          oidc_scopes: string[] | null
+          oidc_tenant_id: string | null
           organization_id: string
-          server_url: string
+          provider_metadata: Json
+          provider_type: string
+          server_url: string | null
           sync_enabled: boolean | null
           sync_interval_minutes: number | null
           sync_user_status: boolean | null
@@ -2671,7 +2680,7 @@ export type Database = {
         Insert: {
           allow_self_signed_certs?: boolean | null
           auto_provision_users?: boolean | null
-          base_dn: string
+          base_dn?: string | null
           bind_dn?: string | null
           bind_password_encrypted?: string | null
           connection_timeout_seconds?: number | null
@@ -2691,8 +2700,17 @@ export type Database = {
           last_sync_status?: string | null
           member_of_attribute?: string | null
           name?: string
+          oidc_client_id?: string | null
+          oidc_client_secret_encrypted?: string | null
+          oidc_groups_claim?: string | null
+          oidc_issuer_url?: string | null
+          oidc_redirect_uri?: string | null
+          oidc_scopes?: string[] | null
+          oidc_tenant_id?: string | null
           organization_id: string
-          server_url: string
+          provider_metadata?: Json
+          provider_type?: string
+          server_url?: string | null
           sync_enabled?: boolean | null
           sync_interval_minutes?: number | null
           sync_user_status?: boolean | null
@@ -2706,7 +2724,7 @@ export type Database = {
         Update: {
           allow_self_signed_certs?: boolean | null
           auto_provision_users?: boolean | null
-          base_dn?: string
+          base_dn?: string | null
           bind_dn?: string | null
           bind_password_encrypted?: string | null
           connection_timeout_seconds?: number | null
@@ -2726,8 +2744,17 @@ export type Database = {
           last_sync_status?: string | null
           member_of_attribute?: string | null
           name?: string
+          oidc_client_id?: string | null
+          oidc_client_secret_encrypted?: string | null
+          oidc_groups_claim?: string | null
+          oidc_issuer_url?: string | null
+          oidc_redirect_uri?: string | null
+          oidc_scopes?: string[] | null
+          oidc_tenant_id?: string | null
           organization_id?: string
-          server_url?: string
+          provider_metadata?: Json
+          provider_type?: string
+          server_url?: string | null
           sync_enabled?: boolean | null
           sync_interval_minutes?: number | null
           sync_user_status?: boolean | null
@@ -6625,7 +6652,7 @@ export type Database = {
         Returns: {
           allow_self_signed_certs: boolean | null
           auto_provision_users: boolean | null
-          base_dn: string
+          base_dn: string | null
           bind_dn: string | null
           bind_password_encrypted: string | null
           connection_timeout_seconds: number | null
@@ -6645,8 +6672,17 @@ export type Database = {
           last_sync_status: string | null
           member_of_attribute: string | null
           name: string
+          oidc_client_id: string | null
+          oidc_client_secret_encrypted: string | null
+          oidc_groups_claim: string | null
+          oidc_issuer_url: string | null
+          oidc_redirect_uri: string | null
+          oidc_scopes: string[] | null
+          oidc_tenant_id: string | null
           organization_id: string
-          server_url: string
+          provider_metadata: Json
+          provider_type: string
+          server_url: string | null
           sync_enabled: boolean | null
           sync_interval_minutes: number | null
           sync_user_status: boolean | null

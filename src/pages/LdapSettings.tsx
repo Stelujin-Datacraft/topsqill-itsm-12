@@ -56,6 +56,15 @@ import { format, formatDistanceToNow } from "date-fns";
 import DashboardLayout from "@/components/DashboardLayout";
 import { LdapGroupMappings } from "@/components/ldap/LdapGroupMappings";
 import { LdapSyncLogs } from "@/components/ldap/LdapSyncLogs";
+import {
+  PROVIDER_DEFINITIONS,
+  PROVIDER_BY_ID,
+  isOidcProvider,
+  isLdapProvider,
+  getProviderLabel,
+  type ProviderType,
+} from "@/lib/idp/providerDefaults";
+import { Cloud, Building, Globe } from "lucide-react";
 
 export default function LdapSettings() {
   const navigate = useNavigate();
@@ -95,6 +104,7 @@ const [showCreateDialog, setShowCreateDialog] = useState(false);
 
   const [formData, setFormData] = useState<CreateLdapConfigInput>({
     name: '',
+    provider_type: 'active_directory',
     server_url: '',
     base_dn: '',
     bind_dn: '',
@@ -108,6 +118,13 @@ const [showCreateDialog, setShowCreateDialog] = useState(false);
     use_ssl: true,
     auto_provision_users: true,
     fallback_to_local_auth: true,
+    oidc_issuer_url: '',
+    oidc_client_id: '',
+    oidc_client_secret: '',
+    oidc_tenant_id: '',
+    oidc_redirect_uri: typeof window !== 'undefined' ? `${window.location.origin}/auth/callback` : '',
+    oidc_scopes: ['openid', 'email', 'profile'],
+    oidc_groups_claim: 'groups',
   });
 
   if (userProfile?.role !== 'admin') {
@@ -137,10 +154,15 @@ const [showCreateDialog, setShowCreateDialog] = useState(false);
   }
 
   const handleCreateConfig = async () => {
-    if (!formData.server_url || !formData.base_dn) {
+    const isOidc = isOidcProvider(formData.provider_type);
+    if (isOidc) {
+      if (!formData.oidc_issuer_url || !formData.oidc_client_id) {
+        return;
+      }
+    } else if (!formData.server_url || !formData.base_dn) {
       return;
     }
-    
+
     const result = await createConfiguration(formData);
     if (result) {
       setShowCreateDialog(false);
@@ -168,6 +190,7 @@ const [showCreateDialog, setShowCreateDialog] = useState(false);
   const resetForm = () => {
     setFormData({
       name: getDefaultConfigName(),
+      provider_type: 'active_directory',
       server_url: '',
       base_dn: '',
       bind_dn: '',
@@ -181,6 +204,13 @@ const [showCreateDialog, setShowCreateDialog] = useState(false);
       use_ssl: true,
       auto_provision_users: true,
       fallback_to_local_auth: true,
+      oidc_issuer_url: '',
+      oidc_client_id: '',
+      oidc_client_secret: '',
+      oidc_tenant_id: '',
+      oidc_redirect_uri: typeof window !== 'undefined' ? `${window.location.origin}/auth/callback` : '',
+      oidc_scopes: ['openid', 'email', 'profile'],
+      oidc_groups_claim: 'groups',
     });
     setActiveTab("connection");
   };
@@ -195,6 +225,7 @@ const [showCreateDialog, setShowCreateDialog] = useState(false);
   const openEditDialog = (config: LdapConfiguration) => {
     setFormData({
       name: config.name,
+      provider_type: (config.provider_type || 'ldap') as ProviderType,
       server_url: config.server_url,
       base_dn: config.base_dn,
       bind_dn: config.bind_dn || '',
@@ -213,6 +244,13 @@ const [showCreateDialog, setShowCreateDialog] = useState(false);
       fallback_to_local_auth: config.fallback_to_local_auth,
       sync_enabled: config.sync_enabled,
       sync_interval_minutes: config.sync_interval_minutes,
+      oidc_issuer_url: config.oidc_issuer_url || '',
+      oidc_client_id: config.oidc_client_id || '',
+      oidc_client_secret: '',
+      oidc_tenant_id: config.oidc_tenant_id || '',
+      oidc_redirect_uri: config.oidc_redirect_uri || (typeof window !== 'undefined' ? `${window.location.origin}/auth/callback` : ''),
+      oidc_scopes: config.oidc_scopes || ['openid', 'email', 'profile'],
+      oidc_groups_claim: config.oidc_groups_claim || 'groups',
     });
     setEditingConfig(config);
   };
@@ -227,17 +265,64 @@ const [showCreateDialog, setShowCreateDialog] = useState(false);
   const hasFailedSync = configurations.some(c => c.last_sync_status === 'failed');
 
   const configurationFormContent = (
+    <div className="space-y-4">
+      {/* Provider type selector */}
+      <div className="space-y-2">
+        <Label>Identity Provider Type</Label>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          {PROVIDER_DEFINITIONS.map((p) => {
+            const selected = formData.provider_type === p.id;
+            const Icon = p.category === 'oidc' ? Cloud : p.id === 'aws_directory' ? Globe : Building;
+            return (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => {
+                  const def = PROVIDER_BY_ID[p.id];
+                  setFormData((prev) => ({
+                    ...prev,
+                    provider_type: p.id,
+                    ...def.defaults,
+                    // For OIDC providers, auto-build issuer URL if a tenant value already exists
+                    oidc_issuer_url:
+                      def.category === 'oidc' && def.buildIssuerUrl
+                        ? def.buildIssuerUrl(prev.oidc_tenant_id || '')
+                        : (def.defaults.oidc_issuer_url ?? prev.oidc_issuer_url ?? ''),
+                  }));
+                }}
+                className={`text-left p-3 rounded-lg border-2 transition-colors ${
+                  selected
+                    ? 'border-primary bg-primary/5'
+                    : 'border-border hover:border-primary/40'
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <Icon className={`h-4 w-4 ${selected ? 'text-primary' : 'text-muted-foreground'}`} />
+                  <span className={`text-sm font-semibold ${selected ? 'text-primary' : ''}`}>
+                    {p.shortLabel}
+                  </span>
+                  {p.category === 'oidc' && (
+                    <Badge variant="outline" className="text-[10px] h-4 px-1 ml-auto">OIDC</Badge>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground line-clamp-2">{p.description}</p>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
     <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
       <TabsList className="grid w-full grid-cols-4 mb-6 h-auto">
         <TabsTrigger value="connection" className="gap-1 sm:gap-2 text-xs sm:text-sm px-2">
           <Network className="h-4 w-4 shrink-0" />
           <span>Connection</span>
         </TabsTrigger>
-        <TabsTrigger value="search" className="gap-1 sm:gap-2 text-xs sm:text-sm px-2">
+        <TabsTrigger value="search" className="gap-1 sm:gap-2 text-xs sm:text-sm px-2" disabled={isOidcProvider(formData.provider_type)}>
           <Users className="h-4 w-4 shrink-0" />
           <span>Search</span>
         </TabsTrigger>
-        <TabsTrigger value="attributes" className="gap-1 sm:gap-2 text-xs sm:text-sm px-2">
+        <TabsTrigger value="attributes" className="gap-1 sm:gap-2 text-xs sm:text-sm px-2" disabled={isOidcProvider(formData.provider_type)}>
           <Key className="h-4 w-4 shrink-0" />
           <span>Attributes</span>
         </TabsTrigger>
@@ -248,6 +333,129 @@ const [showCreateDialog, setShowCreateDialog] = useState(false);
       </TabsList>
 
       <TabsContent value="connection" className="space-y-4 mt-4">
+        {isOidcProvider(formData.provider_type) ? (
+          <div className="grid gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Configuration Name</Label>
+              <Input
+                id="name"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder={`Primary ${PROVIDER_BY_ID[formData.provider_type as ProviderType]?.shortLabel || 'IdP'}`}
+              />
+            </div>
+
+            {PROVIDER_BY_ID[formData.provider_type as ProviderType]?.tenantHelp && (
+              <div className="space-y-2">
+                <Label htmlFor="oidc_tenant_id">Tenant / Domain</Label>
+                <Input
+                  id="oidc_tenant_id"
+                  value={formData.oidc_tenant_id || ''}
+                  onChange={(e) => {
+                    const def = PROVIDER_BY_ID[formData.provider_type as ProviderType];
+                    const newTenant = e.target.value;
+                    setFormData((prev) => ({
+                      ...prev,
+                      oidc_tenant_id: newTenant,
+                      oidc_issuer_url: def?.buildIssuerUrl
+                        ? def.buildIssuerUrl(newTenant)
+                        : prev.oidc_issuer_url,
+                    }));
+                  }}
+                  placeholder={
+                    formData.provider_type === 'azure_entra'
+                      ? 'tenant-uuid or contoso.onmicrosoft.com'
+                      : formData.provider_type === 'okta'
+                      ? 'yourcompany.okta.com'
+                      : 'yourcompany.com'
+                  }
+                />
+                <p className="text-xs text-muted-foreground">
+                  {PROVIDER_BY_ID[formData.provider_type as ProviderType]?.tenantHelp}
+                </p>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="oidc_issuer_url">Issuer URL *</Label>
+              <Input
+                id="oidc_issuer_url"
+                value={formData.oidc_issuer_url || ''}
+                onChange={(e) => setFormData({ ...formData, oidc_issuer_url: e.target.value })}
+                placeholder="https://login.microsoftonline.com/{tenant}/v2.0"
+                className="font-mono text-sm"
+              />
+              <p className="text-xs text-muted-foreground">
+                The OIDC discovery base URL. We append <code>/.well-known/openid-configuration</code>.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="oidc_client_id">Client ID *</Label>
+                <Input
+                  id="oidc_client_id"
+                  value={formData.oidc_client_id || ''}
+                  onChange={(e) => setFormData({ ...formData, oidc_client_id: e.target.value })}
+                  placeholder="Application (client) ID"
+                  className="font-mono text-sm"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="oidc_client_secret">Client Secret</Label>
+                <Input
+                  id="oidc_client_secret"
+                  type="password"
+                  value={formData.oidc_client_secret || ''}
+                  onChange={(e) => setFormData({ ...formData, oidc_client_secret: e.target.value })}
+                  placeholder={editingConfig ? 'Leave blank to keep existing' : 'Client secret'}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="oidc_redirect_uri">Redirect URI</Label>
+              <Input
+                id="oidc_redirect_uri"
+                value={formData.oidc_redirect_uri || ''}
+                onChange={(e) => setFormData({ ...formData, oidc_redirect_uri: e.target.value })}
+                className="font-mono text-sm"
+              />
+              <p className="text-xs text-muted-foreground">
+                Register this URL as a valid redirect URI in your provider's app registration.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="oidc_scopes">Scopes</Label>
+                <Input
+                  id="oidc_scopes"
+                  value={(formData.oidc_scopes || []).join(' ')}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      oidc_scopes: e.target.value.split(/\s+/).filter(Boolean),
+                    })
+                  }
+                  placeholder="openid email profile"
+                  className="font-mono text-sm"
+                />
+                <p className="text-xs text-muted-foreground">Space-separated</p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="oidc_groups_claim">Groups Claim</Label>
+                <Input
+                  id="oidc_groups_claim"
+                  value={formData.oidc_groups_claim || ''}
+                  onChange={(e) => setFormData({ ...formData, oidc_groups_claim: e.target.value })}
+                  placeholder="groups"
+                  className="font-mono text-sm"
+                />
+              </div>
+            </div>
+          </div>
+        ) : (
         <div className="grid gap-4">
           <div className="space-y-2">
             <Label htmlFor="name">Configuration Name</Label>
@@ -353,6 +561,7 @@ const [showCreateDialog, setShowCreateDialog] = useState(false);
             </div>
           </div>
         </div>
+        )}
       </TabsContent>
 
       <TabsContent value="search" className="space-y-4 mt-4">
@@ -528,6 +737,7 @@ const [showCreateDialog, setShowCreateDialog] = useState(false);
         </div>
       </TabsContent>
     </Tabs>
+    </div>
   );
 
   const createDialogButton = (
@@ -542,7 +752,7 @@ const [showCreateDialog, setShowCreateDialog] = useState(false);
 
   return (
     <DashboardLayout 
-      title="LDAP / Active Directory" 
+      title="Identity Providers" 
       description="Configure enterprise authentication and user synchronization"
       actions={createDialogButton}
     >
@@ -694,6 +904,9 @@ const [showCreateDialog, setShowCreateDialog] = useState(false);
                       <div>
                         <CardTitle className="flex items-center gap-3">
                           {config.name}
+                          <Badge variant="outline" className="text-xs">
+                            {getProviderLabel(config.provider_type)}
+                          </Badge>
                           {config.is_enabled ? (
                             <Badge className="bg-green-500 hover:bg-green-600">Enabled</Badge>
                           ) : (
@@ -701,7 +914,9 @@ const [showCreateDialog, setShowCreateDialog] = useState(false);
                           )}
                         </CardTitle>
                         <CardDescription className="font-mono text-xs mt-1">
-                          {config.server_url}
+                          {isOidcProvider(config.provider_type)
+                            ? config.oidc_issuer_url
+                            : config.server_url}
                         </CardDescription>
                       </div>
                     </div>
@@ -920,7 +1135,14 @@ const [showCreateDialog, setShowCreateDialog] = useState(false);
             <Button variant="outline" onClick={() => { setShowCreateDialog(false); resetForm(); }}>
               Cancel
             </Button>
-            <Button onClick={handleCreateConfig} disabled={!formData.server_url || !formData.base_dn}>
+          <Button
+            onClick={handleCreateConfig}
+            disabled={
+              isOidcProvider(formData.provider_type)
+                ? !formData.oidc_issuer_url || !formData.oidc_client_id
+                : !formData.server_url || !formData.base_dn
+            }
+          >
               Create Configuration
             </Button>
           </DialogFooter>

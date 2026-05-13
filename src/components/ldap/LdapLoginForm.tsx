@@ -6,6 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "@/hooks/use-toast";
 import { Server, Loader2 } from "lucide-react";
+import { isOidcProvider, getProviderLabel } from "@/lib/idp/providerDefaults";
+import { useEffect } from "react";
 
 interface LdapLoginFormProps {
   organizationDomain: string;
@@ -21,6 +23,80 @@ export function LdapLoginForm({
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [providerType, setProviderType] = useState<string>('ldap');
+  const [providerConfigLoaded, setProviderConfigLoaded] = useState(false);
+  const [organizationId, setOrganizationId] = useState<string | null>(null);
+  const [providerName, setProviderName] = useState<string>('');
+
+  // Detect provider type for the org so we render the right login UI
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data: org } = await supabase
+          .from('organizations')
+          .select('id')
+          .eq('domain', organizationDomain)
+          .maybeSingle();
+        if (!org) {
+          setProviderConfigLoaded(true);
+          return;
+        }
+        setOrganizationId(org.id);
+        const { data: config } = await supabase
+          .from('ldap_configurations')
+          .select('provider_type, name')
+          .eq('organization_id', org.id)
+          .eq('is_enabled', true)
+          .order('created_at', { ascending: true })
+          .limit(1)
+          .maybeSingle();
+        if (config) {
+          setProviderType(config.provider_type || 'ldap');
+          setProviderName(config.name || '');
+        }
+      } catch (err) {
+        console.error('Provider detection failed:', err);
+      } finally {
+        setProviderConfigLoaded(true);
+      }
+    })();
+  }, [organizationDomain]);
+
+  const handleOidcSignIn = async () => {
+    if (!organizationId) return;
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('ldap-authenticate', {
+        body: {
+          organizationId,
+          mode: 'authorize',
+          redirectUri: `${window.location.origin}/auth/callback`,
+        },
+      });
+      if (error) throw error;
+      if (data?.authorizationUrl) {
+        window.location.href = data.authorizationUrl;
+        return;
+      }
+      if (data?.fallbackToLocal) {
+        onFallbackToLocal();
+        return;
+      }
+      toast({
+        title: 'Sign-in failed',
+        description: data?.message || 'Could not start sign-in flow',
+        variant: 'destructive',
+      });
+    } catch (err: any) {
+      toast({
+        title: 'Sign-in failed',
+        description: err.message || 'Could not start sign-in flow',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleLdapLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -119,6 +195,36 @@ export function LdapLoginForm({
 
   return (
     <div className="space-y-4">
+      {providerConfigLoaded && isOidcProvider(providerType) ? (
+        <>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Server className="h-4 w-4" />
+            <span>Sign in with {getProviderLabel(providerType)}</span>
+          </div>
+          <Button onClick={handleOidcSignIn} className="w-full" disabled={isLoading}>
+            {isLoading ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Redirecting…
+              </>
+            ) : (
+              <>Continue with {getProviderLabel(providerType)}</>
+            )}
+          </Button>
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <Separator />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-background px-2 text-muted-foreground">Or use local account</span>
+            </div>
+          </div>
+          <Button variant="outline" className="w-full" onClick={onFallbackToLocal} disabled={isLoading}>
+            Sign in with Email
+          </Button>
+        </>
+      ) : (
+      <>
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <Server className="h-4 w-4" />
         <span>Sign in with your organization credentials</span>
@@ -187,6 +293,8 @@ export function LdapLoginForm({
       >
         Sign in with Email
       </Button>
+      </>
+      )}
     </div>
   );
 }

@@ -2,12 +2,26 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
+import type { ProviderType } from '@/lib/idp/providerDefaults';
 
 export interface LdapConfiguration {
   id: string;
   organization_id: string;
   name: string;
   is_enabled: boolean;
+
+  // Provider type (LDAP/AD or OIDC-based IdP)
+  provider_type: ProviderType;
+
+  // OIDC settings (used when provider_type is azure_entra | google_workspace | okta)
+  oidc_issuer_url: string | null;
+  oidc_client_id: string | null;
+  oidc_client_secret_encrypted: string | null;
+  oidc_tenant_id: string | null;
+  oidc_redirect_uri: string | null;
+  oidc_scopes: string[] | null;
+  oidc_groups_claim: string | null;
+  provider_metadata: Record<string, any> | null;
   
   // Connection settings
   server_url: string;
@@ -88,6 +102,19 @@ export interface LdapSyncLog {
 
 export interface CreateLdapConfigInput {
   name?: string;
+  provider_type?: ProviderType;
+
+  // OIDC fields
+  oidc_issuer_url?: string;
+  oidc_client_id?: string;
+  oidc_client_secret?: string;
+  oidc_tenant_id?: string;
+  oidc_redirect_uri?: string;
+  oidc_scopes?: string[];
+  oidc_groups_claim?: string;
+  provider_metadata?: Record<string, any>;
+
+  // LDAP fields (optional now — required only for ldap/AD/AWS)
   server_url: string;
   base_dn: string;
   bind_dn?: string;
@@ -212,14 +239,28 @@ export function useLdapConfiguration() {
     }
 
     try {
+      const providerType: ProviderType = (input.provider_type || 'ldap') as ProviderType;
+      const isOidc = ['azure_entra', 'google_workspace', 'okta'].includes(providerType);
+
       const { data, error } = await supabase
         .from('ldap_configurations')
         .insert({
           organization_id: organizationId,
           created_by: userProfile.id,
           name: input.name || 'Primary LDAP',
-          server_url: input.server_url,
-          base_dn: input.base_dn,
+          provider_type: providerType,
+          // For OIDC providers we must still satisfy NOT NULL legacy columns? They are nullable now.
+          server_url: isOidc ? (input.server_url || null) : input.server_url,
+          base_dn: isOidc ? (input.base_dn || null) : input.base_dn,
+          // OIDC fields
+          oidc_issuer_url: input.oidc_issuer_url || null,
+          oidc_client_id: input.oidc_client_id || null,
+          oidc_client_secret_encrypted: input.oidc_client_secret || null,
+          oidc_tenant_id: input.oidc_tenant_id || null,
+          oidc_redirect_uri: input.oidc_redirect_uri || null,
+          oidc_scopes: input.oidc_scopes || ['openid', 'email', 'profile'],
+          oidc_groups_claim: input.oidc_groups_claim || 'groups',
+          provider_metadata: input.provider_metadata || {},
           bind_dn: input.bind_dn || null,
           bind_password_encrypted: input.bind_password || null, // Will be encrypted by edge function
           user_search_base: input.user_search_base || null,
@@ -282,6 +323,11 @@ export function useLdapConfiguration() {
       if (updates.bind_password) {
         updateData.bind_password_encrypted = updates.bind_password;
         delete updateData.bind_password;
+      }
+
+      if (updates.oidc_client_secret) {
+        updateData.oidc_client_secret_encrypted = updates.oidc_client_secret;
+        delete updateData.oidc_client_secret;
       }
 
       const { error } = await supabase
