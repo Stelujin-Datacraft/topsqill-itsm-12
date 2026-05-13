@@ -265,17 +265,64 @@ const [showCreateDialog, setShowCreateDialog] = useState(false);
   const hasFailedSync = configurations.some(c => c.last_sync_status === 'failed');
 
   const configurationFormContent = (
+    <div className="space-y-4">
+      {/* Provider type selector */}
+      <div className="space-y-2">
+        <Label>Identity Provider Type</Label>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          {PROVIDER_DEFINITIONS.map((p) => {
+            const selected = formData.provider_type === p.id;
+            const Icon = p.category === 'oidc' ? Cloud : p.id === 'aws_directory' ? Globe : Building;
+            return (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => {
+                  const def = PROVIDER_BY_ID[p.id];
+                  setFormData((prev) => ({
+                    ...prev,
+                    provider_type: p.id,
+                    ...def.defaults,
+                    // For OIDC providers, auto-build issuer URL if a tenant value already exists
+                    oidc_issuer_url:
+                      def.category === 'oidc' && def.buildIssuerUrl
+                        ? def.buildIssuerUrl(prev.oidc_tenant_id || '')
+                        : (def.defaults.oidc_issuer_url ?? prev.oidc_issuer_url ?? ''),
+                  }));
+                }}
+                className={`text-left p-3 rounded-lg border-2 transition-colors ${
+                  selected
+                    ? 'border-primary bg-primary/5'
+                    : 'border-border hover:border-primary/40'
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <Icon className={`h-4 w-4 ${selected ? 'text-primary' : 'text-muted-foreground'}`} />
+                  <span className={`text-sm font-semibold ${selected ? 'text-primary' : ''}`}>
+                    {p.shortLabel}
+                  </span>
+                  {p.category === 'oidc' && (
+                    <Badge variant="outline" className="text-[10px] h-4 px-1 ml-auto">OIDC</Badge>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground line-clamp-2">{p.description}</p>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
     <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
       <TabsList className="grid w-full grid-cols-4 mb-6 h-auto">
         <TabsTrigger value="connection" className="gap-1 sm:gap-2 text-xs sm:text-sm px-2">
           <Network className="h-4 w-4 shrink-0" />
           <span>Connection</span>
         </TabsTrigger>
-        <TabsTrigger value="search" className="gap-1 sm:gap-2 text-xs sm:text-sm px-2">
+        <TabsTrigger value="search" className="gap-1 sm:gap-2 text-xs sm:text-sm px-2" disabled={isOidcProvider(formData.provider_type)}>
           <Users className="h-4 w-4 shrink-0" />
           <span>Search</span>
         </TabsTrigger>
-        <TabsTrigger value="attributes" className="gap-1 sm:gap-2 text-xs sm:text-sm px-2">
+        <TabsTrigger value="attributes" className="gap-1 sm:gap-2 text-xs sm:text-sm px-2" disabled={isOidcProvider(formData.provider_type)}>
           <Key className="h-4 w-4 shrink-0" />
           <span>Attributes</span>
         </TabsTrigger>
@@ -286,6 +333,129 @@ const [showCreateDialog, setShowCreateDialog] = useState(false);
       </TabsList>
 
       <TabsContent value="connection" className="space-y-4 mt-4">
+        {isOidcProvider(formData.provider_type) ? (
+          <div className="grid gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Configuration Name</Label>
+              <Input
+                id="name"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder={`Primary ${PROVIDER_BY_ID[formData.provider_type as ProviderType]?.shortLabel || 'IdP'}`}
+              />
+            </div>
+
+            {PROVIDER_BY_ID[formData.provider_type as ProviderType]?.tenantHelp && (
+              <div className="space-y-2">
+                <Label htmlFor="oidc_tenant_id">Tenant / Domain</Label>
+                <Input
+                  id="oidc_tenant_id"
+                  value={formData.oidc_tenant_id || ''}
+                  onChange={(e) => {
+                    const def = PROVIDER_BY_ID[formData.provider_type as ProviderType];
+                    const newTenant = e.target.value;
+                    setFormData((prev) => ({
+                      ...prev,
+                      oidc_tenant_id: newTenant,
+                      oidc_issuer_url: def?.buildIssuerUrl
+                        ? def.buildIssuerUrl(newTenant)
+                        : prev.oidc_issuer_url,
+                    }));
+                  }}
+                  placeholder={
+                    formData.provider_type === 'azure_entra'
+                      ? 'tenant-uuid or contoso.onmicrosoft.com'
+                      : formData.provider_type === 'okta'
+                      ? 'yourcompany.okta.com'
+                      : 'yourcompany.com'
+                  }
+                />
+                <p className="text-xs text-muted-foreground">
+                  {PROVIDER_BY_ID[formData.provider_type as ProviderType]?.tenantHelp}
+                </p>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="oidc_issuer_url">Issuer URL *</Label>
+              <Input
+                id="oidc_issuer_url"
+                value={formData.oidc_issuer_url || ''}
+                onChange={(e) => setFormData({ ...formData, oidc_issuer_url: e.target.value })}
+                placeholder="https://login.microsoftonline.com/{tenant}/v2.0"
+                className="font-mono text-sm"
+              />
+              <p className="text-xs text-muted-foreground">
+                The OIDC discovery base URL. We append <code>/.well-known/openid-configuration</code>.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="oidc_client_id">Client ID *</Label>
+                <Input
+                  id="oidc_client_id"
+                  value={formData.oidc_client_id || ''}
+                  onChange={(e) => setFormData({ ...formData, oidc_client_id: e.target.value })}
+                  placeholder="Application (client) ID"
+                  className="font-mono text-sm"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="oidc_client_secret">Client Secret</Label>
+                <Input
+                  id="oidc_client_secret"
+                  type="password"
+                  value={formData.oidc_client_secret || ''}
+                  onChange={(e) => setFormData({ ...formData, oidc_client_secret: e.target.value })}
+                  placeholder={editingConfig ? 'Leave blank to keep existing' : 'Client secret'}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="oidc_redirect_uri">Redirect URI</Label>
+              <Input
+                id="oidc_redirect_uri"
+                value={formData.oidc_redirect_uri || ''}
+                onChange={(e) => setFormData({ ...formData, oidc_redirect_uri: e.target.value })}
+                className="font-mono text-sm"
+              />
+              <p className="text-xs text-muted-foreground">
+                Register this URL as a valid redirect URI in your provider's app registration.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="oidc_scopes">Scopes</Label>
+                <Input
+                  id="oidc_scopes"
+                  value={(formData.oidc_scopes || []).join(' ')}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      oidc_scopes: e.target.value.split(/\s+/).filter(Boolean),
+                    })
+                  }
+                  placeholder="openid email profile"
+                  className="font-mono text-sm"
+                />
+                <p className="text-xs text-muted-foreground">Space-separated</p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="oidc_groups_claim">Groups Claim</Label>
+                <Input
+                  id="oidc_groups_claim"
+                  value={formData.oidc_groups_claim || ''}
+                  onChange={(e) => setFormData({ ...formData, oidc_groups_claim: e.target.value })}
+                  placeholder="groups"
+                  className="font-mono text-sm"
+                />
+              </div>
+            </div>
+          </div>
+        ) : (
         <div className="grid gap-4">
           <div className="space-y-2">
             <Label htmlFor="name">Configuration Name</Label>
@@ -391,6 +561,7 @@ const [showCreateDialog, setShowCreateDialog] = useState(false);
             </div>
           </div>
         </div>
+        )}
       </TabsContent>
 
       <TabsContent value="search" className="space-y-4 mt-4">
