@@ -752,7 +752,7 @@ const [showCreateDialog, setShowCreateDialog] = useState(false);
 
   return (
     <DashboardLayout 
-      title="LDAP / Active Directory" 
+      title="Identity Providers" 
       description="Configure enterprise authentication and user synchronization"
       actions={createDialogButton}
     >
@@ -1130,7 +1130,14 @@ const [showCreateDialog, setShowCreateDialog] = useState(false);
             <Button variant="outline" onClick={() => { setShowCreateDialog(false); resetForm(); }}>
               Cancel
             </Button>
-            <Button onClick={handleCreateConfig} disabled={!formData.server_url || !formData.base_dn}>
+          <Button
+            onClick={handleCreateConfig}
+            disabled={
+              isOidcProvider(formData.provider_type)
+                ? !formData.oidc_issuer_url || !formData.oidc_client_id
+                : !formData.server_url || !formData.base_dn
+            }
+          >
               Create Configuration
             </Button>
           </DialogFooter>
