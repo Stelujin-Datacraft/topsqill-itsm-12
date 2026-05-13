@@ -737,6 +737,7 @@ const [showCreateDialog, setShowCreateDialog] = useState(false);
         </div>
       </TabsContent>
     </Tabs>
+    </div>
   );
 
   const createDialogButton = (
