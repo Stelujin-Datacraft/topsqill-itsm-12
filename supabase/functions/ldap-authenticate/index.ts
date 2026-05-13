@@ -7,9 +7,14 @@ const corsHeaders = {
 };
 
 interface LdapAuthRequest {
-  username: string;
-  password: string;
+  username?: string;
+  password?: string;
   organizationId: string;
+  configId?: string;
+  // Used by OIDC providers — when present, returns an authorization URL.
+  mode?: 'authorize' | 'password';
+  redirectUri?: string;
+  state?: string;
 }
 
 interface LdapAuthResponse {
@@ -32,14 +37,12 @@ serve(async (req) => {
   }
 
   try {
-    const { username, password, organizationId }: LdapAuthRequest = await req.json();
-    
-    if (!username || !password || !organizationId) {
+    const body: LdapAuthRequest = await req.json();
+    const { username, password, organizationId, configId, mode, redirectUri, state } = body;
+
+    if (!organizationId) {
       return new Response(
-        JSON.stringify({ 
-          success: false, 
-          message: 'Username, password, and organization ID are required' 
-        }),
+        JSON.stringify({ success: false, message: 'organizationId is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -48,32 +51,103 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    console.log(`🔐 LDAP authentication attempt for: ${username}`);
+    console.log(`🔐 IdP auth attempt — org=${organizationId} mode=${mode || 'password'}`);
 
-    // Get active LDAP configuration for the organization
-    const { data: config, error: configError } = await supabase
+    // Get active IdP configuration for the organization (or specific one if configId given)
+    let configQuery = supabase
       .from('ldap_configurations')
       .select('*')
       .eq('organization_id', organizationId)
-      .eq('is_enabled', true)
+      .eq('is_enabled', true);
+    if (configId) configQuery = configQuery.eq('id', configId);
+    const { data: config, error: configError } = await configQuery
       .order('created_at', { ascending: true })
       .limit(1)
-      .single();
+      .maybeSingle();
 
     if (configError || !config) {
-      console.log('📌 No active LDAP configuration found');
+      console.log('📌 No active identity provider configuration found');
       return new Response(
-        JSON.stringify({ 
-          success: false, 
-          message: 'LDAP not configured for this organization',
+        JSON.stringify({
+          success: false,
+          message: 'No active identity provider is configured for this organization',
           fallbackToLocal: true
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`🔍 Using LDAP config: ${config.name}`);
-    console.log(`📡 Server: ${config.server_url}`);
+    const providerType: string = config.provider_type || 'ldap';
+    console.log(`🔍 Using ${providerType} config: ${config.name}`);
+
+    // ====== OIDC providers: return an authorization URL ======
+    const oidcProviders = ['azure_entra', 'google_workspace', 'okta'];
+    if (oidcProviders.includes(providerType)) {
+      if (!config.oidc_issuer_url || !config.oidc_client_id) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            message: `${providerType} provider is missing issuer URL or client ID`,
+            fallbackToLocal: config.fallback_to_local_auth ?? true,
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      try {
+        // Discover the authorization endpoint via OIDC well-known doc
+        const discoveryUrl = `${config.oidc_issuer_url.replace(/\/$/, '')}/.well-known/openid-configuration`;
+        const discoveryRes = await fetch(discoveryUrl);
+        if (!discoveryRes.ok) {
+          throw new Error(`OIDC discovery failed: ${discoveryRes.status}`);
+        }
+        const discovery = await discoveryRes.json();
+        const authEndpoint: string = discovery.authorization_endpoint;
+        if (!authEndpoint) throw new Error('No authorization_endpoint in discovery doc');
+
+        const scopes: string[] = config.oidc_scopes || ['openid', 'email', 'profile'];
+        const finalRedirect = redirectUri || config.oidc_redirect_uri;
+        if (!finalRedirect) throw new Error('No redirect URI configured');
+
+        const params = new URLSearchParams({
+          response_type: 'code',
+          client_id: config.oidc_client_id,
+          redirect_uri: finalRedirect,
+          scope: scopes.join(' '),
+          state: state || `${organizationId}:${config.id}`,
+        });
+
+        const authorizationUrl = `${authEndpoint}?${params.toString()}`;
+        return new Response(
+          JSON.stringify({
+            success: true,
+            mode: 'oidc-redirect',
+            providerType,
+            authorizationUrl,
+            configId: config.id,
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      } catch (err: any) {
+        console.error('OIDC discovery error:', err);
+        return new Response(
+          JSON.stringify({
+            success: false,
+            message: `Could not initialize ${providerType}: ${err.message}`,
+            fallbackToLocal: config.fallback_to_local_auth ?? true,
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
+    // ====== LDAP-style providers (ldap, active_directory, aws_directory) ======
+    if (!username || !password) {
+      return new Response(
+        JSON.stringify({ success: false, message: 'Username and password are required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // In a production environment, you would:
     // 1. Connect to the LDAP server using the bind credentials
