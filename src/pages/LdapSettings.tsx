@@ -56,6 +56,15 @@ import { format, formatDistanceToNow } from "date-fns";
 import DashboardLayout from "@/components/DashboardLayout";
 import { LdapGroupMappings } from "@/components/ldap/LdapGroupMappings";
 import { LdapSyncLogs } from "@/components/ldap/LdapSyncLogs";
+import {
+  PROVIDER_DEFINITIONS,
+  PROVIDER_BY_ID,
+  isOidcProvider,
+  isLdapProvider,
+  getProviderLabel,
+  type ProviderType,
+} from "@/lib/idp/providerDefaults";
+import { Cloud, Building, Globe } from "lucide-react";
 
 export default function LdapSettings() {
   const navigate = useNavigate();
@@ -95,6 +104,7 @@ const [showCreateDialog, setShowCreateDialog] = useState(false);
 
   const [formData, setFormData] = useState<CreateLdapConfigInput>({
     name: '',
+    provider_type: 'active_directory',
     server_url: '',
     base_dn: '',
     bind_dn: '',
@@ -108,6 +118,13 @@ const [showCreateDialog, setShowCreateDialog] = useState(false);
     use_ssl: true,
     auto_provision_users: true,
     fallback_to_local_auth: true,
+    oidc_issuer_url: '',
+    oidc_client_id: '',
+    oidc_client_secret: '',
+    oidc_tenant_id: '',
+    oidc_redirect_uri: typeof window !== 'undefined' ? `${window.location.origin}/auth/callback` : '',
+    oidc_scopes: ['openid', 'email', 'profile'],
+    oidc_groups_claim: 'groups',
   });
 
   if (userProfile?.role !== 'admin') {
@@ -137,10 +154,15 @@ const [showCreateDialog, setShowCreateDialog] = useState(false);
   }
 
   const handleCreateConfig = async () => {
-    if (!formData.server_url || !formData.base_dn) {
+    const isOidc = isOidcProvider(formData.provider_type);
+    if (isOidc) {
+      if (!formData.oidc_issuer_url || !formData.oidc_client_id) {
+        return;
+      }
+    } else if (!formData.server_url || !formData.base_dn) {
       return;
     }
-    
+
     const result = await createConfiguration(formData);
     if (result) {
       setShowCreateDialog(false);
@@ -168,6 +190,7 @@ const [showCreateDialog, setShowCreateDialog] = useState(false);
   const resetForm = () => {
     setFormData({
       name: getDefaultConfigName(),
+      provider_type: 'active_directory',
       server_url: '',
       base_dn: '',
       bind_dn: '',
@@ -181,6 +204,13 @@ const [showCreateDialog, setShowCreateDialog] = useState(false);
       use_ssl: true,
       auto_provision_users: true,
       fallback_to_local_auth: true,
+      oidc_issuer_url: '',
+      oidc_client_id: '',
+      oidc_client_secret: '',
+      oidc_tenant_id: '',
+      oidc_redirect_uri: typeof window !== 'undefined' ? `${window.location.origin}/auth/callback` : '',
+      oidc_scopes: ['openid', 'email', 'profile'],
+      oidc_groups_claim: 'groups',
     });
     setActiveTab("connection");
   };
@@ -195,6 +225,7 @@ const [showCreateDialog, setShowCreateDialog] = useState(false);
   const openEditDialog = (config: LdapConfiguration) => {
     setFormData({
       name: config.name,
+      provider_type: (config.provider_type || 'ldap') as ProviderType,
       server_url: config.server_url,
       base_dn: config.base_dn,
       bind_dn: config.bind_dn || '',
@@ -213,6 +244,13 @@ const [showCreateDialog, setShowCreateDialog] = useState(false);
       fallback_to_local_auth: config.fallback_to_local_auth,
       sync_enabled: config.sync_enabled,
       sync_interval_minutes: config.sync_interval_minutes,
+      oidc_issuer_url: config.oidc_issuer_url || '',
+      oidc_client_id: config.oidc_client_id || '',
+      oidc_client_secret: '',
+      oidc_tenant_id: config.oidc_tenant_id || '',
+      oidc_redirect_uri: config.oidc_redirect_uri || (typeof window !== 'undefined' ? `${window.location.origin}/auth/callback` : ''),
+      oidc_scopes: config.oidc_scopes || ['openid', 'email', 'profile'],
+      oidc_groups_claim: config.oidc_groups_claim || 'groups',
     });
     setEditingConfig(config);
   };
