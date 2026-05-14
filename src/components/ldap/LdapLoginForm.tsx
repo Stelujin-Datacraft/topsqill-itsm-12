@@ -32,28 +32,20 @@ export function LdapLoginForm({
   useEffect(() => {
     (async () => {
       try {
-        const { data: org } = await supabase
-          .from('organizations')
-          .select('id')
-          .eq('domain', organizationDomain)
-          .maybeSingle();
-        if (!org) {
+        const { data, error } = await supabase.functions.invoke('ldap-authenticate', {
+          body: {
+            mode: 'lookup',
+            domain: organizationDomain,
+          },
+        });
+
+        if (error || !data?.hasProvider || !data?.organizationId) {
           setProviderConfigLoaded(true);
           return;
         }
-        setOrganizationId(org.id);
-        const { data: config } = await supabase
-          .from('ldap_configurations')
-          .select('provider_type, name')
-          .eq('organization_id', org.id)
-          .eq('is_enabled', true)
-          .order('created_at', { ascending: true })
-          .limit(1)
-          .maybeSingle();
-        if (config) {
-          setProviderType(config.provider_type || 'ldap');
-          setProviderName(config.name || '');
-        }
+        setOrganizationId(data.organizationId);
+        setProviderType(data.providerType || 'ldap');
+        setProviderName(data.providerName || '');
       } catch (err) {
         console.error('Provider detection failed:', err);
       } finally {
@@ -113,14 +105,7 @@ export function LdapLoginForm({
     setIsLoading(true);
 
     try {
-      // First, find the organization by domain
-      const { data: org, error: orgError } = await supabase
-        .from('organizations')
-        .select('id')
-        .eq('domain', organizationDomain)
-        .single();
-
-      if (orgError || !org) {
+      if (!organizationId) {
         toast({
           title: 'Organization Not Found',
           description: 'No organization found with that domain',
@@ -135,7 +120,7 @@ export function LdapLoginForm({
         body: {
           username,
           password,
-          organizationId: org.id,
+          organizationId,
         }
       });
 

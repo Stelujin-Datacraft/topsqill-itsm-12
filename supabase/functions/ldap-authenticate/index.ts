@@ -9,12 +9,14 @@ const corsHeaders = {
 interface LdapAuthRequest {
   username?: string;
   password?: string;
-  organizationId: string;
+  organizationId?: string;
   configId?: string;
   // Used by OIDC providers — when present, returns an authorization URL.
-  mode?: 'authorize' | 'password';
+  mode?: 'authorize' | 'password' | 'lookup';
   redirectUri?: string;
   state?: string;
+  email?: string;
+  domain?: string;
 }
 
 interface LdapAuthResponse {
@@ -38,9 +40,9 @@ serve(async (req) => {
 
   try {
     const body: LdapAuthRequest = await req.json();
-    const { username, password, organizationId, configId, mode, redirectUri, state } = body;
+    const { username, password, organizationId, configId, mode, redirectUri, state, email, domain } = body;
 
-    if (!organizationId) {
+    if (mode !== 'lookup' && !organizationId) {
       return new Response(
         JSON.stringify({ success: false, message: 'organizationId is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -52,6 +54,60 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     console.log(`🔐 IdP auth attempt — org=${organizationId} mode=${mode || 'password'}`);
+
+    if (mode === 'lookup') {
+      const resolvedDomain = (domain || email?.split('@')[1] || '').trim().toLowerCase();
+
+      if (!resolvedDomain) {
+        return new Response(
+          JSON.stringify({ success: true, hasProvider: false, message: 'No domain available for lookup' }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const { data: organization, error: organizationError } = await supabase
+        .from('organizations')
+        .select('id, domain, name')
+        .ilike('domain', resolvedDomain)
+        .maybeSingle();
+
+      if (organizationError || !organization) {
+        return new Response(
+          JSON.stringify({ success: true, hasProvider: false, message: 'No organization found for this domain' }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const { data: config, error: lookupError } = await supabase
+        .from('ldap_configurations')
+        .select('id, provider_type, name, is_enabled')
+        .eq('organization_id', organization.id)
+        .eq('is_enabled', true)
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      if (lookupError || !config) {
+        return new Response(
+          JSON.stringify({ success: true, hasProvider: false, organizationId: organization.id, organizationDomain: organization.domain }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          hasProvider: true,
+          organizationId: organization.id,
+          organizationDomain: organization.domain,
+          organizationName: organization.name,
+          configId: config.id,
+          providerType: config.provider_type || 'ldap',
+          providerName: config.name || null,
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Get active IdP configuration for the organization (or specific one if configId given)
     let configQuery = supabase

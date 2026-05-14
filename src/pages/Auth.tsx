@@ -44,37 +44,34 @@ const Auth = () => {
 
   // Check if LDAP is available for the entered email domain
   const checkLdapAvailability = async (email: string) => {
-    const domain = email.split('@')[1];
+    const domain = email.split('@')[1]?.trim().toLowerCase();
     if (!domain) {
       setLdapEnabled(false);
+      setLdapDomain('');
+      setProviderType('ldap');
       return;
     }
 
     try {
-      const { data: org } = await supabase
-        .from('organizations')
-        .select('id')
-        .eq('domain', domain)
-        .maybeSingle();
+      const { data, error } = await supabase.functions.invoke('ldap-authenticate', {
+        body: {
+          mode: 'lookup',
+          email,
+          domain,
+        },
+      });
 
-      if (org) {
-        const { data: ldapConfig } = await supabase
-          .from('ldap_configurations')
-          .select('id, provider_type')
-          .eq('organization_id', org.id)
-          .eq('is_enabled', true)
-          .limit(1)
-          .maybeSingle();
+      if (error) throw error;
 
-        setLdapEnabled(!!ldapConfig);
-        setLdapDomain(domain);
-        setProviderType(ldapConfig?.provider_type || 'ldap');
-      } else {
-        setLdapEnabled(false);
-      }
+      const hasProvider = !!data?.hasProvider;
+      setLdapEnabled(hasProvider);
+      setLdapDomain(hasProvider ? (data?.organizationDomain || domain) : '');
+      setProviderType(hasProvider ? (data?.providerType || 'ldap') : 'ldap');
     } catch (e) {
       console.error('Error checking LDAP availability:', e);
       setLdapEnabled(false);
+      setLdapDomain('');
+      setProviderType('ldap');
     }
   };
 
