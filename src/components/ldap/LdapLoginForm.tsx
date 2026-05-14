@@ -27,6 +27,7 @@ export function LdapLoginForm({
   const [providerConfigLoaded, setProviderConfigLoaded] = useState(false);
   const [organizationId, setOrganizationId] = useState<string | null>(null);
   const [providerName, setProviderName] = useState<string>('');
+  const [autoStarted, setAutoStarted] = useState(false);
 
   // Detect provider type for the org so we render the right login UI
   useEffect(() => {
@@ -53,6 +54,21 @@ export function LdapLoginForm({
       }
     })();
   }, [organizationDomain]);
+
+  // Auto-start OIDC redirect once provider is detected — true SSO, no extra click.
+  useEffect(() => {
+    if (
+      providerConfigLoaded &&
+      isOidcProvider(providerType) &&
+      organizationId &&
+      !autoStarted &&
+      !isLoading
+    ) {
+      setAutoStarted(true);
+      handleOidcSignIn();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [providerConfigLoaded, providerType, organizationId]);
 
   const handleOidcSignIn = async () => {
     if (!organizationId) return;
