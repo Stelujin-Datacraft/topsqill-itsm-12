@@ -33,6 +33,7 @@ const Auth = () => {
   const [ldapDomain, setLdapDomain] = useState('');
   const [ldapEnabled, setLdapEnabled] = useState(false);
   const [providerType, setProviderType] = useState<string>('ldap');
+  const [autoRedirectedFor, setAutoRedirectedFor] = useState<string>('');
 
   // Redirect authenticated users
   useEffect(() => {
@@ -66,7 +67,19 @@ const Auth = () => {
       const hasProvider = !!data?.hasProvider;
       setLdapEnabled(hasProvider);
       setLdapDomain(hasProvider ? (data?.organizationDomain || domain) : '');
-      setProviderType(hasProvider ? (data?.providerType || 'ldap') : 'ldap');
+      const detectedType = hasProvider ? (data?.providerType || 'ldap') : 'ldap';
+      setProviderType(detectedType);
+
+      // Auto-redirect to OIDC IdP (e.g. Microsoft Entra) once per email,
+      // so the user never sees the local password form for SSO domains.
+      if (
+        hasProvider &&
+        isOidcProvider(detectedType) &&
+        autoRedirectedFor !== email.toLowerCase()
+      ) {
+        setAutoRedirectedFor(email.toLowerCase());
+        setShowLdapLogin(true);
+      }
     } catch (e) {
       console.error('Error checking LDAP availability:', e);
       setLdapEnabled(false);
