@@ -488,6 +488,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     admin_last_name: string 
   }) => {
     try {
+      // 1) Pre-flight: refuse if an auth user with this email already exists.
+      // We can't query auth.users from the client, so attempt signup FIRST and
+      // only create the organization row if signup succeeds. This prevents
+      // orphan organizations when the email is already registered.
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: orgData.admin_email,
+        password: orgData.admin_password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/`,
+          data: {
+            first_name: orgData.admin_first_name,
+            last_name: orgData.admin_last_name,
+            role: 'admin'
+          }
+        }
+      });
+
+      if (authError) {
+        const msg = (authError as any)?.message || '';
+        if (
+          (authError as any)?.code === 'user_already_exists' ||
+          /already\s+registered|already\s+exists/i.test(msg)
+        ) {
+          return {
+            error: new Error(
+              `An account already exists for ${orgData.admin_email}. Use "Forgot Password" to reset it, or sign in with the existing password — do not re-register.`
+            ),
+          };
+        }
+        return { error: authError };
+      }
+
+      // 2) Now safe to create the organization row.
       const { data: org, error: orgError } = await supabase
         .from('organizations')
         .insert({
@@ -502,24 +535,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (orgError) {
         return { error: orgError };
-      }
-
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: orgData.admin_email,
-        password: orgData.admin_password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/`,
-          data: {
-            first_name: orgData.admin_first_name,
-            last_name: orgData.admin_last_name,
-            organization_id: org.id,
-            role: 'admin'
-          }
-        }
-      });
-
-      if (authError) {
-        return { error: authError };
       }
 
       if (authData.user) {
