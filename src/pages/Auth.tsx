@@ -15,6 +15,7 @@ import { validatePassword, DEFAULT_PASSWORD_POLICY, PasswordPolicy } from '@/uti
 import { getOrganizationPasswordPolicy } from '@/utils/securityEnforcement';
 import { MfaVerificationDialog } from '@/components/MfaVerificationDialog';
 import { LdapLoginForm } from '@/components/ldap/LdapLoginForm';
+import { getProviderLabel, isOidcProvider } from '@/lib/idp/providerDefaults';
 
 const Auth = () => {
   const [activeTab, setActiveTab] = useState('signin');
@@ -27,10 +28,11 @@ const Auth = () => {
   const [passwordPolicy, setPasswordPolicy] = useState<PasswordPolicy>(DEFAULT_PASSWORD_POLICY);
   const [policyLoading, setPolicyLoading] = useState(false);
 
-  // LDAP state
+  // IdP / LDAP state
   const [showLdapLogin, setShowLdapLogin] = useState(false);
   const [ldapDomain, setLdapDomain] = useState('');
   const [ldapEnabled, setLdapEnabled] = useState(false);
+  const [providerType, setProviderType] = useState<string>('ldap');
 
   // Redirect authenticated users
   useEffect(() => {
@@ -58,7 +60,7 @@ const Auth = () => {
       if (org) {
         const { data: ldapConfig } = await supabase
           .from('ldap_configurations')
-          .select('id')
+          .select('id, provider_type')
           .eq('organization_id', org.id)
           .eq('is_enabled', true)
           .limit(1)
@@ -66,6 +68,7 @@ const Auth = () => {
 
         setLdapEnabled(!!ldapConfig);
         setLdapDomain(domain);
+        setProviderType(ldapConfig?.provider_type || 'ldap');
       } else {
         setLdapEnabled(false);
       }
@@ -346,14 +349,16 @@ const Auth = () => {
                   </Button>
 
                   {ldapEnabled && (
-                    <Button 
-                      type="button" 
-                      variant="outline" 
-                      className="w-full" 
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full"
                       onClick={() => setShowLdapLogin(true)}
                     >
                       <Server className="h-4 w-4 mr-2" />
-                      Sign in with LDAP / Active Directory
+                      {isOidcProvider(providerType)
+                        ? `Sign in with ${getProviderLabel(providerType)}`
+                        : 'Sign in with LDAP / Active Directory'}
                     </Button>
                   )}
 
