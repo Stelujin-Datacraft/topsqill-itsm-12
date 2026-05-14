@@ -11,12 +11,14 @@ import { useEffect } from "react";
 
 interface LdapLoginFormProps {
   organizationDomain: string;
+  loginHint?: string;
   onSuccess: (user: any) => void;
   onFallbackToLocal: () => void;
 }
 
 export function LdapLoginForm({ 
   organizationDomain, 
+  loginHint,
   onSuccess, 
   onFallbackToLocal 
 }: LdapLoginFormProps) {
@@ -79,6 +81,7 @@ export function LdapLoginForm({
           organizationId,
           mode: 'authorize',
           redirectUri: `${window.location.origin}/auth/callback`,
+          loginHint: loginHint || undefined,
         },
       });
       if (error) throw error;
