@@ -287,6 +287,7 @@ const Auth = () => {
               {showLdapLogin ? (
                 <LdapLoginForm
                   organizationDomain={ldapDomain}
+                  loginHint={signInData.email}
                   onSuccess={(user) => {
                     const redirectPath = returnTo || '/dashboard';
                     navigate(redirectPath, { replace: true });
