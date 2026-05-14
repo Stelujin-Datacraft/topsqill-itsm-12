@@ -75,36 +75,48 @@ serve(async (req) => {
       );
     }
 
-    console.log(`🔍 Testing LDAP connection to: ${config.server_url}`);
-    console.log(`📂 Base DN: ${config.base_dn}`);
-
-    // In a real implementation, you would use an LDAP library here
-    // Since Deno doesn't have native LDAP support, we'll simulate the test
-    // or you could use an external LDAP proxy service
-    
-    // For now, we'll do basic validation and simulate a successful connection
-    // In production, you would:
-    // 1. Use a library like 'ldapjs' via npm: specifiers or
-    // 2. Call an external LDAP proxy service, or
-    // 3. Use a WebSocket-based LDAP bridge
-    
+    const providerType: string = config.provider_type || 'ldap';
+    const isOidc = ['azure_entra', 'google_workspace', 'okta'].includes(providerType);
     const validationErrors: string[] = [];
-    
-    // Validate server URL format
-    if (!config.server_url.match(/^ldaps?:\/\/.+/)) {
-      validationErrors.push('Invalid server URL format. Use ldap:// or ldaps://');
+
+    if (isOidc) {
+      console.log(`🔍 Testing OIDC discovery for ${providerType}: ${config.oidc_issuer_url}`);
+      if (!config.oidc_issuer_url) {
+        validationErrors.push('OIDC Issuer URL is required');
+      }
+      if (!config.oidc_client_id) {
+        validationErrors.push('OIDC Client ID is required');
+      }
+      if (validationErrors.length === 0) {
+        try {
+          const discoveryUrl = `${config.oidc_issuer_url.replace(/\/$/, '')}/.well-known/openid-configuration`;
+          const res = await fetch(discoveryUrl, { signal: AbortSignal.timeout(10000) });
+          if (!res.ok) {
+            validationErrors.push(`OIDC discovery failed: HTTP ${res.status} from ${discoveryUrl}`);
+          } else {
+            const doc = await res.json();
+            if (!doc.token_endpoint || !doc.authorization_endpoint) {
+              validationErrors.push('OIDC discovery document missing required endpoints');
+            }
+          }
+        } catch (err: any) {
+          validationErrors.push(`OIDC discovery error: ${err.message}`);
+        }
+      }
+    } else {
+      console.log(`🔍 Testing LDAP connection to: ${config.server_url}`);
+      console.log(`📂 Base DN: ${config.base_dn}`);
+      if (!config.server_url || !config.server_url.match(/^ldaps?:\/\/.+/)) {
+        validationErrors.push('Invalid server URL format. Use ldap:// or ldaps://');
+      }
+      if (!config.base_dn || !config.base_dn.match(/^(DC|OU|CN)=/i)) {
+        validationErrors.push('Invalid Base DN format. Should start with DC=, OU=, or CN=');
+      }
+      if (!config.use_ssl && !config.use_starttls) {
+        validationErrors.push('Warning: Connection is not encrypted. SSL or StartTLS is recommended.');
+      }
     }
-    
-    // Validate Base DN format
-    if (!config.base_dn.match(/^(DC|OU|CN)=/i)) {
-      validationErrors.push('Invalid Base DN format. Should start with DC=, OU=, or CN=');
-    }
-    
-    // Check if SSL is used
-    if (!config.use_ssl && !config.use_starttls) {
-      validationErrors.push('Warning: Connection is not encrypted. SSL or StartTLS is recommended.');
-    }
-    
+
     if (validationErrors.length > 0) {
       return new Response(
         JSON.stringify({ 
@@ -128,7 +140,9 @@ serve(async (req) => {
       description: `LDAP connection test for ${config.name}`,
       metadata: {
         config_id: configId,
+        provider_type: providerType,
         server_url: config.server_url,
+        oidc_issuer_url: config.oidc_issuer_url,
         result: 'configuration_validated'
       }
     });
@@ -136,7 +150,9 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: 'LDAP configuration is valid. Note: For full connection testing, ensure the LDAP server is accessible from the network.'
+        message: isOidc
+          ? `OIDC discovery succeeded for ${providerType}. Provider endpoints are reachable.`
+          : 'LDAP configuration is valid. Ensure the LDAP server is accessible from the network for actual binds.'
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
