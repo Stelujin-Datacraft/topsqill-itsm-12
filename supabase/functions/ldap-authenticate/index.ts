@@ -17,6 +17,7 @@ interface LdapAuthRequest {
   state?: string;
   email?: string;
   domain?: string;
+  loginHint?: string;
 }
 
 interface LdapAuthResponse {
@@ -40,7 +41,7 @@ serve(async (req) => {
 
   try {
     const body: LdapAuthRequest = await req.json();
-    const { username, password, organizationId, configId, mode, redirectUri, state, email, domain } = body;
+    const { username, password, organizationId, configId, mode, redirectUri, state, email, domain, loginHint } = body;
 
     if (mode !== 'lookup' && !organizationId) {
       return new Response(
@@ -165,13 +166,22 @@ serve(async (req) => {
         const finalRedirect = redirectUri || config.oidc_redirect_uri;
         if (!finalRedirect) throw new Error('No redirect URI configured');
 
+        // Encode the user-supplied email in `state` so the callback can verify
+        // the provider returned the same identity that the user typed in.
+        const hintEmail = (loginHint || '').trim().toLowerCase();
+        const stateValue = state || `${organizationId}:${config.id}${hintEmail ? `:${encodeURIComponent(hintEmail)}` : ''}`;
+
         const params = new URLSearchParams({
           response_type: 'code',
           client_id: config.oidc_client_id,
           redirect_uri: finalRedirect,
           scope: scopes.join(' '),
-          state: state || `${organizationId}:${config.id}`,
+          state: stateValue,
+          // Force account chooser so an existing browser session for a
+          // different account doesn't silently sign the user in.
+          prompt: 'select_account',
         });
+        if (hintEmail) params.set('login_hint', hintEmail);
 
         const authorizationUrl = `${authEndpoint}?${params.toString()}`;
         return new Response(

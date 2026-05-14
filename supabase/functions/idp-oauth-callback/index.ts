@@ -44,8 +44,13 @@ serve(async (req) => {
       );
     }
 
-    // state format: organizationId:configId
-    const [organizationId, configId] = state.split(':');
+    // state format: organizationId:configId[:urlEncodedExpectedEmail]
+    const stateParts = state.split(':');
+    const organizationId = stateParts[0];
+    const configId = stateParts[1];
+    const expectedEmail = stateParts.length > 2
+      ? decodeURIComponent(stateParts.slice(2).join(':')).toLowerCase()
+      : '';
     if (!organizationId || !configId) {
       return new Response(
         JSON.stringify({ success: false, message: 'Invalid state' }),
@@ -133,6 +138,18 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ success: false, message: 'Provider did not return an email' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Reject if the provider signed in a different account than the one the
+    // user typed at our login screen (e.g. an existing browser SSO session).
+    if (expectedEmail && email.toLowerCase() !== expectedEmail) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          message: `You signed in to Microsoft as ${email}, but you started the sign-in for ${expectedEmail}. Please sign out of Microsoft (or use a private window) and try again.`,
+        }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
