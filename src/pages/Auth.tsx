@@ -94,6 +94,16 @@ const Auth = () => {
       });
       if (error) throw error;
       if (data?.authorizationUrl) {
+        // Break out of the Lovable preview iframe — Microsoft / Google
+        // refuse to render inside iframes (X-Frame-Options: DENY).
+        try {
+          if (window.top && window.top !== window.self) {
+            window.top.location.href = data.authorizationUrl;
+            return;
+          }
+        } catch {
+          /* cross-origin top — fall through */
+        }
         window.location.assign(data.authorizationUrl);
         return;
       }
