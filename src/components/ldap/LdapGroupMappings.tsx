@@ -409,7 +409,7 @@ export function LdapGroupMappings({ configurations, selectedConfigId, onConfigCh
                   <SelectValue placeholder="Select role (optional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value="__none__">None</SelectItem>
                   <SelectItem value="admin">Admin</SelectItem>
                   <SelectItem value="manager">Manager</SelectItem>
                   <SelectItem value="user">User</SelectItem>
@@ -427,7 +427,7 @@ export function LdapGroupMappings({ configurations, selectedConfigId, onConfigCh
                   <SelectValue placeholder="Select template (optional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value="__none__">None</SelectItem>
                   {securityTemplates.map(template => (
                     <SelectItem key={template.id} value={template.id}>
                       {template.name}
@@ -447,7 +447,7 @@ export function LdapGroupMappings({ configurations, selectedConfigId, onConfigCh
                   <SelectValue placeholder="Select group (optional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value="__none__">None</SelectItem>
                   {groups.map(group => (
                     <SelectItem key={group.id} value={group.id}>
                       {group.name}
@@ -524,7 +524,7 @@ export function LdapGroupMappings({ configurations, selectedConfigId, onConfigCh
                   <SelectValue placeholder="Select role (optional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value="__none__">None</SelectItem>
                   <SelectItem value="admin">Admin</SelectItem>
                   <SelectItem value="manager">Manager</SelectItem>
                   <SelectItem value="user">User</SelectItem>
@@ -542,7 +542,7 @@ export function LdapGroupMappings({ configurations, selectedConfigId, onConfigCh
                   <SelectValue placeholder="Select template (optional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value="__none__">None</SelectItem>
                   {securityTemplates.map(template => (
                     <SelectItem key={template.id} value={template.id}>
                       {template.name}
@@ -562,7 +562,7 @@ export function LdapGroupMappings({ configurations, selectedConfigId, onConfigCh
                   <SelectValue placeholder="Select group (optional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value="__none__">None</SelectItem>
                   {groups.map(group => (
                     <SelectItem key={group.id} value={group.id}>
                       {group.name}
