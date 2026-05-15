@@ -13,6 +13,8 @@ export default function AuthCallback() {
   const navigate = useNavigate();
   const [status, setStatus] = useState<"working" | "error">("working");
   const [message, setMessage] = useState("Finalizing sign-in…");
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
   useEffect(() => {
     (async () => {
@@ -42,17 +44,24 @@ export default function AuthCallback() {
           /* ignore */
         }
 
-        // Do not pass a redirectUri — the edge function uses the configured
-        // oidc_redirect_uri which must match what was sent during /authorize.
-        // Force the anon key as Authorization so the gateway always accepts
-        // the request (the function itself runs with verify_jwt = false).
-        const { data, error } = await supabase.functions.invoke("idp-oauth-callback", {
-          body: { code, state },
+        // Use a direct fetch instead of supabase.functions.invoke so the
+        // browser never re-attaches a stale auth session token to this public
+        // callback exchange request.
+        const response = await fetch(`${supabaseUrl}/functions/v1/idp-oauth-callback`, {
+          method: "POST",
           headers: {
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            "Content-Type": "application/json",
+            apikey: supabaseAnonKey,
+            Authorization: `Bearer ${supabaseAnonKey}`,
           },
+          body: JSON.stringify({ code, state }),
         });
-        if (error) throw error;
+
+        const raw = await response.text();
+        const data = raw ? JSON.parse(raw) : null;
+        if (!response.ok) {
+          throw new Error(data?.message || `Sign-in failed (${response.status})`);
+        }
         if (!data?.success) throw new Error(data?.message || "Sign-in failed");
 
         const hashedToken: string | undefined = data.verification?.hashedToken;

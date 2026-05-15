@@ -101,9 +101,7 @@ export function LdapLoginForm({
   const handleOidcSignIn = async (interactive = false) => {
     if (!organizationId) return;
     setIsLoading(true);
-    const popup = interactive && isEmbeddedPreview
-      ? window.open('about:blank', '_blank', 'noopener,noreferrer')
-      : null;
+    let popup: Window | null = null;
 
     try {
       const { data, error } = await supabase.functions.invoke('ldap-authenticate', {
@@ -119,6 +117,12 @@ export function LdapLoginForm({
       });
       if (error) throw error;
       if (data?.authorizationUrl) {
+        if (interactive && isEmbeddedPreview && !popup) {
+          popup = window.open(data.authorizationUrl, '_blank', 'noopener,noreferrer');
+          if (popup) {
+            return;
+          }
+        }
         if (popup && !popup.closed) {
           popup.location.href = data.authorizationUrl;
           return;
