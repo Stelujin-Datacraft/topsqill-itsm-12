@@ -30,6 +30,13 @@ export function LdapLoginForm({
   const [organizationId, setOrganizationId] = useState<string | null>(null);
   const [providerName, setProviderName] = useState<string>('');
   const [autoStarted, setAutoStarted] = useState(false);
+  const isEmbeddedPreview = (() => {
+    try {
+      return window.self !== window.top;
+    } catch {
+      return true;
+    }
+  })();
 
   // Detect provider type for the org so we render the right login UI
   useEffect(() => {
@@ -63,6 +70,7 @@ export function LdapLoginForm({
       providerConfigLoaded &&
       isOidcProvider(providerType) &&
       organizationId &&
+      !isEmbeddedPreview &&
       !autoStarted &&
       !isLoading
     ) {
@@ -70,11 +78,33 @@ export function LdapLoginForm({
       handleOidcSignIn();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [providerConfigLoaded, providerType, organizationId]);
+  }, [providerConfigLoaded, providerType, organizationId, isEmbeddedPreview]);
 
-  const handleOidcSignIn = async () => {
+  const redirectToIdentityProvider = (authorizationUrl: string) => {
+    if (!isEmbeddedPreview) {
+      window.location.assign(authorizationUrl);
+      return;
+    }
+
+    try {
+      if (window.top) {
+        window.top.location.href = authorizationUrl;
+        return;
+      }
+    } catch (error) {
+      console.warn('Top-level redirect unavailable, opening sign-in in a new tab.', error);
+    }
+
+    window.open(authorizationUrl, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleOidcSignIn = async (interactive = false) => {
     if (!organizationId) return;
     setIsLoading(true);
+    const popup = interactive && isEmbeddedPreview
+      ? window.open('about:blank', '_blank', 'noopener,noreferrer')
+      : null;
+
     try {
       const { data, error } = await supabase.functions.invoke('ldap-authenticate', {
         body: {
@@ -89,7 +119,11 @@ export function LdapLoginForm({
       });
       if (error) throw error;
       if (data?.authorizationUrl) {
-        window.location.href = data.authorizationUrl;
+        if (popup && !popup.closed) {
+          popup.location.href = data.authorizationUrl;
+          return;
+        }
+        redirectToIdentityProvider(data.authorizationUrl);
         return;
       }
       if (data?.fallbackToLocal) {
@@ -102,6 +136,9 @@ export function LdapLoginForm({
         variant: 'destructive',
       });
     } catch (err: any) {
+      if (popup && !popup.closed) {
+        popup.close();
+      }
       toast({
         title: 'Sign-in failed',
         description: err.message || 'Could not start sign-in flow',
@@ -208,7 +245,7 @@ export function LdapLoginForm({
             <Server className="h-4 w-4" />
             <span>Sign in with {getProviderLabel(providerType)}</span>
           </div>
-          <Button onClick={handleOidcSignIn} className="w-full" disabled={isLoading}>
+          <Button onClick={() => handleOidcSignIn(true)} className="w-full" disabled={isLoading}>
             {isLoading ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
