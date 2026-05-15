@@ -92,16 +92,15 @@ export function LdapLoginForm({
         return;
       }
     } catch (error) {
-      console.warn('Top-level redirect unavailable, opening sign-in in a new tab.', error);
+      console.warn('Top-level redirect unavailable, continuing in the current preview frame.', error);
     }
 
-    window.open(authorizationUrl, '_blank', 'noopener,noreferrer');
+    window.location.assign(authorizationUrl);
   };
 
   const handleOidcSignIn = async (interactive = false) => {
     if (!organizationId) return;
     setIsLoading(true);
-    let popup: Window | null = null;
 
     try {
       const { data, error } = await supabase.functions.invoke('ldap-authenticate', {
@@ -117,16 +116,6 @@ export function LdapLoginForm({
       });
       if (error) throw error;
       if (data?.authorizationUrl) {
-        if (interactive && isEmbeddedPreview && !popup) {
-          popup = window.open(data.authorizationUrl, '_blank', 'noopener,noreferrer');
-          if (popup) {
-            return;
-          }
-        }
-        if (popup && !popup.closed) {
-          popup.location.href = data.authorizationUrl;
-          return;
-        }
         redirectToIdentityProvider(data.authorizationUrl);
         return;
       }
@@ -140,9 +129,6 @@ export function LdapLoginForm({
         variant: 'destructive',
       });
     } catch (err: any) {
-      if (popup && !popup.closed) {
-        popup.close();
-      }
       toast({
         title: 'Sign-in failed',
         description: err.message || 'Could not start sign-in flow',
