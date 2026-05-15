@@ -96,15 +96,22 @@ const Auth = () => {
       if (data?.authorizationUrl) {
         // Break out of the Lovable preview iframe — Microsoft / Google
         // refuse to render inside iframes (X-Frame-Options: DENY).
-        try {
-          if (window.top && window.top !== window.self) {
-            window.top.location.href = data.authorizationUrl;
-            return;
+        // window.open(url, '_top') works cross-origin without throwing,
+        // unlike `window.top.location.href = ...` which raises a
+        // SecurityError when the parent frame is cross-origin and then
+        // silently falls back to loading Microsoft inside the iframe.
+        const inIframe = (() => {
+          try { return window.self !== window.top; } catch { return true; }
+        })();
+        if (inIframe) {
+          const opened = window.open(data.authorizationUrl, '_top');
+          if (!opened) {
+            // Popup blocker / sandboxed iframe — fall back to a new tab
+            window.open(data.authorizationUrl, '_blank', 'noopener,noreferrer');
           }
-        } catch {
-          /* cross-origin top — fall through */
+        } else {
+          window.location.assign(data.authorizationUrl);
         }
-        window.location.assign(data.authorizationUrl);
         return;
       }
       toast({
