@@ -33,10 +33,24 @@ export default function AuthCallback() {
           return;
         }
 
+        // Clear any stale/invalid session from prior failed attempts so the
+        // edge function gateway doesn't reject our call with 401 due to a
+        // bad Authorization header.
+        try {
+          await supabase.auth.signOut();
+        } catch {
+          /* ignore */
+        }
+
         // Do not pass a redirectUri — the edge function uses the configured
         // oidc_redirect_uri which must match what was sent during /authorize.
+        // Force the anon key as Authorization so the gateway always accepts
+        // the request (the function itself runs with verify_jwt = false).
         const { data, error } = await supabase.functions.invoke("idp-oauth-callback", {
           body: { code, state },
+          headers: {
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
         });
         if (error) throw error;
         if (!data?.success) throw new Error(data?.message || "Sign-in failed");
