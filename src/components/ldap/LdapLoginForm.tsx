@@ -231,24 +231,31 @@ export function LdapLoginForm({
     <div className="space-y-4">
       {providerConfigLoaded && isOidcProvider(providerType) ? (
         <>
-          <div className="flex flex-col items-center justify-center gap-3 py-6">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <p className="text-sm text-muted-foreground">
-              Redirecting to {getProviderLabel(providerType)}…
-            </p>
-            {isEmbeddedPreview && !autoStarted && (
-              <Button onClick={() => handleOidcSignIn(true)} className="w-full mt-2" disabled={isLoading}>
-                Continue with {getProviderLabel(providerType)}
-              </Button>
-            )}
-            <button
-              type="button"
-              onClick={onFallbackToLocal}
-              className="text-xs text-muted-foreground underline hover:text-foreground mt-2"
-            >
-              Use a local account instead
-            </button>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Server className="h-4 w-4" />
+            <span>Sign in with {getProviderLabel(providerType)}</span>
           </div>
+          <Button onClick={() => handleOidcSignIn(true)} className="w-full" disabled={isLoading}>
+            {isLoading ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Redirecting…
+              </>
+            ) : (
+              <>Continue with {getProviderLabel(providerType)}</>
+            )}
+          </Button>
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <Separator />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-background px-2 text-muted-foreground">Or use local account</span>
+            </div>
+          </div>
+          <Button variant="outline" className="w-full" onClick={onFallbackToLocal} disabled={isLoading}>
+            Sign in with Email
+          </Button>
         </>
       ) : (
       <>
