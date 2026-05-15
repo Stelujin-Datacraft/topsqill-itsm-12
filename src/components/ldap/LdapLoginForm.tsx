@@ -80,7 +80,10 @@ export function LdapLoginForm({
         body: {
           organizationId,
           mode: 'authorize',
-          redirectUri: `${window.location.origin}/auth/callback`,
+          // Intentionally omit redirectUri so the edge function falls back to
+          // the configured oidc_redirect_uri. This guarantees the URI sent to
+          // the IdP matches the one registered in the IdP app (e.g. Entra),
+          // regardless of which host (preview, custom domain) the user starts from.
           loginHint: loginHint || undefined,
         },
       });
