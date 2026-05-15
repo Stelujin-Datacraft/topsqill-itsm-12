@@ -34,6 +34,8 @@ const Auth = () => {
   const [ldapEnabled, setLdapEnabled] = useState(false);
   const [providerType, setProviderType] = useState<string>('ldap');
   const [autoRedirectedFor, setAutoRedirectedFor] = useState<string>('');
+  const [organizationId, setOrganizationId] = useState<string | null>(null);
+  const [oidcLoading, setOidcLoading] = useState(false);
 
   // Redirect authenticated users
   useEffect(() => {
@@ -69,22 +71,55 @@ const Auth = () => {
       setLdapDomain(hasProvider ? (data?.organizationDomain || domain) : '');
       const detectedType = hasProvider ? (data?.providerType || 'ldap') : 'ldap';
       setProviderType(detectedType);
-
-      // Auto-redirect to OIDC IdP (e.g. Microsoft Entra) once per email,
-      // so the user never sees the local password form for SSO domains.
-      if (
-        hasProvider &&
-        isOidcProvider(detectedType) &&
-        autoRedirectedFor !== email.toLowerCase()
-      ) {
-        setAutoRedirectedFor(email.toLowerCase());
-        setShowLdapLogin(true);
-      }
+      setOrganizationId(hasProvider ? (data?.organizationId || null) : null);
     } catch (e) {
       console.error('Error checking LDAP availability:', e);
       setLdapEnabled(false);
       setLdapDomain('');
       setProviderType('ldap');
+      setOrganizationId(null);
+    }
+  };
+
+  const handleOidcContinue = async () => {
+    if (!organizationId) return;
+    setOidcLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('ldap-authenticate', {
+        body: {
+          organizationId,
+          mode: 'authorize',
+          loginHint: signInData.email || undefined,
+        },
+      });
+      if (error) throw error;
+      if (data?.authorizationUrl) {
+        // Break out of the Lovable preview iframe — Microsoft / Google
+        // refuse to render inside iframes (X-Frame-Options: DENY).
+        try {
+          if (window.top && window.top !== window.self) {
+            window.top.location.href = data.authorizationUrl;
+            return;
+          }
+        } catch {
+          /* cross-origin top — fall through */
+        }
+        window.location.assign(data.authorizationUrl);
+        return;
+      }
+      toast({
+        title: 'Sign-in failed',
+        description: data?.message || 'Could not start sign-in flow',
+        variant: 'destructive',
+      });
+    } catch (err: any) {
+      toast({
+        title: 'Sign-in failed',
+        description: err.message || 'Could not start sign-in flow',
+        variant: 'destructive',
+      });
+    } finally {
+      setOidcLoading(false);
     }
   };
 
@@ -364,11 +399,18 @@ const Auth = () => {
                       type="button"
                       variant="outline"
                       className="w-full"
-                      onClick={() => setShowLdapLogin(true)}
+                      disabled={oidcLoading}
+                      onClick={() => {
+                        if (isOidcProvider(providerType)) {
+                          handleOidcContinue();
+                        } else {
+                          setShowLdapLogin(true);
+                        }
+                      }}
                     >
                       <Server className="h-4 w-4 mr-2" />
                       {isOidcProvider(providerType)
-                        ? `Sign in with ${getProviderLabel(providerType)}`
+                        ? (oidcLoading ? 'Redirecting…' : `Continue with ${getProviderLabel(providerType)}`)
                         : 'Sign in with LDAP / Active Directory'}
                     </Button>
                   )}
