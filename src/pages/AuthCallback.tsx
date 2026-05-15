@@ -33,9 +33,10 @@ export default function AuthCallback() {
           return;
         }
 
-        const redirectUri = `${window.location.origin}/auth/callback`;
+        // Do not pass a redirectUri — the edge function uses the configured
+        // oidc_redirect_uri which must match what was sent during /authorize.
         const { data, error } = await supabase.functions.invoke("idp-oauth-callback", {
-          body: { code, state, redirectUri },
+          body: { code, state },
         });
         if (error) throw error;
         if (!data?.success) throw new Error(data?.message || "Sign-in failed");
