@@ -403,7 +403,7 @@ export function LdapGroupMappings({ configurations, selectedConfigId, onConfigCh
               <Label>Map to Role</Label>
               <Select 
                 value={formData.mapped_role}
-                onValueChange={(value) => setFormData({ ...formData, mapped_role: value })}
+                onValueChange={(value) => setFormData({ ...formData, mapped_role: value === '__none__' ? '' : value })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select role (optional)" />
@@ -421,7 +421,7 @@ export function LdapGroupMappings({ configurations, selectedConfigId, onConfigCh
               <Label>Map to Security Template</Label>
               <Select 
                 value={formData.mapped_security_template_id}
-                onValueChange={(value) => setFormData({ ...formData, mapped_security_template_id: value })}
+                onValueChange={(value) => setFormData({ ...formData, mapped_security_template_id: value === '__none__' ? '' : value })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select template (optional)" />
@@ -441,7 +441,7 @@ export function LdapGroupMappings({ configurations, selectedConfigId, onConfigCh
               <Label>Map to Group</Label>
               <Select 
                 value={formData.mapped_group_id}
-                onValueChange={(value) => setFormData({ ...formData, mapped_group_id: value })}
+                onValueChange={(value) => setFormData({ ...formData, mapped_group_id: value === '__none__' ? '' : value })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select group (optional)" />
@@ -518,7 +518,7 @@ export function LdapGroupMappings({ configurations, selectedConfigId, onConfigCh
               <Label>Map to Role</Label>
               <Select 
                 value={formData.mapped_role}
-                onValueChange={(value) => setFormData({ ...formData, mapped_role: value })}
+                onValueChange={(value) => setFormData({ ...formData, mapped_role: value === '__none__' ? '' : value })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select role (optional)" />
@@ -536,7 +536,7 @@ export function LdapGroupMappings({ configurations, selectedConfigId, onConfigCh
               <Label>Map to Security Template</Label>
               <Select 
                 value={formData.mapped_security_template_id}
-                onValueChange={(value) => setFormData({ ...formData, mapped_security_template_id: value })}
+                onValueChange={(value) => setFormData({ ...formData, mapped_security_template_id: value === '__none__' ? '' : value })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select template (optional)" />
@@ -556,7 +556,7 @@ export function LdapGroupMappings({ configurations, selectedConfigId, onConfigCh
               <Label>Map to Group</Label>
               <Select 
                 value={formData.mapped_group_id}
-                onValueChange={(value) => setFormData({ ...formData, mapped_group_id: value })}
+                onValueChange={(value) => setFormData({ ...formData, mapped_group_id: value === '__none__' ? '' : value })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select group (optional)" />
