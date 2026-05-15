@@ -29,6 +29,16 @@ function decodeJwt(token: string): any {
   }
 }
 
+function getOidcIssuerUrl(config: { provider_type?: string | null; oidc_issuer_url?: string | null; oidc_tenant_id?: string | null }) {
+  if (config.provider_type === 'azure_entra') {
+    const tenant = (config.oidc_tenant_id || '').trim().toLowerCase();
+    const tenantSegment = ['common', 'organizations', 'consumers'].includes(tenant) ? tenant : 'common';
+    return `https://login.microsoftonline.com/${tenantSegment}/v2.0`;
+  }
+
+  return config.oidc_issuer_url || '';
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -80,8 +90,9 @@ serve(async (req) => {
     }
 
     // Discover token endpoint
+    const issuerUrl = getOidcIssuerUrl(config);
     const discoveryRes = await fetch(
-      `${config.oidc_issuer_url.replace(/\/$/, '')}/.well-known/openid-configuration`
+      `${issuerUrl.replace(/\/$/, '')}/.well-known/openid-configuration`
     );
     if (!discoveryRes.ok) {
       throw new Error(`OIDC discovery failed: ${discoveryRes.status}`);

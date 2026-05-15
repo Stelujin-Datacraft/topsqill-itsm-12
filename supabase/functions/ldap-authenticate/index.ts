@@ -33,6 +33,16 @@ interface LdapAuthResponse {
   fallbackToLocal?: boolean;
 }
 
+function getOidcIssuerUrl(config: { provider_type?: string | null; oidc_issuer_url?: string | null; oidc_tenant_id?: string | null }) {
+  if (config.provider_type === 'azure_entra') {
+    const tenant = (config.oidc_tenant_id || '').trim().toLowerCase();
+    const tenantSegment = ['common', 'organizations', 'consumers'].includes(tenant) ? tenant : 'common';
+    return `https://login.microsoftonline.com/${tenantSegment}/v2.0`;
+  }
+
+  return config.oidc_issuer_url || '';
+}
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -153,7 +163,8 @@ serve(async (req) => {
 
       try {
         // Discover the authorization endpoint via OIDC well-known doc
-        const discoveryUrl = `${config.oidc_issuer_url.replace(/\/$/, '')}/.well-known/openid-configuration`;
+        const issuerUrl = getOidcIssuerUrl(config);
+        const discoveryUrl = `${issuerUrl.replace(/\/$/, '')}/.well-known/openid-configuration`;
         const discoveryRes = await fetch(discoveryUrl);
         if (!discoveryRes.ok) {
           throw new Error(`OIDC discovery failed: ${discoveryRes.status}`);
@@ -177,11 +188,14 @@ serve(async (req) => {
           redirect_uri: finalRedirect,
           scope: scopes.join(' '),
           state: stateValue,
+        });
+        if (hintEmail) {
+          params.set('login_hint', hintEmail);
+        } else {
           // Force account chooser so an existing browser session for a
           // different account doesn't silently sign the user in.
-          prompt: 'select_account',
-        });
-        if (hintEmail) params.set('login_hint', hintEmail);
+          params.set('prompt', 'select_account');
+        }
 
         const authorizationUrl = `${authEndpoint}?${params.toString()}`;
         return new Response(

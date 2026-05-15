@@ -68,7 +68,7 @@ export default function AuthCallback() {
         const email: string | undefined = data.email;
         if (hashedToken && email) {
           const { error: verifyErr } = await supabase.auth.verifyOtp({
-            type: "magiclink",
+            type: "email",
             token_hash: hashedToken,
           });
           if (verifyErr) throw verifyErr;
