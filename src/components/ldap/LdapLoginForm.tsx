@@ -30,6 +30,13 @@ export function LdapLoginForm({
   const [organizationId, setOrganizationId] = useState<string | null>(null);
   const [providerName, setProviderName] = useState<string>('');
   const [autoStarted, setAutoStarted] = useState(false);
+  const isEmbeddedPreview = (() => {
+    try {
+      return window.self !== window.top;
+    } catch {
+      return true;
+    }
+  })();
 
   // Detect provider type for the org so we render the right login UI
   useEffect(() => {
@@ -63,6 +70,7 @@ export function LdapLoginForm({
       providerConfigLoaded &&
       isOidcProvider(providerType) &&
       organizationId &&
+      !isEmbeddedPreview &&
       !autoStarted &&
       !isLoading
     ) {
@@ -70,7 +78,25 @@ export function LdapLoginForm({
       handleOidcSignIn();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [providerConfigLoaded, providerType, organizationId]);
+  }, [providerConfigLoaded, providerType, organizationId, isEmbeddedPreview]);
+
+  const redirectToIdentityProvider = (authorizationUrl: string) => {
+    if (!isEmbeddedPreview) {
+      window.location.assign(authorizationUrl);
+      return;
+    }
+
+    try {
+      if (window.top) {
+        window.top.location.href = authorizationUrl;
+        return;
+      }
+    } catch (error) {
+      console.warn('Top-level redirect unavailable, opening sign-in in a new tab.', error);
+    }
+
+    window.open(authorizationUrl, '_blank', 'noopener,noreferrer');
+  };
 
   const handleOidcSignIn = async () => {
     if (!organizationId) return;
@@ -89,7 +115,7 @@ export function LdapLoginForm({
       });
       if (error) throw error;
       if (data?.authorizationUrl) {
-        window.location.href = data.authorizationUrl;
+        redirectToIdentityProvider(data.authorizationUrl);
         return;
       }
       if (data?.fallbackToLocal) {
