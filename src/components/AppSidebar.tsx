@@ -57,7 +57,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         icon: FolderKanban,
       },
       {
-        title: "Members",
+        title: "Access Control",
         url: "/users",
         icon: User2,
       },
