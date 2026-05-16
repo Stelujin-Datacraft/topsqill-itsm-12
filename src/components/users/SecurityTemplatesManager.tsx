@@ -218,6 +218,10 @@ export function SecurityTemplatesManager({ open, onOpenChange, inline = false }:
                 <CardDescription>Create and manage reusable security profiles</CardDescription>
               </div>
             </div>
+            <Button onClick={handleCreateNew}>
+              <Plus className="h-4 w-4 mr-2" />
+              Create Template
+            </Button>
           </div>
         </CardHeader>
         <CardContent>{body}</CardContent>
