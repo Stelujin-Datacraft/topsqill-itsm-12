@@ -646,8 +646,18 @@ const Users = () => {
 
           {effectiveRole === 'admin' && (
             <TabsContent value="roles" className="space-y-6">
-              <CreateRolesTab />
-              <UserRolesTab />
+              <Tabs defaultValue="create-roles" className="space-y-4">
+                <TabsList className="grid w-full grid-cols-2 sm:w-auto sm:inline-flex h-auto gap-1">
+                  <TabsTrigger value="create-roles">Create Roles</TabsTrigger>
+                  <TabsTrigger value="assign-roles">Assign Roles to Users</TabsTrigger>
+                </TabsList>
+                <TabsContent value="create-roles" className="space-y-6">
+                  <CreateRolesTab />
+                </TabsContent>
+                <TabsContent value="assign-roles" className="space-y-6">
+                  <UserRolesTab />
+                </TabsContent>
+              </Tabs>
             </TabsContent>
           )}
 
