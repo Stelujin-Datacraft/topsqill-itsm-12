@@ -605,6 +605,27 @@ const Users = () => {
             </div>
           </CardContent>
         </Card>
+          </TabsContent>
+
+          {effectiveRole === 'admin' && (
+            <TabsContent value="roles" className="space-y-6">
+              <CreateRolesTab />
+              <UserRolesTab />
+            </TabsContent>
+          )}
+
+          {effectiveRole === 'admin' && (
+            <TabsContent value="groups" className="space-y-6">
+              <GroupRolesTab />
+            </TabsContent>
+          )}
+
+          {effectiveRole === 'admin' && (
+            <TabsContent value="security-templates" className="space-y-6">
+              <SecurityTemplatesManager inline />
+            </TabsContent>
+          )}
+        </Tabs>
       </div>
 
       {/* Dialogs */}
