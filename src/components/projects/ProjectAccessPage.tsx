@@ -17,10 +17,9 @@ import { TopLevelPermissions } from './TopLevelPermissions';
 export default function ProjectAccessPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
-  const { projects } = useProject();
+  const { projects, loading: projectsLoading } = useProject();
   const { userProfile } = useAuth();
   const [project, setProject] = useState<Project | null>(null);
-  const [loading, setLoading] = useState(true);
   const [selectedUserForSettings, setSelectedUserForSettings] = useState<string | null>(null);
 
   const { users, loading: usersLoading, removeUser, refetch } = useEnhancedProjectUsers(projectId || '');
@@ -30,7 +29,6 @@ export default function ProjectAccessPage() {
       const foundProject = projects.find(p => p.id === projectId);
       setProject(foundProject || null);
     }
-    setLoading(false);
   }, [projectId, projects]);
 
   const isProjectAdmin = () => {
@@ -49,7 +47,7 @@ export default function ProjectAccessPage() {
     refetch();
   };
 
-  if (loading) {
+  if (projectsLoading || !userProfile) {
     return (
       <DashboardLayout title="Project Access Management">
         <div className="flex items-center justify-center h-64">
