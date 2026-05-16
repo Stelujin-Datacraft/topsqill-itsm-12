@@ -40,6 +40,7 @@ const Auth = () => {
   // Two-step email-first sign-in flow
   const [signinStep, setSigninStep] = useState<'email' | 'method'>('email');
   const [lookupLoading, setLookupLoading] = useState(false);
+  const [usePasswordInstead, setUsePasswordInstead] = useState(false);
 
   // Redirect authenticated users
   useEffect(() => {
@@ -394,6 +395,7 @@ const Auth = () => {
                         onClick={() => {
                           setSigninStep('email');
                           setSignInData({ ...signInData, password: '' });
+                          setUsePasswordInstead(false);
                         }}
                       >
                         Change
@@ -401,7 +403,8 @@ const Auth = () => {
                     </div>
                   </div>
 
-                  {ldapEnabled && isOidcProvider(providerType) ? (
+                  {ldapEnabled && isOidcProvider(providerType) && !usePasswordInstead ? (
+                    <>
                     <Button
                       type="button"
                       className="w-full"
@@ -413,7 +416,18 @@ const Auth = () => {
                         ? 'Redirecting…'
                         : `Continue with ${getProviderLabel(providerType)}`}
                     </Button>
-                  ) : ldapEnabled ? (
+                    <Button
+                      type="button"
+                      variant="link"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => setUsePasswordInstead(true)}
+                    >
+                      Sign in with password instead
+                    </Button>
+                    </>
+                  ) : ldapEnabled && !usePasswordInstead ? (
+                    <>
                     <Button
                       type="button"
                       className="w-full"
@@ -422,6 +436,16 @@ const Auth = () => {
                       <Server className="h-4 w-4 mr-2" />
                       Sign in with LDAP / Active Directory
                     </Button>
+                    <Button
+                      type="button"
+                      variant="link"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => setUsePasswordInstead(true)}
+                    >
+                      Sign in with password instead
+                    </Button>
+                    </>
                   ) : (
                     <>
                       <div className="space-y-2">
@@ -440,6 +464,17 @@ const Auth = () => {
                       <Button type="submit" className="w-full" disabled={isLoading}>
                         {isLoading ? 'Signing in...' : 'Sign In'}
                       </Button>
+                      {ldapEnabled && (
+                        <Button
+                          type="button"
+                          variant="link"
+                          size="sm"
+                          className="w-full"
+                          onClick={() => setUsePasswordInstead(false)}
+                        >
+                          Back to {isOidcProvider(providerType) ? getProviderLabel(providerType) : 'SSO'} sign-in
+                        </Button>
+                      )}
                     </>
                   )}
 
