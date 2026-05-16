@@ -92,6 +92,14 @@ const Users = () => {
 
   const { roles } = useRoles();
   const { assignments: roleAssignments, refetch: refetchRoleAssignments } = useUserRoleAssignments();
+  const { templates: securityTemplates } = useSecurityTemplates();
+  const { allParameters: securityParams } = useAllSecurityParameters();
+
+  const getAssignedTemplate = (userId: string) => {
+    const p = securityParams.find((a: any) => a.user_id === userId);
+    if (!p?.security_template_id) return null;
+    return securityTemplates.find(t => t.id === p.security_template_id) || null;
+  };
 
   const getAssignedRole = (userId: string) => {
     const a = roleAssignments.find((r: any) => r.user_id === userId);
@@ -498,7 +506,7 @@ const Users = () => {
                 <TableBody>
                   {filteredUsers.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-16 text-muted-foreground">
+                        <TableCell colSpan={7} className="text-center py-16 text-muted-foreground">
                         <div className="flex flex-col items-center gap-2">
                           <UsersIcon className="h-10 w-10 text-muted-foreground/50" />
                           <p>{searchTerm ? 'No members match your search.' : 'No members found.'}</p>
