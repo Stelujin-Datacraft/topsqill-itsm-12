@@ -17,7 +17,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Search, Trash2, UserPlus, Users as UsersIcon, UserCheck, UserX, UserMinus, Clock, Shield, User, ChevronDown, Upload, RefreshCw, Mail, BarChart2, Monitor, ClipboardList, Eye, Pencil } from 'lucide-react';
+import { Search, Trash2, UserPlus, Users as UsersIcon, UserCheck, UserX, UserMinus, Clock, Shield, User, ChevronDown, Upload, RefreshCw, Mail, BarChart2, Monitor, ClipboardList, Eye, Pencil, Network } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useImpersonation } from '@/contexts/ImpersonationContext';
@@ -294,6 +294,10 @@ const Users = () => {
                   <DropdownMenuItem onClick={() => navigate('/roles-and-access')} className="cursor-pointer">
                     <Shield className="h-4 w-4 mr-2 text-primary" />
                     Roles & Access
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate('/ldap-settings')} className="cursor-pointer">
+                    <Network className="h-4 w-4 mr-2 text-primary" />
+                    LDAP Group Mapping
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => navigate('/manage-sessions')} className="cursor-pointer">
                     <Monitor className="h-4 w-4 mr-2 text-primary" />
