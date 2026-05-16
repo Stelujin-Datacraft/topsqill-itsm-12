@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { User, Session } from '@supabase/supabase-js';
 import { useQueryClient } from '@tanstack/react-query';
@@ -73,6 +73,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [profileError, setProfileError] = useState<string | null>(null);
   const [pendingMfa, setPendingMfa] = useState<{ userId: string; email: string } | null>(null);
   const [passwordExpired, setPasswordExpired] = useState(false);
+  const latestProfileRequestRef = useRef(0);
   
   // Get query client for prefetching - wrapped in try/catch for safety
   let queryClient: ReturnType<typeof useQueryClient> | null = null;
@@ -82,8 +83,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // QueryClient not available (e.g., during SSR or outside provider)
   }
 
-  const loadUserProfile = async (userId: string, retryCount = 0) => {
+  const loadUserProfile = async (userId: string, retryCount = 0, requestId?: number) => {
     const MAX_RETRIES = 3;
+    const activeRequestId = requestId ?? latestProfileRequestRef.current + 1;
+    if (requestId === undefined) {
+      latestProfileRequestRef.current = activeRequestId;
+    }
+
+    const isStaleRequest = () => latestProfileRequestRef.current !== activeRequestId;
+
     setProfileError(null);
     try {
       const { data: profile, error } = await supabase
@@ -97,11 +105,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (retryCount < MAX_RETRIES) {
           const delay = Math.min(1000 * Math.pow(2, retryCount), 5000);
           await new Promise(resolve => setTimeout(resolve, delay));
-          return loadUserProfile(userId, retryCount + 1);
+          return loadUserProfile(userId, retryCount + 1, activeRequestId);
         }
+        if (isStaleRequest()) return;
         setProfileError(error.message);
         return;
       }
+
+      if (isStaleRequest()) return;
 
       if (!profile) {
         // Auto-create profile for OAuth users (e.g., Google SSO)
@@ -137,6 +148,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             .single();
 
           if (!insertError && newProfile) {
+            if (isStaleRequest()) return;
             setUserProfile(newProfile as UserProfile);
             if (orgId) {
               const { data: org } = await supabase
@@ -144,16 +156,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 .select('*')
                 .eq('id', orgId)
                 .maybeSingle();
+              if (isStaleRequest()) return;
               setOrganization(org as Organization || null);
             }
             return;
           }
         }
+        if (isStaleRequest()) return;
         setUserProfile(null);
         setOrganization(null);
         return;
       }
 
+      if (isStaleRequest()) return;
       setUserProfile(profile as UserProfile);
 
       if (profile.organization_id) {
@@ -174,6 +189,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .eq('id', profile.organization_id)
           .maybeSingle();
 
+        if (isStaleRequest()) return;
+
         if (orgError) {
           setOrganization(null);
         } else if (org) {
@@ -185,6 +202,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setOrganization(null);
       }
     } catch (error) {
+      if (isStaleRequest()) return;
       setUserProfile(null);
       setOrganization(null);
     }
