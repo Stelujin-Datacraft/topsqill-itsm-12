@@ -37,6 +37,10 @@ const Auth = () => {
   const [organizationId, setOrganizationId] = useState<string | null>(null);
   const [oidcLoading, setOidcLoading] = useState(false);
 
+  // Two-step email-first sign-in flow
+  const [signinStep, setSigninStep] = useState<'email' | 'method'>('email');
+  const [lookupLoading, setLookupLoading] = useState(false);
+
   // Redirect authenticated users
   useEffect(() => {
     if (user && !isLoading) {
@@ -178,6 +182,19 @@ const Auth = () => {
       console.error('Error loading password policy:', error);
     }
     setPolicyLoading(false);
+  };
+
+  const handleEmailNext = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const email = signInData.email.trim();
+    if (!email) return;
+    setLookupLoading(true);
+    try {
+      await checkLdapAvailability(email);
+    } finally {
+      setLookupLoading(false);
+      setSigninStep('method');
+    }
   };
 
   const handleSignIn = async (e: React.FormEvent) => {
@@ -336,8 +353,8 @@ const Auth = () => {
                   }}
                   onFallbackToLocal={() => setShowLdapLogin(false)}
                 />
-              ) : (
-                <form onSubmit={handleSignIn} className="space-y-4">
+              ) : signinStep === 'email' ? (
+                <form onSubmit={handleEmailNext} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="signin-email">Email</Label>
                     <Input
@@ -345,27 +362,86 @@ const Auth = () => {
                       type="email"
                       placeholder="your.email@company.com"
                       value={signInData.email}
-                      onChange={(e) => {
-                        setSignInData({ ...signInData, email: e.target.value });
-                        checkLdapAvailability(e.target.value);
-                      }}
+                      onChange={(e) =>
+                        setSignInData({ ...signInData, email: e.target.value })
+                      }
+                      autoFocus
                       required
                     />
+                    <p className="text-xs text-muted-foreground">
+                      Enter your work email to continue.
+                    </p>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="signin-password">Password</Label>
-                    <Input
-                      id="signin-password"
-                      type="password"
-                      value={signInData.password}
-                      onChange={(e) => setSignInData({ ...signInData, password: e.target.value })}
-                      required
-                    />
-                  </div>
-                  
-                  <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? 'Signing in...' : 'Sign In'}
+                  <Button type="submit" className="w-full" disabled={lookupLoading}>
+                    {lookupLoading ? 'Checking…' : 'Next'}
                   </Button>
+                  <div className="text-center pt-2">
+                    <Link to="/forgot-password" className="text-sm text-primary hover:underline">
+                      Forgot Password?
+                    </Link>
+                  </div>
+                </form>
+              ) : (
+                <form onSubmit={handleSignIn} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Signing in as</Label>
+                    <div className="flex items-center justify-between rounded-md border bg-muted/40 px-3 py-2">
+                      <span className="text-sm truncate">{signInData.email}</span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setSigninStep('email');
+                          setSignInData({ ...signInData, password: '' });
+                        }}
+                      >
+                        Change
+                      </Button>
+                    </div>
+                  </div>
+
+                  {ldapEnabled && isOidcProvider(providerType) ? (
+                    <Button
+                      type="button"
+                      className="w-full"
+                      disabled={oidcLoading}
+                      onClick={handleOidcContinue}
+                    >
+                      <Server className="h-4 w-4 mr-2" />
+                      {oidcLoading
+                        ? 'Redirecting…'
+                        : `Continue with ${getProviderLabel(providerType)}`}
+                    </Button>
+                  ) : ldapEnabled ? (
+                    <Button
+                      type="button"
+                      className="w-full"
+                      onClick={() => setShowLdapLogin(true)}
+                    >
+                      <Server className="h-4 w-4 mr-2" />
+                      Sign in with LDAP / Active Directory
+                    </Button>
+                  ) : (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="signin-password">Password</Label>
+                        <Input
+                          id="signin-password"
+                          type="password"
+                          value={signInData.password}
+                          onChange={(e) =>
+                            setSignInData({ ...signInData, password: e.target.value })
+                          }
+                          autoFocus
+                          required
+                        />
+                      </div>
+                      <Button type="submit" className="w-full" disabled={isLoading}>
+                        {isLoading ? 'Signing in...' : 'Sign In'}
+                      </Button>
+                    </>
+                  )}
 
                   <div className="relative my-2">
                     <div className="absolute inset-0 flex items-center">
@@ -400,27 +476,6 @@ const Auth = () => {
                     </svg>
                     Sign in with Google
                   </Button>
-
-                  {ldapEnabled && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="w-full"
-                      disabled={oidcLoading}
-                      onClick={() => {
-                        if (isOidcProvider(providerType)) {
-                          handleOidcContinue();
-                        } else {
-                          setShowLdapLogin(true);
-                        }
-                      }}
-                    >
-                      <Server className="h-4 w-4 mr-2" />
-                      {isOidcProvider(providerType)
-                        ? (oidcLoading ? 'Redirecting…' : `Continue with ${getProviderLabel(providerType)}`)
-                        : 'Sign in with LDAP / Active Directory'}
-                    </Button>
-                  )}
 
                   <div className="text-center pt-2">
                     <Link to="/forgot-password" className="text-sm text-primary hover:underline">
