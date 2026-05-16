@@ -210,8 +210,15 @@ const ProtectedLayout: React.FC = () => {
     );
   }
 
-  // No user profile genuinely doesn't exist
+  // User is authenticated but profile is still being fetched in the background
+  // (e.g., right after SIGNED_IN / TOKEN_REFRESHED, loadUserProfile runs in a setTimeout).
+  // Show the loading skeleton instead of the misleading "Profile Setup Required" screen.
   if (!userProfile) {
+    return <AuthLoadingSkeleton />;
+  }
+
+  // Reserved: genuine missing-profile UI (kept disabled — profile is auto-created on signup/OAuth)
+  if (false) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
         <div className="text-center">
