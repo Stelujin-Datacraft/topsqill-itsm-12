@@ -246,6 +246,10 @@ export function SecurityTemplatesManager({ open, onOpenChange, inline = false }:
                   </DialogDescription>
                 </div>
               </div>
+              <Button onClick={handleCreateNew} size="sm" className="mr-8">
+                <Plus className="h-4 w-4 mr-2" />
+                Create Template
+              </Button>
             </div>
           </DialogHeader>
           {body}
