@@ -7,6 +7,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { UserRolesTab } from '@/components/roles/UserRolesTab';
+import { GroupRolesTab } from '@/components/roles/GroupRolesTab';
+import { CreateRolesTab } from '@/components/roles/CreateRolesTab';
+import { useRoles } from '@/hooks/useRoles';
+import { useUserRoleAssignments } from '@/hooks/useUserRoleAssignments';
+import { supabase } from '@/integrations/supabase/client';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -78,6 +85,42 @@ const Users = () => {
   const [templatesManagerOpen, setTemplatesManagerOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedUserForEdit, setSelectedUserForEdit] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState('users');
+
+  const { roles } = useRoles();
+  const { assignments: roleAssignments, refetch: refetchRoleAssignments } = useUserRoleAssignments();
+
+  const getAssignedRole = (userId: string) => {
+    const a = roleAssignments.find((r: any) => r.user_id === userId);
+    if (!a) return null;
+    return roles.find(r => r.id === a.role_id) || null;
+  };
+
+  const handleAssignCustomRole = async (userId: string, roleId: string) => {
+    // Remove any existing then insert
+    await supabase.from('user_role_assignments').delete().eq('user_id', userId);
+    const { error } = await supabase.from('user_role_assignments').insert({
+      user_id: userId,
+      role_id: roleId,
+      assigned_by: userProfile?.id,
+    });
+    if (error) {
+      toast({ title: 'Error', description: 'Failed to assign role', variant: 'destructive' });
+    } else {
+      toast({ title: 'Role assigned', description: 'User added to projects derived from role permissions.' });
+      await refetchRoleAssignments();
+    }
+  };
+
+  const handleRemoveCustomRole = async (userId: string) => {
+    const { error } = await supabase.from('user_role_assignments').delete().eq('user_id', userId);
+    if (error) {
+      toast({ title: 'Error', description: 'Failed to remove role', variant: 'destructive' });
+    } else {
+      toast({ title: 'Role removed' });
+      await refetchRoleAssignments();
+    }
+  };
 
   const filteredUsers = users.filter(user =>
     (user.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) || '') ||
