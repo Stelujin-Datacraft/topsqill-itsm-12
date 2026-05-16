@@ -585,6 +585,16 @@ const Users = () => {
                           })()}
                         </TableCell>
                         <TableCell>
+                          {(() => {
+                            const tpl = getAssignedTemplate(user.id);
+                            return tpl ? (
+                              <Badge variant="default" className="text-xs">{tpl.name}</Badge>
+                            ) : (
+                              <Badge variant="secondary" className="text-xs">No Template</Badge>
+                            );
+                          })()}
+                        </TableCell>
+                        <TableCell>
                           <Badge 
                             variant="outline" 
                             className={`text-xs font-medium capitalize px-2.5 py-0.5 ${getStatusBadge(user.status)}`}
