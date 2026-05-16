@@ -249,12 +249,10 @@ export function GroupRolesTab() {
             Create groups and assign roles to multiple users at once
           </p>
         </div>
-        {!showCreateForm && (
-          <Button onClick={handleCreateGroup}>
+        <Button onClick={handleCreateGroup}>
             <Plus className="h-4 w-4 mr-2" />
             Create Group
-          </Button>
-        )}
+        </Button>
       </div>
 
       <Dialog open={showCreateForm} onOpenChange={(o) => { if (!o) handleCancelForm(); }}>
