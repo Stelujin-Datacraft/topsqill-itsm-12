@@ -236,22 +236,6 @@ serve(async (req) => {
       { onConflict: 'user_id' }
     );
 
-    // Apply group mappings (e.g. Azure AD "Owners" -> admin role, "Members" -> user role)
-    try {
-      const { data: groupMappings } = await supabase
-        .from('ldap_group_mappings')
-        .select('*')
-        .eq('ldap_config_id', config.id)
-        .eq('is_active', true)
-        .order('priority', { ascending: true });
-
-      if (groupMappings && groupMappings.length > 0 && groups.length > 0) {
-        await applyGroupMappings(supabase, groupMappings, userId, groups);
-      }
-    } catch (mapErr) {
-      console.error('Group mapping application failed (non-fatal):', mapErr);
-    }
-
     // Generate a one-time magic link the frontend can exchange for a session
     const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
       type: 'magiclink',
@@ -300,63 +284,3 @@ serve(async (req) => {
     );
   }
 });
-
-/**
- * Apply LDAP/IdP group -> role / security template / app group mappings.
- * Matches by case-insensitive substring against the user's group claims
- * (works for both Azure AD group object IDs and display names).
- * First matching mapping (highest priority) wins.
- */
-async function applyGroupMappings(
-  supabase: any,
-  mappings: any[],
-  userId: string,
-  idpGroups: string[]
-): Promise<void> {
-  for (const mapping of mappings) {
-    const needle = (mapping.ldap_group_dn || mapping.ldap_group_name || '').toLowerCase();
-    if (!needle) continue;
-
-    const matches = idpGroups.some((g) => (g || '').toLowerCase().includes(needle));
-    if (!matches) continue;
-
-    console.log(`🎯 OIDC group mapping matched: ${mapping.ldap_group_name} -> role=${mapping.mapped_role}`);
-
-    if (mapping.mapped_role) {
-      await supabase
-        .from('user_profiles')
-        .update({ role: mapping.mapped_role })
-        .eq('id', userId);
-    }
-
-    if (mapping.mapped_security_template_id) {
-      await supabase
-        .from('user_security_parameters')
-        .upsert(
-          {
-            user_id: userId,
-            security_template_id: mapping.mapped_security_template_id,
-            use_template_settings: true,
-          },
-          { onConflict: 'user_id' }
-        );
-    }
-
-    if (mapping.mapped_group_id) {
-      await supabase
-        .from('group_memberships')
-        .upsert(
-          {
-            group_id: mapping.mapped_group_id,
-            member_id: userId,
-            member_type: 'user',
-            added_by: userId,
-          },
-          { onConflict: 'group_id,member_id' }
-        );
-    }
-
-    // First (highest priority) match wins
-    break;
-  }
-}
