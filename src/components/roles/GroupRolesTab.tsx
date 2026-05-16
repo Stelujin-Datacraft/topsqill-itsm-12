@@ -463,10 +463,10 @@ export function GroupRolesTab() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Group Name</TableHead>
-                    <TableHead>Group Members</TableHead>
-                    <TableHead>Role Assigned</TableHead>
-                    <TableHead>Actions</TableHead>
+                     <TableHead>Group Name</TableHead>
+                     <TableHead>Group Members</TableHead>
+                     <TableHead>Role Assigned</TableHead>
+                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -501,8 +501,8 @@ export function GroupRolesTab() {
                             <Badge variant="secondary">No Role</Badge>
                           )}
                         </TableCell>
-                        <TableCell>
-                          <div className="flex gap-2">
+                        <TableCell className="text-right">
+                          <div className="flex gap-2 justify-end">
                             <Button
                               variant="outline"
                               size="sm"
