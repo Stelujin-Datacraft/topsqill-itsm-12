@@ -37,6 +37,10 @@ const Auth = () => {
   const [organizationId, setOrganizationId] = useState<string | null>(null);
   const [oidcLoading, setOidcLoading] = useState(false);
 
+  // Two-step email-first sign-in flow
+  const [signinStep, setSigninStep] = useState<'email' | 'method'>('email');
+  const [lookupLoading, setLookupLoading] = useState(false);
+
   // Redirect authenticated users
   useEffect(() => {
     if (user && !isLoading) {
@@ -178,6 +182,19 @@ const Auth = () => {
       console.error('Error loading password policy:', error);
     }
     setPolicyLoading(false);
+  };
+
+  const handleEmailNext = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const email = signInData.email.trim();
+    if (!email) return;
+    setLookupLoading(true);
+    try {
+      await checkLdapAvailability(email);
+    } finally {
+      setLookupLoading(false);
+      setSigninStep('method');
+    }
   };
 
   const handleSignIn = async (e: React.FormEvent) => {
