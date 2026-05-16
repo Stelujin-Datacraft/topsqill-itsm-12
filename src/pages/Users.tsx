@@ -396,8 +396,15 @@ const Users = () => {
       }
     >
       <div className="space-y-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-auto gap-1">
+            <TabsTrigger value="users">Users</TabsTrigger>
+            {effectiveRole === 'admin' && <TabsTrigger value="roles">Roles</TabsTrigger>}
+            {effectiveRole === 'admin' && <TabsTrigger value="groups">Groups</TabsTrigger>}
+            {effectiveRole === 'admin' && <TabsTrigger value="security-templates">Security Templates</TabsTrigger>}
+          </TabsList>
 
-        {/* Main Content */}
+          <TabsContent value="users" className="space-y-6">
         <Card className="border-border/40 shadow-sm">
           <CardContent className="p-0">
             {/* Search */}
