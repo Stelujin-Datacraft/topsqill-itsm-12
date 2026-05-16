@@ -2,7 +2,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
 import { CreateProjectDialog } from '@/components/projects/CreateProjectDialog';
-import { ProjectInvitationsCard } from '@/components/projects/ProjectInvitationsCard';
 import { FolderOpen, Plus } from 'lucide-react';
 
 const NoProjectSelected = () => {
@@ -11,10 +10,6 @@ const NoProjectSelected = () => {
 
   const handleProjectCreated = (projectId: string) => {
     console.log('Project created from NoProjectSelected:', projectId);
-  };
-
-  const handleInvitationAccepted = (projectId: string) => {
-    console.log('Invitation accepted from NoProjectSelected:', projectId);
   };
 
   return (
@@ -32,7 +27,7 @@ const NoProjectSelected = () => {
               You need to select a project to access forms, workflows, and reports. 
               {canCreateProject 
                 ? ' Create a new project or select an existing one from the sidebar.'
-                : ' Select an existing project from the sidebar or wait for an invitation.'
+                : ' Select an existing project from the sidebar, or ask an admin to assign you a role.'
               }
             </p>
             
@@ -43,9 +38,6 @@ const NoProjectSelected = () => {
             )}
           </CardContent>
         </Card>
-
-        {/* Show project invitations if any exist */}
-        <ProjectInvitationsCard onInvitationAccepted={handleInvitationAccepted} />
       </div>
     </div>
   );
