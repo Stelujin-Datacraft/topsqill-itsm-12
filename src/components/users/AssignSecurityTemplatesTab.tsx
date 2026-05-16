@@ -124,53 +124,57 @@ export function AssignSecurityTemplatesTab() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div>
-              <label className="text-sm font-medium mb-2 block">Select Users (No Current Template)</label>
-              <div className="space-y-2 max-h-40 overflow-y-auto border rounded p-2">
-                {getUnassignedUsers().map(user => (
-                  <div key={user.id} className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      checked={selectedUsers.includes(user.id)}
-                      onChange={(e) => handleUserSelection(user.id, e.target.checked)}
-                      className="rounded"
-                    />
-                    <span className="text-sm">
-                      {user.first_name && user.last_name
-                        ? `${user.first_name} ${user.last_name}`
-                        : user.email}
-                    </span>
-                  </div>
-                ))}
-                {getUnassignedUsers().length === 0 && (
-                  <p className="text-sm text-muted-foreground">All users have templates assigned</p>
-                )}
-              </div>
-            </div>
-
-            {selectedUsers.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="text-sm font-medium mb-2 block">Selected Users ({selectedUsers.length})</label>
-                <div className="bg-white border rounded p-3 min-h-[60px] flex flex-wrap gap-2">
-                  {selectedUsers.map(userId => {
-                    const user = users.find(u => u.id === userId);
-                    return (
-                      <Badge key={userId} variant="secondary" className="flex items-center gap-1">
-                        {user?.first_name && user?.last_name
+                <label className="text-sm font-medium mb-2 block">Available Users (No Current Template)</label>
+                <div className="space-y-2 h-64 overflow-y-auto border rounded p-2">
+                  {getUnassignedUsers().map(user => (
+                    <div key={user.id} className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        checked={selectedUsers.includes(user.id)}
+                        onChange={(e) => handleUserSelection(user.id, e.target.checked)}
+                        className="rounded"
+                      />
+                      <span className="text-sm">
+                        {user.first_name && user.last_name
                           ? `${user.first_name} ${user.last_name}`
-                          : user?.email}
-                        <button
-                          onClick={() => removeSelectedUser(userId)}
-                          className="ml-1 hover:bg-destructive/20 rounded-full p-0.5"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </Badge>
-                    );
-                  })}
+                          : user.email}
+                      </span>
+                    </div>
+                  ))}
+                  {getUnassignedUsers().length === 0 && (
+                    <p className="text-sm text-muted-foreground">All users have templates assigned</p>
+                  )}
                 </div>
               </div>
-            )}
+
+              <div>
+                <label className="text-sm font-medium mb-2 block">Selected Users ({selectedUsers.length})</label>
+                <div className="bg-muted/30 border rounded p-3 h-64 overflow-y-auto flex flex-wrap gap-2 content-start">
+                  {selectedUsers.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No users selected yet</p>
+                  ) : (
+                    selectedUsers.map(userId => {
+                      const user = users.find(u => u.id === userId);
+                      return (
+                        <Badge key={userId} variant="secondary" className="flex items-center gap-1 h-fit">
+                          {user?.first_name && user?.last_name
+                            ? `${user.first_name} ${user.last_name}`
+                            : user?.email}
+                          <button
+                            onClick={() => removeSelectedUser(userId)}
+                            className="ml-1 hover:bg-destructive/20 rounded-full p-0.5"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </Badge>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            </div>
 
             <div>
               <label className="text-sm font-medium mb-2 block">Select Template</label>
