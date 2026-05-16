@@ -330,11 +330,11 @@ export function EnhancedProjectUsersDialog({ projectId, isOpen, onClose }: Enhan
                   </Button>
                 </div>
 
-                <TopLevelPermissions
-                  projectId={projectId}
-                  userId={selectedUserForSettings}
-                  isCurrentUserAdmin={isCurrentUserAdmin}
-                />
+                <div className="text-sm text-muted-foreground">
+                  Project-level (top-level) permissions have been removed.
+                  Per-asset access (forms, reports, workflows, dashboards) is
+                  now managed through each asset's access matrix.
+                </div>
               </>
             )}
           </TabsContent>
