@@ -345,10 +345,6 @@ const Users = () => {
               </DropdownMenuItem>
               {effectiveRole === 'admin' && (
                 <>
-                  <DropdownMenuItem onClick={() => navigate('/roles-and-access')} className="cursor-pointer">
-                    <Shield className="h-4 w-4 mr-2 text-primary" />
-                    Roles & Access
-                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => navigate('/manage-sessions')} className="cursor-pointer">
                     <Monitor className="h-4 w-4 mr-2 text-primary" />
                     Manage Sessions
@@ -361,10 +357,6 @@ const Users = () => {
               )}
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button size="sm" variant="outline" onClick={() => setTemplatesManagerOpen(true)}>
-            <Shield className="h-4 w-4 mr-2" />
-            Security Templates
-          </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button size="sm">
