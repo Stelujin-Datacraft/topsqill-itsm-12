@@ -283,61 +283,43 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
       return true;
     }
 
-    const hasAssignedRole = !!state.userRole;
-
-    const topLevelPerm = state.topLevelPermissions[entityType];
-    let topLevelAllows = false;
-    
-    switch (action) {
-      case 'create':
-        topLevelAllows = topLevelPerm.can_create;
-        break;
-      case 'read':
-        topLevelAllows = topLevelPerm.can_read;
-        break;
-      case 'update':
-        topLevelAllows = topLevelPerm.can_update;
-        break;
-      case 'delete':
-        topLevelAllows = topLevelPerm.can_delete;
-        break;
-    }
-
-    if (!topLevelAllows) {
+    // ---- Top-level project permissions are DEPRECATED ----
+    // Standalone "create" buttons follow simple rules:
+    //   - forms / workflows / policies / projects → admin only (already returned above)
+    //   - reports / dashboards → any project member can create
+    // Per-resource (resourceId) checks fall back to role-based permissions for
+    // update/delete, while read defaults to true and is filtered via
+    // getVisibleResources or per-asset access matrices.
+    if (action === 'create' && !resourceId) {
+      if (entityType === 'reports' || entityType === 'dashboards') {
+        return true;
+      }
+      // forms / workflows / policies / projects: admin-only standalone create
       return false;
     }
 
-    if (!hasAssignedRole) {
-      return topLevelAllows;
+    if (action === 'read') {
+      // Visibility of individual resources is handled by getVisibleResources
+      // and per-asset access checks (form access matrix, etc.)
+      return true;
     }
 
     if (resourceId) {
       const rolePerms = state.rolePermissions[entityType][resourceId];
-      
       if (!rolePerms) {
+        // For per-resource create (e.g. submit a form), default-allow when no
+        // role-based override exists; per-form access matrix gates this.
+        if (action === 'create') return true;
         return false;
       }
-      
-      let roleAllows = false;
       switch (action) {
-        case 'create':
-          roleAllows = rolePerms.can_create;
-          break;
-        case 'read':
-          roleAllows = rolePerms.can_read;
-          break;
-        case 'update':
-          roleAllows = rolePerms.can_update;
-          break;
-        case 'delete':
-          roleAllows = rolePerms.can_delete;
-          break;
+        case 'create': return rolePerms.can_create;
+        case 'update': return rolePerms.can_update;
+        case 'delete': return rolePerms.can_delete;
       }
-      
-      return roleAllows;
-    } else {
-      return true;
     }
+
+    return false;
   };
 
   const getVisibleResources = (entityType: EntityType, allResources: any[]): any[] => {
@@ -345,46 +327,25 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
       return allResources;
     }
 
-    const hasAssignedRole = !!state.userRole;
-
-    if (!hasAssignedRole) {
-      const canRead = state.topLevelPermissions[entityType]?.can_read;
-      
-      if (!canRead) {
-        // Even without top-level read, owners should see their own resources
-        return allResources.filter(resource => isResourceOwner(resource));
-      }
-
-      if (entityType === 'forms') {
-        return allResources.filter(resource => 
-          resource.isPublic === true || isResourceOwner(resource)
-        );
-      }
-
-      return allResources;
-    }
-
-    const topLevelCanRead = state.topLevelPermissions[entityType]?.can_read;
-    
-    if (!topLevelCanRead) {
-      // Owners still see their own resources
-      return allResources.filter(resource => isResourceOwner(resource));
-    }
-
+    // Forms: public + owned + role-granted reads
     if (entityType === 'forms') {
       return allResources.filter(resource => {
         if (resource.isPublic === true) return true;
         if (isResourceOwner(resource)) return true;
-
         const rolePerms = state.rolePermissions[entityType][resource.id];
-        return rolePerms?.can_read || false;
+        if (rolePerms?.can_read) return true;
+        // No role-based restriction → visible by default (per-form access
+        // matrix may still hide it elsewhere)
+        return !state.userRole;
       });
     }
 
+    // Other entities: visible by default unless a role explicitly restricts
     return allResources.filter(resource => {
       if (isResourceOwner(resource)) return true;
       const rolePerms = state.rolePermissions[entityType][resource.id];
-      return rolePerms?.can_read || false;
+      if (rolePerms) return rolePerms.can_read;
+      return true;
     });
   };
 
@@ -392,42 +353,13 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
     const hasAccess = hasPermission(entityType, action, resourceId);
     
     if (!hasAccess) {
-      if (state.isOrgAdmin || state.isProjectAdmin) {
-        return hasAccess;
-      }
-
-      const hasAssignedRole = !!state.userRole;
-      
-      if (!hasAssignedRole) {
-        toast.error(`You do not have ${action} permission for ${entityType}`);
+      if (action === 'create' && !resourceId &&
+          (entityType === 'forms' || entityType === 'workflows' || entityType === 'policies')) {
+        toast.error(`Only administrators can create ${entityType}`);
+      } else if (resourceId) {
+        toast.error(`Your role does not have ${action} permission for this ${entityType.slice(0, -1)}`);
       } else {
-        const topLevelPerm = state.topLevelPermissions[entityType];
-        let topLevelAllows = false;
-        
-        switch (action) {
-          case 'create':
-            topLevelAllows = topLevelPerm.can_create;
-            break;
-          case 'read':
-            topLevelAllows = topLevelPerm.can_read;
-            break;
-          case 'update':
-            topLevelAllows = topLevelPerm.can_update;
-            break;
-          case 'delete':
-            topLevelAllows = topLevelPerm.can_delete;
-            break;
-        }
-
-        if (!topLevelAllows) {
-          toast.error(`You do not have top-level ${action} permission for ${entityType}`);
-        } else {
-          if (resourceId) {
-            toast.error(`Your role does not have ${action} permission for this specific ${entityType.slice(0, -1)}`);
-          } else {
-            toast.error(`Your role does not have ${action} permission for any ${entityType}`);
-          }
-        }
+        toast.error(`You do not have ${action} permission for ${entityType}`);
       }
     }
     
@@ -455,39 +387,14 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
       return { disabled: false, tooltip: '' };
     }
 
-    const hasAssignedRole = !!state.userRole;
     let tooltip = '';
-
-    if (!hasAssignedRole) {
-      tooltip = `No ${action} permission for ${entityType}`;
+    if (action === 'create' && !resourceId &&
+        (entityType === 'forms' || entityType === 'workflows' || entityType === 'policies')) {
+      tooltip = `Only administrators can create ${entityType}`;
+    } else if (resourceId) {
+      tooltip = `Role lacks ${action} permission for this ${entityType.slice(0, -1)}`;
     } else {
-      const topLevelPerm = state.topLevelPermissions[entityType];
-      let topLevelAllows = false;
-      
-      switch (action) {
-        case 'create':
-          topLevelAllows = topLevelPerm.can_create;
-          break;
-        case 'read':
-          topLevelAllows = topLevelPerm.can_read;
-          break;
-        case 'update':
-          topLevelAllows = topLevelPerm.can_update;
-          break;
-        case 'delete':
-          topLevelAllows = topLevelPerm.can_delete;
-          break;
-      }
-
-      if (!topLevelAllows) {
-        tooltip = `No top-level ${action} permission for ${entityType}`;
-      } else {
-        if (resourceId) {
-          tooltip = `Role lacks ${action} permission for this specific ${entityType.slice(0, -1)}`;
-        } else {
-          tooltip = `Role lacks ${action} permission for ${entityType}`;
-        }
-      }
+      tooltip = `No ${action} permission for ${entityType}`;
     }
 
     return { disabled: true, tooltip };
