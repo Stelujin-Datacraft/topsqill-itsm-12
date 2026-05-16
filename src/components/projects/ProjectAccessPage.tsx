@@ -119,11 +119,11 @@ export default function ProjectAccessPage() {
               </div>
             </CardHeader>
             <CardContent>
-              <TopLevelPermissions
-                projectId={project.id}
-                userId={selectedUserForSettings}
-                isCurrentUserAdmin={isProjectAdmin()}
-              />
+              <div className="text-sm text-muted-foreground">
+                Project-level (top-level) permissions have been removed.
+                Per-asset access is now managed through the Forms, Reports,
+                Workflows, and Dashboards access matrices.
+              </div>
             </CardContent>
           </Card>
         )}

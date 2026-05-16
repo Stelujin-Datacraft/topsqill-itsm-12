@@ -23,13 +23,15 @@ interface FormViewLayoutRendererProps {
   onSubmit: (formData: Record<string, any>) => void;
   showNavigation?: boolean;
   showPublicHeader?: boolean;
+  canSubmit?: boolean;
 }
 
 export function FormViewLayoutRenderer({ 
   form, 
   onSubmit, 
   showNavigation = true,
-  showPublicHeader = false 
+  showPublicHeader = false,
+  canSubmit = true,
 }: FormViewLayoutRendererProps) {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -624,19 +626,25 @@ export function FormViewLayoutRenderer({
           {/* Sticky Action Buttons at Bottom */}
           <div className="shrink-0 px-16 py-4 bg-slate-50/80 dark:bg-gray-900/50 border-t border-slate-200 dark:border-slate-700">
             <div className="max-w-5xl mx-auto">
+              {!canSubmit && (
+                <div className="mb-3 text-xs text-muted-foreground text-right">
+                  You have view-only access to this form.
+                </div>
+              )}
               <div className="flex flex-col sm:flex-row gap-3 justify-end">
                 <Button 
                   variant="outline" 
                   size="default"
-                  onClick={() => handleSave(formData)}
+                  onClick={() => canSubmit && handleSave(formData)}
+                  disabled={!canSubmit}
                   className="px-6 py-2 text-sm font-medium border-slate-300 dark:border-slate-600 hover:border-slate-400 dark:hover:border-slate-500 bg-white dark:bg-gray-950 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors duration-200"
                 >
                   Save Draft
                 </Button>
                 <Button 
                   size="default"
-                  onClick={() => handleFormSubmit(formData)}
-                  disabled={isSubmitting}
+                  onClick={() => canSubmit && handleFormSubmit(formData)}
+                  disabled={isSubmitting || !canSubmit}
                   className="px-6 py-2 text-sm font-medium bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:hover:bg-slate-200 text-white dark:text-slate-900 transition-colors duration-200"
                 >
                   {isSubmitting ? 'Submitting...' : 'Submit Form'}

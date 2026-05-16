@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useFormWithFields } from '@/hooks/useFormWithFields';
 import { useUnifiedAccessControl } from '@/hooks/useUnifiedAccessControl';
 import { useFormUserAccess } from '@/hooks/useFormUserAccess';
+import { useFormSubmissionAccess } from '@/hooks/useFormSubmissionAccess';
 import { FormViewLayoutRenderer } from '@/components/FormViewLayoutRenderer';
 import { FormSubmissionSuccess } from '@/components/FormSubmissionSuccess';
 import { useFormSubmissionHandler } from '@/hooks/useFormSubmissionHandler';
@@ -30,6 +31,9 @@ const FormView = () => {
   
   // Check if user has direct form access (invited, approved, or assigned)
   const { hasAccess: hasDirectAccess, loading: directAccessLoading, accessRole } = useFormUserAccess(id || '');
+
+  // Per-form submit permission (drives Submit / Save Draft button state)
+  const { canCreateRecords } = useFormSubmissionAccess(id || '');
   
   // Form submission handler
   const { handleFormSubmit } = useFormSubmissionHandler(id, form);
@@ -259,6 +263,7 @@ const FormView = () => {
               onSubmit={onFormSubmit}
               showNavigation={true}
               showPublicHeader={false}
+              canSubmit={isOrgAdmin || isProjectAdmin || isFormCreator || canCreateRecords}
             />
           </div>
         </div>      

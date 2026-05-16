@@ -24,8 +24,6 @@ const Reports = () => {
     }
   }, [currentProject]);
 
-  const createButtonState = getButtonState('reports', 'create');
-
   if (!currentProject) {
     return (
       <DashboardLayout title="Dashboards">
@@ -74,7 +72,7 @@ const Reports = () => {
             Form Analysis
           </Button>
           <CreateDashboardDialog>
-            <Button disabled={createButtonState.disabled}>
+            <Button>
               <Plus className="h-4 w-4 mr-2" />
               Create Dashboard
             </Button>

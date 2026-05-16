@@ -5,6 +5,7 @@ import { CreateWorkflowDialog } from '@/components/workflows/CreateWorkflowDialo
 import { useWorkflowData } from '@/hooks/useWorkflowData';
 import { useNavigate } from 'react-router-dom';
 import { useUnifiedAccessControl } from '@/hooks/useUnifiedAccessControl';
+import { useAuth } from '@/contexts/AuthContext';
 import { useProject } from '@/contexts/ProjectContext';
 import { Workflow } from '@/types/workflow';
 import NoProjectSelected from '@/components/NoProjectSelected';
@@ -18,6 +19,8 @@ const Workflows = () => {
   const { workflows, deleteWorkflow } = useWorkflowData();
   const { hasPermission, checkPermissionWithAlert, getVisibleResources, loading: permissionLoading } = useUnifiedAccessControl();
   const { currentProject } = useProject();
+  const { userProfile } = useAuth();
+  const isAdmin = userProfile?.role === 'admin';
   const { toast } = useToast();
  const [activeTab, setActiveTab] = useState('workflows');
 
@@ -79,7 +82,7 @@ const Workflows = () => {
    <DashboardLayout 
      title="Workflows"
      description="Design and manage automated workflows and business processes"
-     actions={activeTab === 'workflows' ? <CreateWorkflowDialog onWorkflowCreated={handleWorkflowCreated} /> : undefined}
+     actions={activeTab === 'workflows' && isAdmin ? <CreateWorkflowDialog onWorkflowCreated={handleWorkflowCreated} /> : undefined}
    >
      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
        <TabsList>
