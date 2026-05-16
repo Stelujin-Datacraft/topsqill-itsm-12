@@ -6543,10 +6543,6 @@ export type Database = {
         Args: { invitation_id_param: string }
         Returns: Json
       }
-      auto_add_user_to_role_projects: {
-        Args: { _role_id: string; _user_id: string }
-        Returns: undefined
-      }
       bulk_update_submission_field: {
         Args: { _field_id: string; _form_id: string; _new_value: Json }
         Returns: number

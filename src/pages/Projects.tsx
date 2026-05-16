@@ -10,7 +10,7 @@ import { CreateProjectDialog } from '@/components/projects/CreateProjectDialog';
 import { ProjectsTable } from '@/components/projects/ProjectsTable';
 import { Project } from '@/types/project';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-// Project invitations removed — users are auto-added when a role is assigned.
+import { ProjectInvitationsCard } from '@/components/projects/ProjectInvitationsCard';
 
 const Projects = () => {
   const { projects, loading, setCurrentProject, currentProject } = useProject();
@@ -47,6 +47,9 @@ const Projects = () => {
   return (
     <DashboardLayout title="Projects" description="Manage your projects and collaborate with team members">
       <div className="space-y-6">
+        {/* Project Invitations */}
+        <ProjectInvitationsCard onInvitationAccepted={handleInvitationAccepted} />
+
         {/* Search Bar */}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4 pointer-events-none" />

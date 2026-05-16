@@ -9,17 +9,17 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, AlertTriangle } from 'lucide-react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { ProjectUsersTable } from './ProjectUsersTable';
-// Manual invitations removed — project membership is granted automatically
-// when a role with form permissions is assigned to a user.
+import { UserInvitationSection } from './UserInvitationSection';
 import { useEnhancedProjectUsers } from '@/hooks/useEnhancedProjectUsers';
 import { TopLevelPermissions } from './TopLevelPermissions';
 
 export default function ProjectAccessPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
-  const { projects, loading: projectsLoading } = useProject();
+  const { projects } = useProject();
   const { userProfile } = useAuth();
   const [project, setProject] = useState<Project | null>(null);
+  const [loading, setLoading] = useState(true);
   const [selectedUserForSettings, setSelectedUserForSettings] = useState<string | null>(null);
 
   const { users, loading: usersLoading, removeUser, refetch } = useEnhancedProjectUsers(projectId || '');
@@ -29,6 +29,7 @@ export default function ProjectAccessPage() {
       const foundProject = projects.find(p => p.id === projectId);
       setProject(foundProject || null);
     }
+    setLoading(false);
   }, [projectId, projects]);
 
   const isProjectAdmin = () => {
@@ -47,7 +48,7 @@ export default function ProjectAccessPage() {
     refetch();
   };
 
-  if (projectsLoading || !userProfile) {
+  if (loading) {
     return (
       <DashboardLayout title="Project Access Management">
         <div className="flex items-center justify-center h-64">
@@ -131,6 +132,12 @@ export default function ProjectAccessPage() {
         {/* Main Team Management - Show when no user is selected */}
         {!selectedUserForSettings && (
           <>
+            {/* Invitation Section */}
+            <UserInvitationSection
+              projectId={project.id}
+              onInvitationSent={handleInvitationSent}
+            />
+
             {/* Users Table */}
             <ProjectUsersTable
               users={users}
