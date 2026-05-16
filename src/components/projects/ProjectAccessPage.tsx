@@ -9,7 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, AlertTriangle } from 'lucide-react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { ProjectUsersTable } from './ProjectUsersTable';
-import { UserInvitationSection } from './UserInvitationSection';
+// Manual invitations removed — project membership is granted automatically
+// when a role with form permissions is assigned to a user.
 import { useEnhancedProjectUsers } from '@/hooks/useEnhancedProjectUsers';
 import { TopLevelPermissions } from './TopLevelPermissions';
 
@@ -132,12 +133,6 @@ export default function ProjectAccessPage() {
         {/* Main Team Management - Show when no user is selected */}
         {!selectedUserForSettings && (
           <>
-            {/* Invitation Section */}
-            <UserInvitationSection
-              projectId={project.id}
-              onInvitationSent={handleInvitationSent}
-            />
-
             {/* Users Table */}
             <ProjectUsersTable
               users={users}
