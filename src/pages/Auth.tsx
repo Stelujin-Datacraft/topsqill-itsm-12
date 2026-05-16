@@ -36,6 +36,7 @@ const Auth = () => {
   const [autoRedirectedFor, setAutoRedirectedFor] = useState<string>('');
   const [organizationId, setOrganizationId] = useState<string | null>(null);
   const [oidcLoading, setOidcLoading] = useState(false);
+  const [prefetchedAuthUrl, setPrefetchedAuthUrl] = useState<string | null>(null);
 
   // Two-step email-first sign-in flow
   const [signinStep, setSigninStep] = useState<'email' | 'method'>('email');
@@ -77,12 +78,50 @@ const Auth = () => {
       const detectedType = hasProvider ? (data?.providerType || 'ldap') : 'ldap';
       setProviderType(detectedType);
       setOrganizationId(hasProvider ? (data?.organizationId || null) : null);
+
+      // Prefetch the OIDC authorization URL in the background so clicking
+      // "Continue with Microsoft" redirects instantly (no extra roundtrip).
+      if (hasProvider && isOidcProvider(detectedType) && data?.organizationId) {
+        prefetchAuthorizationUrl(data.organizationId, email);
+      } else {
+        setPrefetchedAuthUrl(null);
+      }
     } catch (e) {
       console.error('Error checking LDAP availability:', e);
       setLdapEnabled(false);
       setLdapDomain('');
       setProviderType('ldap');
       setOrganizationId(null);
+      setPrefetchedAuthUrl(null);
+    }
+  };
+
+  // Warm up the IdP authorization URL while the user is on the method step.
+  const prefetchAuthorizationUrl = async (orgId: string, email: string) => {
+    try {
+      // Preconnect to Microsoft to shave TLS/DNS time off the redirect.
+      if (typeof document !== 'undefined') {
+        const href = 'https://login.microsoftonline.com';
+        if (!document.querySelector(`link[rel="preconnect"][href="${href}"]`)) {
+          const link = document.createElement('link');
+          link.rel = 'preconnect';
+          link.href = href;
+          link.crossOrigin = '';
+          document.head.appendChild(link);
+        }
+      }
+      const { data, error } = await supabase.functions.invoke('ldap-authenticate', {
+        body: {
+          organizationId: orgId,
+          mode: 'authorize',
+          loginHint: email || undefined,
+        },
+      });
+      if (!error && data?.authorizationUrl) {
+        setPrefetchedAuthUrl(data.authorizationUrl);
+      }
+    } catch (e) {
+      console.warn('Authorization URL prefetch failed:', e);
     }
   };
 
@@ -90,6 +129,13 @@ const Auth = () => {
     if (!organizationId) return;
     setOidcLoading(true);
     try {
+      // Fast path: if we already prefetched the authorization URL during
+      // the lookup step, redirect immediately — no extra roundtrip.
+      const fastUrl = prefetchedAuthUrl;
+      if (fastUrl) {
+        redirectToAuthUrl(fastUrl);
+        return;
+      }
       const { data, error } = await supabase.functions.invoke('ldap-authenticate', {
         body: {
           organizationId,
@@ -99,24 +145,7 @@ const Auth = () => {
       });
       if (error) throw error;
       if (data?.authorizationUrl) {
-        // Break out of the Lovable preview iframe — Microsoft / Google
-        // refuse to render inside iframes (X-Frame-Options: DENY).
-        // window.open(url, '_top') works cross-origin without throwing,
-        // unlike `window.top.location.href = ...` which raises a
-        // SecurityError when the parent frame is cross-origin and then
-        // silently falls back to loading Microsoft inside the iframe.
-        const inIframe = (() => {
-          try { return window.self !== window.top; } catch { return true; }
-        })();
-        if (inIframe) {
-          const opened = window.open(data.authorizationUrl, '_top');
-          if (!opened) {
-            // Popup blocker / sandboxed iframe — fall back to a new tab
-            window.open(data.authorizationUrl, '_blank', 'noopener,noreferrer');
-          }
-        } else {
-          window.location.assign(data.authorizationUrl);
-        }
+        redirectToAuthUrl(data.authorizationUrl);
         return;
       }
       toast({
@@ -132,6 +161,22 @@ const Auth = () => {
       });
     } finally {
       setOidcLoading(false);
+    }
+  };
+
+  const redirectToAuthUrl = (authorizationUrl: string) => {
+    // Break out of the Lovable preview iframe — Microsoft / Google refuse
+    // to render inside iframes (X-Frame-Options: DENY).
+    const inIframe = (() => {
+      try { return window.self !== window.top; } catch { return true; }
+    })();
+    if (inIframe) {
+      const opened = window.open(authorizationUrl, '_top');
+      if (!opened) {
+        window.open(authorizationUrl, '_blank', 'noopener,noreferrer');
+      }
+    } else {
+      window.location.assign(authorizationUrl);
     }
   };
 
