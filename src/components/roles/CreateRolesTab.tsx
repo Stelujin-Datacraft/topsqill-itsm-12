@@ -342,12 +342,10 @@ export function CreateRolesTab() {
             Define custom roles with specific permissions for your organization
           </p>
         </div>
-        {!isCreating && !editingRole && (
-          <Button onClick={handleStartCreate}>
+        <Button onClick={handleStartCreate}>
             <Plus className="h-4 w-4 mr-2" />
             Create New Role
-          </Button>
-        )}
+        </Button>
       </div>
 
       {/* Create/Edit Role Modal */}
