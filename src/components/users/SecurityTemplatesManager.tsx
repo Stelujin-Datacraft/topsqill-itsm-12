@@ -116,12 +116,6 @@ export function SecurityTemplatesManager({ open, onOpenChange, inline = false }:
         </div>
       ) : (
         <div className="mt-4 space-y-4">
-          <div className="flex items-center gap-2">
-            <Button onClick={handleCreateNew} size="sm">
-              <Plus className="h-4 w-4 mr-2" />
-              Create Template
-            </Button>
-          </div>
           {templates.length === 0 ? (
             <Card className="border-dashed">
               <CardContent className="flex flex-col items-center justify-center py-12">
