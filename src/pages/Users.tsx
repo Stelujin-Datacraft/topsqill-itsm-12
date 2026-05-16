@@ -45,6 +45,7 @@ import { useOrganization } from '@/contexts/OrganizationContext';
 import { useToast } from '@/hooks/use-toast';
 import { SecurityParametersDialog } from '@/components/users/SecurityParametersDialog';
 import { SecurityTemplatesManager } from '@/components/users/SecurityTemplatesManager';
+import { AssignSecurityTemplatesTab } from '@/components/users/AssignSecurityTemplatesTab';
 import { UserEditDialog } from '@/components/users/UserEditDialog';
 
 const Users = () => {
@@ -669,7 +670,18 @@ const Users = () => {
 
           {effectiveRole === 'admin' && (
             <TabsContent value="security-templates" className="space-y-6">
-              <SecurityTemplatesManager inline />
+              <Tabs defaultValue="create-templates" className="w-full">
+                <TabsList>
+                  <TabsTrigger value="create-templates">Create Templates</TabsTrigger>
+                  <TabsTrigger value="assign-templates">Assign Templates to Users</TabsTrigger>
+                </TabsList>
+                <TabsContent value="create-templates" className="mt-4">
+                  <SecurityTemplatesManager inline />
+                </TabsContent>
+                <TabsContent value="assign-templates" className="mt-4">
+                  <AssignSecurityTemplatesTab />
+                </TabsContent>
+              </Tabs>
             </TabsContent>
           )}
         </Tabs>
