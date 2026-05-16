@@ -22,7 +22,7 @@ export function AssignSecurityTemplatesTab() {
   const { templates, loading: templatesLoading } = useSecurityTemplates();
   const { allParameters, loading: paramsLoading, refetch } = useAllSecurityParameters();
 
-  const users = allUsers.filter(u => u.role !== 'admin');
+  const users = allUsers;
 
   const getUserTemplate = (userId: string) => {
     const p = allParameters.find(a => a.user_id === userId);
@@ -143,7 +143,7 @@ export function AssignSecurityTemplatesTab() {
                   </div>
                 ))}
                 {getUnassignedUsers().length === 0 && (
-                  <p className="text-sm text-muted-foreground">All non-admin users have templates assigned</p>
+                  <p className="text-sm text-muted-foreground">All users have templates assigned</p>
                 )}
               </div>
             </div>
