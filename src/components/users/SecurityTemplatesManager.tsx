@@ -33,11 +33,12 @@ import { useSecurityTemplates, SecurityTemplate, SecurityTemplateInput } from '@
 import { SecurityTemplateFormDialog } from './SecurityTemplateFormDialog';
 
 interface SecurityTemplatesManagerProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  inline?: boolean;
 }
 
-export function SecurityTemplatesManager({ open, onOpenChange }: SecurityTemplatesManagerProps) {
+export function SecurityTemplatesManager({ open, onOpenChange, inline = false }: SecurityTemplatesManagerProps) {
   const { 
     templates, 
     loading, 
@@ -107,6 +108,129 @@ export function SecurityTemplatesManager({ open, onOpenChange }: SecurityTemplat
     return stats;
   };
 
+  const body = (
+    <>
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full" />
+        </div>
+      ) : (
+        <div className="mt-4 space-y-4">
+          <div className="flex items-center gap-2">
+            <Button onClick={handleCreateNew} size="sm">
+              <Plus className="h-4 w-4 mr-2" />
+              Create Template
+            </Button>
+          </div>
+          {templates.length === 0 ? (
+            <Card className="border-dashed">
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <Shield className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                <p className="text-muted-foreground text-center">
+                  No security templates yet.<br />
+                  Create one to get started.
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {templates.map((template) => (
+                <Card key={template.id} className="hover:shadow-md transition-shadow">
+                  <CardHeader className="pb-2">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <CardTitle className="text-base flex items-center gap-2">
+                          {template.name}
+                          {template.is_default && (
+                            <Badge variant="secondary" className="text-xs">Default</Badge>
+                          )}
+                        </CardTitle>
+                        {template.description && (
+                          <CardDescription className="mt-1">
+                            {template.description}
+                          </CardDescription>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(template)}>
+                          <Edit2 className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleDelete(template)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <div className="flex flex-wrap gap-2">
+                      {getTemplateStats(template).map((stat, idx) => (
+                        <Badge key={idx} variant="outline" className="text-xs flex items-center gap-1">
+                          <stat.icon className={`h-3 w-3 ${stat.color}`} />
+                          {stat.label}
+                        </Badge>
+                      ))}
+                      <Badge variant="outline" className="text-xs">Password: {template.password_min_length}+ chars</Badge>
+                      <Badge variant="outline" className="text-xs">Session: {template.session_timeout_minutes}m</Badge>
+                      <Badge variant="outline" className="text-xs">Max Sessions: {template.max_concurrent_sessions}</Badge>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      <SecurityTemplateFormDialog
+        open={formDialogOpen}
+        onOpenChange={setFormDialogOpen}
+        template={selectedTemplate}
+        defaultValues={defaultTemplate}
+        onSave={handleSave}
+        saving={saving}
+      />
+
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Security Template</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{templateToDelete?.name}"?
+              Users assigned to this template will fall back to organization defaults.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+
+  if (inline) {
+    return (
+      <Card>
+        <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <Shield className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                <CardTitle className="text-xl">Security Templates</CardTitle>
+                <CardDescription>Create and manage reusable security profiles</CardDescription>
+              </div>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>{body}</CardContent>
+      </Card>
+    );
+  }
+
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -126,130 +250,9 @@ export function SecurityTemplatesManager({ open, onOpenChange }: SecurityTemplat
               </div>
             </div>
           </DialogHeader>
-
-          {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full" />
-            </div>
-          ) : (
-            <div className="mt-4 space-y-4">
-              {/* Actions */}
-              <div className="flex items-center gap-2">
-                <Button onClick={handleCreateNew} size="sm">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create Template
-                </Button>
-              </div>
-
-              {/* Templates List */}
-              {templates.length === 0 ? (
-                <Card className="border-dashed">
-                  <CardContent className="flex flex-col items-center justify-center py-12">
-                    <Shield className="h-12 w-12 text-muted-foreground/50 mb-4" />
-                    <p className="text-muted-foreground text-center">
-                      No security templates yet.<br />
-                      Create one to get started.
-                    </p>
-                  </CardContent>
-                </Card>
-              ) : (
-                <div className="space-y-3">
-                  {templates.map((template) => (
-                    <Card key={template.id} className="hover:shadow-md transition-shadow">
-                      <CardHeader className="pb-2">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <CardTitle className="text-base flex items-center gap-2">
-                              {template.name}
-                              {template.is_default && (
-                                <Badge variant="secondary" className="text-xs">Default</Badge>
-                              )}
-                            </CardTitle>
-                            {template.description && (
-                              <CardDescription className="mt-1">
-                                {template.description}
-                              </CardDescription>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
-                              onClick={() => handleEdit(template)}
-                            >
-                              <Edit2 className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-destructive hover:text-destructive"
-                              onClick={() => handleDelete(template)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="pt-0">
-                        <div className="flex flex-wrap gap-2">
-                          {getTemplateStats(template).map((stat, idx) => (
-                            <Badge key={idx} variant="outline" className="text-xs flex items-center gap-1">
-                              <stat.icon className={`h-3 w-3 ${stat.color}`} />
-                              {stat.label}
-                            </Badge>
-                          ))}
-                          <Badge variant="outline" className="text-xs">
-                            Password: {template.password_min_length}+ chars
-                          </Badge>
-                          <Badge variant="outline" className="text-xs">
-                            Session: {template.session_timeout_minutes}m
-                          </Badge>
-                          <Badge variant="outline" className="text-xs">
-                            Max Sessions: {template.max_concurrent_sessions}
-                          </Badge>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+          {body}
         </DialogContent>
       </Dialog>
-
-      {/* Form Dialog */}
-      <SecurityTemplateFormDialog
-        open={formDialogOpen}
-        onOpenChange={setFormDialogOpen}
-        template={selectedTemplate}
-        defaultValues={defaultTemplate}
-        onSave={handleSave}
-        saving={saving}
-      />
-
-      {/* Delete Confirmation */}
-      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Security Template</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete "{templateToDelete?.name}"? 
-              Users assigned to this template will fall back to organization defaults.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </>
   );
 }
