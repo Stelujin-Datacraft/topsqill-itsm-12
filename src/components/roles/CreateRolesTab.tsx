@@ -233,7 +233,7 @@ export function CreateRolesTab() {
         </div>
         <div className="flex gap-4">
           <div className="flex items-center space-x-2">
-            <Checkbox checked={isPermissionChecked(resourceType, asset.id, 'create')} onCheckedChange={(checked) => handlePermissionChange(resourceType, asset.id, 'create', checked as boolean)} disabled={true} />
+            <Checkbox checked={isPermissionChecked(resourceType, asset.id, 'create')} onCheckedChange={(checked) => { if (checked && !readChecked) handlePermissionChange(resourceType, asset.id, 'read', true); handlePermissionChange(resourceType, asset.id, 'create', checked as boolean); }} />
             <Label className="text-sm">Create</Label>
           </div>
           <div className="flex items-center space-x-2">
