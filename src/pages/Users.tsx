@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -94,6 +94,27 @@ const Users = () => {
   const { assignments: roleAssignments, refetch: refetchRoleAssignments } = useUserRoleAssignments();
   const { templates: securityTemplates } = useSecurityTemplates();
   const { allParameters: securityParams } = useAllSecurityParameters();
+
+  const [userGroupsMap, setUserGroupsMap] = useState<Record<string, string[]>>({});
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      const { data, error } = await supabase
+        .from('group_memberships')
+        .select('member_id, member_type, groups!inner(name)')
+        .eq('member_type', 'user');
+      if (error || !mounted) return;
+      const map: Record<string, string[]> = {};
+      for (const row of (data as any[]) || []) {
+        const uid = row.member_id;
+        const gname = row.groups?.name;
+        if (!uid || !gname) continue;
+        (map[uid] ||= []).push(gname);
+      }
+      setUserGroupsMap(map);
+    })();
+    return () => { mounted = false; };
+  }, []);
 
   const getAssignedTemplate = (userId: string) => {
     const p = securityParams.find((a: any) => a.user_id === userId);
@@ -489,6 +510,7 @@ const Users = () => {
                     <TableHead className="font-semibold text-foreground/80">Member</TableHead>
                     <TableHead className="font-semibold text-foreground/80">Role</TableHead>
                     <TableHead className="font-semibold text-foreground/80">Role Assigned</TableHead>
+                    <TableHead className="font-semibold text-foreground/80">Group Assigned</TableHead>
                     <TableHead className="font-semibold text-foreground/80">Template</TableHead>
                     <TableHead className="font-semibold text-foreground/80">Status</TableHead>
                     <TableHead className="font-semibold text-foreground/80">Joined</TableHead>
@@ -498,7 +520,7 @@ const Users = () => {
                 <TableBody>
                   {filteredUsers.length === 0 ? (
                     <TableRow>
-                        <TableCell colSpan={7} className="text-center py-16 text-muted-foreground">
+                        <TableCell colSpan={8} className="text-center py-16 text-muted-foreground">
                         <div className="flex flex-col items-center gap-2">
                           <UsersIcon className="h-10 w-10 text-muted-foreground/50" />
                           <p>{searchTerm ? 'No members match your search.' : 'No members found.'}</p>
@@ -546,33 +568,24 @@ const Users = () => {
                             if (user.role === 'admin') {
                               return <span className="text-xs text-muted-foreground">—</span>;
                             }
-                            return (
-                              <div className="flex items-center gap-1">
-                                <Select
-                                  value={assigned?.id || ''}
-                                  onValueChange={(roleId) => handleAssignCustomRole(user.id, roleId)}
-                                >
-                                  <SelectTrigger className="w-[150px] h-8 text-xs border-border/50 bg-background hover:bg-muted/50">
-                                    <SelectValue placeholder="Assign role" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {roles.map(r => (
-                                      <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                                {assigned && (
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-7 w-7"
-                                    title="Remove role"
-                                    onClick={() => handleRemoveCustomRole(user.id)}
-                                  >
-                                    <UserMinus className="h-3.5 w-3.5 text-destructive" />
-                                  </Button>
-                                )}
+                            return assigned ? (
+                              <Badge variant="default" className="text-xs">{assigned.name}</Badge>
+                            ) : (
+                              <Badge variant="secondary" className="text-xs">No Role</Badge>
+                            );
+                          })()}
+                        </TableCell>
+                        <TableCell>
+                          {(() => {
+                            const groupNames = userGroupsMap[user.id] || [];
+                            return groupNames.length > 0 ? (
+                              <div className="flex flex-wrap gap-1">
+                                {groupNames.map((g, i) => (
+                                  <Badge key={i} variant="outline" className="text-xs">{g}</Badge>
+                                ))}
                               </div>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">—</span>
                             );
                           })()}
                         </TableCell>
