@@ -8,6 +8,8 @@ import { Users, Plus, Edit, ChevronDown, ChevronRight, User, X, Trash2 } from 'l
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useGroups, Group, GroupMember } from '@/hooks/useGroups';
 import { useOrganizationUsers } from '@/hooks/useOrganizationUsers';
 import { useRoles } from '@/hooks/useRoles';
@@ -255,21 +257,12 @@ export function GroupRolesTab() {
         )}
       </div>
 
-      {showCreateForm && (
-        <Card>
-          <CardHeader>
-            <div className="flex justify-between items-center">
-              <CardTitle>
-                {editingGroup ? 'Edit Group' : 'Create New Group'}
-              </CardTitle>
-              <Button variant="outline" size="sm" onClick={handleCancelForm}>
-                <X className="h-4 w-4 mr-2" />
-                Cancel
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmitForm} className="space-y-6">
+      <Dialog open={showCreateForm} onOpenChange={(o) => { if (!o) handleCancelForm(); }}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingGroup ? 'Edit Group' : 'Create New Group'}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSubmitForm} className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="groupName">Group Name *</Label>
@@ -301,137 +294,140 @@ export function GroupRolesTab() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-6">
-                {/* All Users Column - Filter out admin users */}
-                <div>
-                  <Label className="text-base font-medium mb-3 block">All Users</Label>
-                  <div className="border rounded-lg p-4 max-h-64 overflow-y-auto">
-                    {nonAdminUsers.map(user => (
-                      <div
-                        key={user.id}
-                        className="flex items-center space-x-2 p-2 hover:bg-gray-50 rounded cursor-pointer"
-                        onClick={() => toggleUserSelection(user.id)}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={formData.selectedUsers.includes(user.id)}
-                          onChange={() => toggleUserSelection(user.id)}
-                          className="rounded"
-                        />
-                        <User className="h-4 w-4 text-blue-500" />
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium truncate">
-                            {user.first_name} {user.last_name}
-                          </div>
-                          <div className="text-xs text-gray-500 truncate">
-                            {user.email}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                    {nonAdminUsers.length === 0 && (
-                      <p className="text-sm text-gray-500 text-center py-4">
-                        No users available
-                      </p>
-                    )}
-                  </div>
-                </div>
+              <Tabs defaultValue="users" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="users">
+                    Users ({formData.selectedUsers.length} selected)
+                  </TabsTrigger>
+                  <TabsTrigger value="groups">
+                    Groups ({formData.selectedGroups.length} selected)
+                  </TabsTrigger>
+                </TabsList>
 
-                {/* All Groups Column */}
-                <div>
-                  <Label className="text-base font-medium mb-3 block">All Groups</Label>
-                  <div className="border rounded-lg p-4 max-h-64 overflow-y-auto">
-                    {groups.filter(group => !editingGroup || group.id !== editingGroup.id).map(group => (
-                      <div
-                        key={group.id}
-                        className="flex items-center space-x-2 p-2 hover:bg-gray-50 rounded cursor-pointer"
-                        onClick={() => toggleGroupSelection(group.id)}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={formData.selectedGroups.includes(group.id)}
-                          onChange={() => toggleGroupSelection(group.id)}
-                          className="rounded"
-                        />
-                        <Users className="h-4 w-4 text-green-500" />
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium truncate">
-                            {group.name}
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            {group.member_count} members
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                    {groups.filter(group => !editingGroup || group.id !== editingGroup.id).length === 0 && (
-                      <p className="text-sm text-gray-500 text-center py-4">
-                        No groups available
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Selected Members Display */}
-              <div>
-                <Label className="text-base font-medium mb-3 block">Selected Members</Label>
-                <div className="border rounded-lg p-4 min-h-32 bg-gray-50">
-                  {(formData.selectedUsers.length > 0 || formData.selectedGroups.length > 0) ? (
-                    <div className="space-y-2">
-                      {/* Selected Users */}
-                      {formData.selectedUsers.map(userId => {
-                        const user = nonAdminUsers.find(u => u.id === userId);
-                        return user ? (
-                          <div key={userId} className="flex items-center justify-between bg-white p-2 rounded border">
-                            <div className="flex items-center space-x-2">
-                              <User className="h-4 w-4 text-blue-500" />
-                              <span className="text-sm font-medium">
+                {/* Users tab: Available | Selected */}
+                <TabsContent value="users" className="mt-4">
+                  <div className="grid grid-cols-2 gap-6">
+                    <div>
+                      <Label className="text-base font-medium mb-3 block">Available Users</Label>
+                      <div className="border rounded-lg p-4 max-h-72 overflow-y-auto space-y-1">
+                        {nonAdminUsers.filter(u => !formData.selectedUsers.includes(u.id)).map(user => (
+                          <div
+                            key={user.id}
+                            className="flex items-center space-x-2 p-2 hover:bg-muted rounded cursor-pointer"
+                            onClick={() => toggleUserSelection(user.id)}
+                          >
+                            <User className="h-4 w-4 text-primary" />
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-medium truncate">
                                 {user.first_name} {user.last_name}
-                              </span>
-                              <span className="text-xs text-gray-500">({user.email})</span>
+                              </div>
+                              <div className="text-xs text-muted-foreground truncate">
+                                {user.email}
+                              </div>
                             </div>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => removeSelectedUser(userId)}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
+                            <Plus className="h-4 w-4 text-muted-foreground" />
                           </div>
-                        ) : null;
-                      })}
-                      
-                      {/* Selected Groups */}
-                      {formData.selectedGroups.map(groupId => {
-                        const group = groups.find(g => g.id === groupId);
-                        return group ? (
-                          <div key={groupId} className="flex items-center justify-between bg-white p-2 rounded border">
-                            <div className="flex items-center space-x-2">
-                              <Users className="h-4 w-4 text-green-500" />
-                              <span className="text-sm font-medium">{group.name}</span>
-                              <span className="text-xs text-gray-500">({group.member_count} members)</span>
-                            </div>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => removeSelectedGroup(groupId)}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        ) : null;
-                      })}
+                        ))}
+                        {nonAdminUsers.filter(u => !formData.selectedUsers.includes(u.id)).length === 0 && (
+                          <p className="text-sm text-muted-foreground text-center py-4">
+                            No users available
+                          </p>
+                        )}
+                      </div>
                     </div>
-                  ) : (
-                    <p className="text-sm text-gray-500 text-center py-8">
-                      No members selected. Choose users or groups from the lists above.
-                    </p>
-                  )}
-                </div>
-              </div>
+                    <div>
+                      <Label className="text-base font-medium mb-3 block">Selected Users</Label>
+                      <div className="border rounded-lg p-4 max-h-72 overflow-y-auto bg-muted/30 space-y-1">
+                        {formData.selectedUsers.length === 0 && (
+                          <p className="text-sm text-muted-foreground text-center py-4">
+                            No users selected
+                          </p>
+                        )}
+                        {formData.selectedUsers.map(userId => {
+                          const user = nonAdminUsers.find(u => u.id === userId);
+                          if (!user) return null;
+                          return (
+                            <div key={userId} className="flex items-center justify-between bg-background p-2 rounded border">
+                              <div className="flex items-center space-x-2 min-w-0">
+                                <User className="h-4 w-4 text-primary shrink-0" />
+                                <div className="min-w-0">
+                                  <div className="text-sm font-medium truncate">
+                                    {user.first_name} {user.last_name}
+                                  </div>
+                                  <div className="text-xs text-muted-foreground truncate">{user.email}</div>
+                                </div>
+                              </div>
+                              <Button type="button" variant="ghost" size="sm" onClick={() => removeSelectedUser(userId)}>
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                </TabsContent>
+
+                {/* Groups tab: Available | Selected */}
+                <TabsContent value="groups" className="mt-4">
+                  <div className="grid grid-cols-2 gap-6">
+                    <div>
+                      <Label className="text-base font-medium mb-3 block">Available Groups</Label>
+                      <div className="border rounded-lg p-4 max-h-72 overflow-y-auto space-y-1">
+                        {groups
+                          .filter(g => (!editingGroup || g.id !== editingGroup.id) && !formData.selectedGroups.includes(g.id))
+                          .map(group => (
+                            <div
+                              key={group.id}
+                              className="flex items-center space-x-2 p-2 hover:bg-muted rounded cursor-pointer"
+                              onClick={() => toggleGroupSelection(group.id)}
+                            >
+                              <Users className="h-4 w-4 text-primary" />
+                              <div className="flex-1 min-w-0">
+                                <div className="text-sm font-medium truncate">{group.name}</div>
+                                <div className="text-xs text-muted-foreground">{group.member_count} members</div>
+                              </div>
+                              <Plus className="h-4 w-4 text-muted-foreground" />
+                            </div>
+                          ))}
+                        {groups.filter(g => (!editingGroup || g.id !== editingGroup.id) && !formData.selectedGroups.includes(g.id)).length === 0 && (
+                          <p className="text-sm text-muted-foreground text-center py-4">
+                            No groups available
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-base font-medium mb-3 block">Selected Groups</Label>
+                      <div className="border rounded-lg p-4 max-h-72 overflow-y-auto bg-muted/30 space-y-1">
+                        {formData.selectedGroups.length === 0 && (
+                          <p className="text-sm text-muted-foreground text-center py-4">
+                            No groups selected
+                          </p>
+                        )}
+                        {formData.selectedGroups.map(groupId => {
+                          const group = groups.find(g => g.id === groupId);
+                          if (!group) return null;
+                          return (
+                            <div key={groupId} className="flex items-center justify-between bg-background p-2 rounded border">
+                              <div className="flex items-center space-x-2 min-w-0">
+                                <Users className="h-4 w-4 text-primary shrink-0" />
+                                <div className="min-w-0">
+                                  <div className="text-sm font-medium truncate">{group.name}</div>
+                                  <div className="text-xs text-muted-foreground">{group.member_count} members</div>
+                                </div>
+                              </div>
+                              <Button type="button" variant="ghost" size="sm" onClick={() => removeSelectedGroup(groupId)}>
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                </TabsContent>
+              </Tabs>
 
               <div className="flex justify-end space-x-2">
                 <Button type="button" variant="outline" onClick={handleCancelForm}>
@@ -441,10 +437,9 @@ export function GroupRolesTab() {
                   {editingGroup ? 'Update Group' : 'Create Group'}
                 </Button>
               </div>
-            </form>
-          </CardContent>
-        </Card>
-      )}
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <Card>
         <CardHeader>
