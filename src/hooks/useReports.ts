@@ -43,6 +43,8 @@ export function useReports() {
         project_id: currentProject.id,
         organization_id: userProfile.organization_id,
         created_by: userProfile.id,
+        // Non-admin users' reports are shared (public within project) by default
+        is_public: userProfile.role !== 'admin' ? true : false,
       })
       .select()
       .single();
