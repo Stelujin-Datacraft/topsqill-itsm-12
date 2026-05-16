@@ -23,13 +23,15 @@ interface FormViewLayoutRendererProps {
   onSubmit: (formData: Record<string, any>) => void;
   showNavigation?: boolean;
   showPublicHeader?: boolean;
+  canSubmit?: boolean;
 }
 
 export function FormViewLayoutRenderer({ 
   form, 
   onSubmit, 
   showNavigation = true,
-  showPublicHeader = false 
+  showPublicHeader = false,
+  canSubmit = true,
 }: FormViewLayoutRendererProps) {
   const navigate = useNavigate();
   const { user } = useAuth();
