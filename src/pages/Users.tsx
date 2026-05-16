@@ -46,6 +46,8 @@ import { useToast } from '@/hooks/use-toast';
 import { SecurityParametersDialog } from '@/components/users/SecurityParametersDialog';
 import { SecurityTemplatesManager } from '@/components/users/SecurityTemplatesManager';
 import { AssignSecurityTemplatesTab } from '@/components/users/AssignSecurityTemplatesTab';
+import { useSecurityTemplates } from '@/hooks/useSecurityTemplates';
+import { useAllSecurityParameters } from '@/hooks/useSecurityParameters';
 import { UserEditDialog } from '@/components/users/UserEditDialog';
 
 const Users = () => {
@@ -487,6 +489,7 @@ const Users = () => {
                     <TableHead className="font-semibold text-foreground/80">Member</TableHead>
                     <TableHead className="font-semibold text-foreground/80">Role</TableHead>
                     <TableHead className="font-semibold text-foreground/80">Role Assigned</TableHead>
+                    <TableHead className="font-semibold text-foreground/80">Template</TableHead>
                     <TableHead className="font-semibold text-foreground/80">Status</TableHead>
                     <TableHead className="font-semibold text-foreground/80">Joined</TableHead>
                     <TableHead className="w-[100px] font-semibold text-foreground/80">Actions</TableHead>
