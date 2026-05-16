@@ -16,7 +16,7 @@ export function BackToMembersButton({ className }: BackToMembersButtonProps) {
       className={className}
     >
       <ArrowLeft className="h-4 w-4 mr-2" />
-      Back to Members
+      Back to Access Control
     </Button>
   );
 }

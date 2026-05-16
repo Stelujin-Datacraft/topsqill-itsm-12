@@ -257,7 +257,7 @@ const Users = () => {
 
   if (loading) {
     return (
-      <DashboardLayout title="Team Members">
+      <DashboardLayout title="Access Control">
         <div className="flex items-center justify-center py-24">
           <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full" />
         </div>
@@ -267,8 +267,8 @@ const Users = () => {
 
   return (
     <DashboardLayout 
-      title="Team Members" 
-      description="Manage your organization's team members"
+      title="Access Control" 
+      description="Manage your organization's team members and access"
       actions={
         <div className="flex flex-wrap items-center gap-2">
           <DropdownMenu>
