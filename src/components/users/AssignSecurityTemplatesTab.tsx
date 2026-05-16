@@ -1,357 +1,282 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import React, { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Table, TableBody, TableHead, TableHeader, TableRow, TableCell } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
-} from '@/components/ui/dialog';
-import { Shield, Search, Users as UsersIcon, User, UserCog } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Shield, UserPlus, UserMinus, X } from 'lucide-react';
 import { useOrganizationUsers } from '@/hooks/useOrganizationUsers';
 import { useSecurityTemplates } from '@/hooks/useSecurityTemplates';
 import { useAllSecurityParameters } from '@/hooks/useSecurityParameters';
-import { useGroups } from '@/hooks/useGroups';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
+import { toast } from '@/hooks/use-toast';
 
 export function AssignSecurityTemplatesTab() {
+  const [showBulkAssign, setShowBulkAssign] = useState(false);
+  const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
+  const [selectedTemplate, setSelectedTemplate] = useState<string>('');
+
   const { currentOrganization } = useOrganization();
-  const { users } = useOrganizationUsers();
-  const { templates } = useSecurityTemplates();
-  const { allParameters, refetch: refetchParams } = useAllSecurityParameters();
-  const { groups, getGroupMembers } = useGroups();
+  const { users: allUsers, loading: usersLoading } = useOrganizationUsers();
+  const { templates, loading: templatesLoading } = useSecurityTemplates();
+  const { allParameters, loading: paramsLoading, refetch } = useAllSecurityParameters();
 
-  const [search, setSearch] = useState('');
-  const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
-  const [selectedGroups, setSelectedGroups] = useState<Set<string>>(new Set());
-  const [assignOpen, setAssignOpen] = useState(false);
-  const [targetTemplate, setTargetTemplate] = useState<string>('');
-  const [saving, setSaving] = useState(false);
+  const users = allUsers.filter(u => u.role !== 'admin');
 
-  const templateById = useMemo(() => {
-    const m = new Map<string, string>();
-    templates.forEach(t => m.set(t.id, t.name));
-    return m;
-  }, [templates]);
-
-  const paramsByUser = useMemo(() => {
-    const m = new Map<string, string | null>();
-    allParameters.forEach(p => m.set(p.user_id, p.security_template_id));
-    return m;
-  }, [allParameters]);
-
-  const filteredUsers = useMemo(() => {
-    const q = search.toLowerCase();
-    if (!q) return users;
-    return users.filter(u =>
-      u.email.toLowerCase().includes(q) ||
-      u.first_name?.toLowerCase().includes(q) ||
-      u.last_name?.toLowerCase().includes(q)
-    );
-  }, [users, search]);
-
-  const toggleUser = (id: string) => {
-    setSelectedUsers(prev => {
-      const n = new Set(prev);
-      n.has(id) ? n.delete(id) : n.add(id);
-      return n;
-    });
+  const getUserTemplate = (userId: string) => {
+    const p = allParameters.find(a => a.user_id === userId);
+    if (!p?.security_template_id) return null;
+    return templates.find(t => t.id === p.security_template_id) || null;
   };
 
-  const toggleAll = () => {
-    if (selectedUsers.size === filteredUsers.length) {
-      setSelectedUsers(new Set());
-    } else {
-      setSelectedUsers(new Set(filteredUsers.map(u => u.id)));
-    }
+  const getUnassignedUsers = () => users.filter(u => !getUserTemplate(u.id));
+
+  const upsertTemplate = async (userIds: string[], templateId: string | null) => {
+    if (!currentOrganization?.id) return;
+    const rows = userIds.map(uid => ({
+      user_id: uid,
+      organization_id: currentOrganization.id,
+      security_template_id: templateId,
+      use_template_settings: templateId !== null,
+    }));
+    const { error } = await supabase
+      .from('user_security_parameters')
+      .upsert(rows, { onConflict: 'user_id' });
+    if (error) throw error;
+    await refetch();
   };
 
-  const toggleGroup = (id: string) => {
-    setSelectedGroups(prev => {
-      const n = new Set(prev);
-      n.has(id) ? n.delete(id) : n.add(id);
-      return n;
-    });
-  };
-
-  const expandGroupsToUserIds = async (): Promise<Set<string>> => {
-    const userIds = new Set<string>();
-    for (const gid of selectedGroups) {
-      const members = await getGroupMembers(gid);
-      members.forEach(m => {
-        if (m.member_type === 'user') userIds.add(m.member_id);
-      });
-    }
-    return userIds;
-  };
-
-  const openAssignDialog = () => {
-    if (selectedUsers.size === 0 && selectedGroups.size === 0) {
-      toast.error('Select at least one user or group');
-      return;
-    }
-    setTargetTemplate('');
-    setAssignOpen(true);
-  };
-
-  const handleAssign = async () => {
-    if (!targetTemplate || !currentOrganization?.id) return;
-    setSaving(true);
+  const handleAssignTemplate = async (userId: string, templateId: string) => {
     try {
-      const groupUserIds = await expandGroupsToUserIds();
-      const allIds = new Set<string>([...selectedUsers, ...groupUserIds]);
-      if (allIds.size === 0) {
-        toast.error('No users to assign');
-        return;
-      }
-
-      const rows = Array.from(allIds).map(uid => ({
-        user_id: uid,
-        organization_id: currentOrganization.id,
-        security_template_id: targetTemplate,
-        use_template_settings: true,
-      }));
-
-      const { error } = await supabase
-        .from('user_security_parameters')
-        .upsert(rows, { onConflict: 'user_id' });
-
-      if (error) throw error;
-
-      toast.success(`Template assigned to ${allIds.size} user(s)`);
-      setAssignOpen(false);
-      setSelectedUsers(new Set());
-      setSelectedGroups(new Set());
-      await refetchParams();
+      await upsertTemplate([userId], templateId);
+      toast({ title: 'Success', description: 'Template assigned successfully' });
     } catch (e: any) {
-      console.error(e);
-      toast.error(e.message || 'Failed to assign template');
-    } finally {
-      setSaving(false);
+      toast({ title: 'Error', description: e.message || 'Failed to assign template', variant: 'destructive' });
     }
   };
 
   const handleRemoveTemplate = async (userId: string) => {
-    if (!currentOrganization?.id) return;
     try {
-      const { error } = await supabase
-        .from('user_security_parameters')
-        .upsert(
-          {
-            user_id: userId,
-            organization_id: currentOrganization.id,
-            security_template_id: null,
-            use_template_settings: false,
-          },
-          { onConflict: 'user_id' }
-        );
-      if (error) throw error;
-      toast.success('Template removed');
-      await refetchParams();
+      await upsertTemplate([userId], null);
+      toast({ title: 'Success', description: 'Template removed successfully' });
     } catch (e: any) {
-      toast.error(e.message || 'Failed to remove template');
+      toast({ title: 'Error', description: e.message || 'Failed to remove template', variant: 'destructive' });
     }
   };
 
-  return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-              <UserCog className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <CardTitle className="text-xl">Assign Security Templates</CardTitle>
-              <CardDescription>
-                Assign a security template to users individually or in bulk via groups
-              </CardDescription>
-            </div>
-          </div>
-          <Button onClick={openAssignDialog} disabled={selectedUsers.size === 0 && selectedGroups.size === 0}>
-            <Shield className="h-4 w-4 mr-2" />
-            Assign Template ({selectedUsers.size + selectedGroups.size})
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <Tabs defaultValue="users" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 max-w-md">
-            <TabsTrigger value="users">
-              <User className="h-4 w-4 mr-2" />
-              Users ({selectedUsers.size} selected)
-            </TabsTrigger>
-            <TabsTrigger value="groups">
-              <UsersIcon className="h-4 w-4 mr-2" />
-              Groups ({selectedGroups.size} selected)
-            </TabsTrigger>
-          </TabsList>
+  const handleBulkAssign = async () => {
+    if (selectedUsers.length === 0 || !selectedTemplate) {
+      toast({ title: 'Error', description: 'Please select users and a template', variant: 'destructive' });
+      return;
+    }
+    try {
+      await upsertTemplate(selectedUsers, selectedTemplate);
+      toast({ title: 'Success', description: `Template assigned to ${selectedUsers.length} users` });
+      setSelectedUsers([]);
+      setSelectedTemplate('');
+      setShowBulkAssign(false);
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.message || 'Failed to assign templates', variant: 'destructive' });
+    }
+  };
 
-          <TabsContent value="users" className="mt-4 space-y-3">
-            <div className="relative max-w-sm">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                className="pl-9"
-                placeholder="Search users..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
+  const handleUserSelection = (userId: string, checked: boolean) => {
+    setSelectedUsers(prev => checked ? [...prev, userId] : prev.filter(id => id !== userId));
+  };
+
+  const removeSelectedUser = (userId: string) => {
+    setSelectedUsers(prev => prev.filter(id => id !== userId));
+  };
+
+  if (usersLoading || templatesLoading || paramsLoading) {
+    return (
+      <div className="flex justify-center py-8">
+        <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-xl font-semibold">User Security Template Assignments</h2>
+          <p className="text-sm text-muted-foreground">
+            Assign security templates to individual users or in bulk (Admin users excluded)
+          </p>
+        </div>
+        <Button
+          onClick={() => setShowBulkAssign(!showBulkAssign)}
+          variant={showBulkAssign ? 'secondary' : 'default'}
+        >
+          <UserPlus className="h-4 w-4 mr-2" />
+          {showBulkAssign ? 'Cancel Bulk Assign' : 'Bulk Assign Templates'}
+        </Button>
+      </div>
+
+      {showBulkAssign && (
+        <Card className="border-2 border-primary">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <UserPlus className="h-5 w-5" />
+              Bulk Template Assignment
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <label className="text-sm font-medium mb-2 block">Select Users (No Current Template)</label>
+              <div className="space-y-2 max-h-40 overflow-y-auto border rounded p-2">
+                {getUnassignedUsers().map(user => (
+                  <div key={user.id} className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      checked={selectedUsers.includes(user.id)}
+                      onChange={(e) => handleUserSelection(user.id, e.target.checked)}
+                      className="rounded"
+                    />
+                    <span className="text-sm">
+                      {user.first_name && user.last_name
+                        ? `${user.first_name} ${user.last_name}`
+                        : user.email}
+                    </span>
+                  </div>
+                ))}
+                {getUnassignedUsers().length === 0 && (
+                  <p className="text-sm text-muted-foreground">All non-admin users have templates assigned</p>
+                )}
+              </div>
             </div>
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-12">
-                      <Checkbox
-                        checked={filteredUsers.length > 0 && selectedUsers.size === filteredUsers.length}
-                        onCheckedChange={toggleAll}
-                      />
-                    </TableHead>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Current Template</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredUsers.map(u => {
-                    const tplId = paramsByUser.get(u.id);
-                    const tplName = tplId ? templateById.get(tplId) : null;
+
+            {selectedUsers.length > 0 && (
+              <div>
+                <label className="text-sm font-medium mb-2 block">Selected Users ({selectedUsers.length})</label>
+                <div className="bg-white border rounded p-3 min-h-[60px] flex flex-wrap gap-2">
+                  {selectedUsers.map(userId => {
+                    const user = users.find(u => u.id === userId);
                     return (
-                      <TableRow key={u.id}>
-                        <TableCell>
-                          <Checkbox
-                            checked={selectedUsers.has(u.id)}
-                            onCheckedChange={() => toggleUser(u.id)}
-                          />
-                        </TableCell>
-                        <TableCell className="font-medium">
-                          {u.first_name || u.last_name ? `${u.first_name ?? ''} ${u.last_name ?? ''}`.trim() : '—'}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">{u.email}</TableCell>
-                        <TableCell>
-                          {tplName ? (
-                            <Badge variant="default">{tplName}</Badge>
-                          ) : (
-                            <Badge variant="secondary">No Template</Badge>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {tplId && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleRemoveTemplate(u.id)}
-                            >
-                              Remove
-                            </Button>
-                          )}
-                        </TableCell>
-                      </TableRow>
+                      <Badge key={userId} variant="secondary" className="flex items-center gap-1">
+                        {user?.first_name && user?.last_name
+                          ? `${user.first_name} ${user.last_name}`
+                          : user?.email}
+                        <button
+                          onClick={() => removeSelectedUser(userId)}
+                          className="ml-1 hover:bg-destructive/20 rounded-full p-0.5"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
                     );
                   })}
-                  {filteredUsers.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                        No users found
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          </TabsContent>
+                </div>
+              </div>
+            )}
 
-          <TabsContent value="groups" className="mt-4 space-y-3">
-            <p className="text-sm text-muted-foreground">
-              Selecting a group will apply the chosen template to all of its user members.
-            </p>
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-12"></TableHead>
-                    <TableHead>Group Name</TableHead>
-                    <TableHead>Members</TableHead>
-                    <TableHead>Role</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {groups.map(g => (
-                    <TableRow key={g.id}>
+            <div>
+              <label className="text-sm font-medium mb-2 block">Select Template</label>
+              <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose a template" />
+                </SelectTrigger>
+                <SelectContent>
+                  {templates.map(t => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.name}{t.is_default ? ' (Default)' : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex gap-2">
+              <Button onClick={handleBulkAssign} disabled={selectedUsers.length === 0 || !selectedTemplate}>
+                Assign Template to Selected Users
+              </Button>
+              <Button variant="outline" onClick={() => {
+                setSelectedUsers([]);
+                setSelectedTemplate('');
+                setShowBulkAssign(false);
+              }}>
+                Cancel
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Shield className="h-5 w-5" />
+            User Template Management ({users.length} users)
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Users</TableHead>
+                  <TableHead>Template Assigned</TableHead>
+                  <TableHead>Action</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {users.map(user => {
+                  const assigned = getUserTemplate(user.id);
+                  return (
+                    <TableRow key={user.id}>
                       <TableCell>
-                        <Checkbox
-                          checked={selectedGroups.has(g.id)}
-                          onCheckedChange={() => toggleGroup(g.id)}
-                        />
+                        <div>
+                          <div className="font-medium">
+                            {user.first_name && user.last_name
+                              ? `${user.first_name} ${user.last_name}`
+                              : user.email}
+                          </div>
+                          <div className="text-sm text-muted-foreground">{user.email}</div>
+                        </div>
                       </TableCell>
-                      <TableCell className="font-medium">{g.name}</TableCell>
-                      <TableCell>{g.member_count}</TableCell>
                       <TableCell>
-                        {g.role_name ? (
-                          <Badge variant="outline">{g.role_name}</Badge>
+                        {assigned ? (
+                          <Badge variant="default">{assigned.name}</Badge>
                         ) : (
-                          <Badge variant="secondary">No Role</Badge>
+                          <Badge variant="secondary">No Template</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {assigned ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleRemoveTemplate(user.id)}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <UserMinus className="h-4 w-4 mr-2" />
+                            Remove Template
+                          </Button>
+                        ) : (
+                          <Select onValueChange={(tplId) => handleAssignTemplate(user.id, tplId)}>
+                            <SelectTrigger className="w-40">
+                              <SelectValue placeholder="Assign Template" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {templates.map(t => (
+                                <SelectItem key={t.id} value={t.id}>
+                                  {t.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         )}
                       </TableCell>
                     </TableRow>
-                  ))}
-                  {groups.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
-                        No groups available
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          </TabsContent>
-        </Tabs>
-      </CardContent>
-
-      <Dialog open={assignOpen} onOpenChange={setAssignOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Assign Security Template</DialogTitle>
-            <DialogDescription>
-              Apply the selected template to {selectedUsers.size} user(s)
-              {selectedGroups.size > 0 && ` and members of ${selectedGroups.size} group(s)`}.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Security Template</label>
-            <Select value={targetTemplate} onValueChange={setTargetTemplate}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select a template" />
-              </SelectTrigger>
-              <SelectContent>
-                {templates.map(t => (
-                  <SelectItem key={t.id} value={t.id}>
-                    {t.name}{t.is_default ? ' (Default)' : ''}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {templates.length === 0 && (
-              <p className="text-xs text-muted-foreground">
-                No templates available. Create one in the "Create Templates" tab first.
-              </p>
-            )}
+                  );
+                })}
+              </TableBody>
+            </Table>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAssignOpen(false)}>Cancel</Button>
-            <Button onClick={handleAssign} disabled={!targetTemplate || saving}>
-              {saving ? 'Assigning...' : 'Assign Template'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </Card>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
