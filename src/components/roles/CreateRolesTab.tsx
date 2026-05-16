@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -46,7 +47,11 @@ export function CreateRolesTab() {
 
   const { roles, loading, refetchRoles } = useRoles();
   const { createRole, updateRole, loading: createLoading } = useCreateRole();
-  const { projects } = useProject();
+  const { projects, currentProject } = useProject();
+  // Only show the currently-selected project when creating/editing a role
+  const visibleProjects = currentProject
+    ? projects.filter(p => p.id === currentProject.id)
+    : [];
   const { forms } = useFormsData();
   const { workflows } = useWorkflowData();
   const { reports } = useReports();
@@ -337,24 +342,25 @@ export function CreateRolesTab() {
             Define custom roles with specific permissions for your organization
           </p>
         </div>
-        {!isCreating && !editingRole && (
-          <Button onClick={handleStartCreate}>
+        <Button onClick={handleStartCreate}>
             <Plus className="h-4 w-4 mr-2" />
             Create New Role
-          </Button>
-        )}
+        </Button>
       </div>
 
-      {/* Create/Edit Role Form */}
-      {(isCreating || editingRole) && (
-        <Card className="border-2 border-primary">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+      {/* Create/Edit Role Modal */}
+      <Dialog
+        open={isCreating || !!editingRole}
+        onOpenChange={(open) => { if (!open) handleCancel(); }}
+      >
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
               <Shield className="h-5 w-5" />
               {editingRole ? 'Edit Role' : 'Create New Role'}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-6">
             {/* Basic Info */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -387,7 +393,12 @@ export function CreateRolesTab() {
             <div>
               <h3 className="text-lg font-semibold mb-4">Project Permissions</h3>
               <div className="space-y-6">
-                {projects.map(project => {
+                {visibleProjects.length === 0 && (
+                  <p className="text-sm text-muted-foreground">
+                    Select a project from the top bar to configure permissions.
+                  </p>
+                )}
+                {visibleProjects.map(project => {
                   const selectedAssetType = selectedAssetTypes[project.id] || 'forms';
                   const assets = getAssetsForProject(project.id, selectedAssetType);
                   
@@ -503,13 +514,12 @@ export function CreateRolesTab() {
                 Cancel
               </Button>
             </div>
-          </CardContent>
-        </Card>
-      )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Existing Roles List */}
-      {!isCreating && !editingRole && (
-        <Card>
+      <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Users className="h-5 w-5" />
@@ -563,8 +573,7 @@ export function CreateRolesTab() {
               </div>
             )}
           </CardContent>
-        </Card>
-      )}
+      </Card>
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={!!roleToDelete} onOpenChange={(open) => !open && setRoleToDelete(null)}>
