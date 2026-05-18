@@ -11,6 +11,7 @@ import { PageSkeleton } from '@/components/loading/PageSkeleton';
 import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
 import { preloadCriticalRoutes } from '@/utils/routePreloader';
+import { RouteLoader } from '@/components/RouteLoader';
 
 // Context to signal that we're inside ProtectedLayout
 // DashboardLayout checks this to avoid double-wrapping
@@ -21,8 +22,12 @@ export const LayoutContext = createContext<boolean>(false);
   * Maintains layout structure for smoother visual experience
  */
 function ContentLoader() {
-   return <PageSkeleton />;
- }
+  return (
+    <div className="flex-1 px-[10px] py-[10px]">
+      <RouteLoader />
+    </div>
+  );
+}
  
  /**
   * Auth loading skeleton - full page while checking authentication
