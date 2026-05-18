@@ -1,4 +1,4 @@
-import React, { Suspense, createContext, useEffect, useRef } from 'react';
+import React, { Suspense, createContext, useEffect, useMemo, useRef } from 'react';
 import { Outlet } from 'react-router-dom';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { AppSidebar } from './AppSidebar';
@@ -7,8 +7,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useProject } from '@/contexts/ProjectContext';
 import { usePermissionRealtimeSync } from '@/hooks/usePermissionRealtimeSync';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { PageSkeleton } from '@/components/loading/PageSkeleton';
-import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
 import { preloadCriticalRoutes } from '@/utils/routePreloader';
 import { RouteLoader } from '@/components/RouteLoader';
@@ -29,29 +27,6 @@ function ContentLoader() {
   );
 }
  
- /**
-  * Auth loading skeleton - full page while checking authentication
-  */
- function AuthLoadingSkeleton() {
-   return (
-     <div className="min-h-screen flex">
-       {/* Sidebar placeholder */}
-       <div className="w-64 border-r border-border/30 bg-card/30 p-4 space-y-4 hidden md:block">
-         <Skeleton className="h-10 w-full bg-muted/40" />
-         <div className="space-y-2 pt-4">
-           {[...Array(8)].map((_, i) => (
-             <Skeleton key={i} className="h-9 w-full bg-muted/30" />
-           ))}
-         </div>
-       </div>
-       {/* Main content placeholder */}
-       <div className="flex-1 p-6">
-         <PageSkeleton />
-       </div>
-     </div>
-   );
-}
-
 /**
  * Persistent layout wrapper for protected routes.
  * The sidebar stays mounted while only the content area (Outlet) suspends during route transitions.
@@ -65,6 +40,18 @@ const ProtectedLayout: React.FC = () => {
   const navigate = useNavigate();
   const defaultDashboardChecked = useRef(false);
   const preloadTriggered = useRef(false);
+  const hadAuthenticatedUserRef = useRef(false);
+
+  useEffect(() => {
+    if (user) {
+      hadAuthenticatedUserRef.current = true;
+    }
+  }, [user]);
+
+  const shouldKeepShellVisible = useMemo(
+    () => hadAuthenticatedUserRef.current && !!user,
+    [user]
+  );
  
    // Enable real-time permission sync for authenticated users
    usePermissionRealtimeSync();
@@ -174,8 +161,12 @@ const ProtectedLayout: React.FC = () => {
   }, [currentProject?.id, user, location.pathname, navigate]);
 
   // Auth loading state - show full page loader since we don't know if user is authenticated
-  if (isLoading) {
-     return <AuthLoadingSkeleton />;
+  if (isLoading && !shouldKeepShellVisible) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <RouteLoader />
+      </div>
+    );
   }
 
   // No user - redirect to auth
@@ -218,8 +209,27 @@ const ProtectedLayout: React.FC = () => {
   // User is authenticated but profile is still being fetched in the background
   // (e.g., right after SIGNED_IN / TOKEN_REFRESHED, loadUserProfile runs in a setTimeout).
   // Show the loading skeleton instead of the misleading "Profile Setup Required" screen.
+  if (!userProfile && shouldKeepShellVisible) {
+    return (
+      <LayoutContext.Provider value={true}>
+        <SidebarProvider>
+          <div className={`h-screen flex w-full ${isImpersonating ? 'pt-12' : ''}`}>
+            <AppSidebar />
+            <main className="flex-1 flex flex-col overflow-hidden min-h-0">
+              <ContentLoader />
+            </main>
+          </div>
+        </SidebarProvider>
+      </LayoutContext.Provider>
+    );
+  }
+
   if (!userProfile) {
-    return <AuthLoadingSkeleton />;
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <RouteLoader />
+      </div>
+    );
   }
 
   // Reserved: genuine missing-profile UI (kept disabled — profile is auto-created on signup/OAuth)
