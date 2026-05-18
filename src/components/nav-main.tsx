@@ -21,6 +21,10 @@ export function NavMain({
     prefetchRoute(url);
   }, []);
 
+  const handlePointerDown = useCallback((url: string) => {
+    prefetchRoute(url);
+  }, []);
+
   return (
     <SidebarGroup>
       <SidebarGroupLabel>Platform</SidebarGroupLabel>
@@ -38,6 +42,8 @@ export function NavMain({
                 <Link 
                   to={item.url}
                   onMouseEnter={() => handleMouseEnter(item.url)}
+                  onPointerDown={() => handlePointerDown(item.url)}
+                  onFocus={() => handleMouseEnter(item.url)}
                 >
                   {item.icon && <item.icon className={active ? 'text-accent' : 'text-sidebar-foreground'} />}
                   <span>{item.title}</span>
