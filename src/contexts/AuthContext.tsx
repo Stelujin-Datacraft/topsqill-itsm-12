@@ -74,6 +74,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [pendingMfa, setPendingMfa] = useState<{ userId: string; email: string } | null>(null);
   const [passwordExpired, setPasswordExpired] = useState(false);
   const latestProfileRequestRef = useRef(0);
+  const previousUserIdRef = useRef<string | null>(null);
+  const sessionValidationInFlightRef = useRef(false);
   
   // Get query client for prefetching - wrapped in try/catch for safety
   let queryClient: ReturnType<typeof useQueryClient> | null = null;
@@ -279,10 +281,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Skip INITIAL_SESSION — handled by getSession below
         if (event === 'INITIAL_SESSION') return;
 
+        const nextUserId = session?.user?.id ?? null;
+        const previousUserId = previousUserIdRef.current;
+        const isSameUserSessionRefresh =
+          !!nextUserId &&
+          previousUserId === nextUserId &&
+          (event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN');
+
         setSession(session);
         setUser(session?.user ?? null);
+        previousUserIdRef.current = nextUserId;
 
         if (session?.user) {
+          if (isSameUserSessionRefresh) {
+            setIsLoading(false);
+            return;
+          }
+
           setTimeout(async () => {
             const isValid = await validateSessionInDb(session.user.id, session.access_token);
             if (isValid) {
@@ -304,6 +319,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       setSession(session);
       setUser(session?.user ?? null);
+      previousUserIdRef.current = session?.user?.id ?? null;
       if (session?.user) {
         const isValid = await validateSessionInDb(session.user.id, session.access_token);
         if (isValid) {
@@ -315,9 +331,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Periodically check session validity
     const intervalId = setInterval(async () => {
+      if (sessionValidationInFlightRef.current) return;
+
+      sessionValidationInFlightRef.current = true;
       const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user?.id && session?.access_token) {
-        await validateSessionInDb(session.user.id, session.access_token);
+      try {
+        if (session?.user?.id && session?.access_token) {
+          await validateSessionInDb(session.user.id, session.access_token);
+        }
+      } finally {
+        sessionValidationInFlightRef.current = false;
       }
     }, 30000);
 
