@@ -3,7 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useRecentActivity } from '@/hooks/useRecentActivity';
+import { useRecentActivity, type ActivityRange } from '@/hooks/useRecentActivity';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import {
   FileText,
   Workflow,
@@ -18,7 +19,7 @@ import {
 } from 'lucide-react';
 
 export function RecentActivityList() {
-  const { activities, loading, refresh } = useRecentActivity();
+  const { activities, loading, refresh, range, setRange } = useRecentActivity();
 
   const getActivityIcon = (type: string) => {
     switch (type) {
@@ -85,6 +86,19 @@ export function RecentActivityList() {
     <Card className="flex flex-col">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
         <CardTitle>Recent Activity</CardTitle>
+        <div className="flex items-center gap-2">
+        <ToggleGroup
+          type="single"
+          size="sm"
+          value={range}
+          onValueChange={(v) => v && setRange(v as ActivityRange)}
+          className="h-8"
+        >
+          <ToggleGroupItem value="24h" className="h-8 px-2 text-xs">24h</ToggleGroupItem>
+          <ToggleGroupItem value="7d" className="h-8 px-2 text-xs">7d</ToggleGroupItem>
+          <ToggleGroupItem value="30d" className="h-8 px-2 text-xs">30d</ToggleGroupItem>
+          <ToggleGroupItem value="all" className="h-8 px-2 text-xs">All</ToggleGroupItem>
+        </ToggleGroup>
         <Button
           variant="ghost"
           size="sm"
@@ -95,6 +109,7 @@ export function RecentActivityList() {
           <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${loading ? 'animate-spin' : ''}`} />
           Refresh
         </Button>
+        </div>
       </CardHeader>
       <CardContent className="pt-0">
         {loading && activities.length === 0 ? (
