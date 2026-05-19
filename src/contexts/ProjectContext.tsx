@@ -374,6 +374,43 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     }
   }, [currentProject]);
 
+  // If current project is deleted/removed from list, switch to next or clear
+  useEffect(() => {
+    if (!currentProject) return;
+    if (loading) return;
+    const stillExists = projects.some(p => p.id === currentProject.id);
+    if (!stillExists) {
+      const next = projects[0] || null;
+      setCurrentProject(next);
+      if (!next) {
+        localStorage.removeItem('currentProjectId');
+      }
+    }
+  }, [projects, currentProject, loading]);
+
+  // Realtime: react to project deletions instantly
+  useEffect(() => {
+    if (!effectiveUser?.organization_id) return;
+    const channel = supabase
+      .channel('projects-changes')
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'projects' },
+        (payload) => {
+          const deletedId = (payload.old as any)?.id;
+          if (!deletedId) return;
+          setProjects(prev => prev.filter(p => p.id !== deletedId));
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'projects' },
+        () => { loadProjects(); }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [effectiveUser?.organization_id, effectiveUser?.id]);
+
   return (
     <ProjectContext.Provider value={{
       projects,
