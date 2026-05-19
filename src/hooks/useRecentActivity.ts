@@ -34,9 +34,18 @@ const formatUserName = (profile: any): string => {
   return name || profile.email || 'Unknown User';
 };
 
-export function useRecentActivity() {
+export type ActivityRange = '24h' | '7d' | '30d' | 'all';
+
+const rangeToSince = (range: ActivityRange): string | null => {
+  if (range === 'all') return null;
+  const hours = range === '24h' ? 24 : range === '7d' ? 24 * 7 : 24 * 30;
+  return new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
+};
+
+export function useRecentActivity(initialRange: ActivityRange = '7d') {
   const [activities, setActivities] = useState<RecentActivity[]>([]);
   const [loading, setLoading] = useState(true);
+  const [range, setRange] = useState<ActivityRange>(initialRange);
   const { currentProject } = useProject();
 
   const loadRecentActivities = async () => {
@@ -51,38 +60,49 @@ export function useRecentActivity() {
       const collected: RecentActivity[] = [];
       const userIds = new Set<string>();
 
-      // Parallel fetch of all sources
-      const [formsRes, submissionsRes, wfExecRes, workflowsRes, reportsRes] = await Promise.all([
-        supabase
+      const since = rangeToSince(range);
+
+      const formsQ = supabase
           .from('forms')
           .select('id, name, created_at, created_by')
           .eq('project_id', currentProject.id)
           .order('created_at', { ascending: false })
-          .limit(10),
-        supabase
+          .limit(50);
+      const submissionsQ = supabase
           .from('form_submissions')
           .select('id, submitted_at, submitted_by, approval_status, submission_ref_id, form_id, forms!inner(id, name, project_id)')
           .eq('forms.project_id', currentProject.id)
           .order('submitted_at', { ascending: false })
-          .limit(15),
-        supabase
+          .limit(50);
+      const wfExecQ = supabase
           .from('workflow_executions')
           .select('id, status, started_at, completed_at, error_message, submitter_id, workflow_id, workflows!inner(id, name, project_id)')
           .eq('workflows.project_id', currentProject.id)
           .order('started_at', { ascending: false })
-          .limit(15),
-        supabase
+          .limit(50);
+      const workflowsQ = supabase
           .from('workflows')
           .select('id, name, created_at, created_by')
           .eq('project_id', currentProject.id)
           .order('created_at', { ascending: false })
-          .limit(10),
-        supabase
+          .limit(50);
+      const reportsQ = supabase
           .from('reports')
           .select('id, name, created_at, created_by')
           .eq('project_id', currentProject.id)
           .order('created_at', { ascending: false })
-          .limit(10),
+          .limit(50);
+
+      if (since) {
+        formsQ.gte('created_at', since);
+        submissionsQ.gte('submitted_at', since);
+        wfExecQ.gte('started_at', since);
+        workflowsQ.gte('created_at', since);
+        reportsQ.gte('created_at', since);
+      }
+
+      const [formsRes, submissionsRes, wfExecRes, workflowsRes, reportsRes] = await Promise.all([
+        formsQ, submissionsQ, wfExecQ, workflowsQ, reportsQ,
       ]);
 
       const forms = formsRes.data || [];
@@ -198,7 +218,7 @@ export function useRecentActivity() {
         (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       );
 
-      setActivities(collected.slice(0, 50));
+      setActivities(collected.slice(0, 100));
     } catch (error) {
       console.error('Failed to load recent activities:', error);
       setActivities([]);
@@ -209,11 +229,13 @@ export function useRecentActivity() {
 
   useEffect(() => {
     loadRecentActivities();
-  }, [currentProject?.id]);
+  }, [currentProject?.id, range]);
 
   return {
     activities,
     loading,
+    range,
+    setRange,
     refresh: loadRecentActivities,
   };
 }
