@@ -4,6 +4,18 @@ import { useAuth } from './AuthContext';
 import { useImpersonation } from './ImpersonationContext';
 import { Project, ProjectPermission } from '@/types/project';
 
+const normalizeProject = (project: any): Project => ({
+  ...project,
+  status: project.status as 'active' | 'archived'
+});
+
+const sortProjectsByUpdatedAt = (projectList: Project[]) =>
+  [...projectList].sort(
+    (a, b) =>
+      new Date((b as any).updated_at || b.created_at).getTime() -
+      new Date((a as any).updated_at || a.created_at).getTime()
+  );
+
 interface ProjectUser {
   id: string;
   email: string;
@@ -127,12 +139,9 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         projectsData = Array.from(allProjectsMap.values());
       }
       
-      const typedProjects: Project[] = projectsData.map(project => ({
-        ...project,
-        status: project.status as 'active' | 'archived'
-      }));
+      const typedProjects: Project[] = projectsData.map(normalizeProject);
       
-      setProjects(typedProjects);
+      setProjects(sortProjectsByUpdatedAt(typedProjects));
       setUserProjectPermissions(permissionsMap);
       
       const savedProjectId = localStorage.getItem('currentProjectId');
@@ -392,20 +401,55 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!effectiveUser?.organization_id) return;
     const channel = supabase
-      .channel('projects-changes')
+      .channel(`projects-changes-${effectiveUser.organization_id}`)
       .on(
         'postgres_changes',
-        { event: 'DELETE', schema: 'public', table: 'projects' },
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'projects',
+          filter: `organization_id=eq.${effectiveUser.organization_id}`,
+        },
+        (payload) => {
+          const createdProject = payload.new ? normalizeProject(payload.new) : null;
+          if (!createdProject) return;
+          setProjects(prev => {
+            const withoutDuplicate = prev.filter(p => p.id !== createdProject.id);
+            return sortProjectsByUpdatedAt([createdProject, ...withoutDuplicate]);
+          });
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'projects',
+          filter: `organization_id=eq.${effectiveUser.organization_id}`,
+        },
+        (payload) => {
+          const updatedProject = payload.new ? normalizeProject(payload.new) : null;
+          if (!updatedProject) return;
+          setProjects(prev =>
+            sortProjectsByUpdatedAt(
+              prev.map(project => project.id === updatedProject.id ? updatedProject : project)
+            )
+          );
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'projects',
+          filter: `organization_id=eq.${effectiveUser.organization_id}`,
+        },
         (payload) => {
           const deletedId = (payload.old as any)?.id;
           if (!deletedId) return;
           setProjects(prev => prev.filter(p => p.id !== deletedId));
         }
-      )
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'projects' },
-        () => { loadProjects(); }
       )
       .subscribe();
     return () => { supabase.removeChannel(channel); };
