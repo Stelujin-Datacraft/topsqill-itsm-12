@@ -190,7 +190,7 @@ Deno.serve(async (req) => {
             : smtpConfig.from_email,
           to: email,
           subject: 'Reset Your Password - TopSqill',
-          content: `Hello ${userName},\n\nWe received a request to reset your password. Click the link below to create a new password:\n\n${resetLink}\n\nThis link will expire in 24 hours.\n\nIf you didn't request a password reset, please ignore this email.\n\n- TopSqill Security Team`,
+          content: `Hello ${userName},\n\nWe received a request to reset your password. Use the reset code below to create a new password:\n\n${resetLink}\n\nCopy the code above and paste it into the password reset page.\n\nThis code will expire in 24 hours.\n\nIf you didn't request a password reset, please ignore this email.\n\n- TopSqill Security Team`,
           html: htmlContent,
         });
 
