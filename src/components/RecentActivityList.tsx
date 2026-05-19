@@ -135,7 +135,7 @@ export function RecentActivityList() {
                     <div className="flex items-center justify-between gap-2 flex-wrap">
                       <p className="text-sm font-medium text-foreground">{activity.title}</p>
                       <div className="flex items-center gap-1.5">
-                        {getStatusBadge(activity.status)}
+                        {activity.type !== 'form_submission' && getStatusBadge(activity.status)}
                         {activity.duration_ms !== undefined && (
                           <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
                             ⏱ {formatDuration(activity.duration_ms)}
