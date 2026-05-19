@@ -155,24 +155,20 @@ Deno.serve(async (req) => {
     <tr>
       <td style="padding:40px 30px;">
         <h2 style="color:#333333;margin:0 0 20px;">Hello ${userName},</h2>
-        <p style="color:#666666;font-size:16px;line-height:1.5;margin:0 0 30px;">
-          We received a request to reset your password. Click the button below to create a new password:
+        <p style="color:#666666;font-size:16px;line-height:1.5;margin:0 0 20px;">
+          We received a request to reset your password. Use the reset code below to create a new password:
         </p>
-        <div style="text-align:center;margin:0 0 30px;">
-          <a href="${resetLink}" style="display:inline-block;background-color:#1a1a2e;color:#ffffff;text-decoration:none;padding:15px 40px;border-radius:8px;font-size:16px;font-weight:bold;">
-            Reset Password
-          </a>
+        <div style="text-align:center;margin:0 0 20px;background-color:#f4f4f4;padding:20px;border-radius:8px;">
+          <code style="font-size:18px;word-break:break-all;color:#1a1a2e;">${resetLink}</code>
         </div>
         <p style="color:#666666;font-size:14px;margin:0 0 10px;">
-          <strong>This link will expire in 24 hours.</strong>
+          <strong>Copy the code above and paste it into the password reset page.</strong>
+        </p>
+        <p style="color:#666666;font-size:14px;margin:0 0 10px;">
+          <strong>This code will expire in 24 hours.</strong>
         </p>
         <p style="color:#999999;font-size:14px;margin:0 0 20px;">
           If you didn't request a password reset, please ignore this email or contact support if you have concerns.
-        </p>
-        <hr style="border:none;border-top:1px solid #eeeeee;margin:20px 0;">
-        <p style="color:#999999;font-size:12px;margin:0;">
-          If the button doesn't work, copy and paste this link into your browser:<br>
-          <a href="${resetLink}" style="color:#1a1a2e;word-break:break-all;">${resetLink}</a>
         </p>
       </td>
     </tr>
