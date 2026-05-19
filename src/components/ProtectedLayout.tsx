@@ -39,6 +39,7 @@ const ProtectedLayout: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const defaultDashboardChecked = useRef(false);
+  const lastDefaultDashboardProjectId = useRef<string | null>(null);
   const preloadTriggered = useRef(false);
   const hadAuthenticatedUserRef = useRef(false);
 
@@ -68,10 +69,22 @@ const ProtectedLayout: React.FC = () => {
 
   // Auto-redirect to default dashboard on initial login (when landing on /dashboard)
   useEffect(() => {
-    if (defaultDashboardChecked.current) return;
-    if (!currentProject?.id || !user || location.pathname !== '/dashboard') return;
+    if (!user || location.pathname !== '/dashboard') {
+      defaultDashboardChecked.current = false;
+      lastDefaultDashboardProjectId.current = null;
+      return;
+    }
+
+    if (!currentProject?.id) return;
+
+    const hasCheckedCurrentProject =
+      defaultDashboardChecked.current &&
+      lastDefaultDashboardProjectId.current === currentProject.id;
+
+    if (hasCheckedCurrentProject) return;
 
     defaultDashboardChecked.current = true;
+    lastDefaultDashboardProjectId.current = currentProject.id;
 
     const getDefaultReportForDashboard = async (dashboardId: string): Promise<string | null> => {
       try {
