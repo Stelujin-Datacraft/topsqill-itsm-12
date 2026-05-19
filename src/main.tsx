@@ -6,7 +6,5 @@ import './components/ui/tiptap-styles.css'
 import './styles/print.css'
 
 createRoot(document.getElementById("root")!).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
+  <App />
 );
