@@ -5713,6 +5713,41 @@ export type Database = {
         }
         Relationships: []
       }
+      user_organizations: {
+        Row: {
+          created_at: string
+          id: string
+          joined_at: string
+          organization_id: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          joined_at?: string
+          organization_id: string
+          role?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          joined_at?: string
+          organization_id?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_organizations_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_profiles: {
         Row: {
           created_at: string
@@ -6650,6 +6685,18 @@ export type Database = {
           member_type: string
         }[]
       }
+      get_my_organizations: {
+        Args: never
+        Returns: {
+          domain: string
+          is_active: boolean
+          joined_at: string
+          logo_url: string
+          name: string
+          organization_id: string
+          role: string
+        }[]
+      }
       get_next_execution_order: { Args: { exec_id: string }; Returns: number }
       get_org_ldap_config: {
         Args: { org_id: string }
@@ -6830,6 +6877,7 @@ export type Database = {
       is_form_public: { Args: { _form_id: string }; Returns: boolean }
       is_ldap_user: { Args: { target_user_id: string }; Returns: boolean }
       is_org_admin_cached: { Args: never; Returns: boolean }
+      is_org_admin_of: { Args: { _org_id: string }; Returns: boolean }
       is_project_member: {
         Args: { _project_id: string; _user_id: string }
         Returns: boolean
@@ -6853,6 +6901,7 @@ export type Database = {
         Args: { invitation_id_param: string }
         Returns: Json
       }
+      switch_active_organization: { Args: { _org_id: string }; Returns: Json }
       user_has_role_permission: {
         Args: {
           _permission_type: string
