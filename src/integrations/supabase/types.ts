@@ -6902,6 +6902,10 @@ export type Database = {
         Returns: Json
       }
       switch_active_organization: { Args: { _org_id: string }; Returns: Json }
+      user_has_form_role_permission: {
+        Args: { _form_id: string; _permission?: string; _user_id: string }
+        Returns: boolean
+      }
       user_has_role_permission: {
         Args: {
           _permission_type: string
