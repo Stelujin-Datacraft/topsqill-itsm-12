@@ -29,6 +29,7 @@ interface AccessControlState {
   topLevelPermissions: Record<EntityType, TopLevelPermissions>;
   rolePermissions: Record<EntityType, RolePermissions>;
   userRole: string | null;
+  hasRoleAssignments: boolean;
   isProjectAdmin: boolean;
   isOrgAdmin: boolean;
   loading: boolean;
@@ -59,6 +60,7 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
     topLevelPermissions: defaultTopLevel(),
     rolePermissions: defaultRolePerms(),
     userRole: null,
+    hasRoleAssignments: false,
     isProjectAdmin: false,
     isOrgAdmin: false,
     loading: true
@@ -85,6 +87,7 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
           topLevelPermissions: defaultTopLevel(),
           rolePermissions: defaultRolePerms(),
           userRole: null,
+          hasRoleAssignments: false,
           isProjectAdmin: false,
           isOrgAdmin: false
         };
@@ -168,6 +171,7 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
       const processedRolePermissions = defaultRolePerms();
 
       let userRoleName: string | null = null;
+      const hasRoleAssignments = (roleAssignments?.length ?? 0) > 0;
 
       if (roleAssignments && roleAssignments.length > 0) {
         roleAssignments.forEach((assignment) => {
@@ -225,6 +229,7 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
         topLevelPermissions: processedTopLevel,
         rolePermissions: processedRolePermissions,
         userRole: userRoleName,
+        hasRoleAssignments,
         isProjectAdmin: isProjectAdmin || isProjectCreator,
         isOrgAdmin
       };
@@ -241,6 +246,7 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
         topLevelPermissions: accessData.topLevelPermissions,
         rolePermissions: accessData.rolePermissions,
         userRole: accessData.userRole,
+        hasRoleAssignments: accessData.hasRoleAssignments,
         isProjectAdmin: accessData.isProjectAdmin,
         isOrgAdmin: accessData.isOrgAdmin,
         loading: false
@@ -334,9 +340,8 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
         if (isResourceOwner(resource)) return true;
         const rolePerms = state.rolePermissions[entityType][resource.id];
         if (rolePerms?.can_read) return true;
-        // No role-based restriction → visible by default (per-form access
-        // matrix may still hide it elsewhere)
-        return !state.userRole;
+        // Preserve legacy visibility only for users with no assigned roles.
+        return !state.hasRoleAssignments;
       });
     }
 
