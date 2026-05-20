@@ -113,10 +113,11 @@ export function UserRolesTab() {
         title: "Success",
         description: "Role assigned successfully",
       });
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Assign role error:', error);
       toast({
         title: "Error",
-        description: "Failed to assign role",
+        description: error?.message || "Failed to assign role",
         variant: "destructive",
       });
     }
