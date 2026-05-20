@@ -6906,6 +6906,10 @@ export type Database = {
         Args: { _form_id: string; _permission?: string; _user_id: string }
         Returns: boolean
       }
+      user_has_project_form_role_permissions: {
+        Args: { _project_id: string; _user_id: string }
+        Returns: boolean
+      }
       user_has_role_permission: {
         Args: {
           _permission_type: string
