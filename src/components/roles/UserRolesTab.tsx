@@ -76,18 +76,26 @@ export function UserRolesTab() {
   };
 
   const bulkAssignRole = async (userIds: string[], roleId: string) => {
+    if (!userProfile?.id) {
+      throw new Error('Missing current user profile');
+    }
     // Remove existing roles for selected users first to avoid duplicates
-    await supabase.from('user_role_assignments').delete().in('user_id', userIds);
+    const { error: delError } = await supabase
+      .from('user_role_assignments')
+      .delete()
+      .in('user_id', userIds);
+    if (delError) throw delError;
+
     const assignments = userIds.map(userId => ({
       user_id: userId,
       role_id: roleId,
-      assigned_by: userProfile?.id
+      assigned_by: userProfile.id,
     }));
 
     const { error } = await supabase
       .from('user_role_assignments')
       .insert(assignments);
-    
+
     if (error) throw error;
     await refetchAssignments();
   };
@@ -149,10 +157,11 @@ export function UserRolesTab() {
       setSelectedUsers([]);
       setSelectedRole('');
       setShowBulkAssign(false);
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Bulk assign error:', error);
       toast({
         title: "Error",
-        description: "Failed to assign roles",
+        description: error?.message || "Failed to assign roles",
         variant: "destructive",
       });
     }
@@ -371,7 +380,27 @@ export function UserRolesTab() {
                             Remove Role
                           </Button>
                         ) : (
-                          <span className="text-sm text-muted-foreground">Use Bulk Assign</span>
+                          <Select
+                            value=""
+                            onValueChange={(roleId) => handleAssignRole(user.id, roleId)}
+                          >
+                            <SelectTrigger className="h-9 w-[200px]">
+                              <SelectValue placeholder="Assign role..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {roles.length === 0 ? (
+                                <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                                  No roles available
+                                </div>
+                              ) : (
+                                roles.map(role => (
+                                  <SelectItem key={role.id} value={role.id}>
+                                    {role.name}
+                                  </SelectItem>
+                                ))
+                              )}
+                            </SelectContent>
+                          </Select>
                         )}
                       </TableCell>
                     </TableRow>
