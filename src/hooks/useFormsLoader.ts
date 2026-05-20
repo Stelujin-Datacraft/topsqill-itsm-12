@@ -99,8 +99,11 @@ export function useFormsLoader() {
         }
       }
  
-      // Check project access
-      if (!isAnyAdmin && !isProjectMember) {
+      // Check project access. Users with role-based form permissions
+      // should also be able to load forms even if they are not yet
+      // listed in project_users.
+      const hasAnyRoleFormPermission = formPermissions.size > 0;
+      if (!isAnyAdmin && !isProjectMember && !hasAnyRoleFormPermission) {
         setForms([]);
         return;
       }
@@ -121,7 +124,12 @@ export function useFormsLoader() {
         formsData = formsData.filter(form => {
           if (form.is_public) return true;
           if (form.created_by === userId) return true;
-          return formPermissions.get(form.id)?.has('read') ?? false;
+          if (formPermissions.get(form.id)?.has('read')) return true;
+          // If the user has no role assignments at all, fall back to
+          // project-member visibility (so existing members keep seeing
+          // every form in the project).
+          if (isProjectMember && formPermissions.size === 0) return true;
+          return false;
         });
       }
  
