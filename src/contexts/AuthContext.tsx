@@ -76,6 +76,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const latestProfileRequestRef = useRef(0);
   const previousUserIdRef = useRef<string | null>(null);
   const sessionValidationInFlightRef = useRef(false);
+  const authSnapshotRef = useRef<{ userId: string | null; accessToken: string | null }>({
+    userId: null,
+    accessToken: null,
+  });
   
   // Get query client for prefetching - wrapped in try/catch for safety
   let queryClient: ReturnType<typeof useQueryClient> | null = null;
@@ -272,6 +276,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const syncAuthState = (nextSession: Session | null) => {
+    const nextUser = nextSession?.user ?? null;
+    const nextUserId = nextUser?.id ?? null;
+    const nextAccessToken = nextSession?.access_token ?? null;
+    const previousSnapshot = authSnapshotRef.current;
+
+    if (
+      previousSnapshot.userId !== nextUserId ||
+      previousSnapshot.accessToken !== nextAccessToken
+    ) {
+      authSnapshotRef.current = {
+        userId: nextUserId,
+        accessToken: nextAccessToken,
+      };
+      setSession(nextSession);
+      setUser(nextUser);
+    }
+
+    previousUserIdRef.current = nextUserId;
+  };
+
   useEffect(() => {
     let initialSessionHandled = false;
 
@@ -288,9 +313,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           previousUserId === nextUserId &&
           (event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN');
 
-        setSession(session);
-        setUser(session?.user ?? null);
-        previousUserIdRef.current = nextUserId;
+        syncAuthState(session);
 
         if (session?.user) {
           if (isSameUserSessionRefresh) {
@@ -317,9 +340,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (initialSessionHandled) return;
       initialSessionHandled = true;
 
-      setSession(session);
-      setUser(session?.user ?? null);
-      previousUserIdRef.current = session?.user?.id ?? null;
+      syncAuthState(session);
       if (session?.user) {
         const isValid = await validateSessionInDb(session.user.id, session.access_token);
         if (isValid) {
@@ -508,6 +529,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       
       await supabase.auth.signOut();
+      authSnapshotRef.current = { userId: null, accessToken: null };
       setUser(null);
       setUserProfile(null);
       setOrganization(null);
