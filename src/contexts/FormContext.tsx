@@ -134,7 +134,7 @@ export const FormProvider: React.FC<FormProviderProps> = ({ children }) => {
         return;
       }
 
-      const [assetPermsResult, formAccessResult, formsResult] = await Promise.all([
+      const [assetPermsResult, formAccessResult, formsResult, roleAssignmentsResult] = await Promise.all([
         supabase
           .from('asset_permissions')
           .select('asset_id')
@@ -150,7 +150,11 @@ export const FormProvider: React.FC<FormProviderProps> = ({ children }) => {
           .from('forms')
           .select('*')
           .eq('project_id', currentProject.id)
-          .order('updated_at', { ascending: false })
+          .order('updated_at', { ascending: false }),
+        supabase
+          .from('user_role_assignments')
+          .select('role_id')
+          .eq('user_id', user.id)
       ]);
 
       if (formsResult.error) {
@@ -162,12 +166,39 @@ export const FormProvider: React.FC<FormProviderProps> = ({ children }) => {
       assetPermsResult.data?.forEach(p => accessibleIds.add(p.asset_id));
       formAccessResult.data?.forEach(f => accessibleIds.add(f.form_id));
 
-      const filteredForms = (formsResult.data || []).filter(form => 
-        form.created_by === user.id || 
-        form.created_by === user.email ||
-        form.is_public || 
-        accessibleIds.has(form.id)
-      );
+      // Fetch role-based form permissions
+      const roleFormIds = new Set<string>();
+      const hasRoleAssignments = (roleAssignmentsResult.data?.length ?? 0) > 0;
+      if (hasRoleAssignments) {
+        const roleIds = roleAssignmentsResult.data!.map((a: any) => a.role_id);
+        const { data: rolePerms } = await supabase
+          .from('role_permissions')
+          .select('resource_id, permission_type')
+          .in('role_id', roleIds)
+          .eq('resource_type', 'form')
+          .eq('permission_type', 'read');
+        rolePerms?.forEach((p: any) => {
+          if (p.resource_id) roleFormIds.add(p.resource_id);
+        });
+      }
+
+      // Is this user a "pure role-based" user (no explicit asset/form_user_access entries)?
+      // For such users we restrict visibility strictly to forms granted via role permissions.
+      const isProjectMember = !!projectUserResult.data;
+      const hasAnyExplicitAccess = accessibleIds.size > 0;
+
+      const filteredForms = (formsResult.data || []).filter(form => {
+        if (form.created_by === user.id) return true;
+        if (form.created_by === user.email) return true;
+        if (form.is_public) return true;
+        if (accessibleIds.has(form.id)) return true;
+        if (roleFormIds.has(form.id)) return true;
+        // Fallback to project-member visibility ONLY when the user has no
+        // role assignments (preserves legacy behavior for normal members).
+        if (isProjectMember && !hasRoleAssignments && !hasAnyExplicitAccess) return true;
+        if (isProjectMember && !hasRoleAssignments) return true;
+        return false;
+      });
 
       setForms(filteredForms.map(transformDatabaseFormToAppForm));
     } catch (err: any) {
