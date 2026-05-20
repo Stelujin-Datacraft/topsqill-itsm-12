@@ -28,6 +28,7 @@ export function useFormsLoader() {
       isAnyAdmin: boolean;
       formPermissions: Map<string, Set<string>>;
       isProjectMember: boolean;
+      hasRoleAssignments?: boolean;
     }
   ) => {
     try {
@@ -43,12 +44,14 @@ export function useFormsLoader() {
       let isAnyAdmin: boolean;
       let formPermissions: Map<string, Set<string>>;
       let isProjectMember: boolean;
+      let hasRoleAssignments = false;
  
       if (cachedPermissions) {
         userId = cachedPermissions.userId;
         isAnyAdmin = cachedPermissions.isAnyAdmin;
         formPermissions = cachedPermissions.formPermissions;
         isProjectMember = cachedPermissions.isProjectMember;
+        hasRoleAssignments = cachedPermissions.hasRoleAssignments ?? false;
       } else {
         // Fallback: fetch user directly (for cases where cached permissions aren't available)
         const { data: { user } } = await supabase.auth.getUser();
@@ -80,6 +83,7 @@ export function useFormsLoader() {
             .eq('user_id', userId);
           
           if (roleAssignments && roleAssignments.length > 0) {
+            hasRoleAssignments = true;
             const roleIds = roleAssignments.map(a => a.role_id);
             const { data: perms } = await supabase
               .from('role_permissions')
@@ -125,10 +129,10 @@ export function useFormsLoader() {
           if (form.is_public) return true;
           if (form.created_by === userId) return true;
           if (formPermissions.get(form.id)?.has('read')) return true;
-          // If the user has no role assignments at all, fall back to
-          // project-member visibility (so existing members keep seeing
-          // every form in the project).
-          if (isProjectMember && formPermissions.size === 0) return true;
+          // Preserve legacy project-member visibility only for users with no
+          // role assignments at all. Once a user is role-based, form access
+          // must come from explicit per-form permissions.
+          if (isProjectMember && !hasRoleAssignments) return true;
           return false;
         });
       }
