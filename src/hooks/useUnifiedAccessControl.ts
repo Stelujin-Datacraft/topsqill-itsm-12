@@ -345,12 +345,20 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
       });
     }
 
-    // Other entities: visible by default unless a role explicitly restricts
+    // Workflows / reports / dashboards / policies: if the user has ANY role
+    // assignments granting permissions on this entity type, restrict
+    // visibility to only those resources where the role grants read. Users
+    // without role assignments retain legacy org/project-wide visibility.
+    const entityHasAnyRolePerms = Object.keys(state.rolePermissions[entityType] || {}).length > 0;
     return allResources.filter(resource => {
       if (isResourceOwner(resource)) return true;
       const rolePerms = state.rolePermissions[entityType][resource.id];
-      if (rolePerms) return rolePerms.can_read;
-      return true;
+      if (rolePerms?.can_read) return true;
+      // If the user has role-based perms for this entity type at all,
+      // hide resources that the role doesn't explicitly grant read on.
+      if (entityHasAnyRolePerms) return false;
+      // No role assignments for this entity → legacy visibility.
+      return !state.hasRoleAssignments;
     });
   };
 

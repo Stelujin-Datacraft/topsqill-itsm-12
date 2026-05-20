@@ -6902,12 +6902,44 @@ export type Database = {
         Returns: Json
       }
       switch_active_organization: { Args: { _org_id: string }; Returns: Json }
+      user_has_dashboard_role_permission: {
+        Args: {
+          _dashboard_id: string
+          _permission_type: string
+          _user_id: string
+        }
+        Returns: boolean
+      }
       user_has_form_role_permission: {
         Args: { _form_id: string; _permission?: string; _user_id: string }
         Returns: boolean
       }
+      user_has_policy_role_permission: {
+        Args: { _permission_type: string; _policy_id: string; _user_id: string }
+        Returns: boolean
+      }
+      user_has_project_dashboard_role_permissions: {
+        Args: { _project_id: string; _user_id: string }
+        Returns: boolean
+      }
       user_has_project_form_role_permissions: {
         Args: { _project_id: string; _user_id: string }
+        Returns: boolean
+      }
+      user_has_project_policy_role_permissions: {
+        Args: { _project_id: string; _user_id: string }
+        Returns: boolean
+      }
+      user_has_project_report_role_permissions: {
+        Args: { _project_id: string; _user_id: string }
+        Returns: boolean
+      }
+      user_has_project_workflow_role_permissions: {
+        Args: { _project_id: string; _user_id: string }
+        Returns: boolean
+      }
+      user_has_report_role_permission: {
+        Args: { _permission_type: string; _report_id: string; _user_id: string }
         Returns: boolean
       }
       user_has_role_permission: {
@@ -6916,6 +6948,14 @@ export type Database = {
           _resource_id?: string
           _resource_type: string
           _user_id: string
+        }
+        Returns: boolean
+      }
+      user_has_workflow_role_permission: {
+        Args: {
+          _permission_type: string
+          _user_id: string
+          _workflow_id: string
         }
         Returns: boolean
       }
