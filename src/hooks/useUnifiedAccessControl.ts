@@ -193,7 +193,7 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
               mappedEntityType = typeMap[perm.resource_type];
               if (!mappedEntityType) return;
 
-              const resourceId = perm.resource_id;
+              const resourceId = perm.resource_id ?? 'all';
               
               if (resourceId) {
                 if (!processedRolePermissions[mappedEntityType][resourceId]) {
