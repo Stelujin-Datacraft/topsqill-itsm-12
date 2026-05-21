@@ -224,8 +224,9 @@ export function CreateRolesTab() {
     const updateChecked = isPermissionChecked(resourceType, asset.id, 'update');
     const deleteChecked = isPermissionChecked(resourceType, asset.id, 'delete');
     const disableRead = updateChecked || deleteChecked;
-    // Hide Create checkbox for Dashboards, Reports, and Knowledge Base (policies)
-    const hideCreate = ['dashboards', 'reports', 'policies'].includes(resourceType);
+    // Hide per-row Create checkbox for global/universal modules.
+    // Creation of these is governed by a single global Create toggle in the section header.
+    const hideCreate = ['dashboards', 'reports', 'policies', 'workflows'].includes(resourceType);
 
     return (
       <div key={asset.id} className="flex items-center justify-between p-2 border rounded">
@@ -555,8 +556,34 @@ export function CreateRolesTab() {
   );
 })()}
 
+{/* Global Create toggle for universal modules (Workflows, Dashboards & Reports, Knowledge Base) */}
+{(['workflows', 'dashboards', 'policies'] as const).includes(selectedAssetType as any) && (() => {
+  const moduleLabel =
+    selectedAssetType === 'workflows' ? 'Workflows'
+    : selectedAssetType === 'dashboards' ? 'Dashboards & Reports'
+    : 'Knowledge Base';
+  const checked = isPermissionChecked(selectedAssetType, 'all', 'create');
+  return (
+    <div className="flex items-center justify-between p-3 border rounded-lg bg-primary/5">
+      <div className="flex flex-col">
+        <span className="text-sm font-medium">Create {moduleLabel}</span>
+        <span className="text-xs text-muted-foreground">
+          Allow this role to create new {moduleLabel.toLowerCase()} (global permission)
+        </span>
+      </div>
+      <div className="flex items-center space-x-2">
+        <Checkbox
+          checked={checked}
+          onCheckedChange={(c) => handlePermissionChange(selectedAssetType, 'all', 'create', c as boolean)}
+        />
+        <Label className="text-sm">Create</Label>
+      </div>
+    </div>
+  );
+})()}
+
 {/* Flat rendering for Forms & Workflows */}
-{selectedAssetType !== 'dashboards' && selectedAssetType !== 'policies' && assets.map(asset => 
+{selectedAssetType !== 'dashboards' && selectedAssetType !== 'policies' && assets.map(asset =>
   renderPermissionRow(selectedAssetType, asset)
 )}
 
