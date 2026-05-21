@@ -19,7 +19,7 @@ import { format } from 'date-fns';
 const KnowledgeBase = () => {
   const navigate = useNavigate();
   const { currentProject } = useProject();
-  const { userProfile } = useAuth();
+  const { user, userProfile } = useAuth();
   const isAdmin = userProfile?.role === 'admin';
   const { hasPermission, getVisibleResources, loading: permissionLoading } = useUnifiedAccessControl();
   const { folders, isLoading, createFolder, updateFolder, deleteFolder } = useKnowledgeBaseFolders();
@@ -32,8 +32,11 @@ const KnowledgeBase = () => {
   const [editFolder, setEditFolder] = useState<any>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  const visibleFolders = getVisibleResources('policies', folders.map(folder => ({ ...folder, id: folder.id })));
   const visiblePolicies = policies.filter((policy: any) => hasPermission('policies', 'read', policy.id));
+  const visibleFolders = folders.filter((folder) => {
+    if (folder.created_by === user?.id) return true;
+    return visiblePolicies.some((policy: any) => policy.folder_id === folder.id);
+  });
 
   const filtered = visibleFolders.filter(f =>
     !search || f.name.toLowerCase().includes(search.toLowerCase()) ||
