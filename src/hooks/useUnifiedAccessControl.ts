@@ -297,10 +297,18 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
     // update/delete, while read defaults to true and is filtered via
     // getVisibleResources or per-asset access matrices.
     if (action === 'create' && !resourceId) {
-      if (entityType === 'reports' || entityType === 'dashboards') {
-        return true;
+      // Global "Create" toggle for universal modules (dashboards & reports, policies)
+      // is stored as a role_permission with resource_id = 'all'.
+      if (entityType === 'reports' || entityType === 'dashboards' || entityType === 'policies') {
+        const globalCreate = state.rolePermissions[entityType]?.['all']?.can_create;
+        if (globalCreate) return true;
+        // Legacy fallback: users with no role assignments retain default-allow
+        if (!state.hasRoleAssignments) {
+          return entityType === 'reports' || entityType === 'dashboards';
+        }
+        return false;
       }
-      // forms / workflows / policies / projects: admin-only standalone create
+      // forms / workflows / projects: admin-only standalone create
       return false;
     }
 

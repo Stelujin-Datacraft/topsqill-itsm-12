@@ -87,7 +87,7 @@ export function DashboardsList({
     }
   };
 
-  const createButtonState = getButtonState('reports', 'create');
+  const createButtonState = getButtonState('dashboards', 'create');
 
   const CreateDashboardButton = () => (
     <CreateDashboardDialog>
