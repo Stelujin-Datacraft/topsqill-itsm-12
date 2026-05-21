@@ -5,8 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableHead, TableHeader, TableRow, TableCell } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Users, UserPlus, UserMinus, X, Search } from 'lucide-react';
+import { Users, UserPlus, UserMinus, X, Search, ChevronDown, Shield } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useOrganizationUsers } from '@/hooks/useOrganizationUsers';
 import { useRoles } from '@/hooks/useRoles';
 import { useUserRoleAssignments } from '@/hooks/useUserRoleAssignments';
@@ -361,32 +362,66 @@ export function UserRolesTab() {
                       </TableCell>
                       <TableCell>
                         {assignedRoles.length > 0 ? (
-                          <div className="flex flex-wrap gap-1">
-                            {assignedRoles.map(r => (
-                              <Badge key={r.id} variant="default" className="flex items-center gap-1">
-                                {r.name}
-                                <button
-                                  type="button"
-                                  onClick={() => handleRemoveOneRole(user.id, r.id)}
-                                  className="ml-1 hover:bg-destructive/20 rounded-full p-0.5"
-                                  title="Remove role"
-                                >
-                                  <X className="h-3 w-3" />
-                                </button>
-                              </Badge>
-                            ))}
-                          </div>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button variant="outline" size="sm" className="flex items-center gap-2">
+                                <Shield className="h-4 w-4 text-primary" />
+                                View Roles ({assignedRoles.length})
+                                <ChevronDown className="h-4 w-4" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent align="start" className="w-72 p-2">
+                              <div className="space-y-1 max-h-64 overflow-y-auto">
+                                {assignedRoles.map(r => (
+                                  <div
+                                    key={r.id}
+                                    className="flex items-center justify-between gap-2 p-2 rounded border bg-background"
+                                  >
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      <Shield className="h-4 w-4 text-primary shrink-0" />
+                                      <span className="text-sm font-medium truncate">{r.name}</span>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemoveOneRole(user.id, r.id)}
+                                      className="hover:bg-destructive/20 rounded-full p-1 shrink-0"
+                                      title="Remove role"
+                                    >
+                                      <X className="h-3 w-3" />
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            </PopoverContent>
+                          </Popover>
                         ) : (
                           <Badge variant="secondary">No Role</Badge>
                         )}
                       </TableCell>
                       <TableCell>
                         {groupNames.length > 0 ? (
-                          <div className="flex flex-wrap gap-1">
-                            {groupNames.map((g, i) => (
-                              <Badge key={i} variant="outline">{g}</Badge>
-                            ))}
-                          </div>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button variant="outline" size="sm" className="flex items-center gap-2">
+                                <Users className="h-4 w-4 text-primary" />
+                                View Groups ({groupNames.length})
+                                <ChevronDown className="h-4 w-4" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent align="start" className="w-72 p-2">
+                              <div className="space-y-1 max-h-64 overflow-y-auto">
+                                {groupNames.map((g, i) => (
+                                  <div
+                                    key={i}
+                                    className="flex items-center gap-2 p-2 rounded border bg-background"
+                                  >
+                                    <Users className="h-4 w-4 text-primary shrink-0" />
+                                    <span className="text-sm font-medium truncate">{g}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </PopoverContent>
+                          </Popover>
                         ) : (
                           <span className="text-sm text-muted-foreground">—</span>
                         )}
