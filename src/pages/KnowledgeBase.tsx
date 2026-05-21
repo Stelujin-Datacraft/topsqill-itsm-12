@@ -32,9 +32,15 @@ const KnowledgeBase = () => {
   const [editFolder, setEditFolder] = useState<any>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  const visiblePolicies = policies.filter((policy: any) => hasPermission('policies', 'read', policy.id));
+  // Policies returned by usePolicies are already filtered by read permission.
+  const visiblePolicies = policies;
+  const canReadPolicies = hasPermission('policies', 'read');
   const visibleFolders = folders.filter((folder) => {
+    if (isAdmin) return true;
     if (folder.created_by === user?.id) return true;
+    // If the user has KB read access for this project, show folders.
+    if (canReadPolicies) return true;
+    // Otherwise show only folders containing items they can read.
     return visiblePolicies.some((policy: any) => policy.folder_id === folder.id);
   });
 
