@@ -2366,6 +2366,45 @@ export type Database = {
           },
         ]
       }
+      group_role_assignments: {
+        Row: {
+          assigned_at: string
+          assigned_by: string | null
+          group_id: string
+          id: string
+          role_id: string
+        }
+        Insert: {
+          assigned_at?: string
+          assigned_by?: string | null
+          group_id: string
+          id?: string
+          role_id: string
+        }
+        Update: {
+          assigned_at?: string
+          assigned_by?: string | null
+          group_id?: string
+          id?: string
+          role_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "group_role_assignments_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "group_role_assignments_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "roles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       group_roles: {
         Row: {
           created_at: string
@@ -6636,6 +6675,7 @@ export type Database = {
         Returns: boolean
       }
       can_user_create_project: { Args: { org_id: string }; Returns: boolean }
+      can_view_group: { Args: { _group_id: string }; Returns: boolean }
       can_view_project: {
         Args: { _project_id: string; _user_id: string }
         Returns: boolean
@@ -6869,6 +6909,7 @@ export type Database = {
         }
         Returns: string
       }
+      is_admin_of_group: { Args: { _group_id: string }; Returns: boolean }
       is_admin_of_role: { Args: { _role_id: string }; Returns: boolean }
       is_current_user_admin: { Args: never; Returns: boolean }
       is_current_user_admin_of_org: {

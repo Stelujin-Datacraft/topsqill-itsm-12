@@ -24,7 +24,7 @@ export function GroupRolesTab() {
   // Form state
   const [formData, setFormData] = useState({
     name: '',
-    roleId: '',
+    roleIds: [] as string[],
     selectedUsers: [] as string[],
     selectedGroups: [] as string[]
   });
@@ -80,7 +80,9 @@ export function GroupRolesTab() {
       
       setFormData({
         name: group.name,
-        roleId: group.role_id || '',
+        roleIds: group.role_ids && group.role_ids.length > 0
+          ? group.role_ids
+          : (group.role_id ? [group.role_id] : []),
         selectedUsers: existingUsers,
         selectedGroups: existingGroups
       });
@@ -92,7 +94,7 @@ export function GroupRolesTab() {
       });
       setFormData({
         name: group.name,
-        roleId: group.role_id || '',
+        roleIds: group.role_id ? [group.role_id] : [],
         selectedUsers: [],
         selectedGroups: []
       });
@@ -134,7 +136,7 @@ export function GroupRolesTab() {
     setEditingGroup(null);
     setFormData({
       name: '',
-      roleId: '',
+      roleIds: [],
       selectedUsers: [],
       selectedGroups: []
     });
@@ -146,7 +148,7 @@ export function GroupRolesTab() {
     setEditingGroup(null);
     setFormData({
       name: '',
-      roleId: '',
+      roleIds: [],
       selectedUsers: [],
       selectedGroups: []
     });
@@ -167,7 +169,7 @@ export function GroupRolesTab() {
     try {
       const groupData = {
         name: formData.name,
-        roleId: formData.roleId || undefined,
+        roleIds: formData.roleIds,
         members: [
           ...formData.selectedUsers.map(id => ({ id, type: 'user' as const })),
           ...formData.selectedGroups.map(id => ({ id, type: 'group' as const }))
@@ -273,22 +275,53 @@ export function GroupRolesTab() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="role">Assign Role</Label>
+                  <Label htmlFor="role">Assign Roles</Label>
                   <Select
-                    value={formData.roleId}
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, roleId: value }))}
+                    value=""
+                    onValueChange={(value) => {
+                      if (!value) return;
+                      setFormData(prev => prev.roleIds.includes(value)
+                        ? prev
+                        : { ...prev, roleIds: [...prev.roleIds, value] });
+                    }}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select a role (optional)" />
+                      <SelectValue placeholder="Add a role (optional)" />
                     </SelectTrigger>
                     <SelectContent>
-                      {roles.map(role => (
-                        <SelectItem key={role.id} value={role.id}>
-                          {role.name}
-                        </SelectItem>
-                      ))}
+                      {roles
+                        .filter(r => !formData.roleIds.includes(r.id))
+                        .map(role => (
+                          <SelectItem key={role.id} value={role.id}>
+                            {role.name}
+                          </SelectItem>
+                        ))}
+                      {roles.filter(r => !formData.roleIds.includes(r.id)).length === 0 && (
+                        <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                          All roles selected
+                        </div>
+                      )}
                     </SelectContent>
                   </Select>
+                  {formData.roleIds.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {formData.roleIds.map(rid => {
+                        const r = roles.find(rr => rr.id === rid);
+                        return (
+                          <Badge key={rid} variant="secondary" className="flex items-center gap-1">
+                            {r?.name || 'Unknown role'}
+                            <button
+                              type="button"
+                              onClick={() => setFormData(prev => ({ ...prev, roleIds: prev.roleIds.filter(x => x !== rid) }))}
+                              className="ml-1 hover:bg-destructive/20 rounded-full p-0.5"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </Badge>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -495,7 +528,13 @@ export function GroupRolesTab() {
                           </Button>
                         </TableCell>
                         <TableCell>
-                          {group.role_name ? (
+                          {group.role_names && group.role_names.length > 0 ? (
+                            <div className="flex flex-wrap gap-1">
+                              {group.role_names.map((n, i) => (
+                                <Badge key={i} variant="default">{n}</Badge>
+                              ))}
+                            </div>
+                          ) : group.role_name ? (
                             <Badge variant="default">{group.role_name}</Badge>
                           ) : (
                             <Badge variant="secondary">No Role</Badge>

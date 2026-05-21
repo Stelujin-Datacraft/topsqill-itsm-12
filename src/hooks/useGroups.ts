@@ -11,6 +11,8 @@ export interface Group {
   created_at: string;
   updated_at: string;
   role_name?: string;
+  role_ids?: string[];
+  role_names?: string[];
   member_count?: number;
 }
 
@@ -23,7 +25,7 @@ export interface GroupMember {
 
 export interface CreateGroupData {
   name: string;
-  roleId?: string;
+  roleIds?: string[];
   members: { id: string; type: 'user' | 'group' }[];
 }
 
@@ -52,7 +54,8 @@ export function useGroups() {
       // Batch fetch all member counts in a single query (N+1 optimization)
       const groupIds = (groupsData || []).map(g => g.id);
       let memberCountMap = new Map<string, number>();
-      
+      const roleAssignMap = new Map<string, { id: string; name: string }[]>();
+
       if (groupIds.length > 0) {
         const { data: memberships } = await supabase
           .from('group_memberships')
@@ -64,14 +67,30 @@ export function useGroups() {
           const count = memberCountMap.get(membership.group_id) || 0;
           memberCountMap.set(membership.group_id, count + 1);
         }
+
+        // Fetch multi-role assignments for groups
+        const { data: roleAssigns } = await (supabase as any)
+          .from('group_role_assignments')
+          .select('group_id, role_id, roles!inner(id, name)')
+          .in('group_id', groupIds);
+        for (const row of (roleAssigns as any[]) || []) {
+          const list = roleAssignMap.get(row.group_id) || [];
+          list.push({ id: row.role_id, name: row.roles?.name });
+          roleAssignMap.set(row.group_id, list);
+        }
       }
 
       // Enrich groups with pre-fetched member counts
-      return (groupsData || []).map((group) => ({
-        ...group,
-        role_name: group.roles?.name,
-        member_count: memberCountMap.get(group.id) || 0
-      })) as Group[];
+      return (groupsData || []).map((group: any) => {
+        const assigned = roleAssignMap.get(group.id) || [];
+        return {
+          ...group,
+          role_name: group.roles?.name,
+          role_ids: assigned.map(r => r.id),
+          role_names: assigned.map(r => r.name).filter(Boolean),
+          member_count: memberCountMap.get(group.id) || 0
+        };
+      }) as Group[];
     },
     enabled: !!currentOrganization?.id,
     staleTime: 2 * 60 * 1000, // 2 minutes
@@ -90,19 +109,33 @@ export function useGroups() {
       
       if (!currentUserId) throw new Error('User not authenticated');
 
+      const roleIds = (data.roleIds || []).filter(Boolean);
+
       // Create the group
       const { data: groupData, error: groupError } = await supabase
         .from('groups')
         .insert({
           name: data.name,
           organization_id: currentOrganization.id,
-          role_id: data.roleId || null,
+          role_id: roleIds[0] || null,
           created_by: currentUserId
         })
         .select()
         .single();
 
       if (groupError) throw groupError;
+
+      // Insert role assignments
+      if (roleIds.length > 0) {
+        const { error: raErr } = await (supabase as any)
+          .from('group_role_assignments')
+          .insert(roleIds.map(rid => ({
+            group_id: groupData.id,
+            role_id: rid,
+            assigned_by: currentUserId,
+          })));
+        if (raErr) throw raErr;
+      }
 
       // Add members to the group
       if (data.members.length > 0) {
@@ -139,17 +172,37 @@ export function useGroups() {
       
       if (!currentUserId) throw new Error('User not authenticated');
 
+      const roleIds = (data.roleIds || []).filter(Boolean);
+
       // Update the group
       const { error: groupError } = await supabase
         .from('groups')
         .update({
           name: data.name,
-          role_id: data.roleId || null,
+          role_id: roleIds[0] || null,
           updated_at: new Date().toISOString()
         })
         .eq('id', groupId);
 
       if (groupError) throw groupError;
+
+      // Replace role assignments
+      const { error: delRolesErr } = await (supabase as any)
+        .from('group_role_assignments')
+        .delete()
+        .eq('group_id', groupId);
+      if (delRolesErr) throw delRolesErr;
+
+      if (roleIds.length > 0) {
+        const { error: insRolesErr } = await (supabase as any)
+          .from('group_role_assignments')
+          .insert(roleIds.map(rid => ({
+            group_id: groupId,
+            role_id: rid,
+            assigned_by: currentUserId,
+          })));
+        if (insRolesErr) throw insRolesErr;
+      }
 
       // Delete existing memberships
       const { error: deleteError } = await supabase
