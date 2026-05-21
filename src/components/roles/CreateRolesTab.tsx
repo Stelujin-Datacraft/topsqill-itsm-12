@@ -219,14 +219,14 @@ export function CreateRolesTab() {
     return reports.filter(report => (report as any).dashboard_id === dashboardId);
   };
 
-  const renderPermissionRow = (resourceType: string, asset: { id: string; name: string }, label?: string) => {
+  const renderPermissionRow = (resourceType: string, asset: { id: string; name: string }, label?: string, forceHideCreate?: boolean) => {
     const readChecked = isPermissionChecked(resourceType, asset.id, 'read');
     const updateChecked = isPermissionChecked(resourceType, asset.id, 'update');
     const deleteChecked = isPermissionChecked(resourceType, asset.id, 'delete');
     const disableRead = updateChecked || deleteChecked;
     // Hide per-row Create checkbox for global/universal modules.
     // Creation of these is governed by a single global Create toggle in the section header.
-    const hideCreate = ['dashboards', 'reports', 'policies', 'workflows'].includes(resourceType);
+    const hideCreate = forceHideCreate || ['dashboards', 'reports', 'policies', 'workflows'].includes(resourceType);
 
     return (
       <div key={asset.id} className="flex items-center justify-between p-2 border rounded">
@@ -545,7 +545,7 @@ export function CreateRolesTab() {
   const projPolicies = getAssetsForProject(project.id, 'policies');
   return (
     <div className="space-y-2">
-      {proj && renderPermissionRow('projects', { id: proj.id, name: proj.name }, 'Project')}
+      {proj && renderPermissionRow('projects', { id: proj.id, name: proj.name }, 'Project', true)}
       {projPolicies.length > 0 && (
         <div className="ml-6 space-y-1 border-l-2 border-muted pl-4">
           <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Policies</span>
