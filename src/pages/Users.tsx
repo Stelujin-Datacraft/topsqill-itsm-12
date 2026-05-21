@@ -93,7 +93,7 @@ const Users = () => {
   const { roles } = useRoles();
   const { assignments: roleAssignments, refetch: refetchRoleAssignments } = useUserRoleAssignments();
   const { templates: securityTemplates } = useSecurityTemplates();
-  const { allParameters: securityParams } = useAllSecurityParameters();
+  const { allParameters: securityParams, refetch: refetchSecurityParams } = useAllSecurityParameters();
 
   const [userGroupsMap, setUserGroupsMap] = useState<Record<string, string[]>>({});
   useEffect(() => {
