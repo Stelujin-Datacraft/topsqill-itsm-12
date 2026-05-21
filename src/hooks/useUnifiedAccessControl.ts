@@ -310,15 +310,12 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
       return perms.can_read; // resource_id 'all' or specific id both count as explicit read
     });
     if (itemLevel) return true;
-    // Project-level grant for the current project also implies read access for child entities
+    // Project-level grant cascades ONLY to forms. For reports, dashboards,
+    // workflows, and policies (KB docs/folders), read must be explicitly
+    // granted per-item or via the ':all' wildcard.
     const pid = targetProjectId;
-    if (pid && state.projectPermissions[pid]?.can_read) {
-      // Note: 'policies' (Knowledge Base docs) intentionally excluded — project
-      // access alone must NOT cascade to per-document read. Docs require an
-      // explicit policy grant (item or 'all').
-      if (entityType === 'reports' || entityType === 'dashboards' || entityType === 'forms' || entityType === 'workflows') {
-        return true;
-      }
+    if (pid && state.projectPermissions[pid]?.can_read && entityType === 'forms') {
+      return true;
     }
     return false;
   };
@@ -339,10 +336,14 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
 
   const shouldApplyLegacyTopLevelRead = (entityType: EntityType): boolean => {
     if (!state.hasRoleAssignments) return true;
-    // Legacy top-level read no longer cascades for reports, dashboards, or
-    // policies once a user has any custom role assignment. KB docs must be
-    // explicitly granted.
-    return entityType !== 'reports' && entityType !== 'dashboards' && entityType !== 'policies';
+    // Once the user has any custom role assignment, the legacy top-level
+    // project_top_level_permissions row no longer cascades for reports,
+    // dashboards, workflows, or policies — those require explicit per-item
+    // or ':all' grants from the role.
+    return entityType !== 'reports'
+      && entityType !== 'dashboards'
+      && entityType !== 'workflows'
+      && entityType !== 'policies';
   };
 
   const hasPermission = (entityType: EntityType, action: ActionType, resourceId?: string, resource?: any): boolean => {
@@ -363,7 +364,8 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
     // update/delete, while read defaults to true and is filtered via
     // getVisibleResources or per-asset access matrices.
     if (action === 'create' && !resourceId) {
-      // Global "Create" toggle for universal modules (dashboards & reports, policies)
+      // Global "Create" toggle for universal modules (dashboards, reports,
+      // and Knowledge Base — both folders and docs use the 'policies' type)
       // is stored as a role_permission with resource_id = 'all'.
       if (entityType === 'reports' || entityType === 'dashboards' || entityType === 'policies') {
         const globalCreate = state.rolePermissions[entityType]?.['all']?.can_create;
@@ -373,8 +375,9 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
         if (entityType === 'reports' && state.rolePermissions.dashboards?.['all']?.can_create) {
           return true;
         }
-        // Project-level create grant also enables creating these in that project
-        if (projectGrants('create')) return true;
+        // Project-level create grant cascades only for reports/dashboards.
+        // Knowledge Base creation requires the explicit global KB create toggle.
+        if (entityType !== 'policies' && projectGrants('create')) return true;
         // Legacy fallback: users with no role assignments retain default-allow
         if (!state.hasRoleAssignments) {
           return entityType === 'reports' || entityType === 'dashboards';
@@ -397,9 +400,9 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
         // Cross-module: KB "Create Dashboards & Reports" does not imply read.
         // But an explicit dashboards:all:read should grant report read too.
         if (entityType === 'reports' && state.rolePermissions.dashboards?.['all']?.can_read) return true;
-        // Project-level read cascades to forms/workflows/reports/dashboards
-        // but NOT to policies — KB docs require an explicit per-doc grant.
-        if (entityType !== 'policies' && projectGrants('read', (resource as any)?.project_id)) return true;
+        // Project-level read cascades ONLY to forms. Reports, dashboards,
+        // workflows, and policies require explicit per-item (or ':all') grants.
+        if (entityType === 'forms' && projectGrants('read', (resource as any)?.project_id)) return true;
         // If the user has any role assignments, hide unless explicitly granted above
         if (state.hasRoleAssignments) return false;
         return true;
@@ -411,8 +414,9 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
     if (resourceId) {
       const rolePerms = state.rolePermissions[entityType][resourceId];
       const allPerms = state.rolePermissions[entityType]?.['all'];
-      // Project-level grant takes precedence as an additional allow path
-      if (projectGrants(action, (resource as any)?.project_id)) return true;
+      // Project-level update/delete grant cascades only for forms.
+      // Reports/dashboards/workflows/policies require explicit per-item grants.
+      if (entityType === 'forms' && projectGrants(action, (resource as any)?.project_id)) return true;
       if (allPerms) {
         switch (action) {
           case 'create': if (allPerms.can_create) return true; break;
@@ -468,9 +472,9 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
       if (state.rolePermissions[entityType]?.['all']?.can_read) return true;
       // Cross-module alias for reports under the dashboard module
       if (entityType === 'reports' && state.rolePermissions.dashboards?.['all']?.can_read) return true;
-      // Project-level cascade applies to reports/dashboards/workflows, NOT to
-      // policies (KB docs require explicit per-doc grant).
-      if (entityType !== 'policies' && projectGrants('read', resource.project_id ?? resource.projectId)) return true;
+      // Project-level cascade applies ONLY to forms — reports, dashboards,
+      // workflows, and policies require explicit per-item or ':all' grants.
+      // (forms are handled in the branch above; this branch never runs for them)
       // If the user has any role assignments, hide unless explicitly granted
       if (state.hasRoleAssignments) return false;
       return true;
