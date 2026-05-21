@@ -33,7 +33,10 @@ const lazyWithRetry = <T extends React.ComponentType<any>>(
         msg.includes('Failed to fetch dynamically imported module') ||
         msg.includes('Importing a module script failed') ||
         msg.includes('error loading dynamically imported module');
-      if (isChunkErr && typeof window !== 'undefined') {
+      // Only auto-reload in production. In dev/preview, Vite HMR can
+      // transiently fail dynamic imports — reloading causes an annoying
+      // refresh loop. Just rethrow so the RouteLoader error boundary handles it.
+      if (isChunkErr && typeof window !== 'undefined' && import.meta.env.PROD) {
         if (!sessionStorage.getItem(RELOAD_KEY)) {
           sessionStorage.setItem(RELOAD_KEY, '1');
           window.location.reload();
