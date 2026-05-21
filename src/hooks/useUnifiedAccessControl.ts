@@ -357,6 +357,11 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
       if (entityType === 'reports' || entityType === 'dashboards' || entityType === 'policies') {
         const globalCreate = state.rolePermissions[entityType]?.['all']?.can_create;
         if (globalCreate) return true;
+        // The role UI exposes a single "Create Dashboards & Reports" toggle stored
+        // under dashboards:all:create. Treat it as enabling report creation too.
+        if (entityType === 'reports' && state.rolePermissions.dashboards?.['all']?.can_create) {
+          return true;
+        }
         // Project-level create grant also enables creating these in that project
         if (projectGrants('create')) return true;
         // Legacy fallback: users with no role assignments retain default-allow
