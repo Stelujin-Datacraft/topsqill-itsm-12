@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { UserRolesTab } from '@/components/roles/UserRolesTab';
 import { GroupRolesTab } from '@/components/roles/GroupRolesTab';
 import { CreateRolesTab } from '@/components/roles/CreateRolesTab';
@@ -122,10 +123,11 @@ const Users = () => {
     return securityTemplates.find(t => t.id === p.security_template_id) || null;
   };
 
-  const getAssignedRole = (userId: string) => {
-    const a = roleAssignments.find((r: any) => r.user_id === userId);
-    if (!a) return null;
-    return roles.find(r => r.id === a.role_id) || null;
+  const getAssignedRoles = (userId: string) => {
+    const ids = roleAssignments
+      .filter((r: any) => r.user_id === userId)
+      .map((r: any) => r.role_id);
+    return roles.filter(r => ids.includes(r.id));
   };
 
   const handleAssignCustomRole = async (userId: string, roleId: string) => {
@@ -564,28 +566,68 @@ const Users = () => {
                         </TableCell>
                         <TableCell>
                           {(() => {
-                            const assigned = getAssignedRole(user.id);
+                            const assignedRoles = getAssignedRoles(user.id);
                             if (user.role === 'admin') {
                               return <Badge variant="secondary" className="text-xs">No Role</Badge>;
                             }
-                            return assigned ? (
-                              <Badge variant="default" className="text-xs">{assigned.name}</Badge>
-                            ) : (
-                              <Badge variant="secondary" className="text-xs">No Role</Badge>
+                            if (assignedRoles.length === 0) {
+                              return <Badge variant="secondary" className="text-xs">No Role</Badge>;
+                            }
+                            return (
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <Button variant="outline" size="sm" className="flex items-center gap-2">
+                                    <Shield className="h-4 w-4 text-primary" />
+                                    View Roles ({assignedRoles.length})
+                                    <ChevronDown className="h-4 w-4" />
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent align="start" className="w-72 p-2">
+                                  <div className="space-y-1 max-h-64 overflow-y-auto">
+                                    {assignedRoles.map(r => (
+                                      <div
+                                        key={r.id}
+                                        className="flex items-center gap-2 p-2 rounded border bg-background"
+                                      >
+                                        <Shield className="h-4 w-4 text-primary shrink-0" />
+                                        <span className="text-sm font-medium truncate">{r.name}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </PopoverContent>
+                              </Popover>
                             );
                           })()}
                         </TableCell>
                         <TableCell>
                           {(() => {
                             const groupNames = userGroupsMap[user.id] || [];
-                            return groupNames.length > 0 ? (
-                              <div className="flex flex-wrap gap-1">
-                                {groupNames.map((g, i) => (
-                                  <Badge key={i} variant="outline" className="text-xs">{g}</Badge>
-                                ))}
-                              </div>
-                            ) : (
-                              <Badge variant="secondary" className="text-xs">No Group</Badge>
+                            if (groupNames.length === 0) {
+                              return <Badge variant="secondary" className="text-xs">No Group</Badge>;
+                            }
+                            return (
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <Button variant="outline" size="sm" className="flex items-center gap-2">
+                                    <UsersIcon className="h-4 w-4 text-primary" />
+                                    View Groups ({groupNames.length})
+                                    <ChevronDown className="h-4 w-4" />
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent align="start" className="w-72 p-2">
+                                  <div className="space-y-1 max-h-64 overflow-y-auto">
+                                    {groupNames.map((g, i) => (
+                                      <div
+                                        key={i}
+                                        className="flex items-center gap-2 p-2 rounded border bg-background"
+                                      >
+                                        <UsersIcon className="h-4 w-4 text-primary shrink-0" />
+                                        <span className="text-sm font-medium truncate">{g}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </PopoverContent>
+                              </Popover>
                             );
                           })()}
                         </TableCell>
