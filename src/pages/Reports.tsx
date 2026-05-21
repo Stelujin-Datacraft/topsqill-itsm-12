@@ -71,12 +71,17 @@ const Reports = () => {
           <Button variant="outline" onClick={() => navigate('/analytics-dashboard')}>
             Form Analysis
           </Button>
-          <CreateDashboardDialog>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Create Dashboard
-            </Button>
-          </CreateDashboardDialog>
+          {(() => {
+            const s = getButtonState('dashboards', 'create');
+            return (
+              <CreateDashboardDialog>
+                <Button disabled={s.disabled} title={s.tooltip || undefined}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Dashboard
+                </Button>
+              </CreateDashboardDialog>
+            );
+          })()}
         </div>
       }
     >
