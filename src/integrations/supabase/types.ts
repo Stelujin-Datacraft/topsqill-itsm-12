@@ -6956,6 +6956,10 @@ export type Database = {
         Args: { _project_id: string; _user_id: string }
         Returns: boolean
       }
+      user_can_create_report_in_project: {
+        Args: { _project_id: string; _user_id: string }
+        Returns: boolean
+      }
       user_has_any_role_assignment: {
         Args: { _user_id: string }
         Returns: boolean
