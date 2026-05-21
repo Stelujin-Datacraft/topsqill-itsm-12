@@ -77,7 +77,7 @@ export function useCreateRole() {
           permissionsToInsert.push({
             role_id: roleData.id,
             resource_type: dbResourceType,
-            resource_id: resourceId,
+            resource_id: resourceId === 'all' ? null : resourceId,
             permission_type: permission
           });
         });
@@ -172,7 +172,7 @@ export function useCreateRole() {
           permissionsToInsert.push({
             role_id: data.roleId,
             resource_type: dbResourceType,
-            resource_id: resourceId,
+            resource_id: resourceId === 'all' ? null : resourceId,
             permission_type: permission
           });
         });
