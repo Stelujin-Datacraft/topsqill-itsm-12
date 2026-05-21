@@ -13,6 +13,7 @@ import { useKnowledgeBaseFolders } from '@/hooks/useKnowledgeBaseFolders';
 import { usePolicies } from '@/hooks/usePolicies';
 import { useProject } from '@/contexts/ProjectContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useUnifiedAccessControl } from '@/hooks/useUnifiedAccessControl';
 import { format } from 'date-fns';
 
 const KnowledgeBase = () => {
@@ -20,6 +21,7 @@ const KnowledgeBase = () => {
   const { currentProject } = useProject();
   const { userProfile } = useAuth();
   const isAdmin = userProfile?.role === 'admin';
+  const { hasPermission, getVisibleResources, loading: permissionLoading } = useUnifiedAccessControl();
   const { folders, isLoading, createFolder, updateFolder, deleteFolder } = useKnowledgeBaseFolders();
   const { policies } = usePolicies();
 
@@ -30,14 +32,17 @@ const KnowledgeBase = () => {
   const [editFolder, setEditFolder] = useState<any>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  const filtered = folders.filter(f =>
+  const visibleFolders = getVisibleResources('policies', folders.map(folder => ({ ...folder, id: folder.id })));
+  const visiblePolicies = policies.filter((policy: any) => hasPermission('policies', 'read', policy.id));
+
+  const filtered = visibleFolders.filter(f =>
     !search || f.name.toLowerCase().includes(search.toLowerCase()) ||
     f.description?.toLowerCase().includes(search.toLowerCase())
   );
 
   // Search across all policies/audits
   const matchingPolicies = search.trim()
-    ? policies.filter((p: any) =>
+    ? visiblePolicies.filter((p: any) =>
         p.name?.toLowerCase().includes(search.toLowerCase()) ||
         p.description?.toLowerCase().includes(search.toLowerCase()) ||
         p.policy_number?.toLowerCase().includes(search.toLowerCase()) ||
@@ -49,11 +54,11 @@ const KnowledgeBase = () => {
 
   // Count items per folder
   const getItemCount = (folderId: string) => {
-    return policies.filter((p: any) => p.folder_id === folderId).length;
+    return visiblePolicies.filter((p: any) => p.folder_id === folderId).length;
   };
 
   // Orphaned policies (no folder)
-  const orphanedCount = policies.filter((p: any) => !p.folder_id).length;
+  const orphanedCount = visiblePolicies.filter((p: any) => !p.folder_id).length;
 
   if (!currentProject) {
     return (
@@ -62,6 +67,18 @@ const KnowledgeBase = () => {
           <BookOpen className="h-12 w-12 text-muted-foreground mx-auto" />
           <h3 className="text-lg font-medium">No Project Selected</h3>
           <p className="text-sm text-muted-foreground">Select a project to manage your Knowledge Base.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!permissionLoading && !hasPermission('policies', 'read')) {
+    return (
+      <div className="flex items-center justify-center h-[60vh]">
+        <div className="text-center space-y-2">
+          <BookOpen className="h-12 w-12 text-muted-foreground mx-auto" />
+          <h3 className="text-lg font-medium">Access Denied</h3>
+          <p className="text-sm text-muted-foreground">You do not have permission to view the Knowledge Base.</p>
         </div>
       </div>
     );
