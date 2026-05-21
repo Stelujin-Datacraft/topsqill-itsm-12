@@ -14,6 +14,7 @@ import { useKnowledgeBaseFolders } from '@/hooks/useKnowledgeBaseFolders';
 import { useProject } from '@/contexts/ProjectContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useKnowledgeBasePermission } from '@/hooks/useKnowledgeBasePermission';
+import { useUnifiedAccessControl } from '@/hooks/useUnifiedAccessControl';
 import { POLICY_CATEGORIES, POLICY_STATUSES, POLICY_PRIORITIES } from '@/types/policy';
 import { PolicyDashboard } from '@/components/policies/PolicyDashboard';
 import { format, isPast } from 'date-fns';
@@ -37,6 +38,7 @@ const KnowledgeBaseFolder = () => {
   const { currentProject } = useProject();
   const { userProfile } = useAuth();
   const { canEdit, canAdmin } = useKnowledgeBasePermission(folderId === 'unassigned' ? null : folderId);
+  const { hasPermission, loading: permissionLoading } = useUnifiedAccessControl();
   const isAdmin = canAdmin;
   const { policies, isLoading, templates, templatesLoading, deleteTemplate, updateTemplate, clonePolicy, bulkUpdateStatus, bulkDelete } = usePolicies();
   const { folders } = useKnowledgeBaseFolders();
@@ -80,6 +82,7 @@ const KnowledgeBaseFolder = () => {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const folderPolicies = useMemo(() => {
     return policies.filter((p: any) => {
+      if (!hasPermission('policies', 'read', p.id)) return false;
       const matchFolder = isUnassigned ? !p.folder_id : p.folder_id === folderId;
       const matchSearch = !search || p.name.toLowerCase().includes(search.toLowerCase()) ||
         p.description?.toLowerCase().includes(search.toLowerCase()) ||
@@ -100,6 +103,19 @@ const KnowledgeBaseFolder = () => {
     const p = POLICY_PRIORITIES.find(pr => pr.value === priority);
     return <Badge className={p?.color || ''} variant="outline">{p?.label || priority}</Badge>;
   };
+
+  if (!permissionLoading && !hasPermission('policies', 'read')) {
+    return (
+      <div className="flex items-center justify-center h-[60vh]">
+        <div className="text-center space-y-2">
+          <FileText className="h-12 w-12 text-muted-foreground mx-auto" />
+          <h3 className="text-lg font-medium">Access Denied</h3>
+          <p className="text-sm text-muted-foreground">You do not have permission to view this Knowledge Base folder.</p>
+          <Button variant="outline" onClick={() => navigate('/knowledge-base')}>Back to Knowledge Base</Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 p-6">

@@ -5,10 +5,12 @@ import { useProject } from '@/contexts/ProjectContext';
 import { Dashboard, DashboardWithReports, ReportMedia } from '@/types/dashboard';
 import { useToast } from '@/hooks/use-toast';
 import { useRef, useCallback } from 'react';
+import { useUnifiedAccessControl } from '@/hooks/useUnifiedAccessControl';
 
 export function useDashboards() {
   const { userProfile } = useAuth();
   const { currentProject } = useProject();
+  const { getVisibleResources, hasPermission, loading: permissionLoading } = useUnifiedAccessControl();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const migrationRunRef = useRef(false);
@@ -271,9 +273,14 @@ export function useDashboards() {
     return (data || []) as ReportMedia[];
   };
 
+  const visibleDashboards = getVisibleResources('dashboards', dashboards).map((dashboard) => ({
+    ...dashboard,
+    reports: (dashboard.reports || []).filter((report: any) => hasPermission('reports', 'read', report.id)),
+  }));
+
   return {
-    dashboards,
-    loading,
+    dashboards: visibleDashboards,
+    loading: loading || permissionLoading,
     refetchDashboards,
     createDashboard,
     updateDashboard,

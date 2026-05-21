@@ -25,6 +25,7 @@ import { MetricCard } from '@/components/reports/MetricCard';
 import { DynamicTable } from '@/components/reports/DynamicTable';
 import { FormSubmissionsTable } from '@/components/reports/FormSubmissionsTable';
 import { EnhancedDynamicTable } from '@/components/reports/EnhancedDynamicTable';
+import { useUnifiedAccessControl } from '@/hooks/useUnifiedAccessControl';
 import { 
   DropdownMenu,
   DropdownMenuContent,
@@ -42,6 +43,7 @@ const ReportViewerPage = () => {
   const navigate = useNavigate();
   const { reports, fetchReportComponents } = useReports();
   const { toast } = useToast();
+  const { hasPermission, getButtonState, loading: permissionLoading } = useUnifiedAccessControl();
   
   const [report, setReport] = useState<Report | null>(null);
   const [components, setComponents] = useState<ReportComponent[]>([]);
@@ -205,6 +207,20 @@ const ReportViewerPage = () => {
     );
   }
 
+  if (!permissionLoading && !hasPermission('reports', 'read', id)) {
+    return (
+      <DashboardLayout title="Access Denied">
+        <div className="text-center py-12">
+          <p className="text-muted-foreground mb-4">You do not have permission to view this report</p>
+          <Button onClick={() => navigate('/reports')} variant="outline">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Reports
+          </Button>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   if (!report) {
     return (
       <DashboardLayout title="Report Not Found">
@@ -218,6 +234,8 @@ const ReportViewerPage = () => {
       </DashboardLayout>
     );
   }
+
+  const editButtonState = getButtonState('reports', 'update', id);
 
   const headerActions = (
     <div className="flex items-center gap-2">
@@ -249,7 +267,7 @@ const ReportViewerPage = () => {
         </DropdownMenuContent>
       </DropdownMenu>
       
-      <Button onClick={() => navigate(`/report-editor/${id}`)}>
+      <Button onClick={() => navigate(`/report-editor/${id}`)} disabled={editButtonState.disabled} title={editButtonState.tooltip || undefined}>
         Edit Report
       </Button>
       
@@ -302,7 +320,7 @@ const ReportViewerPage = () => {
                   <div className="text-muted-foreground">
                     This report doesn't have any components yet.
                   </div>
-                  <Button onClick={() => navigate(`/report-editor/${id}`)}>
+                  <Button onClick={() => navigate(`/report-editor/${id}`)} disabled={editButtonState.disabled} title={editButtonState.tooltip || undefined}>
                     Add Components
                   </Button>
                 </div>

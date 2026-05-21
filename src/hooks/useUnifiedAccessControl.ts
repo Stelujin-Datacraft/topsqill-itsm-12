@@ -279,6 +279,12 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
     return false;
   };
 
+  const hasAnyExplicitReadPermission = (entityType: EntityType): boolean => {
+    return Object.entries(state.rolePermissions[entityType] || {}).some(([resourceId, perms]) => {
+      return resourceId !== 'all' && perms.can_read;
+    });
+  };
+
   const hasPermission = (entityType: EntityType, action: ActionType, resourceId?: string, resource?: any): boolean => {
     if (state.isOrgAdmin || state.isProjectAdmin) {
       return true;
@@ -313,9 +319,15 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
     }
 
     if (action === 'read') {
-      // Visibility of individual resources is handled by getVisibleResources
-      // and per-asset access checks (form access matrix, etc.)
-      return true;
+      if (state.topLevelPermissions[entityType]?.can_read) {
+        return true;
+      }
+
+      if (resourceId) {
+        return state.rolePermissions[entityType][resourceId]?.can_read || !state.hasRoleAssignments;
+      }
+
+      return hasAnyExplicitReadPermission(entityType) || !state.hasRoleAssignments;
     }
 
     if (resourceId) {
@@ -341,6 +353,10 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
       return allResources;
     }
 
+    if (state.topLevelPermissions[entityType]?.can_read) {
+      return allResources;
+    }
+
     // Forms: public + owned + role-granted reads
     if (entityType === 'forms') {
       return allResources.filter(resource => {
@@ -357,7 +373,7 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
     // assignments granting permissions on this entity type, restrict
     // visibility to only those resources where the role grants read. Users
     // without role assignments retain legacy org/project-wide visibility.
-    const entityHasAnyRolePerms = Object.keys(state.rolePermissions[entityType] || {}).length > 0;
+    const entityHasAnyRolePerms = hasAnyExplicitReadPermission(entityType);
     return allResources.filter(resource => {
       if (isResourceOwner(resource)) return true;
       const rolePerms = state.rolePermissions[entityType][resource.id];

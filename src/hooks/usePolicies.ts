@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useProject } from '@/contexts/ProjectContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useUnifiedAccessControl } from '@/hooks/useUnifiedAccessControl';
 import { toast } from 'sonner';
 import type { Policy, PolicyVersion, PolicyLinkage, PolicyApproval, PolicyTemplate, PolicyAcknowledgment, PolicyException, PolicyReviewCycle } from '@/types/policy';
 
@@ -10,6 +11,7 @@ export function usePolicies() {
   const { currentProject } = useProject();
   const { currentOrganization } = useOrganization();
   const { user } = useAuth();
+  const { hasPermission, loading: permissionLoading } = useUnifiedAccessControl();
   const queryClient = useQueryClient();
   const projectId = currentProject?.id;
   const orgId = currentOrganization?.id;
@@ -278,9 +280,11 @@ export function usePolicies() {
     onError: (err: any) => toast.error(err.message),
   });
 
+  const visiblePolicies = (policiesQuery.data || []).filter((policy) => hasPermission('policies', 'read', policy.id));
+
   return {
-    policies: policiesQuery.data || [],
-    isLoading: policiesQuery.isLoading,
+    policies: visiblePolicies,
+    isLoading: policiesQuery.isLoading || permissionLoading,
     templates: templatesQuery.data || [],
     templatesLoading: templatesQuery.isLoading,
     createPolicy,
