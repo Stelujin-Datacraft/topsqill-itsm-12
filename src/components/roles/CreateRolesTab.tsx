@@ -556,8 +556,8 @@ export function CreateRolesTab() {
   );
 })()}
 
-{/* Global Create toggle for universal modules (Workflows, Dashboards & Reports, Knowledge Base) */}
-{(['workflows', 'dashboards', 'policies'] as const).includes(selectedAssetType as any) && (() => {
+{/* Global Create toggle for universal modules (Dashboards & Reports, Knowledge Base) */}
+{(['dashboards', 'policies'] as const).includes(selectedAssetType as any) && (() => {
   const moduleLabel =
     selectedAssetType === 'workflows' ? 'Workflows'
     : selectedAssetType === 'dashboards' ? 'Dashboards & Reports'
