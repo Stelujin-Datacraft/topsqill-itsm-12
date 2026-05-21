@@ -28,6 +28,7 @@ interface RolePermissions {
 interface AccessControlState {
   topLevelPermissions: Record<EntityType, TopLevelPermissions>;
   rolePermissions: Record<EntityType, RolePermissions>;
+  projectPermissions: Record<string, { can_create: boolean; can_read: boolean; can_update: boolean; can_delete: boolean }>;
   userRole: string | null;
   hasRoleAssignments: boolean;
   isProjectAdmin: boolean;
@@ -59,6 +60,7 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
   const [state, setState] = useState<AccessControlState>({
     topLevelPermissions: defaultTopLevel(),
     rolePermissions: defaultRolePerms(),
+    projectPermissions: {},
     userRole: null,
     hasRoleAssignments: false,
     isProjectAdmin: false,
@@ -169,6 +171,7 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
       });
 
       const processedRolePermissions = defaultRolePerms();
+      const processedProjectPermissions: Record<string, { can_create: boolean; can_read: boolean; can_update: boolean; can_delete: boolean }> = {};
 
       let userRoleName: string | null = null;
       const hasRoleAssignments = (roleAssignments?.length ?? 0) > 0;
@@ -181,6 +184,27 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
             const permissions = rolePermissionsMap.get(assignment.role_id) || [];
 
             permissions.forEach((perm: any) => {
+              // Project-scope permissions cascade to all entities inside that project
+              if (perm.resource_type === 'project' && perm.resource_id) {
+                const pid = perm.resource_id;
+                if (!processedProjectPermissions[pid]) {
+                  processedProjectPermissions[pid] = {
+                    can_create: false,
+                    can_read: false,
+                    can_update: false,
+                    can_delete: false,
+                  };
+                }
+                const bucket = processedProjectPermissions[pid];
+                switch (perm.permission_type) {
+                  case 'create': bucket.can_create = true; break;
+                  case 'read':   bucket.can_read = true; break;
+                  case 'update': bucket.can_update = true; break;
+                  case 'delete': bucket.can_delete = true; break;
+                }
+                return;
+              }
+
               let mappedEntityType: EntityType;
               const typeMap: Record<string, EntityType> = {
                 'form': 'forms',
@@ -228,6 +252,7 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
       return {
         topLevelPermissions: processedTopLevel,
         rolePermissions: processedRolePermissions,
+        projectPermissions: processedProjectPermissions,
         userRole: userRoleName,
         hasRoleAssignments,
         isProjectAdmin: isProjectAdmin || isProjectCreator,
@@ -245,6 +270,7 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
       setState({
         topLevelPermissions: accessData.topLevelPermissions,
         rolePermissions: accessData.rolePermissions,
+        projectPermissions: accessData.projectPermissions,
         userRole: accessData.userRole,
         hasRoleAssignments: accessData.hasRoleAssignments,
         isProjectAdmin: accessData.isProjectAdmin,
@@ -280,9 +306,32 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
   };
 
   const hasAnyExplicitReadPermission = (entityType: EntityType): boolean => {
-    return Object.entries(state.rolePermissions[entityType] || {}).some(([resourceId, perms]) => {
+    const itemLevel = Object.entries(state.rolePermissions[entityType] || {}).some(([resourceId, perms]) => {
       return resourceId !== 'all' && perms.can_read;
     });
+    if (itemLevel) return true;
+    // Project-level grant for the current project also implies read access for child entities
+    const pid = targetProjectId;
+    if (pid && state.projectPermissions[pid]?.can_read) {
+      if (entityType === 'reports' || entityType === 'dashboards' || entityType === 'policies' || entityType === 'forms' || entityType === 'workflows') {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  const projectGrants = (action: ActionType, resourceProjectId?: string | null): boolean => {
+    const pid = resourceProjectId || targetProjectId;
+    if (!pid) return false;
+    const perms = state.projectPermissions[pid];
+    if (!perms) return false;
+    switch (action) {
+      case 'create': return perms.can_create;
+      case 'read':   return perms.can_read;
+      case 'update': return perms.can_update;
+      case 'delete': return perms.can_delete;
+    }
+    return false;
   };
 
   const hasPermission = (entityType: EntityType, action: ActionType, resourceId?: string, resource?: any): boolean => {
@@ -308,6 +357,8 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
       if (entityType === 'reports' || entityType === 'dashboards' || entityType === 'policies') {
         const globalCreate = state.rolePermissions[entityType]?.['all']?.can_create;
         if (globalCreate) return true;
+        // Project-level create grant also enables creating these in that project
+        if (projectGrants('create')) return true;
         // Legacy fallback: users with no role assignments retain default-allow
         if (!state.hasRoleAssignments) {
           return entityType === 'reports' || entityType === 'dashboards';
@@ -324,7 +375,10 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
       }
 
       if (resourceId) {
-        return state.rolePermissions[entityType][resourceId]?.can_read || !state.hasRoleAssignments;
+        if (state.rolePermissions[entityType][resourceId]?.can_read) return true;
+        // Project-level read grants visibility to all child items
+        if (projectGrants('read', (resource as any)?.project_id)) return true;
+        return !state.hasRoleAssignments && !hasAnyExplicitReadPermission(entityType);
       }
 
       return hasAnyExplicitReadPermission(entityType) || !state.hasRoleAssignments;
@@ -332,9 +386,9 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
 
     if (resourceId) {
       const rolePerms = state.rolePermissions[entityType][resourceId];
+      // Project-level grant takes precedence as an additional allow path
+      if (projectGrants(action, (resource as any)?.project_id)) return true;
       if (!rolePerms) {
-        // For per-resource create (e.g. submit a form), default-allow when no
-        // role-based override exists; per-form access matrix gates this.
         if (action === 'create') return true;
         return false;
       }
@@ -364,6 +418,7 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
         if (isResourceOwner(resource)) return true;
         const rolePerms = state.rolePermissions[entityType][resource.id];
         if (rolePerms?.can_read) return true;
+        if (projectGrants('read', resource.project_id ?? resource.projectId)) return true;
         // Preserve legacy visibility only for users with no assigned roles.
         return !state.hasRoleAssignments;
       });
@@ -378,6 +433,7 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
       if (isResourceOwner(resource)) return true;
       const rolePerms = state.rolePermissions[entityType][resource.id];
       if (rolePerms?.can_read) return true;
+      if (projectGrants('read', resource.project_id ?? resource.projectId)) return true;
       // If the user has role-based perms for this entity type at all,
       // hide resources that the role doesn't explicitly grant read on.
       if (entityHasAnyRolePerms) return false;

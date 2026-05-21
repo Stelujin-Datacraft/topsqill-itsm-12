@@ -6948,6 +6948,14 @@ export type Database = {
         Returns: Json
       }
       switch_active_organization: { Args: { _org_id: string }; Returns: Json }
+      user_can_create_dashboard_in_project: {
+        Args: { _project_id: string; _user_id: string }
+        Returns: boolean
+      }
+      user_can_create_policy_in_project: {
+        Args: { _project_id: string; _user_id: string }
+        Returns: boolean
+      }
       user_has_dashboard_role_permission: {
         Args: {
           _dashboard_id: string
