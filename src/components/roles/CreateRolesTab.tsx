@@ -301,8 +301,6 @@ export function CreateRolesTab() {
     setDeleting(true);
     try {
       // 1) Snapshot affected users + permissions BEFORE delete so we can notify/audit them.
-      //    DB has ON DELETE CASCADE on user_role_assignments.role_id and role_permissions.role_id,
-      //    so deleting the role automatically revokes all granted permissions.
       const { data: affectedAssignments } = await supabase
         .from('user_role_assignments')
         .select('user_id')
@@ -317,11 +315,13 @@ export function CreateRolesTab() {
         new Set((affectedAssignments || []).map((a: any) => a.user_id).filter(Boolean))
       );
 
-      // 2) Delete the role — cascades wipe user_role_assignments + role_permissions.
-      const { error } = await supabase
-        .from('roles')
-        .delete()
-        .eq('id', roleToDelete.id);
+      // 2) Atomically delete the role AND revoke dependent access
+      //    (project memberships, project-level grants, top-level perms, asset perms)
+      //    only for projects/assets no other remaining role still grants the user.
+      const { data: revokeResult, error } = await supabase.rpc(
+        'revoke_role_and_dependent_access',
+        { _role_id: roleToDelete.id }
+      );
 
       if (error) throw error;
 
@@ -331,11 +331,12 @@ export function CreateRolesTab() {
           user_id: userId,
           type: 'role_revoked',
           title: 'Role removed',
-          message: `The role "${roleToDelete.name}" was deleted by an administrator. Permissions granted by this role have been revoked.`,
+          message: `The role "${roleToDelete.name}" was deleted by an administrator. Access granted solely by this role has been revoked.`,
           data: {
             roleId: roleToDelete.id,
             roleName: roleToDelete.name,
             revokedPermissions: revokedPermissions || [],
+            summary: revokeResult || null,
           },
         }));
         await supabase.from('notifications').insert(notifications);
@@ -355,6 +356,7 @@ export function CreateRolesTab() {
             roleName: roleToDelete.name,
             reason: 'role_deleted',
             revokedPermissions: revokedPermissions || [],
+            cascadeSummary: revokeResult || null,
             timestamp: new Date().toISOString(),
           },
           changed_by: actorId,
@@ -362,11 +364,12 @@ export function CreateRolesTab() {
         await supabase.from('permission_audit_log').insert(auditRows);
       }
 
+      const summary: any = revokeResult || {};
       toast({
         title: "Success",
         description:
           affectedUserIds.length > 0
-            ? `Role "${roleToDelete.name}" deleted. Permissions revoked from ${affectedUserIds.length} user${affectedUserIds.length === 1 ? '' : 's'}.`
+            ? `Role "${roleToDelete.name}" deleted. ${affectedUserIds.length} user${affectedUserIds.length === 1 ? '' : 's'} affected · ${summary.memberships_revoked ?? 0} project membership${(summary.memberships_revoked ?? 0) === 1 ? '' : 's'} revoked · ${summary.assets_revoked ?? 0} asset grant${(summary.assets_revoked ?? 0) === 1 ? '' : 's'} removed.`
             : `Role "${roleToDelete.name}" deleted successfully`,
       });
 

@@ -6901,6 +6901,10 @@ export type Database = {
         Args: { invitation_id_param: string }
         Returns: Json
       }
+      revoke_role_and_dependent_access: {
+        Args: { _role_id: string }
+        Returns: Json
+      }
       switch_active_organization: { Args: { _org_id: string }; Returns: Json }
       user_has_dashboard_role_permission: {
         Args: {
