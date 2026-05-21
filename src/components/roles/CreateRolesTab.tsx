@@ -224,6 +224,8 @@ export function CreateRolesTab() {
     const updateChecked = isPermissionChecked(resourceType, asset.id, 'update');
     const deleteChecked = isPermissionChecked(resourceType, asset.id, 'delete');
     const disableRead = updateChecked || deleteChecked;
+    // Hide Create checkbox for Dashboards, Reports, and Knowledge Base (policies)
+    const hideCreate = ['dashboards', 'reports', 'policies'].includes(resourceType);
 
     return (
       <div key={asset.id} className="flex items-center justify-between p-2 border rounded">
@@ -232,10 +234,12 @@ export function CreateRolesTab() {
           <span className="text-sm">{asset.name}</span>
         </div>
         <div className="flex gap-4">
-          <div className="flex items-center space-x-2">
-            <Checkbox checked={isPermissionChecked(resourceType, asset.id, 'create')} onCheckedChange={(checked) => { if (checked && !readChecked) handlePermissionChange(resourceType, asset.id, 'read', true); handlePermissionChange(resourceType, asset.id, 'create', checked as boolean); }} />
-            <Label className="text-sm">Create</Label>
-          </div>
+          {!hideCreate && (
+            <div className="flex items-center space-x-2">
+              <Checkbox checked={isPermissionChecked(resourceType, asset.id, 'create')} onCheckedChange={(checked) => { if (checked && !readChecked) handlePermissionChange(resourceType, asset.id, 'read', true); handlePermissionChange(resourceType, asset.id, 'create', checked as boolean); }} />
+              <Label className="text-sm">Create</Label>
+            </div>
+          )}
           <div className="flex items-center space-x-2">
             <Checkbox checked={readChecked} onCheckedChange={(checked) => handlePermissionChange(resourceType, asset.id, 'read', checked as boolean)} disabled={disableRead} />
             <Label className="text-sm">Read</Label>
