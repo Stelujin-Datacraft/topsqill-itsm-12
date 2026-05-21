@@ -33,8 +33,9 @@ const Reports = () => {
   }
 
   const canReadReports = hasPermission('reports', 'read');
-  
-  if (!permissionLoading && !canReadReports) {
+  const canCreateReports = hasPermission('reports', 'create') || hasPermission('dashboards', 'create');
+
+  if (!permissionLoading && !canReadReports && !canCreateReports) {
     return (
       <DashboardLayout title="Dashboards">
         <div className="text-center py-12">

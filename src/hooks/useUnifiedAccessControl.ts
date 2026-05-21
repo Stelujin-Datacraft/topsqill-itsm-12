@@ -307,7 +307,7 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
 
   const hasAnyExplicitReadPermission = (entityType: EntityType): boolean => {
     const itemLevel = Object.entries(state.rolePermissions[entityType] || {}).some(([resourceId, perms]) => {
-      return resourceId !== 'all' && perms.can_read;
+      return perms.can_read; // resource_id 'all' or specific id both count as explicit read
     });
     if (itemLevel) return true;
     // Project-level grant for the current project also implies read access for child entities
@@ -381,9 +381,16 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
 
       if (resourceId) {
         if (state.rolePermissions[entityType][resourceId]?.can_read) return true;
+        // Global "all" read grant covers every item of this entity type
+        if (state.rolePermissions[entityType]?.['all']?.can_read) return true;
+        // Cross-module: KB "Create Dashboards & Reports" does not imply read.
+        // But an explicit dashboards:all:read should grant report read too.
+        if (entityType === 'reports' && state.rolePermissions.dashboards?.['all']?.can_read) return true;
         // Project-level read grants visibility to all child items
         if (projectGrants('read', (resource as any)?.project_id)) return true;
-        return !state.hasRoleAssignments && !hasAnyExplicitReadPermission(entityType);
+        // If the user has any role assignments, hide unless explicitly granted above
+        if (state.hasRoleAssignments) return false;
+        return true;
       }
 
       return hasAnyExplicitReadPermission(entityType) || !state.hasRoleAssignments;
@@ -391,10 +398,18 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
 
     if (resourceId) {
       const rolePerms = state.rolePermissions[entityType][resourceId];
+      const allPerms = state.rolePermissions[entityType]?.['all'];
       // Project-level grant takes precedence as an additional allow path
       if (projectGrants(action, (resource as any)?.project_id)) return true;
+      if (allPerms) {
+        switch (action) {
+          case 'create': if (allPerms.can_create) return true; break;
+          case 'update': if (allPerms.can_update) return true; break;
+          case 'delete': if (allPerms.can_delete) return true; break;
+        }
+      }
       if (!rolePerms) {
-        if (action === 'create') return true;
+        // No explicit per-resource grant; only the project/global checks above can allow
         return false;
       }
       switch (action) {
@@ -423,27 +438,28 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
         if (isResourceOwner(resource)) return true;
         const rolePerms = state.rolePermissions[entityType][resource.id];
         if (rolePerms?.can_read) return true;
+        if (state.rolePermissions[entityType]?.['all']?.can_read) return true;
         if (projectGrants('read', resource.project_id ?? resource.projectId)) return true;
         // Preserve legacy visibility only for users with no assigned roles.
         return !state.hasRoleAssignments;
       });
     }
 
-    // Workflows / reports / dashboards / policies: if the user has ANY role
-    // assignments granting permissions on this entity type, restrict
-    // visibility to only those resources where the role grants read. Users
-    // without role assignments retain legacy org/project-wide visibility.
-    const entityHasAnyRolePerms = hasAnyExplicitReadPermission(entityType);
+    // Workflows / reports / dashboards / policies: any user with role
+    // assignments only sees resources explicitly granted (item, global "all",
+    // or project-scoped). Users without any role assignments retain legacy
+    // org/project-wide visibility.
     return allResources.filter(resource => {
       if (isResourceOwner(resource)) return true;
       const rolePerms = state.rolePermissions[entityType][resource.id];
       if (rolePerms?.can_read) return true;
+      if (state.rolePermissions[entityType]?.['all']?.can_read) return true;
+      // Cross-module alias for reports under the dashboard module
+      if (entityType === 'reports' && state.rolePermissions.dashboards?.['all']?.can_read) return true;
       if (projectGrants('read', resource.project_id ?? resource.projectId)) return true;
-      // If the user has role-based perms for this entity type at all,
-      // hide resources that the role doesn't explicitly grant read on.
-      if (entityHasAnyRolePerms) return false;
-      // No role assignments for this entity → legacy visibility.
-      return !state.hasRoleAssignments;
+      // If the user has any role assignments, hide unless explicitly granted
+      if (state.hasRoleAssignments) return false;
+      return true;
     });
   };
 
