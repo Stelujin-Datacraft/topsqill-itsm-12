@@ -101,7 +101,7 @@ const KnowledgeBase = () => {
           <h1 className="text-2xl font-bold text-foreground">Knowledge Base</h1>
           <p className="text-sm text-muted-foreground">Organize docs, audits, and governance documents</p>
         </div>
-        {isAdmin && (
+        {(isAdmin || canCreatePolicies) && (
           <Button onClick={() => setShowCreate(true)} className="gap-2">
             <Plus className="h-4 w-4" />
             Create Folder
