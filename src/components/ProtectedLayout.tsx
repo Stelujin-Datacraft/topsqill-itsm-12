@@ -6,6 +6,7 @@ import { useImpersonation } from '@/contexts/ImpersonationContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProject } from '@/contexts/ProjectContext';
 import { usePermissionRealtimeSync } from '@/hooks/usePermissionRealtimeSync';
+import { useUnifiedAccessControl } from '@/hooks/useUnifiedAccessControl';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { preloadCriticalRoutes } from '@/utils/routePreloader';
@@ -36,6 +37,7 @@ const ProtectedLayout: React.FC = () => {
   const { user, userProfile, isLoading, profileError, retryProfile } = useAuth();
   const { currentProject } = useProject();
   const { isImpersonating } = useImpersonation();
+  const { hasPermission, loading: permissionLoading } = useUnifiedAccessControl();
   const location = useLocation();
   const navigate = useNavigate();
   const defaultDashboardChecked = useRef(false);
@@ -130,11 +132,11 @@ const ProtectedLayout: React.FC = () => {
 
         console.log('[DefaultDashboard] User assignment:', userAssignment, 'error:', userError);
 
-        if (userAssignment?.dashboard_id) {
+        if (userAssignment?.dashboard_id && hasPermission('dashboards', 'read', userAssignment.dashboard_id)) {
           console.log('[DefaultDashboard] Redirecting to user-specific dashboard:', userAssignment.dashboard_id);
           // Check for a default report within this dashboard
           const defaultReportId = await getDefaultReportForDashboard(userAssignment.dashboard_id);
-          if (defaultReportId) {
+          if (defaultReportId && hasPermission('reports', 'read', defaultReportId)) {
             console.log('[DefaultDashboard] Redirecting to default report:', defaultReportId);
             navigate(`/report-view/${defaultReportId}`, { replace: true });
           } else {
@@ -154,11 +156,11 @@ const ProtectedLayout: React.FC = () => {
 
         console.log('[DefaultDashboard] Project default:', projectDefault, 'error:', projectError);
 
-        if (projectDefault?.id && (projectDefault as any).default_for === 'all') {
+        if (projectDefault?.id && (projectDefault as any).default_for === 'all' && hasPermission('dashboards', 'read', projectDefault.id)) {
           console.log('[DefaultDashboard] Redirecting to project-wide dashboard:', projectDefault.id);
           // Check for a default report within this dashboard
           const defaultReportId = await getDefaultReportForDashboard(projectDefault.id);
-          if (defaultReportId) {
+          if (defaultReportId && hasPermission('reports', 'read', defaultReportId)) {
             console.log('[DefaultDashboard] Redirecting to default report:', defaultReportId);
             navigate(`/report-view/${defaultReportId}`, { replace: true });
           } else {
@@ -171,7 +173,7 @@ const ProtectedLayout: React.FC = () => {
     };
 
     checkDefaultDashboard();
-  }, [currentProject?.id, user, location.pathname, navigate]);
+  }, [currentProject?.id, user, location.pathname, navigate, hasPermission, permissionLoading]);
 
   // Auth loading state - show full page loader since we don't know if user is authenticated
   if (isLoading && !shouldKeepShellVisible) {
