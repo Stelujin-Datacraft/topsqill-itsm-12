@@ -1,0 +1,2 @@
+ALTER TABLE public.role_permissions DROP CONSTRAINT role_permissions_resource_type_check;
+ALTER TABLE public.role_permissions ADD CONSTRAINT role_permissions_resource_type_check CHECK (resource_type = ANY (ARRAY['project'::text, 'form'::text, 'workflow'::text, 'report'::text, 'dashboard'::text, 'policy'::text]));
