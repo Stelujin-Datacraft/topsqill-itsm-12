@@ -313,7 +313,10 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
     // Project-level grant for the current project also implies read access for child entities
     const pid = targetProjectId;
     if (pid && state.projectPermissions[pid]?.can_read) {
-      if (entityType === 'reports' || entityType === 'dashboards' || entityType === 'policies' || entityType === 'forms' || entityType === 'workflows') {
+      // Note: 'policies' (Knowledge Base docs) intentionally excluded — project
+      // access alone must NOT cascade to per-document read. Docs require an
+      // explicit policy grant (item or 'all').
+      if (entityType === 'reports' || entityType === 'dashboards' || entityType === 'forms' || entityType === 'workflows') {
         return true;
       }
     }
@@ -336,7 +339,10 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
 
   const shouldApplyLegacyTopLevelRead = (entityType: EntityType): boolean => {
     if (!state.hasRoleAssignments) return true;
-    return entityType !== 'reports' && entityType !== 'dashboards';
+    // Legacy top-level read no longer cascades for reports, dashboards, or
+    // policies once a user has any custom role assignment. KB docs must be
+    // explicitly granted.
+    return entityType !== 'reports' && entityType !== 'dashboards' && entityType !== 'policies';
   };
 
   const hasPermission = (entityType: EntityType, action: ActionType, resourceId?: string, resource?: any): boolean => {
@@ -391,8 +397,9 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
         // Cross-module: KB "Create Dashboards & Reports" does not imply read.
         // But an explicit dashboards:all:read should grant report read too.
         if (entityType === 'reports' && state.rolePermissions.dashboards?.['all']?.can_read) return true;
-        // Project-level read grants visibility to all child items
-        if (projectGrants('read', (resource as any)?.project_id)) return true;
+        // Project-level read cascades to forms/workflows/reports/dashboards
+        // but NOT to policies — KB docs require an explicit per-doc grant.
+        if (entityType !== 'policies' && projectGrants('read', (resource as any)?.project_id)) return true;
         // If the user has any role assignments, hide unless explicitly granted above
         if (state.hasRoleAssignments) return false;
         return true;
@@ -461,7 +468,9 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
       if (state.rolePermissions[entityType]?.['all']?.can_read) return true;
       // Cross-module alias for reports under the dashboard module
       if (entityType === 'reports' && state.rolePermissions.dashboards?.['all']?.can_read) return true;
-      if (projectGrants('read', resource.project_id ?? resource.projectId)) return true;
+      // Project-level cascade applies to reports/dashboards/workflows, NOT to
+      // policies (KB docs require explicit per-doc grant).
+      if (entityType !== 'policies' && projectGrants('read', resource.project_id ?? resource.projectId)) return true;
       // If the user has any role assignments, hide unless explicitly granted
       if (state.hasRoleAssignments) return false;
       return true;
