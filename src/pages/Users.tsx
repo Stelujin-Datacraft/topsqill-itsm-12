@@ -770,7 +770,10 @@ const Users = () => {
       {selectedUserForSecurity && (
         <SecurityParametersDialog
           open={securityDialogOpen}
-          onOpenChange={setSecurityDialogOpen}
+          onOpenChange={(open) => {
+            setSecurityDialogOpen(open);
+            if (!open) refetchSecurityParams();
+          }}
           userId={selectedUserForSecurity.id}
           userName={selectedUserForSecurity.name}
           userEmail={selectedUserForSecurity.email}
