@@ -75,28 +75,39 @@ export function UserRolesTab() {
     await refetchAssignments();
   };
 
+  const removeOneRole = async (userId: string, roleId: string) => {
+    const { error } = await supabase
+      .from('user_role_assignments')
+      .delete()
+      .eq('user_id', userId)
+      .eq('role_id', roleId);
+    if (error) throw error;
+    await refetchAssignments();
+  };
+
   const bulkAssignRole = async (userIds: string[], roleId: string) => {
     if (!userProfile?.id) {
       throw new Error('Missing current user profile');
     }
-    // Remove existing roles for selected users first to avoid duplicates
-    const { error: delError } = await supabase
-      .from('user_role_assignments')
-      .delete()
-      .in('user_id', userIds);
-    if (delError) throw delError;
-
-    const assignments = userIds.map(userId => ({
-      user_id: userId,
-      role_id: roleId,
-      assigned_by: userProfile.id,
-    }));
-
-    const { error } = await supabase
-      .from('user_role_assignments')
-      .insert(assignments);
-
-    if (error) throw error;
+    // Add the role to all selected users (skip duplicates)
+    const existing = new Set(
+      userRoleAssignments
+        .filter(a => a.role_id === roleId && userIds.includes(a.user_id))
+        .map(a => a.user_id)
+    );
+    const assignments = userIds
+      .filter(uid => !existing.has(uid))
+      .map(userId => ({
+        user_id: userId,
+        role_id: roleId,
+        assigned_by: userProfile.id,
+      }));
+    if (assignments.length > 0) {
+      const { error } = await supabase
+        .from('user_role_assignments')
+        .insert(assignments);
+      if (error) throw error;
+    }
     await refetchAssignments();
   };
 
@@ -123,17 +134,14 @@ export function UserRolesTab() {
     }
   };
 
-  const handleRemoveRole = async (userId: string) => {
+  const handleRemoveOneRole = async (userId: string, roleId: string) => {
     try {
-      await removeRole(userId);
-      toast({
-        title: "Success",
-        description: "Role removed successfully",
-      });
-    } catch (error) {
+      await removeOneRole(userId, roleId);
+      toast({ title: "Success", description: "Role removed successfully" });
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: "Failed to remove role",
+        description: error?.message || "Failed to remove role",
         variant: "destructive",
       });
     }
@@ -168,14 +176,13 @@ export function UserRolesTab() {
     }
   };
 
-  const getUserRole = (userId: string) => {
-    const assignment = userRoleAssignments.find(a => a.user_id === userId);
-    if (!assignment) return null;
-    return roles.find(r => r.id === assignment.role_id);
+  const getUserRoles = (userId: string) => {
+    const ids = userRoleAssignments.filter(a => a.user_id === userId).map(a => a.role_id);
+    return roles.filter(r => ids.includes(r.id));
   };
 
   const getUnassignedUsers = () => {
-    return users.filter(user => !getUserRole(user.id));
+    return users.filter(user => getUserRoles(user.id).length === 0);
   };
 
   const filteredUnassigned = useMemo(() => {
@@ -334,14 +341,15 @@ export function UserRolesTab() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Users</TableHead>
-                  <TableHead>Role Assigned</TableHead>
+                  <TableHead>Roles Assigned</TableHead>
                   <TableHead>Group Assigned</TableHead>
-                  <TableHead>Action</TableHead>
+                  <TableHead>Add Role</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {users.map(user => {
-                  const assignedRole = getUserRole(user.id);
+                  const assignedRoles = getUserRoles(user.id);
+                  const assignedIds = new Set(assignedRoles.map(r => r.id));
                   const groupNames = userGroupsMap[user.id] || [];
                   return (
                     <TableRow key={user.id}>
@@ -352,8 +360,22 @@ export function UserRolesTab() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        {assignedRole ? (
-                          <Badge variant="default">{assignedRole.name}</Badge>
+                        {assignedRoles.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {assignedRoles.map(r => (
+                              <Badge key={r.id} variant="default" className="flex items-center gap-1">
+                                {r.name}
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveOneRole(user.id, r.id)}
+                                  className="ml-1 hover:bg-destructive/20 rounded-full p-0.5"
+                                  title="Remove role"
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
+                              </Badge>
+                            ))}
+                          </div>
                         ) : (
                           <Badge variant="secondary">No Role</Badge>
                         )}
@@ -370,39 +392,27 @@ export function UserRolesTab() {
                         )}
                       </TableCell>
                       <TableCell>
-                        {assignedRole ? (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleRemoveRole(user.id)}
-                            className="text-destructive hover:text-destructive"
-                          >
-                            <UserMinus className="h-4 w-4 mr-2" />
-                            Remove Role
-                          </Button>
-                        ) : (
-                          <Select
-                            value=""
-                            onValueChange={(roleId) => handleAssignRole(user.id, roleId)}
-                          >
-                            <SelectTrigger className="h-9 w-[200px]">
-                              <SelectValue placeholder="Assign role..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {roles.length === 0 ? (
-                                <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                                  No roles available
-                                </div>
-                              ) : (
-                                roles.map(role => (
-                                  <SelectItem key={role.id} value={role.id}>
-                                    {role.name}
-                                  </SelectItem>
-                                ))
-                              )}
-                            </SelectContent>
-                          </Select>
-                        )}
+                        <Select
+                          value=""
+                          onValueChange={(roleId) => handleAssignRole(user.id, roleId)}
+                        >
+                          <SelectTrigger className="h-9 w-[200px]">
+                            <SelectValue placeholder="Add role..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {roles.filter(r => !assignedIds.has(r.id)).length === 0 ? (
+                              <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                                {roles.length === 0 ? 'No roles available' : 'All roles assigned'}
+                              </div>
+                            ) : (
+                              roles.filter(r => !assignedIds.has(r.id)).map(role => (
+                                <SelectItem key={role.id} value={role.id}>
+                                  {role.name}
+                                </SelectItem>
+                              ))
+                            )}
+                          </SelectContent>
+                        </Select>
                       </TableCell>
                     </TableRow>
                   );
