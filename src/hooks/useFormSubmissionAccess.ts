@@ -22,9 +22,15 @@ export function useFormSubmissionAccess(formId: string) {
     }
 
     // First check unified access control (includes project-level and organizational permissions)
-    const canViewFromUnified = hasPermission('forms', 'read') || hasPermission('forms', 'update', formId);
-    const canExportFromUnified = hasPermission('forms', 'read') || hasPermission('forms', 'update', formId);
-    const canCreateFromUnified = hasPermission('forms', 'create') || hasPermission('forms', 'update', formId);
+    const canViewFromUnified = hasPermission('forms', 'read', formId) || hasPermission('forms', 'update', formId);
+    const canExportFromUnified = hasPermission('forms', 'read', formId) || hasPermission('forms', 'update', formId);
+    // Per-form role-based create grant (e.g. "Create" permission on this specific form)
+    // must enable the Submit / Save Draft buttons. The standalone `hasPermission('forms','create')`
+    // is admin-only; the per-resource variant respects role_permissions for this form.
+    const canCreateFromUnified =
+      hasPermission('forms', 'create', formId) ||
+      hasPermission('forms', 'create') ||
+      hasPermission('forms', 'update', formId);
 
     // If user is admin, grant all permissions
     if (userProfile.role === 'admin') {
