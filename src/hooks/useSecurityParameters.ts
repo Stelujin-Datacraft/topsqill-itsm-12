@@ -330,6 +330,26 @@ export function useAllSecurityParameters() {
     loadAllParameters();
   }, [currentOrganization?.id]);
 
+  useEffect(() => {
+    if (!currentOrganization?.id) return;
+    const channel = supabase
+      .channel(`user_security_parameters_${currentOrganization.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'user_security_parameters',
+          filter: `organization_id=eq.${currentOrganization.id}`,
+        },
+        () => loadAllParameters()
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentOrganization?.id]);
+
   return {
     allParameters,
     loading,

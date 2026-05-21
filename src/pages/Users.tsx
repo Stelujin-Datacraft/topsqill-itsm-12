@@ -93,7 +93,7 @@ const Users = () => {
   const { roles } = useRoles();
   const { assignments: roleAssignments, refetch: refetchRoleAssignments } = useUserRoleAssignments();
   const { templates: securityTemplates } = useSecurityTemplates();
-  const { allParameters: securityParams } = useAllSecurityParameters();
+  const { allParameters: securityParams, refetch: refetchSecurityParams } = useAllSecurityParameters();
 
   const [userGroupsMap, setUserGroupsMap] = useState<Record<string, string[]>>({});
   useEffect(() => {
@@ -566,7 +566,7 @@ const Users = () => {
                           {(() => {
                             const assigned = getAssignedRole(user.id);
                             if (user.role === 'admin') {
-                              return <span className="text-xs text-muted-foreground">—</span>;
+                              return <Badge variant="secondary" className="text-xs">No Role</Badge>;
                             }
                             return assigned ? (
                               <Badge variant="default" className="text-xs">{assigned.name}</Badge>
@@ -585,7 +585,7 @@ const Users = () => {
                                 ))}
                               </div>
                             ) : (
-                              <span className="text-xs text-muted-foreground">—</span>
+                              <Badge variant="secondary" className="text-xs">No Group</Badge>
                             );
                           })()}
                         </TableCell>
@@ -770,7 +770,10 @@ const Users = () => {
       {selectedUserForSecurity && (
         <SecurityParametersDialog
           open={securityDialogOpen}
-          onOpenChange={setSecurityDialogOpen}
+          onOpenChange={(open) => {
+            setSecurityDialogOpen(open);
+            if (!open) refetchSecurityParams();
+          }}
           userId={selectedUserForSecurity.id}
           userName={selectedUserForSecurity.name}
           userEmail={selectedUserForSecurity.email}
