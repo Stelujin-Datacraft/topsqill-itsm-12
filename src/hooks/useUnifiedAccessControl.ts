@@ -334,6 +334,11 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
     return false;
   };
 
+  const shouldApplyLegacyTopLevelRead = (entityType: EntityType): boolean => {
+    if (!state.hasRoleAssignments) return true;
+    return entityType !== 'reports' && entityType !== 'dashboards';
+  };
+
   const hasPermission = (entityType: EntityType, action: ActionType, resourceId?: string, resource?: any): boolean => {
     if (state.isOrgAdmin || state.isProjectAdmin) {
       return true;
@@ -375,7 +380,7 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
     }
 
     if (action === 'read') {
-      if (state.topLevelPermissions[entityType]?.can_read) {
+      if (shouldApplyLegacyTopLevelRead(entityType) && state.topLevelPermissions[entityType]?.can_read) {
         return true;
       }
 
@@ -427,7 +432,7 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
       return allResources;
     }
 
-    if (state.topLevelPermissions[entityType]?.can_read) {
+    if (shouldApplyLegacyTopLevelRead(entityType) && state.topLevelPermissions[entityType]?.can_read) {
       return allResources;
     }
 
