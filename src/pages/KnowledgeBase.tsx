@@ -81,7 +81,8 @@ const KnowledgeBase = () => {
     );
   }
 
-  if (!permissionLoading && !hasPermission('policies', 'read')) {
+  const canCreatePolicies = hasPermission('policies', 'create');
+  if (!permissionLoading && !hasPermission('policies', 'read') && !canCreatePolicies && !isAdmin) {
     return (
       <div className="flex items-center justify-center h-[60vh]">
         <div className="text-center space-y-2">
