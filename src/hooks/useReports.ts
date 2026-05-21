@@ -6,11 +6,13 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useProject } from '@/contexts/ProjectContext';
 import { Report, ReportComponent } from '@/types/reports';
 import { useForm } from '@/contexts/FormContext';
+import { useUnifiedAccessControl } from '@/hooks/useUnifiedAccessControl';
 
 export function useReports() {
   const { userProfile } = useAuth();
   const { currentProject } = useProject();
   const { forms } = useForm();
+  const { getVisibleResources, loading: permissionLoading } = useUnifiedAccessControl();
   const queryClient = useQueryClient();
 
   const { data: reports = [], isLoading: loading, refetch: refetchReports } = useQuery({
@@ -248,9 +250,11 @@ export function useReports() {
     return allForms;
   }, [forms, currentProject]);
 
+  const visibleReports = getVisibleResources('reports', reports);
+
   return {
-    reports,
-    loading,
+    reports: visibleReports,
+    loading: loading || permissionLoading,
     forms,
     refetchReports,
     createReport,
