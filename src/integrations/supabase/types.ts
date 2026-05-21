@@ -6869,6 +6869,7 @@ export type Database = {
         }
         Returns: string
       }
+      is_admin_of_role: { Args: { _role_id: string }; Returns: boolean }
       is_current_user_admin: { Args: never; Returns: boolean }
       is_current_user_admin_of_org: {
         Args: { org_id: string }
@@ -6944,6 +6945,10 @@ export type Database = {
       }
       user_has_report_role_permission: {
         Args: { _permission_type: string; _report_id: string; _user_id: string }
+        Returns: boolean
+      }
+      user_has_role_assignment: {
+        Args: { _role_id: string; _user_id: string }
         Returns: boolean
       }
       user_has_role_permission: {
