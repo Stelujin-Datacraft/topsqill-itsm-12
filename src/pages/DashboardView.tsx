@@ -23,7 +23,7 @@ const DashboardView = () => {
   const { toast } = useToast();
   const [deleting, setDeleting] = useState<string | null>(null);
   const [defaultReportTarget, setDefaultReportTarget] = useState<any>(null);
-  const { getButtonState, checkPermissionWithAlert } = useUnifiedAccessControl();
+  const { hasPermission, getButtonState, checkPermissionWithAlert, loading: permissionLoading } = useUnifiedAccessControl();
 
   const { data: dashboard, isLoading } = useQuery({
     queryKey: ['dashboard', id],
@@ -121,6 +121,17 @@ const DashboardView = () => {
 
   const createButtonState = getButtonState('reports', 'create');
 
+  if (!permissionLoading && !hasPermission('dashboards', 'read', id)) {
+    return (
+      <DashboardLayout title="Access Denied">
+        <div className="text-center py-12">
+          <p>You do not have permission to view this dashboard.</p>
+          <Button onClick={() => navigate('/reports')} className="mt-4">Go Back</Button>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   if (isLoading) {
     return <DashboardLayout title="Loading..."><LoadingScreen /></DashboardLayout>;
   }
@@ -175,7 +186,7 @@ const DashboardView = () => {
           <p className="text-muted-foreground">{dashboard.description}</p>
         )}
 
-        {dashboard.reports?.length === 0 ? (
+        {dashboard.reports?.filter((report: any) => hasPermission('reports', 'read', report.id)).length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center">
               <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -205,7 +216,7 @@ const DashboardView = () => {
           </Card>
         ) : (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {dashboard.reports?.map((report: any) => {
+            {dashboard.reports?.filter((report: any) => hasPermission('reports', 'read', report.id)).map((report: any) => {
               const editButtonState = getButtonState('reports', 'update', report.id);
               const deleteButtonState = getButtonState('reports', 'delete', report.id);
               const isDeleting = deleting === report.id;
