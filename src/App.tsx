@@ -52,17 +52,22 @@ const lazyWithRetry = <T extends React.ComponentType<any>>(
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
+import Dashboard from "./pages/Dashboard";
+import QueryPage from "./pages/QueryPage";
+import Forms from "./pages/Forms";
+import Workflows from "./pages/Workflows";
+import Reports from "./pages/Reports";
+import KnowledgeBase from "./pages/KnowledgeBase";
 
-// Lazy loaded routes - split by feature area for optimal chunking
+// Lazy loaded routes - keep deep/secondary pages split, but eager-load the
+// main module entry pages to avoid a dev-only double loading sequence
+// (route chunk loader first, then page data loader).
 const Documentation = lazyWithRetry(() => import("./pages/Documentation"));
-const Dashboard = lazyWithRetry(() => import("./pages/Dashboard"));
-const QueryPage = lazyWithRetry(() => import("./pages/QueryPage"));
 const ForgotPassword = lazyWithRetry(() => import("./pages/ForgotPassword"));
 const AcceptInvitation = lazyWithRetry(() => import("./pages/AcceptInvitation"));
 const AuthCallback = lazyWithRetry(() => import("./pages/AuthCallback"));
 
 // Forms feature
-const Forms = lazyWithRetry(() => import("./pages/Forms"));
 const FormBuilder = lazyWithRetry(() => import("./pages/FormBuilder"));
 const FormEdit = lazyWithRetry(() => import("./pages/FormEdit"));
 const FormView = lazyWithRetry(() => import("./pages/FormView"));
@@ -75,13 +80,11 @@ const SubmissionView = lazyWithRetry(() => import("./pages/SubmissionView"));
 const FormSubmissionsTable = lazyWithRetry(() => import("./pages/FormSubmissionsTable"));
 
 // Workflows feature
-const Workflows = lazyWithRetry(() => import("./pages/Workflows"));
 const WorkflowDesignerPage = lazyWithRetry(() => import("./pages/WorkflowDesignerPage"));
 const WorkflowViewerPage = lazyWithRetry(() => import("./pages/WorkflowViewer"));
 const WorkflowAccessManagement = lazyWithRetry(() => import("./pages/WorkflowAccessManagement"));
 
 // Reports feature
-const Reports = lazyWithRetry(() => import("./pages/Reports"));
 const ReportEditor = lazyWithRetry(() => import("./pages/ReportEditor"));
 const ReportViewerPage = lazyWithRetry(() => import("./pages/ReportViewer"));
 const ReportAccessManagement = lazyWithRetry(() => import("./pages/ReportAccessManagement"));
@@ -115,7 +118,6 @@ const SLAManagementPage = lazyWithRetry(() => import("./pages/SLAManagementPage"
 
 // Policies / Knowledge Base feature
 const Policies = lazyWithRetry(() => import("./pages/Policies"));
-const KnowledgeBase = lazyWithRetry(() => import("./pages/KnowledgeBase"));
 const KnowledgeBaseFolder = lazyWithRetry(() => import("./pages/KnowledgeBaseFolder"));
 const PolicyDetail = lazyWithRetry(() => import("./pages/PolicyDetail"));
 const CreatePolicy = lazyWithRetry(() => import("./pages/CreatePolicy"));
