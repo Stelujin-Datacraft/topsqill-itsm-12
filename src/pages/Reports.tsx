@@ -14,7 +14,7 @@ import { Plus } from 'lucide-react';
 const Reports = () => {
   const navigate = useNavigate();
   const { dashboards, loading, migrateOrphanReports, refetchDashboards } = useDashboards();
-  const { hasPermission, checkPermissionWithAlert, getButtonState, loading: permissionLoading } = useUnifiedAccessControl();
+  const { hasPermission, checkPermissionWithAlert, getButtonState, getVisibleResources, loading: permissionLoading } = useUnifiedAccessControl();
   const { currentProject } = useProject();
 
   // Auto-migrate orphan reports on mount
@@ -59,6 +59,8 @@ const Reports = () => {
     return checkPermissionWithAlert('reports', 'create');
   };
 
+  const visibleDashboards = getVisibleResources('dashboards', dashboards);
+
   return (
     <DashboardLayout 
       title="Dashboards"
@@ -86,7 +88,7 @@ const Reports = () => {
       }
     >
       <DashboardsList
-        dashboards={dashboards}
+         dashboards={visibleDashboards}
         onView={handleViewDashboard}
         onDelete={handleDeleteDashboard}
         onCreate={handleCreateDashboard}
