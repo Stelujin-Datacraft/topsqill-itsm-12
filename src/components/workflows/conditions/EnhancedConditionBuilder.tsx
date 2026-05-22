@@ -1415,11 +1415,26 @@ FieldValueInput.displayName = 'FieldValueInput';
 interface FieldLevelConditionBuilderProps {
   condition?: FieldLevelCondition;
   forms: any[];
+  triggerFormId?: string;
+  triggerFormName?: string;
   onChange: (condition: FieldLevelCondition) => void;
 }
 
-const FieldLevelConditionBuilder = React.memo(({ condition, forms, onChange }: FieldLevelConditionBuilderProps) => {
-  const [selectedForm, setSelectedForm] = useState(condition?.formId || '');
+const FieldLevelConditionBuilder = React.memo(({ condition, forms, triggerFormId, triggerFormName, onChange }: FieldLevelConditionBuilderProps) => {
+  // Auto-inherit form from Start node trigger unless user overrides
+  const initialForm = condition?.formId || triggerFormId || '';
+  const [selectedForm, setSelectedForm] = useState(initialForm);
+  const [overrideForm, setOverrideForm] = useState<boolean>(
+    !!(condition?.formId && triggerFormId && condition.formId !== triggerFormId)
+  );
+
+  // Keep selectedForm synced with trigger form when not overriding
+  React.useEffect(() => {
+    if (!overrideForm && triggerFormId && selectedForm !== triggerFormId) {
+      setSelectedForm(triggerFormId);
+    }
+  }, [triggerFormId, overrideForm]);
+
   const [selectedField, setSelectedField] = useState(condition?.fieldId || '');
   const [operator, setOperator] = useState<ComparisonOperator>(condition?.operator || '==');
   const [value, setValue] = useState(String(condition?.value ?? ''));
@@ -1542,19 +1557,56 @@ const FieldLevelConditionBuilder = React.memo(({ condition, forms, onChange }: F
   return (
     <div className="space-y-2">
       <div>
-        <Label className="text-xs text-muted-foreground mb-1 block">Form</Label>
-        <Select value={selectedForm} onValueChange={(v) => { setSelectedForm(v); setSelectedField(''); setValue(''); }}>
-          <SelectTrigger className="h-8 text-xs">
-            <SelectValue placeholder="Select form" />
-          </SelectTrigger>
-          <SelectContent>
-            {forms.map((form) => (
-              <SelectItem key={form.id} value={form.id}>
-                {form.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex items-center justify-between mb-1">
+          <Label className="text-xs text-muted-foreground">Form</Label>
+          {triggerFormId && (
+            <button
+              type="button"
+              onClick={() => {
+                const next = !overrideForm;
+                setOverrideForm(next);
+                if (!next) {
+                  // Reverting to trigger form
+                  setSelectedForm(triggerFormId);
+                  setSelectedField('');
+                  setValue('');
+                }
+              }}
+              className="text-[10px] text-primary hover:underline"
+            >
+              {overrideForm ? 'Use trigger form' : 'Override'}
+            </button>
+          )}
+        </div>
+        {triggerFormId && !overrideForm ? (
+          <div className="h-8 px-2 flex items-center justify-between rounded border border-dashed border-primary/30 bg-primary/5 text-xs">
+            <div className="flex items-center gap-1 truncate">
+              <Database className="h-3 w-3 text-primary shrink-0" />
+              <span className="font-medium truncate">
+                {triggerFormName || forms.find(f => f.id === triggerFormId)?.name || 'Trigger form'}
+              </span>
+            </div>
+            <Badge variant="secondary" className="h-4 text-[9px] px-1.5">inherited</Badge>
+          </div>
+        ) : !triggerFormId ? (
+          <div className="h-8 px-2 flex items-center gap-1 rounded border border-dashed border-amber-300 bg-amber-50 text-[11px] text-amber-700">
+            <AlertCircle className="h-3 w-3" />
+            Configure the Start node trigger form first.
+          </div>
+        ) : (
+          <Select value={selectedForm} onValueChange={(v) => { setSelectedForm(v); setSelectedField(''); setValue(''); }}>
+            <SelectTrigger className="h-8 text-xs">
+              <SelectValue placeholder="Select form" />
+            </SelectTrigger>
+            <SelectContent>
+              {forms.map((form) => (
+                <SelectItem key={form.id} value={form.id}>
+                  {form.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
       </div>
 
       <div>
