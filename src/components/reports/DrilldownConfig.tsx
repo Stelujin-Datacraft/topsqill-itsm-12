@@ -35,10 +35,16 @@ export function DrilldownConfig({
     if (!formFields || formFields.length === 0) {
       return [];
     }
+    // Exclude signature, cross-reference, and child-cross-reference from drilldown options
+    const EXCLUDED_DRILLDOWN_TYPES = new Set([
+      'signature', 'signature-pad', 'cross-reference', 'child-cross-reference',
+      'file', 'image', 'barcode', 'geo-location', 'matrix-grid', 'record-table',
+      'header', 'description', 'section-break', 'horizontal-line', 'full-width-container', 'rich-text',
+    ]);
     return formFields.filter(field => {
-      // Exclude only signature fields
-      const fieldType = field.type?.toLowerCase() || '';
-      return !fieldType.includes('signature');
+      const fieldType = ((field as any).field_type || field.type || '').toLowerCase();
+      if (fieldType.includes('signature')) return false;
+      return !EXCLUDED_DRILLDOWN_TYPES.has(fieldType);
     });
   };
 
