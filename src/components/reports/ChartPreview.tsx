@@ -2685,7 +2685,7 @@ export function ChartPreview({
 
     // Sanitize chart data - ensure all numeric values are valid numbers (not NaN/undefined)
     // Preserve string values for display fields (xRaw, yRaw, field names, IDs, cross-ref parent IDs)
-    const preserveAsStringKeys = ['name', '_drilldownData', 'xRaw', 'yRaw', 'xFieldName', 'yFieldName', 'xFieldLabel', 'yFieldLabel', 'submissionId', '_legendMapping', 'rawSecondaryValue', 'rawYValue', '_isCompareEncoded', '_isCrossRefCompare', '_hasTextX', '_hasTextY', 'parentId', 'parentRefId', 'linkedSubmissionId', '_linkedSubmissionIds', '_allParentIds', '_allParentRefIds', '_optionColor', '_optionImage', '_xOptionColor', '_yOptionColor', '_xOptionImage', '_yOptionImage'];
+    const preserveAsStringKeys = ['name', '_drilldownData', 'xRaw', 'yRaw', 'xOriginal', 'yOriginal', 'xFieldName', 'yFieldName', 'xFieldLabel', 'yFieldLabel', 'submissionId', '_legendMapping', '_xLegendMapping', '_yLegendMapping', 'rawSecondaryValue', 'rawYValue', '_isCompareEncoded', '_isCrossRefCompare', '_hasTextX', '_hasTextY', '_xIsText', '_yIsText', 'parentId', 'parentRefId', 'linkedSubmissionId', '_linkedSubmissionIds', '_allParentIds', '_allParentRefIds', '_optionColor', '_optionImage', '_xOptionColor', '_yOptionColor', '_xOptionImage', '_yOptionImage'];
     let sanitizedChartData = chartData.map(item => {
       const sanitized: any = { name: item.name || 'Unknown' };
       Object.keys(item).forEach(key => {
@@ -5653,11 +5653,6 @@ export function ChartPreview({
         
       {/* Chart Controls */}
       <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mb-4">
-        
-        <Button size="sm" variant="outline" className="h-8 px-2" onClick={() => setShowFormFields(!showFormFields)}>
-          {showFormFields ? 'Hide' : 'Show'} Form Details ({getFormName(config.formId)})
-        </Button>
-        
         {/* Show drilldown button for both normal and cross-ref drilldown */}
         {(config.drilldownConfig?.enabled || (config.crossRefConfig?.enabled && config.crossRefConfig?.drilldownEnabled)) && <Button size="sm" variant="outline" className="h-8 px-2" onClick={() => setShowDrilldownPanel(!showDrilldownPanel)}>
             {showDrilldownPanel ? 'Hide' : 'Show'} Drilldown
@@ -5752,32 +5747,6 @@ export function ChartPreview({
           )}
         </div>}
 
-      {/* Form Fields Display */}
-      {showFormFields && <div className="p-4 bg-muted/30 rounded-lg border flex-shrink-0">
-          <h4 className="font-semibold mb-2">Form Details: {getFormName(config.formId)}</h4>
-          <div className="space-y-2">
-            {formFields.map(field => <div key={field.id} className="text-sm">
-                <span className="font-medium">{getFormFieldName(field.id)}:</span>
-                <span className="ml-2 text-muted-foreground">
-                  {field.type} field
-                  {config.dimensions?.includes(field.id) && <span className="ml-2 text-xs bg-primary/10 text-primary px-1 rounded">
-                      Selected as dimension
-                    </span>}
-                  {config.metrics?.includes(field.id) && <span className="ml-2 text-xs bg-secondary/10 text-secondary px-1 rounded">
-                      Selected as metric
-                    </span>}
-                </span>
-              </div>)}
-            {chartData.length > 0 && <div className="mt-4 pt-2 border-t">
-                <div className="text-xs text-muted-foreground">
-                  <strong>Chart Data Series:</strong> {Object.keys(chartData[0]).filter(k => k !== 'name').map(k => k.includes(':') ? k : getFormFieldName(k)).join(', ')}
-                </div>
-                <div className="text-xs text-muted-foreground mt-1">
-                  <strong>Total Records:</strong> {chartData.length}
-                </div>
-              </div>}
-          </div>
-        </div>}
 
       {/* Chart Container - Fills available space */}
       <div className="flex-grow min-h-[300px]">

@@ -39,7 +39,8 @@ export function CrossReferenceDataSection({
   const crossRefFields = useMemo(() => {
     return formFields.filter(f => {
       const type = getFieldType(f);
-      return type === 'cross-reference' || type === 'child-cross-reference';
+      // Exclude child-cross-reference from chart options
+      return type === 'cross-reference';
     });
   }, [formFields]);
 
