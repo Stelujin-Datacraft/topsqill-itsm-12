@@ -216,11 +216,10 @@ export function ChartConfigurationTabs({
 
   return (
     <Tabs defaultValue="basic" className="w-full">
-      <TabsList className="grid w-full grid-cols-4">
+      <TabsList className="grid w-full grid-cols-3">
         <TabsTrigger value="basic">Basic</TabsTrigger>
         <TabsTrigger value="data">Data</TabsTrigger>
         <TabsTrigger value="style">Style</TabsTrigger>
-        <TabsTrigger value="preview">Preview</TabsTrigger>
       </TabsList>
 
       <TabsContent value="basic" className="space-y-4">
@@ -433,98 +432,6 @@ export function ChartConfigurationTabs({
         </Card>
       </TabsContent>
 
-      <TabsContent value="preview" className="space-y-4">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm flex items-center justify-between">
-              <span>Chart Preview</span>
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2">
-                  <Database className="h-4 w-4 text-muted-foreground" />
-                  <Label htmlFor="data-toggle" className="text-sm font-normal">Real Data</Label>
-                </div>
-                <Switch
-                  id="data-toggle"
-                  checked={useStaticData}
-                  onCheckedChange={setUseStaticData}
-                />
-                <div className="flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-muted-foreground" />
-                  <Label htmlFor="data-toggle" className="text-sm font-normal">Sample Data</Label>
-                </div>
-              </div>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-6">
-            <div className="bg-muted/30 rounded-lg p-6 min-h-[300px] flex items-center justify-center">
-              <div className="w-full h-full">
-                <ChartPreview 
-                  config={{
-                    ...config,
-                    // Use sample data for preview when toggle is on, otherwise use real data
-                    ...(useStaticData ? { data: sampleData } : {})
-                  } as any}
-                />
-              </div>
-            </div>
-            
-            {useStaticData && (
-              <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                <div className="flex items-center gap-2 text-sm text-blue-700 dark:text-blue-300">
-                  <Sparkles className="h-4 w-4" />
-                  <span className="font-medium">Preview Mode:</span>
-                  <span>Using sample data that matches your selected fields and configuration</span>
-                </div>
-              </div>
-            )}
-            
-            {!useStaticData && !config.formId && (
-              <div className="mt-4 p-3 bg-amber-50 dark:bg-amber-950/20 rounded-lg border border-amber-200 dark:border-amber-800">
-                <div className="flex items-center gap-2 text-sm text-amber-700 dark:text-amber-300">
-                  <Database className="h-4 w-4" />
-                  <span className="font-medium">Real Data Mode:</span>
-                  <span>Please select a form to view real data</span>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">Configuration Summary</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div className="space-y-1">
-                <span className="font-medium text-muted-foreground">Chart Type:</span>
-                <div className="font-medium">{config.chartType || 'Not selected'}</div>
-              </div>
-              <div className="space-y-1">
-                <span className="font-medium text-muted-foreground">Color Theme:</span>
-                <div className="font-medium">{config.colorTheme || 'Default'}</div>
-              </div>
-              <div className="space-y-1">
-                <span className="font-medium text-muted-foreground">Metrics:</span>
-                <div className="font-medium">{config.metrics?.length || 0} selected</div>
-              </div>
-              <div className="space-y-1">
-                <span className="font-medium text-muted-foreground">Dimensions:</span>
-                <div className="font-medium">{config.dimensions?.length || 0} selected</div>
-              </div>
-            </div>
-            
-            {config.formId && (
-              <div className="pt-3 border-t">
-                <div className="space-y-1">
-                  <span className="font-medium text-muted-foreground">Data Source:</span>
-                  <div className="font-medium">{forms.find(f => f.id === config.formId)?.name || 'Unknown Form'}</div>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </TabsContent>
     </Tabs>
   );
 }

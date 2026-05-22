@@ -622,13 +622,12 @@ export function ComponentConfigDialog({
   const renderChartConfig = () => {
     return (
       <Tabs defaultValue="basic" className="w-full">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="basic">Basic</TabsTrigger>
           <TabsTrigger value="data">Data</TabsTrigger>
           <TabsTrigger value="filters">Filters</TabsTrigger>
           <TabsTrigger value="drilldown">Drilldown</TabsTrigger>
           <TabsTrigger value="style">Style</TabsTrigger>
-          <TabsTrigger value="preview">Preview</TabsTrigger>
         </TabsList>
 
         <TabsContent value="basic" className="space-y-4">
@@ -1102,79 +1101,6 @@ export function ComponentConfigDialog({
           </Card>
         </TabsContent>
 
-        <TabsContent value="preview" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm">Chart Preview</CardTitle>
-                <div className="flex items-center gap-2">
-                  <Label htmlFor="use-sample-data" className="text-xs text-muted-foreground">Use sample data</Label>
-                  <Switch
-                    id="use-sample-data"
-                    checked={useSampleData}
-                    onCheckedChange={setUseSampleData}
-                  />
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="h-64">
-                {useSampleData ? (
-                  <ChartPreview 
-                    config={{
-                      ...config,
-                      data: [
-                        { name: 'Sample A', value: 120, revenue: 15000, customers: 45 },
-                        { name: 'Sample B', value: 98, revenue: 12500, customers: 32 },
-                        { name: 'Sample C', value: 86, revenue: 9800, customers: 28 },
-                        { name: 'Sample D', value: 145, revenue: 18200, customers: 56 },
-                        { name: 'Sample E', value: 73, revenue: 8900, customers: 21 }
-                      ]
-                    }}
-                  />
-                ) : (
-                  <ChartPreview 
-                    key={`chart-preview-${JSON.stringify(config.metrics)}-${JSON.stringify(config.dimensions)}-${config.formId}-${config.aggregation}-${config.groupByField}-${JSON.stringify(config.filters)}-${JSON.stringify(config.metricAggregations)}-${config.chartType}-${JSON.stringify(config.columns)}`}
-                    config={config}
-                  />
-                )}
-              </div>
-              {!useSampleData && !config.formId && (
-                <p className="text-xs text-muted-foreground text-center mt-2">
-                  Select a data source in the Basic tab to see real data preview
-                </p>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm">Configuration Summary</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span className="font-medium">Chart Type:</span> {config.chartType || 'Not selected'}
-                </div>
-                <div>
-                  <span className="font-medium">Color Theme:</span> {config.colorTheme || 'Default'}
-                </div>
-                <div>
-                  <span className="font-medium">Metrics:</span> {config.metrics?.length || 0} selected
-                </div>
-                <div>
-                  <span className="font-medium">Dimensions:</span> {config.dimensions?.length || 0} selected
-                </div>
-                <div>
-                  <span className="font-medium">Group By:</span> {config.groupByField ? 'Enabled' : 'None'}
-                </div>
-                <div>
-                  <span className="font-medium">Aggregation:</span> {config.aggregationEnabled !== false ? 'Enabled' : 'Disabled'}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
       </Tabs>
     );
   };
@@ -1226,12 +1152,10 @@ export function ComponentConfigDialog({
 
     return (
       <Tabs defaultValue="basic" className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="basic">Basic & Columns</TabsTrigger>
           <TabsTrigger value="joins">Joins</TabsTrigger>
-          <TabsTrigger value="drilldown">Drilldown</TabsTrigger>
           <TabsTrigger value="filters">Filters</TabsTrigger>
-          <TabsTrigger value="preview">Preview</TabsTrigger>
         </TabsList>
 
         <TabsContent value="basic" className="space-y-4">
@@ -1387,77 +1311,6 @@ export function ComponentConfigDialog({
           </Card>
         </TabsContent>
 
-        <TabsContent value="drilldown" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-sm">Drilldown</CardTitle>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Click on cell values to filter the table
-                  </p>
-                </div>
-                <Switch
-                  checked={config.drilldownConfig?.enabled || false}
-                  onCheckedChange={(enabled) => setConfig({ 
-                    ...config, 
-                    drilldownConfig: { 
-                      ...config.drilldownConfig, 
-                      enabled 
-                    } 
-                  })}
-                />
-              </div>
-            </CardHeader>
-
-            {config.drilldownConfig?.enabled && config.formId && allFields.length > 0 && (
-              <CardContent className="space-y-4">
-                <div className="bg-muted/50 p-3 rounded-lg">
-                  <p className="text-sm text-muted-foreground">
-                    Select which fields can be clicked to filter. When you click a cell value in the table, 
-                    it will filter to show only rows with that value.
-                  </p>
-                </div>
-
-                <div className="max-h-48 overflow-y-auto border rounded-lg p-3">
-                  <div className="grid grid-cols-2 gap-2">
-                    {allFields.map(field => (
-                      <div key={field.id} className="flex items-center space-x-2">
-                        <input
-                          type="checkbox"
-                          id={`drill-${field.id}`}
-                          checked={(config.drilldownConfig?.fields || []).includes(field.id)}
-                          onChange={(e) => handleDrilldownFieldToggle(field.id, e.target.checked)}
-                          className="rounded border-gray-300"
-                        />
-                        <Label htmlFor={`drill-${field.id}`} className="text-sm cursor-pointer">
-                          {field.label}
-                        </Label>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {(config.drilldownConfig?.fields || []).length > 0 && (
-                  <div className="bg-primary/10 p-3 rounded-lg">
-                    <p className="text-sm font-medium">
-                      {config.drilldownConfig.fields.length} field(s) enabled for drilldown
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            )}
-
-            {config.drilldownConfig?.enabled && (!config.formId || allFields.length === 0) && (
-              <CardContent>
-                <div className="p-4 text-center text-muted-foreground">
-                  Please select a form first to configure drilldown.
-                </div>
-              </CardContent>
-            )}
-          </Card>
-        </TabsContent>
-
         <TabsContent value="filters" className="space-y-4">
           {config.formId && formFields.length > 0 ? (
             <FilterConfig
@@ -1478,59 +1331,6 @@ export function ComponentConfigDialog({
           )}
         </TabsContent>
 
-        <TabsContent value="preview" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm">Table Preview</CardTitle>
-              <p className="text-xs text-muted-foreground">
-                {selectedColumns.length} column(s) selected
-              </p>
-            </CardHeader>
-            <CardContent>
-              {config.formId && selectedColumns.length > 0 ? (
-                <TablePreview
-                  formId={config.formId}
-                  selectedColumns={selectedColumns}
-                  filters={config.filters}
-                  pageSize={5}
-                />
-              ) : (
-                <div className="p-8 text-center text-muted-foreground">
-                  {!config.formId ? (
-                    <p>Select a data source in the Basic tab to see preview</p>
-                  ) : (
-                    <p>Select at least one column to see preview</p>
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm">Configuration Summary</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span className="font-medium">Columns:</span> {selectedColumns.length} selected
-                </div>
-                <div>
-                  <span className="font-medium">Filters:</span> {config.filters?.length || 0} active
-                </div>
-                <div>
-                  <span className="font-medium">Sorting:</span> {config.enableSorting !== false ? 'Enabled' : 'Disabled'}
-                </div>
-                <div>
-                  <span className="font-medium">Search:</span> {config.enableSearch !== false ? 'Enabled' : 'Disabled'}
-                </div>
-                <div>
-                  <span className="font-medium">Drilldown:</span> {config.drilldownConfig?.enabled ? 'Enabled' : 'Disabled'}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
       </Tabs>
     );
   };
