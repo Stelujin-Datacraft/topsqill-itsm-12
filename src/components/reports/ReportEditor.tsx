@@ -514,15 +514,15 @@ export function ReportEditor({
       const isCrossRef = config?.crossRefConfig?.enabled && config?.crossRefConfig?.crossRefFieldId;
       const maxValues = isCrossRef ? drilldownLevels.length + 1 : drilldownLevels.length; // +1 for parentRefId
 
-      // Find the current level
-      const currentLevel = currentState.values.length;
-
-      // If we're at the same level, replace the value; if going deeper, add the value
       const newValues = [...currentState.values];
-      if (currentLevel < maxValues) {
-        newValues[currentLevel] = drilldownValue;
+      const levelIndex = isCrossRef
+        ? Math.max(0, currentState.values.length)
+        : Math.max(0, drilldownLevels.indexOf(drilldownLevel));
+
+      if (levelIndex < maxValues) {
+        newValues[levelIndex] = drilldownValue;
         // Remove any values beyond the current level
-        newValues.splice(currentLevel + 1);
+        newValues.splice(levelIndex + 1);
       }
       
       // For path: in cross-ref mode, first entry has no path (it's parentRefId)
