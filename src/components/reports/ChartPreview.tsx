@@ -2145,10 +2145,33 @@ export function ChartPreview({
     const drilldownLevels = getDrilldownLevels();
     if (config.drilldownConfig?.enabled && drilldownLevels.length > 0) {
       const currentLevel = drilldownState?.values?.length || 0;
-      return drilldownLevels[currentLevel] || drilldownLevels[0] || '';
+      const activeIndex = Math.min(currentLevel, drilldownLevels.length - 1);
+      return drilldownLevels[activeIndex] || drilldownLevels[0] || '';
     }
 
     return config.dimensions?.[0] || config.xAxis || '';
+  };
+
+  const getActiveDrilldownFieldForCurrentData = (): string => {
+    const drilldownLevels = getDrilldownLevels();
+    if (!config.drilldownConfig?.enabled || drilldownLevels.length === 0) {
+      return getActiveDimensionField();
+    }
+
+    const currentLevel = drilldownState?.values?.length || 0;
+    const activeIndex = Math.min(currentLevel, drilldownLevels.length - 1);
+    return drilldownLevels[activeIndex] || getActiveDimensionField();
+  };
+
+  const getPayloadDimensionValue = (payload: any): string => {
+    if (!payload) return '';
+
+    const rawValue = payload?._drilldownValue ?? payload?.rawValue ?? payload?.xOriginal ?? payload?.xRaw ?? payload?.name;
+    if (rawValue === null || rawValue === undefined || rawValue === '') {
+      return '';
+    }
+
+    return String(rawValue);
   };
 
   // Get available values for the current drilldown level
@@ -2205,7 +2228,7 @@ export function ChartPreview({
       event.stopPropagation();
     }
     
-    const clickedValue = data?.name || data;
+    const clickedValue = getPayloadDimensionValue(data);
     if (!clickedValue || clickedValue === 'Not Specified') return;
     
     // Check if this is a cross-reference chart - use parentId for direct record lookup
@@ -2277,7 +2300,7 @@ export function ChartPreview({
     }
     
     // Get dimension field for the pie chart
-    const dimensionField = getActiveDimensionField();
+    const dimensionField = getActiveDrilldownFieldForCurrentData();
     const dimensionLabel = dimensionField ? getFormFieldName(dimensionField) : 'Category';
     
     // Check if drilldown is enabled and drilldown mode toggle is ON
@@ -2314,7 +2337,7 @@ export function ChartPreview({
   const handleBarClick = (data: any, index: number, event?: any) => {
     // recharts passes the data point in data.payload or data directly
     const payload = data?.payload || data;
-    const dimensionValue = payload?.name || data?.name;
+    const dimensionValue = getPayloadDimensionValue(payload);
     
     if (!dimensionValue) return;
     
@@ -2421,7 +2444,7 @@ export function ChartPreview({
     }
     
     // Get dimensionField from the data payload (xFieldName) or fallback to config
-    const dimensionField = payload?.xFieldName || payload?._drilldownField || getActiveDimensionField();
+    const dimensionField = payload?._drilldownField || payload?.xFieldName || getActiveDrilldownFieldForCurrentData();
     const dimensionLabel = dimensionField ? getFormFieldName(dimensionField) : 'Field';
     
     // Check if drilldown is enabled and drilldown mode toggle is ON
