@@ -2141,6 +2141,16 @@ export function ChartPreview({
     return config.drilldownConfig?.drilldownLevels || config.drilldownConfig?.levels || [];
   };
 
+  const getActiveDimensionField = (): string => {
+    const drilldownLevels = getDrilldownLevels();
+    if (config.drilldownConfig?.enabled && drilldownLevels.length > 0) {
+      const currentLevel = drilldownState?.values?.length || 0;
+      return drilldownLevels[currentLevel] || drilldownLevels[0] || '';
+    }
+
+    return config.dimensions?.[0] || config.xAxis || '';
+  };
+
   // Get available values for the current drilldown level
   const getAvailableValuesForLevel = (levelIndex: number) => {
     const drilldownLevels = getDrilldownLevels();
@@ -2411,7 +2421,7 @@ export function ChartPreview({
     }
     
     // Get dimensionField from the data payload (xFieldName) or fallback to config
-    const dimensionField = payload?.xFieldName || config.dimensions?.[0] || config.xAxis || '';
+    const dimensionField = payload?.xFieldName || payload?._drilldownField || getActiveDimensionField();
     const dimensionLabel = dimensionField ? getFormFieldName(dimensionField) : 'Field';
     
     // Check if drilldown is enabled and drilldown mode toggle is ON
