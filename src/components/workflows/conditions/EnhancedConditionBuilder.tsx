@@ -372,11 +372,13 @@ interface SingleConditionBuilderProps {
   forms: any[];
   index: number;
   canRemove: boolean;
+  triggerFormId?: string;
+  triggerFormName?: string;
   onChange: (updated: Partial<ConditionItem>) => void;
   onRemove: () => void;
 }
 
-function SingleConditionBuilder({ condition, forms, index, canRemove, onChange, onRemove }: SingleConditionBuilderProps) {
+function SingleConditionBuilder({ condition, forms, index, canRemove, triggerFormId, triggerFormName, onChange, onRemove }: SingleConditionBuilderProps) {
   const handleSystemTypeChange = (type: ConditionSystemType) => {
     if (type === 'form_level') {
       onChange({
@@ -443,6 +445,8 @@ function SingleConditionBuilder({ condition, forms, index, canRemove, onChange, 
           <FieldLevelConditionBuilder
             condition={condition.fieldLevelCondition}
             forms={forms}
+            triggerFormId={triggerFormId}
+            triggerFormName={triggerFormName}
             onChange={(fieldLevelCondition) => onChange({ fieldLevelCondition })}
           />
         )}
