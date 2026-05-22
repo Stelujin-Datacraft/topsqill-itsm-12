@@ -396,9 +396,11 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
       }
 
       if (resourceId) {
-        if (state.rolePermissions[entityType][resourceId]?.can_read) return true;
+        const itemPerms = state.rolePermissions[entityType][resourceId];
+        if (itemPerms?.can_read || itemPerms?.can_update || itemPerms?.can_delete) return true;
         // Global "all" read grant covers every item of this entity type
-        if (state.rolePermissions[entityType]?.['all']?.can_read) return true;
+        const allPerms = state.rolePermissions[entityType]?.['all'];
+        if (allPerms?.can_read || allPerms?.can_update || allPerms?.can_delete) return true;
         // Cross-module: KB "Create Dashboards & Reports" does not imply read.
         // But an explicit dashboards:all:read should grant report read too.
         if (entityType === 'reports' && state.rolePermissions.dashboards?.['all']?.can_read) return true;
