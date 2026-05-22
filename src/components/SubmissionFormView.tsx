@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { ArrowLeft, Edit, Save, X, Calendar, Clock, History, MessageSquare } from 'lucide-react';
+import { ArrowLeft, Edit, Save, X, Calendar, Clock, History, MessageSquare, Send, FileEdit } from 'lucide-react';
 import { SubmissionRefDisplay } from './SubmissionRefDisplay';
 import { FormFieldsRenderer } from './FormFieldsRenderer';
 import { FormPagination } from './FormPagination';
@@ -402,18 +402,24 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
     }));
   };
 
-  const handleSave = async () => {
+  const handleSave = async (statusOverride?: string) => {
     if (!submission) return;
 
     try {
       setSaving(true);
-      console.log('Saving submission with data:', formData);
-      
+      const updatePayload: any = { submission_data: formData };
+      if (statusOverride) {
+        updatePayload.approval_status = statusOverride;
+        if (statusOverride === 'pending') {
+          updatePayload.approval_timestamp = null;
+          updatePayload.approved_by = null;
+        }
+      }
+      console.log('Saving submission with data:', formData, 'status:', statusOverride);
+
       const { error } = await supabase
         .from('form_submissions')
-        .update({
-          submission_data: formData
-        })
+        .update(updatePayload)
         .eq('id', submission.id);
 
       if (error) {
@@ -431,7 +437,8 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
       // Update local state
       setSubmission(prev => prev ? {
         ...prev,
-        submission_data: formData
+        submission_data: formData,
+        ...(statusOverride ? { approval_status: statusOverride } : {})
       } : null);
 
       setIsEditing(false);
@@ -562,13 +569,31 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
                 <X className='h-4 w-4'/>
                 </Button>
                 <Button
-            size="sm"
-            onClick={handleSave}
-            disabled={saving}
-          >
-            <Save className="h-4 w-4 mr-1" />
-            {saving ? 'Saving...' : 'Save'}
-            </Button>
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleSave('draft')}
+                  disabled={saving}
+                >
+                  <FileEdit className="h-4 w-4 mr-1" />
+                  {saving ? 'Saving...' : 'Save as Draft'}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleSave()}
+                  disabled={saving}
+                >
+                  <Save className="h-4 w-4 mr-1" />
+                  {saving ? 'Saving...' : 'Save'}
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => handleSave('pending')}
+                  disabled={saving}
+                >
+                  <Send className="h-4 w-4 mr-1" />
+                  {saving ? 'Submitting...' : 'Submit'}
+                </Button>
 
               </>
                ) : (

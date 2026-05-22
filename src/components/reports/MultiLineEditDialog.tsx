@@ -903,9 +903,8 @@ return (
         </p>
       </DialogHeader>
 
-      <div className="flex-1 overflow-hidden">
-        <ScrollArea className="h-full pr-4">
-          <div className="overflow-x-auto">
+      <div className="flex-1 min-h-0 overflow-auto pr-2">
+          <div className="min-w-max">
             {/* Table-like container */}
 <div className="table w-full border-collapse min-w-max">
   {/* Header row */}
@@ -1020,7 +1019,6 @@ return (
 
             </div>
           </div>
-        </ScrollArea>
       </div>
 
       {/* Footer */}

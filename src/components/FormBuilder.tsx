@@ -259,12 +259,13 @@ function FormBuilderContent({
         status: shouldPublish ? 'active' as const : snapshot.form.status
       };
       
-      await updateForm(formId!, formUpdates);
-
-      // Batch save all fields (single DB call with upsert)
+      // Run form metadata update and field upsert in parallel (different tables)
       const existingFields = currentForm?.fields || [];
       const existingFieldIds = existingFields.map(f => f.id);
-      await batchSaveFields(formId!, snapshot.form.fields, existingFieldIds);
+      await Promise.all([
+        updateForm(formId!, formUpdates),
+        batchSaveFields(formId!, snapshot.form.fields, existingFieldIds),
+      ]);
 
       // Handle deleted fields - identify which fields to remove
       // IMPORTANT: Only consider a field deleted if it exists in DB but not in snapshot
