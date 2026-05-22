@@ -307,7 +307,9 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
 
   const hasAnyExplicitReadPermission = (entityType: EntityType): boolean => {
     const itemLevel = Object.entries(state.rolePermissions[entityType] || {}).some(([resourceId, perms]) => {
-      return perms.can_read; // resource_id 'all' or specific id both count as explicit read
+      // Update/delete grants implicitly include read so the user can see
+      // the items they're allowed to act on.
+      return perms.can_read || perms.can_update || perms.can_delete;
     });
     if (itemLevel) return true;
     // Project-level grant cascades ONLY to forms. For reports, dashboards,
@@ -394,9 +396,11 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
       }
 
       if (resourceId) {
-        if (state.rolePermissions[entityType][resourceId]?.can_read) return true;
+        const itemPerms = state.rolePermissions[entityType][resourceId];
+        if (itemPerms?.can_read || itemPerms?.can_update || itemPerms?.can_delete) return true;
         // Global "all" read grant covers every item of this entity type
-        if (state.rolePermissions[entityType]?.['all']?.can_read) return true;
+        const allPerms = state.rolePermissions[entityType]?.['all'];
+        if (allPerms?.can_read || allPerms?.can_update || allPerms?.can_delete) return true;
         // Cross-module: KB "Create Dashboards & Reports" does not imply read.
         // But an explicit dashboards:all:read should grant report read too.
         if (entityType === 'reports' && state.rolePermissions.dashboards?.['all']?.can_read) return true;
@@ -453,8 +457,9 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
         if (resource.isPublic === true) return true;
         if (isResourceOwner(resource)) return true;
         const rolePerms = state.rolePermissions[entityType][resource.id];
-        if (rolePerms?.can_read) return true;
-        if (state.rolePermissions[entityType]?.['all']?.can_read) return true;
+        if (rolePerms?.can_read || rolePerms?.can_update || rolePerms?.can_delete) return true;
+        const allPerms = state.rolePermissions[entityType]?.['all'];
+        if (allPerms?.can_read || allPerms?.can_update || allPerms?.can_delete) return true;
         if (projectGrants('read', resource.project_id ?? resource.projectId)) return true;
         // Preserve legacy visibility only for users with no assigned roles.
         return !state.hasRoleAssignments;
@@ -468,8 +473,9 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
     return allResources.filter(resource => {
       if (isResourceOwner(resource)) return true;
       const rolePerms = state.rolePermissions[entityType][resource.id];
-      if (rolePerms?.can_read) return true;
-      if (state.rolePermissions[entityType]?.['all']?.can_read) return true;
+      if (rolePerms?.can_read || rolePerms?.can_update || rolePerms?.can_delete) return true;
+      const allPerms = state.rolePermissions[entityType]?.['all'];
+      if (allPerms?.can_read || allPerms?.can_update || allPerms?.can_delete) return true;
       // Cross-module alias for reports under the dashboard module
       if (entityType === 'reports' && state.rolePermissions.dashboards?.['all']?.can_read) return true;
       // Project-level cascade applies ONLY to forms — reports, dashboards,
