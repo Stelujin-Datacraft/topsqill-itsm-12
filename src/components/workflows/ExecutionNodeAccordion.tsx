@@ -161,19 +161,49 @@ export function ExecutionNodeAccordion({ executionId, workflowId, currentNodeId 
           </div>
         );
       case 'action':
+        // Prefer action data from the log; fall back to the node's saved config
+        // so action nodes always show meaningful details instead of "empty".
+        const cfg = node?.config && typeof node.config === 'string'
+          ? (() => { try { return JSON.parse(node.config as any); } catch { return node.config; } })()
+          : node?.config;
+        const resolvedActionType = log?.action_type || cfg?.actionType || (node?.node_type === 'action' ? 'action' : undefined);
+        const detailsObj = (log?.action_details && Object.keys(log.action_details || {}).length > 0)
+          ? log.action_details
+          : cfg || {};
+        const resultObj = log?.action_result
+          ?? (log?.output_data && Object.keys(log.output_data || {}).length > 0 ? log.output_data : null);
         return (
           <div className="space-y-2 text-sm">
-            {log?.action_type ? (
+            {resolvedActionType || detailsObj ? (
               <>
-                <div><strong>Action Type:</strong> {log.action_type}</div>
-                <div><strong>Details:</strong></div>
+                {resolvedActionType && (
+                  <div><strong>Action Type:</strong> {resolvedActionType}</div>
+                )}
+                {detailsObj?.targetFormName && (
+                  <div><strong>Target Form:</strong> {detailsObj.targetFormName}</div>
+                )}
+                {detailsObj?.targetFormId && !detailsObj?.targetFormName && (
+                  <div><strong>Target Form ID:</strong> {detailsObj.targetFormId}</div>
+                )}
+                {log?.status && (
+                  <div><strong>Status:</strong> {log.status}</div>
+                )}
+                {log?.duration_ms != null && (
+                  <div><strong>Duration:</strong> {formatDuration(log.duration_ms)}</div>
+                )}
+                <div><strong>Configuration / Details:</strong></div>
                 <pre className="bg-gray-50 p-2 rounded text-xs overflow-auto max-h-40">
-                  {JSON.stringify(log.action_details, null, 2)}
+                  {JSON.stringify(detailsObj, null, 2)}
                 </pre>
                 <div><strong>Result:</strong></div>
                 <pre className="bg-gray-50 p-2 rounded text-xs overflow-auto max-h-40">
-                  {JSON.stringify(log.action_result, null, 2)}
+                  {resultObj ? JSON.stringify(resultObj, null, 2) : 'No result data recorded'}
                 </pre>
+                {log?.error_message && (
+                  <div className="text-red-600">
+                    <strong>Error:</strong> {log.error_message}
+                  </div>
+                )}
               </>
             ) : (
               <div className="text-gray-500">No action data available</div>
