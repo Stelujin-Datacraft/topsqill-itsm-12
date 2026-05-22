@@ -2685,7 +2685,7 @@ export function ChartPreview({
 
     // Sanitize chart data - ensure all numeric values are valid numbers (not NaN/undefined)
     // Preserve string values for display fields (xRaw, yRaw, field names, IDs, cross-ref parent IDs)
-    const preserveAsStringKeys = ['name', '_drilldownData', 'xRaw', 'yRaw', 'xFieldName', 'yFieldName', 'xFieldLabel', 'yFieldLabel', 'submissionId', '_legendMapping', 'rawSecondaryValue', 'rawYValue', '_isCompareEncoded', '_isCrossRefCompare', '_hasTextX', '_hasTextY', 'parentId', 'parentRefId', 'linkedSubmissionId', '_linkedSubmissionIds', '_allParentIds', '_allParentRefIds', '_optionColor', '_optionImage', '_xOptionColor', '_yOptionColor', '_xOptionImage', '_yOptionImage'];
+    const preserveAsStringKeys = ['name', '_drilldownData', 'xRaw', 'yRaw', 'xOriginal', 'yOriginal', 'xFieldName', 'yFieldName', 'xFieldLabel', 'yFieldLabel', 'submissionId', '_legendMapping', '_xLegendMapping', '_yLegendMapping', 'rawSecondaryValue', 'rawYValue', '_isCompareEncoded', '_isCrossRefCompare', '_hasTextX', '_hasTextY', '_xIsText', '_yIsText', 'parentId', 'parentRefId', 'linkedSubmissionId', '_linkedSubmissionIds', '_allParentIds', '_allParentRefIds', '_optionColor', '_optionImage', '_xOptionColor', '_yOptionColor', '_xOptionImage', '_yOptionImage'];
     let sanitizedChartData = chartData.map(item => {
       const sanitized: any = { name: item.name || 'Unknown' };
       Object.keys(item).forEach(key => {
