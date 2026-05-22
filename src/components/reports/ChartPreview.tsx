@@ -2277,7 +2277,7 @@ export function ChartPreview({
     }
     
     // Get dimension field for the pie chart
-    const dimensionField = config.dimensions?.[0] || '';
+    const dimensionField = getActiveDimensionField();
     const dimensionLabel = dimensionField ? getFormFieldName(dimensionField) : 'Category';
     
     // Check if drilldown is enabled and drilldown mode toggle is ON
