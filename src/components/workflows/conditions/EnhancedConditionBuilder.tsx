@@ -90,9 +90,11 @@ const useCountries = () => {
 interface EnhancedConditionBuilderProps {
   value?: EnhancedCondition;
   onChange: (condition: EnhancedCondition) => void;
+  triggerFormId?: string;
+  triggerFormName?: string;
 }
 
-export function EnhancedConditionBuilder({ value, onChange }: EnhancedConditionBuilderProps) {
+export function EnhancedConditionBuilder({ value, onChange, triggerFormId, triggerFormName }: EnhancedConditionBuilderProps) {
   const [conditions, setConditions] = useState<ConditionItem[]>(() => {
     if (value?.conditions && value.conditions.length > 0) {
       return value.conditions;
@@ -315,6 +317,8 @@ export function EnhancedConditionBuilder({ value, onChange }: EnhancedConditionB
             forms={validForms}
             index={index}
             canRemove={conditions.length > 1}
+            triggerFormId={triggerFormId}
+            triggerFormName={triggerFormName}
             onChange={(updated) => handleConditionChange(condition.id, updated)}
             onRemove={() => handleRemoveCondition(condition.id)}
           />
