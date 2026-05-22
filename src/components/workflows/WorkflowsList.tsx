@@ -20,6 +20,16 @@ import { useToast } from '@/hooks/use-toast';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { useNavigate } from 'react-router-dom';
 import { useUnifiedAccessControl } from '@/hooks/useUnifiedAccessControl';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 export interface WorkflowsListProps {
   workflows: Workflow[];
@@ -34,6 +44,7 @@ export function WorkflowsList({ workflows, onEdit, onDelete, onView, getPermissi
   const { toast } = useToast();
   const navigate = useNavigate();
   const { getButtonState, checkPermissionWithAlert } = useUnifiedAccessControl();
+  const [workflowToDelete, setWorkflowToDelete] = useState<Workflow | null>(null);
 
   const handleCreateWorkflow = async (workflowId: string) => {
     try {
@@ -88,7 +99,14 @@ export function WorkflowsList({ workflows, onEdit, onDelete, onView, getPermissi
     if (!checkPermissionWithAlert('workflows', 'delete', workflow.id)) {
       return;
     }
-    onDelete(workflow.id);
+    setWorkflowToDelete(workflow);
+  };
+
+  const handleConfirmDelete = () => {
+    if (workflowToDelete) {
+      onDelete(workflowToDelete.id);
+      setWorkflowToDelete(null);
+    }
   };
 
   const handleCopyId = (id: string) => {
@@ -253,6 +271,28 @@ export function WorkflowsList({ workflows, onEdit, onDelete, onView, getPermissi
           })}
         </div>
       )}
+
+      <AlertDialog open={!!workflowToDelete} onOpenChange={(open) => !open && setWorkflowToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete workflow?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the workflow
+              {workflowToDelete ? ` "${workflowToDelete.name}"` : ''} along with its nodes,
+              connections, and execution history. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
