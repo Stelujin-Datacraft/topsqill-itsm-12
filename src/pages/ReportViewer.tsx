@@ -143,12 +143,14 @@ const ReportViewerPage = () => {
 
       const isCrossRef = config?.crossRefConfig?.enabled && config?.crossRefConfig?.crossRefFieldId;
       const maxValues = isCrossRef ? drilldownLevels.length + 1 : drilldownLevels.length;
-      const currentLevel = currentState.values.length;
+      const levelIndex = isCrossRef
+        ? Math.max(0, currentState.values.length)
+        : Math.max(0, drilldownLevels.indexOf(drilldownLevel));
       const newValues = [...currentState.values];
 
-      if (currentLevel < maxValues) {
-        newValues[currentLevel] = drilldownValue;
-        newValues.splice(currentLevel + 1);
+      if (levelIndex < maxValues) {
+        newValues[levelIndex] = drilldownValue;
+        newValues.splice(levelIndex + 1);
       }
 
       let newPath: string[];
