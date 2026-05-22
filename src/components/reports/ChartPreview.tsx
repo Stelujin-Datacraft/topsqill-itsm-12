@@ -5653,11 +5653,6 @@ export function ChartPreview({
         
       {/* Chart Controls */}
       <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mb-4">
-        
-        <Button size="sm" variant="outline" className="h-8 px-2" onClick={() => setShowFormFields(!showFormFields)}>
-          {showFormFields ? 'Hide' : 'Show'} Form Details ({getFormName(config.formId)})
-        </Button>
-        
         {/* Show drilldown button for both normal and cross-ref drilldown */}
         {(config.drilldownConfig?.enabled || (config.crossRefConfig?.enabled && config.crossRefConfig?.drilldownEnabled)) && <Button size="sm" variant="outline" className="h-8 px-2" onClick={() => setShowDrilldownPanel(!showDrilldownPanel)}>
             {showDrilldownPanel ? 'Hide' : 'Show'} Drilldown
