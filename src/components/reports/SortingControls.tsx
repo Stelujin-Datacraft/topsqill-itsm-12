@@ -56,7 +56,7 @@ export function SortingControls({
         </Badge>
       ))}
 
-      {availableSortFields.length > 0 && (
+      {availableSortFields.length > 0 && sortConfigs.length === 0 && (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" size="sm">
