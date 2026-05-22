@@ -6,7 +6,8 @@ import { Loader2 } from 'lucide-react';
 import { 
   STATIC_LAYOUT_FIELD_TYPES, 
   filterCompatibleFields,
-  getCompatibleTypes 
+  getCompatibleTypes,
+  WORKFLOW_VALUE_FIELD_EXCLUSIONS,
 } from '@/utils/workflowFieldFiltering';
 
 interface ExtendedFormField extends FormField {
@@ -21,6 +22,12 @@ interface FormFieldSelectorProps {
   filterTypes?: string[]; // Optional filter to show only specific field types
   excludeStaticFields?: boolean; // Whether to exclude static/layout fields (default: true)
   targetFieldType?: string; // If provided, only show compatible types
+  /**
+   * When true, also excludes non-input value fields (signature, barcode, file, image,
+   * attachment, geo-location, matrix-grid, record-table, cross-reference, query, calculated).
+   * Use for action targets / value updates. Default: false.
+   */
+  excludeNonInputFields?: boolean;
 }
 
 export function FormFieldSelector({ 
@@ -30,7 +37,8 @@ export function FormFieldSelector({
   placeholder = "Select field", 
   filterTypes,
   excludeStaticFields = true,
-  targetFieldType
+  targetFieldType,
+  excludeNonInputFields = false,
 }: FormFieldSelectorProps) {
   const [fields, setFields] = useState<ExtendedFormField[]>([]);
   const [loading, setLoading] = useState(false);
@@ -59,9 +67,12 @@ export function FormFieldSelector({
         }
 
         if (fieldsData) {
-          // Filter out static/layout fields using centralized utility
+          // Filter out static/layout fields (and optionally non-input value fields) using centralized utility
+          const exclusionList = excludeNonInputFields
+            ? WORKFLOW_VALUE_FIELD_EXCLUSIONS
+            : STATIC_LAYOUT_FIELD_TYPES;
           let dataFields = fieldsData
-            .filter(field => !excludeStaticFields || !STATIC_LAYOUT_FIELD_TYPES.includes(field.field_type as any))
+            .filter(field => !excludeStaticFields || !exclusionList.includes(field.field_type as any))
             .map(field => {
               // Parse custom_config - handle both object and string formats
               let parsedConfig = field.custom_config || {};
@@ -98,7 +109,7 @@ export function FormFieldSelector({
     };
 
     fetchFields();
-  }, [formId, filterTypesKey, excludeStaticFields, targetFieldType]);
+  }, [formId, filterTypesKey, excludeStaticFields, targetFieldType, excludeNonInputFields]);
 
   if (loading) {
     return (

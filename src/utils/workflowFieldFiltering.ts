@@ -22,6 +22,36 @@ export const DISPLAY_ONLY_FIELD_TYPES = [
   'query', // Read-only calculated/display field
 ] as const;
 
+// Field types that don't represent simple input values and shouldn't be
+// shown in workflow condition comparisons or as targets for value updates.
+// (e.g. signature/barcode/file/image are not comparable or assignable as plain values)
+export const NON_INPUT_VALUE_FIELD_TYPES = [
+  'signature',
+  'barcode',
+  'file',
+  'image',
+  'attachment',
+  'geo-location',
+  'matrix-grid',
+  'record-table',
+  'cross-reference',
+  'query',
+  'calculated',
+] as const;
+
+/**
+ * Combined exclusion list for workflow condition/action value fields:
+ * removes static/layout fields AND non-input value fields like signature, barcode, file, image, etc.
+ */
+export const WORKFLOW_VALUE_FIELD_EXCLUSIONS = [
+  ...STATIC_LAYOUT_FIELD_TYPES,
+  ...NON_INPUT_VALUE_FIELD_TYPES,
+] as const;
+
+export function isWorkflowValueField(fieldType: string): boolean {
+  return !WORKFLOW_VALUE_FIELD_EXCLUSIONS.includes(fieldType as any);
+}
+
 /**
  * Check if a field type is a static/layout field that shouldn't be in workflow selections
  */
