@@ -5,7 +5,7 @@ import { FormField } from '@/types/form';
 import { Loader2 } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { 
-  STATIC_LAYOUT_FIELD_TYPES, 
+  WORKFLOW_VALUE_FIELD_EXCLUSIONS,
   getCompatibleTypes,
   getTypeCompatibilityLabel 
 } from '@/utils/workflowFieldFiltering';
@@ -61,7 +61,7 @@ export function DynamicFieldSelector({
         if (!triggerFieldsError && triggerFieldsData) {
           // Use centralized static field filtering
           const dataFields = triggerFieldsData
-            .filter(field => !STATIC_LAYOUT_FIELD_TYPES.includes(field.field_type as any))
+            .filter(field => !WORKFLOW_VALUE_FIELD_EXCLUSIONS.includes(field.field_type as any))
             .map(field => ({
               id: field.id,
               type: field.field_type,
@@ -93,7 +93,7 @@ export function DynamicFieldSelector({
           if (!targetFieldsError && targetFieldsData) {
             // Use centralized static field filtering
             const dataFields = targetFieldsData
-              .filter(field => !STATIC_LAYOUT_FIELD_TYPES.includes(field.field_type as any))
+              .filter(field => !WORKFLOW_VALUE_FIELD_EXCLUSIONS.includes(field.field_type as any))
               .map(field => ({
                 id: field.id,
                 type: field.field_type,
