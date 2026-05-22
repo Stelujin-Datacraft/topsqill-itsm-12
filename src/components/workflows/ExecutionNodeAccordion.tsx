@@ -283,7 +283,7 @@ export function ExecutionNodeAccordion({ executionId, workflowId, currentNodeId 
                         <Eye className="h-3 w-3 mr-1" />
                         Logs
                       </Button>
-                      {log?.action_type && (
+                      {(log?.action_type || node.node_type === 'action') && (
                         <Button
                           size="sm"
                           variant={selectedView?.nodeId === node.id && selectedView?.type === 'action' ? 'default' : 'outline'}
