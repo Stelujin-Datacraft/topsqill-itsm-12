@@ -239,6 +239,7 @@ function FieldUpdateItem({
           <FormFieldSelector
             formId={targetFormId}
             value={update.targetFieldId || ''}
+            excludeNonInputFields
             onValueChange={(fieldId, fieldName, fieldType, fieldOptions, customConfig) => {
               onUpdate(index, {
                 targetFieldId: fieldId,
