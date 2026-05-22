@@ -622,13 +622,12 @@ export function ComponentConfigDialog({
   const renderChartConfig = () => {
     return (
       <Tabs defaultValue="basic" className="w-full">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="basic">Basic</TabsTrigger>
           <TabsTrigger value="data">Data</TabsTrigger>
           <TabsTrigger value="filters">Filters</TabsTrigger>
           <TabsTrigger value="drilldown">Drilldown</TabsTrigger>
           <TabsTrigger value="style">Style</TabsTrigger>
-          <TabsTrigger value="preview">Preview</TabsTrigger>
         </TabsList>
 
         <TabsContent value="basic" className="space-y-4">
