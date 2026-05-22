@@ -120,6 +120,24 @@ const Forms = () => {
         ? generatedForm.pages
         : null;
 
+      // Determine which field indexes are actually referenced by a page.
+      // Any field not referenced is considered orphaned/non-used and skipped
+      // so we don't create DB rows for fields the user never sees.
+      const referencedIndexes = new Set<number>();
+      if (aiPages) {
+        aiPages.forEach((p) => {
+          (p.fieldIndexes || []).forEach((idx) => {
+            if (
+              typeof idx === 'number' &&
+              idx >= 0 &&
+              idx < generatedForm.fields.length
+            ) {
+              referencedIndexes.add(idx);
+            }
+          });
+        });
+      }
+
       const formPages = aiPages
         ? aiPages.map((p, idx) => ({
             id: `page-${idx + 1}`,
@@ -161,6 +179,11 @@ const Forms = () => {
         formPages.forEach(p => { pageFieldIds[p.id] = []; });
 
         for (let i = 0; i < generatedForm.fields.length; i++) {
+          // Skip fields that aren't referenced by any page when pages are provided.
+          if (aiPages && !referencedIndexes.has(i)) {
+            console.warn(`Skipping orphaned AI field at index ${i}: "${generatedForm.fields[i]?.label}"`);
+            continue;
+          }
           const field = generatedForm.fields[i];
           const mappedOptions = field.options?.map((opt, idx) => ({
             id: `opt-${idx}-${Date.now()}`,
