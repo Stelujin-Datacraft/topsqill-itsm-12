@@ -216,11 +216,10 @@ export function ChartConfigurationTabs({
 
   return (
     <Tabs defaultValue="basic" className="w-full">
-      <TabsList className="grid w-full grid-cols-4">
+      <TabsList className="grid w-full grid-cols-3">
         <TabsTrigger value="basic">Basic</TabsTrigger>
         <TabsTrigger value="data">Data</TabsTrigger>
         <TabsTrigger value="style">Style</TabsTrigger>
-        <TabsTrigger value="preview">Preview</TabsTrigger>
       </TabsList>
 
       <TabsContent value="basic" className="space-y-4">
