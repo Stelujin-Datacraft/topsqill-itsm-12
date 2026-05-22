@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { FormOption, FormFieldOption } from '@/types/conditions';
 import { useProject } from '@/contexts/ProjectContext';
-import { STATIC_LAYOUT_FIELD_TYPES } from '@/utils/workflowFieldFiltering';
+import { STATIC_LAYOUT_FIELD_TYPES, WORKFLOW_VALUE_FIELD_EXCLUSIONS } from '@/utils/workflowFieldFiltering';
 
 export function useConditionFormData() {
   const { currentProject } = useProject();
@@ -62,9 +62,10 @@ export function useConditionFormData() {
       const formsWithFields = formsData.map((form) => {
         const fieldsData = fieldsByFormId.get(form.id) || [];
 
-        // Filter out static/layout fields that don't hold data
+        // Filter out static/layout fields AND non-input value fields
+        // (e.g. signature, barcode, file) — not useful in condition comparisons
         const dataFields = fieldsData.filter(
-          field => !STATIC_LAYOUT_FIELD_TYPES.includes(field.field_type as any)
+          field => !WORKFLOW_VALUE_FIELD_EXCLUSIONS.includes(field.field_type as any)
         );
 
         const fields: FormFieldOption[] = dataFields.map(field => {
@@ -167,9 +168,10 @@ export function useFormFields(formId: string | undefined) {
 
         if (error) throw error;
 
-        // Filter out static/layout fields that don't hold data
+        // Filter out static/layout fields AND non-input value fields
+        // (e.g. signature, barcode, file) — not useful in condition comparisons
         const dataFields = data.filter(
-          field => !STATIC_LAYOUT_FIELD_TYPES.includes(field.field_type as any)
+          field => !WORKFLOW_VALUE_FIELD_EXCLUSIONS.includes(field.field_type as any)
         );
 
         const formattedFields: FormFieldOption[] = dataFields.map(field => {
