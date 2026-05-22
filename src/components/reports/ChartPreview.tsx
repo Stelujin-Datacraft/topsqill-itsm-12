@@ -5747,32 +5747,6 @@ export function ChartPreview({
           )}
         </div>}
 
-      {/* Form Fields Display */}
-      {showFormFields && <div className="p-4 bg-muted/30 rounded-lg border flex-shrink-0">
-          <h4 className="font-semibold mb-2">Form Details: {getFormName(config.formId)}</h4>
-          <div className="space-y-2">
-            {formFields.map(field => <div key={field.id} className="text-sm">
-                <span className="font-medium">{getFormFieldName(field.id)}:</span>
-                <span className="ml-2 text-muted-foreground">
-                  {field.type} field
-                  {config.dimensions?.includes(field.id) && <span className="ml-2 text-xs bg-primary/10 text-primary px-1 rounded">
-                      Selected as dimension
-                    </span>}
-                  {config.metrics?.includes(field.id) && <span className="ml-2 text-xs bg-secondary/10 text-secondary px-1 rounded">
-                      Selected as metric
-                    </span>}
-                </span>
-              </div>)}
-            {chartData.length > 0 && <div className="mt-4 pt-2 border-t">
-                <div className="text-xs text-muted-foreground">
-                  <strong>Chart Data Series:</strong> {Object.keys(chartData[0]).filter(k => k !== 'name').map(k => k.includes(':') ? k : getFormFieldName(k)).join(', ')}
-                </div>
-                <div className="text-xs text-muted-foreground mt-1">
-                  <strong>Total Records:</strong> {chartData.length}
-                </div>
-              </div>}
-          </div>
-        </div>}
 
       {/* Chart Container - Fills available space */}
       <div className="flex-grow min-h-[300px]">
