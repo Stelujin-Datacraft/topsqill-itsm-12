@@ -307,7 +307,9 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
 
   const hasAnyExplicitReadPermission = (entityType: EntityType): boolean => {
     const itemLevel = Object.entries(state.rolePermissions[entityType] || {}).some(([resourceId, perms]) => {
-      return perms.can_read; // resource_id 'all' or specific id both count as explicit read
+      // Update/delete grants implicitly include read so the user can see
+      // the items they're allowed to act on.
+      return perms.can_read || perms.can_update || perms.can_delete;
     });
     if (itemLevel) return true;
     // Project-level grant cascades ONLY to forms. For reports, dashboards,
