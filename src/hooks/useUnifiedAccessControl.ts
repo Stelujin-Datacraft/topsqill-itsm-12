@@ -457,8 +457,9 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
         if (resource.isPublic === true) return true;
         if (isResourceOwner(resource)) return true;
         const rolePerms = state.rolePermissions[entityType][resource.id];
-        if (rolePerms?.can_read) return true;
-        if (state.rolePermissions[entityType]?.['all']?.can_read) return true;
+        if (rolePerms?.can_read || rolePerms?.can_update || rolePerms?.can_delete) return true;
+        const allPerms = state.rolePermissions[entityType]?.['all'];
+        if (allPerms?.can_read || allPerms?.can_update || allPerms?.can_delete) return true;
         if (projectGrants('read', resource.project_id ?? resource.projectId)) return true;
         // Preserve legacy visibility only for users with no assigned roles.
         return !state.hasRoleAssignments;
@@ -472,8 +473,9 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
     return allResources.filter(resource => {
       if (isResourceOwner(resource)) return true;
       const rolePerms = state.rolePermissions[entityType][resource.id];
-      if (rolePerms?.can_read) return true;
-      if (state.rolePermissions[entityType]?.['all']?.can_read) return true;
+      if (rolePerms?.can_read || rolePerms?.can_update || rolePerms?.can_delete) return true;
+      const allPerms = state.rolePermissions[entityType]?.['all'];
+      if (allPerms?.can_read || allPerms?.can_update || allPerms?.can_delete) return true;
       // Cross-module alias for reports under the dashboard module
       if (entityType === 'reports' && state.rolePermissions.dashboards?.['all']?.can_read) return true;
       // Project-level cascade applies ONLY to forms — reports, dashboards,
