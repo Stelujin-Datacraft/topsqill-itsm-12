@@ -1499,6 +1499,8 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
             
             <EnhancedConditionBuilder
               value={localConfig?.enhancedCondition}
+              triggerFormId={triggerFormId}
+              triggerFormName={triggerFormName}
               onChange={(condition: EnhancedCondition) => {
                 handleConfigUpdate('enhancedCondition', condition);
               }}
