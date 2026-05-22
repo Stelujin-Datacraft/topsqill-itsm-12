@@ -48,6 +48,7 @@ const ReportViewerPage = () => {
   const [report, setReport] = useState<Report | null>(null);
   const [components, setComponents] = useState<ReportComponent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [drilldownStates, setDrilldownStates] = useState<Record<string, { path: string[]; values: string[] }>>({});
 
   useEffect(() => {
     if (id) {
@@ -117,6 +118,59 @@ const ReportViewerPage = () => {
     });
   };
 
+  const handleDrilldown = (componentId: string, drilldownLevel: string, drilldownValue: string) => {
+    if (!drilldownLevel && !drilldownValue) {
+      setDrilldownStates(prev => ({
+        ...prev,
+        [componentId]: {
+          path: [],
+          values: [],
+        },
+      }));
+      return;
+    }
+
+    setDrilldownStates(prev => {
+      const currentState = prev[componentId] || { path: [], values: [] };
+      const component = components.find(c => c.id === componentId);
+      const config = component?.config as any;
+
+      const drilldownLevels =
+        (config?.drilldownConfig?.drilldownLevels?.length > 0 ? config.drilldownConfig.drilldownLevels : null) ||
+        (config?.drilldownConfig?.levels?.length > 0 ? config.drilldownConfig.levels : null) ||
+        (config?.crossRefConfig?.drilldownLevels?.length > 0 ? config.crossRefConfig.drilldownLevels : null) ||
+        [];
+
+      const isCrossRef = config?.crossRefConfig?.enabled && config?.crossRefConfig?.crossRefFieldId;
+      const maxValues = isCrossRef ? drilldownLevels.length + 1 : drilldownLevels.length;
+      const currentLevel = currentState.values.length;
+      const newValues = [...currentState.values];
+
+      if (currentLevel < maxValues) {
+        newValues[currentLevel] = drilldownValue;
+        newValues.splice(currentLevel + 1);
+      }
+
+      let newPath: string[];
+      if (isCrossRef) {
+        newPath = newValues.slice(1).map((_, i) => drilldownLevels[i] || '');
+        if (newValues.length > 0) {
+          newPath = ['', ...newPath];
+        }
+      } else {
+        newPath = drilldownLevels.slice(0, newValues.length);
+      }
+
+      return {
+        ...prev,
+        [componentId]: {
+          path: newPath,
+          values: newValues,
+        },
+      };
+    });
+  };
+
   const renderComponent = (component: ReportComponent) => {
     switch (component.type) {
       case 'chart':
@@ -124,6 +178,8 @@ const ReportViewerPage = () => {
           <ChartPreview 
             key={component.id}
             config={component.config as any}
+            onDrilldown={(level, value) => handleDrilldown(component.id, level, value)}
+            drilldownState={drilldownStates[component.id]}
           />
         );
       
