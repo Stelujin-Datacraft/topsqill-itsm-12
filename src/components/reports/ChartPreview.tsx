@@ -2461,17 +2461,30 @@ export function ChartPreview({
         event.stopPropagation();
       }
       const currentLevel = drilldownState?.values?.length || 0;
-      if (currentLevel >= drilldownLevels.length) {
-        // At final level - show submissions dialog (always show list with view button)
+      // When at the LAST configured level (or beyond), clicking should show the
+      // records for the current selection rather than drilling further.
+      // Currently displayed level index = currentLevel (since values has currentLevel entries
+      // and the chart is displaying drilldownLevels[currentLevel]).
+      const isAtLastLevel = currentLevel >= drilldownLevels.length - 1;
+      if (isAtLastLevel) {
+        // Build additional filters from prior drill values + current click
+        const priorFilters = (drilldownState?.values || []).map((v, i) => ({
+          field: drilldownLevels[i],
+          value: v,
+        })).filter(f => f.field);
         setCellSubmissionsDialog({
           open: true,
           dimensionField,
           dimensionValue,
           dimensionLabel,
+          // Pass prior drill filters via groupField is not enough; use additionalFilters
+          ...(priorFilters.length > 0 ? { } : {}),
         });
+        // Stash additional filters through state extension
+        setCellSubmissionsDialog(prev => ({ ...prev, open: true, dimensionField, dimensionValue, dimensionLabel, additionalFilters: priorFilters } as any));
         return;
       }
-      
+
       const nextLevel = drilldownLevels[currentLevel];
       if (nextLevel && dimensionValue !== 'Not Specified') {
         onDrilldown(nextLevel, dimensionValue);
