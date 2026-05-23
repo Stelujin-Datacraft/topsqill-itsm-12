@@ -6029,6 +6029,7 @@ export function ChartPreview({
         crossRefTargetFormId={cellSubmissionsDialog.crossRefTargetFormId}
         crossRefDisplayFields={cellSubmissionsDialog.crossRefDisplayFields}
         crossRefLinkedIds={cellSubmissionsDialog.crossRefLinkedIds}
+        additionalFilters={cellSubmissionsDialog.additionalFilters}
       />
     </div>;
 }
