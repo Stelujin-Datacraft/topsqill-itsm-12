@@ -800,6 +800,131 @@ function findMatchingLinkedRecord(
   return linkedIds[0];
 }
 
+// ===== External source loaders =====
+
+function parseCSVText(content: string, hasHeader: boolean = true): any[] {
+  const lines = content.split(/\r?\n/).filter(l => l.trim());
+  if (lines.length === 0) return [];
+  const parseLine = (line: string): string[] => {
+    const out: string[] = []; let cur = ''; let q = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (c === '"') q = !q;
+      else if (c === ',' && !q) { out.push(cur.trim()); cur = ''; }
+      else cur += c;
+    }
+    out.push(cur.trim());
+    return out;
+  };
+  const headers = hasHeader ? parseLine(lines[0]) : parseLine(lines[0]).map((_, i) => `column_${i + 1}`);
+  const dataLines = hasHeader ? lines.slice(1) : lines;
+  return dataLines.map(line => {
+    const values = parseLine(line);
+    const obj: Record<string, string> = {};
+    headers.forEach((h, i) => { obj[h] = values[i] || ''; });
+    return obj;
+  });
+}
+
+function navigateJsonPath(data: any, path: string): any[] {
+  if (!path || path === '$' || path === '$.') return Array.isArray(data) ? data : [data];
+  const parts = path.replace(/^\$\.?/, '').split(/\.|\[|\]/).filter(Boolean);
+  let current = data;
+  for (const part of parts) {
+    if (current === null || current === undefined) return [];
+    if (part === '*') { if (Array.isArray(current)) return current; continue; }
+    current = current[part];
+  }
+  return Array.isArray(current) ? current : [current];
+}
+
+async function loadExternalRecords(
+  sourceType: string,
+  externalConfig: any,
+  supabase: any
+): Promise<Array<{ id: string; submission_data: Record<string, any>; submission_ref_id: string | null }>> {
+  if (sourceType === 'http_api') {
+    const cfg = externalConfig.httpApi;
+    if (!cfg?.url) throw new Error('HTTP API URL is not configured');
+    const headers: Record<string, string> = { Accept: 'application/json', ...(cfg.headers || {}) };
+    if (cfg.authType === 'bearer' && cfg.authConfig?.token) headers['Authorization'] = `Bearer ${cfg.authConfig.token}`;
+    else if (cfg.authType === 'basic' && cfg.authConfig?.username) headers['Authorization'] = `Basic ${btoa(`${cfg.authConfig.username}:${cfg.authConfig.password || ''}`)}`;
+    else if (cfg.authType === 'api_key' && cfg.authConfig?.apiKeyHeader && cfg.authConfig?.apiKeyValue) headers[cfg.authConfig.apiKeyHeader] = cfg.authConfig.apiKeyValue;
+    const opts: RequestInit = { method: cfg.method || 'GET', headers };
+    if ((cfg.method || 'GET') === 'POST' && cfg.body) { opts.body = cfg.body; headers['Content-Type'] = 'application/json'; }
+    const res = await fetch(cfg.url, opts);
+    if (!res.ok) throw new Error(`HTTP API ${res.status}: ${await res.text()}`);
+    const data = await res.json();
+    const records = navigateJsonPath(data, cfg.responsePath || '$');
+    return records.map((r: any, idx: number) => ({
+      id: `ext_${idx}`,
+      submission_data: r && typeof r === 'object' ? r : { value: r },
+      submission_ref_id: null,
+    }));
+  }
+
+  if (sourceType === 'csv' || sourceType === 'excel' || sourceType === 'file_url') {
+    const cfg = externalConfig.file;
+    if (!cfg) throw new Error('File source is not configured');
+    let blob: Blob;
+    if (cfg.sourceMode === 'url' && cfg.fileUrl) {
+      const r = await fetch(cfg.fileUrl);
+      if (!r.ok) throw new Error(`Failed to fetch file: ${r.status} ${r.statusText}`);
+      blob = await r.blob();
+    } else if (cfg.sourceMode === 'upload' && cfg.uploadedFilePath) {
+      const { data, error } = await supabase.storage.from('data-feed-files').download(cfg.uploadedFilePath);
+      if (error) throw new Error(`Failed to read uploaded file: ${error.message}`);
+      blob = data;
+    } else {
+      throw new Error('File source not configured (no upload or URL)');
+    }
+    let records: any[] = [];
+    if (cfg.fileType === 'excel') {
+      const buf = await blob.arrayBuffer();
+      const wb = XLSX.read(new Uint8Array(buf), { type: 'array' });
+      const sheet = cfg.sheetName && wb.SheetNames.includes(cfg.sheetName) ? cfg.sheetName : wb.SheetNames[0];
+      if (!sheet) throw new Error('Excel file has no sheets');
+      records = XLSX.utils.sheet_to_json(wb.Sheets[sheet], { defval: '', raw: false });
+    } else if (cfg.fileType === 'json') {
+      const t = await blob.text();
+      const d = JSON.parse(t);
+      records = Array.isArray(d) ? d : [d];
+    } else {
+      const t = await blob.text();
+      if (!t.trim()) throw new Error('CSV file is empty');
+      records = parseCSVText(t, cfg.hasHeader !== false);
+      if (records.length === 0) throw new Error('CSV has no data rows — cannot run feed');
+    }
+    return records.map((r: any, idx: number) => ({
+      id: `ext_${idx}`,
+      submission_data: r && typeof r === 'object' ? r : { value: r },
+      submission_ref_id: null,
+    }));
+  }
+
+  if (sourceType === 'google_sheets') {
+    const cfg = externalConfig.googleSheets;
+    if (!cfg?.spreadsheetId || !cfg.apiKey) throw new Error('Google Sheets requires spreadsheetId and apiKey');
+    const range = cfg.sheetName ? `'${cfg.sheetName}'!${cfg.range || 'A:Z'}` : (cfg.range || 'A:Z');
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${cfg.spreadsheetId}/values/${encodeURIComponent(range)}?key=${cfg.apiKey}`;
+    const r = await fetch(url);
+    if (!r.ok) throw new Error(`Google Sheets ${r.status}: ${await r.text()}`);
+    const data = await r.json();
+    const values: any[][] = data.values || [];
+    if (values.length === 0) return [];
+    const hasHeader = cfg.hasHeader !== false;
+    const headers = hasHeader ? values[0].map((h: any) => String(h).trim()) : values[0].map((_: any, i: number) => `column_${i + 1}`);
+    const rows = hasHeader ? values.slice(1) : values;
+    return rows.map((row, idx) => {
+      const obj: Record<string, any> = {};
+      headers.forEach((h: string, i: number) => { obj[h] = row[i] !== undefined ? row[i] : ''; });
+      return { id: `ext_${idx}`, submission_data: obj, submission_ref_id: null };
+    });
+  }
+
+  throw new Error(`Source type "${sourceType}" is not yet supported for execution. Configure CSV, Excel, HTTP API, or Google Sheets, or use a Form source.`);
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
