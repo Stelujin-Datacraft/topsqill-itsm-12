@@ -215,6 +215,19 @@ export function TableCellSubmissionsDialog({
         console.log('📊 After group filter:', filteredData.length);
       }
 
+      // Apply additional drilldown filters (for multi-level drill final-level listing)
+      if (additionalFilters && additionalFilters.length > 0) {
+        additionalFilters.forEach(({ field, value }) => {
+          if (!field || value === undefined || value === null) return;
+          const normalizedValue = String(value).trim();
+          filteredData = filteredData.filter(submission => {
+            const extractedValue = getDimensionValue(submission.submission_data, field);
+            return String(extractedValue).trim() === normalizedValue;
+          });
+        });
+        console.log('📊 After additional drilldown filters:', filteredData.length);
+      }
+
       setSubmissions(filteredData);
     } catch (error) {
       console.error('Error loading submissions:', error);
