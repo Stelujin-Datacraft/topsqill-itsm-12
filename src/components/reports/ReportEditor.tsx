@@ -78,6 +78,11 @@ export function ReportEditor({
   const {
     toast
   } = useToast();
+  const maxGridRows = Math.max(
+    ...components.map(component => (component.layout?.y || 0) + (component.layout?.h || 0)),
+    ...mediaItems.map(media => (media.layout?.y || 0) + (media.layout?.h || 0)),
+    12
+  ) + 6;
 
   useEffect(() => {
     loadComponents();
@@ -788,6 +793,9 @@ export function ReportEditor({
           xs: 4,
           xxs: 2
         }} 
+        maxRows={maxGridRows}
+        isBounded={true}
+        compactType="vertical"
         rowHeight={60} 
         isDraggable={isDragEnabled} 
         isResizable={isDragEnabled} 

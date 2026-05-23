@@ -156,6 +156,12 @@ export function ChartPreview({
     return getFormFieldName(fieldId);
   };
 
+  const getNormalizedDrilldownLevels = (): string[] => {
+    return (config.drilldownConfig?.drilldownLevels?.length > 0 ? config.drilldownConfig.drilldownLevels : null) ||
+      (config.drilldownConfig?.levels?.length > 0 ? config.drilldownConfig.levels : null) ||
+      [];
+  };
+
 
   // Process cross-reference data for charts
   const processCrossReferenceData = async (
@@ -1099,7 +1105,7 @@ export function ChartPreview({
       try {
 
         // Get drilldown levels - support both property names for compatibility
-        const drilldownLevels = config.drilldownConfig?.drilldownLevels || config.drilldownConfig?.levels || [];
+        const drilldownLevels = getNormalizedDrilldownLevels();
 
         // Use server-side RPC function for drilldown-enabled charts
         // IMPORTANT: Skip this path if cross-reference mode is enabled - cross-ref has its own drilldown handling
@@ -1196,7 +1202,7 @@ export function ChartPreview({
             totalItems: chartData.length,
             sampleData: chartData[0],
             currentLevel: currentDrilldownLevel,
-            nextDimension: config.drilldownConfig?.drilldownLevels[currentDrilldownLevel + 1] || 'none',
+            nextDimension: drilldownLevels[currentDrilldownLevel + 1] || 'none',
             allData: chartData
           });
           // Only update state if this is still the current request
@@ -2055,8 +2061,9 @@ export function ChartPreview({
   const passesFilters = (submissionData: any): boolean => {
     const drilldownFilters: any[] = [];
     if (config.drilldownConfig?.enabled && drilldownState?.values?.length > 0) {
+      const drilldownLevels = getNormalizedDrilldownLevels();
       drilldownState.values.forEach((value, index) => {
-        const field = config.drilldownConfig?.drilldownLevels?.[index];
+        const field = drilldownLevels[index];
         if (field) {
           drilldownFilters.push({
             field,
@@ -2138,7 +2145,7 @@ export function ChartPreview({
 
   // Helper to get drilldown levels (supports both property names for compatibility)
   const getDrilldownLevels = (): string[] => {
-    return config.drilldownConfig?.drilldownLevels || config.drilldownConfig?.levels || [];
+    return getNormalizedDrilldownLevels();
   };
 
   const getActiveDimensionField = (): string => {
@@ -5556,9 +5563,10 @@ export function ChartPreview({
             />
             {canDrillUp && <Button variant="outline" size="sm" onClick={() => {
               if (onDrilldown && drilldownState?.values) {
+                const drilldownLevels = getNormalizedDrilldownLevels();
                 const newValues = [...drilldownState.values];
                 newValues.pop();
-                const lastLevel = config.drilldownConfig?.drilldownLevels?.[newValues.length - 1] || '';
+                const lastLevel = drilldownLevels[newValues.length - 1] || '';
                 const lastValue = newValues[newValues.length - 1] || '';
                 onDrilldown(lastLevel, lastValue);
               }
@@ -5656,7 +5664,9 @@ export function ChartPreview({
             <div className="flex items-center gap-1 flex-wrap">
               {drilldownState.values.map((value, index) => {
                 // Support both normal drilldownConfig and crossRefConfig drilldown levels
-                const drilldownLevels = config.drilldownConfig?.drilldownLevels || config.crossRefConfig?.drilldownLevels || [];
+                const drilldownLevels = config.crossRefConfig?.enabled
+                  ? (config.crossRefConfig?.drilldownLevels || [])
+                  : getNormalizedDrilldownLevels();
                 const isCrossRef = config.crossRefConfig?.enabled && config.crossRefConfig?.crossRefFieldId;
                 
                 // For cross-ref charts: first value is parentRefId, subsequent values are field values
