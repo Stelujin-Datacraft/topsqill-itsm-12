@@ -19,16 +19,30 @@
   */
  export function usePermissionRealtimeSync() {
    const queryClient = useQueryClient();
-   const { user } = useAuth();
+  const { user } = useAuth();
  
    useEffect(() => {
      if (!user?.id) return;
  
      const userId = user.id;
+    let invalidateTimer: ReturnType<typeof setTimeout> | null = null;
+
+    // Debounced + scoped invalidation. We only invalidate the permissions
+    // cache itself — NOT the forms/workflows/reports data lists. Those page
+    // data lists do not depend on permission rows, and invalidating them on
+    // every realtime tick was causing pages to show their loading state a
+    // second time right after navigation.
+    function invalidatePermissionCache() {
+      if (invalidateTimer) return; // coalesce bursts
+      invalidateTimer = setTimeout(() => {
+        invalidateTimer = null;
+        queryClient.invalidateQueries({ queryKey: ['user-permissions-cache'] });
+      }, 400);
+    }
  
      // Create a single channel for all permission-related subscriptions
      const channel = supabase
-       .channel('permission-changes')
+      .channel(`permission-changes-${userId}`)
        // Subscribe to user_role_assignments changes for current user
        .on(
          'postgres_changes',
@@ -71,21 +85,11 @@
            invalidatePermissionCache();
          }
        )
-       // Subscribe to role_permissions changes (affects all users with that role)
-       // We listen to all changes since the user might have any role
-       .on(
-         'postgres_changes',
-         {
-           event: '*',
-           schema: 'public',
-           table: 'role_permissions',
-         },
-         (payload) => {
-           console.log('[PermissionSync] Role permissions changed:', payload.eventType);
-           // Invalidate cache - the user might be affected by this role change
-           invalidatePermissionCache();
-         }
-       )
+      // NOTE: We intentionally do NOT subscribe to the global `role_permissions`
+      // table. Listening to every row in every org caused this hook to fire
+      // constantly and re-invalidate the permissions cache on every navigation,
+      // which made every page show its loading skeleton twice. The 2-minute
+      // staleTime + explicit refetch after a role-edit flow are sufficient.
        .subscribe((status) => {
          if (status === 'SUBSCRIBED') {
            console.log('[PermissionSync] Real-time subscription active');
@@ -94,18 +98,9 @@
          }
        });
  
-     function invalidatePermissionCache() {
-       // Invalidate the user permissions cache to trigger a refetch
-       queryClient.invalidateQueries({ queryKey: ['user-permissions-cache'] });
-       
-       // Also invalidate related caches that depend on permissions
-       queryClient.invalidateQueries({ queryKey: ['forms'] });
-       queryClient.invalidateQueries({ queryKey: ['workflows'] });
-       queryClient.invalidateQueries({ queryKey: ['reports'] });
-     }
- 
      // Cleanup subscription on unmount or user change
      return () => {
+        if (invalidateTimer) clearTimeout(invalidateTimer);
        console.log('[PermissionSync] Cleaning up subscription');
        supabase.removeChannel(channel);
      };
