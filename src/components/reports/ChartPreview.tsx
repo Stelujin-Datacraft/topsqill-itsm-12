@@ -2061,8 +2061,9 @@ export function ChartPreview({
   const passesFilters = (submissionData: any): boolean => {
     const drilldownFilters: any[] = [];
     if (config.drilldownConfig?.enabled && drilldownState?.values?.length > 0) {
+      const drilldownLevels = getNormalizedDrilldownLevels();
       drilldownState.values.forEach((value, index) => {
-        const field = config.drilldownConfig?.drilldownLevels?.[index];
+        const field = drilldownLevels[index];
         if (field) {
           drilldownFilters.push({
             field,
@@ -5562,9 +5563,10 @@ export function ChartPreview({
             />
             {canDrillUp && <Button variant="outline" size="sm" onClick={() => {
               if (onDrilldown && drilldownState?.values) {
+                const drilldownLevels = getNormalizedDrilldownLevels();
                 const newValues = [...drilldownState.values];
                 newValues.pop();
-                const lastLevel = config.drilldownConfig?.drilldownLevels?.[newValues.length - 1] || '';
+                const lastLevel = drilldownLevels[newValues.length - 1] || '';
                 const lastValue = newValues[newValues.length - 1] || '';
                 onDrilldown(lastLevel, lastValue);
               }
