@@ -269,41 +269,47 @@ async function discoverHttpApiFields(config: HttpApiConfig): Promise<DiscoveryRe
 }
 
 async function discoverFileFields(config: FileConfig, supabase: any): Promise<DiscoveryResult> {
-  let content: string;
-  
+  let blob: Blob;
+
   if (config.sourceMode === 'url' && config.fileUrl) {
     const response = await fetch(config.fileUrl);
     if (!response.ok) {
-      throw new Error(`Failed to fetch file: ${response.status}`);
+      throw new Error(`Failed to fetch file: HTTP ${response.status} ${response.statusText}`);
     }
-    content = await response.text();
+    blob = await response.blob();
   } else if (config.sourceMode === 'upload' && config.uploadedFilePath) {
     const { data, error } = await supabase.storage
       .from('data-feed-files')
       .download(config.uploadedFilePath);
-    
-    if (error) throw error;
-    content = await data.text();
+    if (error) throw new Error(`Failed to read uploaded file: ${error.message}`);
+    blob = data;
   } else {
     throw new Error('No file source configured');
   }
-  
+
   let records: any[] = [];
-  
-  if (config.fileType === 'json') {
-    const data = JSON.parse(content);
-    records = Array.isArray(data) ? data : [data];
-  } else if (config.fileType === 'csv') {
-    records = parseCSV(content, config.hasHeader !== false);
-  } else if (config.fileType === 'excel') {
-    throw new Error('Excel field discovery requires the file to be converted to CSV first');
+
+  if (config.fileType === 'excel') {
+    const buf = await blob.arrayBuffer();
+    records = parseExcel(buf, config.sheetName, config.hasHeader !== false);
+  } else if (config.fileType === 'json') {
+    const text = await blob.text();
+    try {
+      const data = JSON.parse(text);
+      records = Array.isArray(data) ? data : [data];
+    } catch (e) {
+      throw new Error(`Invalid JSON file: ${(e as Error).message}`);
+    }
+  } else {
+    const text = await blob.text();
+    if (!text.trim()) throw new Error('CSV file is empty');
+    records = parseCSV(text, config.hasHeader !== false);
+    if (records.length === 0) throw new Error('CSV file has no data rows');
   }
-  
-  const previewData = records.slice(0, 10);
-  
+
   return {
     fields: extractFieldsFromData(records),
-    previewData
+    previewData: records.slice(0, 10),
   };
 }
 
