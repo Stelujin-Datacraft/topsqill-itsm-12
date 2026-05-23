@@ -1139,15 +1139,20 @@ Deno.serve(async (req) => {
          batchNumber++;
          console.log(`📦 Processing batch ${batchNumber} (offset ${sourceOffset})`);
  
-         // Fetch source batch
-         const { data: sourceBatch, error: sourceError } = await supabase
-           .from('form_submissions')
-           .select('id, submission_data, submission_ref_id')
-           .eq('form_id', feed.source_form_id)
-           .range(sourceOffset, sourceOffset + SOURCE_BATCH_SIZE - 1);
- 
-         if (sourceError) {
-           throw new Error(`Failed to fetch source batch: ${sourceError.message}`);
+         // Fetch source batch (form_submissions) OR slice from externalRecords
+         let sourceBatch: Array<{ id: string; submission_data: any; submission_ref_id: string | null }> | null;
+         if (sourceType === 'form') {
+           const { data: fetched, error: sourceError } = await supabase
+             .from('form_submissions')
+             .select('id, submission_data, submission_ref_id')
+             .eq('form_id', feed.source_form_id)
+             .range(sourceOffset, sourceOffset + SOURCE_BATCH_SIZE - 1);
+           if (sourceError) {
+             throw new Error(`Failed to fetch source batch: ${sourceError.message}`);
+           }
+           sourceBatch = fetched as any;
+         } else {
+           sourceBatch = externalRecords!.slice(sourceOffset, sourceOffset + SOURCE_BATCH_SIZE);
          }
  
          if (!sourceBatch || sourceBatch.length === 0) break;
