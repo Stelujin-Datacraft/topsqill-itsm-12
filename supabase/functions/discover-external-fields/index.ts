@@ -186,6 +186,24 @@ function parseCSV(content: string, hasHeader: boolean = true): any[] {
   });
 }
 
+function parseExcel(buffer: ArrayBuffer, sheetName?: string, hasHeader: boolean = true): any[] {
+  const workbook = XLSX.read(new Uint8Array(buffer), { type: 'array' });
+  const targetSheet = sheetName && workbook.SheetNames.includes(sheetName)
+    ? sheetName
+    : workbook.SheetNames[0];
+  if (!targetSheet) throw new Error('Excel workbook has no sheets');
+  const worksheet = workbook.Sheets[targetSheet];
+  if (hasHeader) {
+    return XLSX.utils.sheet_to_json(worksheet, { defval: '', raw: false });
+  }
+  const rows: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '', raw: false });
+  return rows.map((row: any[]) => {
+    const obj: Record<string, any> = {};
+    row.forEach((v, i) => { obj[`column_${i + 1}`] = v; });
+    return obj;
+  });
+}
+
 interface DiscoveryResult {
   fields: DiscoveredField[];
   previewData: any[];
