@@ -471,6 +471,30 @@ export function ExternalSourceConfig({
                       rows={4}
                     />
                   </div>
+
+                  <Alert>
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription className="text-xs space-y-2">
+                      <p className="font-medium">Help: writing a query to understand your table</p>
+                      <p>Use one of these to inspect a table structure before mapping:</p>
+                      <pre className="bg-muted p-2 rounded text-[11px] overflow-x-auto">{`-- PostgreSQL
+SELECT column_name, data_type, is_nullable
+FROM information_schema.columns
+WHERE table_name = 'your_table';
+
+-- MySQL
+SHOW COLUMNS FROM your_table;
+
+-- SQL Server
+SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_NAME = 'your_table';`}</pre>
+                      <p className="text-muted-foreground">
+                        Then write your real query (e.g. <code>SELECT id, name, email FROM customers WHERE active = true</code>).
+                        Each returned row becomes one source record; column names become source field names for mapping.
+                      </p>
+                    </AlertDescription>
+                  </Alert>
                 </div>
               )}
 
