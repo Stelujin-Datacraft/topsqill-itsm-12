@@ -84,6 +84,7 @@ export function ExternalSourceConfig({
   const [discoveryError, setDiscoveryError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [previewData, setPreviewData] = useState<any[]>([]);
+  const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
   const { toast } = useToast();
 
   // Filter connections by type
@@ -163,6 +164,9 @@ export function ExternalSourceConfig({
     const file = event.target.files?.[0];
     if (!file) return;
 
+    // Show file name instantly before upload completes
+    setSelectedFileName(file.name);
+    setDiscoveryError(null);
     setUploading(true);
     try {
       const fileExt = file.name.split('.').pop()?.toLowerCase();
@@ -191,10 +195,10 @@ export function ExternalSourceConfig({
           ...newFileConfig 
         } as FileConfig
       };
-      discoverFields(updatedConfig);
+      await discoverFields(updatedConfig);
     } catch (error) {
       console.error('File upload error:', error);
-      setDiscoveryError('Failed to upload file');
+      setDiscoveryError(`Failed to upload file: ${(error as Error).message || String(error)}`);
     } finally {
       setUploading(false);
     }
