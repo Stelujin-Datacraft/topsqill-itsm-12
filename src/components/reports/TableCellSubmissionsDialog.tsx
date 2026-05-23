@@ -32,8 +32,6 @@ interface TableCellSubmissionsDialogProps {
   crossRefTargetFormId?: string;
   crossRefDisplayFields?: string[];
   crossRefLinkedIds?: string[];
-  // Additional dimension filters (used for multi-level drilldown final-level record listing)
-  additionalFilters?: Array<{ field: string; value: string }>;
 }
 
 interface SubmissionRecord {
@@ -57,8 +55,7 @@ export function TableCellSubmissionsDialog({
   fieldLabels = {},
   crossRefTargetFormId,
   crossRefDisplayFields,
-  crossRefLinkedIds,
-  additionalFilters = []
+  crossRefLinkedIds
 }: TableCellSubmissionsDialogProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -82,7 +79,7 @@ export function TableCellSubmissionsDialog({
       setSortField('_submission_ref');
       setSortDirection('desc');
     }
-  }, [open, formId, dimensionField, dimensionValue, groupField, groupValue, submissionId, crossRefTargetFormId, crossRefLinkedIds, JSON.stringify(additionalFilters)]);
+  }, [open, formId, dimensionField, dimensionValue, groupField, groupValue, submissionId, crossRefTargetFormId, crossRefLinkedIds]);
 
   const loadFieldTypes = async () => {
     // Use crossRefTargetFormId if available (for cross-reference drilldown)
@@ -213,19 +210,6 @@ export function TableCellSubmissionsDialog({
           return matches;
         });
         console.log('📊 After group filter:', filteredData.length);
-      }
-
-      // Apply additional drilldown filters (for multi-level drill final-level listing)
-      if (additionalFilters && additionalFilters.length > 0) {
-        additionalFilters.forEach(({ field, value }) => {
-          if (!field || value === undefined || value === null) return;
-          const normalizedValue = String(value).trim();
-          filteredData = filteredData.filter(submission => {
-            const extractedValue = getDimensionValue(submission.submission_data, field);
-            return String(extractedValue).trim() === normalizedValue;
-          });
-        });
-        console.log('📊 After additional drilldown filters:', filteredData.length);
       }
 
       setSubmissions(filteredData);
