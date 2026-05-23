@@ -775,7 +775,7 @@ export function ReportEditor({
         </div>}
 
       {/* Grid Layout */}
-      <div className={`transition-all duration-300 ${isPropertiesPaneOpen ? (isPropertiesPaneExpanded ? 'mr-[50vw]' : 'mr-80') : 'mr-0'}`}>
+      <div className={`transition-all duration-300 overflow-hidden ${isPropertiesPaneOpen ? (isPropertiesPaneExpanded ? 'mr-[50vw]' : 'mr-80') : 'mr-0'}`}>
         {(components.length > 0 || mediaItems.length > 0) ? <ResponsiveGridLayout 
         className="layout" 
         layouts={{
@@ -799,6 +799,7 @@ export function ReportEditor({
         isBounded={true}
         compactType="vertical"
         rowHeight={60} 
+        autoSize={false}
         isDraggable={isDragEnabled} 
         isResizable={isDragEnabled} 
         draggableCancel="button, input, select, textarea, a, td, th, table, [role='button'], .recharts-wrapper, .no-drag"
