@@ -32,6 +32,8 @@ interface TableCellSubmissionsDialogProps {
   crossRefTargetFormId?: string;
   crossRefDisplayFields?: string[];
   crossRefLinkedIds?: string[];
+  // Additional dimension filters (used for multi-level drilldown final-level record listing)
+  additionalFilters?: Array<{ field: string; value: string }>;
 }
 
 interface SubmissionRecord {
@@ -55,7 +57,8 @@ export function TableCellSubmissionsDialog({
   fieldLabels = {},
   crossRefTargetFormId,
   crossRefDisplayFields,
-  crossRefLinkedIds
+  crossRefLinkedIds,
+  additionalFilters = []
 }: TableCellSubmissionsDialogProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -79,7 +82,7 @@ export function TableCellSubmissionsDialog({
       setSortField('_submission_ref');
       setSortDirection('desc');
     }
-  }, [open, formId, dimensionField, dimensionValue, groupField, groupValue, submissionId, crossRefTargetFormId, crossRefLinkedIds]);
+  }, [open, formId, dimensionField, dimensionValue, groupField, groupValue, submissionId, crossRefTargetFormId, crossRefLinkedIds, JSON.stringify(additionalFilters)]);
 
   const loadFieldTypes = async () => {
     // Use crossRefTargetFormId if available (for cross-reference drilldown)
