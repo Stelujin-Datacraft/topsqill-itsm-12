@@ -66,7 +66,7 @@ export function useComprehensivePermissions(projectId?: string, userId?: string)
         .select('role')
         .eq('project_id', targetProjectId)
         .eq('user_id', targetUserId)
-        .single();
+        .maybeSingle();
 
       if (projectUserError && projectUserError.code !== 'PGRST116') {
         console.error('Error checking project admin status:', projectUserError);
