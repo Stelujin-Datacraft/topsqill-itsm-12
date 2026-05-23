@@ -992,19 +992,55 @@ Deno.serve(async (req) => {
     };
 
     try {
-       // OPTIMIZATION: Get total count first, then process in batches
-       const { count: sourceCount, error: countError } = await supabase
-         .from('form_submissions')
-         .select('id', { count: 'exact', head: true })
-         .eq('form_id', feed.source_form_id);
- 
-       if (countError) {
-         throw new Error(`Failed to count source submissions: ${countError.message}`);
+       // Determine source type and load records accordingly
+       const feedAny = feed as any;
+       const sourceType: string = feedAny.source_type || 'form';
+       let externalRecords: Array<{ id: string; submission_data: Record<string, any>; submission_ref_id: string | null }> | null = null;
+
+       if (sourceType !== 'form') {
+         // Resolve external config (shared connection or inline)
+         let externalConfig: any = feedAny.external_source_config || {};
+         if (feedAny.data_source_connection_id) {
+           const { data: conn, error: connErr } = await supabase
+             .from('data_source_connections')
+             .select('*')
+             .eq('id', feedAny.data_source_connection_id)
+             .single();
+           if (connErr || !conn) throw new Error(`Shared connection not found: ${connErr?.message || feedAny.data_source_connection_id}`);
+           if (conn.connection_type === 'http_api') {
+             externalConfig = { httpApi: { url: conn.http_url, method: conn.http_method || 'GET', headers: conn.http_headers, authType: conn.http_auth_type, authConfig: conn.http_auth_config, responsePath: conn.http_response_path } };
+           } else if (conn.connection_type === 'file_url') {
+             externalConfig = { file: { sourceMode: 'url', fileUrl: conn.file_url, fileType: conn.file_type || 'csv', sheetName: conn.file_sheet_name, hasHeader: true } };
+           }
+         }
+         try {
+           externalRecords = await loadExternalRecords(sourceType, externalConfig, supabase);
+         } catch (loadErr) {
+           throw new Error(`Failed to load source data (${sourceType}): ${(loadErr as Error).message}`);
+         }
+         console.log(`📥 Loaded ${externalRecords.length} external records (${sourceType})`);
+         runLog.push({ type: 'info', message: `Loaded ${externalRecords.length} records from ${sourceType}`, timestamp: new Date().toISOString() });
+         if (externalRecords.length === 0) {
+           throw new Error('External source returned no records — aborting feed run');
+         }
        }
- 
-       const totalSourceRecords = sourceCount || 0;
-       console.log(`📥 Total source submissions to process: ${totalSourceRecords}`);
-       runLog.push({ type: 'info', message: `Total source submissions: ${totalSourceRecords}`, timestamp: new Date().toISOString() });
+
+       // OPTIMIZATION: Get total count first, then process in batches (form sources only)
+       let totalSourceRecords = 0;
+       if (sourceType === 'form') {
+         const { count: sourceCount, error: countError } = await supabase
+           .from('form_submissions')
+           .select('id', { count: 'exact', head: true })
+           .eq('form_id', feed.source_form_id);
+         if (countError) {
+           throw new Error(`Failed to count source submissions: ${countError.message}`);
+         }
+         totalSourceRecords = sourceCount || 0;
+         console.log(`📥 Total source submissions to process: ${totalSourceRecords}`);
+         runLog.push({ type: 'info', message: `Total source submissions: ${totalSourceRecords}`, timestamp: new Date().toISOString() });
+       } else {
+         totalSourceRecords = externalRecords!.length;
+       }
  
        // OPTIMIZATION: Build target index for O(1) lookups instead of O(N) filtering
        // Fetch target submissions in batches and build index
