@@ -55,6 +55,7 @@ export function ChartPreview({
     crossRefTargetFormId?: string;
     crossRefDisplayFields?: string[];
     crossRefLinkedIds?: string[];
+    drilldownFilters?: { field: string; value: string }[];
   }>({
     open: false,
     dimensionField: '',
@@ -157,9 +158,11 @@ export function ChartPreview({
   };
 
   const getNormalizedDrilldownLevels = (): string[] => {
-    return (config.drilldownConfig?.drilldownLevels?.length > 0 ? config.drilldownConfig.drilldownLevels : null) ||
+    const levels = (config.drilldownConfig?.drilldownLevels?.length > 0 ? config.drilldownConfig.drilldownLevels : null) ||
       (config.drilldownConfig?.levels?.length > 0 ? config.drilldownConfig.levels : null) ||
       [];
+
+    return levels.filter((level): level is string => typeof level === 'string' && level.trim().length > 0);
   };
 
 
@@ -2181,6 +2184,35 @@ export function ChartPreview({
     return String(rawValue);
   };
 
+  const buildDrilldownFilters = (finalField?: string, finalValue?: string) => {
+    const drilldownLevels = getDrilldownLevels();
+    const baseFilters = (drilldownState?.values || [])
+      .map((value, index) => {
+        const field = drilldownLevels[index];
+        if (!field || value === null || value === undefined || value === '') {
+          return null;
+        }
+
+        return {
+          field,
+          value: String(value),
+        };
+      })
+      .filter((filter): filter is { field: string; value: string } => Boolean(filter));
+
+    if (!finalField || finalValue === null || finalValue === undefined || finalValue === '') {
+      return baseFilters;
+    }
+
+    return [
+      ...baseFilters,
+      {
+        field: finalField,
+        value: String(finalValue),
+      },
+    ];
+  };
+
   // Get available values for the current drilldown level
   const getAvailableValuesForLevel = (levelIndex: number) => {
     const drilldownLevels = getDrilldownLevels();
@@ -2314,14 +2346,15 @@ export function ChartPreview({
     const drilldownLevels = getDrilldownLevels();
     if (config.drilldownConfig?.enabled && onDrilldown && drilldownLevels.length > 0 && isDrilldownModeActive) {
       const currentLevel = drilldownState?.values?.length || 0;
-      
-      if (currentLevel >= drilldownLevels.length) {
+
+      if (currentLevel >= drilldownLevels.length - 1) {
         // At final level - show submissions dialog
         setCellSubmissionsDialog({
           open: true,
           dimensionField,
           dimensionValue: clickedValue,
           dimensionLabel,
+          drilldownFilters: buildDrilldownFilters(dimensionField, clickedValue),
         });
         return;
       }
@@ -2461,13 +2494,14 @@ export function ChartPreview({
         event.stopPropagation();
       }
       const currentLevel = drilldownState?.values?.length || 0;
-      if (currentLevel >= drilldownLevels.length) {
+      if (currentLevel >= drilldownLevels.length - 1) {
         // At final level - show submissions dialog (always show list with view button)
         setCellSubmissionsDialog({
           open: true,
           dimensionField,
           dimensionValue,
           dimensionLabel,
+          drilldownFilters: buildDrilldownFilters(dimensionField, dimensionValue),
         });
         return;
       }
@@ -6017,6 +6051,7 @@ export function ChartPreview({
         crossRefTargetFormId={cellSubmissionsDialog.crossRefTargetFormId}
         crossRefDisplayFields={cellSubmissionsDialog.crossRefDisplayFields}
         crossRefLinkedIds={cellSubmissionsDialog.crossRefLinkedIds}
+        drilldownFilters={cellSubmissionsDialog.drilldownFilters}
       />
     </div>;
 }

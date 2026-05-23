@@ -32,6 +32,7 @@ interface TableCellSubmissionsDialogProps {
   crossRefTargetFormId?: string;
   crossRefDisplayFields?: string[];
   crossRefLinkedIds?: string[];
+  drilldownFilters?: { field: string; value: string }[];
 }
 
 interface SubmissionRecord {
@@ -55,7 +56,8 @@ export function TableCellSubmissionsDialog({
   fieldLabels = {},
   crossRefTargetFormId,
   crossRefDisplayFields,
-  crossRefLinkedIds
+  crossRefLinkedIds,
+  drilldownFilters = []
 }: TableCellSubmissionsDialogProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -79,7 +81,7 @@ export function TableCellSubmissionsDialog({
       setSortField('_submission_ref');
       setSortDirection('desc');
     }
-  }, [open, formId, dimensionField, dimensionValue, groupField, groupValue, submissionId, crossRefTargetFormId, crossRefLinkedIds]);
+  }, [open, formId, dimensionField, dimensionValue, groupField, groupValue, submissionId, crossRefTargetFormId, crossRefLinkedIds, drilldownFilters]);
 
   const loadFieldTypes = async () => {
     // Use crossRefTargetFormId if available (for cross-reference drilldown)
@@ -180,9 +182,20 @@ export function TableCellSubmissionsDialog({
       console.log('📊 Dimension filter:', { dimensionField, dimensionValue });
       console.log('📊 Group filter:', { groupField, groupValue });
 
-      // Apply dimension filter using getDimensionValue for proper matching
-      // Normalize both values to strings for comparison (handles number/string mismatches)
-      if (dimensionField && dimensionValue) {
+      const normalizedDrilldownFilters = (drilldownFilters || []).filter(filter => filter?.field && filter.value !== undefined && filter.value !== null);
+
+      if (normalizedDrilldownFilters.length > 0) {
+        normalizedDrilldownFilters.forEach(filter => {
+          const expectedValue = String(filter.value).trim();
+          filteredData = filteredData.filter(submission => {
+            const extractedValue = getDimensionValue(submission.submission_data, filter.field);
+            return String(extractedValue).trim() === expectedValue;
+          });
+        });
+        console.log('📊 After drilldown filters:', filteredData.length);
+      } else if (dimensionField && dimensionValue) {
+        // Apply dimension filter using getDimensionValue for proper matching
+        // Normalize both values to strings for comparison (handles number/string mismatches)
         const normalizedDimensionValue = String(dimensionValue).trim();
         filteredData = filteredData.filter(submission => {
           const extractedValue = getDimensionValue(submission.submission_data, dimensionField);

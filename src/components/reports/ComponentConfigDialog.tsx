@@ -547,10 +547,20 @@ export function ComponentConfigDialog({
   const handleSave = () => {
     console.log('ComponentConfigDialog handleSave - config.filters:', config.filters);
     console.log('ComponentConfigDialog handleSave - config.filterLogicExpression:', config.filterLogicExpression);
+    const sanitizedDrilldownLevels = ((config.drilldownConfig?.drilldownLevels?.length > 0
+      ? config.drilldownConfig.drilldownLevels
+      : config.drilldownConfig?.levels) || []).filter((level: string) => typeof level === 'string' && level.trim().length > 0);
     
     const finalConfig = {
       ...config,
-      joinConfig: joinEnabled ? config.joinConfig : undefined
+      joinConfig: joinEnabled ? config.joinConfig : undefined,
+      drilldownConfig: config.drilldownConfig
+        ? {
+            ...config.drilldownConfig,
+            drilldownLevels: sanitizedDrilldownLevels,
+            levels: sanitizedDrilldownLevels,
+          }
+        : undefined,
     };
 
     console.log('ComponentConfigDialog handleSave - finalConfig.filters:', finalConfig.filters);
