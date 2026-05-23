@@ -68,13 +68,14 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
     loading: true
   });
 
-  const { userProfile } = useAuth();
+  const { user, userProfile } = useAuth();
   const { currentProject } = useProject();
   const { effectiveUserId, effectiveRole } = useEffectiveUser();
 
   const targetProjectId = projectId || currentProject?.id;
   // Use effective user when impersonating, otherwise use provided userId or real user
-  const targetUserId = userId || effectiveUserId || userProfile?.id;
+  const targetUserId = userId || effectiveUserId || userProfile?.id || user?.id;
+  const accessContextReady = !!targetProjectId && !!targetUserId;
 
   const queryClient = useQueryClient();
   
@@ -259,13 +260,19 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
         isOrgAdmin
       };
     },
-    enabled: !!targetProjectId && !!targetUserId,
+    enabled: accessContextReady,
+    placeholderData: (previousData) => previousData,
     staleTime: 2 * 60 * 1000, // 2 minutes - matches global cache strategy
     gcTime: 10 * 60 * 1000, // 10 minutes garbage collection
   });
 
   // Update state from query data
   useEffect(() => {
+    if (!accessContextReady || isLoading) {
+      setState(prev => (prev.loading ? prev : { ...prev, loading: true }));
+      return;
+    }
+
     if (accessData) {
       setState({
         topLevelPermissions: accessData.topLevelPermissions,
@@ -277,10 +284,8 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
         isOrgAdmin: accessData.isOrgAdmin,
         loading: false
       });
-    } else if (!isLoading) {
-      setState(prev => ({ ...prev, loading: false }));
     }
-  }, [accessData, isLoading]);
+  }, [accessContextReady, accessData, isLoading]);
 
   // Keep loading state in sync
   useEffect(() => {
