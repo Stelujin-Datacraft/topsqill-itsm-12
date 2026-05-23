@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 import { ReportEditor } from '@/components/reports/ReportEditor';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 const ReportEditorPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -36,6 +37,15 @@ const ReportEditorPage = () => {
         const foundReport = reports.find(r => r.id === id);
         if (foundReport) {
           setReport(foundReport);
+        } else {
+          // Fallback: fetch directly (e.g., just-created report not yet in cached list)
+          const { data, error } = await supabase
+            .from('reports')
+            .select('*')
+            .eq('id', id)
+            .maybeSingle();
+          if (error) throw error;
+          if (data) setReport(data as Report);
         }
       }
     } catch (error) {
