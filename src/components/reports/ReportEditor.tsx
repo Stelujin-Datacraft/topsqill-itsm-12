@@ -505,7 +505,6 @@ export function ReportEditor({
       };
       const component = components.find(c => c.id === componentId);
       const config = component?.config as any;
-      const normalizedIncomingLevel = typeof drilldownLevel === 'string' ? drilldownLevel.trim() : '';
       
       // Support both drilldownConfig and crossRefConfig drilldown levels
       // Check for non-empty arrays, not just existence (empty array is truthy!)
@@ -514,17 +513,16 @@ export function ReportEditor({
         (config?.drilldownConfig?.levels?.length > 0 ? config.drilldownConfig.levels : null) ||
         (config?.crossRefConfig?.drilldownLevels?.length > 0 ? config.crossRefConfig.drilldownLevels : null) ||
         [];
-      const sanitizedLevels = drilldownLevels.filter((level: string) => typeof level === 'string' && level.trim().length > 0);
       
       // For cross-ref charts, the first value is always parentRefId (drilldownLevel might be empty)
       // So we allow adding values even if drilldownLevels is technically empty for the first click
       const isCrossRef = config?.crossRefConfig?.enabled && config?.crossRefConfig?.crossRefFieldId;
-      const maxValues = isCrossRef ? sanitizedLevels.length + 1 : sanitizedLevels.length; // +1 for parentRefId
+      const maxValues = isCrossRef ? drilldownLevels.length + 1 : drilldownLevels.length; // +1 for parentRefId
 
       const newValues = [...currentState.values];
       const levelIndex = isCrossRef
         ? Math.max(0, currentState.values.length)
-        : Math.max(0, sanitizedLevels.indexOf(normalizedIncomingLevel));
+        : Math.max(0, drilldownLevels.indexOf(drilldownLevel));
 
       if (levelIndex < maxValues) {
         newValues[levelIndex] = drilldownValue;
@@ -536,13 +534,13 @@ export function ReportEditor({
       // Subsequent entries map to drilldownLevels[i-1]
       let newPath: string[];
       if (isCrossRef) {
-        newPath = newValues.slice(1).map((_, i) => sanitizedLevels[i] || '');
+        newPath = newValues.slice(1).map((_, i) => drilldownLevels[i] || '');
         // Add empty string for parentRefId position
         if (newValues.length > 0) {
           newPath = ['', ...newPath];
         }
       } else {
-        newPath = sanitizedLevels.slice(0, newValues.length);
+        newPath = drilldownLevels.slice(0, newValues.length);
       }
       
       const newState = {
@@ -775,7 +773,7 @@ export function ReportEditor({
         </div>}
 
       {/* Grid Layout */}
-      <div className={`transition-all duration-300 overflow-hidden ${isPropertiesPaneOpen ? (isPropertiesPaneExpanded ? 'mr-[50vw]' : 'mr-80') : 'mr-0'}`}>
+      <div className={`transition-all duration-300 ${isPropertiesPaneOpen ? (isPropertiesPaneExpanded ? 'mr-[50vw]' : 'mr-80') : 'mr-0'}`}>
         {(components.length > 0 || mediaItems.length > 0) ? <ResponsiveGridLayout 
         className="layout" 
         layouts={{
@@ -799,7 +797,6 @@ export function ReportEditor({
         isBounded={true}
         compactType="vertical"
         rowHeight={60} 
-        autoSize={false}
         isDraggable={isDragEnabled} 
         isResizable={isDragEnabled} 
         draggableCancel="button, input, select, textarea, a, td, th, table, [role='button'], .recharts-wrapper, .no-drag"
