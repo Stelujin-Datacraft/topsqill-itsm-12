@@ -114,7 +114,7 @@ async function checkProjectAdmin(projectId: string, userId: string): Promise<boo
       .select('role')
       .eq('project_id', projectId)
       .eq('user_id', userId)
-      .single();
+      .maybeSingle();
 
     if (projectUserError && projectUserError.code !== 'PGRST116') {
       console.error('Error checking project user:', projectUserError);
@@ -151,7 +151,7 @@ async function checkProjectMembership(projectId: string, userId: string): Promis
       .select('id')
       .eq('project_id', projectId)
       .eq('user_id', userId)
-      .single();
+      .maybeSingle();
 
     if (error && error.code !== 'PGRST116') {
       console.error('Error checking project membership:', error);
