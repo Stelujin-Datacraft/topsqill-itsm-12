@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import * as XLSX from 'https://esm.sh/xlsx@0.18.5';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -185,6 +186,24 @@ function parseCSV(content: string, hasHeader: boolean = true): any[] {
   });
 }
 
+function parseExcel(buffer: ArrayBuffer, sheetName?: string, hasHeader: boolean = true): any[] {
+  const workbook = XLSX.read(new Uint8Array(buffer), { type: 'array' });
+  const targetSheet = sheetName && workbook.SheetNames.includes(sheetName)
+    ? sheetName
+    : workbook.SheetNames[0];
+  if (!targetSheet) throw new Error('Excel workbook has no sheets');
+  const worksheet = workbook.Sheets[targetSheet];
+  if (hasHeader) {
+    return XLSX.utils.sheet_to_json(worksheet, { defval: '', raw: false });
+  }
+  const rows: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '', raw: false });
+  return rows.map((row: any[]) => {
+    const obj: Record<string, any> = {};
+    row.forEach((v, i) => { obj[`column_${i + 1}`] = v; });
+    return obj;
+  });
+}
+
 interface DiscoveryResult {
   fields: DiscoveredField[];
   previewData: any[];
@@ -250,41 +269,47 @@ async function discoverHttpApiFields(config: HttpApiConfig): Promise<DiscoveryRe
 }
 
 async function discoverFileFields(config: FileConfig, supabase: any): Promise<DiscoveryResult> {
-  let content: string;
-  
+  let blob: Blob;
+
   if (config.sourceMode === 'url' && config.fileUrl) {
     const response = await fetch(config.fileUrl);
     if (!response.ok) {
-      throw new Error(`Failed to fetch file: ${response.status}`);
+      throw new Error(`Failed to fetch file: HTTP ${response.status} ${response.statusText}`);
     }
-    content = await response.text();
+    blob = await response.blob();
   } else if (config.sourceMode === 'upload' && config.uploadedFilePath) {
     const { data, error } = await supabase.storage
       .from('data-feed-files')
       .download(config.uploadedFilePath);
-    
-    if (error) throw error;
-    content = await data.text();
+    if (error) throw new Error(`Failed to read uploaded file: ${error.message}`);
+    blob = data;
   } else {
     throw new Error('No file source configured');
   }
-  
+
   let records: any[] = [];
-  
-  if (config.fileType === 'json') {
-    const data = JSON.parse(content);
-    records = Array.isArray(data) ? data : [data];
-  } else if (config.fileType === 'csv') {
-    records = parseCSV(content, config.hasHeader !== false);
-  } else if (config.fileType === 'excel') {
-    throw new Error('Excel field discovery requires the file to be converted to CSV first');
+
+  if (config.fileType === 'excel') {
+    const buf = await blob.arrayBuffer();
+    records = parseExcel(buf, config.sheetName, config.hasHeader !== false);
+  } else if (config.fileType === 'json') {
+    const text = await blob.text();
+    try {
+      const data = JSON.parse(text);
+      records = Array.isArray(data) ? data : [data];
+    } catch (e) {
+      throw new Error(`Invalid JSON file: ${(e as Error).message}`);
+    }
+  } else {
+    const text = await blob.text();
+    if (!text.trim()) throw new Error('CSV file is empty');
+    records = parseCSV(text, config.hasHeader !== false);
+    if (records.length === 0) throw new Error('CSV file has no data rows');
   }
-  
-  const previewData = records.slice(0, 10);
-  
+
   return {
     fields: extractFieldsFromData(records),
-    previewData
+    previewData: records.slice(0, 10),
   };
 }
 
@@ -417,7 +442,7 @@ async function discoverCloudStorageFields(config: CloudStorageConfig): Promise<D
   } else if (config.fileType === 'csv') {
     records = parseCSV(content, config.hasHeader !== false);
   } else if (config.fileType === 'excel') {
-    throw new Error('Excel files from cloud storage require conversion to CSV first');
+    throw new Error('Excel from cloud storage not yet supported. Use CSV or download via signed URL.');
   }
   
   console.log(`Found ${records.length} records from cloud storage`);

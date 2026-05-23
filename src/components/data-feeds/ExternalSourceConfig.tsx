@@ -84,6 +84,7 @@ export function ExternalSourceConfig({
   const [discoveryError, setDiscoveryError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [previewData, setPreviewData] = useState<any[]>([]);
+  const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
   const { toast } = useToast();
 
   // Filter connections by type
@@ -163,6 +164,9 @@ export function ExternalSourceConfig({
     const file = event.target.files?.[0];
     if (!file) return;
 
+    // Show file name instantly before upload completes
+    setSelectedFileName(file.name);
+    setDiscoveryError(null);
     setUploading(true);
     try {
       const fileExt = file.name.split('.').pop()?.toLowerCase();
@@ -191,10 +195,10 @@ export function ExternalSourceConfig({
           ...newFileConfig 
         } as FileConfig
       };
-      discoverFields(updatedConfig);
+      await discoverFields(updatedConfig);
     } catch (error) {
       console.error('File upload error:', error);
-      setDiscoveryError('Failed to upload file');
+      setDiscoveryError(`Failed to upload file: ${(error as Error).message || String(error)}`);
     } finally {
       setUploading(false);
     }
@@ -467,6 +471,30 @@ export function ExternalSourceConfig({
                       rows={4}
                     />
                   </div>
+
+                  <Alert>
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription className="text-xs space-y-2">
+                      <p className="font-medium">Help: writing a query to understand your table</p>
+                      <p>Use one of these to inspect a table structure before mapping:</p>
+                      <pre className="bg-muted p-2 rounded text-[11px] overflow-x-auto">{`-- PostgreSQL
+SELECT column_name, data_type, is_nullable
+FROM information_schema.columns
+WHERE table_name = 'your_table';
+
+-- MySQL
+SHOW COLUMNS FROM your_table;
+
+-- SQL Server
+SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_NAME = 'your_table';`}</pre>
+                      <p className="text-muted-foreground">
+                        Then write your real query (e.g. <code>SELECT id, name, email FROM customers WHERE active = true</code>).
+                        Each returned row becomes one source record; column names become source field names for mapping.
+                      </p>
+                    </AlertDescription>
+                  </Alert>
                 </div>
               )}
 
@@ -510,13 +538,19 @@ export function ExternalSourceConfig({
                         {uploading && (
                           <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
                             <Loader2 className="h-4 w-4 animate-spin" />
-                            Uploading...
+                            Uploading {selectedFileName}...
+                          </div>
+                        )}
+                        {!uploading && selectedFileName && !config.file?.uploadedFilePath && (
+                          <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
+                            <FileSpreadsheet className="h-4 w-4" />
+                            Selected: {selectedFileName}
                           </div>
                         )}
                         {config.file?.uploadedFilePath && (
                           <div className="flex items-center gap-2 mt-2 text-sm text-green-600">
                             <CheckCircle2 className="h-4 w-4" />
-                            File uploaded: {config.file.uploadedFilePath.split('/').pop()}
+                            File uploaded: {selectedFileName || config.file.uploadedFilePath.split('/').pop()}
                           </div>
                         )}
                       </div>

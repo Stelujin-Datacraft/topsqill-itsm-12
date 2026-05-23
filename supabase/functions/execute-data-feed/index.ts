@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import * as XLSX from 'https://esm.sh/xlsx@0.18.5';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -799,6 +800,131 @@ function findMatchingLinkedRecord(
   return linkedIds[0];
 }
 
+// ===== External source loaders =====
+
+function parseCSVText(content: string, hasHeader: boolean = true): any[] {
+  const lines = content.split(/\r?\n/).filter(l => l.trim());
+  if (lines.length === 0) return [];
+  const parseLine = (line: string): string[] => {
+    const out: string[] = []; let cur = ''; let q = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (c === '"') q = !q;
+      else if (c === ',' && !q) { out.push(cur.trim()); cur = ''; }
+      else cur += c;
+    }
+    out.push(cur.trim());
+    return out;
+  };
+  const headers = hasHeader ? parseLine(lines[0]) : parseLine(lines[0]).map((_, i) => `column_${i + 1}`);
+  const dataLines = hasHeader ? lines.slice(1) : lines;
+  return dataLines.map(line => {
+    const values = parseLine(line);
+    const obj: Record<string, string> = {};
+    headers.forEach((h, i) => { obj[h] = values[i] || ''; });
+    return obj;
+  });
+}
+
+function navigateJsonPath(data: any, path: string): any[] {
+  if (!path || path === '$' || path === '$.') return Array.isArray(data) ? data : [data];
+  const parts = path.replace(/^\$\.?/, '').split(/\.|\[|\]/).filter(Boolean);
+  let current = data;
+  for (const part of parts) {
+    if (current === null || current === undefined) return [];
+    if (part === '*') { if (Array.isArray(current)) return current; continue; }
+    current = current[part];
+  }
+  return Array.isArray(current) ? current : [current];
+}
+
+async function loadExternalRecords(
+  sourceType: string,
+  externalConfig: any,
+  supabase: any
+): Promise<Array<{ id: string; submission_data: Record<string, any>; submission_ref_id: string | null }>> {
+  if (sourceType === 'http_api') {
+    const cfg = externalConfig.httpApi;
+    if (!cfg?.url) throw new Error('HTTP API URL is not configured');
+    const headers: Record<string, string> = { Accept: 'application/json', ...(cfg.headers || {}) };
+    if (cfg.authType === 'bearer' && cfg.authConfig?.token) headers['Authorization'] = `Bearer ${cfg.authConfig.token}`;
+    else if (cfg.authType === 'basic' && cfg.authConfig?.username) headers['Authorization'] = `Basic ${btoa(`${cfg.authConfig.username}:${cfg.authConfig.password || ''}`)}`;
+    else if (cfg.authType === 'api_key' && cfg.authConfig?.apiKeyHeader && cfg.authConfig?.apiKeyValue) headers[cfg.authConfig.apiKeyHeader] = cfg.authConfig.apiKeyValue;
+    const opts: RequestInit = { method: cfg.method || 'GET', headers };
+    if ((cfg.method || 'GET') === 'POST' && cfg.body) { opts.body = cfg.body; headers['Content-Type'] = 'application/json'; }
+    const res = await fetch(cfg.url, opts);
+    if (!res.ok) throw new Error(`HTTP API ${res.status}: ${await res.text()}`);
+    const data = await res.json();
+    const records = navigateJsonPath(data, cfg.responsePath || '$');
+    return records.map((r: any, idx: number) => ({
+      id: `ext_${idx}`,
+      submission_data: r && typeof r === 'object' ? r : { value: r },
+      submission_ref_id: null,
+    }));
+  }
+
+  if (sourceType === 'csv' || sourceType === 'excel' || sourceType === 'file_url') {
+    const cfg = externalConfig.file;
+    if (!cfg) throw new Error('File source is not configured');
+    let blob: Blob;
+    if (cfg.sourceMode === 'url' && cfg.fileUrl) {
+      const r = await fetch(cfg.fileUrl);
+      if (!r.ok) throw new Error(`Failed to fetch file: ${r.status} ${r.statusText}`);
+      blob = await r.blob();
+    } else if (cfg.sourceMode === 'upload' && cfg.uploadedFilePath) {
+      const { data, error } = await supabase.storage.from('data-feed-files').download(cfg.uploadedFilePath);
+      if (error) throw new Error(`Failed to read uploaded file: ${error.message}`);
+      blob = data;
+    } else {
+      throw new Error('File source not configured (no upload or URL)');
+    }
+    let records: any[] = [];
+    if (cfg.fileType === 'excel') {
+      const buf = await blob.arrayBuffer();
+      const wb = XLSX.read(new Uint8Array(buf), { type: 'array' });
+      const sheet = cfg.sheetName && wb.SheetNames.includes(cfg.sheetName) ? cfg.sheetName : wb.SheetNames[0];
+      if (!sheet) throw new Error('Excel file has no sheets');
+      records = XLSX.utils.sheet_to_json(wb.Sheets[sheet], { defval: '', raw: false });
+    } else if (cfg.fileType === 'json') {
+      const t = await blob.text();
+      const d = JSON.parse(t);
+      records = Array.isArray(d) ? d : [d];
+    } else {
+      const t = await blob.text();
+      if (!t.trim()) throw new Error('CSV file is empty');
+      records = parseCSVText(t, cfg.hasHeader !== false);
+      if (records.length === 0) throw new Error('CSV has no data rows — cannot run feed');
+    }
+    return records.map((r: any, idx: number) => ({
+      id: `ext_${idx}`,
+      submission_data: r && typeof r === 'object' ? r : { value: r },
+      submission_ref_id: null,
+    }));
+  }
+
+  if (sourceType === 'google_sheets') {
+    const cfg = externalConfig.googleSheets;
+    if (!cfg?.spreadsheetId || !cfg.apiKey) throw new Error('Google Sheets requires spreadsheetId and apiKey');
+    const range = cfg.sheetName ? `'${cfg.sheetName}'!${cfg.range || 'A:Z'}` : (cfg.range || 'A:Z');
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${cfg.spreadsheetId}/values/${encodeURIComponent(range)}?key=${cfg.apiKey}`;
+    const r = await fetch(url);
+    if (!r.ok) throw new Error(`Google Sheets ${r.status}: ${await r.text()}`);
+    const data = await r.json();
+    const values: any[][] = data.values || [];
+    if (values.length === 0) return [];
+    const hasHeader = cfg.hasHeader !== false;
+    const headers = hasHeader ? values[0].map((h: any) => String(h).trim()) : values[0].map((_: any, i: number) => `column_${i + 1}`);
+    const rows = hasHeader ? values.slice(1) : values;
+    return rows.map((row, idx) => {
+      const obj: Record<string, any> = {};
+      headers.forEach((h: string, i: number) => { obj[h] = row[i] !== undefined ? row[i] : ''; });
+      return { id: `ext_${idx}`, submission_data: obj, submission_ref_id: null };
+    });
+  }
+
+  throw new Error(`Source type "${sourceType}" is not yet supported for execution. Configure CSV, Excel, HTTP API, or Google Sheets, or use a Form source.`);
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -866,19 +992,55 @@ Deno.serve(async (req) => {
     };
 
     try {
-       // OPTIMIZATION: Get total count first, then process in batches
-       const { count: sourceCount, error: countError } = await supabase
-         .from('form_submissions')
-         .select('id', { count: 'exact', head: true })
-         .eq('form_id', feed.source_form_id);
- 
-       if (countError) {
-         throw new Error(`Failed to count source submissions: ${countError.message}`);
+       // Determine source type and load records accordingly
+       const feedAny = feed as any;
+       const sourceType: string = feedAny.source_type || 'form';
+       let externalRecords: Array<{ id: string; submission_data: Record<string, any>; submission_ref_id: string | null }> | null = null;
+
+       if (sourceType !== 'form') {
+         // Resolve external config (shared connection or inline)
+         let externalConfig: any = feedAny.external_source_config || {};
+         if (feedAny.data_source_connection_id) {
+           const { data: conn, error: connErr } = await supabase
+             .from('data_source_connections')
+             .select('*')
+             .eq('id', feedAny.data_source_connection_id)
+             .single();
+           if (connErr || !conn) throw new Error(`Shared connection not found: ${connErr?.message || feedAny.data_source_connection_id}`);
+           if (conn.connection_type === 'http_api') {
+             externalConfig = { httpApi: { url: conn.http_url, method: conn.http_method || 'GET', headers: conn.http_headers, authType: conn.http_auth_type, authConfig: conn.http_auth_config, responsePath: conn.http_response_path } };
+           } else if (conn.connection_type === 'file_url') {
+             externalConfig = { file: { sourceMode: 'url', fileUrl: conn.file_url, fileType: conn.file_type || 'csv', sheetName: conn.file_sheet_name, hasHeader: true } };
+           }
+         }
+         try {
+           externalRecords = await loadExternalRecords(sourceType, externalConfig, supabase);
+         } catch (loadErr) {
+           throw new Error(`Failed to load source data (${sourceType}): ${(loadErr as Error).message}`);
+         }
+         console.log(`📥 Loaded ${externalRecords.length} external records (${sourceType})`);
+         runLog.push({ type: 'info', message: `Loaded ${externalRecords.length} records from ${sourceType}`, timestamp: new Date().toISOString() });
+         if (externalRecords.length === 0) {
+           throw new Error('External source returned no records — aborting feed run');
+         }
        }
- 
-       const totalSourceRecords = sourceCount || 0;
-       console.log(`📥 Total source submissions to process: ${totalSourceRecords}`);
-       runLog.push({ type: 'info', message: `Total source submissions: ${totalSourceRecords}`, timestamp: new Date().toISOString() });
+
+       // OPTIMIZATION: Get total count first, then process in batches (form sources only)
+       let totalSourceRecords = 0;
+       if (sourceType === 'form') {
+         const { count: sourceCount, error: countError } = await supabase
+           .from('form_submissions')
+           .select('id', { count: 'exact', head: true })
+           .eq('form_id', feed.source_form_id);
+         if (countError) {
+           throw new Error(`Failed to count source submissions: ${countError.message}`);
+         }
+         totalSourceRecords = sourceCount || 0;
+         console.log(`📥 Total source submissions to process: ${totalSourceRecords}`);
+         runLog.push({ type: 'info', message: `Total source submissions: ${totalSourceRecords}`, timestamp: new Date().toISOString() });
+       } else {
+         totalSourceRecords = externalRecords!.length;
+       }
  
        // OPTIMIZATION: Build target index for O(1) lookups instead of O(N) filtering
        // Fetch target submissions in batches and build index
@@ -977,15 +1139,20 @@ Deno.serve(async (req) => {
          batchNumber++;
          console.log(`📦 Processing batch ${batchNumber} (offset ${sourceOffset})`);
  
-         // Fetch source batch
-         const { data: sourceBatch, error: sourceError } = await supabase
-           .from('form_submissions')
-           .select('id, submission_data, submission_ref_id')
-           .eq('form_id', feed.source_form_id)
-           .range(sourceOffset, sourceOffset + SOURCE_BATCH_SIZE - 1);
- 
-         if (sourceError) {
-           throw new Error(`Failed to fetch source batch: ${sourceError.message}`);
+         // Fetch source batch (form_submissions) OR slice from externalRecords
+         let sourceBatch: Array<{ id: string; submission_data: any; submission_ref_id: string | null }> | null;
+         if (sourceType === 'form') {
+           const { data: fetched, error: sourceError } = await supabase
+             .from('form_submissions')
+             .select('id, submission_data, submission_ref_id')
+             .eq('form_id', feed.source_form_id)
+             .range(sourceOffset, sourceOffset + SOURCE_BATCH_SIZE - 1);
+           if (sourceError) {
+             throw new Error(`Failed to fetch source batch: ${sourceError.message}`);
+           }
+           sourceBatch = fetched as any;
+         } else {
+           sourceBatch = externalRecords!.slice(sourceOffset, sourceOffset + SOURCE_BATCH_SIZE);
          }
  
          if (!sourceBatch || sourceBatch.length === 0) break;
