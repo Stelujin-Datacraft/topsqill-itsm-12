@@ -1827,7 +1827,9 @@ export function DataFeedDialog({
               saving || 
               !formData.name || 
               !formData.target_form_id ||
-              (formData.source_type === 'form' ? !formData.source_form_id : !(formData.data_source_connection_id || Object.keys(formData.external_source_config || {}).length > 0))
+              (formData.source_type === 'form'
+                ? !formData.source_form_id
+                : (!(formData.data_source_connection_id || Object.keys(formData.external_source_config || {}).length > 0) || discoveredFields.length === 0))
             }
           >
             {saving ? 'Saving...' : (feed ? 'Update' : 'Create')}
