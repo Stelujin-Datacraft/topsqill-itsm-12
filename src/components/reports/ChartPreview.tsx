@@ -2317,17 +2317,22 @@ export function ChartPreview({
     if (config.drilldownConfig?.enabled && onDrilldown && drilldownLevels.length > 0 && isDrilldownModeActive) {
       const currentLevel = drilldownState?.values?.length || 0;
       
-      if (currentLevel >= drilldownLevels.length) {
-        // At final level - show submissions dialog
+      const isAtLastLevel = currentLevel >= drilldownLevels.length - 1;
+      if (isAtLastLevel) {
+        const priorFilters = (drilldownState?.values || []).map((v, i) => ({
+          field: drilldownLevels[i],
+          value: v,
+        })).filter(f => f.field);
         setCellSubmissionsDialog({
           open: true,
           dimensionField,
           dimensionValue: clickedValue,
           dimensionLabel,
+          additionalFilters: priorFilters,
         });
         return;
       }
-      
+
       const nextLevel = drilldownLevels[currentLevel];
       if (nextLevel) {
         onDrilldown(nextLevel, clickedValue);
