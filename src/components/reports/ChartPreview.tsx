@@ -2346,14 +2346,15 @@ export function ChartPreview({
     const drilldownLevels = getDrilldownLevels();
     if (config.drilldownConfig?.enabled && onDrilldown && drilldownLevels.length > 0 && isDrilldownModeActive) {
       const currentLevel = drilldownState?.values?.length || 0;
-      
-      if (currentLevel >= drilldownLevels.length) {
+
+      if (currentLevel >= drilldownLevels.length - 1) {
         // At final level - show submissions dialog
         setCellSubmissionsDialog({
           open: true,
           dimensionField,
           dimensionValue: clickedValue,
           dimensionLabel,
+          drilldownFilters: buildDrilldownFilters(dimensionField, clickedValue),
         });
         return;
       }
@@ -2493,13 +2494,14 @@ export function ChartPreview({
         event.stopPropagation();
       }
       const currentLevel = drilldownState?.values?.length || 0;
-      if (currentLevel >= drilldownLevels.length) {
+      if (currentLevel >= drilldownLevels.length - 1) {
         // At final level - show submissions dialog (always show list with view button)
         setCellSubmissionsDialog({
           open: true,
           dimensionField,
           dimensionValue,
           dimensionLabel,
+          drilldownFilters: buildDrilldownFilters(dimensionField, dimensionValue),
         });
         return;
       }
@@ -6049,6 +6051,7 @@ export function ChartPreview({
         crossRefTargetFormId={cellSubmissionsDialog.crossRefTargetFormId}
         crossRefDisplayFields={cellSubmissionsDialog.crossRefDisplayFields}
         crossRefLinkedIds={cellSubmissionsDialog.crossRefLinkedIds}
+        drilldownFilters={cellSubmissionsDialog.drilldownFilters}
       />
     </div>;
 }
