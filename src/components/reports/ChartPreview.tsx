@@ -55,6 +55,8 @@ export function ChartPreview({
     crossRefTargetFormId?: string;
     crossRefDisplayFields?: string[];
     crossRefLinkedIds?: string[];
+    // Additional filters for multi-level drilldown final-level listing
+    additionalFilters?: Array<{ field: string; value: string }>;
   }>({
     open: false,
     dimensionField: '',
@@ -2315,17 +2317,22 @@ export function ChartPreview({
     if (config.drilldownConfig?.enabled && onDrilldown && drilldownLevels.length > 0 && isDrilldownModeActive) {
       const currentLevel = drilldownState?.values?.length || 0;
       
-      if (currentLevel >= drilldownLevels.length) {
-        // At final level - show submissions dialog
+      const isAtLastLevel = currentLevel >= drilldownLevels.length - 1;
+      if (isAtLastLevel) {
+        const priorFilters = (drilldownState?.values || []).map((v, i) => ({
+          field: drilldownLevels[i],
+          value: v,
+        })).filter(f => f.field);
         setCellSubmissionsDialog({
           open: true,
           dimensionField,
           dimensionValue: clickedValue,
           dimensionLabel,
+          additionalFilters: priorFilters,
         });
         return;
       }
-      
+
       const nextLevel = drilldownLevels[currentLevel];
       if (nextLevel) {
         onDrilldown(nextLevel, clickedValue);
@@ -2461,17 +2468,27 @@ export function ChartPreview({
         event.stopPropagation();
       }
       const currentLevel = drilldownState?.values?.length || 0;
-      if (currentLevel >= drilldownLevels.length) {
-        // At final level - show submissions dialog (always show list with view button)
+      // When at the LAST configured level (or beyond), clicking should show the
+      // records for the current selection rather than drilling further.
+      // Currently displayed level index = currentLevel (since values has currentLevel entries
+      // and the chart is displaying drilldownLevels[currentLevel]).
+      const isAtLastLevel = currentLevel >= drilldownLevels.length - 1;
+      if (isAtLastLevel) {
+        // Build additional filters from prior drill values + current click
+        const priorFilters = (drilldownState?.values || []).map((v, i) => ({
+          field: drilldownLevels[i],
+          value: v,
+        })).filter(f => f.field);
         setCellSubmissionsDialog({
           open: true,
           dimensionField,
           dimensionValue,
           dimensionLabel,
+          additionalFilters: priorFilters,
         });
         return;
       }
-      
+
       const nextLevel = drilldownLevels[currentLevel];
       if (nextLevel && dimensionValue !== 'Not Specified') {
         onDrilldown(nextLevel, dimensionValue);
@@ -6017,6 +6034,7 @@ export function ChartPreview({
         crossRefTargetFormId={cellSubmissionsDialog.crossRefTargetFormId}
         crossRefDisplayFields={cellSubmissionsDialog.crossRefDisplayFields}
         crossRefLinkedIds={cellSubmissionsDialog.crossRefLinkedIds}
+        additionalFilters={cellSubmissionsDialog.additionalFilters}
       />
     </div>;
 }
