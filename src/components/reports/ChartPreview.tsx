@@ -2479,11 +2479,8 @@ export function ChartPreview({
           dimensionField,
           dimensionValue,
           dimensionLabel,
-          // Pass prior drill filters via groupField is not enough; use additionalFilters
-          ...(priorFilters.length > 0 ? { } : {}),
+          additionalFilters: priorFilters,
         });
-        // Stash additional filters through state extension
-        setCellSubmissionsDialog(prev => ({ ...prev, open: true, dimensionField, dimensionValue, dimensionLabel, additionalFilters: priorFilters } as any));
         return;
       }
 
