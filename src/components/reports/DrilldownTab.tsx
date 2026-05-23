@@ -11,6 +11,10 @@ interface DrilldownTabProps {
 
 export function DrilldownTab({ component, formFields, onUpdateComponent }: DrilldownTabProps) {
   const config = component.config as any;
+  const normalizedDrilldownLevels =
+    (config.drilldownConfig?.drilldownLevels?.length > 0 ? config.drilldownConfig.drilldownLevels : null) ||
+    (config.drilldownConfig?.levels?.length > 0 ? config.drilldownConfig.levels : null) ||
+    [];
   
   // Check if cross-reference mode is enabled
   const isCrossRefEnabled = config.crossRefConfig?.enabled;
@@ -22,7 +26,8 @@ export function DrilldownTab({ component, formFields, onUpdateComponent }: Drill
         drilldownConfig: {
           ...config.drilldownConfig,
           enabled: enabled,
-          drilldownLevels: enabled ? (config.drilldownConfig?.drilldownLevels || []) : []
+          drilldownLevels: normalizedDrilldownLevels,
+          levels: normalizedDrilldownLevels,
         }
       }
     });
@@ -35,7 +40,8 @@ export function DrilldownTab({ component, formFields, onUpdateComponent }: Drill
         drilldownConfig: {
           ...config.drilldownConfig,
           enabled: config.drilldownConfig?.enabled || false,
-          drilldownLevels: levels
+          drilldownLevels: levels,
+          levels,
         }
       }
     });
@@ -60,7 +66,7 @@ export function DrilldownTab({ component, formFields, onUpdateComponent }: Drill
       formFields={formFields}
       enabled={config.drilldownConfig?.enabled || false}
       onEnabledChange={handleDrilldownEnabledChange}
-      drilldownLevels={config.drilldownConfig?.drilldownLevels || []}
+      drilldownLevels={normalizedDrilldownLevels}
       onDrilldownLevelsChange={handleDrilldownLevelsChange}
     />
   );
