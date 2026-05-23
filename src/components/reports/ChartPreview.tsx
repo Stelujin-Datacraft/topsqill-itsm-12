@@ -156,6 +156,12 @@ export function ChartPreview({
     return getFormFieldName(fieldId);
   };
 
+  const getNormalizedDrilldownLevels = (): string[] => {
+    return (config.drilldownConfig?.drilldownLevels?.length > 0 ? config.drilldownConfig.drilldownLevels : null) ||
+      (config.drilldownConfig?.levels?.length > 0 ? config.drilldownConfig.levels : null) ||
+      [];
+  };
+
 
   // Process cross-reference data for charts
   const processCrossReferenceData = async (
@@ -1099,7 +1105,7 @@ export function ChartPreview({
       try {
 
         // Get drilldown levels - support both property names for compatibility
-        const drilldownLevels = config.drilldownConfig?.drilldownLevels || config.drilldownConfig?.levels || [];
+        const drilldownLevels = getNormalizedDrilldownLevels();
 
         // Use server-side RPC function for drilldown-enabled charts
         // IMPORTANT: Skip this path if cross-reference mode is enabled - cross-ref has its own drilldown handling
@@ -2138,7 +2144,7 @@ export function ChartPreview({
 
   // Helper to get drilldown levels (supports both property names for compatibility)
   const getDrilldownLevels = (): string[] => {
-    return config.drilldownConfig?.drilldownLevels || config.drilldownConfig?.levels || [];
+    return getNormalizedDrilldownLevels();
   };
 
   const getActiveDimensionField = (): string => {
