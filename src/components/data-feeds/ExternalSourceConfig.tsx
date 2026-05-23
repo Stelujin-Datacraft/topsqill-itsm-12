@@ -514,13 +514,19 @@ export function ExternalSourceConfig({
                         {uploading && (
                           <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
                             <Loader2 className="h-4 w-4 animate-spin" />
-                            Uploading...
+                            Uploading {selectedFileName}...
+                          </div>
+                        )}
+                        {!uploading && selectedFileName && !config.file?.uploadedFilePath && (
+                          <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
+                            <FileSpreadsheet className="h-4 w-4" />
+                            Selected: {selectedFileName}
                           </div>
                         )}
                         {config.file?.uploadedFilePath && (
                           <div className="flex items-center gap-2 mt-2 text-sm text-green-600">
                             <CheckCircle2 className="h-4 w-4" />
-                            File uploaded: {config.file.uploadedFilePath.split('/').pop()}
+                            File uploaded: {selectedFileName || config.file.uploadedFilePath.split('/').pop()}
                           </div>
                         )}
                       </div>
