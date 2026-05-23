@@ -173,6 +173,10 @@ export function ComponentConfigDialog({
   const [queryChartLoadingFields, setQueryChartLoadingFields] = useState(false);
   const [queryChartExpandedForms, setQueryChartExpandedForms] = useState<Set<string>>(new Set());
   const queryTextareaRef = React.useRef<HTMLTextAreaElement>(null);
+  const normalizedDrilldownLevels =
+    (config.drilldownConfig?.drilldownLevels?.length > 0 ? config.drilldownConfig.drilldownLevels : null) ||
+    (config.drilldownConfig?.levels?.length > 0 ? config.drilldownConfig.levels : null) ||
+    [];
 
   // Fetch form fields from backend
   const fetchFormFields = async (formId: string) => {
@@ -907,15 +911,18 @@ export function ComponentConfigDialog({
                 ...config, 
                 drilldownConfig: { 
                   ...config.drilldownConfig, 
-                  enabled 
+                  enabled,
+                  drilldownLevels: normalizedDrilldownLevels,
+                  levels: normalizedDrilldownLevels,
                 } 
               })}
-              drilldownLevels={config.drilldownConfig?.drilldownLevels || []}
+              drilldownLevels={normalizedDrilldownLevels}
               onDrilldownLevelsChange={(drilldownLevels) => setConfig({ 
                 ...config, 
                 drilldownConfig: { 
                   ...config.drilldownConfig, 
-                  drilldownLevels
+                  drilldownLevels,
+                  levels: drilldownLevels,
                 } 
               })}
             />
