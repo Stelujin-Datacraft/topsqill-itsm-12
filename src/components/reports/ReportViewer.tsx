@@ -112,18 +112,20 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
       const currentState = prev[componentId] || { path: [], values: [] };
       const component = components.find(c => c.id === componentId);
       const config = component?.config as any;
+      const normalizedIncomingLevel = typeof drilldownLevel === 'string' ? drilldownLevel.trim() : '';
 
       const drilldownLevels =
         (config?.drilldownConfig?.drilldownLevels?.length > 0 ? config.drilldownConfig.drilldownLevels : null) ||
         (config?.drilldownConfig?.levels?.length > 0 ? config.drilldownConfig.levels : null) ||
         (config?.crossRefConfig?.drilldownLevels?.length > 0 ? config.crossRefConfig.drilldownLevels : null) ||
         [];
+      const sanitizedLevels = drilldownLevels.filter((level: string) => typeof level === 'string' && level.trim().length > 0);
 
       const isCrossRef = config?.crossRefConfig?.enabled && config?.crossRefConfig?.crossRefFieldId;
-      const maxValues = isCrossRef ? drilldownLevels.length + 1 : drilldownLevels.length;
+      const maxValues = isCrossRef ? sanitizedLevels.length + 1 : sanitizedLevels.length;
       const levelIndex = isCrossRef
         ? Math.max(0, currentState.values.length)
-        : Math.max(0, drilldownLevels.indexOf(drilldownLevel));
+        : Math.max(0, sanitizedLevels.indexOf(normalizedIncomingLevel));
       const newValues = [...currentState.values];
 
       if (levelIndex < maxValues) {
@@ -133,12 +135,12 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
 
       let newPath: string[];
       if (isCrossRef) {
-        newPath = newValues.slice(1).map((_, i) => drilldownLevels[i] || '');
+        newPath = newValues.slice(1).map((_, i) => sanitizedLevels[i] || '');
         if (newValues.length > 0) {
           newPath = ['', ...newPath];
         }
       } else {
-        newPath = drilldownLevels.slice(0, newValues.length);
+        newPath = sanitizedLevels.slice(0, newValues.length);
       }
 
       return {
