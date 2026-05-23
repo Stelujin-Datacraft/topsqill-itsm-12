@@ -108,7 +108,7 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
           .select('role')
           .eq('project_id', targetProjectId)
           .eq('user_id', targetUserId)
-          .single(),
+          .maybeSingle(),
         supabase
           .from('projects')
           .select('created_by')
