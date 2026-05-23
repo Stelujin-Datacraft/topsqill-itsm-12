@@ -55,6 +55,8 @@ export function ChartPreview({
     crossRefTargetFormId?: string;
     crossRefDisplayFields?: string[];
     crossRefLinkedIds?: string[];
+    // Additional filters for multi-level drilldown final-level listing
+    additionalFilters?: Array<{ field: string; value: string }>;
   }>({
     open: false,
     dimensionField: '',
