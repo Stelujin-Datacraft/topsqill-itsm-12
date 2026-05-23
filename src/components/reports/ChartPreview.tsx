@@ -55,6 +55,7 @@ export function ChartPreview({
     crossRefTargetFormId?: string;
     crossRefDisplayFields?: string[];
     crossRefLinkedIds?: string[];
+    drilldownFilters?: { field: string; value: string }[];
   }>({
     open: false,
     dimensionField: '',
@@ -157,9 +158,11 @@ export function ChartPreview({
   };
 
   const getNormalizedDrilldownLevels = (): string[] => {
-    return (config.drilldownConfig?.drilldownLevels?.length > 0 ? config.drilldownConfig.drilldownLevels : null) ||
+    const levels = (config.drilldownConfig?.drilldownLevels?.length > 0 ? config.drilldownConfig.drilldownLevels : null) ||
       (config.drilldownConfig?.levels?.length > 0 ? config.drilldownConfig.levels : null) ||
       [];
+
+    return levels.filter((level): level is string => typeof level === 'string' && level.trim().length > 0);
   };
 
 
@@ -2179,6 +2182,35 @@ export function ChartPreview({
     }
 
     return String(rawValue);
+  };
+
+  const buildDrilldownFilters = (finalField?: string, finalValue?: string) => {
+    const drilldownLevels = getDrilldownLevels();
+    const baseFilters = (drilldownState?.values || [])
+      .map((value, index) => {
+        const field = drilldownLevels[index];
+        if (!field || value === null || value === undefined || value === '') {
+          return null;
+        }
+
+        return {
+          field,
+          value: String(value),
+        };
+      })
+      .filter((filter): filter is { field: string; value: string } => Boolean(filter));
+
+    if (!finalField || finalValue === null || finalValue === undefined || finalValue === '') {
+      return baseFilters;
+    }
+
+    return [
+      ...baseFilters,
+      {
+        field: finalField,
+        value: String(finalValue),
+      },
+    ];
   };
 
   // Get available values for the current drilldown level
