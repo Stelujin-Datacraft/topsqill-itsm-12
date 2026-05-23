@@ -442,9 +442,7 @@ async function discoverCloudStorageFields(config: CloudStorageConfig): Promise<D
   } else if (config.fileType === 'csv') {
     records = parseCSV(content, config.hasHeader !== false);
   } else if (config.fileType === 'excel') {
-    // Re-fetch as binary for Excel
-    const buf = new TextEncoder().encode(content).buffer;
-    records = parseExcel(buf, undefined, config.hasHeader !== false);
+    throw new Error('Excel from cloud storage not yet supported. Use CSV or download via signed URL.');
   }
   
   console.log(`Found ${records.length} records from cloud storage`);
