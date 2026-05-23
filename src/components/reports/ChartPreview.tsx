@@ -1202,7 +1202,7 @@ export function ChartPreview({
             totalItems: chartData.length,
             sampleData: chartData[0],
             currentLevel: currentDrilldownLevel,
-            nextDimension: config.drilldownConfig?.drilldownLevels[currentDrilldownLevel + 1] || 'none',
+            nextDimension: drilldownLevels[currentDrilldownLevel + 1] || 'none',
             allData: chartData
           });
           // Only update state if this is still the current request
@@ -5662,7 +5662,9 @@ export function ChartPreview({
             <div className="flex items-center gap-1 flex-wrap">
               {drilldownState.values.map((value, index) => {
                 // Support both normal drilldownConfig and crossRefConfig drilldown levels
-                const drilldownLevels = config.drilldownConfig?.drilldownLevels || config.crossRefConfig?.drilldownLevels || [];
+                const drilldownLevels = config.crossRefConfig?.enabled
+                  ? (config.crossRefConfig?.drilldownLevels || [])
+                  : getNormalizedDrilldownLevels();
                 const isCrossRef = config.crossRefConfig?.enabled && config.crossRefConfig?.crossRefFieldId;
                 
                 // For cross-ref charts: first value is parentRefId, subsequent values are field values
