@@ -1,8 +1,6 @@
-import { useCallback } from "react"
 import { LucideIcon } from "lucide-react"
 import { SidebarGroup, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar"
 import { Link, useLocation } from "react-router-dom"
-import { prefetchRoute } from "@/utils/routePreloader"
 
 export function NavMain({
   items,
@@ -16,14 +14,6 @@ export function NavMain({
   }[]
 }) {
   const location = useLocation()
-
-  const handleMouseEnter = useCallback((url: string) => {
-    prefetchRoute(url);
-  }, []);
-
-  const handlePointerDown = useCallback((url: string) => {
-    prefetchRoute(url);
-  }, []);
 
   return (
     <SidebarGroup>
@@ -41,9 +31,6 @@ export function NavMain({
               >
                 <Link 
                   to={item.url}
-                  onMouseEnter={() => handleMouseEnter(item.url)}
-                  onPointerDown={() => handlePointerDown(item.url)}
-                  onFocus={() => handleMouseEnter(item.url)}
                 >
                   {item.icon && <item.icon className={active ? 'text-accent' : 'text-sidebar-foreground'} />}
                   <span>{item.title}</span>

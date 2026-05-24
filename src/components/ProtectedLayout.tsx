@@ -9,7 +9,6 @@ import { usePermissionRealtimeSync } from '@/hooks/usePermissionRealtimeSync';
 import { useUnifiedAccessControl } from '@/hooks/useUnifiedAccessControl';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { preloadCriticalRoutes } from '@/utils/routePreloader';
 import { RouteLoader } from '@/components/RouteLoader';
 
 // Context to signal that we're inside ProtectedLayout
@@ -42,7 +41,6 @@ const ProtectedLayout: React.FC = () => {
   const navigate = useNavigate();
   const defaultDashboardChecked = useRef(false);
   const lastDefaultDashboardProjectId = useRef<string | null>(null);
-  const preloadTriggered = useRef(false);
   const hadAuthenticatedUserRef = useRef(false);
 
   useEffect(() => {
@@ -58,16 +56,6 @@ const ProtectedLayout: React.FC = () => {
  
    // Enable real-time permission sync for authenticated users
    usePermissionRealtimeSync();
-
-  // Deferred route preloading - wait 3s after auth is confirmed, then preload in idle time
-  useEffect(() => {
-    if (!user || !userProfile || preloadTriggered.current) return;
-    preloadTriggered.current = true;
-    const timer = setTimeout(() => {
-      preloadCriticalRoutes();
-    }, 3000);
-    return () => clearTimeout(timer);
-  }, [user, userProfile]);
 
   // Auto-redirect to default dashboard on initial login (when landing on /dashboard)
   useEffect(() => {

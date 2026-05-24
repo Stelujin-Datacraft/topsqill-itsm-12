@@ -262,8 +262,11 @@ export function useUnifiedAccessControl(projectId?: string, userId?: string) {
     },
     enabled: accessContextReady,
     placeholderData: (previousData) => previousData,
-    staleTime: 2 * 60 * 1000, // 2 minutes - matches global cache strategy
+    staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000, // 10 minutes garbage collection
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
   // Update state from query data
