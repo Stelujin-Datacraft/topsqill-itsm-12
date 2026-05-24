@@ -136,12 +136,17 @@ const ProjectPerformance = lazyWithRetry(() => import("./pages/ProjectPerformanc
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      // Data remains fresh for 2 minutes - prevents unnecessary refetches
-      staleTime: 2 * 60 * 1000,
-      // Cache data retained for 10 minutes after becoming unused
-      gcTime: 10 * 60 * 1000,
-      // Prevent refetch on window focus for better UX
+      // Data remains fresh for 5 minutes - prevents unnecessary refetches on navigation.
+      // Realtime subscriptions push live updates when data actually changes.
+      staleTime: 5 * 60 * 1000,
+      // Cache data retained for 15 minutes after becoming unused
+      gcTime: 15 * 60 * 1000,
+      // Don't refetch on window focus - realtime keeps data fresh
       refetchOnWindowFocus: false,
+      // Don't refetch on remount within staleTime - eliminates top loading bar flash on navigation
+      refetchOnMount: false,
+      // Don't refetch on network reconnect aggressively
+      refetchOnReconnect: 'always',
       // Retry failed requests once with delay
       retry: 1,
       retryDelay: 1000,
