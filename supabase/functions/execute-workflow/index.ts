@@ -721,16 +721,29 @@ async function executeCreateCombinationRecords(
   supabase: any,
   config: any,
   triggerData: any,
-  _submissionId?: string,
+  submissionId?: string,
   submitterId?: string
 ): Promise<any> {
   console.log('🔗✨ Executing create_combination_records action')
 
   const combinationMode = config.combinationMode || 'single'
   const triggerSubmissionData = triggerData?.submissionData || {}
+  const triggerSubmissionId = triggerData?.submissionId || submissionId
+  const triggerFormId = triggerData?.formId
 
   if (!config.targetFormId || !config.sourceCrossRefFieldId || !config.sourceLinkedFormId) {
     return { success: false, error: 'Missing required configuration for combination records' }
+  }
+
+  // Fetch trigger submission_ref_id (needed for legacy targetTriggerCrossRefFieldId link)
+  let triggerSubmissionRefId: string | null = null
+  if (triggerSubmissionId) {
+    const { data: trig } = await supabase
+      .from('form_submissions')
+      .select('submission_ref_id')
+      .eq('id', triggerSubmissionId)
+      .single()
+    triggerSubmissionRefId = trig?.submission_ref_id || null
   }
 
   const firstSourceRefsRaw = triggerSubmissionData[config.sourceCrossRefFieldId]
@@ -751,56 +764,150 @@ async function executeCreateCombinationRecords(
   }
 
   const firstSourceRefs = normalizeRefs(firstSourceRefsRaw)
-  const secondSourceRefs = combinationMode === 'dual' ? normalizeRefs(secondSourceRefsRaw) : [{ submission_ref_id: '', form_id: undefined }]
+  const secondSourceRefs = combinationMode === 'dual'
+    ? normalizeRefs(secondSourceRefsRaw)
+    : [{ submission_ref_id: '', form_id: undefined as string | undefined }]
 
   if (firstSourceRefs.length === 0 || secondSourceRefs.length === 0) {
     return { success: true, createdCount: 0, message: 'No linked records available for combination' }
   }
 
+  // Pre-fetch linked-form submission data for field mappings
+  const linkedFormFieldMappings = Array.isArray(config.linkedFormFieldMappings)
+    ? config.linkedFormFieldMappings.filter((m: any) => m.sourceFieldId && m.targetFieldId)
+    : []
+  const secondLinkedFormFieldMappings = Array.isArray(config.secondLinkedFormFieldMappings)
+    ? config.secondLinkedFormFieldMappings.filter((m: any) => m.sourceFieldId && m.targetFieldId)
+    : []
+
+  const linkedRecordsDataMap = new Map<string, Record<string, any>>()
+  const allRefIds = [
+    ...firstSourceRefs.map(r => r.submission_ref_id),
+    ...secondSourceRefs.map(r => r.submission_ref_id).filter(Boolean)
+  ]
+  if (allRefIds.length > 0 && (linkedFormFieldMappings.length > 0 || secondLinkedFormFieldMappings.length > 0)) {
+    const { data: linkedSubs } = await supabase
+      .from('form_submissions')
+      .select('submission_ref_id, submission_data')
+      .in('submission_ref_id', allRefIds)
+    if (linkedSubs) {
+      for (const sub of linkedSubs) {
+        if (sub.submission_ref_id) {
+          linkedRecordsDataMap.set(sub.submission_ref_id, (sub.submission_data || {}) as Record<string, any>)
+        }
+      }
+    }
+  }
+
+  // Build duplicate-prevention set
+  const preventDuplicates = !!config.preventDuplicates
+  const existingCombinations = new Set<string>()
+  if (preventDuplicates && Array.isArray(config.targetLinkFields) && config.targetLinkFields.length > 0) {
+    const { data: existingRecords } = await supabase
+      .from('form_submissions')
+      .select('submission_data')
+      .eq('form_id', config.targetFormId)
+    if (existingRecords) {
+      for (const rec of existingRecords) {
+        const data = (rec.submission_data || {}) as Record<string, any>
+        const keyParts: string[] = []
+        for (const lf of config.targetLinkFields) {
+          const v = data[lf.targetFieldId]
+          let refId: string | null = null
+          if (Array.isArray(v) && v[0]) refId = typeof v[0] === 'string' ? v[0] : v[0]?.submission_ref_id
+          else if (typeof v === 'string') refId = v
+          else if (v?.submission_ref_id) refId = v.submission_ref_id
+          if (refId) keyParts.push(refId)
+        }
+        if (keyParts.length > 0) existingCombinations.add(keyParts.sort().join('|'))
+      }
+    }
+  }
+
   const createdRecordIds: string[] = []
+  const createdRecords: Array<{ id: string; submission_ref_id: string }> = []
+  let skippedDuplicates = 0
   const initialStatus = config.initialStatus || 'pending'
   const fieldMappings = Array.isArray(config.fieldMappings) ? config.fieldMappings : []
 
   for (const firstRef of firstSourceRefs) {
     for (const secondRef of secondSourceRefs) {
+      // Duplicate check key
+      if (preventDuplicates) {
+        const keyParts = [firstRef.submission_ref_id]
+        if (combinationMode === 'dual' && secondRef.submission_ref_id) keyParts.push(secondRef.submission_ref_id)
+        const k = keyParts.sort().join('|')
+        if (existingCombinations.has(k)) { skippedDuplicates++; continue }
+        existingCombinations.add(k)
+      }
+
       const submissionData: Record<string, any> = {}
 
       if (Array.isArray(config.targetLinkFields)) {
         for (const targetLinkField of config.targetLinkFields) {
+          if (!targetLinkField.targetFieldId) continue
           if (targetLinkField.linkTo === 'first_source') {
             submissionData[targetLinkField.targetFieldId] = [{
               submission_ref_id: firstRef.submission_ref_id,
-              form_id: config.sourceLinkedFormId
+              form_id: firstRef.form_id || config.sourceLinkedFormId
             }]
           }
 
           if (targetLinkField.linkTo === 'second_source' && combinationMode === 'dual' && secondRef.submission_ref_id) {
             submissionData[targetLinkField.targetFieldId] = [{
               submission_ref_id: secondRef.submission_ref_id,
-              form_id: config.secondSourceLinkedFormId
+              form_id: secondRef.form_id || config.secondSourceLinkedFormId
             }]
           }
         }
-      } else {
-        if (config.targetLinkedCrossRefFieldId) {
-          submissionData[config.targetLinkedCrossRefFieldId] = [{
-            submission_ref_id: firstRef.submission_ref_id,
-            form_id: config.sourceLinkedFormId
-          }]
-        }
+      }
 
-        if (config.targetTriggerCrossRefFieldId && combinationMode === 'dual' && secondRef.submission_ref_id) {
-          submissionData[config.targetTriggerCrossRefFieldId] = [{
-            submission_ref_id: secondRef.submission_ref_id,
-            form_id: config.secondSourceLinkedFormId
-          }]
+      // Legacy link fields (backward compatibility)
+      if (config.targetLinkedCrossRefFieldId) {
+        submissionData[config.targetLinkedCrossRefFieldId] = [{
+          submission_ref_id: firstRef.submission_ref_id,
+          form_id: firstRef.form_id || config.sourceLinkedFormId
+        }]
+      }
+      if (config.targetTriggerCrossRefFieldId && triggerSubmissionRefId) {
+        submissionData[config.targetTriggerCrossRefFieldId] = [{
+          submission_ref_id: triggerSubmissionRefId,
+          form_id: triggerFormId
+        }]
+      }
+
+      // Field mappings from TRIGGER form
+      for (const mapping of fieldMappings) {
+        if (!mapping.sourceFieldId || !mapping.targetFieldId) continue
+        const value = triggerSubmissionData?.[mapping.sourceFieldId]
+        if (value !== undefined && value !== null && value !== '') {
+          submissionData[mapping.targetFieldId] = value
         }
       }
 
-      for (const mapping of fieldMappings) {
-        const value = triggerSubmissionData?.[mapping.sourceFieldId]
-        if (value !== undefined) {
-          submissionData[mapping.targetFieldId] = value
+      // Field mappings from FIRST LINKED form
+      if (linkedFormFieldMappings.length > 0) {
+        const linkedData = linkedRecordsDataMap.get(firstRef.submission_ref_id)
+        if (linkedData) {
+          for (const mapping of linkedFormFieldMappings) {
+            const value = linkedData[mapping.sourceFieldId]
+            if (value !== undefined && value !== null && value !== '') {
+              submissionData[mapping.targetFieldId] = value
+            }
+          }
+        }
+      }
+
+      // Field mappings from SECOND LINKED form (dual mode)
+      if (combinationMode === 'dual' && secondRef.submission_ref_id && secondLinkedFormFieldMappings.length > 0) {
+        const secondLinkedData = linkedRecordsDataMap.get(secondRef.submission_ref_id)
+        if (secondLinkedData) {
+          for (const mapping of secondLinkedFormFieldMappings) {
+            const value = secondLinkedData[mapping.sourceFieldId]
+            if (value !== undefined && value !== null && value !== '') {
+              submissionData[mapping.targetFieldId] = value
+            }
+          }
         }
       }
 
@@ -812,14 +919,54 @@ async function executeCreateCombinationRecords(
           submitted_by: submitterId || triggerData?.submitterId || null,
           approval_status: initialStatus
         })
-        .select('id')
+        .select('id, submission_ref_id')
         .single()
 
       if (createError) {
-        return { success: false, error: `Failed to create combination record: ${createError.message}` }
+        console.error('❌ Failed to create combination record:', createError)
+        continue
       }
 
       createdRecordIds.push(created.id)
+      createdRecords.push({ id: created.id, submission_ref_id: created.submission_ref_id || '' })
+    }
+  }
+
+  // Auto-link created records back to trigger form's cross-ref field
+  let updatedTriggerCrossRef = false
+  if (config.updateTriggerCrossRefFieldId && createdRecords.length > 0 && triggerSubmissionId) {
+    const { data: currentTrigger } = await supabase
+      .from('form_submissions')
+      .select('submission_data')
+      .eq('id', triggerSubmissionId)
+      .single()
+
+    if (currentTrigger) {
+      const currentData = (currentTrigger.submission_data || {}) as Record<string, any>
+      const existingVal = currentData[config.updateTriggerCrossRefFieldId]
+      let merged: any[] = []
+      if (Array.isArray(existingVal)) merged = [...existingVal]
+      else if (existingVal && typeof existingVal === 'object') merged = [existingVal]
+
+      const existingIds = new Set(merged.map((v: any) => typeof v === 'string' ? v : v?.submission_ref_id))
+      for (const rec of createdRecords) {
+        if (rec.submission_ref_id && !existingIds.has(rec.submission_ref_id)) {
+          merged.push({
+            id: rec.id,
+            submission_ref_id: rec.submission_ref_id,
+            form_id: config.targetFormId,
+            displayData: {}
+          })
+        }
+      }
+
+      const updatedData = { ...currentData, [config.updateTriggerCrossRefFieldId]: merged }
+      const { error: updErr } = await supabase
+        .from('form_submissions')
+        .update({ submission_data: updatedData })
+        .eq('id', triggerSubmissionId)
+      if (!updErr) updatedTriggerCrossRef = true
+      else console.error('⚠️ Failed updating trigger cross-ref field:', updErr)
     }
   }
 
@@ -827,6 +974,8 @@ async function executeCreateCombinationRecords(
     success: true,
     createdCount: createdRecordIds.length,
     createdRecordIds,
+    skippedDuplicates,
+    updatedTriggerCrossRef,
     targetFormId: config.targetFormId,
     combinationMode
   }
