@@ -60,9 +60,10 @@ export function FormSelector({ value, onValueChange, placeholder = "Select a for
     setSelectedForm(value);
   }, [value]);
 
-  // Use project-specific forms if projectId is provided and forms are loaded, otherwise use context forms
-  const forms = projectId && projectForms.length > 0 
-    ? projectForms 
+  // When a projectId is provided, ONLY show forms from that project.
+  // Falling back to context forms can leak forms from other projects/organizations.
+  const forms = projectId
+    ? projectForms
     : contextForms.map(f => ({ id: f.id, name: f.name }));
 
   const handleValueChange = (formId: string) => {
