@@ -147,8 +147,12 @@ Deno.serve(async (req) => {
           case 'wait':
             console.log('⏱️ Wait node - setting workflow to waiting state')
             const waitConfig = config || {}
-            const waitDuration = waitConfig.duration || 1
-            const waitUnit = waitConfig.unit || 'minutes'
+            // Support both legacy (duration/unit) and current UI (durationValue/durationUnit) keys
+            const waitDuration = Number(
+              waitConfig.durationValue ?? waitConfig.duration ?? 1
+            )
+            const waitUnit = waitConfig.durationUnit || waitConfig.unit || 'minutes'
+            console.log(`⏱️ Wait config parsed: ${waitDuration} ${waitUnit}`, waitConfig)
             
             let resumeTime = new Date()
             switch (waitUnit) {
