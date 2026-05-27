@@ -53,13 +53,19 @@ async function checkEnrollmentAllowed(
   // Get workflow's enrollment settings
   const { data: workflow, error: workflowError } = await supabase
     .from('workflows')
-    .select('enrollment_mode, enrollment_cooldown_hours')
+    .select('enrollment_mode, enrollment_cooldown_hours, status')
     .eq('id', workflowId)
     .single();
 
   if (workflowError || !workflow) {
     console.log(`[enqueue-workflow] Could not fetch workflow settings, allowing enrollment`);
     return { allowed: true };
+  }
+
+  // Block if workflow is not active (e.g. draft, inactive, archived)
+  if (workflow.status && workflow.status !== 'active') {
+    console.log(`[enqueue-workflow] Workflow ${workflowId} is '${workflow.status}', blocking enrollment`);
+    return { allowed: false, reason: `Workflow is ${workflow.status}` };
   }
 
   const { enrollment_mode, enrollment_cooldown_hours } = workflow;
