@@ -1582,9 +1582,92 @@ const FieldLevelConditionBuilder = React.memo(({ condition, forms, triggerFormId
 
   return (
     <div className="space-y-2">
+      {/* Evaluation source toggle */}
+      <div className="flex items-center gap-1 p-1 bg-muted/40 rounded border border-border/50">
+        <button
+          type="button"
+          onClick={() => setSource('current')}
+          className={cn(
+            'flex-1 h-6 text-[10px] font-medium rounded transition-colors',
+            source === 'current' ? 'bg-background shadow-sm' : 'text-muted-foreground hover:text-foreground'
+          )}
+        >
+          Current Record
+        </button>
+        <button
+          type="button"
+          onClick={() => setSource('linkedRecords')}
+          className={cn(
+            'flex-1 h-6 text-[10px] font-medium rounded transition-colors',
+            source === 'linkedRecords' ? 'bg-background shadow-sm' : 'text-muted-foreground hover:text-foreground'
+          )}
+        >
+          Linked Records (Cross-Ref)
+        </button>
+      </div>
+
+      {source === 'linkedRecords' && (
+        <>
+          <div>
+            <Label className="text-xs text-muted-foreground mb-1 block">Cross-Reference Field (on source form)</Label>
+            <Select
+              value={crossRefFieldId}
+              onValueChange={(v) => {
+                setCrossRefFieldId(v);
+                const f = crossRefFields.find(cf => cf.id === v);
+                setLinkedFormId(f?.targetFormId || '');
+                setLinkedFormName(f?.targetFormName || '');
+                setSelectedField('');
+                setValue('');
+              }}
+              disabled={!selectedForm || crossRefLoading}
+            >
+              <SelectTrigger className="h-8 text-xs">
+                <SelectValue placeholder={crossRefLoading ? 'Loading…' : (crossRefFields.length === 0 ? 'No cross-reference fields' : 'Select cross-ref field')} />
+              </SelectTrigger>
+              <SelectContent>
+                {crossRefFields.map(cf => (
+                  <SelectItem key={cf.id} value={cf.id}>
+                    {cf.label}{cf.targetFormName ? ` → ${cf.targetFormName}` : ''}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label className="text-xs text-muted-foreground mb-1 block">Quantifier</Label>
+            <div className="flex gap-1">
+              <Select value={quantifier} onValueChange={(v) => setQuantifier(v as any)}>
+                <SelectTrigger className="h-8 text-xs flex-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ANY">ANY linked record matches</SelectItem>
+                  <SelectItem value="ALL">ALL linked records match</SelectItem>
+                  <SelectItem value="NONE">NONE match</SelectItem>
+                  <SelectItem value="COUNT_GTE">COUNT of matches ≥ N</SelectItem>
+                </SelectContent>
+              </Select>
+              {quantifier === 'COUNT_GTE' && (
+                <Input
+                  type="number"
+                  min={1}
+                  value={quantifierCount}
+                  onChange={(e) => setQuantifierCount(Math.max(1, Number(e.target.value) || 1))}
+                  className="h-8 w-20 text-xs"
+                />
+              )}
+            </div>
+          </div>
+        </>
+      )}
+
       <div>
         <div className="flex items-center justify-between mb-1">
-          <Label className="text-xs text-muted-foreground">Form</Label>
+          <Label className="text-xs text-muted-foreground">
+            {source === 'linkedRecords' ? 'Source Form (holds cross-ref)' : 'Form'}
+          </Label>
           {triggerFormId && (
             <button
               type="button"
