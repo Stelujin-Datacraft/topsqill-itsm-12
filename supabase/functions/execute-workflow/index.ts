@@ -290,8 +290,16 @@ Deno.serve(async (req) => {
         )
       }
 
-      // Get next nodes if not already set (for non-condition nodes)
-      if (nextNodeIds.length === 0 && currentNode.node_type !== 'end') {
+      // Get next nodes if not already set (for non-condition nodes).
+      // IMPORTANT: condition nodes manage their own branching above. If a
+      // condition evaluated to false and no false-branch connection exists,
+      // nextNodeIds will be empty on purpose — do NOT fall back to following
+      // every outgoing connection, or the true branch would run regardless.
+      if (
+        nextNodeIds.length === 0 &&
+        currentNode.node_type !== 'end' &&
+        currentNode.node_type !== 'condition'
+      ) {
         const { data: connections } = await supabase
           .from('workflow_connections')
           .select('target_node_id')
