@@ -1422,6 +1422,9 @@ interface FieldLevelConditionBuilderProps {
 }
 
 const FieldLevelConditionBuilder = React.memo(({ condition, forms, triggerFormId, triggerFormName, onChange }: FieldLevelConditionBuilderProps) => {
+  // Source: 'current' (existing behavior) or 'linkedRecords' (cross-ref traversal)
+  const [source, setSource] = useState<'current' | 'linkedRecords'>(condition?.source || 'current');
+
   // Auto-inherit form from Start node trigger unless user overrides
   const initialForm = condition?.formId || triggerFormId || '';
   const [selectedForm, setSelectedForm] = useState(initialForm);
@@ -1440,7 +1443,20 @@ const FieldLevelConditionBuilder = React.memo(({ condition, forms, triggerFormId
   const [operator, setOperator] = useState<ComparisonOperator>(condition?.operator || '==');
   const [value, setValue] = useState(String(condition?.value ?? ''));
 
-  const { fields, loading } = useFormFields(selectedForm);
+  // Linked-records state
+  const [crossRefFieldId, setCrossRefFieldId] = useState(condition?.crossRefFieldId || '');
+  const [linkedFormId, setLinkedFormId] = useState(condition?.linkedFormId || '');
+  const [linkedFormName, setLinkedFormName] = useState(condition?.linkedFormName || '');
+  const [quantifier, setQuantifier] = useState<'ALL' | 'ANY' | 'NONE' | 'COUNT_GTE'>(condition?.quantifier || 'ANY');
+  const [quantifierCount, setQuantifierCount] = useState<number>(condition?.quantifierCount ?? 1);
+
+  // Cross-ref fields live on the SOURCE form (selectedForm = trigger form usually).
+  const { fields: crossRefFields, loading: crossRefLoading } = useCrossReferenceFields(
+    source === 'linkedRecords' ? selectedForm : undefined
+  );
+  // Fields available for the predicate: linked form when in linkedRecords mode, else current form.
+  const targetFieldsFormId = source === 'linkedRecords' ? linkedFormId : selectedForm;
+  const { fields, loading } = useFormFields(targetFieldsFormId);
 
   // Use ref to store latest onChange to avoid infinite loops
   const onChangeRef = React.useRef(onChange);
@@ -1457,12 +1473,21 @@ const FieldLevelConditionBuilder = React.memo(({ condition, forms, triggerFormId
         fieldId: selectedField,
         fieldType: selectedFieldData?.type || 'text',
         operator,
-        value
+        value,
+        source,
+        crossRefFieldId: source === 'linkedRecords' ? crossRefFieldId : undefined,
+        crossRefFieldLabel: source === 'linkedRecords'
+          ? (crossRefFields.find(c => c.id === crossRefFieldId)?.label)
+          : undefined,
+        linkedFormId: source === 'linkedRecords' ? linkedFormId : undefined,
+        linkedFormName: source === 'linkedRecords' ? linkedFormName : undefined,
+        quantifier: source === 'linkedRecords' ? quantifier : undefined,
+        quantifierCount: source === 'linkedRecords' && quantifier === 'COUNT_GTE' ? quantifierCount : undefined,
       };
       onChangeRef.current(updatedCondition);
     }, 300);
     return () => clearTimeout(timeoutId);
-  }, [selectedForm, selectedField, operator, value, fields, condition?.id]);
+  }, [selectedForm, selectedField, operator, value, fields, condition?.id, source, crossRefFieldId, linkedFormId, linkedFormName, quantifier, quantifierCount, crossRefFields]);
 
   const selectedFieldData = useMemo(() => {
     return fields.find(f => f.id === selectedField);
