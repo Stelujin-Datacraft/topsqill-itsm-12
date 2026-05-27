@@ -1726,7 +1726,7 @@ async function evaluateCondition(supabase: any, node: WorkflowNode, triggerData:
   }
 
   // Evaluate field-level condition
-  const evaluateFieldLevelCondition = (flc: any): boolean => {
+  const evaluateFieldLevelConditionSync = (flc: any): boolean => {
     const fieldId = flc?.fieldId
     const operator = flc?.operator
     const expectedValue = flc?.value
@@ -1745,8 +1745,99 @@ async function evaluateCondition(supabase: any, node: WorkflowNode, triggerData:
     return result
   }
 
-  // Evaluate enhanced condition format
-  const evaluateEnhancedCondition = (ec: any): boolean => {
+  // Evaluate against linked records via a cross-reference field on the source record.
+  // Quantifiers: ANY (default) | ALL | NONE | COUNT_GTE
+  const evaluateLinkedRecordsCondition = async (flc: any): Promise<boolean> => {
+    const crossRefFieldId = flc?.crossRefFieldId
+    const fieldId = flc?.fieldId
+    const operator = flc?.operator
+    const expectedValue = flc?.value
+    const quantifier = (flc?.quantifier || 'ANY') as 'ALL' | 'ANY' | 'NONE' | 'COUNT_GTE'
+    const quantifierCount = Number(flc?.quantifierCount ?? 1)
+
+    if (!crossRefFieldId || !fieldId) {
+      console.log(`⚠️ linkedRecords condition missing crossRefFieldId or fieldId`)
+      return false
+    }
+
+    const rawRefs = submissionData[crossRefFieldId]
+    let refs: any[] = []
+    if (Array.isArray(rawRefs)) refs = rawRefs
+    else if (rawRefs && typeof rawRefs === 'object') refs = [rawRefs]
+
+    // Extract candidate submission identifiers (id preferred, fallback submission_ref_id)
+    const submissionIds: string[] = []
+    const submissionRefIds: string[] = []
+    for (const r of refs) {
+      if (!r) continue
+      if (typeof r === 'string') { submissionIds.push(r); continue }
+      if (r.id) submissionIds.push(String(r.id))
+      else if (r.submission_ref_id) submissionRefIds.push(String(r.submission_ref_id))
+    }
+
+    console.log(`🔗 linkedRecords: crossRef=${crossRefFieldId}, refs=${refs.length}, ids=${submissionIds.length}, refIds=${submissionRefIds.length}, quantifier=${quantifier}`)
+
+    if (submissionIds.length === 0 && submissionRefIds.length === 0) {
+      // No linked records: ALL is vacuously true, NONE is true, ANY/COUNT false.
+      if (quantifier === 'ALL' || quantifier === 'NONE') return true
+      return false
+    }
+
+    let linkedRows: any[] = []
+    if (submissionIds.length > 0) {
+      const { data, error } = await supabase
+        .from('form_submissions')
+        .select('id, submission_data')
+        .in('id', submissionIds)
+      if (error) console.log(`⚠️ Error fetching linked by id: ${error.message}`)
+      if (data) linkedRows.push(...data)
+    }
+    if (submissionRefIds.length > 0) {
+      const { data, error } = await supabase
+        .from('form_submissions')
+        .select('id, submission_data, submission_ref_id')
+        .in('submission_ref_id', submissionRefIds)
+      if (error) console.log(`⚠️ Error fetching linked by ref: ${error.message}`)
+      if (data) linkedRows.push(...data)
+    }
+
+    if (linkedRows.length === 0) {
+      if (quantifier === 'ALL' || quantifier === 'NONE') return true
+      return false
+    }
+
+    let matchCount = 0
+    for (const row of linkedRows) {
+      const sd = row?.submission_data || {}
+      const actual = sd[fieldId]
+      const ok = compareValues(actual, expectedValue, operator)
+      if (ok) matchCount++
+    }
+    const total = linkedRows.length
+    console.log(`🔗 linkedRecords matches: ${matchCount}/${total}`)
+
+    switch (quantifier) {
+      case 'ALL': return matchCount === total
+      case 'NONE': return matchCount === 0
+      case 'COUNT_GTE': return matchCount >= quantifierCount
+      case 'ANY':
+      default: return matchCount > 0
+    }
+  }
+
+  // Synchronous wrapper kept for backward-compat call sites; routes to linked when needed.
+  // For linked records we need async, so the main path below uses awaitable evaluation.
+  const evaluateFieldLevelCondition = (flc: any): boolean => {
+    // Linked-records path is async; not callable here. Returns false to be safe.
+    if (flc?.source === 'linkedRecords') {
+      console.log(`⚠️ evaluateFieldLevelCondition called synchronously for linkedRecords; use async path`)
+      return false
+    }
+    return evaluateFieldLevelConditionSync(flc)
+  }
+
+  // Evaluate enhanced condition format (async to support linkedRecords)
+  const evaluateEnhancedCondition = async (ec: any): Promise<boolean> => {
     if (!ec) return true
     
     const conditions = ec.conditions || []
@@ -1757,7 +1848,9 @@ async function evaluateCondition(supabase: any, node: WorkflowNode, triggerData:
     
     if (conditions.length === 0) {
       if (ec.fieldLevelCondition) {
-        return evaluateFieldLevelCondition(ec.fieldLevelCondition)
+        const flc = ec.fieldLevelCondition
+        if (flc?.source === 'linkedRecords') return await evaluateLinkedRecordsCondition(flc)
+        return evaluateFieldLevelConditionSync(flc)
       }
       return true
     }
@@ -1766,7 +1859,10 @@ async function evaluateCondition(supabase: any, node: WorkflowNode, triggerData:
     for (const cond of conditions) {
       let condResult = false
       if (cond.fieldLevelCondition) {
-        condResult = evaluateFieldLevelCondition(cond.fieldLevelCondition)
+        const flc = cond.fieldLevelCondition
+        condResult = flc?.source === 'linkedRecords'
+          ? await evaluateLinkedRecordsCondition(flc)
+          : evaluateFieldLevelConditionSync(flc)
       } else if (cond.fieldCondition) {
         const fieldValue = submissionData[cond.fieldCondition.fieldId]
         condResult = compareValues(fieldValue, cond.fieldCondition.value, cond.fieldCondition.operator)
@@ -1819,7 +1915,7 @@ async function evaluateCondition(supabase: any, node: WorkflowNode, triggerData:
   // Check enhanced condition first (new format)
   if (enhancedCondition) {
     console.log(`📊 Using enhanced condition evaluation`)
-    conditionResult = evaluateEnhancedCondition(enhancedCondition)
+    conditionResult = await evaluateEnhancedCondition(enhancedCondition)
     console.log(`📊 Enhanced condition result: ${conditionResult}`)
   } else if (legacyConditions.length > 0) {
     // Fall back to legacy conditions

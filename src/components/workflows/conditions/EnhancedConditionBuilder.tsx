@@ -18,6 +18,7 @@ import {
   ConditionItem
 } from '@/types/conditions';
 import { useConditionFormData, useFormFields } from '@/hooks/useConditionFormData';
+import { useCrossReferenceFields } from '@/hooks/useCrossReferenceFields';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import axios from 'axios';
@@ -1421,6 +1422,9 @@ interface FieldLevelConditionBuilderProps {
 }
 
 const FieldLevelConditionBuilder = React.memo(({ condition, forms, triggerFormId, triggerFormName, onChange }: FieldLevelConditionBuilderProps) => {
+  // Source: 'current' (existing behavior) or 'linkedRecords' (cross-ref traversal)
+  const [source, setSource] = useState<'current' | 'linkedRecords'>(condition?.source || 'current');
+
   // Auto-inherit form from Start node trigger unless user overrides
   const initialForm = condition?.formId || triggerFormId || '';
   const [selectedForm, setSelectedForm] = useState(initialForm);
@@ -1439,7 +1443,20 @@ const FieldLevelConditionBuilder = React.memo(({ condition, forms, triggerFormId
   const [operator, setOperator] = useState<ComparisonOperator>(condition?.operator || '==');
   const [value, setValue] = useState(String(condition?.value ?? ''));
 
-  const { fields, loading } = useFormFields(selectedForm);
+  // Linked-records state
+  const [crossRefFieldId, setCrossRefFieldId] = useState(condition?.crossRefFieldId || '');
+  const [linkedFormId, setLinkedFormId] = useState(condition?.linkedFormId || '');
+  const [linkedFormName, setLinkedFormName] = useState(condition?.linkedFormName || '');
+  const [quantifier, setQuantifier] = useState<'ALL' | 'ANY' | 'NONE' | 'COUNT_GTE'>(condition?.quantifier || 'ANY');
+  const [quantifierCount, setQuantifierCount] = useState<number>(condition?.quantifierCount ?? 1);
+
+  // Cross-ref fields live on the SOURCE form (selectedForm = trigger form usually).
+  const { fields: crossRefFields, loading: crossRefLoading } = useCrossReferenceFields(
+    source === 'linkedRecords' ? selectedForm : undefined
+  );
+  // Fields available for the predicate: linked form when in linkedRecords mode, else current form.
+  const targetFieldsFormId = source === 'linkedRecords' ? linkedFormId : selectedForm;
+  const { fields, loading } = useFormFields(targetFieldsFormId);
 
   // Use ref to store latest onChange to avoid infinite loops
   const onChangeRef = React.useRef(onChange);
@@ -1456,12 +1473,21 @@ const FieldLevelConditionBuilder = React.memo(({ condition, forms, triggerFormId
         fieldId: selectedField,
         fieldType: selectedFieldData?.type || 'text',
         operator,
-        value
+        value,
+        source,
+        crossRefFieldId: source === 'linkedRecords' ? crossRefFieldId : undefined,
+        crossRefFieldLabel: source === 'linkedRecords'
+          ? (crossRefFields.find(c => c.id === crossRefFieldId)?.label)
+          : undefined,
+        linkedFormId: source === 'linkedRecords' ? linkedFormId : undefined,
+        linkedFormName: source === 'linkedRecords' ? linkedFormName : undefined,
+        quantifier: source === 'linkedRecords' ? quantifier : undefined,
+        quantifierCount: source === 'linkedRecords' && quantifier === 'COUNT_GTE' ? quantifierCount : undefined,
       };
       onChangeRef.current(updatedCondition);
     }, 300);
     return () => clearTimeout(timeoutId);
-  }, [selectedForm, selectedField, operator, value, fields, condition?.id]);
+  }, [selectedForm, selectedField, operator, value, fields, condition?.id, source, crossRefFieldId, linkedFormId, linkedFormName, quantifier, quantifierCount, crossRefFields]);
 
   const selectedFieldData = useMemo(() => {
     return fields.find(f => f.id === selectedField);
@@ -1556,9 +1582,92 @@ const FieldLevelConditionBuilder = React.memo(({ condition, forms, triggerFormId
 
   return (
     <div className="space-y-2">
+      {/* Evaluation source toggle */}
+      <div className="flex items-center gap-1 p-1 bg-muted/40 rounded border border-border/50">
+        <button
+          type="button"
+          onClick={() => setSource('current')}
+          className={cn(
+            'flex-1 h-6 text-[10px] font-medium rounded transition-colors',
+            source === 'current' ? 'bg-background shadow-sm' : 'text-muted-foreground hover:text-foreground'
+          )}
+        >
+          Current Record
+        </button>
+        <button
+          type="button"
+          onClick={() => setSource('linkedRecords')}
+          className={cn(
+            'flex-1 h-6 text-[10px] font-medium rounded transition-colors',
+            source === 'linkedRecords' ? 'bg-background shadow-sm' : 'text-muted-foreground hover:text-foreground'
+          )}
+        >
+          Linked Records (Cross-Ref)
+        </button>
+      </div>
+
+      {source === 'linkedRecords' && (
+        <>
+          <div>
+            <Label className="text-xs text-muted-foreground mb-1 block">Cross-Reference Field (on source form)</Label>
+            <Select
+              value={crossRefFieldId}
+              onValueChange={(v) => {
+                setCrossRefFieldId(v);
+                const f = crossRefFields.find(cf => cf.id === v);
+                setLinkedFormId(f?.targetFormId || '');
+                setLinkedFormName(f?.targetFormName || '');
+                setSelectedField('');
+                setValue('');
+              }}
+              disabled={!selectedForm || crossRefLoading}
+            >
+              <SelectTrigger className="h-8 text-xs">
+                <SelectValue placeholder={crossRefLoading ? 'Loading…' : (crossRefFields.length === 0 ? 'No cross-reference fields' : 'Select cross-ref field')} />
+              </SelectTrigger>
+              <SelectContent>
+                {crossRefFields.map(cf => (
+                  <SelectItem key={cf.id} value={cf.id}>
+                    {cf.label}{cf.targetFormName ? ` → ${cf.targetFormName}` : ''}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label className="text-xs text-muted-foreground mb-1 block">Quantifier</Label>
+            <div className="flex gap-1">
+              <Select value={quantifier} onValueChange={(v) => setQuantifier(v as any)}>
+                <SelectTrigger className="h-8 text-xs flex-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ANY">ANY linked record matches</SelectItem>
+                  <SelectItem value="ALL">ALL linked records match</SelectItem>
+                  <SelectItem value="NONE">NONE match</SelectItem>
+                  <SelectItem value="COUNT_GTE">COUNT of matches ≥ N</SelectItem>
+                </SelectContent>
+              </Select>
+              {quantifier === 'COUNT_GTE' && (
+                <Input
+                  type="number"
+                  min={1}
+                  value={quantifierCount}
+                  onChange={(e) => setQuantifierCount(Math.max(1, Number(e.target.value) || 1))}
+                  className="h-8 w-20 text-xs"
+                />
+              )}
+            </div>
+          </div>
+        </>
+      )}
+
       <div>
         <div className="flex items-center justify-between mb-1">
-          <Label className="text-xs text-muted-foreground">Form</Label>
+          <Label className="text-xs text-muted-foreground">
+            {source === 'linkedRecords' ? 'Source Form (holds cross-ref)' : 'Form'}
+          </Label>
           {triggerFormId && (
             <button
               type="button"
@@ -1610,8 +1719,14 @@ const FieldLevelConditionBuilder = React.memo(({ condition, forms, triggerFormId
       </div>
 
       <div>
-        <Label className="text-xs text-muted-foreground mb-1 block">Field</Label>
-        <Select value={selectedField} onValueChange={(v) => { setSelectedField(v); setValue(''); }} disabled={!selectedForm || loading}>
+        <Label className="text-xs text-muted-foreground mb-1 block">
+          {source === 'linkedRecords' ? `Field (on ${linkedFormName || 'linked form'})` : 'Field'}
+        </Label>
+        <Select
+          value={selectedField}
+          onValueChange={(v) => { setSelectedField(v); setValue(''); }}
+          disabled={(source === 'linkedRecords' ? !linkedFormId : !selectedForm) || loading}
+        >
           <SelectTrigger className="h-8 text-xs">
             <SelectValue placeholder={loading ? "Loading..." : "Select field"} />
           </SelectTrigger>
