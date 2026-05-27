@@ -168,6 +168,12 @@ Deno.serve(async (req) => {
               case 'days':
                 resumeTime.setDate(resumeTime.getDate() + waitDuration)
                 break
+              case 'weeks':
+                resumeTime.setDate(resumeTime.getDate() + waitDuration * 7)
+                break
+              default:
+                console.warn(`⚠️ Unknown wait unit "${waitUnit}", defaulting to minutes`)
+                resumeTime.setMinutes(resumeTime.getMinutes() + waitDuration)
             }
 
             await supabase
