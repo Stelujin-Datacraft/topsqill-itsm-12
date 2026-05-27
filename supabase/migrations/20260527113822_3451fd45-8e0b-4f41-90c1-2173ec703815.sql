@@ -1,0 +1,2 @@
+ALTER TABLE public.workflows DROP CONSTRAINT workflows_status_check;
+ALTER TABLE public.workflows ADD CONSTRAINT workflows_status_check CHECK (status = ANY (ARRAY['draft'::text, 'active'::text, 'inactive'::text, 'paused'::text, 'archived'::text]));
