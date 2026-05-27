@@ -12,7 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Plus, FileText, Calendar, User, Eye, Edit, Trash2, Play, Share2, Copy } from 'lucide-react';
+import { Plus, FileText, Calendar, User, Eye, Edit, Trash2, Play, Pause, Share2, Copy } from 'lucide-react';
 import { ShareLinkButton } from '@/components/shared/ShareLinkButton';
 import { format } from 'date-fns';
 import { CreateWorkflowDialog } from './CreateWorkflowDialog';
@@ -82,6 +82,30 @@ export function WorkflowsList({ workflows, onEdit, onDelete, onView, getPermissi
       toast({
         title: "Error",
         description: "Failed to activate workflow",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeactivateWorkflow = async (workflow: Workflow) => {
+    if (!checkPermissionWithAlert('workflows', 'update', workflow.id)) {
+      return;
+    }
+
+    try {
+      await updateWorkflow({
+        ...workflow,
+        status: 'inactive'
+      });
+      toast({
+        title: "Workflow deactivated",
+        description: "This workflow will no longer be triggered until reactivated.",
+      });
+    } catch (error) {
+      console.error('Error deactivating workflow:', error);
+      toast({
+        title: "Error",
+        description: "Failed to deactivate workflow",
         variant: "destructive",
       });
     }
@@ -263,6 +287,29 @@ export function WorkflowsList({ workflows, onEdit, onDelete, onView, getPermissi
                     >
                       <Play className="h-4 w-4 mr-2 text-primary" />
                       Activate Workflow
+                    </Button>
+                  )}
+
+                  {workflow.status === 'active' && !editButtonState.disabled && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => handleDeactivateWorkflow(workflow)}
+                    >
+                      <Pause className="h-4 w-4 mr-2 text-primary" />
+                      Deactivate Workflow
+                    </Button>
+                  )}
+
+                  {workflow.status === 'inactive' && !editButtonState.disabled && (
+                    <Button
+                      size="sm"
+                      className="w-full"
+                      onClick={() => handleActivateWorkflow(workflow)}
+                    >
+                      <Play className="h-4 w-4 mr-2 text-primary" />
+                      Reactivate Workflow
                     </Button>
                   )}
                 </CardContent>
