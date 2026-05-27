@@ -46,6 +46,17 @@ export interface FieldLevelCondition {
   fieldType: string;
   operator: ComparisonOperator;
   value: any;
+  // Linked-records evaluation (cross-reference traversal)
+  // When source === 'linkedRecords', the engine reads the cross-reference
+  // field on the trigger/source record, fetches each linked submission,
+  // evaluates (fieldId/operator/value) on each, and applies the quantifier.
+  source?: 'current' | 'linkedRecords';
+  crossRefFieldId?: string;
+  crossRefFieldLabel?: string;
+  linkedFormId?: string;
+  linkedFormName?: string;
+  quantifier?: 'ALL' | 'ANY' | 'NONE' | 'COUNT_GTE';
+  quantifierCount?: number;
 }
 
 export interface SimpleCondition {
