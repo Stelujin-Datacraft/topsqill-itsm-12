@@ -1719,8 +1719,14 @@ const FieldLevelConditionBuilder = React.memo(({ condition, forms, triggerFormId
       </div>
 
       <div>
-        <Label className="text-xs text-muted-foreground mb-1 block">Field</Label>
-        <Select value={selectedField} onValueChange={(v) => { setSelectedField(v); setValue(''); }} disabled={!selectedForm || loading}>
+        <Label className="text-xs text-muted-foreground mb-1 block">
+          {source === 'linkedRecords' ? `Field (on ${linkedFormName || 'linked form'})` : 'Field'}
+        </Label>
+        <Select
+          value={selectedField}
+          onValueChange={(v) => { setSelectedField(v); setValue(''); }}
+          disabled={(source === 'linkedRecords' ? !linkedFormId : !selectedForm) || loading}
+        >
           <SelectTrigger className="h-8 text-xs">
             <SelectValue placeholder={loading ? "Loading..." : "Select field"} />
           </SelectTrigger>
