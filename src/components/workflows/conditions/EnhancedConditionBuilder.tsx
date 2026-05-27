@@ -18,6 +18,7 @@ import {
   ConditionItem
 } from '@/types/conditions';
 import { useConditionFormData, useFormFields } from '@/hooks/useConditionFormData';
+import { useCrossReferenceFields } from '@/hooks/useCrossReferenceFields';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import axios from 'axios';
