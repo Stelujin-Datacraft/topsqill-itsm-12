@@ -142,9 +142,19 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
 
       // Build field labels map for history logging
       const fieldLabels: Record<string, string> = {};
+      // Normalise fields so the resolver can read .type/.options
+      const fieldsForHistory = formFields.map((f: any) => ({
+        id: f.id,
+        type: f.field_type || f.type,
+        options: f.field_options?.options || f.options,
+      }));
       formFields.forEach(field => {
         fieldLabels[field.id] = field.label || field.id;
       });
+      const historyLookups = {
+        getUserDisplayName,
+        getGroupDisplayName,
+      };
 
       for (const update of updates) {
         const { error } = await supabase
@@ -161,7 +171,9 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
           const changes = detectRecordChanges(
             originalData[update.id],
             update.submission_data,
-            fieldLabels
+            fieldLabels,
+            fieldsForHistory,
+            historyLookups
           );
 
           if (changes.length > 0) {
@@ -1439,36 +1451,6 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => {
-                        const url = typeof value === 'string' ? value : value.url;
-                        if (url) window.open(url, '_blank');
-                      }}
-                      className="h-7 px-2"
-                      disabled={isDisabled}
-                    >
-                      <Eye className="h-3 w-3" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        const url = typeof value === 'string' ? value : value.url;
-                        const name = typeof value === 'string' ? value.split('/').pop() : value.name;
-                        if (url) {
-                          const link = document.createElement('a');
-                          link.href = url;
-                          link.download = name || 'file';
-                          link.click();
-                        }
-                      }}
-                       disabled={isDisabled}
-                      className="h-7 px-2"
-                    >
-                      Download
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
                       onClick={() => handleFieldChange(submissionId, field.id, null)}
                       className="h-7 px-2 text-red-500"
                       disabled={isDisabled}
@@ -1491,19 +1473,6 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
         return (
           <div className="flex items-center gap-2">
             <span className="text-sm truncate">{fileName}</span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                const url = typeof value === 'string' ? value : value.url;
-                if (url) window.open(url, '_blank');
-              }}
-
-              disabled={isDisabled}
-              className="h-7 px-2"
-            >
-              <Eye className="h-3 w-3" />
-            </Button>
           </div>
         );
       }

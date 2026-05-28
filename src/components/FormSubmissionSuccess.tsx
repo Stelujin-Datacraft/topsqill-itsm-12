@@ -73,13 +73,6 @@ export function FormSubmissionSuccess({
             </Link>
           )}
           
-          <Link to="/my-submissions">
-            <Button variant="outline" className="w-full">
-              <FileText className="h-4 w-4 mr-2" />
-              View All My Submissions
-            </Button>
-          </Link>
-          
           {onClose && (
             <Button variant="ghost" onClick={onClose} className="w-full">
               <ArrowLeft className="h-4 w-4 mr-2" />

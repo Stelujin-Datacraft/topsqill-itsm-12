@@ -10,13 +10,12 @@ import { useProject } from '@/contexts/ProjectContext';
 import { FormField, FormPage, Form } from '@/types/form';
 import { FormPreview } from './FormPreview';
 import { FormSharing } from './FormSharing';
-import { FormSubmissions } from './FormSubmissions';
 import { FormUserAccess } from './FormUserAccess';
 import { EnhancedFieldRuleBuilder } from './rules/EnhancedFieldRuleBuilder';
 import { EnhancedFormRuleBuilder } from './rules/EnhancedFormRuleBuilder';
 import { AIRuleSuggester } from './ai/AIRuleSuggester';
 import { FormNavigationPanel } from './FormNavigationPanel';
-import { Zap, Users, Database, Settings, Save, ArrowLeft, Undo2 } from 'lucide-react';
+import { Zap, Users, Settings, Save, ArrowLeft, Undo2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { schemaCache } from '@/services/schemaCache';
 
@@ -455,7 +454,7 @@ function FormBuilderContent({
         <div className="flex-1 bg-white overflow-hidden min-h-0">
           <Tabs defaultValue="builder" className="w-full h-full flex flex-col">
             <div className="bg-white border-b border-gray-200 px-4 flex items-center justify-between gap-2">
-              <TabsList className="grid grid-cols-6 max-w-2xl">
+              <TabsList className="grid grid-cols-5 max-w-2xl">
                 <TabsTrigger value="details" className="flex items-center gap-2">
                   <Settings className="h-4 w-4" />
                   Details
@@ -469,10 +468,6 @@ function FormBuilderContent({
                   Rules
                 </TabsTrigger>
                 <TabsTrigger value="preview">Preview</TabsTrigger>
-                <TabsTrigger value="submissions" className="flex items-center gap-2">
-                  <Database className="h-4 w-4" />
-                  Data
-                </TabsTrigger>
                 <TabsTrigger value="access" className="flex items-center gap-2">
                   <Users className="h-4 w-4" />
                   Access
@@ -671,16 +666,6 @@ function FormBuilderContent({
                 </div> : <Card className="bg-white shadow-sm">
                   <CardContent className="py-12 text-center">
                     <p className="text-muted-foreground">Create a form first to see the preview</p>
-                  </CardContent>
-                </Card>}
-            </TabsContent>
-
-            <TabsContent value="submissions" className="p-0 pt-4 flex-1 overflow-y-auto min-h-0 mt-0">
-              {currentForm ? <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-                  <FormSubmissions form={currentForm} />
-                </div> : <Card className="bg-white shadow-sm">
-                  <CardContent className="py-12 text-center">
-                    <p className="text-muted-foreground">Save your form first to view submissions</p>
                   </CardContent>
                 </Card>}
             </TabsContent>

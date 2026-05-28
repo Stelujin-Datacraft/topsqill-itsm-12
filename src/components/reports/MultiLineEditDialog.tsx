@@ -148,6 +148,15 @@ export function MultiLineEditDialog({
       formFields.forEach(field => {
         fieldLabels[field.id] = field.label || field.id;
       });
+      const fieldsForHistory = formFields.map((f: any) => ({
+        id: f.id,
+        type: f.field_type || f.type,
+        options: f.field_options?.options || f.options,
+      }));
+      const historyLookups = {
+        getUserDisplayName,
+        getGroupDisplayName,
+      };
 
       // Perform bulk update
       for (const update of updates) {
@@ -165,7 +174,9 @@ export function MultiLineEditDialog({
           const changes = detectRecordChanges(
             originalData[update.id],
             update.submission_data,
-            fieldLabels
+            fieldLabels,
+            fieldsForHistory,
+            historyLookups
           );
 
           if (changes.length > 0) {
@@ -795,34 +806,6 @@ const renderFieldInput = (field: any, value: any, submissionId: string
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => {
-                        const url = typeof value === 'string' ? value : value.url;
-                        if (url) window.open(url, '_blank');
-                      }}
-                      className="h-7 px-2"
-                    >
-                      <Eye className="h-3 w-3" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        const url = typeof value === 'string' ? value : value.url;
-                        const name = typeof value === 'string' ? value.split('/').pop() : value.name;
-                        if (url) {
-                          const link = document.createElement('a');
-                          link.href = url;
-                          link.download = name || 'file';
-                          link.click();
-                        }
-                      }}
-                      className="h-7 px-2"
-                    >
-                      Download
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
                       onClick={() => handleFieldValueChange(submissionId, field.id, null)}
                       className="h-7 px-2 text-red-500"
                     >
@@ -843,17 +826,6 @@ const renderFieldInput = (field: any, value: any, submissionId: string
         return (
           <div className="flex items-center gap-2">
             <span className="text-sm truncate">{fileName}</span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                const url = typeof value === 'string' ? value : value.url;
-                if (url) window.open(url, '_blank');
-              }}
-              className="h-7 px-2"
-            >
-              <Eye className="h-3 w-3" />
-            </Button>
           </div>
         );
       }
