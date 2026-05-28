@@ -653,7 +653,7 @@ export function CreateCombinationRecordsConfig({
                               }
                             })}
                             placeholder="Select user field on target form"
-                            filterTypes={['user-picker', 'assignee']}
+                            filterTypes={['user-picker', 'assignee', 'submission-access']}
                           />
                         ) : (
                           <p className="text-xs text-amber-600">Select the target form first.</p>
