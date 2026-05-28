@@ -826,17 +826,6 @@ const renderFieldInput = (field: any, value: any, submissionId: string
         return (
           <div className="flex items-center gap-2">
             <span className="text-sm truncate">{fileName}</span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                const url = typeof value === 'string' ? value : value.url;
-                if (url) window.open(url, '_blank');
-              }}
-              className="h-7 px-2"
-            >
-              <Eye className="h-3 w-3" />
-            </Button>
           </div>
         );
       }
