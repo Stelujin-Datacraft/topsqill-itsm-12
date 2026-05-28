@@ -1067,6 +1067,7 @@ async function executeCreateCombinationRecords(
       // Field mappings from TRIGGER form
       for (const mapping of fieldMappings) {
         if (!mapping.sourceFieldId || !mapping.targetFieldId) continue
+        if (isSkippedAccessTarget(mapping.targetFieldId)) { perUserSkippedMappings++; continue }
         const value = triggerSubmissionData?.[mapping.sourceFieldId]
         if (value !== undefined && value !== null && value !== '') {
           submissionData[mapping.targetFieldId] = value
@@ -1078,6 +1079,7 @@ async function executeCreateCombinationRecords(
         const linkedData = linkedRecordsDataMap.get(firstRef.submission_ref_id)
         if (linkedData) {
           for (const mapping of linkedFormFieldMappings) {
+            if (isSkippedAccessTarget(mapping.targetFieldId)) { perUserSkippedMappings++; continue }
             const value = linkedData[mapping.sourceFieldId]
             if (value !== undefined && value !== null && value !== '') {
               submissionData[mapping.targetFieldId] = value
@@ -1091,6 +1093,7 @@ async function executeCreateCombinationRecords(
         const secondLinkedData = linkedRecordsDataMap.get(secondRef.submission_ref_id)
         if (secondLinkedData) {
           for (const mapping of secondLinkedFormFieldMappings) {
+            if (isSkippedAccessTarget(mapping.targetFieldId)) { perUserSkippedMappings++; continue }
             const value = secondLinkedData[mapping.sourceFieldId]
             if (value !== undefined && value !== null && value !== '') {
               submissionData[mapping.targetFieldId] = value
