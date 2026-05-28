@@ -148,6 +148,15 @@ export function MultiLineEditDialog({
       formFields.forEach(field => {
         fieldLabels[field.id] = field.label || field.id;
       });
+      const fieldsForHistory = formFields.map((f: any) => ({
+        id: f.id,
+        type: f.field_type || f.type,
+        options: f.field_options?.options || f.options,
+      }));
+      const historyLookups = {
+        getUserDisplayName,
+        getGroupDisplayName,
+      };
 
       // Perform bulk update
       for (const update of updates) {
@@ -165,7 +174,9 @@ export function MultiLineEditDialog({
           const changes = detectRecordChanges(
             originalData[update.id],
             update.submission_data,
-            fieldLabels
+            fieldLabels,
+            fieldsForHistory,
+            historyLookups
           );
 
           if (changes.length > 0) {

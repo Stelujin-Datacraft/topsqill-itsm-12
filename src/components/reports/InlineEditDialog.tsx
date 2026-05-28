@@ -142,9 +142,19 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
 
       // Build field labels map for history logging
       const fieldLabels: Record<string, string> = {};
+      // Normalise fields so the resolver can read .type/.options
+      const fieldsForHistory = formFields.map((f: any) => ({
+        id: f.id,
+        type: f.field_type || f.type,
+        options: f.field_options?.options || f.options,
+      }));
       formFields.forEach(field => {
         fieldLabels[field.id] = field.label || field.id;
       });
+      const historyLookups = {
+        getUserDisplayName,
+        getGroupDisplayName,
+      };
 
       for (const update of updates) {
         const { error } = await supabase
@@ -161,7 +171,9 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
           const changes = detectRecordChanges(
             originalData[update.id],
             update.submission_data,
-            fieldLabels
+            fieldLabels,
+            fieldsForHistory,
+            historyLookups
           );
 
           if (changes.length > 0) {
