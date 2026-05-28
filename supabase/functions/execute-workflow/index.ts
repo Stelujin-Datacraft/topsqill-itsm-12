@@ -1145,6 +1145,8 @@ async function executeCreateCombinationRecords(
     createdCount: createdRecordIds.length,
     createdRecordIds,
     skippedDuplicates,
+    perUserExpansion: perUserEnabled,
+    perUserSkippedSources,
     updatedTriggerCrossRef,
     targetFormId: config.targetFormId,
     combinationMode
