@@ -848,18 +848,158 @@ async function executeCreateCombinationRecords(
   const initialStatus = config.initialStatus || 'pending'
   const fieldMappings = Array.isArray(config.fieldMappings) ? config.fieldMappings : []
 
-  for (const firstRef of firstSourceRefs) {
-    for (const secondRef of secondSourceRefs) {
-      // Duplicate check key
-      if (preventDuplicates) {
-        const keyParts = [firstRef.submission_ref_id]
-        if (combinationMode === 'dual' && secondRef.submission_ref_id) keyParts.push(secondRef.submission_ref_id)
-        const k = keyParts.sort().join('|')
-        if (existingCombinations.has(k)) { skippedDuplicates++; continue }
-        existingCombinations.add(k)
+  // ---- PER-USER EXPANSION SETUP ----
+  const perUserCfg = config.perUserExpansion
+  const perUserEnabled = !!perUserCfg?.enabled
+  const expansionSource: 'first_source' | 'second_source' = perUserCfg?.source || 'first_source'
+  const assignTo: 'submitted_by' | 'field' | 'both' = perUserCfg?.assignTo || 'both'
+
+  // Ensure source records' submission data is fetched (for reading the access field)
+  // and resolve the access field id if not explicitly provided.
+  const expansionUsersByRef = new Map<string, string[]>()
+  let perUserSkippedSources = 0
+
+  if (perUserEnabled) {
+    const sourceRefs = expansionSource === 'second_source' ? secondSourceRefs : firstSourceRefs
+    const sourceFormId = expansionSource === 'second_source' ? config.secondSourceLinkedFormId : config.sourceLinkedFormId
+    const sourceRefIds = sourceRefs.map(r => r.submission_ref_id).filter(Boolean)
+
+    // Resolve access field id (auto-detect when not provided)
+    let accessFieldId: string | null = perUserCfg?.sourceAccessFieldId || null
+    let accessFieldType: string | null = null
+    if (sourceFormId) {
+      if (!accessFieldId) {
+        const { data: fields } = await supabase
+          .from('form_fields')
+          .select('id, field_type')
+          .eq('form_id', sourceFormId)
+          .in('field_type', ['submission-access', 'group-picker'])
+        if (fields && fields.length > 0) {
+          const accessFirst = fields.find((f: any) => f.field_type === 'submission-access') || fields[0]
+          accessFieldId = accessFirst.id
+          accessFieldType = accessFirst.field_type
+        }
+      } else {
+        const { data: f } = await supabase
+          .from('form_fields')
+          .select('field_type')
+          .eq('id', accessFieldId)
+          .maybeSingle()
+        accessFieldType = f?.field_type || null
+      }
+    }
+
+    // Fetch source submissions if missing from cache
+    const missing = sourceRefIds.filter(rid => !linkedRecordsDataMap.has(rid))
+    if (missing.length > 0) {
+      const { data: extraSubs } = await supabase
+        .from('form_submissions')
+        .select('submission_ref_id, submission_data')
+        .in('submission_ref_id', missing)
+      if (extraSubs) {
+        for (const sub of extraSubs) {
+          if (sub.submission_ref_id) linkedRecordsDataMap.set(sub.submission_ref_id, (sub.submission_data || {}) as Record<string, any>)
+        }
+      }
+    }
+
+    // Parse value into { users, groups }
+    const parseAccessValue = (raw: any): { users: string[]; groups: string[] } => {
+      const users: string[] = []
+      const groups: string[] = []
+      if (!raw) return { users, groups }
+      let v: any = raw
+      if (typeof v === 'string') {
+        try { v = JSON.parse(v) } catch { /* leave as string */ }
+      }
+      if (Array.isArray(v)) {
+        for (const item of v) {
+          if (typeof item === 'string') {
+            if (item.startsWith('user:')) users.push(item.slice(5))
+            else if (item.startsWith('group:')) groups.push(item.slice(6))
+            else groups.push(item) // group-picker often stores raw IDs
+          } else if (item && typeof item === 'object') {
+            if (item.id) groups.push(item.id)
+          }
+        }
+      } else if (v && typeof v === 'object') {
+        if (Array.isArray(v.users)) users.push(...v.users)
+        if (Array.isArray(v.groups)) groups.push(...v.groups)
+      } else if (typeof v === 'string') {
+        groups.push(v)
+      }
+      return { users, groups }
+    }
+
+    // Resolve group members in one batched call
+    for (const rid of sourceRefIds) {
+      const subData = linkedRecordsDataMap.get(rid) || {}
+      let parsed = { users: [] as string[], groups: [] as string[] }
+      if (accessFieldId) parsed = parseAccessValue(subData[accessFieldId])
+
+      // Primary source: access field. If empty, fall back to scanning for any submission-access/group-picker value in the record.
+      if (parsed.users.length === 0 && parsed.groups.length === 0) {
+        for (const [, val] of Object.entries(subData)) {
+          const tryParsed = parseAccessValue(val)
+          if (tryParsed.users.length || tryParsed.groups.length) {
+            // Only accept object-shaped access values (avoid false positives from arrays of refs)
+            if (val && typeof val === 'object' && !Array.isArray(val) && ((val as any).users || (val as any).groups)) {
+              parsed = tryParsed
+              break
+            }
+          }
+        }
       }
 
-      const submissionData: Record<string, any> = {}
+      const userSet = new Set<string>(parsed.users)
+      if (parsed.groups.length > 0) {
+        const { data: members } = await supabase
+          .from('group_memberships')
+          .select('member_id, member_type')
+          .in('group_id', parsed.groups)
+          .eq('member_type', 'user')
+        if (members) {
+          for (const m of members) if (m.member_id) userSet.add(m.member_id)
+        }
+      }
+
+      const userList = Array.from(userSet)
+      if (userList.length === 0) {
+        perUserSkippedSources++
+      } else {
+        expansionUsersByRef.set(rid, userList)
+      }
+    }
+
+    console.log(`👥 Per-user expansion: ${expansionUsersByRef.size} source(s) with users, ${perUserSkippedSources} skipped`)
+  }
+
+  for (const firstRef of firstSourceRefs) {
+    for (const secondRef of secondSourceRefs) {
+      // Resolve users for this iteration (per-user expansion)
+      let userIterList: Array<string | null> = [null]
+      if (perUserEnabled) {
+        const expRef = expansionSource === 'second_source' ? secondRef.submission_ref_id : firstRef.submission_ref_id
+        const users = expRef ? expansionUsersByRef.get(expRef) : undefined
+        if (!users || users.length === 0) {
+          // Skip — fallback policy: do NOT create record when no users
+          continue
+        }
+        userIterList = users
+      }
+
+      for (const assignedUserId of userIterList) {
+        // Duplicate check key (includes user when expanding)
+        if (preventDuplicates) {
+          const keyParts = [firstRef.submission_ref_id]
+          if (combinationMode === 'dual' && secondRef.submission_ref_id) keyParts.push(secondRef.submission_ref_id)
+          if (perUserEnabled && assignedUserId) keyParts.push(`u:${assignedUserId}`)
+          const k = keyParts.sort().join('|')
+          if (existingCombinations.has(k)) { skippedDuplicates++; continue }
+          existingCombinations.add(k)
+        }
+
+        const submissionData: Record<string, any> = {}
 
       if (Array.isArray(config.targetLinkFields)) {
         for (const targetLinkField of config.targetLinkFields) {
@@ -929,24 +1069,36 @@ async function executeCreateCombinationRecords(
         }
       }
 
-      const { data: created, error: createError } = await supabase
-        .from('form_submissions')
-        .insert({
-          form_id: config.targetFormId,
-          submission_data: submissionData,
-          submitted_by: submitterId || triggerData?.submitterId || null,
-          approval_status: initialStatus
-        })
-        .select('id, submission_ref_id')
-        .single()
+        // Per-user assignment
+        let recordSubmittedBy: string | null = submitterId || triggerData?.submitterId || null
+        if (perUserEnabled && assignedUserId) {
+          if (assignTo === 'submitted_by' || assignTo === 'both') {
+            recordSubmittedBy = assignedUserId
+          }
+          if ((assignTo === 'field' || assignTo === 'both') && perUserCfg?.userFieldId) {
+            submissionData[perUserCfg.userFieldId] = assignedUserId
+          }
+        }
 
-      if (createError) {
-        console.error('❌ Failed to create combination record:', createError)
-        continue
+        const { data: created, error: createError } = await supabase
+          .from('form_submissions')
+          .insert({
+            form_id: config.targetFormId,
+            submission_data: submissionData,
+            submitted_by: recordSubmittedBy,
+            approval_status: initialStatus
+          })
+          .select('id, submission_ref_id')
+          .single()
+
+        if (createError) {
+          console.error('❌ Failed to create combination record:', createError)
+          continue
+        }
+
+        createdRecordIds.push(created.id)
+        createdRecords.push({ id: created.id, submission_ref_id: created.submission_ref_id || '' })
       }
-
-      createdRecordIds.push(created.id)
-      createdRecords.push({ id: created.id, submission_ref_id: created.submission_ref_id || '' })
     }
   }
 
