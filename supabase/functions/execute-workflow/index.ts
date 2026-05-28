@@ -871,6 +871,24 @@ async function executeCreateCombinationRecords(
     if (tf?.field_type === 'submission-access') perUserTargetIsAccessField = true
   }
 
+  // When per-user expansion is enabled, any field mapping that targets a
+  // submission-access field on the target form must be skipped — otherwise
+  // the mapping would copy the full group/users list into the access field
+  // and every per-user record would be visible to all users in the group,
+  // defeating the point of expansion. Per-user expansion is authoritative.
+  const targetAccessFieldIds = new Set<string>()
+  if (perUserEnabled && config.targetFormId) {
+    const { data: accessFields } = await supabase
+      .from('form_fields')
+      .select('id')
+      .eq('form_id', config.targetFormId)
+      .eq('field_type', 'submission-access')
+    for (const f of accessFields || []) targetAccessFieldIds.add(f.id)
+  }
+  const isSkippedAccessTarget = (targetFieldId: string) =>
+    perUserEnabled && targetAccessFieldIds.has(targetFieldId)
+  let perUserSkippedMappings = 0
+
   if (perUserEnabled) {
     const sourceRefs = expansionSource === 'second_source' ? secondSourceRefs : firstSourceRefs
     const sourceFormId = expansionSource === 'second_source' ? config.secondSourceLinkedFormId : config.sourceLinkedFormId
