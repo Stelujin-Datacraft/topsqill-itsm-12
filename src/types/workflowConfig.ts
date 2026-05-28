@@ -170,6 +170,27 @@ export interface CreateCombinationRecordsConfig {
   // --- AUTO-LINK BACK TO TRIGGER ---
   updateTriggerCrossRefFieldId?: string;
   updateTriggerCrossRefFieldName?: string;
+
+  // --- PER-USER EXPANSION (from group on source record) ---
+  // When enabled, instead of creating ONE record per source, create ONE record
+  // per user resolved from the source record's submission-access (or group-picker) field.
+  perUserExpansion?: PerUserExpansionConfig;
+}
+
+export interface PerUserExpansionConfig {
+  enabled: boolean;
+  // Which source drives the expansion
+  source: 'first_source' | 'second_source';
+  // How to write the user onto each created record
+  assignTo: 'submitted_by' | 'field' | 'both';
+  // Required when assignTo is 'field' or 'both' — the user-picker field on the TARGET form
+  userFieldId?: string;
+  userFieldName?: string;
+  // Optional explicit field on the SOURCE form to read group/users from.
+  // If omitted, the executor auto-detects the first submission-access field on the source form,
+  // then falls back to a group-picker field.
+  sourceAccessFieldId?: string;
+  sourceAccessFieldName?: string;
 }
 
 // Configuration for which target cross-ref fields to auto-link
