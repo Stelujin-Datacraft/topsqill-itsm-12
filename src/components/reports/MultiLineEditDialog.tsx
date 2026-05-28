@@ -795,34 +795,6 @@ const renderFieldInput = (field: any, value: any, submissionId: string
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => {
-                        const url = typeof value === 'string' ? value : value.url;
-                        if (url) window.open(url, '_blank');
-                      }}
-                      className="h-7 px-2"
-                    >
-                      <Eye className="h-3 w-3" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        const url = typeof value === 'string' ? value : value.url;
-                        const name = typeof value === 'string' ? value.split('/').pop() : value.name;
-                        if (url) {
-                          const link = document.createElement('a');
-                          link.href = url;
-                          link.download = name || 'file';
-                          link.click();
-                        }
-                      }}
-                      className="h-7 px-2"
-                    >
-                      Download
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
                       onClick={() => handleFieldValueChange(submissionId, field.id, null)}
                       className="h-7 px-2 text-red-500"
                     >

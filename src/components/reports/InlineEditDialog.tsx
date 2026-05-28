@@ -1461,12 +1461,6 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
         return (
           <div className="flex items-center gap-2">
             <span className="text-sm truncate">{fileName}</span>
-
-              disabled={isDisabled}
-              className="h-7 px-2"
-            >
-              <Eye className="h-3 w-3" />
-            </Button>
           </div>
         );
       }
