@@ -10,13 +10,12 @@ import { useProject } from '@/contexts/ProjectContext';
 import { FormField, FormPage, Form } from '@/types/form';
 import { FormPreview } from './FormPreview';
 import { FormSharing } from './FormSharing';
-import { FormSubmissions } from './FormSubmissions';
 import { FormUserAccess } from './FormUserAccess';
 import { EnhancedFieldRuleBuilder } from './rules/EnhancedFieldRuleBuilder';
 import { EnhancedFormRuleBuilder } from './rules/EnhancedFormRuleBuilder';
 import { AIRuleSuggester } from './ai/AIRuleSuggester';
 import { FormNavigationPanel } from './FormNavigationPanel';
-import { Zap, Users, Database, Settings, Save, ArrowLeft, Undo2 } from 'lucide-react';
+import { Zap, Users, Settings, Save, ArrowLeft, Undo2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { schemaCache } from '@/services/schemaCache';
 
