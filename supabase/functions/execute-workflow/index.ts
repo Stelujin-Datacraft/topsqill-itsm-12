@@ -859,6 +859,18 @@ async function executeCreateCombinationRecords(
   const expansionUsersByRef = new Map<string, string[]>()
   let perUserSkippedSources = 0
 
+  // Detect if the per-user target field is a submission-access field so we can
+  // write the correct value shape ({ users, groups } vs raw user id).
+  let perUserTargetIsAccessField = false
+  if (perUserEnabled && perUserCfg?.userFieldId && config.targetFormId) {
+    const { data: tf } = await supabase
+      .from('form_fields')
+      .select('field_type')
+      .eq('id', perUserCfg.userFieldId)
+      .maybeSingle()
+    if (tf?.field_type === 'submission-access') perUserTargetIsAccessField = true
+  }
+
   if (perUserEnabled) {
     const sourceRefs = expansionSource === 'second_source' ? secondSourceRefs : firstSourceRefs
     const sourceFormId = expansionSource === 'second_source' ? config.secondSourceLinkedFormId : config.sourceLinkedFormId
