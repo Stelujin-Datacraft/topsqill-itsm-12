@@ -75,7 +75,6 @@ const FormSubmission = lazyWithRetry(() => import("./pages/FormSubmission"));
 const PublicFormView = lazyWithRetry(() => import("./pages/PublicFormView"));
 const FormPreviewPage = lazyWithRetry(() => import("./pages/FormPreviewPage"));
 const FormAccessManagement = lazyWithRetry(() => import("./pages/FormAccessManagement"));
-const MySubmissions = lazyWithRetry(() => import("./pages/MySubmissions"));
 const SubmissionView = lazyWithRetry(() => import("./pages/SubmissionView"));
 const FormSubmissionsTable = lazyWithRetry(() => import("./pages/FormSubmissionsTable"));
 
@@ -224,7 +223,6 @@ const App = () => (
                         <Route path="/form/:id/preview" element={<FormPreviewPage />} />
                         <Route path="/form/:id/access" element={<FormAccessManagement />} />
                         <Route path="/form/:id/settings" element={<FormView />} />
-                        <Route path="/my-submissions" element={<MySubmissions />} />
                         <Route path="/submission/:submissionId" element={<SubmissionView />} />
                         <Route path="/form-submissions" element={<FormSubmissionsTable />} />
                         

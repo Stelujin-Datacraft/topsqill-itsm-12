@@ -17,7 +17,6 @@ const CRITICAL_MODULE_IMPORTS: Record<string, () => Promise<unknown>> = {
   '/projects': () => import('@/pages/Projects'),
   '/users': () => import('@/pages/Users'),
   '/data-feeds': () => import('@/pages/DataFeeds'),
-  '/my-submissions': () => import('@/pages/MySubmissions'),
   '/form-submissions': () => import('@/pages/FormSubmissionsTable'),
   '/settings': () => import('@/pages/SettingsPage'),
 };

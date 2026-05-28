@@ -15,7 +15,7 @@ import {
 import { useUnifiedAccessControl } from '@/hooks/useUnifiedAccessControl';
 import { useProject } from '@/contexts/ProjectContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { BarChart3, History, FileText, Timer, MoreVertical, FileSpreadsheet } from 'lucide-react';
+import { BarChart3, History, Timer, MoreVertical, FileSpreadsheet } from 'lucide-react';
 import NoProjectSelected from '@/components/NoProjectSelected';
 import { AIFormGenerator } from '@/components/ai/AIFormGenerator';
 import { ExcelFormImporter } from '@/components/ExcelFormImporter';
@@ -263,10 +263,6 @@ const Forms = () => {
               </DropdownMenuItem>
             </ExcelFormImporter>
           )}
-          <DropdownMenuItem onClick={() => navigate('/my-submissions')}>
-            <FileText className="h-4 w-4 mr-2 text-primary" />
-            My Submissions
-          </DropdownMenuItem>
           <DropdownMenuItem onClick={() => navigate('/form-audit-logs')}>
             <History className="h-4 w-4 mr-2 text-primary" />
             Form History

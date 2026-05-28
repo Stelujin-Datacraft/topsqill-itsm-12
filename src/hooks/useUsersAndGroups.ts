@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useOrganization } from '@/contexts/OrganizationContext';
 
 interface User {
   id: string;
@@ -14,6 +15,7 @@ interface Group {
 }
 
 export function useUsersAndGroups() {
+  const { currentOrganization } = useOrganization();
   const [users, setUsers] = useState<User[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
@@ -21,13 +23,22 @@ export function useUsersAndGroups() {
 
   useEffect(() => {
     const fetchData = async () => {
+      // Scope to the current organization. Without an organization we
+      // must not leak users/groups from other tenants.
+      if (!currentOrganization?.id) {
+        setUsers([]);
+        setGroups([]);
+        setLoading(false);
+        return;
+      }
       try {
         setLoading(true);
         
-        // Fetch users from user_profiles
+        // Fetch users in the current organization
         const { data: usersData, error: usersError } = await supabase
           .from('user_profiles')
-          .select('id, email, first_name, last_name');
+          .select('id, email, first_name, last_name')
+          .eq('organization_id', currentOrganization.id);
 
         if (usersError) {
           console.error('Error fetching users:', usersError);
@@ -35,10 +46,11 @@ export function useUsersAndGroups() {
           setUsers(usersData || []);
         }
 
-        // Fetch groups
+        // Fetch groups in the current organization
         const { data: groupsData, error: groupsError } = await supabase
           .from('groups')
-          .select('id, name');
+          .select('id, name')
+          .eq('organization_id', currentOrganization.id);
 
         if (groupsError) {
           console.error('Error fetching groups:', groupsError);
@@ -56,7 +68,7 @@ export function useUsersAndGroups() {
     };
 
     fetchData();
-  }, []);
+  }, [currentOrganization?.id]);
 
   // Memoize display name functions for better performance
   const getUserDisplayName = useMemo(() => {
