@@ -1076,7 +1076,13 @@ async function executeCreateCombinationRecords(
             recordSubmittedBy = assignedUserId
           }
           if ((assignTo === 'field' || assignTo === 'both') && perUserCfg?.userFieldId) {
-            submissionData[perUserCfg.userFieldId] = assignedUserId
+            // If the target field is a submission-access field, write the structured
+            // { users, groups } shape it expects; otherwise write the raw user id.
+            if (submissionAccessFieldConfigs[perUserCfg.userFieldId]) {
+              submissionData[perUserCfg.userFieldId] = { users: [assignedUserId], groups: [] }
+            } else {
+              submissionData[perUserCfg.userFieldId] = assignedUserId
+            }
           }
         }
 
