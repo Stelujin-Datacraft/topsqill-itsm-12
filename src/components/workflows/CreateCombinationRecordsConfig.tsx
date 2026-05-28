@@ -536,6 +536,133 @@ export function CreateCombinationRecordsConfig({
                   filterTypes={['cross-reference', 'child-cross-reference']}
                 />
               </div>
+
+              {/* Per-User Expansion */}
+              <div className="border-t pt-4 space-y-3">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="perUserExpansion"
+                    checked={config.perUserExpansion?.enabled ?? false}
+                    onCheckedChange={(checked) => onConfigChange({
+                      ...config,
+                      perUserExpansion: {
+                        ...(config.perUserExpansion || { source: 'first_source', assignTo: 'both' }),
+                        enabled: !!checked,
+                      } as any
+                    })}
+                  />
+                  <Label htmlFor="perUserExpansion" className="text-sm font-normal">
+                    Create one record per user in the source record's access group
+                  </Label>
+                </div>
+
+                {config.perUserExpansion?.enabled && (
+                  <div className="space-y-3 pl-6 border-l-2 border-fuchsia-200">
+                    <p className="text-xs text-muted-foreground">
+                      For each source record, read its access-control group (or group-picker field),
+                      resolve members, and create one target record per user.
+                      Source records without a group will be skipped.
+                    </p>
+
+                    <div>
+                      <Label className="text-xs">Expansion Source *</Label>
+                      <Select
+                        value={config.perUserExpansion?.source || 'first_source'}
+                        onValueChange={(v) => onConfigChange({
+                          ...config,
+                          perUserExpansion: { ...(config.perUserExpansion as any), source: v as any }
+                        })}
+                      >
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="first_source">
+                            First source ({config.sourceLinkedFormName || 'first linked form'})
+                          </SelectItem>
+                          {combinationMode === 'dual' && (
+                            <SelectItem value="second_source">
+                              Second source ({config.secondSourceLinkedFormName || 'second linked form'})
+                            </SelectItem>
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label className="text-xs">
+                        Source field holding the group (Optional)
+                      </Label>
+                      <p className="text-[11px] text-muted-foreground mb-1">
+                        Leave blank to auto-detect the first submission-access (or group-picker) field
+                      </p>
+                      {(() => {
+                        const sourceFormId = config.perUserExpansion?.source === 'second_source'
+                          ? config.secondSourceLinkedFormId
+                          : config.sourceLinkedFormId;
+                        return sourceFormId ? (
+                          <FormFieldSelector
+                            formId={sourceFormId}
+                            value={config.perUserExpansion?.sourceAccessFieldId || ''}
+                            onValueChange={(fieldId, fieldName) => onConfigChange({
+                              ...config,
+                              perUserExpansion: {
+                                ...(config.perUserExpansion as any),
+                                sourceAccessFieldId: fieldId,
+                                sourceAccessFieldName: fieldName,
+                              }
+                            })}
+                            placeholder="Auto-detect"
+                            filterTypes={['submission-access', 'group-picker']}
+                          />
+                        ) : (
+                          <p className="text-xs text-amber-600">Select the source cross-reference field first.</p>
+                        );
+                      })()}
+                    </div>
+
+                    <div>
+                      <Label className="text-xs">Assign user to *</Label>
+                      <Select
+                        value={config.perUserExpansion?.assignTo || 'both'}
+                        onValueChange={(v) => onConfigChange({
+                          ...config,
+                          perUserExpansion: { ...(config.perUserExpansion as any), assignTo: v as any }
+                        })}
+                      >
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="submitted_by">Submitted By only</SelectItem>
+                          <SelectItem value="field">A user-picker field on target form</SelectItem>
+                          <SelectItem value="both">Both (Submitted By + field)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {(config.perUserExpansion?.assignTo === 'field' || config.perUserExpansion?.assignTo === 'both') && (
+                      <div>
+                        <Label className="text-xs">Target user-picker field *</Label>
+                        {config.targetFormId ? (
+                          <FormFieldSelector
+                            formId={config.targetFormId}
+                            value={config.perUserExpansion?.userFieldId || ''}
+                            onValueChange={(fieldId, fieldName) => onConfigChange({
+                              ...config,
+                              perUserExpansion: {
+                                ...(config.perUserExpansion as any),
+                                userFieldId: fieldId,
+                                userFieldName: fieldName,
+                              }
+                            })}
+                            placeholder="Select user field on target form"
+                            filterTypes={['user-picker', 'assignee']}
+                          />
+                        ) : (
+                          <p className="text-xs text-amber-600">Select the target form first.</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           </details>
 
