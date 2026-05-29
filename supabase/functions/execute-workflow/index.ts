@@ -669,7 +669,13 @@ async function executeUpdateLinkedRecords(
   const crossRefFieldId = config.crossRefFieldId || config.crossReferenceFieldId
   const triggerSubmissionData = triggerData?.submissionData || {}
 
-  if (!crossRefFieldId || !Array.isArray(config.fieldMappings) || config.fieldMappings.length === 0) {
+  const fieldMappings = Array.isArray(config.fieldMappings) ? config.fieldMappings : []
+  const fieldValues = Array.isArray(config.fieldValues) ? config.fieldValues : []
+  const mode = config.fieldConfigMode || 'field_mapping'
+  const useMappings = mode === 'field_mapping' || mode === 'both' || (!config.fieldConfigMode && fieldMappings.length > 0)
+  const useValues = mode === 'field_values' || mode === 'both'
+
+  if (!crossRefFieldId || (fieldMappings.length === 0 && fieldValues.length === 0)) {
     return { success: false, error: 'Missing required configuration for update linked records' }
   }
 
@@ -710,10 +716,33 @@ async function executeUpdateLinkedRecords(
     const currentData = linkedSub.submission_data || {}
     const updatedData = { ...(typeof currentData === 'object' ? currentData : {}) }
 
-    for (const mapping of config.fieldMappings) {
-      const sourceValue = triggerSubmissionData?.[mapping.sourceFieldId]
-      if (sourceValue !== undefined) {
-        updatedData[mapping.targetFieldId] = sourceValue
+    if (useMappings) {
+      for (const mapping of fieldMappings) {
+        if (!mapping?.sourceFieldId || !mapping?.targetFieldId) continue
+        const sourceValue = triggerSubmissionData?.[mapping.sourceFieldId]
+        if (sourceValue !== undefined) {
+          updatedData[mapping.targetFieldId] = sourceValue
+        }
+      }
+    }
+
+    if (useValues) {
+      for (const fv of fieldValues) {
+        if (!fv?.fieldId) continue
+        let value: any = undefined
+        if (fv.valueType === 'static') {
+          value = fv.staticValue
+        } else if (fv.valueType === 'dynamic') {
+          const dynamicPath = fv.dynamicValuePath
+          if (dynamicPath && dynamicPath in triggerSubmissionData) {
+            value = triggerSubmissionData[dynamicPath]
+          } else if (dynamicPath) {
+            value = getNestedValue(triggerData, dynamicPath)
+          }
+        }
+        if (value !== undefined) {
+          updatedData[fv.fieldId] = value
+        }
       }
     }
 
