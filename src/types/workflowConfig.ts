@@ -103,8 +103,15 @@ export interface UpdateLinkedRecordsConfig {
   targetFormName?: string;
   // Update scope - how to handle multiple linked records
   updateScope: 'all' | 'first' | 'last';
+  // How to configure the fields to update:
+  // - 'field_mapping' (default): copy values from trigger form fields
+  // - 'field_values': set static / dynamic values directly
+  // - 'both': apply field mappings AND static/dynamic field values
+  fieldConfigMode?: 'field_mapping' | 'field_values' | 'both';
   // Field mappings from current form to the linked records
-  fieldMappings: FieldMapping[];
+  fieldMappings?: FieldMapping[];
+  // Static / dynamic values to write directly onto each linked record
+  fieldValues?: CreateRecordFieldValue[];
 }
 
 // New configuration for creating combination records
