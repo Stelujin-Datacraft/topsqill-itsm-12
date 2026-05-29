@@ -2324,8 +2324,12 @@ export function ChartPreview({
 
     if (config.drilldownConfig?.enabled && onDrilldown && drilldownLevels.length > 0 && isDrilldownModeActive) {
       const currentLevel = drilldownState?.values?.length || 0;
-      const isAtOrPastLastLevel = currentLevel >= drilldownLevels.length;
-      if (isAtOrPastLastLevel) {
+      // The chart currently shows drilldownLevels[currentLevel]. When that IS
+      // the last configured level, there's nowhere left to drill — open the
+      // records dialog with the clicked bar's value applied as the final
+      // filter (plus every prior drill filter) instead of showing "no data".
+      const isAtLastLevel = currentLevel >= drilldownLevels.length - 1;
+      if (isAtLastLevel) {
         const lastLevelField = drilldownLevels[Math.min(currentLevel, drilldownLevels.length - 1)] || dimensionField;
         setCellSubmissionsDialog({
           open: true,
