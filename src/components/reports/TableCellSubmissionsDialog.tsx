@@ -120,6 +120,61 @@ export function TableCellSubmissionsDialog({
     return String(val);
   };
 
+  // Build every plausible string representation of a stored value so we can
+  // match what the chart bar displayed. The chart's "name" can come from:
+  //   - server-side PostgREST (`submission_data->>field`) which JSON-stringifies
+  //     objects/arrays and stringifies primitives
+  //   - client-side extraction which may unwrap `.status` / `.label` / `.value`
+  //     from option objects or join array values
+  // We compare against all of them to avoid false "0 records" results.
+  const getAllPossibleValueRepresentations = (submissionData: any, dim: string): string[] => {
+    if (dim === '_default') return ['Total'];
+    const val = submissionData[dim];
+    const reps = new Set<string>();
+
+    if (val === null || val === undefined || val === '') {
+      reps.add('Not Specified');
+      reps.add('');
+      reps.add('Unknown');
+      return Array.from(reps);
+    }
+
+    if (Array.isArray(val)) {
+      reps.add(JSON.stringify(val));
+      reps.add(val.map((v) => (v === null || v === undefined ? '' : String(v))).join(', '));
+      reps.add(val.map((v) => (v === null || v === undefined ? '' : String(v))).join(','));
+      val.forEach((v) => {
+        if (v !== null && v !== undefined) reps.add(String(v));
+      });
+      return Array.from(reps);
+    }
+
+    if (typeof val === 'object') {
+      reps.add(JSON.stringify(val));
+      if ((val as any).status) reps.add(String((val as any).status));
+      if ((val as any).label) reps.add(String((val as any).label));
+      if ((val as any).value !== undefined && (val as any).value !== null) {
+        reps.add(String((val as any).value));
+      }
+      if ((val as any).name) reps.add(String((val as any).name));
+      return Array.from(reps);
+    }
+
+    // Primitive
+    reps.add(String(val));
+    if (typeof val === 'boolean') {
+      reps.add(val ? 'true' : 'false');
+      reps.add(val ? 'Yes' : 'No');
+    }
+    return Array.from(reps);
+  };
+
+  const valueMatches = (submissionData: any, dim: string, expected: string): boolean => {
+    const normalizedExpected = String(expected).trim();
+    const reps = getAllPossibleValueRepresentations(submissionData, dim);
+    return reps.some((r) => String(r).trim() === normalizedExpected);
+  };
+
   const loadSubmissions = async () => {
     setLoading(true);
     try {
