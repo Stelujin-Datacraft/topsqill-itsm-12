@@ -2209,6 +2209,9 @@ export function ChartPreview({
   };
   const resetDrilldown = () => {
     if (onDrilldown) {
+      // Clear any stale drilled-in data so the chart doesn't briefly render
+      // the last filtered (often uniform) values before the refetch lands.
+      setChartData([]);
       // Reset to initial state by calling drilldown with empty values
       onDrilldown('', '');
     }
@@ -2321,8 +2324,12 @@ export function ChartPreview({
 
     if (config.drilldownConfig?.enabled && onDrilldown && drilldownLevels.length > 0 && isDrilldownModeActive) {
       const currentLevel = drilldownState?.values?.length || 0;
-      const isAtOrPastLastLevel = currentLevel >= drilldownLevels.length;
-      if (isAtOrPastLastLevel) {
+      // The chart currently shows drilldownLevels[currentLevel]. When that IS
+      // the last configured level, there's nowhere left to drill — open the
+      // records dialog with the clicked bar's value applied as the final
+      // filter (plus every prior drill filter) instead of showing "no data".
+      const isAtLastLevel = currentLevel >= drilldownLevels.length - 1;
+      if (isAtLastLevel) {
         const lastLevelField = drilldownLevels[Math.min(currentLevel, drilldownLevels.length - 1)] || dimensionField;
         setCellSubmissionsDialog({
           open: true,
@@ -2480,18 +2487,12 @@ export function ChartPreview({
         event.stopPropagation();
       }
       const currentLevel = drilldownState?.values?.length || 0;
-      // The chart currently shows drilldownLevels[currentLevel] (or the last
-      // level when currentLevel exceeds the configured count). When the user
-      // clicks while the displayed level IS the last configured level, drilling
-      // further has nowhere to go — open the records dialog with every filter
-      // applied (including the clicked bar) instead of producing a broken
-      // "no further drill" state.
-      // Only treat as "terminal" AFTER the user has already drilled through
-      // every configured level. While still on the last level we should drill
-      // into it (consume its value) and THEN open the dialog on the next
-      // click. This makes a 3-level drill produce: L0 -> L1 -> L2 -> dialog.
-      const isAtOrPastLastLevel = currentLevel >= drilldownLevels.length;
-      if (isAtOrPastLastLevel) {
+      // The chart currently shows drilldownLevels[currentLevel]. When that IS
+      // the last configured level, there's nowhere left to drill — open the
+      // records dialog with the clicked bar's value applied as the final
+      // filter (plus every prior drill filter) instead of showing "no data".
+      const isAtLastLevel = currentLevel >= drilldownLevels.length - 1;
+      if (isAtLastLevel) {
         const lastLevelField = drilldownLevels[Math.min(currentLevel, drilldownLevels.length - 1)] || dimensionField;
         setCellSubmissionsDialog({
           open: true,
