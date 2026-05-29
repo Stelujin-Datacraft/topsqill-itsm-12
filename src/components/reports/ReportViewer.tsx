@@ -112,6 +112,7 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
       const currentState = prev[componentId] || { path: [], values: [] };
       const component = components.find(c => c.id === componentId);
       const config = component?.config as any;
+      const baseDimensionField = config?.dimensions?.[0] || config?.xAxis || '';
 
       const drilldownLevels =
         (config?.drilldownConfig?.drilldownLevels?.length > 0 ? config.drilldownConfig.drilldownLevels : null) ||
@@ -120,32 +121,20 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
         [];
 
       const isCrossRef = config?.crossRefConfig?.enabled && config?.crossRefConfig?.crossRefFieldId;
-      const maxValues = isCrossRef ? drilldownLevels.length + 1 : drilldownLevels.length;
-      const levelIndex = isCrossRef
-        ? Math.max(0, currentState.values.length)
-        : Math.max(0, drilldownLevels.indexOf(drilldownLevel));
-      const newValues = [...currentState.values];
-
-      if (levelIndex < maxValues) {
-        newValues[levelIndex] = drilldownValue;
-        newValues.splice(levelIndex + 1);
-      }
-
-      let newPath: string[];
-      if (isCrossRef) {
-        newPath = newValues.slice(1).map((_, i) => drilldownLevels[i] || '');
-        if (newValues.length > 0) {
-          newPath = ['', ...newPath];
-        }
-      } else {
-        newPath = drilldownLevels.slice(0, newValues.length);
-      }
+      const nextState = resolveDrilldownState({
+        currentState,
+        drilldownLevel,
+        drilldownValue,
+        drilldownLevels,
+        isCrossRef,
+        baseDimensionField,
+      });
 
       return {
         ...prev,
         [componentId]: {
-          path: newPath,
-          values: newValues,
+          path: nextState.path,
+          values: nextState.values,
         },
       };
     });

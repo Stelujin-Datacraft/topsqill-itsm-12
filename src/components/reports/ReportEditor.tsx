@@ -498,6 +498,7 @@ export function ReportEditor({
       };
       const component = components.find(c => c.id === componentId);
       const config = component?.config as any;
+      const baseDimensionField = config?.dimensions?.[0] || config?.xAxis || '';
       
       // Support both drilldownConfig and crossRefConfig drilldown levels
       // Check for non-empty arrays, not just existence (empty array is truthy!)
@@ -516,6 +517,7 @@ export function ReportEditor({
         drilldownValue,
         drilldownLevels,
         isCrossRef,
+        baseDimensionField,
       });
       
       const newState = {
