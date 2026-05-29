@@ -176,8 +176,24 @@ export function TableCellSubmissionsDialog({
 
   const valueMatches = (submissionData: any, dim: string, expected: string): boolean => {
     const normalizedExpected = String(expected).trim();
+    const normalizedExpectedLc = normalizedExpected.toLowerCase();
     const reps = getAllPossibleValueRepresentations(submissionData, dim);
-    return reps.some((r) => String(r).trim() === normalizedExpected);
+    return reps.some((r) => {
+      const s = String(r).trim();
+      return s === normalizedExpected || s.toLowerCase() === normalizedExpectedLc;
+    });
+  };
+
+  // Fallback: scan EVERY field on the submission for a match. This rescues
+  // cases where the chart reported one field id but the displayed value
+  // actually came from a different field (e.g. compare-mode label/value
+  // mismatches). Without this, the dialog would show "No records" even
+  // though the value clearly exists on the record.
+  const anyFieldMatches = (submissionData: any, expected: string): boolean => {
+    if (!submissionData || typeof submissionData !== 'object') return false;
+    return Object.keys(submissionData).some((key) =>
+      valueMatches(submissionData, key, expected)
+    );
   };
 
   const loadSubmissions = async () => {
@@ -244,17 +260,33 @@ export function TableCellSubmissionsDialog({
       // server-side (`->>`) and client-side (option label/value/status) names
       // both match correctly across chart types.
       if (dimensionField && dimensionValue) {
-        filteredData = filteredData.filter(submission =>
+        const primary = filteredData.filter(submission =>
           valueMatches(submission.submission_data, dimensionField, dimensionValue)
         );
+        if (primary.length > 0) {
+          filteredData = primary;
+        } else {
+          // No exact match on the named field — scan all fields so chart/field
+          // labelling mismatches still surface the right records.
+          filteredData = filteredData.filter(submission =>
+            anyFieldMatches(submission.submission_data, dimensionValue)
+          );
+          console.log('📊 Dimension fallback (any-field) matched:', filteredData.length);
+        }
         console.log('📊 After dimension filter:', filteredData.length);
       }
 
       // Apply group filter if exists (for heatmap column dimension)
       if (groupField && groupValue) {
+        const beforeGroup = filteredData;
         filteredData = filteredData.filter(submission =>
           valueMatches(submission.submission_data, groupField, groupValue)
         );
+        if (filteredData.length === 0) {
+          filteredData = beforeGroup.filter(submission =>
+            anyFieldMatches(submission.submission_data, groupValue)
+          );
+        }
         console.log('📊 After group filter:', filteredData.length);
       }
 
@@ -264,9 +296,15 @@ export function TableCellSubmissionsDialog({
       if (additionalFilters && additionalFilters.length > 0) {
         additionalFilters.forEach(({ field, value }) => {
           if (!field || value === undefined || value === null || value === '') return;
+          const before = filteredData;
           filteredData = filteredData.filter(submission =>
             valueMatches(submission.submission_data, field, String(value))
           );
+          if (filteredData.length === 0) {
+            filteredData = before.filter(submission =>
+              anyFieldMatches(submission.submission_data, String(value))
+            );
+          }
         });
         console.log('📊 After additional drill filters:', filteredData.length);
       }
