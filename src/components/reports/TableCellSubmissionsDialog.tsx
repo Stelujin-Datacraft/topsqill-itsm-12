@@ -235,35 +235,21 @@ export function TableCellSubmissionsDialog({
       console.log('📊 Dimension filter:', { dimensionField, dimensionValue });
       console.log('📊 Group filter:', { groupField, groupValue });
 
-      // Apply dimension filter using getDimensionValue for proper matching
-      // Normalize both values to strings for comparison (handles number/string mismatches)
+      // Apply dimension filter - try multiple normalized representations so
+      // server-side (`->>`) and client-side (option label/value/status) names
+      // both match correctly across chart types.
       if (dimensionField && dimensionValue) {
-        const normalizedDimensionValue = String(dimensionValue).trim();
-        filteredData = filteredData.filter(submission => {
-          const extractedValue = getDimensionValue(submission.submission_data, dimensionField);
-          const normalizedExtracted = String(extractedValue).trim();
-          const matches = normalizedExtracted === normalizedDimensionValue;
-          if (!matches && filteredData.length < 10) {
-            console.log('📊 No match:', { extractedValue: normalizedExtracted, expected: normalizedDimensionValue, submission_id: submission.id });
-          }
-          return matches;
-        });
+        filteredData = filteredData.filter(submission =>
+          valueMatches(submission.submission_data, dimensionField, dimensionValue)
+        );
         console.log('📊 After dimension filter:', filteredData.length);
       }
 
       // Apply group filter if exists (for heatmap column dimension)
-      // Normalize both values to strings for comparison (handles number/string mismatches)
       if (groupField && groupValue) {
-        const normalizedGroupValue = String(groupValue).trim();
-        filteredData = filteredData.filter(submission => {
-          const extractedValue = getDimensionValue(submission.submission_data, groupField);
-          const normalizedExtracted = String(extractedValue).trim();
-          const matches = normalizedExtracted === normalizedGroupValue;
-          if (!matches && filteredData.length < 10) {
-            console.log('📊 Group no match:', { extractedValue: normalizedExtracted, expected: normalizedGroupValue, submission_id: submission.id });
-          }
-          return matches;
-        });
+        filteredData = filteredData.filter(submission =>
+          valueMatches(submission.submission_data, groupField, groupValue)
+        );
         console.log('📊 After group filter:', filteredData.length);
       }
 
