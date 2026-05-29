@@ -2183,10 +2183,6 @@ export function ChartPreview({
     return String(rawValue);
   };
 
-  const stopEventPropagation = (event: React.SyntheticEvent) => {
-    event.stopPropagation();
-  };
-
   // Get available values for the current drilldown level
   const getAvailableValuesForLevel = (levelIndex: number) => {
     const drilldownLevels = getDrilldownLevels();
@@ -2355,6 +2351,9 @@ export function ChartPreview({
     });
   };
   const handleBarClick = (data: any, index: number, event?: any) => {
+    if (event?.stopPropagation) {
+      event.stopPropagation();
+    }
     // recharts passes the data point in data.payload or data directly
     const payload = data?.payload || data;
     const dimensionValue = getPayloadDimensionValue(payload);
