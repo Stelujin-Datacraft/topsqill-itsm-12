@@ -2320,7 +2320,7 @@ export function ChartPreview({
 
     if (config.drilldownConfig?.enabled && onDrilldown && drilldownLevels.length > 0 && isDrilldownModeActive) {
       const currentLevel = drilldownState?.values?.length || 0;
-      const isAtOrPastLastLevel = currentLevel >= drilldownLevels.length - 1;
+      const isAtOrPastLastLevel = currentLevel >= drilldownLevels.length;
       if (isAtOrPastLastLevel) {
         const lastLevelField = drilldownLevels[Math.min(currentLevel, drilldownLevels.length - 1)] || dimensionField;
         setCellSubmissionsDialog({
