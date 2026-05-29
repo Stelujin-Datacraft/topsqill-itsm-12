@@ -14,7 +14,7 @@ import { TableCellSubmissionsDialog } from './TableCellSubmissionsDialog';
 import { HeatmapCell } from './HeatmapCell';
 import { evaluateFilterCondition, evaluateSubmissionFilters } from '@/utils/filterUtils';
 import { ChartExportButton } from './ChartExportButton';
-import { DRILLDOWN_BACK_ACTION } from './utils/drilldownState';
+import { buildFullDrilldownSequence, DRILLDOWN_BACK_ACTION } from './utils/drilldownState';
 interface ChartPreviewProps {
   config: ChartConfig;
   onEdit?: () => void;
@@ -162,6 +162,14 @@ export function ChartPreview({
     return (config.drilldownConfig?.drilldownLevels?.length > 0 ? config.drilldownConfig.drilldownLevels : null) ||
       (config.drilldownConfig?.levels?.length > 0 ? config.drilldownConfig.levels : null) ||
       [];
+  };
+
+  const getBaseDimensionField = (): string => {
+    return config.dimensions?.[0] || config.xAxis || '';
+  };
+
+  const getDrilldownSequence = (): string[] => {
+    return buildFullDrilldownSequence(getNormalizedDrilldownLevels(), getBaseDimensionField(), false);
   };
 
 
@@ -1116,14 +1124,31 @@ export function ChartPreview({
         const isCompareMode = config.compareMode && config.metrics && config.metrics.length === 2;
         if (config.drilldownConfig?.enabled && drilldownLevels.length > 0 && !isCrossRefMode && !isCompareMode) {
           // Determine the current dimension based on drilldown state
-          const currentDrilldownLevel = drilldownState?.values?.length || 0;
-          const currentDimension = drilldownLevels[currentDrilldownLevel] || drilldownLevels[0];
+          const drilldownSequence = getDrilldownSequence();
+          const maxAppliedFilters = Math.max(0, drilldownSequence.length - 1);
+          const appliedDrilldownValues = (drilldownState?.values || []).slice(0, maxAppliedFilters);
+          const currentDrilldownLevel = appliedDrilldownValues.length;
+          const baseDimensionField = getBaseDimensionField();
+          const currentDimension =
+            drilldownSequence[currentDrilldownLevel] ||
+            drilldownSequence[drilldownSequence.length - 1] ||
+            baseDimensionField;
 
           // Use the current dimension for the chart - show the NEXT level after current drilldown
           const chartDimensions = [currentDimension];
           // Get aggregation from metricAggregations if available, otherwise use config.aggregation
           const effectiveAggregation = config.metricAggregations?.[0]?.aggregation || config.aggregation || 'count';
-          const serverData: any[] = await getChartData(config.formId, chartDimensions, config.metrics || [], effectiveAggregation, config.filters || [], drilldownLevels, drilldownState?.values || [], config.metricAggregations || [], config.groupByField);
+          const serverData: any[] = await getChartData(
+            config.formId,
+            [baseDimensionField || currentDimension],
+            config.metrics || [],
+            effectiveAggregation,
+            config.filters || [],
+            drilldownSequence,
+            appliedDrilldownValues,
+            config.metricAggregations || [],
+            config.groupByField,
+          );
 
           // Check if request is still current after async operation
           if (currentLoadRequest !== loadRequestRef.current) return;
@@ -1320,8 +1345,12 @@ export function ChartPreview({
     const drilldownLevelsLocal = config.drilldownConfig?.drilldownLevels || config.drilldownConfig?.levels || [];
     let dimensionFields: string[] = [];
     if (config.drilldownConfig?.enabled && drilldownLevelsLocal.length > 0) {
-      const currentDrilldownLevel = drilldownState?.values?.length || 0;
-      const currentDimension = drilldownLevelsLocal[currentDrilldownLevel] || drilldownLevelsLocal[0];
+      const drilldownSequence = buildFullDrilldownSequence(drilldownLevelsLocal, getBaseDimensionField(), false);
+      const currentDrilldownLevel = Math.min(
+        drilldownState?.values?.length || 0,
+        Math.max(drilldownSequence.length - 1, 0),
+      );
+      const currentDimension = drilldownSequence[currentDrilldownLevel] || drilldownSequence[0];
       dimensionFields = [currentDimension];
     } else {
       dimensionFields = config.dimensions && config.dimensions.length > 0 ? config.dimensions : config.xAxis ? [config.xAxis] : [];
