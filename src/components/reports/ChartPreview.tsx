@@ -14,6 +14,7 @@ import { TableCellSubmissionsDialog } from './TableCellSubmissionsDialog';
 import { HeatmapCell } from './HeatmapCell';
 import { evaluateFilterCondition, evaluateSubmissionFilters } from '@/utils/filterUtils';
 import { ChartExportButton } from './ChartExportButton';
+import { DRILLDOWN_BACK_ACTION } from './utils/drilldownState';
 interface ChartPreviewProps {
   config: ChartConfig;
   onEdit?: () => void;
@@ -2182,6 +2183,10 @@ export function ChartPreview({
     return String(rawValue);
   };
 
+  const stopEventPropagation = (event: React.SyntheticEvent) => {
+    event.stopPropagation();
+  };
+
   // Get available values for the current drilldown level
   const getAvailableValuesForLevel = (levelIndex: number) => {
     const drilldownLevels = getDrilldownLevels();
@@ -3064,29 +3069,7 @@ export function ChartPreview({
                     dataKey="y" 
                     name={field2Name} 
                     style={{ cursor: 'pointer' }}
-                    onClick={(data, idx) => {
-                      const payload = data?.payload || data;
-                      const name = payload?.name || payload?.xLabel || `Record ${idx + 1}`;
-                      const submissionId = payload?.submissionId;
-                      
-                      if (submissionId) {
-                        // If we have a direct submission ID, open dialog with that
-                        setCellSubmissionsDialog({
-                          open: true,
-                          dimensionField: config.metrics?.[0] || '',
-                          dimensionValue: name,
-                          dimensionLabel: field1Name,
-                        });
-                      } else {
-                        // Open dialog to show matching record
-                        setCellSubmissionsDialog({
-                          open: true,
-                          dimensionField: config.metrics?.[0] || '',
-                          dimensionValue: name,
-                          dimensionLabel: field1Name,
-                        });
-                      }
-                    }}
+                    onClick={(data, idx) => handleBarClick({ ...(data?.payload || data), _drilldownField: config.metrics?.[0] || config.dimensions?.[0] || config.xAxis || '' }, idx)}
                     activeBar={{ fillOpacity: 0.8, stroke: 'hsl(var(--foreground))', strokeWidth: 2 }}
                   >
                     {barData.map((entry, index) => (
@@ -3163,17 +3146,7 @@ export function ChartPreview({
                     dataKey="y" 
                     name={field2Name} 
                     style={{ cursor: 'pointer' }}
-                    onClick={(data, idx) => {
-                      const payload = data?.payload || data;
-                      const name = payload?.name || payload?.xLabel || `Record ${idx + 1}`;
-                      
-                      setCellSubmissionsDialog({
-                        open: true,
-                        dimensionField: config.metrics?.[0] || '',
-                        dimensionValue: name,
-                        dimensionLabel: field1Name,
-                      });
-                    }}
+                    onClick={(data, idx) => handleBarClick({ ...(data?.payload || data), _drilldownField: config.metrics?.[0] || config.dimensions?.[0] || config.xAxis || '' }, idx)}
                     activeBar={{ fillOpacity: 0.8, stroke: 'hsl(var(--foreground))', strokeWidth: 2 }}
                   >
                     {barData.map((entry, index) => (
