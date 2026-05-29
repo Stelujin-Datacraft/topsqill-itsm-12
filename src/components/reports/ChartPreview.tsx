@@ -2482,7 +2482,11 @@ export function ChartPreview({
       // further has nowhere to go — open the records dialog with every filter
       // applied (including the clicked bar) instead of producing a broken
       // "no further drill" state.
-      const isAtOrPastLastLevel = currentLevel >= drilldownLevels.length - 1;
+      // Only treat as "terminal" AFTER the user has already drilled through
+      // every configured level. While still on the last level we should drill
+      // into it (consume its value) and THEN open the dialog on the next
+      // click. This makes a 3-level drill produce: L0 -> L1 -> L2 -> dialog.
+      const isAtOrPastLastLevel = currentLevel >= drilldownLevels.length;
       if (isAtOrPastLastLevel) {
         const lastLevelField = drilldownLevels[Math.min(currentLevel, drilldownLevels.length - 1)] || dimensionField;
         setCellSubmissionsDialog({
