@@ -5,7 +5,6 @@ import { ReportComponent, ReportConfig } from '@/types/reports';
 import { ChartPreview } from './ChartPreview';
 import { MetricCard } from './MetricCard';
 import { Card, CardContent } from '@/components/ui/card';
-import { resolveDrilldownState } from './utils/drilldownState';
 
 interface ReportViewerProps {
   reportId: string;
@@ -113,7 +112,6 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
       const currentState = prev[componentId] || { path: [], values: [] };
       const component = components.find(c => c.id === componentId);
       const config = component?.config as any;
-      const baseDimensionField = config?.dimensions?.[0] || config?.xAxis || '';
 
       const drilldownLevels =
         (config?.drilldownConfig?.drilldownLevels?.length > 0 ? config.drilldownConfig.drilldownLevels : null) ||
@@ -122,20 +120,32 @@ export function ReportViewer({ reportId }: ReportViewerProps) {
         [];
 
       const isCrossRef = config?.crossRefConfig?.enabled && config?.crossRefConfig?.crossRefFieldId;
-      const nextState = resolveDrilldownState({
-        currentState,
-        drilldownLevel,
-        drilldownValue,
-        drilldownLevels,
-        isCrossRef,
-        baseDimensionField,
-      });
+      const maxValues = isCrossRef ? drilldownLevels.length + 1 : drilldownLevels.length;
+      const levelIndex = isCrossRef
+        ? Math.max(0, currentState.values.length)
+        : Math.max(0, drilldownLevels.indexOf(drilldownLevel));
+      const newValues = [...currentState.values];
+
+      if (levelIndex < maxValues) {
+        newValues[levelIndex] = drilldownValue;
+        newValues.splice(levelIndex + 1);
+      }
+
+      let newPath: string[];
+      if (isCrossRef) {
+        newPath = newValues.slice(1).map((_, i) => drilldownLevels[i] || '');
+        if (newValues.length > 0) {
+          newPath = ['', ...newPath];
+        }
+      } else {
+        newPath = drilldownLevels.slice(0, newValues.length);
+      }
 
       return {
         ...prev,
         [componentId]: {
-          path: nextState.path,
-          values: nextState.values,
+          path: newPath,
+          values: newValues,
         },
       };
     });

@@ -124,7 +124,6 @@ const ReportViewerPage = () => {
       const currentState = prev[componentId] || { path: [], values: [] };
       const component = components.find(c => c.id === componentId);
       const config = component?.config as any;
-      const baseDimensionField = config?.dimensions?.[0] || config?.xAxis || '';
 
       const drilldownLevels =
         (config?.drilldownConfig?.drilldownLevels?.length > 0 ? config.drilldownConfig.drilldownLevels : null) ||
@@ -139,7 +138,6 @@ const ReportViewerPage = () => {
         drilldownValue,
         drilldownLevels,
         isCrossRef,
-        baseDimensionField,
       });
 
       return {
