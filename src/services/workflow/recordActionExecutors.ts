@@ -1060,10 +1060,16 @@ export class RecordActionExecutors {
         };
       }
 
-      if (!config.fieldMappings || config.fieldMappings.length === 0) {
+      const fieldMappings = Array.isArray(config.fieldMappings) ? config.fieldMappings : [];
+      const fieldValues = Array.isArray(config.fieldValues) ? config.fieldValues : [];
+      const mode = config.fieldConfigMode || 'field_mapping';
+      const useMappings = mode === 'field_mapping' || mode === 'both' || (!config.fieldConfigMode && fieldMappings.length > 0);
+      const useValues = mode === 'field_values' || mode === 'both';
+
+      if (fieldMappings.length === 0 && fieldValues.length === 0) {
         return {
           success: false,
-          error: 'At least one field mapping is required',
+          error: 'At least one field mapping or static field value is required',
           actionDetails
         };
       }
@@ -1159,11 +1165,30 @@ export class RecordActionExecutors {
 
       // Build the update data from field mappings
       const updateData: Record<string, any> = {};
-      for (const mapping of config.fieldMappings) {
-        if (mapping.sourceFieldId && mapping.targetFieldId) {
-          const sourceValue = triggerSubmissionData[mapping.sourceFieldId];
-          if (sourceValue !== undefined) {
-            updateData[mapping.targetFieldId] = sourceValue;
+      if (useMappings) {
+        for (const mapping of fieldMappings) {
+          if (mapping.sourceFieldId && mapping.targetFieldId) {
+            const sourceValue = triggerSubmissionData[mapping.sourceFieldId];
+            if (sourceValue !== undefined) {
+              updateData[mapping.targetFieldId] = sourceValue;
+            }
+          }
+        }
+      }
+      if (useValues) {
+        for (const fv of fieldValues) {
+          if (!fv?.fieldId) continue;
+          let value: any = undefined;
+          if (fv.valueType === 'static') {
+            value = fv.staticValue;
+          } else if (fv.valueType === 'dynamic') {
+            const dynamicPath = fv.dynamicValuePath;
+            if (dynamicPath && dynamicPath in triggerSubmissionData) {
+              value = triggerSubmissionData[dynamicPath];
+            }
+          }
+          if (value !== undefined) {
+            updateData[fv.fieldId] = value;
           }
         }
       }
@@ -1173,7 +1198,7 @@ export class RecordActionExecutors {
       if (Object.keys(updateData).length === 0) {
         return {
           success: false,
-          error: 'No valid field mappings resulted in update data',
+          error: 'No valid field mappings or static values resulted in update data',
           actionDetails
         };
       }
@@ -1241,7 +1266,8 @@ export class RecordActionExecutors {
           requestedCount: recordsToUpdate.length,
           updatedRecords: updatedRecordsList,
           updateScope,
-          fieldMappingsApplied: config.fieldMappings.length,
+          fieldMappingsApplied: fieldMappings.length,
+          fieldValuesApplied: fieldValues.length,
           errors: errors.length > 0 ? errors : undefined,
           updatedAt: new Date().toISOString()
         },

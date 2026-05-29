@@ -488,14 +488,24 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
           toast({ title: "Error", description: "Target form is required. Please ensure the cross-reference field has a target form configured.", variant: "destructive" });
           return false;
         }
-        if (!localConfig?.fieldMappings || localConfig.fieldMappings.length === 0) {
-          toast({ title: "Error", description: "Please add at least one field mapping", variant: "destructive" });
+        const mode = localConfig?.fieldConfigMode || 'field_mapping';
+        const mappings = localConfig?.fieldMappings || [];
+        const fieldValues = localConfig?.fieldValues || [];
+        const usesMappings = mode === 'field_mapping' || mode === 'both';
+        const usesValues = mode === 'field_values' || mode === 'both';
+        if (usesMappings && mappings.some((m: any) => !m.sourceFieldId || !m.targetFieldId)) {
+          toast({ title: "Error", description: "Please complete all field mappings or remove incomplete ones", variant: "destructive" });
           return false;
         }
-        const mappings = localConfig?.fieldMappings || [];
-        const hasIncompleteMappings = mappings.some((m: any) => !m.sourceFieldId || !m.targetFieldId);
-        if (hasIncompleteMappings) {
-          toast({ title: "Error", description: "Please complete all field mappings or remove incomplete ones", variant: "destructive" });
+        if (usesValues && fieldValues.some((v: any) => !v.fieldId || !v.valueType)) {
+          toast({ title: "Error", description: "Please complete all static field values or remove incomplete ones", variant: "destructive" });
+          return false;
+        }
+        const totalConfigured =
+          (usesMappings ? mappings.filter((m: any) => m.sourceFieldId && m.targetFieldId).length : 0) +
+          (usesValues ? fieldValues.filter((v: any) => v.fieldId).length : 0);
+        if (totalConfigured === 0) {
+          toast({ title: "Error", description: "Please add at least one field mapping or static field value", variant: "destructive" });
           return false;
         }
       }
@@ -1339,7 +1349,36 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
 
                         {localConfig?.targetFormId && (
                           <div>
-                            <Label>Field Mappings *</Label>
+                            <Label>Field Configuration Mode *</Label>
+                            <Select
+                              value={localConfig?.fieldConfigMode || 'field_mapping'}
+                              onValueChange={(value) => {
+                                handleConfigUpdate('fieldConfigMode', value);
+                                if (value === 'field_mapping') {
+                                  handleConfigUpdate('fieldValues', []);
+                                } else if (value === 'field_values') {
+                                  handleConfigUpdate('fieldMappings', []);
+                                }
+                              }}
+                            >
+                              <SelectTrigger className="h-9">
+                                <SelectValue placeholder="Select configuration mode" />
+                              </SelectTrigger>
+                              <SelectContent className="bg-background z-50">
+                                <SelectItem value="field_mapping">Map Fields from Trigger Form</SelectItem>
+                                <SelectItem value="field_values">Set Static / Dynamic Values</SelectItem>
+                                <SelectItem value="both">Both (Map + Set Values)</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Choose how to update the linked records' fields
+                            </p>
+                          </div>
+                        )}
+
+                        {localConfig?.targetFormId && (localConfig?.fieldConfigMode === 'field_mapping' || localConfig?.fieldConfigMode === 'both' || !localConfig?.fieldConfigMode) && (
+                          <div>
+                            <Label>Field Mappings</Label>
                             <p className="text-xs text-muted-foreground mb-2">
                               Map fields from the trigger form to the linked records
                             </p>
@@ -1351,12 +1390,30 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
                             />
                           </div>
                         )}
+
+                        {localConfig?.targetFormId && (localConfig?.fieldConfigMode === 'field_values' || localConfig?.fieldConfigMode === 'both') && (
+                          <div>
+                            <Label>Static / Dynamic Field Values</Label>
+                            <p className="text-xs text-muted-foreground mb-2">
+                              Set a specific value (static) or extract from trigger data (dynamic) for each target field
+                            </p>
+                            <CreateRecordFieldsConfig
+                              targetFormId={localConfig.targetFormId}
+                              triggerFormId={triggerFormId}
+                              fieldValues={localConfig?.fieldValues || []}
+                              onFieldValuesChange={(values) => handleConfigUpdate('fieldValues', values)}
+                            />
+                          </div>
+                        )}
                       </>
                     )}
 
-                    {localConfig?.crossReferenceFieldId && localConfig?.targetFormId && (localConfig?.fieldMappings?.length || 0) > 0 && (
+                    {localConfig?.crossReferenceFieldId && localConfig?.targetFormId && ((localConfig?.fieldMappings?.length || 0) > 0 || (localConfig?.fieldValues?.length || 0) > 0) && (
                       <div className="text-xs text-teal-700 bg-teal-50 p-3 rounded border border-teal-200">
-                        <strong>Summary:</strong> Will update {localConfig.updateScope === 'all' ? 'all' : localConfig.updateScope === 'first' ? 'the first' : 'the last'} linked record{localConfig.updateScope === 'all' ? 's' : ''} in "{localConfig.targetFormName}" using {localConfig.fieldMappings.length} field mapping{localConfig.fieldMappings.length !== 1 ? 's' : ''} from the trigger form
+                        <strong>Summary:</strong> Will update {localConfig.updateScope === 'all' ? 'all' : localConfig.updateScope === 'first' ? 'the first' : 'the last'} linked record{localConfig.updateScope === 'all' ? 's' : ''} in "{localConfig.targetFormName}"
+                        {(localConfig?.fieldMappings?.length || 0) > 0 && ` using ${localConfig.fieldMappings.length} field mapping${localConfig.fieldMappings.length !== 1 ? 's' : ''} from the trigger form`}
+                        {(localConfig?.fieldMappings?.length || 0) > 0 && (localConfig?.fieldValues?.length || 0) > 0 && ' and'}
+                        {(localConfig?.fieldValues?.length || 0) > 0 && ` ${localConfig.fieldValues.length} static/dynamic value${localConfig.fieldValues.length !== 1 ? 's' : ''}`}
                       </div>
                     )}
                   </>

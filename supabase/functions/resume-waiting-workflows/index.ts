@@ -1506,7 +1506,13 @@ Deno.serve(async (req) => {
                 // Support both crossRefFieldId and crossReferenceFieldId (UI uses the latter)
                 const crossRefFieldId = config.crossRefFieldId || config.crossReferenceFieldId
                 
-                if (!crossRefFieldId || !config.fieldMappings || config.fieldMappings.length === 0) {
+                const fieldMappings = Array.isArray(config.fieldMappings) ? config.fieldMappings : []
+                const fieldValues = Array.isArray(config.fieldValues) ? config.fieldValues : []
+                const mode = config.fieldConfigMode || 'field_mapping'
+                const useMappings = mode === 'field_mapping' || mode === 'both' || (!config.fieldConfigMode && fieldMappings.length > 0)
+                const useValues = mode === 'field_values' || mode === 'both'
+
+                if (!crossRefFieldId || (fieldMappings.length === 0 && fieldValues.length === 0)) {
                   throw new Error('Missing required configuration for update linked records')
                 }
                 
@@ -1563,11 +1569,32 @@ Deno.serve(async (req) => {
                     const updatedData = { ...(typeof currentData === 'object' ? currentData : {}) }
                     
                     // Apply field mappings
-                    for (const mapping of config.fieldMappings) {
-                      if (mapping.sourceFieldId && mapping.targetFieldId) {
-                        const sourceValue = triggerSubmissionData[mapping.sourceFieldId]
-                        if (sourceValue !== undefined) {
-                          updatedData[mapping.targetFieldId] = sourceValue
+                    if (useMappings) {
+                      for (const mapping of fieldMappings) {
+                        if (mapping.sourceFieldId && mapping.targetFieldId) {
+                          const sourceValue = triggerSubmissionData[mapping.sourceFieldId]
+                          if (sourceValue !== undefined) {
+                            updatedData[mapping.targetFieldId] = sourceValue
+                          }
+                        }
+                      }
+                    }
+
+                    // Apply static / dynamic field values
+                    if (useValues) {
+                      for (const fv of fieldValues) {
+                        if (!fv?.fieldId) continue
+                        let value: any = undefined
+                        if (fv.valueType === 'static') {
+                          value = fv.staticValue
+                        } else if (fv.valueType === 'dynamic') {
+                          const dynamicPath = fv.dynamicValuePath
+                          if (dynamicPath && dynamicPath in triggerSubmissionData) {
+                            value = triggerSubmissionData[dynamicPath]
+                          }
+                        }
+                        if (value !== undefined) {
+                          updatedData[fv.fieldId] = value
                         }
                       }
                     }
