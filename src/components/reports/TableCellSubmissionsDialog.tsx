@@ -258,6 +258,19 @@ export function TableCellSubmissionsDialog({
         console.log('📊 After group filter:', filteredData.length);
       }
 
+      // Apply any additional drill-down filters captured from the chart state
+      // so the dialog records reflect every active filter, not just the
+      // dimension of the bar that was clicked.
+      if (additionalFilters && additionalFilters.length > 0) {
+        additionalFilters.forEach(({ field, value }) => {
+          if (!field || value === undefined || value === null || value === '') return;
+          filteredData = filteredData.filter(submission =>
+            valueMatches(submission.submission_data, field, String(value))
+          );
+        });
+        console.log('📊 After additional drill filters:', filteredData.length);
+      }
+
       setSubmissions(filteredData);
     } catch (error) {
       console.error('Error loading submissions:', error);
