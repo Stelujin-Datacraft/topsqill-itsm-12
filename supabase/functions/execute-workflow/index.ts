@@ -669,13 +669,35 @@ async function executeUpdateLinkedRecords(
   const crossRefFieldId = config.crossRefFieldId || config.crossReferenceFieldId
   const triggerSubmissionData = triggerData?.submissionData || {}
 
-  const fieldMappings = Array.isArray(config.fieldMappings) ? config.fieldMappings : []
-  const fieldValues = Array.isArray(config.fieldValues) ? config.fieldValues : []
+  const normalizeConfigArray = (value: any): any[] => {
+    if (Array.isArray(value)) return value
+    if (typeof value === 'string') {
+      try {
+        const parsed = JSON.parse(value)
+        return Array.isArray(parsed) ? parsed : []
+      } catch {
+        return []
+      }
+    }
+    return []
+  }
+
+  const fieldMappings = normalizeConfigArray(config.fieldMappings)
+  const fieldValues = normalizeConfigArray(config.fieldValues)
   const mode = config.fieldConfigMode || 'field_mapping'
   const useMappings = mode === 'field_mapping' || mode === 'both' || (!config.fieldConfigMode && fieldMappings.length > 0)
-  const useValues = mode === 'field_values' || mode === 'both'
+  const useValues = mode === 'field_values' || mode === 'both' || (!config.fieldConfigMode && fieldValues.length > 0)
 
-  if (!crossRefFieldId || (fieldMappings.length === 0 && fieldValues.length === 0)) {
+  console.log('📋 update_linked_records config summary:', JSON.stringify({
+    crossRefFieldId,
+    mode,
+    fieldMappingsCount: fieldMappings.length,
+    fieldValuesCount: fieldValues.length,
+    useMappings,
+    useValues,
+  }))
+
+  if (!crossRefFieldId || (!useMappings && !useValues) || (useMappings && fieldMappings.length === 0 && !useValues) || (useValues && fieldValues.length === 0 && !useMappings)) {
     return { success: false, error: 'Missing required configuration for update linked records' }
   }
 
