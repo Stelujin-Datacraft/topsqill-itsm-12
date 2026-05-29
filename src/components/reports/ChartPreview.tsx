@@ -2180,25 +2180,25 @@ export function ChartPreview({
   };
 
   const getActiveDimensionField = (): string => {
-    const drilldownLevels = getDrilldownLevels();
-    if (config.drilldownConfig?.enabled && drilldownLevels.length > 0) {
+    const drilldownSequence = getDrilldownSequence();
+    if (config.drilldownConfig?.enabled && drilldownSequence.length > 0) {
       const currentLevel = drilldownState?.values?.length || 0;
-      const activeIndex = Math.min(currentLevel, drilldownLevels.length - 1);
-      return drilldownLevels[activeIndex] || drilldownLevels[0] || '';
+      const activeIndex = Math.min(currentLevel, drilldownSequence.length - 1);
+      return drilldownSequence[activeIndex] || drilldownSequence[0] || '';
     }
 
-    return config.dimensions?.[0] || config.xAxis || '';
+    return getBaseDimensionField();
   };
 
   const getActiveDrilldownFieldForCurrentData = (): string => {
-    const drilldownLevels = getDrilldownLevels();
-    if (!config.drilldownConfig?.enabled || drilldownLevels.length === 0) {
+    const drilldownSequence = getDrilldownSequence();
+    if (!config.drilldownConfig?.enabled || drilldownSequence.length === 0) {
       return getActiveDimensionField();
     }
 
     const currentLevel = drilldownState?.values?.length || 0;
-    const activeIndex = Math.min(currentLevel, drilldownLevels.length - 1);
-    return drilldownLevels[activeIndex] || getActiveDimensionField();
+    const activeIndex = Math.min(currentLevel, drilldownSequence.length - 1);
+    return drilldownSequence[activeIndex] || getActiveDimensionField();
   };
 
   const getPayloadDimensionValue = (payload: any): string => {
@@ -2214,11 +2214,11 @@ export function ChartPreview({
 
   // Get available values for the current drilldown level
   const getAvailableValuesForLevel = (levelIndex: number) => {
-    const drilldownLevels = getDrilldownLevels();
-    if (!config.drilldownConfig?.enabled || drilldownLevels.length === 0 || !chartData.length) {
+    const drilldownSequence = getDrilldownSequence();
+    if (!config.drilldownConfig?.enabled || drilldownSequence.length === 0 || !chartData.length) {
       return [];
     }
-    const currentDimension = drilldownLevels[levelIndex];
+    const currentDimension = drilldownSequence[levelIndex];
     if (!currentDimension) return [];
 
     // Extract unique values from chart data
@@ -2226,12 +2226,12 @@ export function ChartPreview({
     return values;
   };
   const handleDrilldownSelect = (value: string) => {
-    const drilldownLevels = getDrilldownLevels();
-    if (!config.drilldownConfig?.enabled || drilldownLevels.length === 0 || !onDrilldown) {
+    const drilldownSequence = getDrilldownSequence();
+    if (!config.drilldownConfig?.enabled || drilldownSequence.length === 0 || !onDrilldown) {
       return;
     }
     const currentLevel = drilldownState?.values?.length || 0;
-    const nextLevel = drilldownLevels[currentLevel];
+    const nextLevel = drilldownSequence[currentLevel];
     if (nextLevel && value) {
       onDrilldown(nextLevel, value);
     }
@@ -2245,19 +2245,19 @@ export function ChartPreview({
 
   // Get the current level info for the drilldown selector
   const getCurrentLevelInfo = () => {
-    const drilldownLevels = getDrilldownLevels();
-    if (!config.drilldownConfig?.enabled || drilldownLevels.length === 0) {
+    const drilldownSequence = getDrilldownSequence();
+    if (!config.drilldownConfig?.enabled || drilldownSequence.length === 0) {
       return null;
     }
     const currentLevel = drilldownState?.values?.length || 0;
-    const nextDimension = drilldownLevels[currentLevel];
+    const nextDimension = drilldownSequence[currentLevel];
     if (!nextDimension) return null;
     return {
       levelIndex: currentLevel,
       fieldId: nextDimension,
       fieldName: getFormFieldName(nextDimension),
       availableValues: getAvailableValuesForLevel(currentLevel),
-      canDrillFurther: currentLevel < drilldownLevels.length
+      canDrillFurther: currentLevel < drilldownSequence.length
     };
   };
   const currentLevelInfo = getCurrentLevelInfo();
