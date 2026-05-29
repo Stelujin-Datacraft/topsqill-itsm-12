@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -36,26 +37,21 @@ export function ManualWorkflowTrigger({
   submissionRefId,
   compact = false,
 }: ManualWorkflowTriggerProps) {
-  const [workflows, setWorkflows] = useState<AvailableWorkflow[]>([]);
-  const [loading, setLoading] = useState(false);
   const [executing, setExecuting] = useState<string | null>(null);
   const [executionResults, setExecutionResults] = useState<Record<string, 'success' | 'failed'>>({});
   const { userProfile } = useAuth();
 
-  // Load available workflows for this form
-  useEffect(() => {
-    loadAvailableWorkflows();
-  }, [formId]);
-
-  const loadAvailableWorkflows = async () => {
-    setLoading(true);
-    try {
-      // Optimized: Fetch workflows with their start nodes in a single query using join
+  // Shared, cached fetch across all rows in the table — only one network request per formId.
+  const { data: workflows = [], isLoading: loading } = useQuery<AvailableWorkflow[]>({
+    queryKey: ['manual-workflow-trigger', formId],
+    enabled: !!formId,
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
       const { data: workflowsWithNodes, error } = await supabase
         .from('workflows')
         .select(`
-          id, 
-          name, 
+          id,
+          name,
           description,
           workflow_nodes!inner (
             id,
@@ -66,52 +62,37 @@ export function ManualWorkflowTrigger({
         .eq('workflow_nodes.node_type', 'start');
 
       if (error) throw error;
+      if (!workflowsWithNodes || workflowsWithNodes.length === 0) return [];
 
-      if (!workflowsWithNodes || workflowsWithNodes.length === 0) {
-        setWorkflows([]);
-        return;
-      }
-
-      const availableWorkflows: AvailableWorkflow[] = [];
-
-      // Process workflows and their start nodes
-      for (const workflow of workflowsWithNodes) {
+      const available: AvailableWorkflow[] = [];
+      for (const workflow of workflowsWithNodes as any[]) {
         const nodes = workflow.workflow_nodes || [];
-        
         for (const node of nodes) {
-          let config: any = {};
+          let cfg: any = {};
           try {
-            config = typeof node.config === 'string' ? JSON.parse(node.config) : node.config || {};
+            cfg = typeof node.config === 'string' ? JSON.parse(node.config) : node.config || {};
           } catch {
-            config = {};
+            cfg = {};
           }
-
-          const triggerType = config.triggerType || 'form_submission';
-          const triggerFormId = config.triggerFormId;
-
-          // Include workflows that trigger on this form's submission/completion
+          const triggerType = cfg.triggerType || 'form_submission';
+          const triggerFormId = cfg.triggerFormId;
           if (
             (triggerType === 'form_submission' || triggerType === 'form_completion') &&
             triggerFormId === formId
           ) {
-            availableWorkflows.push({
+            available.push({
               id: workflow.id,
               name: workflow.name,
               description: workflow.description || undefined,
               startNodeId: node.id,
             });
-            break; // Only add workflow once even if multiple start nodes match
+            break;
           }
         }
       }
-
-      setWorkflows(availableWorkflows);
-    } catch (error) {
-      console.error('Error loading available workflows:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+      return available;
+    },
+  });
 
   const handleTriggerWorkflow = async (workflow: AvailableWorkflow) => {
     setExecuting(workflow.id);
@@ -177,21 +158,9 @@ export function ManualWorkflowTrigger({
     }
   };
 
-  if (loading) {
-    if (compact) {
-      return (
-        <Button variant="ghost" size="sm" disabled className="h-6 w-6 p-0">
-          <Loader2 className="h-3 w-3 animate-spin" />
-        </Button>
-      );
-    }
-    return (
-      <Button variant="outline" size="sm" disabled>
-        <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-        Loading...
-      </Button>
-    );
-  }
+  // While the (shared) workflow list is loading, render nothing instead of
+  // a per-row spinner. Avoids the "multiple loading circles" across the table.
+  if (loading) return null;
 
   if (workflows.length === 0) {
     return null; // Don't show button if no workflows available
