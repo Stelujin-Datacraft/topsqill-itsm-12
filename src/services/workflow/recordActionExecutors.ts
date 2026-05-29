@@ -1246,8 +1246,8 @@ export class RecordActionExecutors {
         }
 
         if (!updatedRows || updatedRows.length === 0) {
-          console.warn(`⚠️ Update returned 0 rows for ${linkedRec.refId} — likely blocked by RLS (no UPDATE permission for current user on form ${targetFormId}).`);
-          errors.push(`No permission to update ${linkedRec.refId} (RLS blocked)`);
+          console.warn(`⚠️ Update returned 0 rows for ${linkedRec.refId} — record not writable by current user (RLS) or no longer exists.`);
+          errors.push(`Could not update ${linkedRec.refId} (0 rows affected)`);
           continue;
         }
 
