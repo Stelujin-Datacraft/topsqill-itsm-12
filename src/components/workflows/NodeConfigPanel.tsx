@@ -488,14 +488,24 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
           toast({ title: "Error", description: "Target form is required. Please ensure the cross-reference field has a target form configured.", variant: "destructive" });
           return false;
         }
-        if (!localConfig?.fieldMappings || localConfig.fieldMappings.length === 0) {
-          toast({ title: "Error", description: "Please add at least one field mapping", variant: "destructive" });
+        const mode = localConfig?.fieldConfigMode || 'field_mapping';
+        const mappings = localConfig?.fieldMappings || [];
+        const fieldValues = localConfig?.fieldValues || [];
+        const usesMappings = mode === 'field_mapping' || mode === 'both';
+        const usesValues = mode === 'field_values' || mode === 'both';
+        if (usesMappings && mappings.some((m: any) => !m.sourceFieldId || !m.targetFieldId)) {
+          toast({ title: "Error", description: "Please complete all field mappings or remove incomplete ones", variant: "destructive" });
           return false;
         }
-        const mappings = localConfig?.fieldMappings || [];
-        const hasIncompleteMappings = mappings.some((m: any) => !m.sourceFieldId || !m.targetFieldId);
-        if (hasIncompleteMappings) {
-          toast({ title: "Error", description: "Please complete all field mappings or remove incomplete ones", variant: "destructive" });
+        if (usesValues && fieldValues.some((v: any) => !v.fieldId || !v.valueType)) {
+          toast({ title: "Error", description: "Please complete all static field values or remove incomplete ones", variant: "destructive" });
+          return false;
+        }
+        const totalConfigured =
+          (usesMappings ? mappings.filter((m: any) => m.sourceFieldId && m.targetFieldId).length : 0) +
+          (usesValues ? fieldValues.filter((v: any) => v.fieldId).length : 0);
+        if (totalConfigured === 0) {
+          toast({ title: "Error", description: "Please add at least one field mapping or static field value", variant: "destructive" });
           return false;
         }
       }
