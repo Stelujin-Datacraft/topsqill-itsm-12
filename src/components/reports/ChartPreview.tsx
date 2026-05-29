@@ -5786,7 +5786,7 @@ export function ChartPreview({
 
 
       {/* Chart Container - Fills available space */}
-      <div className="flex-1 min-h-[300px] min-w-0 overflow-hidden">
+      <div className="flex-1 min-h-[300px] min-w-0 overflow-auto scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/40">
         {config.showAsTable ? (
           <div className="h-full overflow-auto">
             <table className="w-full border-collapse border border-border">
