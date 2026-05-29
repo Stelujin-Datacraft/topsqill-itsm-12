@@ -32,6 +32,10 @@ interface TableCellSubmissionsDialogProps {
   crossRefTargetFormId?: string;
   crossRefDisplayFields?: string[];
   crossRefLinkedIds?: string[];
+  // Extra field/value filters to AND with the dimension filter.
+  // Used when opening the dialog from a drilled-in chart so that previously
+  // applied drill-down filters are honored.
+  additionalFilters?: Array<{ field: string; value: string }>;
 }
 
 interface SubmissionRecord {
