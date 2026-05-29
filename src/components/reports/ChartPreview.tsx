@@ -2209,6 +2209,9 @@ export function ChartPreview({
   };
   const resetDrilldown = () => {
     if (onDrilldown) {
+      // Clear any stale drilled-in data so the chart doesn't briefly render
+      // the last filtered (often uniform) values before the refetch lands.
+      setChartData([]);
       // Reset to initial state by calling drilldown with empty values
       onDrilldown('', '');
     }
