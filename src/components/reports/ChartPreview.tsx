@@ -2342,17 +2342,17 @@ export function ChartPreview({
     const dimensionLabel = dimensionField ? getFormFieldName(dimensionField) : 'Category';
     
     // Check if drilldown is enabled and drilldown mode toggle is ON
-    const drilldownLevels = getDrilldownLevels();
+    const drilldownSequence = getDrilldownSequence();
     const priorDrillFiltersPie: Array<{ field: string; value: string }> = (drilldownState?.values || []).map((v, i) => ({
-      field: drilldownLevels[i] || '',
+      field: drilldownSequence[i] || '',
       value: v,
     })).filter(f => f.field && f.value !== undefined && f.value !== null && f.value !== '');
 
-    if (config.drilldownConfig?.enabled && onDrilldown && drilldownLevels.length > 0 && isDrilldownModeActive) {
+    if (config.drilldownConfig?.enabled && onDrilldown && drilldownSequence.length > 0 && isDrilldownModeActive) {
       const currentLevel = drilldownState?.values?.length || 0;
-      const isAtOrPastLastLevel = currentLevel >= drilldownLevels.length;
+      const isAtOrPastLastLevel = currentLevel >= drilldownSequence.length;
       if (isAtOrPastLastLevel) {
-        const lastLevelField = drilldownLevels[Math.min(currentLevel, drilldownLevels.length - 1)] || dimensionField;
+        const lastLevelField = drilldownSequence[Math.min(currentLevel, drilldownSequence.length - 1)] || dimensionField;
         setCellSubmissionsDialog({
           open: true,
           dimensionField: lastLevelField,
@@ -2363,7 +2363,7 @@ export function ChartPreview({
         return;
       }
 
-      const nextLevel = drilldownLevels[currentLevel];
+      const nextLevel = drilldownSequence[currentLevel];
       if (nextLevel) {
         onDrilldown(nextLevel, clickedValue);
         return;
@@ -2496,15 +2496,15 @@ export function ChartPreview({
     const dimensionLabel = dimensionField ? getFormFieldName(dimensionField) : 'Field';
     
     // Check if drilldown is enabled and drilldown mode toggle is ON
-    const drilldownLevels = getDrilldownLevels();
+    const drilldownSequence = getDrilldownSequence();
     // Build the list of drill filters already applied so the records dialog
     // can honor them whenever it is opened from a drilled-in chart.
     const priorDrillFilters: Array<{ field: string; value: string }> = (drilldownState?.values || []).map((v, i) => ({
-      field: drilldownLevels[i] || '',
+      field: drilldownSequence[i] || '',
       value: v,
     })).filter(f => f.field && f.value !== undefined && f.value !== null && f.value !== '');
 
-    if (config.drilldownConfig?.enabled && onDrilldown && drilldownLevels.length > 0 && isDrilldownModeActive) {
+    if (config.drilldownConfig?.enabled && onDrilldown && drilldownSequence.length > 0 && isDrilldownModeActive) {
       if (event) {
         event.stopPropagation();
       }
@@ -2519,9 +2519,9 @@ export function ChartPreview({
       // every configured level. While still on the last level we should drill
       // into it (consume its value) and THEN open the dialog on the next
       // click. This makes a 3-level drill produce: L0 -> L1 -> L2 -> dialog.
-      const isAtOrPastLastLevel = currentLevel >= drilldownLevels.length;
+      const isAtOrPastLastLevel = currentLevel >= drilldownSequence.length;
       if (isAtOrPastLastLevel) {
-        const lastLevelField = drilldownLevels[Math.min(currentLevel, drilldownLevels.length - 1)] || dimensionField;
+        const lastLevelField = drilldownSequence[Math.min(currentLevel, drilldownSequence.length - 1)] || dimensionField;
         setCellSubmissionsDialog({
           open: true,
           dimensionField: lastLevelField,
@@ -2532,7 +2532,7 @@ export function ChartPreview({
         return;
       }
 
-      const nextLevel = drilldownLevels[currentLevel];
+      const nextLevel = drilldownSequence[currentLevel];
       if (nextLevel && dimensionValue !== 'Not Specified') {
         onDrilldown(nextLevel, dimensionValue);
         return;
