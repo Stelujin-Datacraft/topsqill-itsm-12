@@ -29,6 +29,7 @@ import { ReportMedia } from '@/types/dashboard';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { useNavigate } from 'react-router-dom';
+import { resolveDrilldownState } from './utils/drilldownState';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 const ResponsiveGridLayout = WidthProvider(Responsive);
@@ -380,11 +381,14 @@ export function ReportEditor({
       const target = event.target as HTMLElement;
       
       // Check if the click originated from within a chart that supports drilldown
-      const isChartDrilldownClick = target.closest('.recharts-bar, .recharts-pie-sector, .recharts-line, .recharts-area') ||
+      const isChartDrilldownClick = target.closest('.recharts-wrapper, .recharts-surface, .recharts-bar, .recharts-pie-sector, .recharts-line, .recharts-area, .recharts-dot, .recharts-scatter-symbol, .recharts-rectangle, .recharts-sector') ||
                                    target.classList.contains('recharts-bar') ||
                                    target.classList.contains('recharts-pie-sector') ||
                                    target.classList.contains('recharts-line') ||
-                                   target.classList.contains('recharts-area');
+                                   target.classList.contains('recharts-area') ||
+                                   target.classList.contains('recharts-dot') ||
+                                   target.classList.contains('recharts-rectangle') ||
+                                   target.classList.contains('recharts-sector');
       
       // Check if the click originated from a button (for table drilldown, sorting, filtering)
       const isButtonClick = target.closest('button') || target.tagName === 'BUTTON';
@@ -487,17 +491,6 @@ export function ReportEditor({
     }
   };
   const handleDrilldown = (componentId: string, drilldownLevel: string, drilldownValue: string) => {
-    // Handle reset case
-    if (!drilldownLevel && !drilldownValue) {
-      setDrilldownStates(prev => ({
-        ...prev,
-        [componentId]: {
-          path: [],
-          values: []
-        }
-      }));
-      return;
-    }
     setDrilldownStates(prev => {
       const currentState = prev[componentId] || {
         path: [],
@@ -517,37 +510,19 @@ export function ReportEditor({
       // For cross-ref charts, the first value is always parentRefId (drilldownLevel might be empty)
       // So we allow adding values even if drilldownLevels is technically empty for the first click
       const isCrossRef = config?.crossRefConfig?.enabled && config?.crossRefConfig?.crossRefFieldId;
-      const maxValues = isCrossRef ? drilldownLevels.length + 1 : drilldownLevels.length; // +1 for parentRefId
-
-      const newValues = [...currentState.values];
-      const levelIndex = isCrossRef
-        ? Math.max(0, currentState.values.length)
-        : Math.max(0, drilldownLevels.indexOf(drilldownLevel));
-
-      if (levelIndex < maxValues) {
-        newValues[levelIndex] = drilldownValue;
-        // Remove any values beyond the current level
-        newValues.splice(levelIndex + 1);
-      }
-      
-      // For path: in cross-ref mode, first entry has no path (it's parentRefId)
-      // Subsequent entries map to drilldownLevels[i-1]
-      let newPath: string[];
-      if (isCrossRef) {
-        newPath = newValues.slice(1).map((_, i) => drilldownLevels[i] || '');
-        // Add empty string for parentRefId position
-        if (newValues.length > 0) {
-          newPath = ['', ...newPath];
-        }
-      } else {
-        newPath = drilldownLevels.slice(0, newValues.length);
-      }
+      const nextState = resolveDrilldownState({
+        currentState,
+        drilldownLevel,
+        drilldownValue,
+        drilldownLevels,
+        isCrossRef,
+      });
       
       const newState = {
         ...prev,
         [componentId]: {
-          path: newPath,
-          values: newValues
+          path: nextState.path,
+          values: nextState.values
         }
       };
       
