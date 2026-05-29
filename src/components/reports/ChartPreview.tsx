@@ -5552,7 +5552,7 @@ export function ChartPreview({
   const canDrillUp = drilldownState?.values && drilldownState.values.length > 0;
   const chartInfo = getChartInfoSummary();
   
-  return <div ref={chartContainerRef} className="h-full flex flex-col overflow-y-auto scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/40 bg-background">
+  return <div ref={chartContainerRef} className="h-full min-h-0 flex flex-col overflow-hidden bg-background">
       {/* Chart Info Header - Always visible for context */}
       <div className="mb-4 p-4 bg-gradient-to-r from-muted/50 to-muted/30 rounded-lg border border-border flex-shrink-0">
         <div className="flex items-start justify-between mb-3">
@@ -5564,16 +5564,7 @@ export function ChartPreview({
               filename={`${config.title || 'chart'}-${new Date().toISOString().split('T')[0]}`}
               title={config.title || chartInfo.title}
             />
-            {canDrillUp && <Button variant="outline" size="sm" onClick={() => {
-              if (onDrilldown && drilldownState?.values) {
-                const drilldownLevels = getNormalizedDrilldownLevels();
-                const newValues = [...drilldownState.values];
-                newValues.pop();
-                const lastLevel = drilldownLevels[newValues.length - 1] || '';
-                const lastValue = newValues[newValues.length - 1] || '';
-                onDrilldown(lastLevel, lastValue);
-              }
-            }}>
+            {canDrillUp && <Button variant="outline" size="sm" onClick={() => onDrilldown?.(DRILLDOWN_BACK_ACTION, '')}>
               <ArrowLeft className="h-4 w-4 mr-1" />
               Back
             </Button>}
@@ -5795,7 +5786,7 @@ export function ChartPreview({
 
 
       {/* Chart Container - Fills available space */}
-      <div className="flex-grow min-h-[300px]">
+      <div className="flex-1 min-h-[300px] min-w-0 overflow-hidden">
         {config.showAsTable ? (
           <div className="h-full overflow-auto">
             <table className="w-full border-collapse border border-border">
