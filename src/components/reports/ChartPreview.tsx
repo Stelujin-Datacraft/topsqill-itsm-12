@@ -2183,6 +2183,17 @@ export function ChartPreview({
     return String(rawValue);
   };
 
+  const getDialogDrillFilters = (clickedField?: string) => {
+    const drilldownLevels = getDrilldownLevels();
+    return (drilldownState?.values || [])
+      .map((value, index) => ({
+        field: drilldownLevels[index] || '',
+        value,
+      }))
+      .filter(filter => filter.field && filter.value !== undefined && filter.value !== null && filter.value !== '')
+      .filter(filter => !clickedField || filter.field !== clickedField);
+  };
+
   // Get available values for the current drilldown level
   const getAvailableValuesForLevel = (levelIndex: number) => {
     const drilldownLevels = getDrilldownLevels();
@@ -2209,9 +2220,15 @@ export function ChartPreview({
   };
   const resetDrilldown = () => {
     if (onDrilldown) {
+      // Invalidate any in-flight chart load immediately so stale drilled data
+      // cannot win the race and overwrite the restored root chart.
+      loadRequestRef.current += 1;
+      isInitialLoadRef.current = true;
+      setLoading(true);
       // Clear any stale drilled-in data so the chart doesn't briefly render
       // the last filtered (often uniform) values before the refetch lands.
       setChartData([]);
+      setCellSubmissionsDialog(prev => prev.open ? { ...prev, open: false } : prev);
       // Reset to initial state by calling drilldown with empty values
       onDrilldown('', '');
     }
@@ -2317,10 +2334,7 @@ export function ChartPreview({
     
     // Check if drilldown is enabled and drilldown mode toggle is ON
     const drilldownLevels = getDrilldownLevels();
-    const priorDrillFiltersPie: Array<{ field: string; value: string }> = (drilldownState?.values || []).map((v, i) => ({
-      field: drilldownLevels[i] || '',
-      value: v,
-    })).filter(f => f.field && f.value !== undefined && f.value !== null && f.value !== '');
+    const priorDrillFiltersPie = getDialogDrillFilters(dimensionField);
 
     if (config.drilldownConfig?.enabled && onDrilldown && drilldownLevels.length > 0 && isDrilldownModeActive) {
       const currentLevel = drilldownState?.values?.length || 0;
@@ -2477,10 +2491,7 @@ export function ChartPreview({
     const drilldownLevels = getDrilldownLevels();
     // Build the list of drill filters already applied so the records dialog
     // can honor them whenever it is opened from a drilled-in chart.
-    const priorDrillFilters: Array<{ field: string; value: string }> = (drilldownState?.values || []).map((v, i) => ({
-      field: drilldownLevels[i] || '',
-      value: v,
-    })).filter(f => f.field && f.value !== undefined && f.value !== null && f.value !== '');
+    const priorDrillFilters = getDialogDrillFilters(dimensionField);
 
     if (config.drilldownConfig?.enabled && onDrilldown && drilldownLevels.length > 0 && isDrilldownModeActive) {
       if (event) {
