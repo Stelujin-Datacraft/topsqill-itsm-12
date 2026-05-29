@@ -32,6 +32,10 @@ interface TableCellSubmissionsDialogProps {
   crossRefTargetFormId?: string;
   crossRefDisplayFields?: string[];
   crossRefLinkedIds?: string[];
+  // Extra field/value filters to AND with the dimension filter.
+  // Used when opening the dialog from a drilled-in chart so that previously
+  // applied drill-down filters are honored.
+  additionalFilters?: Array<{ field: string; value: string }>;
 }
 
 interface SubmissionRecord {
@@ -55,7 +59,8 @@ export function TableCellSubmissionsDialog({
   fieldLabels = {},
   crossRefTargetFormId,
   crossRefDisplayFields,
-  crossRefLinkedIds
+  crossRefLinkedIds,
+  additionalFilters = []
 }: TableCellSubmissionsDialogProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -79,7 +84,7 @@ export function TableCellSubmissionsDialog({
       setSortField('_submission_ref');
       setSortDirection('desc');
     }
-  }, [open, formId, dimensionField, dimensionValue, groupField, groupValue, submissionId, crossRefTargetFormId, crossRefLinkedIds]);
+  }, [open, formId, dimensionField, dimensionValue, groupField, groupValue, submissionId, crossRefTargetFormId, crossRefLinkedIds, JSON.stringify(additionalFilters)]);
 
   const loadFieldTypes = async () => {
     // Use crossRefTargetFormId if available (for cross-reference drilldown)
@@ -118,6 +123,61 @@ export function TableCellSubmissionsDialog({
       return 'Not Specified';
     }
     return String(val);
+  };
+
+  // Build every plausible string representation of a stored value so we can
+  // match what the chart bar displayed. The chart's "name" can come from:
+  //   - server-side PostgREST (`submission_data->>field`) which JSON-stringifies
+  //     objects/arrays and stringifies primitives
+  //   - client-side extraction which may unwrap `.status` / `.label` / `.value`
+  //     from option objects or join array values
+  // We compare against all of them to avoid false "0 records" results.
+  const getAllPossibleValueRepresentations = (submissionData: any, dim: string): string[] => {
+    if (dim === '_default') return ['Total'];
+    const val = submissionData[dim];
+    const reps = new Set<string>();
+
+    if (val === null || val === undefined || val === '') {
+      reps.add('Not Specified');
+      reps.add('');
+      reps.add('Unknown');
+      return Array.from(reps);
+    }
+
+    if (Array.isArray(val)) {
+      reps.add(JSON.stringify(val));
+      reps.add(val.map((v) => (v === null || v === undefined ? '' : String(v))).join(', '));
+      reps.add(val.map((v) => (v === null || v === undefined ? '' : String(v))).join(','));
+      val.forEach((v) => {
+        if (v !== null && v !== undefined) reps.add(String(v));
+      });
+      return Array.from(reps);
+    }
+
+    if (typeof val === 'object') {
+      reps.add(JSON.stringify(val));
+      if ((val as any).status) reps.add(String((val as any).status));
+      if ((val as any).label) reps.add(String((val as any).label));
+      if ((val as any).value !== undefined && (val as any).value !== null) {
+        reps.add(String((val as any).value));
+      }
+      if ((val as any).name) reps.add(String((val as any).name));
+      return Array.from(reps);
+    }
+
+    // Primitive
+    reps.add(String(val));
+    if (typeof val === 'boolean') {
+      reps.add(val ? 'true' : 'false');
+      reps.add(val ? 'Yes' : 'No');
+    }
+    return Array.from(reps);
+  };
+
+  const valueMatches = (submissionData: any, dim: string, expected: string): boolean => {
+    const normalizedExpected = String(expected).trim();
+    const reps = getAllPossibleValueRepresentations(submissionData, dim);
+    return reps.some((r) => String(r).trim() === normalizedExpected);
   };
 
   const loadSubmissions = async () => {
@@ -180,36 +240,35 @@ export function TableCellSubmissionsDialog({
       console.log('📊 Dimension filter:', { dimensionField, dimensionValue });
       console.log('📊 Group filter:', { groupField, groupValue });
 
-      // Apply dimension filter using getDimensionValue for proper matching
-      // Normalize both values to strings for comparison (handles number/string mismatches)
+      // Apply dimension filter - try multiple normalized representations so
+      // server-side (`->>`) and client-side (option label/value/status) names
+      // both match correctly across chart types.
       if (dimensionField && dimensionValue) {
-        const normalizedDimensionValue = String(dimensionValue).trim();
-        filteredData = filteredData.filter(submission => {
-          const extractedValue = getDimensionValue(submission.submission_data, dimensionField);
-          const normalizedExtracted = String(extractedValue).trim();
-          const matches = normalizedExtracted === normalizedDimensionValue;
-          if (!matches && filteredData.length < 10) {
-            console.log('📊 No match:', { extractedValue: normalizedExtracted, expected: normalizedDimensionValue, submission_id: submission.id });
-          }
-          return matches;
-        });
+        filteredData = filteredData.filter(submission =>
+          valueMatches(submission.submission_data, dimensionField, dimensionValue)
+        );
         console.log('📊 After dimension filter:', filteredData.length);
       }
 
       // Apply group filter if exists (for heatmap column dimension)
-      // Normalize both values to strings for comparison (handles number/string mismatches)
       if (groupField && groupValue) {
-        const normalizedGroupValue = String(groupValue).trim();
-        filteredData = filteredData.filter(submission => {
-          const extractedValue = getDimensionValue(submission.submission_data, groupField);
-          const normalizedExtracted = String(extractedValue).trim();
-          const matches = normalizedExtracted === normalizedGroupValue;
-          if (!matches && filteredData.length < 10) {
-            console.log('📊 Group no match:', { extractedValue: normalizedExtracted, expected: normalizedGroupValue, submission_id: submission.id });
-          }
-          return matches;
-        });
+        filteredData = filteredData.filter(submission =>
+          valueMatches(submission.submission_data, groupField, groupValue)
+        );
         console.log('📊 After group filter:', filteredData.length);
+      }
+
+      // Apply any additional drill-down filters captured from the chart state
+      // so the dialog records reflect every active filter, not just the
+      // dimension of the bar that was clicked.
+      if (additionalFilters && additionalFilters.length > 0) {
+        additionalFilters.forEach(({ field, value }) => {
+          if (!field || value === undefined || value === null || value === '') return;
+          filteredData = filteredData.filter(submission =>
+            valueMatches(submission.submission_data, field, String(value))
+          );
+        });
+        console.log('📊 After additional drill filters:', filteredData.length);
       }
 
       setSubmissions(filteredData);

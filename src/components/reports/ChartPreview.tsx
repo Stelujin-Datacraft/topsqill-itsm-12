@@ -55,6 +55,7 @@ export function ChartPreview({
     crossRefTargetFormId?: string;
     crossRefDisplayFields?: string[];
     crossRefLinkedIds?: string[];
+    additionalFilters?: Array<{ field: string; value: string }>;
   }>({
     open: false,
     dimensionField: '',
@@ -2312,33 +2313,40 @@ export function ChartPreview({
     
     // Check if drilldown is enabled and drilldown mode toggle is ON
     const drilldownLevels = getDrilldownLevels();
+    const priorDrillFiltersPie: Array<{ field: string; value: string }> = (drilldownState?.values || []).map((v, i) => ({
+      field: drilldownLevels[i] || '',
+      value: v,
+    })).filter(f => f.field && f.value !== undefined && f.value !== null && f.value !== '');
+
     if (config.drilldownConfig?.enabled && onDrilldown && drilldownLevels.length > 0 && isDrilldownModeActive) {
       const currentLevel = drilldownState?.values?.length || 0;
-      
-      if (currentLevel >= drilldownLevels.length) {
-        // At final level - show submissions dialog
+      const isAtOrPastLastLevel = currentLevel >= drilldownLevels.length - 1;
+      if (isAtOrPastLastLevel) {
+        const lastLevelField = drilldownLevels[Math.min(currentLevel, drilldownLevels.length - 1)] || dimensionField;
         setCellSubmissionsDialog({
           open: true,
-          dimensionField,
+          dimensionField: lastLevelField,
           dimensionValue: clickedValue,
-          dimensionLabel,
+          dimensionLabel: getFormFieldName(lastLevelField) || dimensionLabel,
+          additionalFilters: priorDrillFiltersPie,
         });
         return;
       }
-      
+
       const nextLevel = drilldownLevels[currentLevel];
       if (nextLevel) {
         onDrilldown(nextLevel, clickedValue);
         return;
       }
     }
-    
+
     // Drilldown mode is OFF or not enabled - open submissions dialog
     setCellSubmissionsDialog({
       open: true,
       dimensionField,
       dimensionValue: clickedValue,
       dimensionLabel,
+      additionalFilters: priorDrillFiltersPie,
     });
   };
   const handleBarClick = (data: any, index: number, event?: any) => {
@@ -2456,22 +2464,37 @@ export function ChartPreview({
     
     // Check if drilldown is enabled and drilldown mode toggle is ON
     const drilldownLevels = getDrilldownLevels();
+    // Build the list of drill filters already applied so the records dialog
+    // can honor them whenever it is opened from a drilled-in chart.
+    const priorDrillFilters: Array<{ field: string; value: string }> = (drilldownState?.values || []).map((v, i) => ({
+      field: drilldownLevels[i] || '',
+      value: v,
+    })).filter(f => f.field && f.value !== undefined && f.value !== null && f.value !== '');
+
     if (config.drilldownConfig?.enabled && onDrilldown && drilldownLevels.length > 0 && isDrilldownModeActive) {
       if (event) {
         event.stopPropagation();
       }
       const currentLevel = drilldownState?.values?.length || 0;
-      if (currentLevel >= drilldownLevels.length) {
-        // At final level - show submissions dialog (always show list with view button)
+      // The chart currently shows drilldownLevels[currentLevel] (or the last
+      // level when currentLevel exceeds the configured count). When the user
+      // clicks while the displayed level IS the last configured level, drilling
+      // further has nowhere to go — open the records dialog with every filter
+      // applied (including the clicked bar) instead of producing a broken
+      // "no further drill" state.
+      const isAtOrPastLastLevel = currentLevel >= drilldownLevels.length - 1;
+      if (isAtOrPastLastLevel) {
+        const lastLevelField = drilldownLevels[Math.min(currentLevel, drilldownLevels.length - 1)] || dimensionField;
         setCellSubmissionsDialog({
           open: true,
-          dimensionField,
+          dimensionField: lastLevelField,
           dimensionValue,
-          dimensionLabel,
+          dimensionLabel: getFormFieldName(lastLevelField) || dimensionLabel,
+          additionalFilters: priorDrillFilters,
         });
         return;
       }
-      
+
       const nextLevel = drilldownLevels[currentLevel];
       if (nextLevel && dimensionValue !== 'Not Specified') {
         onDrilldown(nextLevel, dimensionValue);
@@ -2479,12 +2502,15 @@ export function ChartPreview({
       }
     }
     
-    // Drilldown mode is OFF or not enabled - open submissions dialog (always show list with view button)
+    // Drilldown mode is OFF or not enabled - open submissions dialog with the
+    // currently displayed dimension plus any previously applied drill filters
+    // so the listed records actually match what the user is looking at.
     setCellSubmissionsDialog({
       open: true,
       dimensionField,
       dimensionValue,
       dimensionLabel,
+      additionalFilters: priorDrillFilters,
     });
   };
   const handleChartClick = (data: any, event?: any) => {
@@ -6017,6 +6043,7 @@ export function ChartPreview({
         crossRefTargetFormId={cellSubmissionsDialog.crossRefTargetFormId}
         crossRefDisplayFields={cellSubmissionsDialog.crossRefDisplayFields}
         crossRefLinkedIds={cellSubmissionsDialog.crossRefLinkedIds}
+        additionalFilters={cellSubmissionsDialog.additionalFilters}
       />
     </div>;
 }
