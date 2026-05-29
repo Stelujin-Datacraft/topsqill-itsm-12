@@ -381,11 +381,14 @@ export function ReportEditor({
       const target = event.target as HTMLElement;
       
       // Check if the click originated from within a chart that supports drilldown
-      const isChartDrilldownClick = target.closest('.recharts-bar, .recharts-pie-sector, .recharts-line, .recharts-area') ||
+      const isChartDrilldownClick = target.closest('.recharts-wrapper, .recharts-surface, .recharts-bar, .recharts-pie-sector, .recharts-line, .recharts-area, .recharts-dot, .recharts-scatter-symbol, .recharts-rectangle, .recharts-sector') ||
                                    target.classList.contains('recharts-bar') ||
                                    target.classList.contains('recharts-pie-sector') ||
                                    target.classList.contains('recharts-line') ||
-                                   target.classList.contains('recharts-area');
+                                   target.classList.contains('recharts-area') ||
+                                   target.classList.contains('recharts-dot') ||
+                                   target.classList.contains('recharts-rectangle') ||
+                                   target.classList.contains('recharts-sector');
       
       // Check if the click originated from a button (for table drilldown, sorting, filtering)
       const isButtonClick = target.closest('button') || target.tagName === 'BUTTON';
