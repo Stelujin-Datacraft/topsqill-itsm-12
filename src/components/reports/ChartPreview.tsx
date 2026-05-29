@@ -55,6 +55,7 @@ export function ChartPreview({
     crossRefTargetFormId?: string;
     crossRefDisplayFields?: string[];
     crossRefLinkedIds?: string[];
+    additionalFilters?: Array<{ field: string; value: string }>;
   }>({
     open: false,
     dimensionField: '',
