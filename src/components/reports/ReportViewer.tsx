@@ -5,6 +5,7 @@ import { ReportComponent, ReportConfig } from '@/types/reports';
 import { ChartPreview } from './ChartPreview';
 import { MetricCard } from './MetricCard';
 import { Card, CardContent } from '@/components/ui/card';
+import { resolveDrilldownState } from './utils/drilldownState';
 
 interface ReportViewerProps {
   reportId: string;
