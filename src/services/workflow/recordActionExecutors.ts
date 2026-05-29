@@ -1233,14 +1233,21 @@ export class RecordActionExecutors {
         };
 
         // Update the submission
-        const { error: updateError } = await supabase
+        const { data: updatedRows, error: updateError } = await supabase
           .from('form_submissions')
           .update({ submission_data: mergedData })
-          .eq('id', linkedSubmission.id);
+          .eq('id', linkedSubmission.id)
+          .select('id');
 
         if (updateError) {
           console.error(`❌ Error updating submission ${linkedSubmission.id}:`, updateError);
           errors.push(`Failed to update ${linkedRec.refId}: ${updateError.message}`);
+          continue;
+        }
+
+        if (!updatedRows || updatedRows.length === 0) {
+          console.warn(`⚠️ Update returned 0 rows for ${linkedRec.refId} — likely blocked by RLS (no UPDATE permission for current user on form ${targetFormId}).`);
+          errors.push(`No permission to update ${linkedRec.refId} (RLS blocked)`);
           continue;
         }
 
