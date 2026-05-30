@@ -2578,6 +2578,22 @@ export function ChartPreview({
     }
     const groupByName = config.groupByField ? getFormFieldName(config.groupByField) : null;
     const chartType = config.type || config.chartType || 'bar';
+
+    // Compute X-axis label (dimension), accounting for active drill-down level.
+    // Previously this fell back to the Y-axis metric name, which caused the
+    // Y-axis field to appear duplicated below the X-axis after drilling.
+    const _xAxisDimensionFieldId = (() => {
+      try {
+        const levels = getDrilldownLevels?.() || [];
+        const drilledIdx = drilldownState?.values?.length || 0;
+        if (levels.length > 0 && drilledIdx > 0 && drilledIdx <= levels.length) {
+          return levels[Math.min(drilledIdx, levels.length - 1)];
+        }
+      } catch {}
+      return config.dimensions?.[0] || config.xAxis || '';
+    })();
+    const xAxisDimensionLabel = config.xAxisLabel
+      || (_xAxisDimensionFieldId ? getFormFieldName(_xAxisDimensionFieldId) : 'Category');
     
     let title = '';
 
