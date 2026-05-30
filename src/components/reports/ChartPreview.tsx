@@ -4129,15 +4129,7 @@ export function ChartPreview({
               ticks={barYAxisTicks}
               tickFormatter={barYAxisTickFormatter}
               allowDecimals={false}
-              label={{
-                value: yAxisFieldName,
-                angle: 0,
-                position: 'insideTopLeft',
-                offset: 10,
-                dy: -10,
-                dx: 5,
-                style: { textAnchor: 'start', fontWeight: 500, fill: 'hsl(var(--foreground))' }
-              }}
+              label={{ value: yAxisFieldName, angle: -90, position: 'insideLeft', offset: 10, style: { textAnchor: 'middle', fontWeight: 500, fill: 'hsl(var(--foreground))' } }}
             />
             <Tooltip 
               content={({ payload }) => {
@@ -4835,15 +4827,7 @@ export function ChartPreview({
                       const mapping = scatterYMapping.find((m: any) => m.number === value);
                       return mapping ? mapping.label : String(value);
                     } : undefined}
-                    label={{
-                      value: scatterYLabel,
-                      angle: 0,
-                position: 'insideTopLeft',
-                offset: 10,
-                dy: -10,
-                dx: 5,
-                      style: { textAnchor: 'start', fontWeight: 500, fill: 'hsl(var(--foreground))' }
-                    }}
+                    label={{ value: scatterYLabel, angle: -90, position: 'insideLeft', offset: 10, style: { textAnchor: 'middle', fontWeight: 500, fill: 'hsl(var(--foreground))' } }}
                     domain={hasYMapping ? [0.5, scatterYMapping.length + 0.5] : ['auto', 'auto']}
                   />
                   <Tooltip 
