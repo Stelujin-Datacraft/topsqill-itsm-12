@@ -4261,7 +4261,7 @@ export function ChartPreview({
                     height={80}
                     interval={0}
                     label={{
-                      value: config.xAxisLabel || getFormFieldName(primaryMetric),
+                      value: xAxisDimensionLabel,
                       position: 'insideBottom',
                       offset: -5
                     }} 
@@ -4363,7 +4363,7 @@ export function ChartPreview({
                   <XAxis dataKey="name" tick={{
                   fontSize: 11
                 }} angle={-45} textAnchor="end" height={80} interval={0} label={{
-                  value: config.xAxisLabel || getFormFieldName(primaryMetric),
+                  value: xAxisDimensionLabel,
                   position: 'insideBottom',
                   offset: -5
                 }} />
@@ -4553,7 +4553,7 @@ export function ChartPreview({
                   <XAxis dataKey="name" tick={{
                   fontSize: 11
                 }} angle={-45} textAnchor="end" height={80} interval={0} label={{
-                  value: config.xAxisLabel || getFormFieldName(primaryMetric),
+                  value: xAxisDimensionLabel,
                   position: 'insideBottom',
                   offset: -5
                 }} />
@@ -4676,7 +4676,7 @@ export function ChartPreview({
                   <XAxis dataKey="name" tick={{
                   fontSize: 11
                 }} angle={-45} textAnchor="end" height={80} interval={0} label={{
-                  value: config.xAxisLabel || getFormFieldName(primaryMetric),
+                  value: xAxisDimensionLabel,
                   position: 'insideBottom',
                   offset: -5
                 }} />
