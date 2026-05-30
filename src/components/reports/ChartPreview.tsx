@@ -4126,9 +4126,13 @@ export function ChartPreview({
               allowDecimals={false}
               label={{
                 value: yAxisFieldName,
-                angle: -90,
-                position: 'insideLeft',
-                offset: 10
+                angle: 0,
+                position: 'insideTopLeft',
+                offset: 10,
+                dy: -8,
+                dx: 8,
+                fontSize: 11,
+                fill: 'hsl(var(--muted-foreground))'
               }}
             />
             <Tooltip 
@@ -4254,9 +4258,13 @@ export function ChartPreview({
                     allowDataOverflow={false}
                     label={{
                       value: config.yAxisLabel || 'Value',
-                      angle: -90,
-                      position: 'insideLeft',
-                      offset: 10
+                      angle: 0,
+                position: 'insideTopLeft',
+                offset: 10,
+                dy: -8,
+                dx: 8,
+                fontSize: 11,
+                fill: 'hsl(var(--muted-foreground))'
                     }} 
                   />
                    <Tooltip 
