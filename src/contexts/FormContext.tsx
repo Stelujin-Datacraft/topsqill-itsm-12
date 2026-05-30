@@ -128,6 +128,7 @@ export const FormProvider: React.FC<FormProviderProps> = ({ children }) => {
           .from('forms')
           .select('*')
           .eq('project_id', currentProject.id)
+          .eq('organization_id', currentProject.organization_id)
           .order('updated_at', { ascending: false });
 
         if (error) {
@@ -154,6 +155,7 @@ export const FormProvider: React.FC<FormProviderProps> = ({ children }) => {
           .from('forms')
           .select('*')
           .eq('project_id', currentProject.id)
+          .eq('organization_id', currentProject.organization_id)
           .order('updated_at', { ascending: false }),
         supabase
           .from('user_role_assignments')
