@@ -2172,6 +2172,21 @@ export function ChartPreview({
     return drilldownLevels[activeIndex] || getActiveDimensionField();
   };
 
+  const getTopAlignedYAxisLabel = (labelValue?: string) => {
+    if (!labelValue) return undefined;
+
+    return {
+      value: labelValue,
+      angle: 0,
+      position: 'insideTopLeft' as const,
+      offset: 0,
+      dy: -18,
+      dx: 0,
+      fontSize: 11,
+      fill: 'hsl(var(--muted-foreground))',
+    };
+  };
+
   const getPayloadDimensionValue = (payload: any): string => {
     if (!payload) return '';
 
@@ -2490,8 +2505,8 @@ export function ChartPreview({
       // every configured level. While still on the last level we should drill
       // into it (consume its value) and THEN open the dialog on the next
       // click. This makes a 3-level drill produce: L0 -> L1 -> L2 -> dialog.
-      const isAtOrPastLastLevel = currentLevel >= drilldownLevels.length;
-      if (isAtOrPastLastLevel) {
+      const isAtLastDisplayedLevel = currentLevel >= drilldownLevels.length - 1;
+      if (isAtLastDisplayedLevel) {
         const lastLevelField = drilldownLevels[Math.min(currentLevel, drilldownLevels.length - 1)] || dimensionField;
         setCellSubmissionsDialog({
           open: true,
@@ -2582,18 +2597,9 @@ export function ChartPreview({
     // Compute X-axis label (dimension), accounting for active drill-down level.
     // Previously this fell back to the Y-axis metric name, which caused the
     // Y-axis field to appear duplicated below the X-axis after drilling.
-    const _xAxisDimensionFieldId = (() => {
-      try {
-        const levels = getDrilldownLevels?.() || [];
-        const drilledIdx = drilldownState?.values?.length || 0;
-        if (levels.length > 0 && drilledIdx > 0 && drilledIdx <= levels.length) {
-          return levels[Math.min(drilledIdx, levels.length - 1)];
-        }
-      } catch {}
-      return config.dimensions?.[0] || config.xAxis || '';
-    })();
+    const xAxisDimensionFieldId = getActiveDrilldownFieldForCurrentData();
     const xAxisDimensionLabel = config.xAxisLabel
-      || (_xAxisDimensionFieldId ? getFormFieldName(_xAxisDimensionFieldId) : 'Category');
+      || (xAxisDimensionFieldId ? getFormFieldName(xAxisDimensionFieldId) : 'Category');
     
     let title = '';
 
