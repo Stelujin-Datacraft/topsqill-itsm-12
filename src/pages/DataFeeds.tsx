@@ -7,7 +7,9 @@ import { useDataFeeds } from '@/hooks/useDataFeeds';
 import { DataFeed, DataFeedFormData } from '@/types/dataFeed';
 import { useProject } from '@/contexts/ProjectContext';
 import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
+import { Plus, ArrowRightLeft, Activity } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { DataFeedStatusMonitor } from '@/components/data-feeds/DataFeedStatusMonitor';
 
 export default function DataFeeds() {
   const { currentProject } = useProject();
@@ -26,6 +28,7 @@ export default function DataFeeds() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [selectedFeed, setSelectedFeed] = useState<DataFeed | null>(null);
+  const [activeTab, setActiveTab] = useState('feeds');
 
   const handleCreateClick = () => {
     setSelectedFeed(null);
@@ -55,23 +58,42 @@ export default function DataFeeds() {
     <DashboardLayout 
       title="Data Feeds"
       description="Sync data between forms using scheduled or manual feeds"
-      actions={
+      actions={activeTab === 'feeds' ? (
         <Button onClick={handleCreateClick}>
           <Plus className="mr-2 h-4 w-4" />
           Create Data Feed
         </Button>
-      }
+      ) : undefined}
     >
-      <DataFeedList
-        feeds={feeds}
-        loading={loading}
-        onEditClick={handleEditClick}
-        onViewHistory={handleViewHistory}
-        onExecute={executeFeed}
-        onToggleActive={toggleFeedActive}
-        onDelete={deleteFeed}
-        onCreateClick={handleCreateClick}
-      />
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="feeds" className="flex items-center gap-2">
+            <ArrowRightLeft className="h-4 w-4 text-primary" />
+            Data Feeds
+          </TabsTrigger>
+          <TabsTrigger value="status" className="flex items-center gap-2">
+            <Activity className="h-4 w-4 text-primary" />
+            Status Monitor
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="feeds">
+          <DataFeedList
+            feeds={feeds}
+            loading={loading}
+            onEditClick={handleEditClick}
+            onViewHistory={handleViewHistory}
+            onExecute={executeFeed}
+            onToggleActive={toggleFeedActive}
+            onDelete={deleteFeed}
+            onCreateClick={handleCreateClick}
+          />
+        </TabsContent>
+
+        <TabsContent value="status">
+          <DataFeedStatusMonitor />
+        </TabsContent>
+      </Tabs>
 
       <DataFeedDialog
         open={dialogOpen}
