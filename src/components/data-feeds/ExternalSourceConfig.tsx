@@ -87,6 +87,21 @@ export function ExternalSourceConfig({
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
   const { toast } = useToast();
 
+  // Auto-initialize file config when switching to csv/excel so the upload UI appears immediately
+  useEffect(() => {
+    if ((sourceType === 'csv' || sourceType === 'excel') && !config.file) {
+      onConfigChange({
+        ...config,
+        file: {
+          sourceMode: 'upload',
+          fileType: sourceType === 'excel' ? 'excel' : 'csv',
+          hasHeader: true,
+        },
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sourceType]);
+
   // Filter connections by type
   const filteredConnections = sharedConnections.filter(c => {
     if (sourceType === 'http_api') return c.connection_type === 'http_api';
@@ -525,7 +540,7 @@ WHERE TABLE_NAME = 'your_table';`}</pre>
                     </RadioGroup>
                   </div>
 
-                  {config.file?.sourceMode === 'upload' && (
+                  {(config.file?.sourceMode || 'upload') === 'upload' && (
                     <div>
                       <Label>Upload File</Label>
                       <div className="mt-2">
