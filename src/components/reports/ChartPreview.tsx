@@ -1377,7 +1377,7 @@ export function ChartPreview({
       }
       
       if (isYAxisTextType) {
-        return processCompareEncodedData(submissions, config.metrics[0], config.metrics[1]);
+        return processCompareEncodedData(submissions, dimensionFields, config.metrics[0], config.metrics[1]);
       }
       
       return processCompareData(submissions, dimensionFields, config.metrics);
@@ -1653,9 +1653,14 @@ export function ChartPreview({
 
   // Process compare mode with encoded legend - X-axis shows first field values, Y-axis shows encoded numeric values for second field
   // Now also supports grouping by dimension field
-  const processCompareEncodedData = (submissions: any[], xAxisField: string, yAxisField: string) => {
-    // Check if there's a dimension field selected for grouping
-    const dimensionFields = config.dimensions || [];
+  const processCompareEncodedData = (
+    submissions: any[],
+    dimensionFields: string[],
+    xAxisField: string,
+    yAxisField: string,
+  ) => {
+    // Use the active dimension passed in by processSubmissionData so compare-mode
+    // drilldown stays aligned with the currently displayed hierarchy level.
     const hasDimension = dimensionFields.length > 0 && dimensionFields[0] !== '_default';
     
     const xFieldName = getFormFieldName(xAxisField);
