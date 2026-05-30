@@ -103,12 +103,26 @@ export const resolveDrilldownState = ({
   }
 
   const firstMatchingLevelIndex = drilldownLevels.findIndex(
-    (level, index) => level === drilldownLevel && index >= Math.max(0, currentValues.length - 1),
+    (level, index) => level === drilldownLevel && index >= nextIndex,
   );
 
   if (firstMatchingLevelIndex >= 0 && drilldownValue) {
     const newValues = currentValues.slice(0, firstMatchingLevelIndex);
     newValues[firstMatchingLevelIndex] = drilldownValue;
+    return {
+      path: buildDrilldownPath(newValues, drilldownLevels, false),
+      values: newValues,
+    };
+  }
+
+  // Fallback: if a value is provided but the level identifier doesn't match
+  // the actual next configured level (or a stale click handler reports a
+  // previous level id), still advance to the next configured level so
+  // multi-level drilldown keeps working past level 1.
+  if (drilldownValue && nextIndex < drilldownLevels.length) {
+    const newValues = [...currentValues];
+    newValues[nextIndex] = drilldownValue;
+    newValues.splice(nextIndex + 1);
     return {
       path: buildDrilldownPath(newValues, drilldownLevels, false),
       values: newValues,
