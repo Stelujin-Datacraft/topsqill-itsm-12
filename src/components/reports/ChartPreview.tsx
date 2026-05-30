@@ -2893,6 +2893,8 @@ export function ChartPreview({
     }
 
     const chartType = config.type || config.chartType || 'bar';
+    const xAxisDimensionFieldId = getActiveDrilldownFieldForCurrentData();
+    const xAxisDimensionLabel = config.xAxisLabel || (xAxisDimensionFieldId ? getFormFieldName(xAxisDimensionFieldId) : 'Category');
 
     // Get ALL dimension-based data keys from ALL data items (for multi-dimensional charts OR grouped charts OR compare mode)
     // Important: Must scan all items because different records may have different keys (e.g., John has Canada, George has Finland)
@@ -4278,16 +4280,7 @@ export function ChartPreview({
                     domain={getYAxisDomain(sanitizedChartData, primaryMetric)} 
                     ticks={getYAxisTicks(sanitizedChartData, primaryMetric)} 
                     allowDataOverflow={false}
-                    label={{
-                      value: config.yAxisLabel || 'Value',
-                      angle: 0,
-                position: 'insideTopLeft',
-                offset: 10,
-                dy: -8,
-                dx: 8,
-                fontSize: 11,
-                fill: 'hsl(var(--muted-foreground))'
-                    }} 
+                    label={getTopAlignedYAxisLabel(config.yAxisLabel || 'Value')} 
                   />
                    <Tooltip 
                     content={({ payload, label }) => getEnhancedTooltipContent(payload, label)}
