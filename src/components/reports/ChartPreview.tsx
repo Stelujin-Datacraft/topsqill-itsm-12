@@ -5731,16 +5731,15 @@ export function ChartPreview({
                 </div>
                 
                 {/* Drilldown Path Breadcrumb */}
-                {drilldownState?.path && drilldownState.path.length > 0 && (
-                  <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                    {drilldownState.path.map((level, index) => <React.Fragment key={index}>
-                        {index > 0 && <ChevronRight className="h-3 w-3" />}
-                        <span className="font-medium">
-                          {getFormFieldName(level)}: {drilldownState.values?.[index] || ''}
-                        </span>
-                      </React.Fragment>)}
-                  </div>
-                )}
+                <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                  <span className="font-medium">Path: All Records</span>
+                  {drilldownState?.path?.map((level, index) => <React.Fragment key={index}>
+                      <ChevronRight className="h-3 w-3" />
+                      <span className="font-medium">
+                        {getFormFieldName(level)}: {drilldownState.values?.[index] || ''}
+                      </span>
+                    </React.Fragment>)}
+                </div>
                 
                 {/* Drilldown Level Selector - only for normal drilldown */}
                 {!config.crossRefConfig?.enabled && currentLevelInfo && <div className="flex items-center gap-2">
@@ -5771,24 +5770,34 @@ export function ChartPreview({
                 )}
                 
                 {/* Reset Drilldown Button */}
-                {drilldownState?.values?.length > 0 && (
-                  <div className="flex justify-end">
-                    <Button size="sm" variant="outline" onClick={resetDrilldown}>
-                      Reset
-                    </Button>
-                  </div>
-                )}
+                {drilldownState?.values?.length > 0 && <Button size="sm" variant="outline" onClick={resetDrilldown}>
+                    Reset to All Records
+                  </Button>}
               </div>
             </div>}
           
-      {/* Collapsed drilldown - Reset button only, right-aligned (path is shown in 'Filtered by' pill above) */}
-      {(config.drilldownConfig?.enabled || (config.crossRefConfig?.enabled && config.crossRefConfig?.drilldownEnabled)) && !showDrilldownPanel && drilldownState?.values?.length > 0 && (
-        <div className="flex justify-end flex-shrink-0 mb-4">
-          <Button size="sm" variant="outline" className="h-7 px-3 text-xs" onClick={resetDrilldown}>
-            Reset
-          </Button>
-        </div>
-      )}
+      {/* Collapsed drilldown breadcrumb - supports both normal and cross-reference drilldown */}
+      {(config.drilldownConfig?.enabled || (config.crossRefConfig?.enabled && config.crossRefConfig?.drilldownEnabled)) && !showDrilldownPanel && <div className="flex items-center gap-2 flex-shrink-0 mb-4">
+          <Filter className="h-4 w-4 text-muted-foreground" />
+          
+          {/* Drilldown Path Breadcrumb */}
+          <div className="flex items-center gap-1 text-sm text-muted-foreground">
+            <span className="font-medium">All Records</span>
+            {drilldownState?.path?.map((level, index) => <React.Fragment key={index}>
+                <ChevronRight className="h-3 w-3" />
+                <span className="font-medium">
+                  {getFormFieldName(level)}: {drilldownState.values?.[index] || ''}
+                </span>
+              </React.Fragment>)}
+          </div>
+          
+          {/* Reset button in collapsed view */}
+          {drilldownState?.values?.length > 0 && (
+            <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={resetDrilldown}>
+              Reset
+            </Button>
+          )}
+        </div>}
 
 
       {/* Chart Container - Fills available space */}
