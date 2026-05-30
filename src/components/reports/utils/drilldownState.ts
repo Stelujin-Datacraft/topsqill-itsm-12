@@ -103,7 +103,7 @@ export const resolveDrilldownState = ({
   }
 
   const firstMatchingLevelIndex = drilldownLevels.findIndex(
-    (level, index) => level === drilldownLevel && index >= Math.max(0, currentValues.length - 1),
+    (level, index) => level === drilldownLevel && index >= nextIndex,
   );
 
   if (firstMatchingLevelIndex >= 0 && drilldownValue) {
@@ -116,9 +116,9 @@ export const resolveDrilldownState = ({
   }
 
   // Fallback: if a value is provided but the level identifier doesn't match
-  // any configured level (different chart click handlers can infer the field
-  // name differently after a drill), still advance to the next configured
-  // level so multi-level drilldown keeps working past level 1.
+  // the actual next configured level (or a stale click handler reports a
+  // previous level id), still advance to the next configured level so
+  // multi-level drilldown keeps working past level 1.
   if (drilldownValue && nextIndex < drilldownLevels.length) {
     const newValues = [...currentValues];
     newValues[nextIndex] = drilldownValue;
