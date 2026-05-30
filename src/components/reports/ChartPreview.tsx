@@ -4536,8 +4536,10 @@ export function ChartPreview({
                   fontSize: 11
                 }} label={{
                   value: config.yAxisLabel || 'Value',
-                  angle: -90,
-                  position: 'insideLeft'
+                  angle: 0,
+                  position: 'insideTopLeft',
+                  offset: 10,
+                  style: { textAnchor: 'start', fontWeight: 500 }
                 }} domain={getYAxisDomain(sanitizedChartData, primaryMetric)} ticks={getYAxisTicks(sanitizedChartData, primaryMetric)} allowDataOverflow={false} />
                   <Tooltip 
                     content={({ payload, label }) => {
@@ -4654,8 +4656,10 @@ export function ChartPreview({
                   fontSize: 11
                 }} label={{
                   value: config.yAxisLabel || 'Value',
-                  angle: -90,
-                  position: 'insideLeft'
+                  angle: 0,
+                  position: 'insideTopLeft',
+                  offset: 10,
+                  style: { textAnchor: 'start', fontWeight: 500 }
                 }} domain={getYAxisDomain(sanitizedChartData, primaryMetric)} ticks={getYAxisTicks(sanitizedChartData, primaryMetric)} allowDataOverflow={false} />
                   <Tooltip 
                     content={({ payload, label }) => {
@@ -4818,9 +4822,11 @@ export function ChartPreview({
                     } : undefined}
                     label={{
                       value: scatterYLabel,
-                      angle: -90,
-                      position: 'insideLeft'
-                    }} 
+                      angle: 0,
+                      position: 'insideTopLeft',
+                      offset: 10,
+                      style: { textAnchor: 'start', fontWeight: 500 }
+                    }}
                     domain={hasYMapping ? [0.5, scatterYMapping.length + 0.5] : ['auto', 'auto']}
                   />
                   <Tooltip 
