@@ -4355,8 +4355,13 @@ export function ChartPreview({
                   fontSize: 11
                 }} label={{
                   value: config.yAxisLabel || 'Value',
-                  angle: -90,
-                  position: 'insideLeft'
+                  angle: 0,
+                  position: 'insideTopLeft',
+                  offset: 10,
+                  dy: -8,
+                  dx: 8,
+                  fontSize: 11,
+                  fill: 'hsl(var(--muted-foreground))'
                 }} domain={getYAxisDomain(sanitizedChartData, primaryMetric)} ticks={getYAxisTicks(sanitizedChartData, primaryMetric)} allowDataOverflow={false} />
                   <Tooltip 
                     content={({ payload, label }) => getEnhancedTooltipContent(payload, label)}
@@ -4540,8 +4545,13 @@ export function ChartPreview({
                   fontSize: 11
                 }} label={{
                   value: config.yAxisLabel || 'Value',
-                  angle: -90,
-                  position: 'insideLeft'
+                  angle: 0,
+                  position: 'insideTopLeft',
+                  offset: 10,
+                  dy: -8,
+                  dx: 8,
+                  fontSize: 11,
+                  fill: 'hsl(var(--muted-foreground))'
                 }} domain={getYAxisDomain(sanitizedChartData, primaryMetric)} ticks={getYAxisTicks(sanitizedChartData, primaryMetric)} allowDataOverflow={false} />
                   <Tooltip 
                     content={({ payload, label }) => {
@@ -4658,8 +4668,13 @@ export function ChartPreview({
                   fontSize: 11
                 }} label={{
                   value: config.yAxisLabel || 'Value',
-                  angle: -90,
-                  position: 'insideLeft'
+                  angle: 0,
+                  position: 'insideTopLeft',
+                  offset: 10,
+                  dy: -8,
+                  dx: 8,
+                  fontSize: 11,
+                  fill: 'hsl(var(--muted-foreground))'
                 }} domain={getYAxisDomain(sanitizedChartData, primaryMetric)} ticks={getYAxisTicks(sanitizedChartData, primaryMetric)} allowDataOverflow={false} />
                   <Tooltip 
                     content={({ payload, label }) => {
@@ -4822,8 +4837,13 @@ export function ChartPreview({
                     } : undefined}
                     label={{
                       value: scatterYLabel,
-                      angle: -90,
-                      position: 'insideLeft'
+                      angle: 0,
+                      position: 'insideTopLeft',
+                      offset: 10,
+                      dy: -8,
+                      dx: 8,
+                      fontSize: 11,
+                      fill: 'hsl(var(--muted-foreground))'
                     }} 
                     domain={hasYMapping ? [0.5, scatterYMapping.length + 0.5] : ['auto', 'auto']}
                   />
