@@ -83,10 +83,14 @@ export const FormProvider: React.FC<FormProviderProps> = ({ children }) => {
   const { currentProject } = useProject();
 
   useEffect(() => {
+    // Clear stale forms immediately on project switch so a previous
+    // project's (potentially different organization's) forms never leak
+    // into selectors before the refetch completes.
+    setForms([]);
     if (currentProject) {
       fetchForms();
     }
-  }, [currentProject]);
+  }, [currentProject?.id]);
 
   const fetchForms = async () => {
     setLoading(true);
