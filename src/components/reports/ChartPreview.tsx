@@ -4126,9 +4126,10 @@ export function ChartPreview({
               allowDecimals={false}
               label={{
                 value: yAxisFieldName,
-                angle: -90,
-                position: 'insideLeft',
-                offset: 10
+                angle: 0,
+                position: 'insideTopLeft',
+                offset: 10,
+                style: { textAnchor: 'start', fontWeight: 500 }
               }}
             />
             <Tooltip 
