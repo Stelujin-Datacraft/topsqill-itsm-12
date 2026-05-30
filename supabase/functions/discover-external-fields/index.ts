@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import * as XLSX from 'https://esm.sh/xlsx@0.18.5';
+import { Client as FtpClient } from 'npm:basic-ftp@5.0.5';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -131,7 +132,21 @@ function extractFieldsFromData(data: any[]): DiscoveredField[] {
 }
 
 function navigateJsonPath(data: any, path: string): any[] {
-  if (!path || path === '$' || path === '$.') return Array.isArray(data) ? data : [data];
+  if (!path || path === '$' || path === '$.') {
+    if (Array.isArray(data)) return data;
+    // Auto-detect an array inside common wrapper keys
+    if (data && typeof data === 'object') {
+      const commonKeys = ['data', 'results', 'records', 'items', 'rows', 'list', 'value'];
+      for (const k of commonKeys) {
+        if (Array.isArray(data[k])) return data[k];
+      }
+      // Fallback: first property that is an array
+      for (const k of Object.keys(data)) {
+        if (Array.isArray(data[k])) return data[k];
+      }
+    }
+    return [data];
+  }
   
   // Simple JSONPath navigation
   const parts = path.replace(/^\$\.?/, '').split(/\.|\[|\]/).filter(Boolean);
