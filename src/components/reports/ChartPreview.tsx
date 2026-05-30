@@ -4255,10 +4255,11 @@ export function ChartPreview({
                     allowDataOverflow={false}
                     label={{
                       value: config.yAxisLabel || 'Value',
-                      angle: -90,
-                      position: 'insideLeft',
-                      offset: 10
-                    }} 
+                      angle: 0,
+                      position: 'insideTopLeft',
+                      offset: 10,
+                      style: { textAnchor: 'start', fontWeight: 500 }
+                    }}
                   />
                    <Tooltip 
                     content={({ payload, label }) => getEnhancedTooltipContent(payload, label)}
@@ -4348,8 +4349,10 @@ export function ChartPreview({
                   fontSize: 11
                 }} label={{
                   value: config.yAxisLabel || 'Value',
-                  angle: -90,
-                  position: 'insideLeft'
+                  angle: 0,
+                  position: 'insideTopLeft',
+                  offset: 10,
+                  style: { textAnchor: 'start', fontWeight: 500 }
                 }} domain={getYAxisDomain(sanitizedChartData, primaryMetric)} ticks={getYAxisTicks(sanitizedChartData, primaryMetric)} allowDataOverflow={false} />
                   <Tooltip 
                     content={({ payload, label }) => getEnhancedTooltipContent(payload, label)}
