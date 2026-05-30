@@ -2972,7 +2972,7 @@ export function ChartPreview({
                     dataKey="y" 
                     tick={{ fontSize: 11 }}
                     domain={yDomain}
-                    label={{ value: field2Name, angle: 0, position: 'top', offset: 15, dx: 30 }}
+                    label={{ value: field2Name, angle: -90, position: 'insideLeft' }}
                   />
                   {compareTooltip}
                   <Line type="monotone" dataKey="y" stroke={colors[0]} strokeWidth={2} dot={{ fill: colors[0], r: 4, cursor: 'pointer', onClick: (props: any) => handleBarClick(props, 0) }} activeDot={{ r: 8, stroke: colors[0], strokeWidth: 2, cursor: 'pointer', onClick: (props: any) => handleBarClick(props, 0) }} />
@@ -3001,7 +3001,7 @@ export function ChartPreview({
                     dataKey="y" 
                     tick={{ fontSize: 11 }}
                     domain={yDomain}
-                    label={{ value: field2Name, angle: 0, position: 'top', offset: 15, dx: 30 }}
+                    label={{ value: field2Name, angle: -90, position: 'insideLeft' }}
                   />
                   {compareTooltip}
                   <Area type="monotone" dataKey="y" stroke={colors[0]} fill={colors[0]} fillOpacity={0.3} dot={{ r: 4, cursor: 'pointer', onClick: (props: any) => handleBarClick(props, 0) }} activeDot={{ r: 8, stroke: colors[0], strokeWidth: 2, cursor: 'pointer', onClick: (props: any) => handleBarClick(props, 0) }} />
@@ -3036,7 +3036,7 @@ export function ChartPreview({
                   <YAxis 
                     tick={{ fontSize: 11 }}
                     domain={yDomain}
-                    label={{ value: field2Name, angle: 0, position: 'top', offset: 15, dx: 30 }}
+                    label={{ value: field2Name, angle: -90, position: 'insideLeft' }}
                   />
                   <Tooltip 
                     content={({ payload }) => {
@@ -3113,7 +3113,7 @@ export function ChartPreview({
                   <YAxis 
                     tick={{ fontSize: 11 }}
                     domain={yDomain}
-                    label={{ value: field2Name, angle: 0, position: 'top', offset: 15, dx: 30 }}
+                    label={{ value: field2Name, angle: -90, position: 'insideLeft' }}
                   />
                   <Tooltip 
                     content={({ payload }) => {
@@ -3286,7 +3286,7 @@ export function ChartPreview({
                       return mapping ? mapping.label : String(value);
                     } : undefined}
                     domain={compareYDomain}
-                    label={{ value: field2Name, angle: 0, position: 'top', offset: 15, dx: 30 }}
+                    label={{ value: field2Name, angle: -90, position: 'insideLeft' }}
                   />
                   <Tooltip 
                     cursor={{ strokeDasharray: '3 3' }}
@@ -3464,7 +3464,7 @@ export function ChartPreview({
                       return mapping ? mapping.label : String(value);
                     } : undefined}
                     domain={bubbleCompareYDomain}
-                    label={{ value: field2Name, angle: 0, position: 'top', offset: 15, dx: 30 }}
+                    label={{ value: field2Name, angle: -90, position: 'insideLeft' }}
                   />
                   <Tooltip 
                     cursor={{ strokeDasharray: '3 3' }}
@@ -3643,7 +3643,7 @@ export function ChartPreview({
                     type="category" 
                     dataKey="y" 
                     tick={{ fontSize: 11 }}
-                    label={{ value: field2Name, angle: 0, position: 'top', offset: 15, dx: 30 }}
+                    label={{ value: field2Name, angle: -90, position: 'insideLeft' }}
                   />
                   <Tooltip content={({ payload }) => {
                     if (!payload || payload.length === 0) return null;
@@ -3706,7 +3706,7 @@ export function ChartPreview({
                 <YAxis 
                   tick={{ fontSize: 11 }}
                   domain={yDomain}
-                  label={{ value: field2Name, angle: 0, position: 'top', offset: 15, dx: 30 }}
+                  label={{ value: field2Name, angle: -90, position: 'insideLeft' }}
                 />
                 {compareTooltip}
                 <Bar
@@ -3833,7 +3833,7 @@ export function ChartPreview({
                 ticks={lineYAxisTicks}
                 tickFormatter={lineYAxisTickFormatter}
                 allowDecimals={false}
-                label={{ value: yAxisFieldName, angle: 0, position: 'top', dx: 30, offset: 10 }}
+                label={{ value: yAxisFieldName, angle: -90, position: 'insideLeft', offset: 10 }}
               />
               <Tooltip content={({ payload }) => {
                 if (!payload || payload.length === 0) return null;
@@ -3893,7 +3893,7 @@ export function ChartPreview({
                 ticks={areaYAxisTicks}
                 tickFormatter={areaYAxisTickFormatter}
                 allowDecimals={false}
-                label={{ value: yAxisFieldName, angle: 0, position: 'top', dx: 30, offset: 10 }}
+                label={{ value: yAxisFieldName, angle: -90, position: 'insideLeft', offset: 10 }}
               />
               <Tooltip content={({ payload }) => {
                 if (!payload || payload.length === 0) return null;
@@ -3974,7 +3974,7 @@ export function ChartPreview({
                 ticks={yAxisTicks}
                 tickFormatter={yAxisTickFormatter}
                 domain={[0.5, maxEncodedValue + 0.5]}
-                label={{ value: yAxisFieldName, angle: 0, position: 'top', dx: 30, offset: 10 }}
+                label={{ value: yAxisFieldName, angle: -90, position: 'insideLeft', offset: 10 }}
               />
               <Tooltip content={({ payload }) => {
                 if (!payload || payload.length === 0) return null;
@@ -4961,7 +4961,7 @@ export function ChartPreview({
                         const mapping = bubbleYMapping.find((m: any) => m.number === value);
                         return mapping ? mapping.label : String(value);
                       } : undefined}
-                      label={{ value: bubbleYLabel, angle: 0, position: 'top', offset: 15, dx: 30 }}
+                      label={{ value: bubbleYLabel, angle: -90, position: 'insideLeft' }}
                       domain={hasBubbleYMapping ? [0.5, bubbleYMapping.length + 0.5] : ['auto', 'auto']}
                     />
                     <Tooltip 
@@ -5716,7 +5716,7 @@ export function ChartPreview({
                 
                 {/* Drilldown Path Breadcrumb */}
                 <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                  <span className="font-medium">Path:</span>
+                  <span className="font-medium">Path: All Records</span>
                   {drilldownState?.path?.map((level, index) => <React.Fragment key={index}>
                       <ChevronRight className="h-3 w-3" />
                       <span className="font-medium">
@@ -5755,7 +5755,7 @@ export function ChartPreview({
                 
                 {/* Reset Drilldown Button */}
                 {drilldownState?.values?.length > 0 && <Button size="sm" variant="outline" onClick={resetDrilldown}>
-                    Reset
+                    Reset to All Records
                   </Button>}
               </div>
             </div>}
