@@ -2172,6 +2172,21 @@ export function ChartPreview({
     return drilldownLevels[activeIndex] || getActiveDimensionField();
   };
 
+  const getTopAlignedYAxisLabel = (labelValue?: string) => {
+    if (!labelValue) return undefined;
+
+    return {
+      value: labelValue,
+      angle: 0,
+      position: 'insideTopLeft' as const,
+      offset: 0,
+      dy: -18,
+      dx: 0,
+      fontSize: 11,
+      fill: 'hsl(var(--muted-foreground))',
+    };
+  };
+
   const getPayloadDimensionValue = (payload: any): string => {
     if (!payload) return '';
 
@@ -2490,8 +2505,8 @@ export function ChartPreview({
       // every configured level. While still on the last level we should drill
       // into it (consume its value) and THEN open the dialog on the next
       // click. This makes a 3-level drill produce: L0 -> L1 -> L2 -> dialog.
-      const isAtOrPastLastLevel = currentLevel >= drilldownLevels.length;
-      if (isAtOrPastLastLevel) {
+      const isAtLastDisplayedLevel = currentLevel >= drilldownLevels.length - 1;
+      if (isAtLastDisplayedLevel) {
         const lastLevelField = drilldownLevels[Math.min(currentLevel, drilldownLevels.length - 1)] || dimensionField;
         setCellSubmissionsDialog({
           open: true,
@@ -2582,18 +2597,9 @@ export function ChartPreview({
     // Compute X-axis label (dimension), accounting for active drill-down level.
     // Previously this fell back to the Y-axis metric name, which caused the
     // Y-axis field to appear duplicated below the X-axis after drilling.
-    const _xAxisDimensionFieldId = (() => {
-      try {
-        const levels = getDrilldownLevels?.() || [];
-        const drilledIdx = drilldownState?.values?.length || 0;
-        if (levels.length > 0 && drilledIdx > 0 && drilledIdx <= levels.length) {
-          return levels[Math.min(drilledIdx, levels.length - 1)];
-        }
-      } catch {}
-      return config.dimensions?.[0] || config.xAxis || '';
-    })();
+    const xAxisDimensionFieldId = getActiveDrilldownFieldForCurrentData();
     const xAxisDimensionLabel = config.xAxisLabel
-      || (_xAxisDimensionFieldId ? getFormFieldName(_xAxisDimensionFieldId) : 'Category');
+      || (xAxisDimensionFieldId ? getFormFieldName(xAxisDimensionFieldId) : 'Category');
     
     let title = '';
 
@@ -2887,6 +2893,8 @@ export function ChartPreview({
     }
 
     const chartType = config.type || config.chartType || 'bar';
+    const xAxisDimensionFieldId = getActiveDrilldownFieldForCurrentData();
+    const xAxisDimensionLabel = config.xAxisLabel || (xAxisDimensionFieldId ? getFormFieldName(xAxisDimensionFieldId) : 'Category');
 
     // Get ALL dimension-based data keys from ALL data items (for multi-dimensional charts OR grouped charts OR compare mode)
     // Important: Must scan all items because different records may have different keys (e.g., John has Canada, George has Finland)
@@ -2988,7 +2996,7 @@ export function ChartPreview({
                     dataKey="y" 
                     tick={{ fontSize: 11 }}
                     domain={yDomain}
-                    label={{ value: field2Name, angle: 0, position: 'insideTopLeft', offset: 10, dy: -8, dx: 8, fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                    label={getTopAlignedYAxisLabel(field2Name)}
                   />
                   {compareTooltip}
                   <Line type="monotone" dataKey="y" stroke={colors[0]} strokeWidth={2} dot={{ fill: colors[0], r: 4, cursor: 'pointer', onClick: (props: any) => handleBarClick(props, 0) }} activeDot={{ r: 8, stroke: colors[0], strokeWidth: 2, cursor: 'pointer', onClick: (props: any) => handleBarClick(props, 0) }} />
@@ -3017,7 +3025,7 @@ export function ChartPreview({
                     dataKey="y" 
                     tick={{ fontSize: 11 }}
                     domain={yDomain}
-                    label={{ value: field2Name, angle: 0, position: 'insideTopLeft', offset: 10, dy: -8, dx: 8, fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                    label={getTopAlignedYAxisLabel(field2Name)}
                   />
                   {compareTooltip}
                   <Area type="monotone" dataKey="y" stroke={colors[0]} fill={colors[0]} fillOpacity={0.3} dot={{ r: 4, cursor: 'pointer', onClick: (props: any) => handleBarClick(props, 0) }} activeDot={{ r: 8, stroke: colors[0], strokeWidth: 2, cursor: 'pointer', onClick: (props: any) => handleBarClick(props, 0) }} />
@@ -3052,7 +3060,7 @@ export function ChartPreview({
                   <YAxis 
                     tick={{ fontSize: 11 }}
                     domain={yDomain}
-                    label={{ value: field2Name, angle: 0, position: 'insideTopLeft', offset: 10, dy: -8, dx: 8, fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                    label={getTopAlignedYAxisLabel(field2Name)}
                   />
                   <Tooltip 
                     content={({ payload }) => {
@@ -3129,7 +3137,7 @@ export function ChartPreview({
                   <YAxis 
                     tick={{ fontSize: 11 }}
                     domain={yDomain}
-                    label={{ value: field2Name, angle: 0, position: 'insideTopLeft', offset: 10, dy: -8, dx: 8, fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                    label={getTopAlignedYAxisLabel(field2Name)}
                   />
                   <Tooltip 
                     content={({ payload }) => {
@@ -3302,7 +3310,7 @@ export function ChartPreview({
                       return mapping ? mapping.label : String(value);
                     } : undefined}
                     domain={compareYDomain}
-                    label={{ value: field2Name, angle: 0, position: 'insideTopLeft', offset: 10, dy: -8, dx: 8, fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                    label={getTopAlignedYAxisLabel(field2Name)}
                   />
                   <Tooltip 
                     cursor={{ strokeDasharray: '3 3' }}
@@ -3480,7 +3488,7 @@ export function ChartPreview({
                       return mapping ? mapping.label : String(value);
                     } : undefined}
                     domain={bubbleCompareYDomain}
-                    label={{ value: field2Name, angle: 0, position: 'insideTopLeft', offset: 10, dy: -8, dx: 8, fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                    label={getTopAlignedYAxisLabel(field2Name)}
                   />
                   <Tooltip 
                     cursor={{ strokeDasharray: '3 3' }}
@@ -3659,7 +3667,7 @@ export function ChartPreview({
                     type="category" 
                     dataKey="y" 
                     tick={{ fontSize: 11 }}
-                    label={{ value: field2Name, angle: 0, position: 'insideTopLeft', offset: 10, dy: -8, dx: 8, fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                    label={getTopAlignedYAxisLabel(field2Name)}
                   />
                   <Tooltip content={({ payload }) => {
                     if (!payload || payload.length === 0) return null;
@@ -3722,7 +3730,7 @@ export function ChartPreview({
                 <YAxis 
                   tick={{ fontSize: 11 }}
                   domain={yDomain}
-                  label={{ value: field2Name, angle: 0, position: 'insideTopLeft', offset: 10, dy: -8, dx: 8, fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                  label={getTopAlignedYAxisLabel(field2Name)}
                 />
                 {compareTooltip}
                 <Bar
@@ -3849,7 +3857,7 @@ export function ChartPreview({
                 ticks={lineYAxisTicks}
                 tickFormatter={lineYAxisTickFormatter}
                 allowDecimals={false}
-                label={{ value: yAxisFieldName, angle: 0, position: 'insideTopLeft', offset: 10, dy: -8, dx: 8, fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                label={getTopAlignedYAxisLabel(yAxisFieldName)}
               />
               <Tooltip content={({ payload }) => {
                 if (!payload || payload.length === 0) return null;
@@ -3909,7 +3917,7 @@ export function ChartPreview({
                 ticks={areaYAxisTicks}
                 tickFormatter={areaYAxisTickFormatter}
                 allowDecimals={false}
-                label={{ value: yAxisFieldName, angle: 0, position: 'insideTopLeft', offset: 10, dy: -8, dx: 8, fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                label={getTopAlignedYAxisLabel(yAxisFieldName)}
               />
               <Tooltip content={({ payload }) => {
                 if (!payload || payload.length === 0) return null;
@@ -3990,7 +3998,7 @@ export function ChartPreview({
                 ticks={yAxisTicks}
                 tickFormatter={yAxisTickFormatter}
                 domain={[0.5, maxEncodedValue + 0.5]}
-                label={{ value: yAxisFieldName, angle: 0, position: 'insideTopLeft', offset: 10, dy: -8, dx: 8, fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                label={getTopAlignedYAxisLabel(yAxisFieldName)}
               />
               <Tooltip content={({ payload }) => {
                 if (!payload || payload.length === 0) return null;
@@ -4144,9 +4152,9 @@ export function ChartPreview({
                 value: yAxisFieldName,
                 angle: 0,
                 position: 'insideTopLeft',
-                offset: 10,
-                dy: -8,
-                dx: 8,
+                offset: 0,
+                dy: -18,
+                dx: 0,
                 fontSize: 11,
                 fill: 'hsl(var(--muted-foreground))'
               }}
@@ -4272,16 +4280,7 @@ export function ChartPreview({
                     domain={getYAxisDomain(sanitizedChartData, primaryMetric)} 
                     ticks={getYAxisTicks(sanitizedChartData, primaryMetric)} 
                     allowDataOverflow={false}
-                    label={{
-                      value: config.yAxisLabel || 'Value',
-                      angle: 0,
-                position: 'insideTopLeft',
-                offset: 10,
-                dy: -8,
-                dx: 8,
-                fontSize: 11,
-                fill: 'hsl(var(--muted-foreground))'
-                    }} 
+                    label={getTopAlignedYAxisLabel(config.yAxisLabel || 'Value')} 
                   />
                    <Tooltip 
                     content={({ payload, label }) => getEnhancedTooltipContent(payload, label)}
@@ -4369,16 +4368,7 @@ export function ChartPreview({
                 }} />
                   <YAxis tick={{
                   fontSize: 11
-                }} label={{
-                  value: config.yAxisLabel || 'Value',
-                  angle: 0,
-                  position: 'insideTopLeft',
-                  offset: 10,
-                  dy: -8,
-                  dx: 8,
-                  fontSize: 11,
-                  fill: 'hsl(var(--muted-foreground))'
-                }} domain={getYAxisDomain(sanitizedChartData, primaryMetric)} ticks={getYAxisTicks(sanitizedChartData, primaryMetric)} allowDataOverflow={false} />
+                }} label={getTopAlignedYAxisLabel(config.yAxisLabel || 'Value')} domain={getYAxisDomain(sanitizedChartData, primaryMetric)} ticks={getYAxisTicks(sanitizedChartData, primaryMetric)} allowDataOverflow={false} />
                   <Tooltip 
                     content={({ payload, label }) => getEnhancedTooltipContent(payload, label)}
                     contentStyle={{
@@ -4559,16 +4549,7 @@ export function ChartPreview({
                 }} />
                   <YAxis tick={{
                   fontSize: 11
-                }} label={{
-                  value: config.yAxisLabel || 'Value',
-                  angle: 0,
-                  position: 'insideTopLeft',
-                  offset: 10,
-                  dy: -8,
-                  dx: 8,
-                  fontSize: 11,
-                  fill: 'hsl(var(--muted-foreground))'
-                }} domain={getYAxisDomain(sanitizedChartData, primaryMetric)} ticks={getYAxisTicks(sanitizedChartData, primaryMetric)} allowDataOverflow={false} />
+                }} label={getTopAlignedYAxisLabel(config.yAxisLabel || 'Value')} domain={getYAxisDomain(sanitizedChartData, primaryMetric)} ticks={getYAxisTicks(sanitizedChartData, primaryMetric)} allowDataOverflow={false} />
                   <Tooltip 
                     content={({ payload, label }) => {
                       if (!payload || payload.length === 0) return null;
@@ -4682,16 +4663,7 @@ export function ChartPreview({
                 }} />
                   <YAxis tick={{
                   fontSize: 11
-                }} label={{
-                  value: config.yAxisLabel || 'Value',
-                  angle: 0,
-                  position: 'insideTopLeft',
-                  offset: 10,
-                  dy: -8,
-                  dx: 8,
-                  fontSize: 11,
-                  fill: 'hsl(var(--muted-foreground))'
-                }} domain={getYAxisDomain(sanitizedChartData, primaryMetric)} ticks={getYAxisTicks(sanitizedChartData, primaryMetric)} allowDataOverflow={false} />
+                }} label={getTopAlignedYAxisLabel(config.yAxisLabel || 'Value')} domain={getYAxisDomain(sanitizedChartData, primaryMetric)} ticks={getYAxisTicks(sanitizedChartData, primaryMetric)} allowDataOverflow={false} />
                   <Tooltip 
                     content={({ payload, label }) => {
                       if (!payload || payload.length === 0) return null;
@@ -4851,16 +4823,7 @@ export function ChartPreview({
                       const mapping = scatterYMapping.find((m: any) => m.number === value);
                       return mapping ? mapping.label : String(value);
                     } : undefined}
-                    label={{
-                      value: scatterYLabel,
-                      angle: 0,
-                      position: 'insideTopLeft',
-                      offset: 10,
-                      dy: -8,
-                      dx: 8,
-                      fontSize: 11,
-                      fill: 'hsl(var(--muted-foreground))'
-                    }} 
+                    label={getTopAlignedYAxisLabel(scatterYLabel)} 
                     domain={hasYMapping ? [0.5, scatterYMapping.length + 0.5] : ['auto', 'auto']}
                   />
                   <Tooltip 
@@ -5005,7 +4968,7 @@ export function ChartPreview({
                         const mapping = bubbleYMapping.find((m: any) => m.number === value);
                         return mapping ? mapping.label : String(value);
                       } : undefined}
-                      label={{ value: bubbleYLabel, angle: 0, position: 'insideTopLeft', offset: 10, dy: -8, dx: 8, fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                      label={getTopAlignedYAxisLabel(bubbleYLabel)}
                       domain={hasBubbleYMapping ? [0.5, bubbleYMapping.length + 0.5] : ['auto', 'auto']}
                     />
                     <Tooltip 
