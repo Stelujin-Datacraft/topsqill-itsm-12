@@ -3833,7 +3833,7 @@ export function ChartPreview({
                 ticks={lineYAxisTicks}
                 tickFormatter={lineYAxisTickFormatter}
                 allowDecimals={false}
-                label={{ value: yAxisFieldName, angle: 0, position: 'top', offset: 15, dx: 30, offset: 10 }}
+                label={{ value: yAxisFieldName, angle: 0, position: 'top', dx: 30, offset: 10 }}
               />
               <Tooltip content={({ payload }) => {
                 if (!payload || payload.length === 0) return null;
@@ -3893,7 +3893,7 @@ export function ChartPreview({
                 ticks={areaYAxisTicks}
                 tickFormatter={areaYAxisTickFormatter}
                 allowDecimals={false}
-                label={{ value: yAxisFieldName, angle: 0, position: 'top', offset: 15, dx: 30, offset: 10 }}
+                label={{ value: yAxisFieldName, angle: 0, position: 'top', dx: 30, offset: 10 }}
               />
               <Tooltip content={({ payload }) => {
                 if (!payload || payload.length === 0) return null;
@@ -3974,7 +3974,7 @@ export function ChartPreview({
                 ticks={yAxisTicks}
                 tickFormatter={yAxisTickFormatter}
                 domain={[0.5, maxEncodedValue + 0.5]}
-                label={{ value: yAxisFieldName, angle: 0, position: 'top', offset: 15, dx: 30, offset: 10 }}
+                label={{ value: yAxisFieldName, angle: 0, position: 'top', dx: 30, offset: 10 }}
               />
               <Tooltip content={({ payload }) => {
                 if (!payload || payload.length === 0) return null;
