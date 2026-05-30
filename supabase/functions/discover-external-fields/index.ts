@@ -469,12 +469,73 @@ async function discoverCloudStorageFields(config: CloudStorageConfig): Promise<D
 }
 
 async function discoverFtpFields(config: FtpConfig): Promise<DiscoveryResult> {
-  // FTP/SFTP requires server-side implementation with proper libraries
-  // This is a placeholder - in production you'd use a library like ssh2-sftp-client
-  throw new Error(
-    `FTP/SFTP field discovery is not yet fully implemented. ` +
-    `Please use HTTP API or Cloud Storage as an alternative, or contact support for FTP integration.`
-  );
+  if (config.protocol === 'sftp') {
+    throw new Error(
+      'SFTP is not supported in this environment. Please use plain FTP, or upload the file to Cloud Storage / Supabase Storage instead.'
+    );
+  }
+
+  if (!config.host || !config.username || !config.remotePath) {
+    throw new Error('FTP host, username, and remote file path are required');
+  }
+
+  const client = new FtpClient(15000);
+  client.ftp.verbose = false;
+
+  let buffer: Uint8Array;
+  try {
+    await client.access({
+      host: config.host,
+      port: config.port || 21,
+      user: config.username,
+      password: config.password || '',
+      secure: false,
+    });
+
+    // Download into an in-memory writable stream
+    const chunks: Uint8Array[] = [];
+    const { Writable } = await import('node:stream');
+    const writable = new Writable({
+      write(chunk: any, _enc: string, cb: (e?: Error) => void) {
+        chunks.push(chunk instanceof Uint8Array ? chunk : new Uint8Array(chunk));
+        cb();
+      },
+    });
+
+    await client.downloadTo(writable as any, config.remotePath);
+
+    const total = chunks.reduce((n, c) => n + c.byteLength, 0);
+    buffer = new Uint8Array(total);
+    let offset = 0;
+    for (const c of chunks) {
+      buffer.set(c, offset);
+      offset += c.byteLength;
+    }
+  } catch (e) {
+    throw new Error(`FTP connection/download failed: ${(e as Error).message || String(e)}`);
+  } finally {
+    try { client.close(); } catch { /* ignore */ }
+  }
+
+  let records: any[] = [];
+  const hasHeader = config.hasHeader !== false;
+
+  if (config.fileType === 'excel') {
+    records = parseExcel(buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength), undefined, hasHeader);
+  } else if (config.fileType === 'json') {
+    const text = new TextDecoder().decode(buffer);
+    const data = JSON.parse(text);
+    records = Array.isArray(data) ? data : [data];
+  } else {
+    const text = new TextDecoder().decode(buffer);
+    if (!text.trim()) throw new Error('FTP file is empty');
+    records = parseCSV(text, hasHeader);
+  }
+
+  return {
+    fields: extractFieldsFromData(records),
+    previewData: records.slice(0, 10),
+  };
 }
 
 Deno.serve(async (req) => {
