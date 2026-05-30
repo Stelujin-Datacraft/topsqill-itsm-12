@@ -83,10 +83,14 @@ export const FormProvider: React.FC<FormProviderProps> = ({ children }) => {
   const { currentProject } = useProject();
 
   useEffect(() => {
+    // Clear stale forms immediately on project switch so a previous
+    // project's (potentially different organization's) forms never leak
+    // into selectors before the refetch completes.
+    setForms([]);
     if (currentProject) {
       fetchForms();
     }
-  }, [currentProject]);
+  }, [currentProject?.id]);
 
   const fetchForms = async () => {
     setLoading(true);
@@ -124,6 +128,7 @@ export const FormProvider: React.FC<FormProviderProps> = ({ children }) => {
           .from('forms')
           .select('*')
           .eq('project_id', currentProject.id)
+          .eq('organization_id', currentProject.organization_id)
           .order('updated_at', { ascending: false });
 
         if (error) {
@@ -150,6 +155,7 @@ export const FormProvider: React.FC<FormProviderProps> = ({ children }) => {
           .from('forms')
           .select('*')
           .eq('project_id', currentProject.id)
+          .eq('organization_id', currentProject.organization_id)
           .order('updated_at', { ascending: false }),
         supabase
           .from('user_role_assignments')
