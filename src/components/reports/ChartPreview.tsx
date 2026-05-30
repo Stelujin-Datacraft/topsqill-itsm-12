@@ -5716,7 +5716,7 @@ export function ChartPreview({
                 
                 {/* Drilldown Path Breadcrumb */}
                 <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                  <span className="font-medium">Path: All Records</span>
+                  <span className="font-medium">Path:</span>
                   {drilldownState?.path?.map((level, index) => <React.Fragment key={index}>
                       <ChevronRight className="h-3 w-3" />
                       <span className="font-medium">
@@ -5755,7 +5755,7 @@ export function ChartPreview({
                 
                 {/* Reset Drilldown Button */}
                 {drilldownState?.values?.length > 0 && <Button size="sm" variant="outline" onClick={resetDrilldown}>
-                    Reset to All Records
+                    Reset
                   </Button>}
               </div>
             </div>}
