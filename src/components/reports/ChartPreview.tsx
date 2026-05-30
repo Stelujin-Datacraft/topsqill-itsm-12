@@ -2977,7 +2977,7 @@ export function ChartPreview({
                     dataKey="y" 
                     tick={{ fontSize: 11 }}
                     domain={yDomain}
-                    label={{ value: field2Name, angle: 0, position: 'top', offset: 15, dx: 10, style: { textAnchor: 'start', fontWeight: 500, fill: 'hsl(var(--foreground))' } }}
+                    label={{ value: field2Name, angle: 0, position: 'insideTopLeft', offset: 10, dy: -10, dx: 5, style: { textAnchor: 'start', fontWeight: 500, fill: 'hsl(var(--foreground))' } }}
                   />
                   {compareTooltip}
                   <Line type="monotone" dataKey="y" stroke={colors[0]} strokeWidth={2} dot={{ fill: colors[0], r: 4, cursor: 'pointer', onClick: (props: any) => handleBarClick(props, 0) }} activeDot={{ r: 8, stroke: colors[0], strokeWidth: 2, cursor: 'pointer', onClick: (props: any) => handleBarClick(props, 0) }} />
@@ -3006,7 +3006,7 @@ export function ChartPreview({
                     dataKey="y" 
                     tick={{ fontSize: 11 }}
                     domain={yDomain}
-                    label={{ value: field2Name, angle: 0, position: 'top', offset: 15, dx: 10, style: { textAnchor: 'start', fontWeight: 500, fill: 'hsl(var(--foreground))' } }}
+                    label={{ value: field2Name, angle: 0, position: 'insideTopLeft', offset: 10, dy: -10, dx: 5, style: { textAnchor: 'start', fontWeight: 500, fill: 'hsl(var(--foreground))' } }}
                   />
                   {compareTooltip}
                   <Area type="monotone" dataKey="y" stroke={colors[0]} fill={colors[0]} fillOpacity={0.3} dot={{ r: 4, cursor: 'pointer', onClick: (props: any) => handleBarClick(props, 0) }} activeDot={{ r: 8, stroke: colors[0], strokeWidth: 2, cursor: 'pointer', onClick: (props: any) => handleBarClick(props, 0) }} />
@@ -3041,7 +3041,7 @@ export function ChartPreview({
                   <YAxis 
                     tick={{ fontSize: 11 }}
                     domain={yDomain}
-                    label={{ value: field2Name, angle: 0, position: 'top', offset: 15, dx: 10, style: { textAnchor: 'start', fontWeight: 500, fill: 'hsl(var(--foreground))' } }}
+                    label={{ value: field2Name, angle: 0, position: 'insideTopLeft', offset: 10, dy: -10, dx: 5, style: { textAnchor: 'start', fontWeight: 500, fill: 'hsl(var(--foreground))' } }}
                   />
                   <Tooltip 
                     content={({ payload }) => {
@@ -3118,7 +3118,7 @@ export function ChartPreview({
                   <YAxis 
                     tick={{ fontSize: 11 }}
                     domain={yDomain}
-                    label={{ value: field2Name, angle: 0, position: 'top', offset: 15, dx: 10, style: { textAnchor: 'start', fontWeight: 500, fill: 'hsl(var(--foreground))' } }}
+                    label={{ value: field2Name, angle: 0, position: 'insideTopLeft', offset: 10, dy: -10, dx: 5, style: { textAnchor: 'start', fontWeight: 500, fill: 'hsl(var(--foreground))' } }}
                   />
                   <Tooltip 
                     content={({ payload }) => {
@@ -3291,7 +3291,7 @@ export function ChartPreview({
                       return mapping ? mapping.label : String(value);
                     } : undefined}
                     domain={compareYDomain}
-                    label={{ value: field2Name, angle: 0, position: 'top', offset: 15, dx: 10, style: { textAnchor: 'start', fontWeight: 500, fill: 'hsl(var(--foreground))' } }}
+                    label={{ value: field2Name, angle: 0, position: 'insideTopLeft', offset: 10, dy: -10, dx: 5, style: { textAnchor: 'start', fontWeight: 500, fill: 'hsl(var(--foreground))' } }}
                   />
                   <Tooltip 
                     cursor={{ strokeDasharray: '3 3' }}
@@ -3469,7 +3469,7 @@ export function ChartPreview({
                       return mapping ? mapping.label : String(value);
                     } : undefined}
                     domain={bubbleCompareYDomain}
-                    label={{ value: field2Name, angle: 0, position: 'top', offset: 15, dx: 10, style: { textAnchor: 'start', fontWeight: 500, fill: 'hsl(var(--foreground))' } }}
+                    label={{ value: field2Name, angle: 0, position: 'insideTopLeft', offset: 10, dy: -10, dx: 5, style: { textAnchor: 'start', fontWeight: 500, fill: 'hsl(var(--foreground))' } }}
                   />
                   <Tooltip 
                     cursor={{ strokeDasharray: '3 3' }}
@@ -3648,7 +3648,7 @@ export function ChartPreview({
                     type="category" 
                     dataKey="y" 
                     tick={{ fontSize: 11 }}
-                    label={{ value: field2Name, angle: 0, position: 'top', offset: 15, dx: 10, style: { textAnchor: 'start', fontWeight: 500, fill: 'hsl(var(--foreground))' } }}
+                    label={{ value: field2Name, angle: 0, position: 'insideTopLeft', offset: 10, dy: -10, dx: 5, style: { textAnchor: 'start', fontWeight: 500, fill: 'hsl(var(--foreground))' } }}
                   />
                   <Tooltip content={({ payload }) => {
                     if (!payload || payload.length === 0) return null;
@@ -3711,7 +3711,7 @@ export function ChartPreview({
                 <YAxis 
                   tick={{ fontSize: 11 }}
                   domain={yDomain}
-                  label={{ value: field2Name, angle: 0, position: 'top', offset: 15, dx: 10, style: { textAnchor: 'start', fontWeight: 500, fill: 'hsl(var(--foreground))' } }}
+                  label={{ value: field2Name, angle: 0, position: 'insideTopLeft', offset: 10, dy: -10, dx: 5, style: { textAnchor: 'start', fontWeight: 500, fill: 'hsl(var(--foreground))' } }}
                 />
                 {compareTooltip}
                 <Bar
@@ -3838,7 +3838,7 @@ export function ChartPreview({
                 ticks={lineYAxisTicks}
                 tickFormatter={lineYAxisTickFormatter}
                 allowDecimals={false}
-                label={{ value: yAxisFieldName, angle: 0, position: 'top', offset: 15, dx: 10, style: { textAnchor: 'start', fontWeight: 500, fill: 'hsl(var(--foreground))' } }}
+                label={{ value: yAxisFieldName, angle: 0, position: 'insideTopLeft', offset: 10, dy: -10, dx: 5, style: { textAnchor: 'start', fontWeight: 500, fill: 'hsl(var(--foreground))' } }}
               />
               <Tooltip content={({ payload }) => {
                 if (!payload || payload.length === 0) return null;
@@ -3898,7 +3898,7 @@ export function ChartPreview({
                 ticks={areaYAxisTicks}
                 tickFormatter={areaYAxisTickFormatter}
                 allowDecimals={false}
-                label={{ value: yAxisFieldName, angle: 0, position: 'top', offset: 15, dx: 10, style: { textAnchor: 'start', fontWeight: 500, fill: 'hsl(var(--foreground))' } }}
+                label={{ value: yAxisFieldName, angle: 0, position: 'insideTopLeft', offset: 10, dy: -10, dx: 5, style: { textAnchor: 'start', fontWeight: 500, fill: 'hsl(var(--foreground))' } }}
               />
               <Tooltip content={({ payload }) => {
                 if (!payload || payload.length === 0) return null;
@@ -3979,7 +3979,7 @@ export function ChartPreview({
                 ticks={yAxisTicks}
                 tickFormatter={yAxisTickFormatter}
                 domain={[0.5, maxEncodedValue + 0.5]}
-                label={{ value: yAxisFieldName, angle: 0, position: 'top', offset: 15, dx: 10, style: { textAnchor: 'start', fontWeight: 500, fill: 'hsl(var(--foreground))' } }}
+                label={{ value: yAxisFieldName, angle: 0, position: 'insideTopLeft', offset: 10, dy: -10, dx: 5, style: { textAnchor: 'start', fontWeight: 500, fill: 'hsl(var(--foreground))' } }}
               />
               <Tooltip content={({ payload }) => {
                 if (!payload || payload.length === 0) return null;
@@ -4132,9 +4132,10 @@ export function ChartPreview({
               label={{
                 value: yAxisFieldName,
                 angle: 0,
-                position: 'top',
-                offset: 15,
-                dx: 10,
+                position: 'insideTopLeft',
+                offset: 10,
+                dy: -10,
+                dx: 5,
                 style: { textAnchor: 'start', fontWeight: 500, fill: 'hsl(var(--foreground))' }
               }}
             />
@@ -4262,9 +4263,10 @@ export function ChartPreview({
                     label={{
                       value: config.yAxisLabel || 'Value',
                       angle: 0,
-                      position: 'top',
-                      offset: 15,
-                      dx: 10,
+                position: 'insideTopLeft',
+                offset: 10,
+                dy: -10,
+                dx: 5,
                       style: { textAnchor: 'start', fontWeight: 500, fill: 'hsl(var(--foreground))' }
                     }}
                   />
@@ -4357,9 +4359,10 @@ export function ChartPreview({
                 }} label={{
                   value: config.yAxisLabel || 'Value',
                   angle: 0,
-                  position: 'top',
-                  offset: 15,
-                  dx: 10,
+                position: 'insideTopLeft',
+                offset: 10,
+                dy: -10,
+                dx: 5,
                   style: { textAnchor: 'start', fontWeight: 500, fill: 'hsl(var(--foreground))' }
                 }} domain={getYAxisDomain(sanitizedChartData, primaryMetric)} ticks={getYAxisTicks(sanitizedChartData, primaryMetric)} allowDataOverflow={false} />
                   <Tooltip 
@@ -4545,9 +4548,10 @@ export function ChartPreview({
                 }} label={{
                   value: config.yAxisLabel || 'Value',
                   angle: 0,
-                  position: 'top',
-                  offset: 15,
-                  dx: 10,
+                position: 'insideTopLeft',
+                offset: 10,
+                dy: -10,
+                dx: 5,
                   style: { textAnchor: 'start', fontWeight: 500, fill: 'hsl(var(--foreground))' }
                 }} domain={getYAxisDomain(sanitizedChartData, primaryMetric)} ticks={getYAxisTicks(sanitizedChartData, primaryMetric)} allowDataOverflow={false} />
                   <Tooltip 
@@ -4666,9 +4670,10 @@ export function ChartPreview({
                 }} label={{
                   value: config.yAxisLabel || 'Value',
                   angle: 0,
-                  position: 'top',
-                  offset: 15,
-                  dx: 10,
+                position: 'insideTopLeft',
+                offset: 10,
+                dy: -10,
+                dx: 5,
                   style: { textAnchor: 'start', fontWeight: 500, fill: 'hsl(var(--foreground))' }
                 }} domain={getYAxisDomain(sanitizedChartData, primaryMetric)} ticks={getYAxisTicks(sanitizedChartData, primaryMetric)} allowDataOverflow={false} />
                   <Tooltip 
@@ -4833,9 +4838,10 @@ export function ChartPreview({
                     label={{
                       value: scatterYLabel,
                       angle: 0,
-                      position: 'top',
-                      offset: 15,
-                      dx: 10,
+                position: 'insideTopLeft',
+                offset: 10,
+                dy: -10,
+                dx: 5,
                       style: { textAnchor: 'start', fontWeight: 500, fill: 'hsl(var(--foreground))' }
                     }}
                     domain={hasYMapping ? [0.5, scatterYMapping.length + 0.5] : ['auto', 'auto']}
@@ -4982,7 +4988,7 @@ export function ChartPreview({
                         const mapping = bubbleYMapping.find((m: any) => m.number === value);
                         return mapping ? mapping.label : String(value);
                       } : undefined}
-                      label={{ value: bubbleYLabel, angle: 0, position: 'top', offset: 15, dx: 10, style: { textAnchor: 'start', fontWeight: 500, fill: 'hsl(var(--foreground))' } }}
+                      label={{ value: bubbleYLabel, angle: 0, position: 'insideTopLeft', offset: 10, dy: -10, dx: 5, style: { textAnchor: 'start', fontWeight: 500, fill: 'hsl(var(--foreground))' } }}
                       domain={hasBubbleYMapping ? [0.5, bubbleYMapping.length + 0.5] : ['auto', 'auto']}
                     />
                     <Tooltip 
