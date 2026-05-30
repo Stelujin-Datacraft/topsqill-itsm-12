@@ -510,16 +510,6 @@ export function ReportEditor({
       // For cross-ref charts, the first value is always parentRefId (drilldownLevel might be empty)
       // So we allow adding values even if drilldownLevels is technically empty for the first click
       const isCrossRef = config?.crossRefConfig?.enabled && config?.crossRefConfig?.crossRefFieldId;
-      if (!drilldownLevel && !drilldownValue) {
-        return {
-          ...prev,
-          [componentId]: {
-            path: [],
-            values: [],
-          },
-        };
-      }
-
       const nextState = resolveDrilldownState({
         currentState,
         drilldownLevel,
