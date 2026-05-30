@@ -228,6 +228,7 @@ export function useReports() {
       .from('forms')
       .select('id, name, description')
       .eq('project_id', currentProject.id)
+      .eq('organization_id', currentProject.organization_id)
       .order('name', { ascending: true });
     
     if (error) {
