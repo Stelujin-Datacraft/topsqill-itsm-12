@@ -5714,17 +5714,6 @@ export function ChartPreview({
                   </span>
                 </div>
                 
-                {/* Drilldown Path Breadcrumb */}
-                <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                  <span className="font-medium">Path: All Records</span>
-                  {drilldownState?.path?.map((level, index) => <React.Fragment key={index}>
-                      <ChevronRight className="h-3 w-3" />
-                      <span className="font-medium">
-                        {getFormFieldName(level)}: {drilldownState.values?.[index] || ''}
-                      </span>
-                    </React.Fragment>)}
-                </div>
-                
                 {/* Drilldown Level Selector - only for normal drilldown */}
                 {!config.crossRefConfig?.enabled && currentLevelInfo && <div className="flex items-center gap-2">
                     <span className="text-sm text-muted-foreground">Drill down by {currentLevelInfo.fieldName}:</span>
