@@ -4127,9 +4127,10 @@ export function ChartPreview({
               label={{
                 value: yAxisFieldName,
                 angle: 0,
-                position: 'insideTopLeft',
-                offset: 10,
-                style: { textAnchor: 'start', fontWeight: 500 }
+                position: 'top',
+                offset: 15,
+                dx: 10,
+                style: { textAnchor: 'start', fontWeight: 500, fill: 'hsl(var(--foreground))' }
               }}
             />
             <Tooltip 
@@ -4256,9 +4257,10 @@ export function ChartPreview({
                     label={{
                       value: config.yAxisLabel || 'Value',
                       angle: 0,
-                      position: 'insideTopLeft',
-                      offset: 10,
-                      style: { textAnchor: 'start', fontWeight: 500 }
+                      position: 'top',
+                      offset: 15,
+                      dx: 10,
+                      style: { textAnchor: 'start', fontWeight: 500, fill: 'hsl(var(--foreground))' }
                     }}
                   />
                    <Tooltip 
@@ -4350,9 +4352,10 @@ export function ChartPreview({
                 }} label={{
                   value: config.yAxisLabel || 'Value',
                   angle: 0,
-                  position: 'insideTopLeft',
-                  offset: 10,
-                  style: { textAnchor: 'start', fontWeight: 500 }
+                  position: 'top',
+                  offset: 15,
+                  dx: 10,
+                  style: { textAnchor: 'start', fontWeight: 500, fill: 'hsl(var(--foreground))' }
                 }} domain={getYAxisDomain(sanitizedChartData, primaryMetric)} ticks={getYAxisTicks(sanitizedChartData, primaryMetric)} allowDataOverflow={false} />
                   <Tooltip 
                     content={({ payload, label }) => getEnhancedTooltipContent(payload, label)}
@@ -4537,9 +4540,10 @@ export function ChartPreview({
                 }} label={{
                   value: config.yAxisLabel || 'Value',
                   angle: 0,
-                  position: 'insideTopLeft',
-                  offset: 10,
-                  style: { textAnchor: 'start', fontWeight: 500 }
+                  position: 'top',
+                  offset: 15,
+                  dx: 10,
+                  style: { textAnchor: 'start', fontWeight: 500, fill: 'hsl(var(--foreground))' }
                 }} domain={getYAxisDomain(sanitizedChartData, primaryMetric)} ticks={getYAxisTicks(sanitizedChartData, primaryMetric)} allowDataOverflow={false} />
                   <Tooltip 
                     content={({ payload, label }) => {
@@ -4657,9 +4661,10 @@ export function ChartPreview({
                 }} label={{
                   value: config.yAxisLabel || 'Value',
                   angle: 0,
-                  position: 'insideTopLeft',
-                  offset: 10,
-                  style: { textAnchor: 'start', fontWeight: 500 }
+                  position: 'top',
+                  offset: 15,
+                  dx: 10,
+                  style: { textAnchor: 'start', fontWeight: 500, fill: 'hsl(var(--foreground))' }
                 }} domain={getYAxisDomain(sanitizedChartData, primaryMetric)} ticks={getYAxisTicks(sanitizedChartData, primaryMetric)} allowDataOverflow={false} />
                   <Tooltip 
                     content={({ payload, label }) => {
@@ -4823,9 +4828,10 @@ export function ChartPreview({
                     label={{
                       value: scatterYLabel,
                       angle: 0,
-                      position: 'insideTopLeft',
-                      offset: 10,
-                      style: { textAnchor: 'start', fontWeight: 500 }
+                      position: 'top',
+                      offset: 15,
+                      dx: 10,
+                      style: { textAnchor: 'start', fontWeight: 500, fill: 'hsl(var(--foreground))' }
                     }}
                     domain={hasYMapping ? [0.5, scatterYMapping.length + 0.5] : ['auto', 'auto']}
                   />
