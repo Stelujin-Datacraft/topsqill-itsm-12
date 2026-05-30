@@ -115,5 +115,19 @@ export const resolveDrilldownState = ({
     };
   }
 
+  // Fallback: if a value is provided but the level identifier doesn't match
+  // any configured level (different chart click handlers can infer the field
+  // name differently after a drill), still advance to the next configured
+  // level so multi-level drilldown keeps working past level 1.
+  if (drilldownValue && nextIndex < drilldownLevels.length) {
+    const newValues = [...currentValues];
+    newValues[nextIndex] = drilldownValue;
+    newValues.splice(nextIndex + 1);
+    return {
+      path: buildDrilldownPath(newValues, drilldownLevels, false),
+      values: newValues,
+    };
+  }
+
   return safeCurrentState;
 };
