@@ -152,7 +152,7 @@ export interface DataFeedRun {
   records_created: number;
   records_skipped: number;
   errors_count: number;
-  run_log: { type: string; message: string; timestamp: string }[];
+  run_log: { type: string; message: string; timestamp: string; input?: any; output?: any }[];
   error_details?: any;
   triggered_by: 'schedule' | 'manual';
 }
