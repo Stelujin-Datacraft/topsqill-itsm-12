@@ -64,8 +64,11 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
       return;
     }
-    
-    setLoading(true);
+
+    // Only show loading state on the very first load. Subsequent refreshes
+    // happen silently in the background to avoid flicker / double-loading
+    // indicators in the dev preview (StrictMode + HMR re-invokes effects).
+    setLoading((prev) => (projects.length === 0 ? true : prev));
     
     try {
       let projectsData = [];
@@ -174,6 +177,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         setLoading(false);
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [effectiveRole, effectiveUser?.id, effectiveUser?.organization_id]);
 
   useEffect(() => {
