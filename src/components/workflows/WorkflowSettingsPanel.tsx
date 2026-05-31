@@ -4,20 +4,25 @@
  import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
  import { Input } from '@/components/ui/input';
  import { Badge } from '@/components/ui/badge';
- import { AlertCircle, RefreshCw, Clock, Ban } from 'lucide-react';
+  import { Switch } from '@/components/ui/switch';
+  import { AlertCircle, RefreshCw, Clock, Ban, BellRing } from 'lucide-react';
  
  interface WorkflowSettingsProps {
    enrollmentMode: 'allow_always' | 'once_per_record' | 'cooldown';
    enrollmentCooldownHours: number;
    onEnrollmentModeChange: (mode: 'allow_always' | 'once_per_record' | 'cooldown') => void;
    onCooldownHoursChange: (hours: number) => void;
+    notifyOnFailure: boolean;
+    onNotifyOnFailureChange: (value: boolean) => void;
  }
  
  export function WorkflowSettingsPanel({
    enrollmentMode,
    enrollmentCooldownHours,
    onEnrollmentModeChange,
-   onCooldownHoursChange
+    onCooldownHoursChange,
+    notifyOnFailure,
+    onNotifyOnFailureChange,
  }: WorkflowSettingsProps) {
    const enrollmentOptions = [
      {
@@ -126,6 +131,34 @@
            )}
          </CardContent>
        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BellRing className="h-5 w-5" />
+              Failure Notifications
+            </CardTitle>
+            <CardDescription>
+              Notify organisation admins (and the workflow owner) in-app whenever this workflow fails.
+              Identical failures within a 30-minute window are grouped to avoid noise.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between gap-4">
+              <div className="space-y-1">
+                <Label htmlFor="notify-on-failure" className="text-base">Notify on failure</Label>
+                <p className="text-sm text-muted-foreground">
+                  When enabled, admins receive an in-app alert with the error details on each new failure.
+                </p>
+              </div>
+              <Switch
+                id="notify-on-failure"
+                checked={notifyOnFailure}
+                onCheckedChange={onNotifyOnFailureChange}
+              />
+            </div>
+          </CardContent>
+        </Card>
      </div>
    );
  }
