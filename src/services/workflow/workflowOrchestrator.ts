@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { parseNodeConfig } from './utils';
 import { NodeExecutors } from './nodeExecutors';
 import { WorkflowExecutionContext } from './types';
+import { notifyWorkflowFailure } from './notifyFailure';
 
 export class WorkflowOrchestrator {
   static async executeWorkflow(
@@ -85,6 +86,10 @@ export class WorkflowOrchestrator {
         
         // Clean up execution count tracking
         this.nodeExecutionCounts.delete(execution.id);
+
+        if (!shouldComplete) {
+          notifyWorkflowFailure(workflowId, result.error, { executionId: execution.id });
+        }
       } else if (currentExecution?.status === 'waiting') {
         console.log('⏸️ Workflow is paused by wait node, preserving waiting status');
       }
@@ -150,6 +155,20 @@ export class WorkflowOrchestrator {
       
       // Clean up execution count tracking
       this.nodeExecutionCounts.delete(executionId);
+
+      // Look up workflow_id for this execution to notify admins
+      try {
+        const { data: exec } = await supabase
+          .from('workflow_executions')
+          .select('workflow_id')
+          .eq('id', executionId)
+          .maybeSingle();
+        if (exec?.workflow_id) {
+          notifyWorkflowFailure(exec.workflow_id, result.error, { executionId });
+        }
+      } catch (e) {
+        console.error('notify-failure lookup failed:', e);
+      }
     } else if (result.success && currentExecution?.status === 'running') {
       // Mark as completed if we're still running (not waiting) and reached a terminal state
       const shouldComplete = result.isTerminal || result.isTerminal === undefined;
