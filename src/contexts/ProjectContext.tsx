@@ -178,7 +178,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     loadProjects();
-  }, [loadProjects, isImpersonating]);
+  }, [loadProjects]);
 
   const getRolePermissions = (role: string): string[] => {
     switch (role) {
