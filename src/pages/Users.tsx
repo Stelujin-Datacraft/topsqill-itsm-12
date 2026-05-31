@@ -295,6 +295,12 @@ const Users = () => {
       description="Manage your organization's team members and access"
       actions={
         <div className="flex flex-wrap items-center gap-2">
+          <UsersExportButton
+            users={users as any}
+            userGroupsMap={userGroupsMap}
+            getAssignedRoles={getAssignedRoles}
+            getAssignedTemplate={getAssignedTemplate}
+          />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">
