@@ -50,6 +50,7 @@ import { AssignSecurityTemplatesTab } from '@/components/users/AssignSecurityTem
 import { useSecurityTemplates } from '@/hooks/useSecurityTemplates';
 import { useAllSecurityParameters } from '@/hooks/useSecurityParameters';
 import { UserEditDialog } from '@/components/users/UserEditDialog';
+import { UsersExportButton } from '@/components/users/UsersExportButton';
 
 const Users = () => {
   const navigate = useNavigate();
