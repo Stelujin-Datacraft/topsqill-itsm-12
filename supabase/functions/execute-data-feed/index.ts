@@ -1315,10 +1315,22 @@ Deno.serve(async (req) => {
               if (updateError) {
                 console.error(`❌ Failed to update target ${target.id}:`, updateError);
                 stats.errors++;
-                runLog.push({ type: 'error', message: `Failed to update target ${target.id}: ${updateError.message}`, timestamp: new Date().toISOString() });
+                runLog.push({
+                  type: 'error',
+                  message: `Failed to update target ${target.id}: ${updateError.message}`,
+                  timestamp: new Date().toISOString(),
+                  input: { sourceRef: sourceSubmission.submission_ref_id || sourceSubmission.id, sourceData, mappedUpdates: updatedData },
+                  output: { targetId: target.id, error: updateError.message, details: updateError }
+                });
               } else {
                 stats.recordsUpdated++;
-                runLog.push({ type: 'success', message: `Updated target record ${target.submission_ref_id || target.id}`, timestamp: new Date().toISOString() });
+                runLog.push({
+                  type: 'success',
+                  message: `Updated target record ${target.submission_ref_id || target.id}`,
+                  timestamp: new Date().toISOString(),
+                  input: { sourceRef: sourceSubmission.submission_ref_id || sourceSubmission.id, sourceData, previousTargetData: oldData },
+                  output: { targetId: target.id, targetRef: target.submission_ref_id, updatedData }
+                });
 
                 // Log field changes to record_field_history
                 const fieldLabels: Record<string, string> = {};
@@ -1386,10 +1398,22 @@ Deno.serve(async (req) => {
             if (insertError) {
               console.error(`❌ Failed to create target record:`, insertError);
               stats.errors++;
-              runLog.push({ type: 'error', message: `Failed to create target record: ${insertError.message}`, timestamp: new Date().toISOString() });
+              runLog.push({
+                type: 'error',
+                message: `Failed to create target record: ${insertError.message}`,
+                timestamp: new Date().toISOString(),
+                input: { sourceRef: sourceSubmission.submission_ref_id || sourceSubmission.id, sourceData, newData },
+                output: { error: insertError.message, details: insertError }
+              });
             } else {
               stats.recordsCreated++;
-              runLog.push({ type: 'success', message: `Created new target record from source ${sourceSubmission.submission_ref_id || sourceSubmission.id}`, timestamp: new Date().toISOString() });
+              runLog.push({
+                type: 'success',
+                message: `Created new target record from source ${sourceSubmission.submission_ref_id || sourceSubmission.id}`,
+                timestamp: new Date().toISOString(),
+                input: { sourceRef: sourceSubmission.submission_ref_id || sourceSubmission.id, sourceData },
+                output: { targetId: insertedRecord?.id, newData }
+              });
 
               // Log field changes for created record
               if (insertedRecord?.id) {
@@ -1497,7 +1521,13 @@ Deno.serve(async (req) => {
            } catch (processError) {
              console.error(`❌ Error processing source ${sourceSubmission.id}:`, processError);
              stats.errors++;
-             runLog.push({ type: 'error', message: `Error processing source ${sourceSubmission.id}: ${String(processError)}`, timestamp: new Date().toISOString() });
+             runLog.push({
+               type: 'error',
+               message: `Error processing source ${sourceSubmission.id}: ${String(processError)}`,
+               timestamp: new Date().toISOString(),
+               input: { sourceRef: sourceSubmission.submission_ref_id || sourceSubmission.id, sourceData: sourceSubmission.submission_data },
+               output: { error: String(processError), stack: (processError as any)?.stack }
+             });
            }
          }
  
