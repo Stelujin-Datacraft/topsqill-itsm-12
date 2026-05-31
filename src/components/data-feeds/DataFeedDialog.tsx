@@ -106,6 +106,7 @@ export function DataFeedDialog({
     no_match_behavior: 'skip',
     schedule: '',
     is_active: true,
+    notify_on_failure: true,
   });
 
   const [logicError, setLogicError] = useState<string | null>(null);
@@ -292,6 +293,7 @@ export function DataFeedDialog({
         no_match_behavior: feed.no_match_behavior,
         schedule: feed.schedule || '',
         is_active: feed.is_active,
+        notify_on_failure: (feed as any).notify_on_failure ?? true,
       });
       
       setUseSharedConnection(!!connectionId);
@@ -316,6 +318,7 @@ export function DataFeedDialog({
         no_match_behavior: 'skip',
         schedule: '',
         is_active: true,
+        notify_on_failure: true,
       });
       setUseSharedConnection(false);
       setDiscoveredFields([]);
