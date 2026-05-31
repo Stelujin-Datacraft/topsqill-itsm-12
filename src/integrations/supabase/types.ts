@@ -1137,6 +1137,7 @@ export type Database = {
           name: string
           nested_cross_ref_mappings: Json | null
           no_match_behavior: string
+          notify_on_failure: boolean
           organization_id: string | null
           project_id: string
           schedule: string | null
@@ -1169,6 +1170,7 @@ export type Database = {
           name: string
           nested_cross_ref_mappings?: Json | null
           no_match_behavior?: string
+          notify_on_failure?: boolean
           organization_id?: string | null
           project_id: string
           schedule?: string | null
@@ -1201,6 +1203,7 @@ export type Database = {
           name?: string
           nested_cross_ref_mappings?: Json | null
           no_match_behavior?: string
+          notify_on_failure?: boolean
           organization_id?: string | null
           project_id?: string
           schedule?: string | null
@@ -1846,6 +1849,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      failure_notifications: {
+        Row: {
+          created_at: string
+          entity_id: string
+          entity_type: string
+          error_hash: string
+          id: string
+          last_error: string | null
+          last_notified_at: string
+          occurrence_count: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          entity_id: string
+          entity_type: string
+          error_hash: string
+          id?: string
+          last_error?: string | null
+          last_notified_at?: string
+          occurrence_count?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          entity_id?: string
+          entity_type?: string
+          error_hash?: string
+          id?: string
+          last_error?: string | null
+          last_notified_at?: string
+          occurrence_count?: number
+          updated_at?: string
+        }
+        Relationships: []
       }
       form_access_requests: {
         Row: {
@@ -6553,6 +6592,7 @@ export type Database = {
           enrollment_mode: string
           id: string
           name: string
+          notify_on_failure: boolean
           organization_id: string | null
           project_id: string
           reference_id: string | null
@@ -6567,6 +6607,7 @@ export type Database = {
           enrollment_mode?: string
           id?: string
           name: string
+          notify_on_failure?: boolean
           organization_id?: string | null
           project_id: string
           reference_id?: string | null
@@ -6581,6 +6622,7 @@ export type Database = {
           enrollment_mode?: string
           id?: string
           name?: string
+          notify_on_failure?: boolean
           organization_id?: string | null
           project_id?: string
           reference_id?: string | null

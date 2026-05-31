@@ -1,6 +1,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { NodeActions, NodeExecutionContext, NodeExecutionResult } from './nodeActions';
+import { notifyWorkflowFailure } from './workflow/notifyFailure';
 
 export class WorkflowExecutor {
   static async executeWorkflow(
@@ -332,5 +333,18 @@ export class WorkflowExecutor {
         current_node_id: null
       })
       .eq('id', executionId);
+
+    try {
+      const { data: exec } = await supabase
+        .from('workflow_executions')
+        .select('workflow_id')
+        .eq('id', executionId)
+        .maybeSingle();
+      if (exec?.workflow_id) {
+        notifyWorkflowFailure(exec.workflow_id, errorMessage, { executionId });
+      }
+    } catch (e) {
+      console.error('notify-failure lookup failed:', e);
+    }
   }
 }

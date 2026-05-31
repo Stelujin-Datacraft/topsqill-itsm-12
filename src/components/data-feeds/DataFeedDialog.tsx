@@ -106,6 +106,7 @@ export function DataFeedDialog({
     no_match_behavior: 'skip',
     schedule: '',
     is_active: true,
+    notify_on_failure: true,
   });
 
   const [logicError, setLogicError] = useState<string | null>(null);
@@ -292,6 +293,7 @@ export function DataFeedDialog({
         no_match_behavior: feed.no_match_behavior,
         schedule: feed.schedule || '',
         is_active: feed.is_active,
+        notify_on_failure: (feed as any).notify_on_failure ?? true,
       });
       
       setUseSharedConnection(!!connectionId);
@@ -316,6 +318,7 @@ export function DataFeedDialog({
         no_match_behavior: 'skip',
         schedule: '',
         is_active: true,
+        notify_on_failure: true,
       });
       setUseSharedConnection(false);
       setDiscoveredFields([]);
@@ -785,6 +788,20 @@ export function DataFeedDialog({
                   onCheckedChange={(checked) => setFormData(prev => ({ ...prev, is_active: checked }))}
                 />
                 <Label htmlFor="is_active">Active</Label>
+              </div>
+
+              <div className="flex items-start space-x-2 pt-1">
+                <Switch
+                  id="notify_on_failure"
+                  checked={formData.notify_on_failure ?? true}
+                  onCheckedChange={(checked) => setFormData(prev => ({ ...prev, notify_on_failure: checked }))}
+                />
+                <div className="space-y-0.5">
+                  <Label htmlFor="notify_on_failure">Notify admins on failure</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Send an in-app alert to organisation admins when this feed fails. Identical errors within 30 minutes are grouped.
+                  </p>
+                </div>
               </div>
 
               {/* Schedule Section - Moved from separate tab */}

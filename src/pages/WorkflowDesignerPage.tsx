@@ -43,6 +43,7 @@ const WorkflowDesignerPage = () => {
   // Enrollment settings state
   const [enrollmentMode, setEnrollmentMode] = useState<'allow_always' | 'once_per_record' | 'cooldown'>('allow_always');
   const [enrollmentCooldownHours, setEnrollmentCooldownHours] = useState(24);
+  const [notifyOnFailure, setNotifyOnFailure] = useState(true);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
 
   // Get current workflow info
@@ -101,7 +102,7 @@ const WorkflowDesignerPage = () => {
           loadWorkflowNodes(id),
           supabase
             .from('workflows')
-            .select('enrollment_mode, enrollment_cooldown_hours')
+            .select('enrollment_mode, enrollment_cooldown_hours, notify_on_failure')
             .eq('id', id)
             .single()
         ]);
@@ -116,6 +117,7 @@ const WorkflowDesignerPage = () => {
           const mode = settingsResult.data.enrollment_mode as 'allow_always' | 'once_per_record' | 'cooldown' | null;
           setEnrollmentMode(mode || 'allow_always');
           setEnrollmentCooldownHours(settingsResult.data.enrollment_cooldown_hours || 24);
+          setNotifyOnFailure(settingsResult.data.notify_on_failure ?? true);
           setSettingsLoaded(true);
         }
       } catch (error) {
@@ -179,6 +181,28 @@ const WorkflowDesignerPage = () => {
     
     if (error) {
       console.error('Error saving cooldown hours:', error);
+    }
+  };
+
+  const handleNotifyOnFailureChange = async (value: boolean) => {
+    if (!id) return;
+    setNotifyOnFailure(value);
+    const { error } = await supabase
+      .from('workflows')
+      .update({ notify_on_failure: value })
+      .eq('id', id);
+    if (error) {
+      console.error('Error saving notify_on_failure:', error);
+      toast({
+        title: 'Failed to save setting',
+        description: 'Could not update failure notification preference.',
+        variant: 'destructive',
+      });
+    } else {
+      toast({
+        title: 'Setting saved',
+        description: `Failure notifications ${value ? 'enabled' : 'disabled'}.`,
+      });
     }
   };
 
@@ -681,6 +705,8 @@ const WorkflowDesignerPage = () => {
               enrollmentCooldownHours={enrollmentCooldownHours}
               onEnrollmentModeChange={handleEnrollmentModeChange}
               onCooldownHoursChange={handleCooldownHoursChange}
+              notifyOnFailure={notifyOnFailure}
+              onNotifyOnFailureChange={handleNotifyOnFailureChange}
             />
           </TabsContent>
         </Tabs>

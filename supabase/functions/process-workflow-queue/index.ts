@@ -235,6 +235,24 @@
  
            console.log(`[process-queue] Item ${item.id} permanently failed after ${MAX_RETRIES} retries`);
            result.failed++;
+
+            // Notify admins of permanent failure
+            try {
+              await supabase.functions.invoke('notify-failure', {
+                body: {
+                  entity_type: 'workflow',
+                  entity_id: item.workflow_id,
+                  error: errorMessage,
+                  context: {
+                    queueItemId: item.id,
+                    executionId: item.execution_id,
+                    retryCount: newRetryCount,
+                  },
+                },
+              });
+            } catch (notifyErr) {
+              console.error('notify-failure invoke failed:', notifyErr);
+            }
          }
        }
      }

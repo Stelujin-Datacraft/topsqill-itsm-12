@@ -126,6 +126,7 @@ export interface DataFeed {
   no_match_behavior: 'skip' | 'create';
   schedule?: string;
   is_active: boolean;
+  notify_on_failure?: boolean;
   last_run_at?: string;
   last_run_status?: 'success' | 'failed' | 'partial';
   last_run_stats?: {
@@ -183,6 +184,7 @@ export interface DataFeedFormData {
   no_match_behavior: 'skip' | 'create';
   schedule?: string;
   is_active: boolean;
+  notify_on_failure?: boolean;
 }
 
 // Field type categories for operator selection

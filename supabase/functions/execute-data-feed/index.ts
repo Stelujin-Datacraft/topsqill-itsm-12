@@ -1574,6 +1574,23 @@ Deno.serve(async (req) => {
 
       console.log(`✅ Data feed execution completed: ${JSON.stringify(stats)}`);
 
+      // Notify admins on failure/partial failure (fire-and-forget)
+      if (runStatus === 'failed' || (runStatus === 'partial' && stats.errors > 0)) {
+        try {
+          const firstErr = runLog.find((l: any) => l.type === 'error');
+          await supabase.functions.invoke('notify-failure', {
+            body: {
+              entity_type: 'data_feed',
+              entity_id: feedId,
+              error: firstErr?.message || `Data feed completed with ${stats.errors} error(s)`,
+              context: { runId, status: runStatus, stats },
+            },
+          });
+        } catch (notifyErr) {
+          console.error('notify-failure invoke failed:', notifyErr);
+        }
+      }
+
       return new Response(
         JSON.stringify({ 
           success: true, 
@@ -1605,6 +1622,19 @@ Deno.serve(async (req) => {
           last_run_status: 'failed'
         })
         .eq('id', feedId);
+
+      try {
+        await supabase.functions.invoke('notify-failure', {
+          body: {
+            entity_type: 'data_feed',
+            entity_id: feedId,
+            error: String(execError),
+            context: { runId, status: 'failed' },
+          },
+        });
+      } catch (notifyErr) {
+        console.error('notify-failure invoke failed:', notifyErr);
+      }
 
       return new Response(
         JSON.stringify({ error: String(execError) }),
