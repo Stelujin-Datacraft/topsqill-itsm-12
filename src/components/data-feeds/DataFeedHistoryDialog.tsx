@@ -5,8 +5,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { RefreshCw, CheckCircle, XCircle, AlertCircle, Clock } from 'lucide-react';
+import { RefreshCw, CheckCircle, XCircle, AlertCircle, Clock, ChevronRight } from 'lucide-react';
 import { format } from 'date-fns';
+import { useState } from 'react';
 
 interface DataFeedHistoryDialogProps {
   open: boolean;
@@ -47,6 +48,49 @@ export function DataFeedHistoryDialog({ open, onOpenChange, feed }: DataFeedHist
       default:
         return 'text-muted-foreground';
     }
+  };
+
+  const LogEntry = ({ log }: { log: { type: string; message: string; timestamp: string; input?: any; output?: any } }) => {
+    const [expanded, setExpanded] = useState(false);
+    const hasPayload = log.input !== undefined || log.output !== undefined;
+    return (
+      <div className={`text-sm ${getLogTypeColor(log.type)}`}>
+        <div
+          className={`flex items-start gap-1 ${hasPayload ? 'cursor-pointer hover:opacity-80' : ''}`}
+          onClick={() => hasPayload && setExpanded((v) => !v)}
+        >
+          {hasPayload && (
+            <ChevronRight className={`h-3 w-3 mt-1 shrink-0 transition-transform ${expanded ? 'rotate-90' : ''}`} />
+          )}
+          <div className="flex-1">
+            <span className="text-xs opacity-70">
+              {format(new Date(log.timestamp), 'HH:mm:ss')}
+            </span>{' '}
+            {log.message}
+          </div>
+        </div>
+        {expanded && hasPayload && (
+          <div className="mt-1 ml-4 space-y-2">
+            {log.input !== undefined && (
+              <div>
+                <div className="text-xs font-semibold text-muted-foreground mb-1">Input</div>
+                <pre className="text-xs bg-muted p-2 rounded overflow-x-auto max-h-48 overflow-y-auto text-foreground">
+                  {JSON.stringify(log.input, null, 2)}
+                </pre>
+              </div>
+            )}
+            {log.output !== undefined && (
+              <div>
+                <div className="text-xs font-semibold text-muted-foreground mb-1">Output</div>
+                <pre className="text-xs bg-muted p-2 rounded overflow-x-auto max-h-48 overflow-y-auto text-foreground">
+                  {JSON.stringify(log.output, null, 2)}
+                </pre>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -100,12 +144,7 @@ export function DataFeedHistoryDialog({ open, onOpenChange, feed }: DataFeedHist
                     <div className="space-y-2 pl-7">
                       {run.run_log && run.run_log.length > 0 ? (
                         run.run_log.map((log, index) => (
-                          <div key={index} className={`text-sm ${getLogTypeColor(log.type)}`}>
-                            <span className="text-xs opacity-70">
-                              {format(new Date(log.timestamp), 'HH:mm:ss')}
-                            </span>{' '}
-                            {log.message}
-                          </div>
+                          <LogEntry key={index} log={log} />
                         ))
                       ) : (
                         <p className="text-sm text-muted-foreground">No detailed logs available</p>
