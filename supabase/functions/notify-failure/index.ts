@@ -44,7 +44,7 @@ Deno.serve(async (req) => {
     const table = entity_type === 'workflow' ? 'workflows' : 'data_feeds';
     const { data: entity, error: entityErr } = await supabase
       .from(table)
-      .select('id, name, notify_on_failure, organization_id, created_by')
+      .select('id, name, notify_on_failure, organization_id, project_id, created_by')
       .eq('id', entity_id)
       .maybeSingle();
 
@@ -92,17 +92,18 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Find admin recipients in the same organization
-    let adminQuery = supabase
-      .from('user_profiles')
-      .select('id')
-      .eq('role', 'admin')
-      .eq('status', 'active');
-    if (entity.organization_id) adminQuery = adminQuery.eq('organization_id', entity.organization_id);
-    const { data: admins } = await adminQuery;
-
-    const recipientIds = new Set<string>((admins || []).map((a: any) => a.id));
+    // Targeted recipients: entity owner + project owner (Set auto-dedupes if same person)
+    const recipientIds = new Set<string>();
     if (entity.created_by) recipientIds.add(entity.created_by);
+
+    if (entity.project_id) {
+      const { data: project } = await supabase
+        .from('projects')
+        .select('created_by')
+        .eq('id', entity.project_id)
+        .maybeSingle();
+      if (project?.created_by) recipientIds.add(project.created_by);
+    }
 
     if (recipientIds.size === 0) {
       return new Response(JSON.stringify({ skipped: 'no_recipients' }), {
