@@ -78,6 +78,7 @@ export function useDataFeeds(projectId: string) {
           no_match_behavior: data.no_match_behavior,
           schedule: data.schedule,
           is_active: data.is_active,
+          notify_on_failure: data.notify_on_failure ?? true,
           project_id: projectId,
           created_by: user.user.id,
         } as any)
