@@ -4133,8 +4133,8 @@ export function ChartPreview({
                 value: yAxisFieldName,
                 angle: 0,
                 position: 'insideTopLeft',
-                offset: 10,
-                dy: -10,
+                offset: 20,
+                dy: -25,
                 dx: 5,
                 style: { textAnchor: 'start', fontWeight: 500, fill: 'hsl(var(--foreground))' }
               }}
@@ -4264,8 +4264,8 @@ export function ChartPreview({
                       value: config.yAxisLabel || 'Value',
                       angle: 0,
                 position: 'insideTopLeft',
-                offset: 10,
-                dy: -10,
+                offset: 20,
+                dy: -25,
                 dx: 5,
                       style: { textAnchor: 'start', fontWeight: 500, fill: 'hsl(var(--foreground))' }
                     }}
@@ -4360,8 +4360,8 @@ export function ChartPreview({
                   value: config.yAxisLabel || 'Value',
                   angle: 0,
                 position: 'insideTopLeft',
-                offset: 10,
-                dy: -10,
+                offset: 20,
+                dy: -25,
                 dx: 5,
                   style: { textAnchor: 'start', fontWeight: 500, fill: 'hsl(var(--foreground))' }
                 }} domain={getYAxisDomain(sanitizedChartData, primaryMetric)} ticks={getYAxisTicks(sanitizedChartData, primaryMetric)} allowDataOverflow={false} />
@@ -4549,8 +4549,8 @@ export function ChartPreview({
                   value: config.yAxisLabel || 'Value',
                   angle: 0,
                 position: 'insideTopLeft',
-                offset: 10,
-                dy: -10,
+                offset: 20,
+                dy: -25,
                 dx: 5,
                   style: { textAnchor: 'start', fontWeight: 500, fill: 'hsl(var(--foreground))' }
                 }} domain={getYAxisDomain(sanitizedChartData, primaryMetric)} ticks={getYAxisTicks(sanitizedChartData, primaryMetric)} allowDataOverflow={false} />
@@ -4671,8 +4671,8 @@ export function ChartPreview({
                   value: config.yAxisLabel || 'Value',
                   angle: 0,
                 position: 'insideTopLeft',
-                offset: 10,
-                dy: -10,
+                offset: 20,
+                dy: -25,
                 dx: 5,
                   style: { textAnchor: 'start', fontWeight: 500, fill: 'hsl(var(--foreground))' }
                 }} domain={getYAxisDomain(sanitizedChartData, primaryMetric)} ticks={getYAxisTicks(sanitizedChartData, primaryMetric)} allowDataOverflow={false} />
@@ -4839,8 +4839,8 @@ export function ChartPreview({
                       value: scatterYLabel,
                       angle: 0,
                 position: 'insideTopLeft',
-                offset: 10,
-                dy: -10,
+                offset: 20,
+                dy: -25,
                 dx: 5,
                       style: { textAnchor: 'start', fontWeight: 500, fill: 'hsl(var(--foreground))' }
                     }}
