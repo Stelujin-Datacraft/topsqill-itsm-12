@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
 import { useImpersonation } from './ImpersonationContext';
@@ -47,6 +47,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [userProjectPermissions, setUserProjectPermissions] = useState<Record<string, string[]>>({});
+  const latestLoadRequestRef = useRef(0);
   const { userProfile } = useAuth();
   const { isImpersonating, impersonatedUser } = useImpersonation();
 
@@ -54,12 +55,12 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   const effectiveUser = isImpersonating && impersonatedUser ? impersonatedUser : userProfile;
   const effectiveRole = effectiveUser?.role || 'user';
 
-  useEffect(() => {
-    loadProjects();
-  }, [effectiveUser?.organization_id, effectiveUser?.id, isImpersonating]);
+  const loadProjects = useCallback(async () => {
+    const requestId = ++latestLoadRequestRef.current;
+    const isStaleRequest = () => latestLoadRequestRef.current !== requestId;
 
-  const loadProjects = async () => {
     if (!effectiveUser?.organization_id || !effectiveUser?.id) {
+      if (isStaleRequest()) return;
       setLoading(false);
       return;
     }
@@ -140,30 +141,44 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       }
       
       const typedProjects: Project[] = projectsData.map(normalizeProject);
-      
-      setProjects(sortProjectsByUpdatedAt(typedProjects));
+      const sortedProjects = sortProjectsByUpdatedAt(typedProjects);
+
+      if (isStaleRequest()) return;
+
+      setProjects(sortedProjects);
       setUserProjectPermissions(permissionsMap);
-      
+
       const savedProjectId = localStorage.getItem('currentProjectId');
-      if (!currentProject && typedProjects.length > 0) {
-        if (savedProjectId) {
-          const savedProject = typedProjects.find(p => p.id === savedProjectId);
-          if (savedProject) {
-            setCurrentProject(savedProject);
-          } else {
-            setCurrentProject(typedProjects[0]);
+      setCurrentProject((previousProject) => {
+        if (previousProject) {
+          const refreshedCurrentProject = sortedProjects.find(project => project.id === previousProject.id);
+          if (refreshedCurrentProject) {
+            return refreshedCurrentProject;
           }
-        } else {
-          setCurrentProject(typedProjects[0]);
         }
-      }
+
+        if (savedProjectId) {
+          const savedProject = sortedProjects.find(project => project.id === savedProjectId);
+          if (savedProject) {
+            return savedProject;
+          }
+        }
+
+        return sortedProjects[0] || null;
+      });
     } catch (error) {
-      setProjects([]);
-      setUserProjectPermissions({});
+      if (isStaleRequest()) return;
+      console.warn('[ProjectContext] Failed to refresh projects, preserving current project state:', error);
     } finally {
-      setLoading(false);
+      if (!isStaleRequest()) {
+        setLoading(false);
+      }
     }
-  };
+  }, [effectiveRole, effectiveUser?.id, effectiveUser?.organization_id]);
+
+  useEffect(() => {
+    loadProjects();
+  }, [loadProjects]);
 
   const getRolePermissions = (role: string): string[] => {
     switch (role) {
@@ -361,21 +376,6 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       return false;
     }
   };
-
-  useEffect(() => {
-    const savedProjectId = localStorage.getItem('currentProjectId');
-    if (savedProjectId && projects.length > 0 && !currentProject) {
-      const savedProject = projects.find(p => p.id === savedProjectId);
-      if (savedProject) {
-        setCurrentProject(savedProject);
-        return;
-      }
-    }
-    
-    if (!currentProject && projects.length > 0 && !savedProjectId) {
-      setCurrentProject(projects[0]);
-    }
-  }, [projects]);
 
   useEffect(() => {
     if (currentProject) {

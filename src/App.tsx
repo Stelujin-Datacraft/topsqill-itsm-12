@@ -144,8 +144,9 @@ const queryClient = new QueryClient({
       refetchOnWindowFocus: false,
       // Don't refetch on remount within staleTime - eliminates top loading bar flash on navigation
       refetchOnMount: false,
-      // Don't refetch on network reconnect aggressively
-      refetchOnReconnect: 'always',
+      // Avoid reconnect-triggered refetch flashes right after navigation.
+      // Realtime subscriptions and explicit invalidations keep data fresh.
+      refetchOnReconnect: false,
       // Retry failed requests once with delay
       retry: 1,
       retryDelay: 1000,
