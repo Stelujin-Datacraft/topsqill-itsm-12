@@ -124,6 +124,10 @@ export interface DataFeed {
   field_mappings: FieldMapping[];
   nested_cross_ref_mappings?: NestedCrossRefMapping[]; // For creating/updating records in linked forms
   no_match_behavior: 'skip' | 'create';
+  // Action to take when a target record matches the source record
+  action_on_match?: 'update' | 'delete' | 'conditional';
+  conditional_delete_field_id?: string;
+  conditional_delete_value?: string;
   schedule?: string;
   is_active: boolean;
   notify_on_failure?: boolean;
@@ -133,6 +137,7 @@ export interface DataFeed {
     recordsProcessed: number;
     recordsUpdated: number;
     recordsCreated: number;
+    recordsDeleted?: number;
     recordsSkipped: number;
     recordsFiltered: number; // New: count of records filtered out by source filters
     errors: number;
@@ -182,6 +187,10 @@ export interface DataFeedFormData {
   field_mappings: FieldMapping[];
   nested_cross_ref_mappings?: NestedCrossRefMapping[]; // For creating/updating records in linked forms
   no_match_behavior: 'skip' | 'create';
+  // Action to take when a target record matches the source record
+  action_on_match?: 'update' | 'delete' | 'conditional';
+  conditional_delete_field_id?: string;
+  conditional_delete_value?: string;
   schedule?: string;
   is_active: boolean;
   notify_on_failure?: boolean;
