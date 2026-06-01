@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import * as XLSX from 'https://esm.sh/xlsx@0.18.5';
+import { Client as PgClient } from 'https://deno.land/x/postgres@v0.19.3/mod.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -902,6 +903,35 @@ async function loadExternalRecords(
     }));
   }
 
+  if (sourceType === 'database') {
+    const cfg = externalConfig.database;
+    if (!cfg?.connectionString) throw new Error('Database connection string is required');
+    if (!cfg.query) throw new Error('Database SQL query is required');
+    if (cfg.type && cfg.type !== 'postgresql') {
+      throw new Error(`Database type "${cfg.type}" is not supported yet. Only PostgreSQL is supported.`);
+    }
+    const trimmed = String(cfg.query).trim().replace(/;+\s*$/, '');
+    if (!/^select\s/i.test(trimmed) && !/^with\s/i.test(trimmed)) {
+      throw new Error('Only SELECT (or WITH ... SELECT) queries are allowed for database sources');
+    }
+    const client = new PgClient(cfg.connectionString);
+    let rows: any[] = [];
+    try {
+      await client.connect();
+      const result = await client.queryObject(trimmed);
+      rows = result.rows as any[];
+    } catch (e) {
+      throw new Error(`Database query failed: ${(e as Error).message || String(e)}`);
+    } finally {
+      try { await client.end(); } catch { /* ignore */ }
+    }
+    return rows.map((r: any, idx: number) => ({
+      id: `db_${idx}`,
+      submission_data: r && typeof r === 'object' ? r : { value: r },
+      submission_ref_id: null,
+    }));
+  }
+
   if (sourceType === 'google_sheets') {
     const cfg = externalConfig.googleSheets;
     if (!cfg?.spreadsheetId || !cfg.apiKey) throw new Error('Google Sheets requires spreadsheetId and apiKey');
@@ -1011,6 +1041,8 @@ Deno.serve(async (req) => {
              externalConfig = { httpApi: { url: conn.http_url, method: conn.http_method || 'GET', headers: conn.http_headers, authType: conn.http_auth_type, authConfig: conn.http_auth_config, responsePath: conn.http_response_path } };
            } else if (conn.connection_type === 'file_url') {
              externalConfig = { file: { sourceMode: 'url', fileUrl: conn.file_url, fileType: conn.file_type || 'csv', sheetName: conn.file_sheet_name, hasHeader: true } };
+           } else if (conn.connection_type === 'database') {
+             externalConfig = { database: { type: conn.db_type || 'postgresql', connectionString: conn.db_connection_string, query: conn.db_query } };
            }
          }
          try {
