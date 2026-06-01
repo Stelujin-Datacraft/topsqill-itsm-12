@@ -1796,7 +1796,7 @@ Deno.serve(async (req) => {
        }
  
        // Update run record with success
-      const runStatus = stats.errors > 0 ? (stats.recordsUpdated > 0 || stats.recordsCreated > 0 ? 'partial' : 'failed') : 'completed';
+      const runStatus = stats.errors > 0 ? (stats.recordsUpdated > 0 || stats.recordsCreated > 0 || stats.recordsDeleted > 0 ? 'partial' : 'failed') : 'completed';
       
       await supabase
         .from('data_feed_runs')
@@ -1822,6 +1822,7 @@ Deno.serve(async (req) => {
             recordsProcessed: stats.recordsProcessed,
             recordsUpdated: stats.recordsUpdated,
             recordsCreated: stats.recordsCreated,
+            recordsDeleted: stats.recordsDeleted,
             recordsSkipped: stats.recordsSkipped,
             recordsFiltered: stats.recordsFiltered,
             errors: stats.errors
