@@ -107,6 +107,8 @@ export function DataFeedDialog({
     action_on_match: 'update',
     conditional_delete_field_id: '',
     conditional_delete_value: '',
+    conditional_delete_filters: [],
+    conditional_delete_filter_logic: '',
     schedule: '',
     is_active: true,
     notify_on_failure: true,
@@ -115,6 +117,7 @@ export function DataFeedDialog({
   const [logicError, setLogicError] = useState<string | null>(null);
   const [filterLogicError, setFilterLogicError] = useState<string | null>(null);
   const [crossRefMatchLogicError, setCrossRefMatchLogicError] = useState<string | null>(null);
+  const [deleteFilterLogicError, setDeleteFilterLogicError] = useState<string | null>(null);
 
   // Load forms and shared connections
   useEffect(() => {
@@ -297,6 +300,10 @@ export function DataFeedDialog({
         action_on_match: (feed as any).action_on_match || 'update',
         conditional_delete_field_id: (feed as any).conditional_delete_field_id || '',
         conditional_delete_value: (feed as any).conditional_delete_value || '',
+        conditional_delete_filters: Array.isArray((feed as any).conditional_delete_filters)
+          ? (((feed as any).conditional_delete_filters as SourceFilter[]).map((f, idx) => ({ ...f, id: f.id || String(idx + 1) })))
+          : [],
+        conditional_delete_filter_logic: (feed as any).conditional_delete_filter_logic || '',
         schedule: feed.schedule || '',
         is_active: feed.is_active,
         notify_on_failure: (feed as any).notify_on_failure ?? true,
@@ -325,6 +332,8 @@ export function DataFeedDialog({
         action_on_match: 'update',
         conditional_delete_field_id: '',
         conditional_delete_value: '',
+        conditional_delete_filters: [],
+        conditional_delete_filter_logic: '',
         schedule: '',
         is_active: true,
         notify_on_failure: true,
@@ -450,6 +459,87 @@ export function DataFeedDialog({
   const handleFilterLogicChange = (value: string) => {
     setFormData(prev => ({ ...prev, source_filter_logic: value }));
     validateFilterLogicExpression(value);
+  };
+
+  // ========== Conditional Delete Filters (rich condition builder) ==========
+  const addDeleteFilter = () => {
+    const newId = String((formData.conditional_delete_filters?.length || 0) + 1);
+    setFormData(prev => {
+      const newFilters = [...(prev.conditional_delete_filters || []), { id: newId, fieldId: '', operator: 'equals' as FilterOperator, value: '' }];
+      const autoLogic = newFilters.length >= 2 && !prev.conditional_delete_filter_logic
+        ? newFilters.map(f => f.id).join(' AND ')
+        : prev.conditional_delete_filter_logic;
+      return {
+        ...prev,
+        conditional_delete_filters: newFilters,
+        conditional_delete_filter_logic: autoLogic,
+      };
+    });
+  };
+
+  const updateDeleteFilter = (index: number, field: keyof SourceFilter, value: string) => {
+    const sourceField = field === 'fieldId' ? sourceFields.find(f => f.id === value) : null;
+    setFormData(prev => ({
+      ...prev,
+      conditional_delete_filters: (prev.conditional_delete_filters || []).map((filter, i) => {
+        if (i !== index) return filter;
+        const updates: Partial<SourceFilter> = { [field]: value };
+        if (sourceField) {
+          updates.fieldName = sourceField.label;
+          updates.fieldType = sourceField.field_type;
+          const validOperators = getOperatorsForFieldType(sourceField.field_type);
+          if (!validOperators.find(op => op.value === filter.operator)) {
+            updates.operator = validOperators[0]?.value || 'equals';
+          }
+          updates.value = '';
+        }
+        return { ...filter, ...updates };
+      }),
+    }));
+  };
+
+  const removeDeleteFilter = (index: number) => {
+    setFormData(prev => {
+      const removedId = (prev.conditional_delete_filters || [])[index]?.id;
+      const newFilters = (prev.conditional_delete_filters || []).filter((_, i) => i !== index);
+      let newLogic = prev.conditional_delete_filter_logic || '';
+      if (removedId && newLogic) {
+        newLogic = newLogic
+          .replace(new RegExp(`\\b${removedId}\\b\\s*(AND|OR)\\s*`, 'gi'), '')
+          .replace(new RegExp(`\\s*(AND|OR)\\s*\\b${removedId}\\b`, 'gi'), '')
+          .replace(new RegExp(`\\b${removedId}\\b`, 'g'), '')
+          .replace(/\(\s*\)/g, '')
+          .replace(/\s+/g, ' ')
+          .trim();
+      }
+      return {
+        ...prev,
+        conditional_delete_filters: newFilters,
+        conditional_delete_filter_logic: newFilters.length < 2 ? '' : newLogic,
+      };
+    });
+  };
+
+  const handleDeleteFilterLogicChange = (value: string) => {
+    setFormData(prev => ({ ...prev, conditional_delete_filter_logic: value }));
+    const count = formData.conditional_delete_filters?.length || 0;
+    if (!value || count < 2) {
+      setDeleteFilterLogicError(null);
+      return;
+    }
+    const validation = ExpressionEvaluator.validate(value);
+    if (!validation.valid) {
+      setDeleteFilterLogicError(validation.error || 'Invalid expression');
+      return;
+    }
+    const referencedIds = ExpressionEvaluator.extractConditionIds(value);
+    const existingIds = (formData.conditional_delete_filters || []).map(f => f.id);
+    const invalidIds = referencedIds.filter(id => !existingIds.includes(id));
+    if (invalidIds.length > 0) {
+      setDeleteFilterLogicError(`Unknown filter ID(s): ${invalidIds.join(', ')}`);
+      return;
+    }
+    setDeleteFilterLogicError(null);
   };
 
   // ========== Matching Rules ==========
@@ -1381,36 +1471,136 @@ export function DataFeedDialog({
                     <div className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
                       <RadioGroupItem value="conditional" id="action-conditional" className="mt-0.5" />
                       <div className="flex-1 space-y-2">
-                        <Label htmlFor="action-conditional" className="font-medium cursor-pointer">Conditional: Delete by Source Flag</Label>
+                        <Label htmlFor="action-conditional" className="font-medium cursor-pointer">Conditional Delete (rule-based)</Label>
                         <p className="text-xs text-muted-foreground">
-                          Delete the target if a chosen source field equals a given value; otherwise update it.
+                          Delete the target when these conditions on the source record pass; otherwise update it.
                         </p>
                         {formData.action_on_match === 'conditional' && (
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2">
-                            <div className="space-y-1">
-                              <Label className="text-xs">Source field</Label>
-                              <Select
-                                value={formData.conditional_delete_field_id || ''}
-                                onValueChange={(value) => setFormData(prev => ({ ...prev, conditional_delete_field_id: value }))}
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select source field" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {sourceFields.map((f) => (
-                                    <SelectItem key={f.id} value={f.id}>{f.label}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                          <div className="space-y-2 pt-2">
+                            <div className="flex items-center justify-between">
+                              <Label className="text-xs text-muted-foreground">
+                                Delete the target only when these conditions match
+                              </Label>
+                              <Button type="button" variant="outline" size="sm" onClick={addDeleteFilter}>
+                                <Plus className="h-3 w-3 mr-1" />
+                                Add Condition
+                              </Button>
                             </div>
-                            <div className="space-y-1">
-                              <Label className="text-xs">Equals value (delete when matches)</Label>
-                              <Input
-                                value={formData.conditional_delete_value || ''}
-                                onChange={(e) => setFormData(prev => ({ ...prev, conditional_delete_value: e.target.value }))}
-                                placeholder="e.g. deleted, true, inactive"
-                              />
-                            </div>
+
+                            {(formData.conditional_delete_filters?.length || 0) === 0 && (
+                              <div className="text-xs text-muted-foreground bg-muted/30 border border-dashed rounded p-3 text-center">
+                                No conditions configured. Add at least one condition to enable deletion.
+                              </div>
+                            )}
+
+                            {(formData.conditional_delete_filters || []).map((filter, index) => {
+                              const selectedField = sourceFields.find(f => f.id === filter.fieldId);
+                              const fieldType = selectedField?.field_type || filter.fieldType || 'text';
+                              const availableOperators = getOperatorsForFieldType(fieldType);
+                              const currentOperator = availableOperators.find(op => op.value === filter.operator);
+                              const requiresValue = currentOperator?.requiresValue !== false;
+
+                              return (
+                                <div key={filter.id || index} className="flex flex-wrap items-center gap-2 p-2 border rounded bg-muted/20">
+                                  <Badge variant="secondary" className="shrink-0 w-6 h-6 flex items-center justify-center p-0 text-xs font-bold">
+                                    {filter.id || index + 1}
+                                  </Badge>
+                                  <Select
+                                    value={filter.fieldId}
+                                    onValueChange={(value) => updateDeleteFilter(index, 'fieldId', value)}
+                                  >
+                                    <SelectTrigger className="w-[170px]">
+                                      <SelectValue placeholder="Select field" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {sourceFields.map((field) => (
+                                        <SelectItem key={field.id} value={field.id}>
+                                          <span className="flex items-center gap-2">
+                                            {field.label}
+                                            <span className="text-xs text-muted-foreground">({field.field_type})</span>
+                                          </span>
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                  <Select
+                                    value={filter.operator}
+                                    onValueChange={(value) => updateDeleteFilter(index, 'operator', value)}
+                                    disabled={!filter.fieldId}
+                                  >
+                                    <SelectTrigger className="w-[150px]">
+                                      <SelectValue placeholder="Operator" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {availableOperators.map((op) => (
+                                        <SelectItem key={op.value} value={op.value}>{op.label}</SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                  {requiresValue && filter.fieldId && (
+                                    <FilterValueInput
+                                      fieldType={fieldType}
+                                      value={filter.value}
+                                      onChange={(value) => updateDeleteFilter(index, 'value', value)}
+                                      field={selectedField}
+                                      operator={filter.operator}
+                                      className="flex-1 min-w-[140px]"
+                                    />
+                                  )}
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => removeDeleteFilter(index)}
+                                  >
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                  </Button>
+                                </div>
+                              );
+                            })}
+
+                            {(formData.conditional_delete_filters?.length || 0) >= 2 && (
+                              <div className="space-y-1 pt-2 border-t">
+                                <div className="flex items-center justify-between">
+                                  <Label className="text-xs">Condition Logic Expression</Label>
+                                  <div className="flex gap-1">
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      className="h-6 text-xs px-2"
+                                      onClick={() => handleDeleteFilterLogicChange((formData.conditional_delete_filters || []).map(f => f.id).join(' AND '))}
+                                    >
+                                      All (AND)
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      className="h-6 text-xs px-2"
+                                      onClick={() => handleDeleteFilterLogicChange((formData.conditional_delete_filters || []).map(f => f.id).join(' OR '))}
+                                    >
+                                      Any (OR)
+                                    </Button>
+                                  </div>
+                                </div>
+                                <Input
+                                  value={formData.conditional_delete_filter_logic || ''}
+                                  onChange={(e) => handleDeleteFilterLogicChange(e.target.value)}
+                                  placeholder={`e.g., 1 AND 2, (1 OR 2) AND 3`}
+                                  className={deleteFilterLogicError ? 'border-destructive' : ''}
+                                />
+                                {deleteFilterLogicError && (
+                                  <div className="flex items-center gap-1 text-xs text-destructive">
+                                    <AlertCircle className="h-3 w-3" />
+                                    {deleteFilterLogicError}
+                                  </div>
+                                )}
+                                <p className="text-xs text-muted-foreground">
+                                  Use condition numbers with AND, OR, NOT and parentheses. Default: all must match.
+                                </p>
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
