@@ -95,6 +95,9 @@ interface DataFeed {
   field_mappings: FieldMapping[];
   nested_cross_ref_mappings?: NestedCrossRefMapping[];
   no_match_behavior: 'skip' | 'create';
+  action_on_match?: 'update' | 'delete' | 'conditional';
+  conditional_delete_field_id?: string | null;
+  conditional_delete_value?: string | null;
   created_by: string;
 }
 
@@ -102,6 +105,7 @@ interface RunStats {
   recordsProcessed: number;
   recordsUpdated: number;
   recordsCreated: number;
+  recordsDeleted: number;
   recordsSkipped: number;
   recordsFiltered: number;
   errors: number;
