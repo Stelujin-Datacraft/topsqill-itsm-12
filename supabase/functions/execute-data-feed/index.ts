@@ -98,6 +98,8 @@ interface DataFeed {
   action_on_match?: 'update' | 'delete' | 'conditional';
   conditional_delete_field_id?: string | null;
   conditional_delete_value?: string | null;
+  conditional_delete_filters?: SourceFilter[];
+  conditional_delete_filter_logic?: string | null;
   created_by: string;
 }
 
