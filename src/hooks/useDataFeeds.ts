@@ -16,6 +16,9 @@ const parseFeed = (feed: any): DataFeed => ({
   source_filters: Array.isArray(feed.source_filters)
     ? (feed.source_filters as unknown as SourceFilter[])
     : [],
+  conditional_delete_filters: Array.isArray((feed as any).conditional_delete_filters)
+    ? ((feed as any).conditional_delete_filters as unknown as SourceFilter[])
+    : [],
   cross_ref_match_rules: Array.isArray((feed as any).cross_ref_match_rules)
     ? ((feed as any).cross_ref_match_rules as unknown as CrossRefMatchRule[])
     : [],
