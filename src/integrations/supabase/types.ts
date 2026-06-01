@@ -1116,6 +1116,9 @@ export type Database = {
       }
       data_feeds: {
         Row: {
+          action_on_match: string
+          conditional_delete_field_id: string | null
+          conditional_delete_value: string | null
           created_at: string
           created_by: string
           cross_ref_match_logic: string | null
@@ -1149,6 +1152,9 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          action_on_match?: string
+          conditional_delete_field_id?: string | null
+          conditional_delete_value?: string | null
           created_at?: string
           created_by: string
           cross_ref_match_logic?: string | null
@@ -1182,6 +1188,9 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          action_on_match?: string
+          conditional_delete_field_id?: string | null
+          conditional_delete_value?: string | null
           created_at?: string
           created_by?: string
           cross_ref_match_logic?: string | null
