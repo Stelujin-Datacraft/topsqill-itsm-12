@@ -1369,7 +1369,7 @@ Deno.serve(async (req) => {
                 }
                 
                 if (sourceValue !== undefined) {
-                  updatedData[mapping.targetFieldId] = sourceValue;
+                  updatedData[mapping.targetFieldId] = coerceForTargetField(mapping.targetFieldId, sourceValue);
                 }
               }
 
@@ -1447,7 +1447,7 @@ Deno.serve(async (req) => {
               }
               
               if (sourceValue !== undefined) {
-                newData[mapping.targetFieldId] = sourceValue;
+                newData[mapping.targetFieldId] = coerceForTargetField(mapping.targetFieldId, sourceValue);
               }
             }
 
