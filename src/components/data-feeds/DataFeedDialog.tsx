@@ -107,6 +107,8 @@ export function DataFeedDialog({
     action_on_match: 'update',
     conditional_delete_field_id: '',
     conditional_delete_value: '',
+    conditional_delete_filters: [],
+    conditional_delete_filter_logic: '',
     schedule: '',
     is_active: true,
     notify_on_failure: true,
@@ -115,6 +117,7 @@ export function DataFeedDialog({
   const [logicError, setLogicError] = useState<string | null>(null);
   const [filterLogicError, setFilterLogicError] = useState<string | null>(null);
   const [crossRefMatchLogicError, setCrossRefMatchLogicError] = useState<string | null>(null);
+  const [deleteFilterLogicError, setDeleteFilterLogicError] = useState<string | null>(null);
 
   // Load forms and shared connections
   useEffect(() => {
