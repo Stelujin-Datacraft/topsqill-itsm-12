@@ -79,6 +79,8 @@ export function useDataFeeds(projectId: string) {
           action_on_match: data.action_on_match || 'update',
           conditional_delete_field_id: data.conditional_delete_field_id || null,
           conditional_delete_value: data.conditional_delete_value ?? null,
+          conditional_delete_filters: (data.conditional_delete_filters || []) as any,
+          conditional_delete_filter_logic: data.conditional_delete_filter_logic || null,
           schedule: data.schedule,
           is_active: data.is_active,
           notify_on_failure: data.notify_on_failure ?? true,
@@ -126,6 +128,8 @@ export function useDataFeeds(projectId: string) {
       if (data.action_on_match !== undefined) updateData.action_on_match = data.action_on_match;
       if (data.conditional_delete_field_id !== undefined) updateData.conditional_delete_field_id = data.conditional_delete_field_id || null;
       if (data.conditional_delete_value !== undefined) updateData.conditional_delete_value = data.conditional_delete_value ?? null;
+      if (data.conditional_delete_filters !== undefined) updateData.conditional_delete_filters = (data.conditional_delete_filters || []) as any;
+      if (data.conditional_delete_filter_logic !== undefined) updateData.conditional_delete_filter_logic = data.conditional_delete_filter_logic || null;
 
       const { error } = await supabase
         .from('data_feeds')
