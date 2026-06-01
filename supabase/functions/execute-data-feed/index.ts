@@ -1115,6 +1115,7 @@ Deno.serve(async (req) => {
       recordsProcessed: 0,
       recordsUpdated: 0,
       recordsCreated: 0,
+      recordsDeleted: 0,
       recordsSkipped: 0,
       recordsFiltered: 0,
       errors: 0
