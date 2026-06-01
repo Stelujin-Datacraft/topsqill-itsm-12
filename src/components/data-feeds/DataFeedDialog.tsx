@@ -300,6 +300,10 @@ export function DataFeedDialog({
         action_on_match: (feed as any).action_on_match || 'update',
         conditional_delete_field_id: (feed as any).conditional_delete_field_id || '',
         conditional_delete_value: (feed as any).conditional_delete_value || '',
+        conditional_delete_filters: Array.isArray((feed as any).conditional_delete_filters)
+          ? (((feed as any).conditional_delete_filters as SourceFilter[]).map((f, idx) => ({ ...f, id: f.id || String(idx + 1) })))
+          : [],
+        conditional_delete_filter_logic: (feed as any).conditional_delete_filter_logic || '',
         schedule: feed.schedule || '',
         is_active: feed.is_active,
         notify_on_failure: (feed as any).notify_on_failure ?? true,
@@ -328,6 +332,8 @@ export function DataFeedDialog({
         action_on_match: 'update',
         conditional_delete_field_id: '',
         conditional_delete_value: '',
+        conditional_delete_filters: [],
+        conditional_delete_filter_logic: '',
         schedule: '',
         is_active: true,
         notify_on_failure: true,
