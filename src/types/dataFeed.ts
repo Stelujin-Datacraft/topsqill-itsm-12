@@ -128,6 +128,9 @@ export interface DataFeed {
   action_on_match?: 'update' | 'delete' | 'conditional';
   conditional_delete_field_id?: string;
   conditional_delete_value?: string;
+  // Rich condition builder for conditional deletes (preferred over single field/value)
+  conditional_delete_filters?: SourceFilter[];
+  conditional_delete_filter_logic?: string;
   schedule?: string;
   is_active: boolean;
   notify_on_failure?: boolean;
@@ -191,6 +194,8 @@ export interface DataFeedFormData {
   action_on_match?: 'update' | 'delete' | 'conditional';
   conditional_delete_field_id?: string;
   conditional_delete_value?: string;
+  conditional_delete_filters?: SourceFilter[];
+  conditional_delete_filter_logic?: string;
   schedule?: string;
   is_active: boolean;
   notify_on_failure?: boolean;

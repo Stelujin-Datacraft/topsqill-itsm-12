@@ -1118,6 +1118,8 @@ export type Database = {
         Row: {
           action_on_match: string
           conditional_delete_field_id: string | null
+          conditional_delete_filter_logic: string | null
+          conditional_delete_filters: Json
           conditional_delete_value: string | null
           created_at: string
           created_by: string
@@ -1154,6 +1156,8 @@ export type Database = {
         Insert: {
           action_on_match?: string
           conditional_delete_field_id?: string | null
+          conditional_delete_filter_logic?: string | null
+          conditional_delete_filters?: Json
           conditional_delete_value?: string | null
           created_at?: string
           created_by: string
@@ -1190,6 +1194,8 @@ export type Database = {
         Update: {
           action_on_match?: string
           conditional_delete_field_id?: string | null
+          conditional_delete_filter_logic?: string | null
+          conditional_delete_filters?: Json
           conditional_delete_value?: string | null
           created_at?: string
           created_by?: string
