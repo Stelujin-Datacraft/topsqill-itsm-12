@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import * as XLSX from 'https://esm.sh/xlsx@0.18.5';
+import { Client as PgClient } from 'https://deno.land/x/postgres@v0.19.3/mod.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
