@@ -467,7 +467,7 @@ export function DataFeedDialog({
     setFormData(prev => {
       const newFilters = [...(prev.conditional_delete_filters || []), { id: newId, fieldId: '', operator: 'equals' as FilterOperator, value: '' }];
       const autoLogic = newFilters.length >= 2 && !prev.conditional_delete_filter_logic
-+        ? newFilters.map(f => f.id).join(' AND ')
+        ? newFilters.map(f => f.id).join(' AND ')
         : prev.conditional_delete_filter_logic;
       return {
         ...prev,
