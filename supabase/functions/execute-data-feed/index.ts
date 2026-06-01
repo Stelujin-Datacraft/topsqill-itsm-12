@@ -1087,6 +1087,72 @@ Deno.serve(async (req) => {
       const sourceFilters = (feed.source_filters || []) as SourceFilter[];
       const sourceFilterLogic = feed.source_filter_logic as string | undefined;
 
+      // Load target field metadata (type + options) for value coercion
+      // Supports multi-select / dropdown / radio / checkbox matching by VALUE or LABEL
+      const targetFieldMeta: Record<string, { type: string; options: Array<{ value: string; label: string }>; isMulti: boolean }> = {};
+      {
+        const targetFieldIds = Array.from(new Set(fieldMappings.map(m => m.targetFieldId).filter(Boolean)));
+        if (targetFieldIds.length > 0) {
+          const { data: tgtFields } = await supabase
+            .from('form_fields')
+            .select('id, field_type, options, custom_config')
+            .in('id', targetFieldIds);
+          if (tgtFields) {
+            for (const f of tgtFields as any[]) {
+              const rawOptions =
+                (Array.isArray(f.options) && f.options) ||
+                (Array.isArray(f?.custom_config?.options) && f.custom_config.options) ||
+                [];
+              const options = rawOptions.map((o: any) =>
+                typeof o === 'string'
+                  ? { value: o, label: o }
+                  : { value: String(o?.value ?? o?.label ?? ''), label: String(o?.label ?? o?.value ?? '') }
+              );
+              const type = String(f.field_type || '');
+              targetFieldMeta[f.id] = {
+                type,
+                options,
+                isMulti: type === 'multi-select' || type === 'checkbox',
+              };
+            }
+          }
+        }
+      }
+
+      // Coerce a source value into the shape/values the target field expects.
+      // For selection fields, matches each incoming token against option.value OR option.label
+      // (case-insensitive, trimmed). Unmatched tokens are dropped silently.
+      const coerceForTargetField = (targetFieldId: string, raw: any): any => {
+        const meta = targetFieldMeta[targetFieldId];
+        if (!meta) return raw;
+        const { type, options, isMulti } = meta;
+        const isSelection = isMulti || type === 'dropdown' || type === 'radio';
+        if (!isSelection || options.length === 0) return raw;
+
+        // Normalize incoming into array of string tokens
+        let tokens: string[] = [];
+        if (Array.isArray(raw)) {
+          tokens = raw.map(v => String(v ?? '').trim()).filter(Boolean);
+        } else if (raw === null || raw === undefined || raw === '') {
+          tokens = [];
+        } else {
+          tokens = String(raw).split(',').map(t => t.trim()).filter(Boolean);
+        }
+
+        // Match each token by value OR label (case-insensitive) -> canonical option.value
+        const matched: string[] = [];
+        for (const tok of tokens) {
+          const low = tok.toLowerCase();
+          const opt = options.find(o =>
+            o.value.toLowerCase() === low || o.label.toLowerCase() === low
+          );
+          if (opt) matched.push(opt.value);
+        }
+
+        if (isMulti) return matched;
+        return matched[0] ?? '';
+      };
+
       // Build a cache of cross-reference submissions for cross-ref field mappings
       const crossRefCache: Record<string, Record<string, any>> = {};
       
