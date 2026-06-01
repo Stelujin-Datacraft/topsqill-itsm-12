@@ -95,6 +95,9 @@ interface DataFeed {
   field_mappings: FieldMapping[];
   nested_cross_ref_mappings?: NestedCrossRefMapping[];
   no_match_behavior: 'skip' | 'create';
+  action_on_match?: 'update' | 'delete' | 'conditional';
+  conditional_delete_field_id?: string | null;
+  conditional_delete_value?: string | null;
   created_by: string;
 }
 
@@ -102,6 +105,7 @@ interface RunStats {
   recordsProcessed: number;
   recordsUpdated: number;
   recordsCreated: number;
+  recordsDeleted: number;
   recordsSkipped: number;
   recordsFiltered: number;
   errors: number;
@@ -1111,6 +1115,7 @@ Deno.serve(async (req) => {
       recordsProcessed: 0,
       recordsUpdated: 0,
       recordsCreated: 0,
+      recordsDeleted: 0,
       recordsSkipped: 0,
       recordsFiltered: 0,
       errors: 0
@@ -1473,6 +1478,65 @@ Deno.serve(async (req) => {
           console.log(`📎 Found ${matchedTargets.length} matching target(s) for source ${sourceSubmission.submission_ref_id || sourceSubmission.id}`);
 
           if (matchedTargets.length > 0) {
+            // Determine per-record action (update / delete / conditional)
+            const actionMode = feed.action_on_match || 'update';
+            let perRecordAction: 'update' | 'delete' = 'update';
+            if (actionMode === 'delete') {
+              perRecordAction = 'delete';
+            } else if (actionMode === 'conditional') {
+              const fid = feed.conditional_delete_field_id;
+              const expected = (feed.conditional_delete_value ?? '').toString().trim().toLowerCase();
+              if (fid) {
+                const raw = sourceData[fid];
+                const actual = raw === null || raw === undefined ? '' : String(raw).trim().toLowerCase();
+                perRecordAction = actual === expected ? 'delete' : 'update';
+              }
+            }
+
+            // Multi-match safety: never bulk-delete when matching rules return more than one target
+            if (perRecordAction === 'delete' && matchedTargets.length > 1) {
+              stats.recordsSkipped++;
+              runLog.push({
+                type: 'warning',
+                message: `Skipped delete: source matched ${matchedTargets.length} target records (ambiguous). Tighten matching rules to enable delete.`,
+                timestamp: new Date().toISOString(),
+                input: { sourceRef: sourceSubmission.submission_ref_id || sourceSubmission.id, sourceData },
+                output: { matchedTargetIds: matchedTargets.map(t => t.id) }
+              });
+              continue;
+            }
+
+            if (perRecordAction === 'delete') {
+              const target = matchedTargets[0];
+              const snapshot = target.submission_data;
+              const { error: delError } = await supabase
+                .from('form_submissions')
+                .delete()
+                .eq('id', target.id);
+
+              if (delError) {
+                console.error(`❌ Failed to delete target ${target.id}:`, delError);
+                stats.errors++;
+                runLog.push({
+                  type: 'error',
+                  message: `Failed to delete target ${target.id}: ${delError.message}`,
+                  timestamp: new Date().toISOString(),
+                  input: { sourceRef: sourceSubmission.submission_ref_id || sourceSubmission.id, sourceData },
+                  output: { targetId: target.id, error: delError.message }
+                });
+              } else {
+                stats.recordsDeleted++;
+                runLog.push({
+                  type: 'success',
+                  message: `Deleted target record ${target.submission_ref_id || target.id}${actionMode === 'conditional' ? ' (conditional delete matched)' : ''}`,
+                  timestamp: new Date().toISOString(),
+                  input: { sourceRef: sourceSubmission.submission_ref_id || sourceSubmission.id, sourceData, deletedSnapshot: snapshot },
+                  output: { targetId: target.id, targetRef: target.submission_ref_id, action: 'delete', mode: actionMode }
+                });
+              }
+              continue;
+            }
+
             // Update matched target submissions
             for (const target of matchedTargets) {
               const oldData = target.submission_data as Record<string, any>;
@@ -1732,7 +1796,7 @@ Deno.serve(async (req) => {
        }
  
        // Update run record with success
-      const runStatus = stats.errors > 0 ? (stats.recordsUpdated > 0 || stats.recordsCreated > 0 ? 'partial' : 'failed') : 'completed';
+      const runStatus = stats.errors > 0 ? (stats.recordsUpdated > 0 || stats.recordsCreated > 0 || stats.recordsDeleted > 0 ? 'partial' : 'failed') : 'completed';
       
       await supabase
         .from('data_feed_runs')
@@ -1758,6 +1822,7 @@ Deno.serve(async (req) => {
             recordsProcessed: stats.recordsProcessed,
             recordsUpdated: stats.recordsUpdated,
             recordsCreated: stats.recordsCreated,
+            recordsDeleted: stats.recordsDeleted,
             recordsSkipped: stats.recordsSkipped,
             recordsFiltered: stats.recordsFiltered,
             errors: stats.errors

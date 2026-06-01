@@ -76,6 +76,9 @@ export function useDataFeeds(projectId: string) {
           field_mappings: data.field_mappings as any,
           nested_cross_ref_mappings: (data.nested_cross_ref_mappings || []) as any,
           no_match_behavior: data.no_match_behavior,
+          action_on_match: data.action_on_match || 'update',
+          conditional_delete_field_id: data.conditional_delete_field_id || null,
+          conditional_delete_value: data.conditional_delete_value ?? null,
           schedule: data.schedule,
           is_active: data.is_active,
           notify_on_failure: data.notify_on_failure ?? true,
@@ -120,6 +123,9 @@ export function useDataFeeds(projectId: string) {
       if (data.external_source_config !== undefined) updateData.external_source_config = data.external_source_config || null;
       if (data.data_source_connection_id !== undefined) updateData.data_source_connection_id = data.data_source_connection_id || null;
       if (data.nested_cross_ref_mappings !== undefined) updateData.nested_cross_ref_mappings = (data.nested_cross_ref_mappings || []) as any;
+      if (data.action_on_match !== undefined) updateData.action_on_match = data.action_on_match;
+      if (data.conditional_delete_field_id !== undefined) updateData.conditional_delete_field_id = data.conditional_delete_field_id || null;
+      if (data.conditional_delete_value !== undefined) updateData.conditional_delete_value = data.conditional_delete_value ?? null;
 
       const { error } = await supabase
         .from('data_feeds')
@@ -186,9 +192,10 @@ export function useDataFeeds(projectId: string) {
       const result = response.data;
       
       if (result.success) {
+        const deleted = result.stats?.recordsDeleted ?? 0;
         toast({
           title: 'Feed Executed',
-          description: `Processed: ${result.stats.recordsProcessed}, Updated: ${result.stats.recordsUpdated}, Created: ${result.stats.recordsCreated}`,
+          description: `Processed: ${result.stats.recordsProcessed}, Updated: ${result.stats.recordsUpdated}, Created: ${result.stats.recordsCreated}${deleted ? `, Deleted: ${deleted}` : ''}`,
         });
       } else {
         toast({
