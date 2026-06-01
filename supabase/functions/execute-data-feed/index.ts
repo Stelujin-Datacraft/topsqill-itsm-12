@@ -1486,12 +1486,23 @@ Deno.serve(async (req) => {
             if (actionMode === 'delete') {
               perRecordAction = 'delete';
             } else if (actionMode === 'conditional') {
-              const fid = feed.conditional_delete_field_id;
-              const expected = (feed.conditional_delete_value ?? '').toString().trim().toLowerCase();
-              if (fid) {
-                const raw = sourceData[fid];
-                const actual = raw === null || raw === undefined ? '' : String(raw).trim().toLowerCase();
-                perRecordAction = actual === expected ? 'delete' : 'update';
+              // Prefer rich filter builder when configured; fall back to legacy single field/value
+              const richFilters = (feed.conditional_delete_filters || []) as SourceFilter[];
+              if (richFilters.length > 0) {
+                const passes = passesSourceFilters(
+                  sourceData,
+                  richFilters,
+                  feed.conditional_delete_filter_logic || ''
+                );
+                perRecordAction = passes ? 'delete' : 'update';
+              } else {
+                const fid = feed.conditional_delete_field_id;
+                const expected = (feed.conditional_delete_value ?? '').toString().trim().toLowerCase();
+                if (fid) {
+                  const raw = sourceData[fid];
+                  const actual = raw === null || raw === undefined ? '' : String(raw).trim().toLowerCase();
+                  perRecordAction = actual === expected ? 'delete' : 'update';
+                }
               }
             }
 
