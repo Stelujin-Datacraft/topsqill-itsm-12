@@ -1041,6 +1041,8 @@ Deno.serve(async (req) => {
              externalConfig = { httpApi: { url: conn.http_url, method: conn.http_method || 'GET', headers: conn.http_headers, authType: conn.http_auth_type, authConfig: conn.http_auth_config, responsePath: conn.http_response_path } };
            } else if (conn.connection_type === 'file_url') {
              externalConfig = { file: { sourceMode: 'url', fileUrl: conn.file_url, fileType: conn.file_type || 'csv', sheetName: conn.file_sheet_name, hasHeader: true } };
+           } else if (conn.connection_type === 'database') {
+             externalConfig = { database: { type: conn.db_type || 'postgresql', connectionString: conn.db_connection_string, query: conn.db_query } };
            }
          }
          try {
