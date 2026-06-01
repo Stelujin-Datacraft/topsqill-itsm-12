@@ -626,6 +626,14 @@ Deno.serve(async (req) => {
             hasHeader: true
           }
         };
+      } else if (connection.connection_type === 'database') {
+        externalConfig = {
+          database: {
+            type: (connection.db_type as any) || 'postgresql',
+            connectionString: connection.db_connection_string,
+            query: connection.db_query,
+          },
+        };
       }
     }
 
@@ -641,6 +649,8 @@ Deno.serve(async (req) => {
       result = await discoverCloudStorageFields(externalConfig.cloudStorage);
     } else if (sourceType === 'ftp' && externalConfig.ftp) {
       result = await discoverFtpFields(externalConfig.ftp);
+    } else if (sourceType === 'database' && externalConfig.database) {
+      result = await discoverDatabaseFields(externalConfig.database);
     } else if (sourceType === 'webhook') {
       // Webhooks don't have field discovery - fields are determined when data is received
       return new Response(
