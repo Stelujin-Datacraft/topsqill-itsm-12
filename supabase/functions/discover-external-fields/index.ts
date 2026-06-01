@@ -1,6 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import * as XLSX from 'https://esm.sh/xlsx@0.18.5';
 import { Client as FtpClient } from 'npm:basic-ftp@5.0.5';
+import { Client as PgClient } from 'https://deno.land/x/postgres@v0.19.3/mod.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -81,6 +82,46 @@ interface ExternalSourceConfig {
   ftp?: FtpConfig;
   cloudStorage?: CloudStorageConfig;
   googleSheets?: GoogleSheetsConfig;
+  database?: DatabaseConfig;
+}
+
+interface DatabaseConfig {
+  type: 'postgresql' | 'mysql' | 'mssql';
+  connectionString: string;
+  query: string;
+}
+
+async function discoverDatabaseFields(config: DatabaseConfig): Promise<DiscoveryResult> {
+  if (config.type !== 'postgresql') {
+    throw new Error(`Database type "${config.type}" is not supported yet. Only PostgreSQL is supported.`);
+  }
+  if (!config.connectionString) throw new Error('Database connection string is required');
+  if (!config.query) throw new Error('SQL query is required');
+
+  const trimmed = config.query.trim().replace(/;+\s*$/, '');
+  if (!/^select\s/i.test(trimmed) && !/^with\s/i.test(trimmed)) {
+    throw new Error('Only SELECT (or WITH ... SELECT) queries are allowed for field discovery');
+  }
+
+  // Wrap with LIMIT for safe preview
+  const previewSql = `SELECT * FROM (${trimmed}) AS __preview LIMIT 50`;
+
+  const client = new PgClient(config.connectionString);
+  let records: any[] = [];
+  try {
+    await client.connect();
+    const result = await client.queryObject(previewSql);
+    records = result.rows as any[];
+  } catch (e) {
+    throw new Error(`Database query failed: ${(e as Error).message || String(e)}`);
+  } finally {
+    try { await client.end(); } catch { /* ignore */ }
+  }
+
+  return {
+    fields: extractFieldsFromData(records),
+    previewData: records.slice(0, 10),
+  };
 }
 
 function inferFieldType(value: any): DiscoveredField['type'] {
