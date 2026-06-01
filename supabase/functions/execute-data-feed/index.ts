@@ -903,6 +903,35 @@ async function loadExternalRecords(
     }));
   }
 
+  if (sourceType === 'database') {
+    const cfg = externalConfig.database;
+    if (!cfg?.connectionString) throw new Error('Database connection string is required');
+    if (!cfg.query) throw new Error('Database SQL query is required');
+    if (cfg.type && cfg.type !== 'postgresql') {
+      throw new Error(`Database type "${cfg.type}" is not supported yet. Only PostgreSQL is supported.`);
+    }
+    const trimmed = String(cfg.query).trim().replace(/;+\s*$/, '');
+    if (!/^select\s/i.test(trimmed) && !/^with\s/i.test(trimmed)) {
+      throw new Error('Only SELECT (or WITH ... SELECT) queries are allowed for database sources');
+    }
+    const client = new PgClient(cfg.connectionString);
+    let rows: any[] = [];
+    try {
+      await client.connect();
+      const result = await client.queryObject(trimmed);
+      rows = result.rows as any[];
+    } catch (e) {
+      throw new Error(`Database query failed: ${(e as Error).message || String(e)}`);
+    } finally {
+      try { await client.end(); } catch { /* ignore */ }
+    }
+    return rows.map((r: any, idx: number) => ({
+      id: `db_${idx}`,
+      submission_data: r && typeof r === 'object' ? r : { value: r },
+      submission_ref_id: null,
+    }));
+  }
+
   if (sourceType === 'google_sheets') {
     const cfg = externalConfig.googleSheets;
     if (!cfg?.spreadsheetId || !cfg.apiKey) throw new Error('Google Sheets requires spreadsheetId and apiKey');
