@@ -933,6 +933,100 @@ async function loadExternalRecords(
     }));
   }
 
+  if (sourceType === 'ftp') {
+    const cfg = externalConfig.ftp;
+    if (!cfg) throw new Error('FTP source is not configured');
+    if (cfg.protocol === 'sftp') throw new Error('SFTP is not supported in this environment. Use plain FTP or Cloud Storage.');
+    if (!cfg.host || !cfg.username || !cfg.remotePath) throw new Error('FTP host, username, and remote path are required');
+    const client = new FtpClient(15000);
+    (client as any).ftp.verbose = false;
+    let buffer: Uint8Array;
+    try {
+      await client.access({ host: cfg.host, port: cfg.port || 21, user: cfg.username, password: cfg.password || '', secure: false });
+      const chunks: Uint8Array[] = [];
+      const { Writable } = await import('node:stream');
+      const writable = new Writable({
+        write(chunk: any, _enc: string, cb: (e?: Error) => void) {
+          chunks.push(chunk instanceof Uint8Array ? chunk : new Uint8Array(chunk));
+          cb();
+        },
+      });
+      await client.downloadTo(writable as any, cfg.remotePath);
+      const total = chunks.reduce((n, c) => n + c.byteLength, 0);
+      buffer = new Uint8Array(total);
+      let off = 0;
+      for (const c of chunks) { buffer.set(c, off); off += c.byteLength; }
+    } catch (e) {
+      throw new Error(`FTP download failed: ${(e as Error).message || String(e)}`);
+    } finally {
+      try { client.close(); } catch { /* ignore */ }
+    }
+    let records: any[] = [];
+    const hasHeader = cfg.hasHeader !== false;
+    if (cfg.fileType === 'excel') {
+      const wb = XLSX.read(buffer, { type: 'array' });
+      const sheet = wb.SheetNames[0];
+      if (!sheet) throw new Error('Excel file has no sheets');
+      records = XLSX.utils.sheet_to_json(wb.Sheets[sheet], { defval: '', raw: false });
+    } else if (cfg.fileType === 'json') {
+      const d = JSON.parse(new TextDecoder().decode(buffer));
+      records = Array.isArray(d) ? d : [d];
+    } else {
+      const t = new TextDecoder().decode(buffer);
+      if (!t.trim()) throw new Error('FTP file is empty');
+      records = parseCSVText(t, hasHeader);
+    }
+    return records.map((r: any, idx: number) => ({
+      id: `ftp_${idx}`,
+      submission_data: r && typeof r === 'object' ? r : { value: r },
+      submission_ref_id: null,
+    }));
+  }
+
+  if (sourceType === 'cloud_storage') {
+    const cfg = externalConfig.cloudStorage;
+    if (!cfg) throw new Error('Cloud storage source is not configured');
+    let url: string;
+    if (cfg.provider === 's3') {
+      url = `https://${cfg.bucketName}.s3.${cfg.region || 'us-east-1'}.amazonaws.com/${cfg.objectPath}`;
+    } else if (cfg.provider === 'gcs') {
+      url = `https://storage.googleapis.com/${cfg.bucketName}/${cfg.objectPath}`;
+    } else if (cfg.provider === 'azure_blob') {
+      if (!cfg.connectionString) throw new Error('Azure connection string is required');
+      const m = cfg.connectionString.match(/AccountName=([^;]+)/);
+      if (!m) throw new Error('Invalid Azure connection string');
+      url = `https://${m[1]}.blob.core.windows.net/${cfg.bucketName}/${cfg.objectPath}`;
+    } else {
+      throw new Error(`Unsupported cloud provider: ${cfg.provider}`);
+    }
+    const r = await fetch(url);
+    if (!r.ok) throw new Error(`Cloud storage ${r.status}: object must be publicly readable or fetched via signed URL`);
+    let records: any[] = [];
+    if (cfg.fileType === 'excel') {
+      const buf = await r.arrayBuffer();
+      const wb = XLSX.read(new Uint8Array(buf), { type: 'array' });
+      const sheet = wb.SheetNames[0];
+      if (!sheet) throw new Error('Excel file has no sheets');
+      records = XLSX.utils.sheet_to_json(wb.Sheets[sheet], { defval: '', raw: false });
+    } else if (cfg.fileType === 'json') {
+      const d = await r.json();
+      records = Array.isArray(d) ? d : [d];
+    } else {
+      const t = await r.text();
+      if (!t.trim()) throw new Error('Cloud storage file is empty');
+      records = parseCSVText(t, cfg.hasHeader !== false);
+    }
+    return records.map((rec: any, idx: number) => ({
+      id: `cloud_${idx}`,
+      submission_data: rec && typeof rec === 'object' ? rec : { value: rec },
+      submission_ref_id: null,
+    }));
+  }
+
+  if (sourceType === 'webhook') {
+    throw new Error('Webhook sources are push-based and cannot be executed on demand. Data arrives via the webhook endpoint and is processed automatically.');
+  }
+
   if (sourceType === 'google_sheets') {
     const cfg = externalConfig.googleSheets;
     if (!cfg?.spreadsheetId || !cfg.apiKey) throw new Error('Google Sheets requires spreadsheetId and apiKey');
