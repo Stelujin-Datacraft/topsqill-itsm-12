@@ -1342,6 +1342,86 @@ export function DataFeedDialog({
                     </div>
                   </RadioGroup>
                 </div>
+
+                {/* Action on Match Section */}
+                <div className="space-y-3 p-4 rounded-lg border bg-background">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                      <span className="text-primary font-bold text-sm">3</span>
+                    </div>
+                    <div>
+                      <Label className="font-medium">Action on Match</Label>
+                      <p className="text-xs text-muted-foreground">What to do when a target record is matched</p>
+                    </div>
+                  </div>
+                  <RadioGroup
+                    value={formData.action_on_match || 'update'}
+                    onValueChange={(value) => setFormData(prev => ({
+                      ...prev,
+                      action_on_match: value as 'update' | 'delete' | 'conditional',
+                    }))}
+                    className="space-y-2"
+                  >
+                    <div className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
+                      <RadioGroupItem value="update" id="action-update" className="mt-0.5" />
+                      <div className="flex-1">
+                        <Label htmlFor="action-update" className="font-medium cursor-pointer">Update Target</Label>
+                        <p className="text-xs text-muted-foreground mt-0.5">Apply field mappings to the matched record (default)</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
+                      <RadioGroupItem value="delete" id="action-delete" className="mt-0.5" />
+                      <div className="flex-1">
+                        <Label htmlFor="action-delete" className="font-medium cursor-pointer text-destructive">Delete Target</Label>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Permanently delete the matched record. Skipped if the source matches more than one target.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
+                      <RadioGroupItem value="conditional" id="action-conditional" className="mt-0.5" />
+                      <div className="flex-1 space-y-2">
+                        <Label htmlFor="action-conditional" className="font-medium cursor-pointer">Conditional: Delete by Source Flag</Label>
+                        <p className="text-xs text-muted-foreground">
+                          Delete the target if a chosen source field equals a given value; otherwise update it.
+                        </p>
+                        {formData.action_on_match === 'conditional' && (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2">
+                            <div className="space-y-1">
+                              <Label className="text-xs">Source field</Label>
+                              <Select
+                                value={formData.conditional_delete_field_id || ''}
+                                onValueChange={(value) => setFormData(prev => ({ ...prev, conditional_delete_field_id: value }))}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select source field" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {sourceFields.map((f) => (
+                                    <SelectItem key={f.id} value={f.id}>{f.label}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-xs">Equals value (delete when matches)</Label>
+                              <Input
+                                value={formData.conditional_delete_value || ''}
+                                onChange={(e) => setFormData(prev => ({ ...prev, conditional_delete_value: e.target.value }))}
+                                placeholder="e.g. deleted, true, inactive"
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </RadioGroup>
+                  {formData.action_on_match === 'delete' && (
+                    <div className="text-xs text-destructive bg-destructive/10 border border-destructive/30 rounded p-2">
+                      ⚠ Hard delete is permanent. Make sure your matching rules uniquely identify the target.
+                    </div>
+                  )}
+                </div>
               </div>
 
               {formData.matching_type === 'cross_reference' && (
