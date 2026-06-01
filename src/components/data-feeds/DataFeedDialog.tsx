@@ -461,6 +461,87 @@ export function DataFeedDialog({
     validateFilterLogicExpression(value);
   };
 
+  // ========== Conditional Delete Filters (rich condition builder) ==========
+  const addDeleteFilter = () => {
+    const newId = String((formData.conditional_delete_filters?.length || 0) + 1);
+    setFormData(prev => {
+      const newFilters = [...(prev.conditional_delete_filters || []), { id: newId, fieldId: '', operator: 'equals' as FilterOperator, value: '' }];
+      const autoLogic = newFilters.length >= 2 && !prev.conditional_delete_filter_logic
++        ? newFilters.map(f => f.id).join(' AND ')
+        : prev.conditional_delete_filter_logic;
+      return {
+        ...prev,
+        conditional_delete_filters: newFilters,
+        conditional_delete_filter_logic: autoLogic,
+      };
+    });
+  };
+
+  const updateDeleteFilter = (index: number, field: keyof SourceFilter, value: string) => {
+    const sourceField = field === 'fieldId' ? sourceFields.find(f => f.id === value) : null;
+    setFormData(prev => ({
+      ...prev,
+      conditional_delete_filters: (prev.conditional_delete_filters || []).map((filter, i) => {
+        if (i !== index) return filter;
+        const updates: Partial<SourceFilter> = { [field]: value };
+        if (sourceField) {
+          updates.fieldName = sourceField.label;
+          updates.fieldType = sourceField.field_type;
+          const validOperators = getOperatorsForFieldType(sourceField.field_type);
+          if (!validOperators.find(op => op.value === filter.operator)) {
+            updates.operator = validOperators[0]?.value || 'equals';
+          }
+          updates.value = '';
+        }
+        return { ...filter, ...updates };
+      }),
+    }));
+  };
+
+  const removeDeleteFilter = (index: number) => {
+    setFormData(prev => {
+      const removedId = (prev.conditional_delete_filters || [])[index]?.id;
+      const newFilters = (prev.conditional_delete_filters || []).filter((_, i) => i !== index);
+      let newLogic = prev.conditional_delete_filter_logic || '';
+      if (removedId && newLogic) {
+        newLogic = newLogic
+          .replace(new RegExp(`\\b${removedId}\\b\\s*(AND|OR)\\s*`, 'gi'), '')
+          .replace(new RegExp(`\\s*(AND|OR)\\s*\\b${removedId}\\b`, 'gi'), '')
+          .replace(new RegExp(`\\b${removedId}\\b`, 'g'), '')
+          .replace(/\(\s*\)/g, '')
+          .replace(/\s+/g, ' ')
+          .trim();
+      }
+      return {
+        ...prev,
+        conditional_delete_filters: newFilters,
+        conditional_delete_filter_logic: newFilters.length < 2 ? '' : newLogic,
+      };
+    });
+  };
+
+  const handleDeleteFilterLogicChange = (value: string) => {
+    setFormData(prev => ({ ...prev, conditional_delete_filter_logic: value }));
+    const count = formData.conditional_delete_filters?.length || 0;
+    if (!value || count < 2) {
+      setDeleteFilterLogicError(null);
+      return;
+    }
+    const validation = ExpressionEvaluator.validate(value);
+    if (!validation.valid) {
+      setDeleteFilterLogicError(validation.error || 'Invalid expression');
+      return;
+    }
+    const referencedIds = ExpressionEvaluator.extractConditionIds(value);
+    const existingIds = (formData.conditional_delete_filters || []).map(f => f.id);
+    const invalidIds = referencedIds.filter(id => !existingIds.includes(id));
+    if (invalidIds.length > 0) {
+      setDeleteFilterLogicError(`Unknown filter ID(s): ${invalidIds.join(', ')}`);
+      return;
+    }
+    setDeleteFilterLogicError(null);
+  };
+
   // ========== Matching Rules ==========
   const addMatchingRule = () => {
     const newId = String(formData.matching_rules.length + 1);
