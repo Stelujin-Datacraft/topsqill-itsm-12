@@ -2096,9 +2096,6 @@ async function buildFullUserPayload(supabase: any, userId: string, organizationI
 app.get('/users', validateApiKey, async (c) => {
   const keyInfo = c.get('apiKeyInfo');
 
-  // intentionally left as-is
-  void 0;
-
   if (!hasPermission(keyInfo, 'users', 'read')) {
     await logRequest(c, 403, 'Permission denied: users.read');
     return c.json({ error: 'Permission denied. This endpoint requires users.read (admin) permission.', code: 'PERMISSION_DENIED' }, 403, corsHeaders);
