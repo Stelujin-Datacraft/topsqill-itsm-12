@@ -1256,10 +1256,138 @@ Deno.serve(async (req) => {
       // Coerce a source value into the shape/values the target field expects.
       // For selection fields, matches each incoming token against option.value OR option.label
       // (case-insensitive, trimmed). Unmatched tokens are dropped silently.
-      const coerceForTargetField = (targetFieldId: string, raw: any): any => {
+      const MONTHS: Record<string, number> = {
+        jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6,
+        jul: 7, aug: 8, sep: 9, sept: 9, oct: 10, nov: 11, dec: 12,
+      };
+      const pad2 = (n: number) => String(n).padStart(2, '0');
+      const toIsoDate = (y: number, m: number, d: number): string | null => {
+        if (!y || !m || !d) return null;
+        if (m < 1 || m > 12 || d < 1 || d > 31) return null;
+        const dt = new Date(Date.UTC(y, m - 1, d));
+        if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== m - 1 || dt.getUTCDate() !== d) return null;
+        return `${y}-${pad2(m)}-${pad2(d)}`;
+      };
+      const parseDateWithFormat = (raw: any, fmt: string): string | null => {
+        if (raw === null || raw === undefined || raw === '') return null;
+        const s = String(raw).trim();
+        // Pull out optional time HH:MM[:SS] from the tail for ISO output
+        let timePart = '';
+        const timeMatch = s.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+        if (timeMatch && fmt !== 'YYYY-MM-DD') {
+          timePart = `T${pad2(+timeMatch[1])}:${timeMatch[2]}:${timeMatch[3] || '00'}`;
+        }
+        const datePart = s.split(/[T\s]/)[0];
+
+        const splitNums = (sep: RegExp) => datePart.split(sep).map(p => parseInt(p, 10));
+
+        switch (fmt) {
+          case 'YYYY-MM-DD': {
+            const m = datePart.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+            if (!m) return null;
+            return toIsoDate(+m[1], +m[2], +m[3]);
+          }
+          case 'DD/MM/YYYY': {
+            const [d, mo, y] = splitNums(/[/]/);
+            return toIsoDate(y, mo, d);
+          }
+          case 'MM/DD/YYYY': {
+            const [mo, d, y] = splitNums(/[/]/);
+            return toIsoDate(y, mo, d);
+          }
+          case 'DD-MM-YYYY': {
+            const [d, mo, y] = splitNums(/-/);
+            return toIsoDate(y, mo, d);
+          }
+          case 'DD.MM.YYYY': {
+            const [d, mo, y] = splitNums(/\./);
+            return toIsoDate(y, mo, d);
+          }
+          case 'DD MMM YYYY': {
+            const m = datePart.match(/^(\d{1,2})[\s\-]+([A-Za-z]+)[\s\-]+(\d{4})$/);
+            if (!m) return null;
+            const mo = MONTHS[m[2].toLowerCase()];
+            return toIsoDate(+m[3], mo, +m[1]);
+          }
+          case 'MMM DD YYYY': {
+            const m = datePart.match(/^([A-Za-z]+)[\s\-]+(\d{1,2})[,\s\-]+(\d{4})$/);
+            if (!m) return null;
+            const mo = MONTHS[m[1].toLowerCase()];
+            return toIsoDate(+m[3], mo, +m[2]);
+          }
+          case 'excel_serial': {
+            const n = parseFloat(s);
+            if (!isFinite(n)) return null;
+            // Excel epoch (with the well-known 1900 leap bug): days since 1899-12-30
+            const ms = Math.round((n - 25569) * 86400 * 1000);
+            const dt = new Date(ms);
+            if (isNaN(dt.getTime())) return null;
+            return `${dt.getUTCFullYear()}-${pad2(dt.getUTCMonth() + 1)}-${pad2(dt.getUTCDate())}`;
+          }
+          case 'unix_seconds': {
+            const n = parseFloat(s);
+            if (!isFinite(n)) return null;
+            const dt = new Date(n * 1000);
+            if (isNaN(dt.getTime())) return null;
+            return `${dt.getUTCFullYear()}-${pad2(dt.getUTCMonth() + 1)}-${pad2(dt.getUTCDate())}`;
+          }
+          case 'unix_ms': {
+            const n = parseFloat(s);
+            if (!isFinite(n)) return null;
+            const dt = new Date(n);
+            if (isNaN(dt.getTime())) return null;
+            return `${dt.getUTCFullYear()}-${pad2(dt.getUTCMonth() + 1)}-${pad2(dt.getUTCDate())}`;
+          }
+          default:
+            return null;
+        }
+        // (timePart appended by caller if datetime field)
+      };
+
+      const coerceForTargetField = (targetFieldId: string, raw: any, mapping?: any): any => {
         const meta = targetFieldMeta[targetFieldId];
         if (!meta) return raw;
         const { type, options, isMulti } = meta;
+
+        // ---- Date / datetime / time normalization ----
+        const isDateType = ['date', 'datetime', 'datetime-local', 'time'].includes(type);
+        if (isDateType && raw !== null && raw !== undefined && raw !== '') {
+          const fmt = mapping?.sourceDateFormat || 'auto';
+          let iso: string | null = null;
+
+          if (fmt === 'auto') {
+            // Try ISO first, then a sensible cascade. Date constructor handles many cases.
+            const d = new Date(raw);
+            if (!isNaN(d.getTime())) {
+              iso = `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())}`;
+            }
+          } else {
+            iso = parseDateWithFormat(raw, fmt);
+          }
+
+          if (!iso) {
+            runLog.push({
+              type: 'error',
+              message: `Date parse failed for field "${mapping?.targetFieldName || targetFieldId}": value "${raw}" does not match format "${fmt}"`,
+              timestamp: new Date().toISOString(),
+            });
+            return undefined; // signal: skip this field
+          }
+
+          // datetime fields: keep time portion if present in raw
+          if (type === 'datetime' || type === 'datetime-local') {
+            const tm = String(raw).match(/(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+            if (tm) return `${iso}T${pad2(+tm[1])}:${tm[2]}:${tm[3] || '00'}`;
+          }
+          if (type === 'time') {
+            const tm = String(raw).match(/(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+            if (tm) return `${pad2(+tm[1])}:${tm[2]}:${tm[3] || '00'}`;
+            return undefined;
+          }
+          return iso;
+        }
+
+        // ---- Selection field coercion (existing behavior) ----
         const isSelection = isMulti || type === 'dropdown' || type === 'radio';
         if (!isSelection || options.length === 0) return raw;
 
@@ -1573,7 +1701,10 @@ Deno.serve(async (req) => {
                 }
                 
                 if (sourceValue !== undefined) {
-                  updatedData[mapping.targetFieldId] = coerceForTargetField(mapping.targetFieldId, sourceValue);
+                  const coerced = coerceForTargetField(mapping.targetFieldId, sourceValue, mapping);
+                  if (coerced !== undefined) {
+                    updatedData[mapping.targetFieldId] = coerced;
+                  }
                 }
               }
 
@@ -1651,7 +1782,10 @@ Deno.serve(async (req) => {
               }
               
               if (sourceValue !== undefined) {
-                newData[mapping.targetFieldId] = coerceForTargetField(mapping.targetFieldId, sourceValue);
+                const coerced = coerceForTargetField(mapping.targetFieldId, sourceValue, mapping);
+                if (coerced !== undefined) {
+                  newData[mapping.targetFieldId] = coerced;
+                }
               }
             }
 
