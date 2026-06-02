@@ -1782,7 +1782,10 @@ Deno.serve(async (req) => {
               }
               
               if (sourceValue !== undefined) {
-                newData[mapping.targetFieldId] = coerceForTargetField(mapping.targetFieldId, sourceValue);
+                const coerced = coerceForTargetField(mapping.targetFieldId, sourceValue, mapping);
+                if (coerced !== undefined) {
+                  newData[mapping.targetFieldId] = coerced;
+                }
               }
             }
 
