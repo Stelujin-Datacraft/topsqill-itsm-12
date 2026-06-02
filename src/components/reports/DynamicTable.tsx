@@ -71,10 +71,16 @@ interface TableConfig {
 interface DynamicTableProps {
   config: TableConfig;
   onEdit?: () => void;
+  isExpanded?: boolean;
+  onExpandChange?: (expanded: boolean) => void;
+  hideHeaderActions?: boolean;
 }
 export function DynamicTable({
   config,
-  onEdit
+  onEdit,
+  isExpanded: isExpandedProp,
+  onExpandChange,
+  hideHeaderActions
 }: DynamicTableProps) {
   // All state hooks first
   const [data, setData] = useState<any[]>([]);
@@ -92,7 +98,15 @@ export function DynamicTable({
   const [hasUserInteractedWithColumns, setHasUserInteractedWithColumns] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(100);
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [internalIsExpanded, setInternalIsExpanded] = useState(false);
+  const isExpanded = isExpandedProp !== undefined ? isExpandedProp : internalIsExpanded;
+  const setIsExpanded = useCallback((value: boolean) => {
+    if (onExpandChange) {
+      onExpandChange(value);
+    } else {
+      setInternalIsExpanded(value);
+    }
+  }, [onExpandChange]);
   const [autoRefresh, setAutoRefresh] = useState(true);
 
   // New state for bulk operations and inline editing
@@ -1042,24 +1056,26 @@ export function DynamicTable({
               </p>
             </div>
 
-            <div className="flex items-center gap-1.5">
-              {/* Primary Action - Create Record */}
-              <Button variant="default" size="sm" onClick={() => navigate(`/form/${config.formId}`)}>
-                <FileText className="h-4 w-4 mr-1" />
-                Create Record
-              </Button>
+            {!hideHeaderActions && (
+              <div className="flex items-center gap-1.5">
+                {/* Primary Action - Create Record */}
+                <Button variant="default" size="sm" onClick={() => navigate(`/form/${config.formId}`)}>
+                  <FileText className="h-4 w-4 mr-1" />
+                  Create Record
+                </Button>
 
-              {/* Expand/Collapse */}
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => setIsExpanded(!isExpanded)}
-                title={isExpanded ? 'Normal View' : 'Expand View'}
-                className="px-2"
-              >
-                {isExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-              </Button>
-            </div>
+                {/* Expand/Collapse */}
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => setIsExpanded(!isExpanded)}
+                  title={isExpanded ? 'Normal View' : 'Expand View'}
+                  className="px-2"
+                >
+                  {isExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+                </Button>
+              </div>
+            )}
           </div>
 
           {/* Row 2: Toolbar - Table Controls | Data Operations | Search */}
