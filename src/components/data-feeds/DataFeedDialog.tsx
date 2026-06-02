@@ -1454,6 +1454,8 @@ export function DataFeedDialog({
                       onCheckedChange={(checked) => setFormData(prev => ({
                         ...prev,
                         action_on_match: checked ? 'delete' : 'update',
+                        // When switching to delete mode, force skip on no-match (create makes no sense for deletes)
+                        no_match_behavior: checked ? 'skip' : prev.no_match_behavior,
                         // Clear any legacy conditional-delete config when toggling
                         conditional_delete_filters: [],
                         conditional_delete_filter_logic: '',
