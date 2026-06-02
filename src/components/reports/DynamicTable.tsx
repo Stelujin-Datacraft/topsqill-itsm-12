@@ -1046,17 +1046,23 @@ export function DynamicTable({
           width: isExpanded ? '100vw' : 'calc(100vw - 280px)',
         }}
       >
-        <CardHeader className="pb-2 space-y-3">
+        <CardHeader className={hideHeaderActions ? "pb-2 pt-2 space-y-2" : "pb-2 space-y-3"}>
           {/* Row 1: Title + Primary Actions */}
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <CardTitle className="text-lg font-semibold">{config.title}</CardTitle>
-              <p className="text-xs text-muted-foreground">
-                {filteredAndSortedData.length} record{filteredAndSortedData.length !== 1 ? 's' : ''}
-              </p>
+          {hideHeaderActions ? (
+            <div className="flex items-center gap-2">
+              <CardTitle className="text-sm font-semibold truncate">{config.title}</CardTitle>
+              <span className="text-xs text-muted-foreground whitespace-nowrap">
+                · {filteredAndSortedData.length} record{filteredAndSortedData.length !== 1 ? 's' : ''}
+              </span>
             </div>
-
-            {!hideHeaderActions && (
+          ) : (
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <CardTitle className="text-lg font-semibold">{config.title}</CardTitle>
+                <p className="text-xs text-muted-foreground">
+                  {filteredAndSortedData.length} record{filteredAndSortedData.length !== 1 ? 's' : ''}
+                </p>
+              </div>
               <div className="flex items-center gap-1.5">
                 {/* Primary Action - Create Record */}
                 <Button variant="default" size="sm" onClick={() => navigate(`/form/${config.formId}`)}>
@@ -1075,8 +1081,8 @@ export function DynamicTable({
                   {isExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
                 </Button>
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* Row 2: Toolbar - Table Controls | Data Operations | Search */}
           <div className="flex items-center justify-between gap-3 border-t border-b py-2">
