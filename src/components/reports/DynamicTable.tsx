@@ -1277,26 +1277,26 @@ export function DynamicTable({
   <div className="h-full w-full overflow-y-auto">
     <Table className="min-w-full">
 
-                <TableHeader className="sticky top-0 z-[5] bg-gradient-to-r from-emerald-50 to-cyan-50 border-b-2 border-emerald-200/70">
-                  <TableRow className="border-b border-emerald-200/60 hover:bg-transparent">
+                <TableHeader className="sticky top-0 z-[5] bg-primary/5 border-b-2 border-primary/20">
+                  <TableRow className="border-b border-primary/10 hover:bg-transparent">
                     <TableHead className="w-10 h-9">
                       <Checkbox checked={paginatedData.length > 0 && paginatedData.every(row => selectedRows.has(row.id))} onCheckedChange={handleSelectAll} aria-label="Select all rows" />
                     </TableHead>
                     <TableHead className="text-xs font-semibold h-9 text-foreground min-w-[140px]">
                       <div className="flex items-center gap-1.5">
-                        <FileText className="h-3.5 w-3.5 text-emerald-600" />
+                        <FileText className="h-3.5 w-3.5 text-primary" />
                         Submission ID
                       </div>
                     </TableHead>
                     <TableHead className="text-xs font-semibold h-9 text-foreground min-w-[100px]">
                       <div className="flex items-center gap-1.5">
-                        <User className="h-3.5 w-3.5 text-blue-600" />
+                        <User className="h-3.5 w-3.5 text-primary" />
                         User
                       </div>
                     </TableHead>
                     <TableHead className="text-xs font-semibold h-9 text-foreground min-w-[120px]">
                       <div className="flex items-center gap-1.5">
-                        <Calendar className="h-3.5 w-3.5 text-purple-600" />
+                        <Calendar className="h-3.5 w-3.5 text-primary" />
                         Submitted
                       </div>
                     </TableHead>
@@ -1308,7 +1308,7 @@ export function DynamicTable({
                           <span className="font-medium">{field.label}</span>
                           {config.enableFiltering && <Popover>
                               <PopoverTrigger asChild>
-                                <Button variant="ghost" size="icon" className={`${columnFilters[field.id] ? 'text-emerald-700' : 'text-muted-foreground'} h-5 w-5 p-0 hover:bg-emerald-100`} aria-label={`Filter ${field.label}`}>
+                                <Button variant="ghost" size="icon" className={`${columnFilters[field.id] ? 'text-primary' : 'text-muted-foreground'} h-5 w-5 p-0 hover:bg-primary/10`} aria-label={`Filter ${field.label}`}>
                                   <Filter className="h-2.5 w-2.5" />
                                 </Button>
                               </PopoverTrigger>
@@ -1349,11 +1349,9 @@ export function DynamicTable({
                       key={row.id} 
                       data-submission-ref={row.submission_ref_id}
                       className={`border-b border-gray-200 transition-all duration-300 cursor-pointer ${
-                        selectedRows.has(row.id) ? 'bg-emerald-50/60' : 
+                        selectedRows.has(row.id) ? 'bg-primary/10' : 
                         row.submission_ref_id === highlightedSubmissionRef ? 'bg-yellow-100 border-yellow-300' : 
-                        idx % 2 === 0
-                          ? 'bg-white hover:bg-gradient-to-r hover:from-emerald-50 hover:to-cyan-50'
-                          : 'bg-white hover:bg-gradient-to-r hover:from-cyan-50 hover:to-emerald-50'
+                        'bg-white hover:bg-primary/5'
                       }`}>
                         <TableCell className="py-2 bg-white">
                           <Checkbox checked={selectedRows.has(row.id)} onCheckedChange={checked => handleRowSelect(row.id, Boolean(checked))} aria-label={`Select row ${row.id}`} />
