@@ -1433,182 +1433,36 @@ export function DataFeedDialog({
                   </RadioGroup>
                 </div>
 
-                {/* Action on Match Section */}
+                {/* Action on Match Section — simplified toggle: update (default) vs delete */}
                 <div className="space-y-3 p-4 rounded-lg border bg-background">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                      <span className="text-primary font-bold text-sm">3</span>
-                    </div>
-                    <div>
-                      <Label className="font-medium">Action on Match</Label>
-                      <p className="text-xs text-muted-foreground">What to do when a target record is matched</p>
-                    </div>
-                  </div>
-                  <RadioGroup
-                    value={formData.action_on_match || 'update'}
-                    onValueChange={(value) => setFormData(prev => ({
-                      ...prev,
-                      action_on_match: value as 'update' | 'delete' | 'conditional',
-                    }))}
-                    className="space-y-2"
-                  >
-                    <div className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
-                      <RadioGroupItem value="update" id="action-update" className="mt-0.5" />
-                      <div className="flex-1">
-                        <Label htmlFor="action-update" className="font-medium cursor-pointer">Update Target</Label>
-                        <p className="text-xs text-muted-foreground mt-0.5">Apply field mappings to the matched record (default)</p>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                        <span className="text-primary font-bold text-sm">3</span>
                       </div>
-                    </div>
-                    <div className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
-                      <RadioGroupItem value="delete" id="action-delete" className="mt-0.5" />
-                      <div className="flex-1">
-                        <Label htmlFor="action-delete" className="font-medium cursor-pointer text-destructive">Delete Target</Label>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          Permanently delete the matched record. Skipped if the source matches more than one target.
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
-                      <RadioGroupItem value="conditional" id="action-conditional" className="mt-0.5" />
-                      <div className="flex-1 space-y-2">
-                        <Label htmlFor="action-conditional" className="font-medium cursor-pointer">Conditional Delete (rule-based)</Label>
+                      <div>
+                        <Label className="font-medium">Delete matched records</Label>
                         <p className="text-xs text-muted-foreground">
-                          Delete the target when these conditions on the source record pass; otherwise update it.
+                          When ON, every matched target is deleted. When OFF, matched targets are updated using your field mappings. Use Source Filters above to scope which rows trigger deletion.
                         </p>
-                        {formData.action_on_match === 'conditional' && (
-                          <div className="space-y-2 pt-2">
-                            <div className="flex items-center justify-between">
-                              <Label className="text-xs text-muted-foreground">
-                                Delete the target only when these conditions match
-                              </Label>
-                              <Button type="button" variant="outline" size="sm" onClick={addDeleteFilter}>
-                                <Plus className="h-3 w-3 mr-1" />
-                                Add Condition
-                              </Button>
-                            </div>
-
-                            {(formData.conditional_delete_filters?.length || 0) === 0 && (
-                              <div className="text-xs text-muted-foreground bg-muted/30 border border-dashed rounded p-3 text-center">
-                                No conditions configured. Add at least one condition to enable deletion.
-                              </div>
-                            )}
-
-                            {(formData.conditional_delete_filters || []).map((filter, index) => {
-                              const selectedField = sourceFields.find(f => f.id === filter.fieldId);
-                              const fieldType = selectedField?.field_type || filter.fieldType || 'text';
-                              const availableOperators = getOperatorsForFieldType(fieldType);
-                              const currentOperator = availableOperators.find(op => op.value === filter.operator);
-                              const requiresValue = currentOperator?.requiresValue !== false;
-
-                              return (
-                                <div key={filter.id || index} className="flex flex-wrap items-center gap-2 p-2 border rounded bg-muted/20">
-                                  <Badge variant="secondary" className="shrink-0 w-6 h-6 flex items-center justify-center p-0 text-xs font-bold">
-                                    {filter.id || index + 1}
-                                  </Badge>
-                                  <Select
-                                    value={filter.fieldId}
-                                    onValueChange={(value) => updateDeleteFilter(index, 'fieldId', value)}
-                                  >
-                                    <SelectTrigger className="w-[170px]">
-                                      <SelectValue placeholder="Select field" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {sourceFields.map((field) => (
-                                        <SelectItem key={field.id} value={field.id}>
-                                          <span className="flex items-center gap-2">
-                                            {field.label}
-                                            <span className="text-xs text-muted-foreground">({field.field_type})</span>
-                                          </span>
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                  <Select
-                                    value={filter.operator}
-                                    onValueChange={(value) => updateDeleteFilter(index, 'operator', value)}
-                                    disabled={!filter.fieldId}
-                                  >
-                                    <SelectTrigger className="w-[150px]">
-                                      <SelectValue placeholder="Operator" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {availableOperators.map((op) => (
-                                        <SelectItem key={op.value} value={op.value}>{op.label}</SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                  {requiresValue && filter.fieldId && (
-                                    <FilterValueInput
-                                      fieldType={fieldType}
-                                      value={filter.value}
-                                      onChange={(value) => updateDeleteFilter(index, 'value', value)}
-                                      field={selectedField}
-                                      operator={filter.operator}
-                                      className="flex-1 min-w-[140px]"
-                                    />
-                                  )}
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => removeDeleteFilter(index)}
-                                  >
-                                    <Trash2 className="h-4 w-4 text-destructive" />
-                                  </Button>
-                                </div>
-                              );
-                            })}
-
-                            {(formData.conditional_delete_filters?.length || 0) >= 2 && (
-                              <div className="space-y-1 pt-2 border-t">
-                                <div className="flex items-center justify-between">
-                                  <Label className="text-xs">Condition Logic Expression</Label>
-                                  <div className="flex gap-1">
-                                    <Button
-                                      type="button"
-                                      variant="outline"
-                                      size="sm"
-                                      className="h-6 text-xs px-2"
-                                      onClick={() => handleDeleteFilterLogicChange((formData.conditional_delete_filters || []).map(f => f.id).join(' AND '))}
-                                    >
-                                      All (AND)
-                                    </Button>
-                                    <Button
-                                      type="button"
-                                      variant="outline"
-                                      size="sm"
-                                      className="h-6 text-xs px-2"
-                                      onClick={() => handleDeleteFilterLogicChange((formData.conditional_delete_filters || []).map(f => f.id).join(' OR '))}
-                                    >
-                                      Any (OR)
-                                    </Button>
-                                  </div>
-                                </div>
-                                <Input
-                                  value={formData.conditional_delete_filter_logic || ''}
-                                  onChange={(e) => handleDeleteFilterLogicChange(e.target.value)}
-                                  placeholder={`e.g., 1 AND 2, (1 OR 2) AND 3`}
-                                  className={deleteFilterLogicError ? 'border-destructive' : ''}
-                                />
-                                {deleteFilterLogicError && (
-                                  <div className="flex items-center gap-1 text-xs text-destructive">
-                                    <AlertCircle className="h-3 w-3" />
-                                    {deleteFilterLogicError}
-                                  </div>
-                                )}
-                                <p className="text-xs text-muted-foreground">
-                                  Use condition numbers with AND, OR, NOT and parentheses. Default: all must match.
-                                </p>
-                              </div>
-                            )}
-                          </div>
-                        )}
                       </div>
                     </div>
-                  </RadioGroup>
+                    <Switch
+                      checked={formData.action_on_match === 'delete'}
+                      onCheckedChange={(checked) => setFormData(prev => ({
+                        ...prev,
+                        action_on_match: checked ? 'delete' : 'update',
+                        // Clear any legacy conditional-delete config when toggling
+                        conditional_delete_filters: [],
+                        conditional_delete_filter_logic: '',
+                        conditional_delete_field_id: '',
+                        conditional_delete_value: '',
+                      }))}
+                    />
+                  </div>
                   {formData.action_on_match === 'delete' && (
                     <div className="text-xs text-destructive bg-destructive/10 border border-destructive/30 rounded p-2">
-                      ⚠ Hard delete is permanent. Make sure your matching rules uniquely identify the target.
+                      ⚠ Hard delete is permanent. Make sure your matching rules uniquely identify the target — if more than one target matches a source row, the delete is skipped for safety.
                     </div>
                   )}
                 </div>
