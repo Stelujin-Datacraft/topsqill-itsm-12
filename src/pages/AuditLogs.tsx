@@ -123,14 +123,14 @@ const AuditLogs: React.FC = () => {
   }, [user, page, categoryFilter]);
 
   const getEventIcon = (eventType: string) => {
-    if (eventType.includes('login')) return <LogIn className="h-4 w-4" />;
-    if (eventType.includes('logout')) return <LogOut className="h-4 w-4" />;
-    if (eventType.includes('password')) return <Key className="h-4 w-4" />;
-    if (eventType.includes('mfa') || eventType.includes('security')) return <Shield className="h-4 w-4" />;
-    if (eventType.includes('user')) return <User className="h-4 w-4" />;
-    if (eventType.includes('setting')) return <Settings className="h-4 w-4" />;
-    if (eventType.includes('session')) return <AlertTriangle className="h-4 w-4" />;
-    return <FileText className="h-4 w-4" />;
+    if (eventType.includes('login')) return <LogIn className="h-4 w-4 text-module-knowledge" />;
+    if (eventType.includes('logout')) return <LogOut className="h-4 w-4 text-module-workflows" />;
+    if (eventType.includes('password')) return <Key className="h-4 w-4 text-module-ldap" />;
+    if (eventType.includes('mfa') || eventType.includes('security')) return <Shield className="h-4 w-4 text-module-compliance" />;
+    if (eventType.includes('user')) return <User className="h-4 w-4 text-module-access" />;
+    if (eventType.includes('setting')) return <Settings className="h-4 w-4 text-module-itam" />;
+    if (eventType.includes('session')) return <AlertTriangle className="h-4 w-4 text-module-performance" />;
+    return <FileText className="h-4 w-4 text-module-forms" />;
   };
 
   const getCategoryColor = (category: string) => {
@@ -202,7 +202,7 @@ const AuditLogs: React.FC = () => {
             <div className="flex flex-col sm:flex-row gap-4 justify-between">
               <div>
                 <CardTitle className="flex items-center gap-2">
-                  <ClipboardList className="h-5 w-5" />
+                  <ClipboardList className="h-5 w-5 text-module-reports" />
                   Activity History
                 </CardTitle>
                 <CardDescription>
@@ -219,12 +219,12 @@ const AuditLogs: React.FC = () => {
                     className="w-48"
                   />
                   <Button variant="outline" size="icon" onClick={handleSearch}>
-                    <Search className="h-4 w-4" />
+                    <Search className="h-4 w-4 text-module-query" />
                   </Button>
                 </div>
                 <Select value={categoryFilter} onValueChange={(v) => { setCategoryFilter(v); setPage(0); }}>
                   <SelectTrigger className="w-44">
-                    <Filter className="h-4 w-4 mr-2" />
+                    <Filter className="h-4 w-4 mr-2 text-module-feeds" />
                     <SelectValue placeholder="Category" />
                   </SelectTrigger>
                   <SelectContent>
@@ -239,11 +239,11 @@ const AuditLogs: React.FC = () => {
           <CardContent>
             {loading ? (
               <div className="flex justify-center py-8">
-                <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
+                <RefreshCw className="h-8 w-8 animate-spin text-module-overview" />
               </div>
             ) : logs.length === 0 ? (
               <div className="text-center py-12">
-                <ClipboardList className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <ClipboardList className="h-12 w-12 mx-auto text-module-reports/60 mb-4" />
                 <p className="text-muted-foreground">No audit logs found</p>
                 <p className="text-sm text-muted-foreground mt-1">Activity logs will appear here as events occur</p>
               </div>
