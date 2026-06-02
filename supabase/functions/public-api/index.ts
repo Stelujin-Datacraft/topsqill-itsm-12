@@ -193,7 +193,8 @@ app.get('/docs', (c) => {
       },
       users: {
         'GET /users': 'List users in your organization (admin-only). Query: search, email, role, status, group_id, project_id, limit, offset',
-        'GET /users/:id': 'Get a single user with full profile, roles, groups, projects, permissions and recent activity (admin-only)'
+        'GET /users/:id': 'Get a single user with full profile, roles, groups, projects, permissions and recent activity (admin-only)',
+        'GET /me': 'Get the API key owner profile (id, email, role, organization_id, first_name, last_name, organization)'
       }
     },
     queryParameters: {
