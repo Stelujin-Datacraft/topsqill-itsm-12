@@ -1960,6 +1960,7 @@ Deno.serve(async (req) => {
           records_processed: stats.recordsProcessed,
           records_updated: stats.recordsUpdated,
           records_created: stats.recordsCreated,
+          records_deleted: stats.recordsDeleted,
           records_skipped: stats.recordsSkipped,
           errors_count: stats.errors,
           run_log: runLog

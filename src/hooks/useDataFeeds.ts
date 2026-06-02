@@ -199,10 +199,9 @@ export function useDataFeeds(projectId: string) {
       const result = response.data;
       
       if (result.success) {
-        const deleted = result.stats?.recordsDeleted ?? 0;
         toast({
           title: 'Feed Executed',
-          description: `Processed: ${result.stats.recordsProcessed}, Updated: ${result.stats.recordsUpdated}, Created: ${result.stats.recordsCreated}${deleted ? `, Deleted: ${deleted}` : ''}`,
+          description: `Processed: ${result.stats.recordsProcessed}, Updated: ${result.stats.recordsUpdated}, Created: ${result.stats.recordsCreated}, Deleted: ${result.stats.recordsDeleted ?? 0}`,
         });
       } else {
         toast({
