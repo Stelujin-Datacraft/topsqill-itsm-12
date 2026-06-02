@@ -135,6 +135,18 @@ function hasPermission(keyInfo: any, resource: string, action: string): boolean 
   return resourcePerms[action] === true;
 }
 
+function hasUsersReadAccess(keyInfo: any): boolean {
+  if (hasPermission(keyInfo, 'users', 'read')) return true;
+
+  const permissions = keyInfo?.permissions || {};
+  const hasLegacyAdminAccess = ['forms', 'submissions', 'workflows', 'reports'].every((resource) => {
+    const resourcePerms = permissions[resource];
+    return Array.isArray(resourcePerms) && resourcePerms.includes('read');
+  });
+
+  return hasLegacyAdminAccess;
+}
+
 // CORS preflight
 app.options('*', (c) => new Response(null, { headers: corsHeaders }));
 
@@ -2224,7 +2236,7 @@ app.get('/me', validateApiKey, async (c) => {
 app.get('/users', validateApiKey, async (c) => {
   const keyInfo = c.get('apiKeyInfo');
 
-  if (!hasPermission(keyInfo, 'users', 'read')) {
+  if (!hasUsersReadAccess(keyInfo)) {
     await logRequest(c, 403, 'Permission denied: users.read');
     return c.json({ error: 'Permission denied. This endpoint requires users.read (admin) permission.', code: 'PERMISSION_DENIED' }, 403, corsHeaders);
   }
@@ -2414,7 +2426,7 @@ app.get('/users', validateApiKey, async (c) => {
 app.get('/users/:id', validateApiKey, async (c) => {
   const keyInfo = c.get('apiKeyInfo');
 
-  if (!hasPermission(keyInfo, 'users', 'read')) {
+  if (!hasUsersReadAccess(keyInfo)) {
     await logRequest(c, 403, 'Permission denied: users.read');
     return c.json({ error: 'Permission denied. This endpoint requires users.read (admin) permission.', code: 'PERMISSION_DENIED' }, 403, corsHeaders);
   }
