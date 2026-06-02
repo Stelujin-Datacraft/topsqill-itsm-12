@@ -190,6 +190,10 @@ app.get('/docs', (c) => {
         'POST /reports': 'Create new report',
         'PUT /reports/:id': 'Update report',
         'DELETE /reports/:id': 'Delete report'
+      },
+      users: {
+        'GET /users': 'List users in your organization (admin-only). Query: search, email, role, status, group_id, project_id, limit, offset',
+        'GET /users/:id': 'Get a single user with full profile, roles, groups, projects, permissions and recent activity (admin-only)'
       }
     },
     queryParameters: {
@@ -202,7 +206,8 @@ app.get('/docs', (c) => {
       forms: ['read', 'create', 'update', 'delete'],
       submissions: ['read', 'create', 'update', 'delete'],
       workflows: ['read', 'create', 'update', 'delete', 'trigger'],
-      reports: ['read', 'create', 'update', 'delete']
+      reports: ['read', 'create', 'update', 'delete'],
+      users: ['read']
     },
     rateLimit: 'Configurable per API key (default: 60 requests/minute)',
     examples: {
