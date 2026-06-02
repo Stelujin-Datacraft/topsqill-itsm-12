@@ -2125,21 +2125,54 @@ app.get('/me', validateApiKey, async (c) => {
       .eq('id', keyRow.organization_id)
       .maybeSingle();
 
+    // Flatten to a single tabular row (like a SQL SELECT result)
+    const row = {
+      user_id: profile?.id ?? null,
+      email: profile?.email ?? null,
+      first_name: profile?.first_name ?? null,
+      last_name: profile?.last_name ?? null,
+      role: profile?.role ?? null,
+      status: profile?.status ?? null,
+      mobile: profile?.mobile ?? null,
+      organization_id: keyRow.organization_id,
+      organization_name: org?.name ?? null,
+      organization_slug: org?.slug ?? null,
+      organization_status: org?.status ?? null,
+      api_key_id: keyRow.id,
+      api_key_name: keyRow.name,
+      api_key_permissions: keyRow.permissions,
+      rate_limit_per_minute: keyRow.rate_limit_per_minute,
+      last_used_at: keyRow.last_used_at,
+      expires_at: keyRow.expires_at,
+      project_id: keyRow.project_id,
+      user_created_at: profile?.created_at ?? null,
+    };
+
+    const url = new URL(c.req.url);
+    const format = (url.searchParams.get('format') || 'table').toLowerCase();
+    const columns = Object.keys(row);
+    const values = columns.map((k) => (row as any)[k]);
+
     await logRequest(c, 200);
+
+    if (format === 'csv') {
+      const esc = (v: any) => {
+        if (v === null || v === undefined) return '';
+        const s = typeof v === 'object' ? JSON.stringify(v) : String(v);
+        return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+      };
+      const csv = `${columns.join(',')}\n${values.map(esc).join(',')}\n`;
+      return new Response(csv, {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'text/csv; charset=utf-8' },
+      });
+    }
+
+    // Default: tabular JSON (columns + rows), mirroring a SQL result set
     return c.json({
-      data: {
-        user: profile,
-        organization: org,
-        api_key: {
-          id: keyRow.id,
-          name: keyRow.name,
-          permissions: keyRow.permissions,
-          rate_limit_per_minute: keyRow.rate_limit_per_minute,
-          last_used_at: keyRow.last_used_at,
-          expires_at: keyRow.expires_at,
-          project_id: keyRow.project_id,
-        },
-      },
+      columns,
+      rows: [values],
+      row_count: 1,
     }, 200, corsHeaders);
   } catch (err: any) {
     await logRequest(c, 500, err?.message || 'Internal error');
