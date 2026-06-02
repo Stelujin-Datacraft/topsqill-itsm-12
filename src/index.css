@@ -54,6 +54,25 @@
     --sidebar-accent-foreground: 0 0% 90%;
     --sidebar-border: 217 50% 25%;
     --sidebar-ring: 217 91.2% 59.8%;
+
+    /* Module accent colors — used for icons across the app */
+    --module-forms: 217 91% 60%;        /* blue   — Forms / Form Builder */
+    --module-reports: 262 83% 65%;      /* violet — Reports / Dashboards */
+    --module-workflows: 38 92% 55%;     /* amber  — Workflows */
+    --module-knowledge: 160 84% 42%;    /* emerald— Knowledge Base */
+    --module-compliance: 350 89% 60%;   /* rose   — Compliance / Audit */
+    --module-itam: 189 94% 48%;         /* cyan   — IT Assets (ITAM) */
+    --module-performance: 24 95% 58%;   /* orange — Project Performance */
+    --module-projects: 239 84% 67%;     /* indigo — Projects */
+    --module-overview: 199 89% 55%;     /* sky    — Overview / Dashboard */
+    --module-access: 346 77% 60%;       /* rose   — Access Control */
+    --module-query: 292 84% 61%;        /* fuchsia— SQL Builder */
+    --module-relationship: 173 80% 42%; /* teal   — Relationship Map */
+    --module-feeds: 84 81% 48%;         /* lime   — Data Feeds */
+    --module-email: 330 81% 65%;        /* pink   — Email Config */
+    --module-ldap: 48 96% 58%;          /* yellow — LDAP / AD */
+    --module-api: 0 84% 60%;            /* red    — API Integration */
+    --module-sla: 217 91% 60%;          /* blue   — SLA */
   }
 
   .dark {
