@@ -341,7 +341,7 @@ export default function QueryPage() {
                   className="mr-2"
                   title="Toggle query history"
                 >
-                  <History className="h-4 w-4 text-primary" />
+                  <History className="h-4 w-4 text-module-query" />
                 </Button>
               </div>
               

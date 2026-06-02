@@ -323,7 +323,7 @@ const Users = () => {
                 </div>
                 <div className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-muted/50">
                   <div className="flex items-center gap-2">
-                    <UserCheck className="h-4 w-4 text-primary" />
+                    <UserCheck className="h-4 w-4 text-module-access" />
                     <span className="text-sm">Active</span>
                   </div>
                   <Badge variant="secondary" className="font-semibold bg-primary/10 text-primary">{activeUsers}</Badge>
@@ -352,7 +352,7 @@ const Users = () => {
                 </div>
                 <div className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-muted/50">
                   <div className="flex items-center gap-2">
-                    <Shield className="h-4 w-4 text-primary" />
+                    <Shield className="h-4 w-4 text-module-access" />
                     <span className="text-sm">Admins</span>
                   </div>
                   <Badge variant="secondary" className="font-semibold bg-primary/10 text-primary">{adminUsers}</Badge>
@@ -363,24 +363,24 @@ const Users = () => {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">
-                <Shield className="h-4 w-4 mr-2 text-primary" />
+                <Shield className="h-4 w-4 mr-2 text-module-access" />
                 Administration
                 <ChevronDown className="h-4 w-4 ml-2" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-52 bg-background border border-border shadow-lg z-50">
               <DropdownMenuItem onClick={() => navigate('/investigate-access')} className="cursor-pointer">
-                <Eye className="h-4 w-4 mr-2 text-primary" />
+                <Eye className="h-4 w-4 mr-2 text-module-access" />
                 {effectiveRole === 'admin' ? 'Investigate Access' : 'My Access'}
               </DropdownMenuItem>
               {effectiveRole === 'admin' && (
                 <>
                   <DropdownMenuItem onClick={() => navigate('/manage-sessions')} className="cursor-pointer">
-                    <Monitor className="h-4 w-4 mr-2 text-primary" />
+                    <Monitor className="h-4 w-4 mr-2 text-module-access" />
                     Manage Sessions
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => navigate('/audit-logs')} className="cursor-pointer">
-                    <ClipboardList className="h-4 w-4 mr-2 text-primary" />
+                    <ClipboardList className="h-4 w-4 mr-2 text-module-access" />
                     Audit Logs
                   </DropdownMenuItem>
                 </>
@@ -496,13 +496,13 @@ const Users = () => {
                       </Select>
                       <div className="flex items-center gap-1">
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setSelectedUserForEdit(user); setEditDialogOpen(true); }} title="Edit User">
-                          <Pencil className="h-4 w-4 text-primary" />
+                          <Pencil className="h-4 w-4 text-module-access" />
                         </Button>
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setSelectedUserForSecurity({ id: user.id, name: user.first_name && user.last_name ? `${user.first_name} ${user.last_name}` : user.email.split('@')[0], email: user.email }); setSecurityDialogOpen(true); }} title="Security">
-                          <Shield className="h-4 w-4 text-primary" />
+                          <Shield className="h-4 w-4 text-module-access" />
                         </Button>
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => confirmDelete(user.id, user.first_name && user.last_name ? `${user.first_name} ${user.last_name}` : user.email)}>
-                          <Trash2 className="h-4 w-4 text-primary" />
+                          <Trash2 className="h-4 w-4 text-module-access" />
                         </Button>
                       </div>
                     </div>
@@ -584,7 +584,7 @@ const Users = () => {
                               <Popover>
                                 <PopoverTrigger asChild>
                                   <Button variant="outline" size="sm" className="flex items-center gap-2">
-                                    <Shield className="h-4 w-4 text-primary" />
+                                    <Shield className="h-4 w-4 text-module-access" />
                                     View Roles ({assignedRoles.length})
                                     <ChevronDown className="h-4 w-4" />
                                   </Button>
@@ -596,7 +596,7 @@ const Users = () => {
                                         key={r.id}
                                         className="flex items-center gap-2 p-2 rounded border bg-background"
                                       >
-                                        <Shield className="h-4 w-4 text-primary shrink-0" />
+                                        <Shield className="h-4 w-4 text-module-access shrink-0" />
                                         <span className="text-sm font-medium truncate">{r.name}</span>
                                       </div>
                                     ))}
@@ -616,7 +616,7 @@ const Users = () => {
                               <Popover>
                                 <PopoverTrigger asChild>
                                   <Button variant="outline" size="sm" className="flex items-center gap-2">
-                                    <UsersIcon className="h-4 w-4 text-primary" />
+                                    <UsersIcon className="h-4 w-4 text-module-access" />
                                     View Groups ({groupNames.length})
                                     <ChevronDown className="h-4 w-4" />
                                   </Button>
@@ -628,7 +628,7 @@ const Users = () => {
                                         key={i}
                                         className="flex items-center gap-2 p-2 rounded border bg-background"
                                       >
-                                        <UsersIcon className="h-4 w-4 text-primary shrink-0" />
+                                        <UsersIcon className="h-4 w-4 text-module-access shrink-0" />
                                         <span className="text-sm font-medium truncate">{g}</span>
                                       </div>
                                     ))}
@@ -675,7 +675,7 @@ const Users = () => {
                               }}
                               title="Edit User"
                             >
-                              <Pencil className="h-4 w-4 text-primary" />
+                              <Pencil className="h-4 w-4 text-module-access" />
                             </Button>
                             <Button 
                               variant="ghost" 
@@ -693,7 +693,7 @@ const Users = () => {
                               }}
                               title="Security Parameters"
                             >
-                              <Shield className="h-4 w-4 text-primary" />
+                              <Shield className="h-4 w-4 text-module-access" />
                             </Button>
                             <Button 
                               variant="ghost" 
@@ -706,7 +706,7 @@ const Users = () => {
                                   : user.email
                               )}
                             >
-                              <Trash2 className="h-4 w-4 text-primary" />
+                              <Trash2 className="h-4 w-4 text-module-access" />
                             </Button>
                           </div>
                         </TableCell>

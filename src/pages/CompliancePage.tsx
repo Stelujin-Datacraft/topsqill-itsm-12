@@ -84,7 +84,7 @@ const CompliancePage = () => {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-4 flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-primary/10"><Shield className="h-5 w-5 text-primary" /></div>
+            <div className="p-2 rounded-lg bg-primary/10"><Shield className="h-5 w-5 text-module-compliance" /></div>
             <div>
               <div className="text-2xl font-bold">{frameworks.length}</div>
               <div className="text-xs text-muted-foreground">Frameworks</div>

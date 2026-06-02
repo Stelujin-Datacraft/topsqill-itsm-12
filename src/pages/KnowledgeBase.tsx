@@ -217,7 +217,7 @@ const KnowledgeBase = () => {
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
                       <div className="p-2 rounded-lg bg-primary/10">
-                        <FolderOpen className="h-5 w-5 text-primary" />
+                        <FolderOpen className="h-5 w-5 text-module-knowledge" />
                       </div>
                       <div>
                         <h3 className="font-semibold text-foreground">{folder.name}</h3>
