@@ -1162,8 +1162,16 @@ export function DataFeedDialog({
                 </div>
               )}
 
-              {/* Global Source Date Format — only shown when the source actually has a date/datetime/time field */}
-              {sourceFields.some(f => ['date', 'datetime', 'datetime-local', 'time'].includes(String(f.field_type).toLowerCase())) && (
+              {/* Global Source Date Format — only shown when a source is actually configured AND it exposes a date/datetime/time field */}
+              {(() => {
+                const sourceConfigured =
+                  (formData.source_type === 'form' && !!formData.source_form_id) ||
+                  (formData.source_type !== 'form' && discoveredFields.length > 0);
+                const hasDateField = sourceFields.some(f =>
+                  ['date', 'datetime', 'datetime-local', 'time'].includes(String(f.field_type).toLowerCase())
+                );
+                return sourceConfigured && hasDateField;
+              })() && (
               <div className="space-y-2 pt-4 border-t">
                 <Label>Source Date Format</Label>
                 <Select
