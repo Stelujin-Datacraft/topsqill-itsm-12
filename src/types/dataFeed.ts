@@ -125,6 +125,9 @@ export interface DataFeed {
   organization_id?: string;
   source_form_id: string;
   target_form_id: string;
+  // Global format used to parse date/datetime values from the source
+  // (applied to matching rules + field mappings when target field is a date).
+  source_date_format?: SourceDateFormat;
   matching_type: 'cross_reference' | 'field_matching';
   cross_reference_field_id?: string;
   // Cross-reference record selection for matching
@@ -190,6 +193,8 @@ export interface DataFeedFormData {
   external_source_config?: ExternalSourceConfig;
   data_source_connection_id?: string; // Reference to shared connection
   discovered_fields?: DiscoveredField[]; // Fields discovered from external source
+  // Global date format for parsing source date values
+  source_date_format?: SourceDateFormat;
   // Target
   target_form_id: string;
   matching_type: 'cross_reference' | 'field_matching';
