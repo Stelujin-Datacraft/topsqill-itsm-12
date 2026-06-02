@@ -85,8 +85,26 @@ export default function FormSubmissionsTable() {
         </div>
       </DashboardLayout>;
   }
+  const headerActions = selectedFormId ? (
+    <div className="flex items-center gap-2">
+      <Button variant="outline" size="sm" onClick={() => setShowSaveDialog(true)}>
+        <Save className="h-4 w-4 mr-1" />
+        Save as Report
+      </Button>
+      <Button variant="ghost" size="sm" onClick={handleBack}>
+        <ArrowLeft className="h-4 w-4 mr-1" />
+        Back
+      </Button>
+    </div>
+  ) : (
+    <Button variant="ghost" size="sm" onClick={handleBack}>
+      <ArrowLeft className="h-4 w-4 mr-1" />
+      Back
+    </Button>
+  );
+
   return (
-    <DashboardLayout title="Form Submissions">
+    <DashboardLayout title="Form Submissions" actions={headerActions}>
       <div className="space-y-2 h-full flex flex-col">
         {/* Compact Single-Row Toolbar */}
         <div className="flex items-center justify-between gap-3 px-3 py-2 rounded-md border bg-card">
@@ -124,16 +142,8 @@ export default function FormSubmissionsTable() {
                 >
                   {isExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => setShowSaveDialog(true)} disabled={!selectedFormId}>
-                  <Save className="h-4 w-4 mr-1" />
-                  Save as Report
-                </Button>
               </>
             )}
-            <Button variant="outline" size="sm" onClick={handleBack}>
-              <ArrowLeft className="h-4 w-4 mr-1" />
-              Back
-            </Button>
           </div>
         </div>
 
