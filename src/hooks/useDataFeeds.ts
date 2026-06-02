@@ -66,6 +66,7 @@ export function useDataFeeds(projectId: string) {
           source_form_id: data.source_form_id || null,
           external_source_config: (data.external_source_config || null) as any,
           data_source_connection_id: data.data_source_connection_id || null,
+          source_date_format: data.source_date_format || 'auto',
           target_form_id: data.target_form_id,
           matching_type: data.matching_type,
           cross_reference_field_id: data.cross_reference_field_id || null,
@@ -133,6 +134,7 @@ export function useDataFeeds(projectId: string) {
       if (data.conditional_delete_value !== undefined) updateData.conditional_delete_value = data.conditional_delete_value ?? null;
       if (data.conditional_delete_filters !== undefined) updateData.conditional_delete_filters = (data.conditional_delete_filters || []) as any;
       if (data.conditional_delete_filter_logic !== undefined) updateData.conditional_delete_filter_logic = data.conditional_delete_filter_logic || null;
+      if (data.source_date_format !== undefined) updateData.source_date_format = data.source_date_format || 'auto';
 
       const { error } = await supabase
         .from('data_feeds')
