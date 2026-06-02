@@ -1299,8 +1299,8 @@ export function DynamicTable({
   <div className="h-full w-full overflow-y-auto">
     <Table className="min-w-full">
 
-                <TableHeader className="sticky top-0 z-[5] bg-gradient-to-r from-primary/25 via-primary/15 to-primary/25 border-b-2 border-primary/40">
-                  <TableRow className="border-b border-primary/30 hover:bg-transparent [&>th]:border-r [&>th]:border-primary/20 [&>th:last-child]:border-r-0">
+                <TableHeader className="sticky top-0 z-[5] bg-gradient-to-r from-primary/25 via-primary/15 to-primary/25 border-b-2 border-primary/50">
+                 <TableRow className="border-b border-primary/40 hover:bg-transparent [&>th]:border-r [&>th]:border-primary/40 [&>th:last-child]:border-r-0">
                     <TableHead className="w-10 h-9">
                       <Checkbox checked={paginatedData.length > 0 && paginatedData.every(row => selectedRows.has(row.id))} onCheckedChange={handleSelectAll} aria-label="Select all rows" />
                     </TableHead>
