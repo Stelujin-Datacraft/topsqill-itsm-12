@@ -25,7 +25,8 @@ const PERMISSION_OPTIONS = {
   forms: ['read', 'create', 'update', 'delete'],
   submissions: ['read', 'create', 'update', 'delete'],
   workflows: ['read', 'create', 'update', 'delete', 'trigger'],
-  reports: ['read', 'create', 'update', 'delete']
+  reports: ['read', 'create', 'update', 'delete'],
+  users: ['read']
 };
 
 interface ApiKeyManagementProps {
@@ -56,7 +57,8 @@ export function ApiKeyManagement({ showCreateDialog: externalShowCreate, onCreat
       forms: ['read'] as string[],
       submissions: ['read'] as string[],
       workflows: [] as string[],
-      reports: ['read'] as string[]
+      reports: ['read'] as string[],
+      users: [] as string[]
     },
     rateLimit: 60,
     allowedIps: '',
@@ -71,7 +73,8 @@ export function ApiKeyManagement({ showCreateDialog: externalShowCreate, onCreat
       forms: [] as string[],
       submissions: [] as string[],
       workflows: [] as string[],
-      reports: [] as string[]
+      reports: [] as string[],
+      users: [] as string[]
     },
     rateLimit: 60,
     allowedIps: ''
@@ -116,7 +119,8 @@ export function ApiKeyManagement({ showCreateDialog: externalShowCreate, onCreat
           forms: ['read'],
           submissions: ['read'],
           workflows: [],
-          reports: ['read']
+          reports: ['read'],
+          users: []
         },
         rateLimit: 60,
         allowedIps: '',
@@ -181,7 +185,8 @@ export function ApiKeyManagement({ showCreateDialog: externalShowCreate, onCreat
         forms: (key.permissions?.forms as string[]) || [],
         submissions: (key.permissions?.submissions as string[]) || [],
         workflows: (key.permissions?.workflows as string[]) || [],
-        reports: (key.permissions?.reports as string[]) || []
+        reports: (key.permissions?.reports as string[]) || [],
+        users: (key.permissions?.users as string[]) || []
       },
       rateLimit: key.rate_limit_per_minute || 60,
       allowedIps: key.allowed_ips?.join(', ') || ''
