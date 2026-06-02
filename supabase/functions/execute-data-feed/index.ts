@@ -1220,6 +1220,7 @@ Deno.serve(async (req) => {
       const matchingLogic = feed.matching_logic as string | undefined;
       const sourceFilters = (feed.source_filters || []) as SourceFilter[];
       const sourceFilterLogic = feed.source_filter_logic as string | undefined;
+      const globalSourceDateFormat: string = (feed as any).source_date_format || 'auto';
 
       // Load target field metadata (type + options) for value coercion
       // Supports multi-select / dropdown / radio / checkbox matching by VALUE or LABEL
@@ -1352,7 +1353,7 @@ Deno.serve(async (req) => {
         // ---- Date / datetime / time normalization ----
         const isDateType = ['date', 'datetime', 'datetime-local', 'time'].includes(type);
         if (isDateType && raw !== null && raw !== undefined && raw !== '') {
-          const fmt = mapping?.sourceDateFormat || 'auto';
+          const fmt = mapping?.sourceDateFormat || globalSourceDateFormat || 'auto';
           let iso: string | null = null;
 
           if (fmt === 'auto') {
@@ -1531,9 +1532,27 @@ Deno.serve(async (req) => {
                   ruleResults[ruleId] = false;
                   return;
                 }
-                
-                // Compare as strings for consistency
-                const match = String(sourceValue).trim().toLowerCase() === String(targetValue || '').trim().toLowerCase();
+
+                // Try to normalize both sides as dates so a non-ISO source string
+                // (e.g. "31/12/2025") can match a target stored as ISO ("2025-12-31").
+                // Uses the global source_date_format when set; falls back to raw string compare.
+                let sNorm = String(sourceValue).trim().toLowerCase();
+                let tNorm = String(targetValue ?? '').trim().toLowerCase();
+                try {
+                  const sIso =
+                    globalSourceDateFormat && globalSourceDateFormat !== 'auto'
+                      ? parseDateWithFormat(sourceValue, globalSourceDateFormat)
+                      : null;
+                  if (sIso) {
+                    const td = new Date(targetValue as any);
+                    const tIso = !isNaN(td.getTime())
+                      ? `${td.getUTCFullYear()}-${pad2(td.getUTCMonth() + 1)}-${pad2(td.getUTCDate())}`
+                      : String(targetValue ?? '').trim().slice(0, 10);
+                    sNorm = sIso;
+                    tNorm = tIso;
+                  }
+                } catch (_) { /* fall back to raw compare */ }
+                const match = sNorm === tNorm;
                 console.log(`🔍 Rule ${ruleId}: source[${rule.sourceFieldId}]="${sourceValue}" vs target[${rule.targetFieldId}]="${targetValue}" = ${match}`);
                 ruleResults[ruleId] = match;
               });

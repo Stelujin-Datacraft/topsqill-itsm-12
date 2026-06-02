@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { DataFeed, DataFeedFormData, FieldMapping, MatchingRule, SourceFilter, FilterOperator, SCHEDULE_PRESETS, FILTER_OPERATORS, ScheduleConfig, buildCronFromConfig, parseCronToReadable, getOperatorsForFieldType, getFieldCategory, SourceType, ExternalSourceConfig as ExternalSourceConfigType, DiscoveredField, CrossRefRecordSelection, CrossRefMatchRule, NestedCrossRefMapping } from '@/types/dataFeed';
+import { DataFeed, DataFeedFormData, FieldMapping, MatchingRule, SourceFilter, FilterOperator, SCHEDULE_PRESETS, FILTER_OPERATORS, ScheduleConfig, buildCronFromConfig, parseCronToReadable, getOperatorsForFieldType, getFieldCategory, SourceType, ExternalSourceConfig as ExternalSourceConfigType, DiscoveredField, CrossRefRecordSelection, CrossRefMatchRule, NestedCrossRefMapping, SourceDateFormat, SOURCE_DATE_FORMAT_OPTIONS } from '@/types/dataFeed';
 import { DataSourceConnection } from '@/types/externalDataSource';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -92,6 +92,7 @@ export function DataFeedDialog({
     source_type: 'form',
     source_form_id: '',
     external_source_config: {},
+    source_date_format: 'auto',
     target_form_id: '',
     matching_type: 'field_matching',
     matching_rules: [],
@@ -293,6 +294,7 @@ export function DataFeedDialog({
         source_form_id: feed.source_form_id,
         external_source_config: externalConfig,
         data_source_connection_id: connectionId,
+        source_date_format: ((feed as any).source_date_format as SourceDateFormat) || 'auto',
         target_form_id: feed.target_form_id,
         matching_type: feed.matching_type,
         cross_reference_field_id: feed.cross_reference_field_id,
@@ -326,6 +328,7 @@ export function DataFeedDialog({
         source_type: 'form',
         source_form_id: '',
         external_source_config: {},
+        source_date_format: 'auto',
         target_form_id: '',
         matching_type: 'field_matching',
         matching_rules: [],
@@ -1158,6 +1161,31 @@ export function DataFeedDialog({
                   </Select>
                 </div>
               )}
+
+              {/* Global Source Date Format — applied to matching rules + field mappings for any date target field */}
+              <div className="space-y-2 pt-4 border-t">
+                <Label>Source Date Format</Label>
+                <Select
+                  value={formData.source_date_format || 'auto'}
+                  onValueChange={(value) =>
+                    setFormData(prev => ({ ...prev, source_date_format: value as SourceDateFormat }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Auto-detect (recommended)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SOURCE_DATE_FORMAT_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  How dates from this source are formatted. Used when matching records and when writing values into date fields. Leave on Auto-detect for ISO (YYYY-MM-DD) sources.
+                </p>
+              </div>
 
               {/* Show discovered fields */}
               {discoveredFields.length > 0 && (

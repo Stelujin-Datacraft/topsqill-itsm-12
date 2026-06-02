@@ -2,6 +2,33 @@ import { SourceType, ExternalSourceConfig, DiscoveredField } from './externalDat
 
 export type { SourceType, ExternalSourceConfig, DiscoveredField };
 
+export type SourceDateFormat =
+  | 'auto'
+  | 'YYYY-MM-DD'
+  | 'DD/MM/YYYY'
+  | 'MM/DD/YYYY'
+  | 'DD-MM-YYYY'
+  | 'DD.MM.YYYY'
+  | 'DD MMM YYYY'
+  | 'MMM DD YYYY'
+  | 'excel_serial'
+  | 'unix_seconds'
+  | 'unix_ms';
+
+export const SOURCE_DATE_FORMAT_OPTIONS: { value: SourceDateFormat; label: string }[] = [
+  { value: 'auto', label: 'Auto-detect (recommended)' },
+  { value: 'YYYY-MM-DD', label: 'YYYY-MM-DD (ISO)' },
+  { value: 'DD/MM/YYYY', label: 'DD/MM/YYYY (EU / India)' },
+  { value: 'MM/DD/YYYY', label: 'MM/DD/YYYY (US)' },
+  { value: 'DD-MM-YYYY', label: 'DD-MM-YYYY' },
+  { value: 'DD.MM.YYYY', label: 'DD.MM.YYYY' },
+  { value: 'DD MMM YYYY', label: 'DD MMM YYYY (e.g. 31 Dec 2025)' },
+  { value: 'MMM DD YYYY', label: 'MMM DD YYYY (e.g. Dec 31 2025)' },
+  { value: 'excel_serial', label: 'Excel serial number' },
+  { value: 'unix_seconds', label: 'Unix timestamp (seconds)' },
+  { value: 'unix_ms', label: 'Unix timestamp (milliseconds)' },
+];
+
 export type FilterOperator = 
   // Universal operators
   | 'equals' 
@@ -125,6 +152,9 @@ export interface DataFeed {
   organization_id?: string;
   source_form_id: string;
   target_form_id: string;
+  // Global format used to parse date/datetime values from the source
+  // (applied to matching rules + field mappings when target field is a date).
+  source_date_format?: SourceDateFormat;
   matching_type: 'cross_reference' | 'field_matching';
   cross_reference_field_id?: string;
   // Cross-reference record selection for matching
@@ -190,6 +220,8 @@ export interface DataFeedFormData {
   external_source_config?: ExternalSourceConfig;
   data_source_connection_id?: string; // Reference to shared connection
   discovered_fields?: DiscoveredField[]; // Fields discovered from external source
+  // Global date format for parsing source date values
+  source_date_format?: SourceDateFormat;
   // Target
   target_form_id: string;
   matching_type: 'cross_reference' | 'field_matching';
