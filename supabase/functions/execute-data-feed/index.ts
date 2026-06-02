@@ -1532,9 +1532,27 @@ Deno.serve(async (req) => {
                   ruleResults[ruleId] = false;
                   return;
                 }
-                
-                // Compare as strings for consistency
-                const match = String(sourceValue).trim().toLowerCase() === String(targetValue || '').trim().toLowerCase();
+
+                // Try to normalize both sides as dates so a non-ISO source string
+                // (e.g. "31/12/2025") can match a target stored as ISO ("2025-12-31").
+                // Uses the global source_date_format when set; falls back to raw string compare.
+                let sNorm = String(sourceValue).trim().toLowerCase();
+                let tNorm = String(targetValue ?? '').trim().toLowerCase();
+                try {
+                  const sIso =
+                    globalSourceDateFormat && globalSourceDateFormat !== 'auto'
+                      ? parseDateWithFormat(sourceValue, globalSourceDateFormat)
+                      : null;
+                  if (sIso) {
+                    const td = new Date(targetValue as any);
+                    const tIso = !isNaN(td.getTime())
+                      ? `${td.getUTCFullYear()}-${pad2(td.getUTCMonth() + 1)}-${pad2(td.getUTCDate())}`
+                      : String(targetValue ?? '').trim().slice(0, 10);
+                    sNorm = sIso;
+                    tNorm = tIso;
+                  }
+                } catch (_) { /* fall back to raw compare */ }
+                const match = sNorm === tNorm;
                 console.log(`🔍 Rule ${ruleId}: source[${rule.sourceFieldId}]="${sourceValue}" vs target[${rule.targetFieldId}]="${targetValue}" = ${match}`);
                 ruleResults[ruleId] = match;
               });
