@@ -1389,7 +1389,8 @@ export function DataFeedDialog({
                   </RadioGroup>
                 </div>
 
-                {/* No Match Behavior Section */}
+                {/* No Match Behavior Section — hidden when Delete mode is ON (no record to create/skip when deleting) */}
+                {formData.action_on_match !== 'delete' && (
                 <div className="space-y-3 p-4 rounded-lg border bg-background">
                   <div className="flex items-center gap-2 mb-2">
                     <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
@@ -1432,6 +1433,7 @@ export function DataFeedDialog({
                     </div>
                   </RadioGroup>
                 </div>
+                )}
 
                 {/* Action on Match Section — simplified toggle: update (default) vs delete */}
                 <div className="space-y-3 p-4 rounded-lg border bg-background">
@@ -1452,6 +1454,8 @@ export function DataFeedDialog({
                       onCheckedChange={(checked) => setFormData(prev => ({
                         ...prev,
                         action_on_match: checked ? 'delete' : 'update',
+                        // When switching to delete mode, force skip on no-match (create makes no sense for deletes)
+                        no_match_behavior: checked ? 'skip' : prev.no_match_behavior,
                         // Clear any legacy conditional-delete config when toggling
                         conditional_delete_filters: [],
                         conditional_delete_filter_logic: '',
