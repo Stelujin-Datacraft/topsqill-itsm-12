@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { FileText, BarChart3, Save, ArrowLeft } from 'lucide-react';
+import { FileText, BarChart3, Save, ArrowLeft, Maximize2, Minimize2 } from 'lucide-react';
 import { useForm } from '@/contexts/FormContext';
 import { useFormSubmissionData } from '@/hooks/useFormSubmissionData';
 import { useFormSubmissionAccess } from '@/hooks/useFormSubmissionAccess';
@@ -20,6 +20,7 @@ export default function FormSubmissionsTable() {
   const submissionRef = searchParams.get('submissionRef');
   const [selectedFormId, setSelectedFormId] = useState(initialFormId);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
   const {
     forms
   } = useForm();
@@ -85,81 +86,92 @@ export default function FormSubmissionsTable() {
       </DashboardLayout>;
   }
   return (
-    <DashboardLayout 
-      title="Form Submissions Data Table" 
-      actions={
-        <div className="flex items-center gap-2">
-          {selectedFormId && (
-            <Button variant="outline" onClick={() => setShowSaveDialog(true)} disabled={!selectedFormId}>
-              <Save className="h-4 w-4 mr-2" />
-              Save as Report
-            </Button>
-          )}
-          <Button variant="outline" onClick={handleBack}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
-          </Button>
-        </div>
-      }
-    >
-        <div className="space-y-3 h-full flex flex-col">
-          {/* Form Selection Header (compact) */}
-          <div className="flex items-center justify-between gap-3 px-3 py-2 rounded-md border bg-card">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Form:</span>
-              <Select value={selectedFormId} onValueChange={setSelectedFormId}>
-                <SelectTrigger className="w-72 h-8 text-sm">
-                  <SelectValue placeholder="Choose a form to view submissions" />
-                </SelectTrigger>
-                <SelectContent>
-                  {accessibleForms.map(form => (
-                    <SelectItem key={form.id} value={form.id}>
-                      <span>{form.name}</span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            {selectedForm && (
-              <div className="text-right">
-                <span className="text-sm font-semibold">{selectedForm.name}</span>
-                <span className="text-xs text-muted-foreground ml-2">
-                  {loading ? 'Loading…' : `${submissions.length} total`}
-                </span>
-              </div>
-            )}
+    <DashboardLayout title="Form Submissions">
+      <div className="space-y-2 h-full flex flex-col">
+        {/* Compact Single-Row Toolbar */}
+        <div className="flex items-center justify-between gap-3 px-3 py-2 rounded-md border bg-card">
+          {/* Left: Form Selector */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Form:</span>
+            <Select value={selectedFormId} onValueChange={setSelectedFormId}>
+              <SelectTrigger className="w-72 h-8 text-sm">
+                <SelectValue placeholder="Choose a form to view submissions" />
+              </SelectTrigger>
+              <SelectContent>
+                {accessibleForms.map(form => (
+                  <SelectItem key={form.id} value={form.id}>
+                    <span>{form.name}</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
-          {/* Data Table */}
-          {selectedFormId ? (
-            <Card className="flex-1 min-h-0 overflow-hidden">
-              <CardContent className="p-0 h-full">
-                <div className="h-full">
-                  <DynamicTable config={tableConfig} />
-                </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <Card className="flex-1">
-              <CardContent className="flex items-center justify-center h-full py-12">
-                <div className="text-center text-muted-foreground">
-                  <FileText className="h-16 w-16 mx-auto mb-4 opacity-50" />
-                  <h3 className="text-lg font-semibold mb-2">No Form Selected</h3>
-                  <p>Select a form to view its submission data</p>
-                  <p className="text-sm">Choose from the dropdown above to get started</p>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+          {/* Right: Action Buttons */}
+          <div className="flex items-center gap-1.5">
+            {selectedFormId && (
+              <>
+                <Button variant="default" size="sm" onClick={() => navigate(`/form/${selectedFormId}`)}>
+                  <FileText className="h-4 w-4 mr-1" />
+                  Create Record
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsExpanded(v => !v)}
+                  title={isExpanded ? 'Normal View' : 'Expand View'}
+                  className="px-2"
+                >
+                  {isExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setShowSaveDialog(true)} disabled={!selectedFormId}>
+                  <Save className="h-4 w-4 mr-1" />
+                  Save as Report
+                </Button>
+              </>
+            )}
+            <Button variant="outline" size="sm" onClick={handleBack}>
+              <ArrowLeft className="h-4 w-4 mr-1" />
+              Back
+            </Button>
+          </div>
         </div>
 
-        {/* Save Report Dialog */}
-        <ReportSaveDialog 
-          isOpen={showSaveDialog} 
-          onOpenChange={setShowSaveDialog} 
-          tableConfig={tableConfig} 
-          formName={selectedForm?.name || ''} 
-        />
-      </DashboardLayout>
+        {/* Data Table */}
+        {selectedFormId ? (
+          <Card className="flex-1 min-h-0 overflow-hidden">
+            <CardContent className="p-0 h-full">
+              <div className="h-full">
+                <DynamicTable
+                  config={tableConfig}
+                  isExpanded={isExpanded}
+                  onExpandChange={setIsExpanded}
+                  hideHeaderActions={true}
+                />
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="flex-1">
+            <CardContent className="flex items-center justify-center h-full py-12">
+              <div className="text-center text-muted-foreground">
+                <FileText className="h-16 w-16 mx-auto mb-4 opacity-50" />
+                <h3 className="text-lg font-semibold mb-2">No Form Selected</h3>
+                <p>Select a form to view its submission data</p>
+                <p className="text-sm">Choose from the dropdown above to get started</p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      {/* Save Report Dialog */}
+      <ReportSaveDialog
+        isOpen={showSaveDialog}
+        onOpenChange={setShowSaveDialog}
+        tableConfig={tableConfig}
+        formName={selectedForm?.name || ''}
+      />
+    </DashboardLayout>
   );
 }
