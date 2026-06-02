@@ -233,22 +233,22 @@ export function FormsList() {
                 </div>
                 <div className="flex space-x-0">
                   {/* <Button variant="ghost" size="sm" onClick={() => handleCopyId(form.id)} title="Copy Form ID">
-                    <Copy className="h-4 w-4 text-primary" />
+                    <Copy className="h-4 w-4 text-module-relationship" />
                   </Button> */}
                   <Button variant="ghost" size="sm" onClick={() => handleCopyForm(form)} disabled={copyingFormId === form.id} title="Duplicate Form">
-                    <Files className="h-4 w-4 text-primary" />
+                    <Files className="h-4 w-4 text-module-knowledge" />
                   </Button>
                   <Button variant="ghost" size="sm" onClick={() => handleViewForm(form.id)} title="Add Record">
-                    <Plus className="h-4 w-4 text-primary" />
+                    <Plus className="h-4 w-4 text-module-workflows" />
                   </Button>
                   <Button variant="ghost" size="sm" onClick={() => handleViewRecords(form.id)} title="View Records">
-                    <Database className="h-4 w-4 text-primary" />
+                    <Database className="h-4 w-4 text-module-query" />
                   </Button>
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button variant="ghost" size="sm" onClick={() => handleEditForm(form.id)} disabled={editButtonState.disabled}>
-                          <Edit className="h-4 w-4 text-primary" />
+                          <Edit className="h-4 w-4 text-module-reports" />
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>
@@ -261,7 +261,7 @@ export function FormsList() {
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button variant="ghost" size="sm" onClick={() => handleDeleteForm(form.id)} disabled={deleteButtonState.disabled}>
-                          <Trash2 className="h-4 w-4 text-primary" />
+                          <Trash2 className="h-4 w-4 text-module-compliance" />
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>
@@ -275,7 +275,7 @@ export function FormsList() {
             <CardContent>
               <div className="flex items-center justify-between text-sm text-muted-foreground">
                 <div className="flex items-center space-x-1">
-                   <Calendar className="h-3 w-3 text-primary" />
+                   <Calendar className="h-3 w-3 text-module-workflows" />
                   <span>{format(new Date(form.createdAt), 'MMM d, yyyy')}</span>
                 </div>
               </div>
@@ -292,7 +292,7 @@ export function FormsList() {
             <CardContent className="p-3 sm:p-4">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div className="flex items-start sm:items-center gap-3 sm:gap-4 flex-1 min-w-0">
-                  <FileText className="h-7 w-7 sm:h-8 sm:w-8 text-primary shrink-0 mt-0.5 sm:mt-0" />
+                  <FileText className="h-7 w-7 sm:h-8 sm:w-8 text-module-forms shrink-0 mt-0.5 sm:mt-0" />
                   <div className="flex-1 min-w-0">
                     <h3 className="text-base sm:text-lg font-semibold text-foreground truncate">{form.name}</h3>
                     {form.description && (
@@ -300,7 +300,7 @@ export function FormsList() {
                     )}
                     <div className="flex items-center flex-wrap gap-2 sm:gap-4 mt-2">
                       <div className="flex items-center space-x-1 text-xs text-muted-foreground">
-                        <Calendar className="h-3 w-3 text-primary" />
+                        <Calendar className="h-3 w-3 text-module-workflows" />
                         <span>{format(new Date(form.createdAt), 'MMM d, yyyy')}</span>
                       </div>
                       <Badge {...statusBadgeProps}>
@@ -311,19 +311,19 @@ export function FormsList() {
                 </div>
                 <div className="flex items-center flex-wrap sm:flex-nowrap gap-1 -mx-1 sm:mx-0 sm:justify-end shrink-0">
                   <Button variant="ghost" size="sm" onClick={() => handleCopyForm(form)} disabled={copyingFormId === form.id} title="Duplicate Form">
-                    <Files className="h-4 w-4 text-primary" />
+                    <Files className="h-4 w-4 text-module-knowledge" />
                   </Button>
                   <Button variant="ghost" size="sm" onClick={() => handleViewForm(form.id)} title="Add Record">
-                    <Plus className="h-4 w-4 text-primary" />
+                    <Plus className="h-4 w-4 text-module-workflows" />
                   </Button>
                   <Button variant="ghost" size="sm" onClick={() => handleViewRecords(form.id)} title="View Records">
-                    <Database className="h-4 w-4 text-primary" />
+                    <Database className="h-4 w-4 text-module-query" />
                   </Button>
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button variant="ghost" size="sm" onClick={() => handleEditForm(form.id)} disabled={editButtonState.disabled}>
-                          <Edit className="h-4 w-4 text-primary" />
+                          <Edit className="h-4 w-4 text-module-reports" />
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>
@@ -336,7 +336,7 @@ export function FormsList() {
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button variant="ghost" size="sm" onClick={() => handleDeleteForm(form.id)} disabled={deleteButtonState.disabled}>
-                          <Trash2 className="h-4 w-4 text-primary" />
+                          <Trash2 className="h-4 w-4 text-module-compliance" />
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>
@@ -422,29 +422,29 @@ export function FormsList() {
                         {form.description && <p className="text-sm text-muted-foreground line-clamp-2">{form.description}</p>}
                         <div className="flex items-center justify-between text-xs text-muted-foreground">
                           <div className="flex items-center gap-1">
-                            <Calendar className="h-3 w-3 text-primary" />
+                            <Calendar className="h-3 w-3 text-module-workflows" />
                             <span>{format(new Date(form.createdAt), 'MMM d')}</span>
                           </div>
                         </div>
                         <div className="flex justify-between gap-1">
                           <div className="flex gap-1">
                             <Button variant="ghost" size="sm" onClick={() => handleCopyId(form.id)} title="Copy Form ID" className="h-8 w-8 p-0">
-                              <Copy className="h-3 w-3 text-primary" />
+                              <Copy className="h-3 w-3 text-module-relationship" />
                             </Button>
                             <Button variant="ghost" size="sm" onClick={() => handleCopyForm(form)} disabled={copyingFormId === form.id} title="Duplicate Form" className="h-8 w-8 p-0">
-                              <Files className="h-3 w-3 text-primary" />
+                              <Files className="h-3 w-3 text-module-knowledge" />
                             </Button>
                             <Button variant="ghost" size="sm" onClick={() => handleViewForm(form.id)} title="Add Record" className="h-8 w-8 p-0">
-                              <Plus className="h-3 w-3 text-primary" />
+                              <Plus className="h-3 w-3 text-module-workflows" />
                             </Button>
                             <Button variant="ghost" size="sm" onClick={() => handleViewRecords(form.id)} className="h-8 w-8 p-0">
-                              <Database className="h-3 w-3 text-primary" />
+                              <Database className="h-3 w-3 text-module-query" />
                             </Button>
                             <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <Button variant="ghost" size="sm" onClick={() => handleEditForm(form.id)} disabled={editButtonState.disabled} className="h-8 w-8 p-0">
-                                    <Edit className="h-3 w-3 text-primary" />
+                                    <Edit className="h-3 w-3 text-module-reports" />
                                   </Button>
                                 </TooltipTrigger>
                                 <TooltipContent>
@@ -464,7 +464,7 @@ export function FormsList() {
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <Button variant="ghost" size="sm" onClick={() => handleDeleteForm(form.id)} disabled={deleteButtonState.disabled} className="h-8 w-8 p-0">
-                                    <Trash2 className="h-3 w-3 text-primary" />
+                                    <Trash2 className="h-3 w-3 text-module-compliance" />
                                   </Button>
                                 </TooltipTrigger>
                                 <TooltipContent>
