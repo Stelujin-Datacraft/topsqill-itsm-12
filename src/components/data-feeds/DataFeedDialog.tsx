@@ -1162,6 +1162,31 @@ export function DataFeedDialog({
                 </div>
               )}
 
+              {/* Global Source Date Format — applied to matching rules + field mappings for any date target field */}
+              <div className="space-y-2 pt-4 border-t">
+                <Label>Source Date Format</Label>
+                <Select
+                  value={formData.source_date_format || 'auto'}
+                  onValueChange={(value) =>
+                    setFormData(prev => ({ ...prev, source_date_format: value as SourceDateFormat }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Auto-detect (recommended)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SOURCE_DATE_FORMAT_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  How dates from this source are formatted. Used when matching records and when writing values into date fields. Leave on Auto-detect for ISO (YYYY-MM-DD) sources.
+                </p>
+              </div>
+
               {/* Show discovered fields */}
               {discoveredFields.length > 0 && (
                 <div className="space-y-2 pt-4 border-t">
