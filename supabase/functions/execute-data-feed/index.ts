@@ -1353,7 +1353,7 @@ Deno.serve(async (req) => {
         // ---- Date / datetime / time normalization ----
         const isDateType = ['date', 'datetime', 'datetime-local', 'time'].includes(type);
         if (isDateType && raw !== null && raw !== undefined && raw !== '') {
-          const fmt = mapping?.sourceDateFormat || 'auto';
+          const fmt = mapping?.sourceDateFormat || globalSourceDateFormat || 'auto';
           let iso: string | null = null;
 
           if (fmt === 'auto') {
