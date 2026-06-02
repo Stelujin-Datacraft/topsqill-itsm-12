@@ -193,7 +193,8 @@ app.get('/docs', (c) => {
       },
       users: {
         'GET /users': 'List users in your organization (admin-only). Query: search, email, role, status, group_id, project_id, limit, offset',
-        'GET /users/:id': 'Get a single user with full profile, roles, groups, projects, permissions and recent activity (admin-only)'
+        'GET /users/:id': 'Get a single user with full profile, roles, groups, projects, permissions and recent activity (admin-only)',
+        'GET /me': 'Get the API key owner profile (id, email, role, organization_id, first_name, last_name, organization)'
       }
     },
     queryParameters: {
@@ -2090,6 +2091,61 @@ async function buildFullUserPayload(supabase: any, userId: string, organizationI
     recent_activity: activity || [],
   };
 }
+
+// GET /me — returns the profile of the API key owner (no admin permission required)
+app.get('/me', validateApiKey, async (c) => {
+  const keyInfo = c.get('apiKeyInfo');
+  const supabase = getServiceClient();
+
+  try {
+    const { data: keyRow, error: keyErr } = await supabase
+      .from('api_keys')
+      .select('id, name, created_by, organization_id, project_id, permissions, rate_limit_per_minute, last_used_at, expires_at')
+      .eq('id', keyInfo.api_key_id)
+      .maybeSingle();
+
+    if (keyErr || !keyRow) {
+      await logRequest(c, 500, keyErr?.message || 'API key not found');
+      return c.json({ error: 'Failed to load API key', details: keyErr?.message }, 500, corsHeaders);
+    }
+
+    let profile: any = null;
+    if (keyRow.created_by) {
+      const { data: p } = await supabase
+        .from('user_profiles')
+        .select('id, email, first_name, last_name, role, status, mobile, organization_id, created_at')
+        .eq('id', keyRow.created_by)
+        .maybeSingle();
+      profile = p;
+    }
+
+    const { data: org } = await supabase
+      .from('organizations')
+      .select('id, name, slug, status')
+      .eq('id', keyRow.organization_id)
+      .maybeSingle();
+
+    await logRequest(c, 200);
+    return c.json({
+      data: {
+        user: profile,
+        organization: org,
+        api_key: {
+          id: keyRow.id,
+          name: keyRow.name,
+          permissions: keyRow.permissions,
+          rate_limit_per_minute: keyRow.rate_limit_per_minute,
+          last_used_at: keyRow.last_used_at,
+          expires_at: keyRow.expires_at,
+          project_id: keyRow.project_id,
+        },
+      },
+    }, 200, corsHeaders);
+  } catch (err: any) {
+    await logRequest(c, 500, err?.message || 'Internal error');
+    return c.json({ error: 'Failed to fetch current user', details: err?.message }, 500, corsHeaders);
+  }
+});
 
 // GET /users — search/filter list
 app.get('/users', validateApiKey, async (c) => {
