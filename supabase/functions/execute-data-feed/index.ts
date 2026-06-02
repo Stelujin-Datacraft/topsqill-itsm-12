@@ -1515,8 +1515,15 @@ Deno.serve(async (req) => {
               
               matchingRules.forEach((rule, idx) => {
                 const ruleId = rule.id || String(idx + 1);
-                const sourceValue = sourceData[rule.sourceFieldId];
-                const targetValue = targetData[rule.targetFieldId];
+                // Resolve synthetic system fields → top-level submission columns
+                const sourceValue =
+                  rule.sourceFieldId === '__submission_id__' ? (sourceSubmission as any).id :
+                  rule.sourceFieldId === '__submission_ref_id__' ? (sourceSubmission as any).submission_ref_id :
+                  sourceData[rule.sourceFieldId];
+                const targetValue =
+                  rule.targetFieldId === '__submission_id__' ? (target as any).id :
+                  rule.targetFieldId === '__submission_ref_id__' ? (target as any).submission_ref_id :
+                  targetData[rule.targetFieldId];
                 
                 // Skip rule if source value is undefined/null/empty
                 if (sourceValue === undefined || sourceValue === null || sourceValue === '') {
