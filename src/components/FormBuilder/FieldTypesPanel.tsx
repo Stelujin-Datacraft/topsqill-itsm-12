@@ -7,6 +7,64 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { getFieldsByCategory } from '@/data/fieldTypes';
 import { Search, X, HelpCircle } from 'lucide-react';
 
+const FIELD_ICON_COLORS: Record<string, string> = {
+  // Text & content
+  header: 'text-module-forms',
+  description: 'text-module-forms',
+  text: 'text-module-forms',
+  textarea: 'text-module-forms',
+  'rich-text': 'text-module-knowledge',
+  // Structure
+  'section-break': 'text-module-overview',
+  'horizontal-line': 'text-module-overview',
+  'full-width-container': 'text-module-overview',
+  'conditional-section': 'text-module-compliance',
+  // Numeric
+  number: 'text-module-query',
+  calculated: 'text-module-performance',
+  slider: 'text-module-reports',
+  rating: 'text-module-performance',
+  // Date/Time
+  date: 'text-module-workflows',
+  time: 'text-module-workflows',
+  datetime: 'text-module-workflows',
+  // Selection
+  select: 'text-module-reports',
+  'multi-select': 'text-module-reports',
+  radio: 'text-module-reports',
+  checkbox: 'text-module-reports',
+  'toggle-switch': 'text-module-reports',
+  tags: 'text-module-reports',
+  // Media
+  file: 'text-module-knowledge',
+  image: 'text-module-knowledge',
+  signature: 'text-module-knowledge',
+  color: 'text-module-email',
+  // International / location
+  country: 'text-module-itam',
+  address: 'text-module-itam',
+  phone: 'text-module-itam',
+  'geo-location': 'text-module-itam',
+  // Validation / contact
+  email: 'text-module-email',
+  url: 'text-module-relationship',
+  'ip-address': 'text-module-relationship',
+  barcode: 'text-module-ldap',
+  // Access / users
+  'user-picker': 'text-module-access',
+  'group-picker': 'text-module-access',
+  'submission-access': 'text-module-access',
+  // Data / relations
+  'record-table': 'text-module-query',
+  'matrix-grid': 'text-module-query',
+  'query-field': 'text-module-query',
+  'cross-reference': 'text-module-relationship',
+  'child-cross-reference': 'text-module-relationship',
+  'workflow-trigger': 'text-module-workflows',
+};
+
+const getFieldIconColor = (type: string) => FIELD_ICON_COLORS[type] || 'text-module-forms';
+
 interface FieldTypesPanelProps {
   fieldTypeSearch: string;
   setFieldTypeSearch: (search: string) => void;
@@ -67,7 +125,7 @@ export function FieldTypesPanel({
                   onClick={() => onAddField(fieldType.type)}
                   disabled={disabled}
                 >
-                  <fieldType.icon className="h-4 w-4 mr-3 flex-shrink-0" />
+                  <fieldType.icon className={`h-4 w-4 mr-3 flex-shrink-0 ${getFieldIconColor(fieldType.type)}`} />
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium truncate">{fieldType.label}</div>
                   </div>
@@ -96,7 +154,7 @@ export function FieldTypesPanel({
                   onClick={() => onAddField(fieldType.type)}
                   disabled={disabled}
                 >
-                  <fieldType.icon className="h-4 w-4 mr-3 flex-shrink-0" />
+                  <fieldType.icon className={`h-4 w-4 mr-3 flex-shrink-0 ${getFieldIconColor(fieldType.type)}`} />
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium truncate">{fieldType.label}</div>
                   </div>
