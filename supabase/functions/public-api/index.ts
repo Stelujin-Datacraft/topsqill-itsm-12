@@ -2149,9 +2149,8 @@ app.get('/me', validateApiKey, async (c) => {
     };
 
     const url = new URL(c.req.url);
-    const format = (url.searchParams.get('format') || 'table').toLowerCase();
+    const format = (url.searchParams.get('format') || 'json').toLowerCase();
     const columns = Object.keys(row);
-    const values = columns.map((k) => (row as any)[k]);
 
     await logRequest(c, 200);
 
@@ -2161,18 +2160,18 @@ app.get('/me', validateApiKey, async (c) => {
         const s = typeof v === 'object' ? JSON.stringify(v) : String(v);
         return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
       };
-      const csv = `${columns.join(',')}\n${values.map(esc).join(',')}\n`;
+      const csv = `${columns.join(',')}\n${columns.map((k) => esc((row as any)[k])).join(',')}\n`;
       return new Response(csv, {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'text/csv; charset=utf-8' },
       });
     }
 
-    // Default: tabular JSON (columns + rows), mirroring a SQL result set
+    // SQL-like result set: array of rows where each row is { column_name: value }
     return c.json({
-      columns,
-      rows: [values],
+      data: [row],
       row_count: 1,
+      columns,
     }, 200, corsHeaders);
   } catch (err: any) {
     await logRequest(c, 500, err?.message || 'Internal error');
