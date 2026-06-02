@@ -1149,6 +1149,7 @@ export type Database = {
           organization_id: string | null
           project_id: string
           schedule: string | null
+          source_date_format: string
           source_filter_logic: string | null
           source_filters: Json | null
           source_form_id: string | null
@@ -1187,6 +1188,7 @@ export type Database = {
           organization_id?: string | null
           project_id: string
           schedule?: string | null
+          source_date_format?: string
           source_filter_logic?: string | null
           source_filters?: Json | null
           source_form_id?: string | null
@@ -1225,6 +1227,7 @@ export type Database = {
           organization_id?: string | null
           project_id?: string
           schedule?: string | null
+          source_date_format?: string
           source_filter_logic?: string | null
           source_filters?: Json | null
           source_form_id?: string | null
