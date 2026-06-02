@@ -74,6 +74,25 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
+				},
+				module: {
+					forms: 'hsl(var(--module-forms))',
+					reports: 'hsl(var(--module-reports))',
+					workflows: 'hsl(var(--module-workflows))',
+					knowledge: 'hsl(var(--module-knowledge))',
+					compliance: 'hsl(var(--module-compliance))',
+					itam: 'hsl(var(--module-itam))',
+					performance: 'hsl(var(--module-performance))',
+					projects: 'hsl(var(--module-projects))',
+					overview: 'hsl(var(--module-overview))',
+					access: 'hsl(var(--module-access))',
+					query: 'hsl(var(--module-query))',
+					relationship: 'hsl(var(--module-relationship))',
+					feeds: 'hsl(var(--module-feeds))',
+					email: 'hsl(var(--module-email))',
+					ldap: 'hsl(var(--module-ldap))',
+					api: 'hsl(var(--module-api))',
+					sla: 'hsl(var(--module-sla))',
 				}
 			},
 			borderRadius: {
