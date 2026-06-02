@@ -23,6 +23,7 @@ export interface ApiKey {
     submissions?: string[];
     workflows?: string[];
     reports?: string[];
+    users?: string[];
   };
 }
 
