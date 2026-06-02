@@ -120,6 +120,25 @@
     --sidebar-accent-foreground: 240 4.8% 95.9%;
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* Module accent colors — slightly lighter in dark mode for contrast */
+    --module-forms: 217 91% 70%;
+    --module-reports: 262 83% 72%;
+    --module-workflows: 38 92% 62%;
+    --module-knowledge: 160 84% 52%;
+    --module-compliance: 350 89% 70%;
+    --module-itam: 189 94% 58%;
+    --module-performance: 24 95% 65%;
+    --module-projects: 239 84% 75%;
+    --module-overview: 199 89% 65%;
+    --module-access: 346 77% 70%;
+    --module-query: 292 84% 71%;
+    --module-relationship: 173 80% 52%;
+    --module-feeds: 84 81% 58%;
+    --module-email: 330 81% 72%;
+    --module-ldap: 48 96% 65%;
+    --module-api: 0 84% 70%;
+    --module-sla: 217 91% 70%;
   }
 }
 
