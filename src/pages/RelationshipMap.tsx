@@ -519,7 +519,7 @@ export default function RelationshipMap() {
       <div className="flex-shrink-0 border-b bg-background px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <GitBranch className="h-6 w-6 text-primary" />
+            <GitBranch className="h-6 w-6 text-module-relationship" />
             <div>
               <h1 className="text-xl font-bold">Relationship Map</h1>
               <p className="text-sm text-muted-foreground">Visualize upstream and downstream record linkages</p>
@@ -591,7 +591,7 @@ export default function RelationshipMap() {
       <div className="flex-1 overflow-auto px-6 py-6">
         {loading ? (
           <div className="flex items-center gap-3 justify-center py-12">
-            <Loader2 className="animate-spin h-5 w-5 text-primary" />
+            <Loader2 className="animate-spin h-5 w-5 text-module-relationship" />
             <span className="text-muted-foreground">Building relationship map...</span>
           </div>
         ) : treeRoot ? (

@@ -2552,7 +2552,7 @@ const PolicyDetail = () => {
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle className="text-sm flex items-center gap-2">
-                    <Eye className="h-4 w-4 text-primary" /> Pre-Reviewers
+                    <Eye className="h-4 w-4 text-module-knowledge" /> Pre-Reviewers
                   </CardTitle>
                   {canEdit && (
                     <Button size="sm" variant="outline" onClick={() => setShowPreReviewDialog(true)}>
@@ -2629,7 +2629,7 @@ const PolicyDetail = () => {
               <Card>
                 <CardHeader>
                   <CardTitle className="text-sm flex items-center gap-2">
-                    <CalendarClock className="h-4 w-4 text-primary" /> Review Cycles
+                    <CalendarClock className="h-4 w-4 text-module-knowledge" /> Review Cycles
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -2677,7 +2677,7 @@ const PolicyDetail = () => {
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle className="text-sm flex items-center gap-2">
-                    <Shield className="h-4 w-4 text-primary" /> Post-Reviewers
+                    <Shield className="h-4 w-4 text-module-knowledge" /> Post-Reviewers
                   </CardTitle>
                   {canEdit && (
                     <Button size="sm" variant="outline" onClick={() => setShowPostReviewDialog(true)}>
@@ -2754,7 +2754,7 @@ const PolicyDetail = () => {
               <Card>
                 <CardHeader>
                   <CardTitle className="text-sm flex items-center gap-2">
-                    <CalendarClock className="h-4 w-4 text-primary" /> Review Cycles
+                    <CalendarClock className="h-4 w-4 text-module-knowledge" /> Review Cycles
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -2907,7 +2907,7 @@ const PolicyDetail = () => {
                       }}
                     >
                       <div className={`w-4 h-4 rounded border flex items-center justify-center ${isSelected ? 'bg-primary border-primary' : 'border-muted-foreground/30'}`}>
-                        {isSelected && <CheckCircle className="h-3 w-3 text-primary-foreground" />}
+                        {isSelected && <CheckCircle className="h-3 w-3 text-module-knowledge-foreground" />}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-medium truncate">{name}</div>
@@ -2931,7 +2931,7 @@ const PolicyDetail = () => {
                     <div key={g.id} className={`flex items-center gap-3 p-2.5 cursor-pointer hover:bg-muted/50 border-b last:border-b-0 ${isSelected ? 'bg-primary/5' : ''}`}
                       onClick={() => setSelectedApproverIds(prev => isSelected ? prev.filter(id => id !== `group:${g.id}`) : [...prev, `group:${g.id}`])}>
                       <div className={`w-4 h-4 rounded border flex items-center justify-center ${isSelected ? 'bg-primary border-primary' : 'border-muted-foreground/30'}`}>
-                        {isSelected && <CheckCircle className="h-3 w-3 text-primary-foreground" />}
+                        {isSelected && <CheckCircle className="h-3 w-3 text-module-knowledge-foreground" />}
                       </div>
                       <span className="text-sm font-medium">{g.name}</span>
                       <Badge variant="outline" className="text-[10px]">Group</Badge>
@@ -3034,7 +3034,7 @@ const PolicyDetail = () => {
                     <div key={u.id} className={`flex items-center gap-3 p-2.5 cursor-pointer hover:bg-muted/50 border-b last:border-b-0 ${isSelected ? 'bg-primary/5' : ''}`}
                       onClick={() => setPreReviewerIds(prev => isSelected ? prev.filter(id => id !== `user:${u.id}`) : [...prev, `user:${u.id}`])}>
                       <div className={`w-4 h-4 rounded border flex items-center justify-center ${isSelected ? 'bg-primary border-primary' : 'border-muted-foreground/30'}`}>
-                        {isSelected && <CheckCircle className="h-3 w-3 text-primary-foreground" />}
+                        {isSelected && <CheckCircle className="h-3 w-3 text-module-knowledge-foreground" />}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-medium truncate">{name}</div>
@@ -3055,7 +3055,7 @@ const PolicyDetail = () => {
                     <div key={g.id} className={`flex items-center gap-3 p-2.5 cursor-pointer hover:bg-muted/50 border-b last:border-b-0 ${isSelected ? 'bg-primary/5' : ''}`}
                       onClick={() => setPreReviewerIds(prev => isSelected ? prev.filter(id => id !== `group:${g.id}`) : [...prev, `group:${g.id}`])}>
                       <div className={`w-4 h-4 rounded border flex items-center justify-center ${isSelected ? 'bg-primary border-primary' : 'border-muted-foreground/30'}`}>
-                        {isSelected && <CheckCircle className="h-3 w-3 text-primary-foreground" />}
+                        {isSelected && <CheckCircle className="h-3 w-3 text-module-knowledge-foreground" />}
                       </div>
                       <span className="text-sm font-medium">{g.name}</span>
                       <Badge variant="outline" className="text-[10px]">Group</Badge>
@@ -3163,7 +3163,7 @@ const PolicyDetail = () => {
                     <div key={u.id} className={`flex items-center gap-3 p-2.5 cursor-pointer hover:bg-muted/50 border-b last:border-b-0 ${isSelected ? 'bg-primary/5' : ''}`}
                       onClick={() => setPostReviewerIds(prev => isSelected ? prev.filter(id => id !== `user:${u.id}`) : [...prev, `user:${u.id}`])}>
                       <div className={`w-4 h-4 rounded border flex items-center justify-center ${isSelected ? 'bg-primary border-primary' : 'border-muted-foreground/30'}`}>
-                        {isSelected && <CheckCircle className="h-3 w-3 text-primary-foreground" />}
+                        {isSelected && <CheckCircle className="h-3 w-3 text-module-knowledge-foreground" />}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-medium truncate">{name}</div>
@@ -3184,7 +3184,7 @@ const PolicyDetail = () => {
                     <div key={g.id} className={`flex items-center gap-3 p-2.5 cursor-pointer hover:bg-muted/50 border-b last:border-b-0 ${isSelected ? 'bg-primary/5' : ''}`}
                       onClick={() => setPostReviewerIds(prev => isSelected ? prev.filter(id => id !== `group:${g.id}`) : [...prev, `group:${g.id}`])}>
                       <div className={`w-4 h-4 rounded border flex items-center justify-center ${isSelected ? 'bg-primary border-primary' : 'border-muted-foreground/30'}`}>
-                        {isSelected && <CheckCircle className="h-3 w-3 text-primary-foreground" />}
+                        {isSelected && <CheckCircle className="h-3 w-3 text-module-knowledge-foreground" />}
                       </div>
                       <span className="text-sm font-medium">{g.name}</span>
                       <Badge variant="outline" className="text-[10px]">Group</Badge>

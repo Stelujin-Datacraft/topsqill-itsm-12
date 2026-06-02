@@ -258,17 +258,17 @@ const Forms = () => {
           {canCreateForm && !permissionLoading && (
             <ExcelFormImporter onImport={handleAIFormApply}>
               <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                <FileSpreadsheet className="h-4 w-4 mr-2 text-primary" />
+                <FileSpreadsheet className="h-4 w-4 mr-2 text-module-forms" />
                 Import from Excel
               </DropdownMenuItem>
             </ExcelFormImporter>
           )}
           <DropdownMenuItem onClick={() => navigate('/form-audit-logs')}>
-            <History className="h-4 w-4 mr-2 text-primary" />
+            <History className="h-4 w-4 mr-2 text-module-forms" />
             Form History
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => navigate('/sla-management')} disabled={!currentProject}>
-            <Timer className="h-4 w-4 mr-2 text-primary" />
+            <Timer className="h-4 w-4 mr-2 text-module-forms" />
             SLA Management
           </DropdownMenuItem>
         </DropdownMenuContent>

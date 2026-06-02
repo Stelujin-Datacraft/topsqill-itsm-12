@@ -127,7 +127,7 @@ const KnowledgeBaseFolder = () => {
           </Button>
           <div>
             <div className="flex items-center gap-2">
-              <FolderOpen className="h-5 w-5 text-primary" />
+              <FolderOpen className="h-5 w-5 text-module-knowledge" />
               <h1 className="text-2xl font-bold text-foreground">{folderName}</h1>
             </div>
             {folder?.description && (
@@ -329,7 +329,7 @@ const KnowledgeBaseFolder = () => {
     <div className="flex-1 px-6 pb-6">
       {previewLoading ? (
         <div className="flex items-center justify-center h-full gap-2">
-          <Loader2 className="h-5 w-5 animate-spin text-primary" />
+          <Loader2 className="h-5 w-5 animate-spin text-module-knowledge" />
           <span className="text-sm text-muted-foreground">Generating preview...</span>
         </div>
       ) : previewIframeUrl ? (

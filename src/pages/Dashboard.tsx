@@ -130,7 +130,7 @@ const Dashboard = () => {
             <Card className="bg-primary-light border-primary/20">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Total Projects</CardTitle>
-                <Settings className="h-4 w-4 text-primary" />
+                <Settings className="h-4 w-4 text-module-overview" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{projects.length}</div>
@@ -143,7 +143,7 @@ const Dashboard = () => {
             <Card className="bg-primary-light border-primary/20">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Current Role</CardTitle>
-                <Users className="h-4 w-4 text-primary" />
+                <Users className="h-4 w-4 text-module-overview" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold capitalize">{userProfile?.role || 'User'}</div>
@@ -156,7 +156,7 @@ const Dashboard = () => {
             <Card className="bg-primary-light border-primary/20">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Active Project</CardTitle>
-                <FileText className="h-4 w-4 text-primary" />
+                <FileText className="h-4 w-4 text-module-overview" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
