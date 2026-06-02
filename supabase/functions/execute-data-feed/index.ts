@@ -1701,7 +1701,10 @@ Deno.serve(async (req) => {
                 }
                 
                 if (sourceValue !== undefined) {
-                  updatedData[mapping.targetFieldId] = coerceForTargetField(mapping.targetFieldId, sourceValue);
+                  const coerced = coerceForTargetField(mapping.targetFieldId, sourceValue, mapping);
+                  if (coerced !== undefined) {
+                    updatedData[mapping.targetFieldId] = coerced;
+                  }
                 }
               }
 
