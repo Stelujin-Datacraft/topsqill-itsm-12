@@ -44,6 +44,20 @@ export interface FieldMapping {
   targetFieldId: string;
   sourceFieldName?: string;
   targetFieldName?: string;
+  // For date/datetime target fields: how to parse the incoming source value.
+  // 'auto' (default) lets the server best-effort parse; otherwise the exact format is used.
+  sourceDateFormat?:
+    | 'auto'
+    | 'YYYY-MM-DD'
+    | 'DD/MM/YYYY'
+    | 'MM/DD/YYYY'
+    | 'DD-MM-YYYY'
+    | 'DD.MM.YYYY'
+    | 'DD MMM YYYY'
+    | 'MMM DD YYYY'
+    | 'excel_serial'
+    | 'unix_seconds'
+    | 'unix_ms';
   // For cross-reference field mapping
   sourceType?: 'direct' | 'cross_reference'; // 'direct' = from source form, 'cross_reference' = from linked record
   crossRefFieldId?: string; // The cross-reference field in source form
