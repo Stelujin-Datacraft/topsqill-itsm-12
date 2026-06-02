@@ -25,15 +25,13 @@ export function UserEmailCell({ userId, fallbackEmail }: UserEmailCellProps) {
         // Get email + name from user_profiles
         const { data: profile } = await supabase
           .from('user_profiles')
-          .select('email, full_name, first_name, last_name')
+          .select('email, first_name, last_name')
           .eq('id', userId)
           .single();
 
         if (profile) {
           setUserEmail(profile.email);
-          const name = (profile as any).full_name
-            || [ (profile as any).first_name, (profile as any).last_name ].filter(Boolean).join(' ')
-            || null;
+          const name = [profile.first_name, profile.last_name].filter(Boolean).join(' ') || null;
           setDisplayName(name);
         } else {
           // Fallback to any provided email or show as anonymous
