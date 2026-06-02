@@ -1084,90 +1084,137 @@ export function DynamicTable({
             </div>
           )}
 
-          {/* Row 2: Toolbar - Table Controls | Data Operations | Search */}
-          <div className="flex items-center justify-between gap-3 border-t border-b py-2">
-            {/* Left Group: Table structure controls */}
-            <div className="flex items-center gap-1.5">
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => setShowColumnOrderManager(true)}
-                disabled={selectedColumns.length === 0}
-                title="Reorder Columns"
-                className="h-8"
-              >
-                <Move className="h-3.5 w-3.5 mr-1" />
-                Reorder
-              </Button>
-
-              <DynamicTableColumnSelector formFields={formFields} selectedColumns={selectedColumns} onColumnToggle={handleColumnToggle} />
-
-              {/* Data Dropdown */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-8">
-                    <Database className="h-3.5 w-3.5 mr-1" />
-                    Data
-                    <ChevronDown className="h-3 w-3 ml-1" />
+          {/* Professional Toolbar — grouped & labeled */}
+          <div className="flex items-center justify-between gap-3 border-t border-b py-2 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Group: Columns */}
+              <div className="flex items-center gap-1">
+                <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mr-1">Columns</span>
+                <div className="flex items-center gap-1 rounded-md border bg-muted/30 p-0.5">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowColumnOrderManager(true)}
+                    disabled={selectedColumns.length === 0}
+                    title="Reorder Columns"
+                    className="h-7 px-2"
+                  >
+                    <Move className="h-3.5 w-3.5 mr-1" />
+                    Reorder
                   </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-48 bg-popover">
-                  <DropdownMenuLabel>Data Operations</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <ExportDropdown data={exportData} formId={config.formId} formName={currentForm?.name} asSubMenu />
-                  <DropdownMenuItem onClick={() => setShowImportDialog(true)}>
-                    <Upload className="h-4 w-4 mr-2" />
-                    Import Data
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => setShowUpdateDialog(true)}>
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                    Update Records
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => setShowPolicyDialog(true)}>
-                    <ScrollText className="h-4 w-4 mr-2" />
-                    Create Docs
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => setShowLinkageMap(true)}>
-                    <GitBranch className="h-4 w-4 mr-2" />
-                    Relationship Map
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                  <div className="w-px h-4 bg-border" />
+                  <DynamicTableColumnSelector formFields={formFields} selectedColumns={selectedColumns} onColumnToggle={handleColumnToggle} />
+                </div>
+              </div>
 
-              {/* Workflows Dropdown */}
-              {hasWorkflows && filteredAndSortedData.length > 0 && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" className="h-8">
-                      <Zap className="h-3.5 w-3.5 mr-1" />
-                      Workflows
-                      <ChevronDown className="h-3 w-3 ml-1" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="w-56 bg-popover">
-                    <DropdownMenuLabel>Workflow Actions</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={handleRunAllWorkflows}>
-                      <PlayCircle className="h-4 w-4 mr-2" />
-                      Run All Workflows ({filteredAndSortedData.length})
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              )}
+              {/* Group: Data */}
+              <div className="flex items-center gap-1">
+                <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mr-1">Data</span>
+                <div className="flex items-center gap-1 rounded-md border bg-muted/30 p-0.5">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="sm" className="h-7 px-2">
+                        <Database className="h-3.5 w-3.5 mr-1" />
+                        Manage
+                        <ChevronDown className="h-3 w-3 ml-1" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-48 bg-popover">
+                      <DropdownMenuLabel>Data Operations</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <ExportDropdown data={exportData} formId={config.formId} formName={currentForm?.name} asSubMenu />
+                      <DropdownMenuItem onClick={() => setShowImportDialog(true)}>
+                        <Upload className="h-4 w-4 mr-2" />
+                        Import Data
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => setShowUpdateDialog(true)}>
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                        Update Records
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => setShowPolicyDialog(true)}>
+                        <ScrollText className="h-4 w-4 mr-2" />
+                        Create Docs
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => setShowLinkageMap(true)}>
+                        <GitBranch className="h-4 w-4 mr-2" />
+                        Relationship Map
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
 
-              {/* Configure Button */}
-              {onEdit && (
-                <Button variant="outline" size="sm" onClick={onEdit} title="Configure" className="h-8 px-2">
-                  <Settings className="h-3.5 w-3.5" />
-                </Button>
-              )}
+                  {hasWorkflows && filteredAndSortedData.length > 0 && (
+                    <>
+                      <div className="w-px h-4 bg-border" />
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm" className="h-7 px-2">
+                            <Zap className="h-3.5 w-3.5 mr-1" />
+                            Workflows
+                            <ChevronDown className="h-3 w-3 ml-1" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="w-56 bg-popover">
+                          <DropdownMenuLabel>Workflow Actions</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={handleRunAllWorkflows}>
+                            <PlayCircle className="h-4 w-4 mr-2" />
+                            Run All Workflows ({filteredAndSortedData.length})
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </>
+                  )}
+
+                  {onEdit && (
+                    <>
+                      <div className="w-px h-4 bg-border" />
+                      <Button variant="ghost" size="sm" onClick={onEdit} title="Configure" className="h-7 px-2">
+                        <Settings className="h-3.5 w-3.5" />
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Group: Filters & Sort */}
+              <div className="flex items-center gap-1">
+                <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mr-1">Filters</span>
+                <div className="flex items-center gap-1 rounded-md border bg-muted/30 p-0.5">
+                  <SavedFiltersManager formId={config.formId} onApplyFilter={setAppliedFilters} currentFilters={appliedFilters} />
+                  {config.enableFiltering && (
+                    <>
+                      <div className="w-px h-4 bg-border" />
+                      <ComplexFilter
+                        filters={complexFilters}
+                        onFiltersChange={setComplexFilters}
+                        availableFields={availableFields}
+                        formId={config.formId}
+                        onApplyFilters={handleApplyFilters}
+                        onClearFilters={handleClearFilters}
+                      />
+                    </>
+                  )}
+                  {config.enableSorting && (
+                    <>
+                      <div className="w-px h-4 bg-border" />
+                      <SortingControls
+                        availableFields={displayFields.map(f => ({ id: f.id, label: f.label }))}
+                        sortConfigs={sortConfigs}
+                        onAddSort={handleAddSort}
+                        onRemoveSort={handleRemoveSort}
+                        onToggleDirection={handleToggleDirection}
+                      />
+                    </>
+                  )}
+                </div>
+              </div>
             </div>
 
-            {/* Right Group: Search + AI + Auto Refresh */}
-            <div className="flex items-center gap-1.5">
+            {/* Right: Search + AI + Auto */}
+            <div className="flex items-center gap-2">
               {config.enableSearch && currentForm && (
                 <AIQueryInput
                   formFields={currentForm.fields}
@@ -1183,13 +1230,13 @@ export function DynamicTable({
               )}
 
               {config.enableSearch && (
-                <div className="relative w-80">
+                <div className="relative w-64">
                   <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                  <Input 
-                    placeholder="Search records..." 
-                    value={searchTerm} 
-                    onChange={e => setSearchTerm(e.target.value)} 
-                    className="pl-8 pr-8 h-8 text-xs" 
+                  <Input
+                    placeholder="Search records..."
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                    className="pl-8 pr-8 h-8 text-xs"
                   />
                   {searchTerm && (
                     <button
@@ -1202,8 +1249,7 @@ export function DynamicTable({
                 </div>
               )}
 
-              {/* Auto Refresh */}
-              <div className="flex items-center space-x-1 bg-muted/30 rounded-md px-2 py-1 h-8">
+              <div className="flex items-center space-x-1 bg-muted/30 rounded-md border px-2 py-1 h-8">
                 <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
                 <span className="text-xs text-muted-foreground">Auto</span>
                 <Button variant="ghost" size="sm" onClick={loadData} className="h-5 w-5 p-0">
@@ -1212,38 +1258,6 @@ export function DynamicTable({
                   </svg>
                 </Button>
               </div>
-            </div>
-          </div>
-
-          {/* Row 3: Filters + Sort */}
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Filters</span>
-              <SavedFiltersManager formId={config.formId} onApplyFilter={setAppliedFilters} currentFilters={appliedFilters} />
-
-              {config.enableFiltering && (
-                <ComplexFilter 
-                  filters={complexFilters} 
-                  onFiltersChange={setComplexFilters} 
-                  availableFields={availableFields} 
-                  formId={config.formId} 
-                  onApplyFilters={handleApplyFilters} 
-                  onClearFilters={handleClearFilters} 
-                />
-              )}
-
-              {config.enableSorting && (
-                <>
-                  <div className="w-px h-5 bg-border mx-1" />
-                  <SortingControls 
-                    availableFields={displayFields.map(f => ({ id: f.id, label: f.label }))} 
-                    sortConfigs={sortConfigs} 
-                    onAddSort={handleAddSort} 
-                    onRemoveSort={handleRemoveSort} 
-                    onToggleDirection={handleToggleDirection} 
-                  />
-                </>
-              )}
             </div>
           </div>
 
@@ -1299,8 +1313,8 @@ export function DynamicTable({
   <div className="h-full w-full overflow-y-auto">
     <Table className="min-w-full">
 
-                <TableHeader className="sticky top-0 z-[5] bg-gradient-to-r from-primary/25 via-primary/15 to-primary/25 border-b-2 border-primary/40">
-                  <TableRow className="border-b border-primary/30 hover:bg-transparent [&>th]:border-r [&>th]:border-primary/20 [&>th:last-child]:border-r-0">
+                <TableHeader className="sticky top-0 z-[5] bg-gradient-to-r from-primary/25 via-primary/15 to-primary/25 border-b-2 border-primary/50">
+                 <TableRow className="border-b border-primary/40 hover:bg-transparent [&>th]:border-r [&>th]:border-primary/40 [&>th:last-child]:border-r-0">
                     <TableHead className="w-10 h-9">
                       <Checkbox checked={paginatedData.length > 0 && paginatedData.every(row => selectedRows.has(row.id))} onCheckedChange={handleSelectAll} aria-label="Select all rows" />
                     </TableHead>
