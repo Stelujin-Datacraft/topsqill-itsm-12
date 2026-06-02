@@ -1277,7 +1277,7 @@ export function DynamicTable({
   <div className="h-full w-full overflow-y-auto">
     <Table className="min-w-full">
 
-                <TableHeader className="sticky top-0 z-[5] bg-primary/5 border-b-2 border-primary/20">
+                <TableHeader className="sticky top-0 z-[5] bg-gradient-to-r from-primary/10 via-primary/5 to-primary/10 border-b-2 border-primary/20">
                   <TableRow className="border-b border-primary/10 hover:bg-transparent">
                     <TableHead className="w-10 h-9">
                       <Checkbox checked={paginatedData.length > 0 && paginatedData.every(row => selectedRows.has(row.id))} onCheckedChange={handleSelectAll} aria-label="Select all rows" />
@@ -1351,7 +1351,7 @@ export function DynamicTable({
                       className={`border-b border-gray-200 transition-all duration-300 cursor-pointer ${
                         selectedRows.has(row.id) ? 'bg-primary/10' : 
                         row.submission_ref_id === highlightedSubmissionRef ? 'bg-yellow-100 border-yellow-300' : 
-                        'bg-white hover:bg-primary/5'
+                        'bg-white hover:bg-gradient-to-r hover:from-primary/5 hover:via-primary/10 hover:to-primary/5'
                       }`}>
                         <TableCell className="py-2 bg-white">
                           <Checkbox checked={selectedRows.has(row.id)} onCheckedChange={checked => handleRowSelect(row.id, Boolean(checked))} aria-label={`Select row ${row.id}`} />
