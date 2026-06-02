@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { FileText, BarChart3, Save, ArrowLeft } from 'lucide-react';
+import { FileText, BarChart3, Save, ArrowLeft, Search } from 'lucide-react';
 import { useForm } from '@/contexts/FormContext';
 import { useFormSubmissionData } from '@/hooks/useFormSubmissionData';
 import { useFormSubmissionAccess } from '@/hooks/useFormSubmissionAccess';
@@ -139,10 +139,41 @@ export default function FormSubmissionsTable() {
 
           {/* Data Table */}
           {selectedFormId ? (
-            <Card className="flex-1 min-h-0 overflow-hidden">
+            <Card className="flex-1 min-h-0 overflow-hidden group hover:shadow-2xl transition-all duration-500">
+              <CardHeader className="bg-gradient-to-r from-emerald-50 to-cyan-50 group-hover:from-emerald-100 group-hover:to-cyan-100 transition-all duration-500 py-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-xl bg-gradient-to-r from-emerald-600 to-cyan-600 bg-clip-text text-transparent">
+                      Smart Data Table
+                    </CardTitle>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Powerful data visualization with filtering, sorting, and real-time updates
+                    </p>
+                  </div>
+                </div>
+              </CardHeader>
               <CardContent className="p-0 h-full">
                 <div className="h-full">
                   <DynamicTable config={tableConfig} />
+                </div>
+                <div className="p-3 border-t bg-muted/30 group-hover:bg-gradient-to-r group-hover:from-emerald-50/50 group-hover:to-cyan-50/50 transition-all duration-500">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Search className="h-3.5 w-3.5" />
+                      <span>Real-time search & filter</span>
+                    </div>
+                    <div className="flex gap-2">
+                      <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 group-hover:bg-emerald-200 transition-all duration-300">
+                        📊 SQL Queries
+                      </Badge>
+                      <Badge variant="secondary" className="bg-cyan-100 text-cyan-700 group-hover:bg-cyan-200 transition-all duration-300">
+                        📈 Live Updates
+                      </Badge>
+                      <Badge variant="secondary" className="bg-purple-100 text-purple-700 group-hover:bg-purple-200 transition-all duration-300">
+                        🔄 Auto-refresh
+                      </Badge>
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
