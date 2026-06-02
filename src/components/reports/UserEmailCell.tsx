@@ -68,7 +68,7 @@ export function UserEmailCell({ userId, fallbackEmail }: UserEmailCellProps) {
       onClick={() => (window.location.href = `mailto:${userEmail}`)}
       title={`Email ${userEmail}`}
     >
-      <div className="w-7 h-7 shrink-0 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-[10px] font-semibold group-hover/user:scale-110 transition-transform duration-200">
+      <div className="w-7 h-7 shrink-0 rounded-full bg-gradient-to-br from-primary to-primary/60 text-primary-foreground flex items-center justify-center text-[10px] font-semibold shadow-sm group-hover/user:scale-110 transition-transform duration-200">
         {initials || '?'}
       </div>
       <div className="min-w-0">
