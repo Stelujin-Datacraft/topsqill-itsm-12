@@ -2113,39 +2113,80 @@ app.get('/me', validateApiKey, async (c) => {
     if (keyRow.created_by) {
       const { data: p } = await supabase
         .from('user_profiles')
-        .select('id, email, first_name, last_name, role, status, mobile, organization_id, created_at')
+        .select('id, email, first_name, last_name, role, mobile, organization_id')
         .eq('id', keyRow.created_by)
         .maybeSingle();
       profile = p;
     }
 
-    const { data: org } = await supabase
-      .from('organizations')
-      .select('id, name, slug, status')
-      .eq('id', keyRow.organization_id)
-      .maybeSingle();
+    const userId = profile?.id ?? null;
+    const orgId = keyRow.organization_id;
+
+    // Assigned project names (via project_users -> projects)
+    let projectNames: string[] = [];
+    if (userId) {
+      const { data: projectRows } = await supabase
+        .from('project_users')
+        .select('project:projects(name, organization_id)')
+        .eq('user_id', userId);
+      projectNames = (projectRows || [])
+        .filter((p: any) => p.project && p.project.organization_id === orgId)
+        .map((p: any) => p.project.name)
+        .filter(Boolean);
+    }
+
+    // Assigned role names (via user_role_assignments -> roles)
+    let roleNames: string[] = [];
+    if (userId) {
+      const { data: roleRows } = await supabase
+        .from('user_role_assignments')
+        .select('role:roles(name, organization_id)')
+        .eq('user_id', userId);
+      roleNames = (roleRows || [])
+        .filter((r: any) => r.role && r.role.organization_id === orgId)
+        .map((r: any) => r.role.name)
+        .filter(Boolean);
+    }
+
+    // Assigned group names (via group_memberships -> groups)
+    let groupNames: string[] = [];
+    if (userId) {
+      const { data: groupRows } = await supabase
+        .from('group_memberships')
+        .select('group:groups(name, organization_id)')
+        .eq('member_id', userId)
+        .eq('member_type', 'user');
+      groupNames = (groupRows || [])
+        .filter((g: any) => g.group && g.group.organization_id === orgId)
+        .map((g: any) => g.group.name)
+        .filter(Boolean);
+    }
+
+    // Assigned security template name (via user_security_parameters -> security_templates)
+    let templateNames: string[] = [];
+    if (userId) {
+      const { data: usp } = await supabase
+        .from('user_security_parameters')
+        .select('security_template:security_templates(name)')
+        .eq('user_id', userId)
+        .eq('organization_id', orgId);
+      templateNames = (usp || [])
+        .map((u: any) => u.security_template?.name)
+        .filter(Boolean);
+    }
 
     // Flatten to a single tabular row (like a SQL SELECT result)
     const row = {
-      user_id: profile?.id ?? null,
+      user_id: userId,
       email: profile?.email ?? null,
       first_name: profile?.first_name ?? null,
       last_name: profile?.last_name ?? null,
       role: profile?.role ?? null,
-      status: profile?.status ?? null,
       mobile: profile?.mobile ?? null,
-      organization_id: keyRow.organization_id,
-      organization_name: org?.name ?? null,
-      organization_slug: org?.slug ?? null,
-      organization_status: org?.status ?? null,
-      api_key_id: keyRow.id,
-      api_key_name: keyRow.name,
-      api_key_permissions: keyRow.permissions,
-      rate_limit_per_minute: keyRow.rate_limit_per_minute,
-      last_used_at: keyRow.last_used_at,
-      expires_at: keyRow.expires_at,
-      project_id: keyRow.project_id,
-      user_created_at: profile?.created_at ?? null,
+      project_assigned_name: projectNames.join(', '),
+      role_assigned_name: roleNames.join(', '),
+      group_assigned_name: groupNames.join(', '),
+      template_assigned_name: templateNames.join(', '),
     };
 
     const url = new URL(c.req.url);
