@@ -182,12 +182,12 @@ export function ManualWorkflowTrigger({
             handleTriggerWorkflow(workflow);
           }}
           disabled={isExecuting}
-          className={`h-6 w-6 p-0 ${
+          className={`h-6 w-6 p-0 hover:bg-emerald-500/10 ${
             result === 'success'
               ? 'text-green-600'
               : result === 'failed'
               ? 'text-red-600'
-              : ''
+              : 'text-emerald-500'
           }`}
           title={`Run workflow: ${workflow.name}`}
         >
@@ -240,7 +240,7 @@ export function ManualWorkflowTrigger({
           variant={compact ? "ghost" : "outline"} 
           size="sm" 
           disabled={executing !== null}
-          className={compact ? "h-6 w-6 p-0" : ""}
+          className={compact ? "h-6 w-6 p-0 hover:bg-emerald-500/10 text-emerald-500" : ""}
           title={compact ? "Run workflow" : undefined}
           onClick={(e) => compact && e.stopPropagation()}
         >
