@@ -1982,5 +1982,241 @@ app.delete('/reports/:id', validateApiKey, async (c) => {
   return c.json({ message: 'Report deleted successfully' }, 200, corsHeaders);
 });
 
+// =============================================
+// USERS ENDPOINTS (admin-only)
+// =============================================
+
+// Build a complete user payload: profile + roles + groups + projects + permissions + recent activity
+async function buildFullUserPayload(supabase: any, userId: string, organizationId: string) {
+  // 1. Profile
+  const { data: profile, error: profileErr } = await supabase
+    .from('user_profiles')
+    .select('id, email, first_name, last_name, role, status, mobile, nationality, gender, timezone, organization_id, created_at, updated_at')
+    .eq('id', userId)
+    .eq('organization_id', organizationId)
+    .maybeSingle();
+
+  if (profileErr) throw profileErr;
+  if (!profile) return null;
+
+  // 2. Organization
+  const { data: organization } = await supabase
+    .from('organizations')
+    .select('id, name, domain, status')
+    .eq('id', profile.organization_id)
+    .maybeSingle();
+
+  // 3. Roles (via user_role_assignments -> roles)
+  const { data: roleRows } = await supabase
+    .from('user_role_assignments')
+    .select('assigned_at, assigned_by, role:roles(id, name, description, top_level_access, organization_id)')
+    .eq('user_id', userId);
+
+  const roles = (roleRows || [])
+    .filter((r: any) => r.role && r.role.organization_id === organizationId)
+    .map((r: any) => ({
+      id: r.role.id,
+      name: r.role.name,
+      description: r.role.description,
+      top_level_access: r.role.top_level_access,
+      assigned_at: r.assigned_at,
+      assigned_by: r.assigned_by,
+    }));
+
+  // 4. Groups (group_memberships where member_type='user')
+  const { data: groupRows } = await supabase
+    .from('group_memberships')
+    .select('added_at, added_by, group:groups(id, name, organization_id, role_id)')
+    .eq('member_id', userId)
+    .eq('member_type', 'user');
+
+  const groups = (groupRows || [])
+    .filter((g: any) => g.group && g.group.organization_id === organizationId)
+    .map((g: any) => ({
+      id: g.group.id,
+      name: g.group.name,
+      role_id: g.group.role_id,
+      added_at: g.added_at,
+      added_by: g.added_by,
+    }));
+
+  // 5. Projects (project_users -> projects)
+  const { data: projectRows } = await supabase
+    .from('project_users')
+    .select('role, assigned_at, assigned_by, project:projects(id, name, description, status, organization_id)')
+    .eq('user_id', userId);
+
+  const projects = (projectRows || [])
+    .filter((p: any) => p.project && p.project.organization_id === organizationId)
+    .map((p: any) => ({
+      id: p.project.id,
+      name: p.project.name,
+      description: p.project.description,
+      status: p.project.status,
+      project_role: p.role,
+      assigned_at: p.assigned_at,
+      assigned_by: p.assigned_by,
+    }));
+
+  // 6. Effective permissions (best-effort via RPC if it exists)
+  let effective_permissions: any = null;
+  try {
+    const { data: permData } = await supabase.rpc('get_user_effective_permissions', {
+      user_id_param: userId,
+    });
+    effective_permissions = permData ?? null;
+  } catch (_) {
+    effective_permissions = null;
+  }
+
+  // 7. Recent activity (last 20 audit log entries)
+  const { data: activity } = await supabase
+    .from('audit_logs')
+    .select('id, event_type, event_category, description, ip_address, created_at')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(20);
+
+  // Strip sensitive fields from profile before returning
+  const { ...safeProfile } = profile;
+
+  return {
+    ...safeProfile,
+    organization,
+    roles,
+    groups,
+    projects,
+    effective_permissions,
+    recent_activity: activity || [],
+  };
+}
+
+// GET /users — search/filter list
+app.get('/users', validateApiKey, async (c) => {
+  const keyInfo = c.get('apiKeyInfo');
+
+  if (!hasPermission(keyInfo, 'users', 'read')) {
+    await logRequest(c, 403, 'Permission denied: users.read');
+    return c.json({ error: 'Permission denied. This endpoint requires users.read (admin) permission.', code: 'PERMISSION_DENIED' }, 403, corsHeaders);
+  }
+
+  const supabase = getServiceClient();
+
+  const url = new URL(c.req.url);
+  const search = url.searchParams.get('search')?.trim();
+  const email = url.searchParams.get('email')?.trim();
+  const role = url.searchParams.get('role')?.trim();
+  const status = url.searchParams.get('status')?.trim();
+  const groupId = url.searchParams.get('group_id')?.trim();
+  const projectId = url.searchParams.get('project_id')?.trim();
+  const limit = Math.min(parseInt(url.searchParams.get('limit') || '50', 10) || 50, 200);
+  const offset = parseInt(url.searchParams.get('offset') || '0', 10) || 0;
+  const fullParam = (url.searchParams.get('full') || 'false').toLowerCase();
+  const wantFull = fullParam === 'true' || fullParam === '1';
+
+  // Optional filter narrowing by group/project membership
+  let memberIds: string[] | null = null;
+  if (groupId) {
+    const { data: gm } = await supabase
+      .from('group_memberships')
+      .select('member_id')
+      .eq('group_id', groupId)
+      .eq('member_type', 'user');
+    memberIds = (gm || []).map((r: any) => r.member_id);
+    if (memberIds.length === 0) {
+      await logRequest(c, 200);
+      return c.json({ data: [], count: 0, total: 0, limit, offset }, 200, corsHeaders);
+    }
+  }
+  if (projectId) {
+    const { data: pu } = await supabase
+      .from('project_users')
+      .select('user_id')
+      .eq('project_id', projectId);
+    const ids = (pu || []).map((r: any) => r.user_id);
+    memberIds = memberIds ? memberIds.filter((id) => ids.includes(id)) : ids;
+    if (memberIds.length === 0) {
+      await logRequest(c, 200);
+      return c.json({ data: [], count: 0, total: 0, limit, offset }, 200, corsHeaders);
+    }
+  }
+
+  let query = supabase
+    .from('user_profiles')
+    .select('id, email, first_name, last_name, role, status, mobile, organization_id, created_at, updated_at', { count: 'exact' })
+    .eq('organization_id', keyInfo.organization_id);
+
+  if (email) query = query.ilike('email', email);
+  if (role) query = query.eq('role', role);
+  if (status) query = query.eq('status', status);
+  if (search) {
+    const s = `%${search}%`;
+    query = query.or(`email.ilike.${s},first_name.ilike.${s},last_name.ilike.${s}`);
+  }
+  if (memberIds) query = query.in('id', memberIds);
+
+  query = query.order('created_at', { ascending: false }).range(offset, offset + limit - 1);
+
+  const { data, error, count } = await query;
+  if (error) {
+    await logRequest(c, 500, error.message);
+    return c.json({ error: 'Failed to fetch users', details: error.message }, 500, corsHeaders);
+  }
+
+  let result: any[] = data || [];
+  if (wantFull && result.length > 0) {
+    result = await Promise.all(
+      result.map((u: any) => buildFullUserPayload(supabase, u.id, keyInfo.organization_id))
+    );
+    result = result.filter(Boolean);
+  }
+
+  await logRequest(c, 200);
+  return c.json({ data: result, count: result.length, total: count ?? result.length, limit, offset }, 200, corsHeaders);
+});
+
+// GET /users/:id — full profile + roles + groups + projects + permissions + activity
+app.get('/users/:id', validateApiKey, async (c) => {
+  const keyInfo = c.get('apiKeyInfo');
+
+  if (!hasPermission(keyInfo, 'users', 'read')) {
+    await logRequest(c, 403, 'Permission denied: users.read');
+    return c.json({ error: 'Permission denied. This endpoint requires users.read (admin) permission.', code: 'PERMISSION_DENIED' }, 403, corsHeaders);
+  }
+
+  const supabase = getServiceClient();
+  const idOrEmail = c.req.param('id');
+
+  // Allow lookup by UUID or email
+  let userId = idOrEmail;
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrEmail);
+  if (!isUuid) {
+    const { data: byEmail } = await supabase
+      .from('user_profiles')
+      .select('id')
+      .eq('email', idOrEmail)
+      .eq('organization_id', keyInfo.organization_id)
+      .maybeSingle();
+    if (!byEmail) {
+      await logRequest(c, 404, 'User not found');
+      return c.json({ error: 'User not found' }, 404, corsHeaders);
+    }
+    userId = byEmail.id;
+  }
+
+  try {
+    const payload = await buildFullUserPayload(supabase, userId, keyInfo.organization_id);
+    if (!payload) {
+      await logRequest(c, 404, 'User not found');
+      return c.json({ error: 'User not found in your organization' }, 404, corsHeaders);
+    }
+    await logRequest(c, 200);
+    return c.json({ data: payload }, 200, corsHeaders);
+  } catch (err: any) {
+    await logRequest(c, 500, err?.message || 'Internal error');
+    return c.json({ error: 'Failed to fetch user', details: err?.message }, 500, corsHeaders);
+  }
+});
+
 // Main handler
 Deno.serve(app.fetch);
