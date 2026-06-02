@@ -2081,6 +2081,41 @@ export function DataFeedDialog({
                           </Select>
                         </div>
                       </div>
+
+                      {(() => {
+                        const tgt = targetFields.find(f => f.id === mapping.targetFieldId);
+                        const isDate = tgt && ['date', 'datetime', 'datetime-local', 'time'].includes(tgt.field_type);
+                        if (!isDate) return null;
+                        return (
+                          <div className="space-y-2">
+                            <Label className="text-sm">Source date format</Label>
+                            <Select
+                              value={mapping.sourceDateFormat || 'auto'}
+                              onValueChange={(value) => updateFieldMapping(index, 'sourceDateFormat', value)}
+                            >
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="auto">Auto-detect</SelectItem>
+                                <SelectItem value="YYYY-MM-DD">YYYY-MM-DD (ISO)</SelectItem>
+                                <SelectItem value="DD/MM/YYYY">DD/MM/YYYY</SelectItem>
+                                <SelectItem value="MM/DD/YYYY">MM/DD/YYYY</SelectItem>
+                                <SelectItem value="DD-MM-YYYY">DD-MM-YYYY</SelectItem>
+                                <SelectItem value="DD.MM.YYYY">DD.MM.YYYY</SelectItem>
+                                <SelectItem value="DD MMM YYYY">DD MMM YYYY (e.g. 15 Jan 2025)</SelectItem>
+                                <SelectItem value="MMM DD YYYY">MMM DD YYYY (e.g. Jan 15 2025)</SelectItem>
+                                <SelectItem value="excel_serial">Excel serial number</SelectItem>
+                                <SelectItem value="unix_seconds">Unix timestamp (seconds)</SelectItem>
+                                <SelectItem value="unix_ms">Unix timestamp (ms)</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <p className="text-xs text-muted-foreground">
+                              Value will be normalized to ISO (YYYY-MM-DD). Unparseable rows are logged and the field skipped.
+                            </p>
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
                 ))}
