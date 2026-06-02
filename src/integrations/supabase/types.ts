@@ -1066,6 +1066,7 @@ export type Database = {
           errors_count: number | null
           id: string
           records_created: number | null
+          records_deleted: number | null
           records_processed: number | null
           records_skipped: number | null
           records_updated: number | null
@@ -1081,6 +1082,7 @@ export type Database = {
           errors_count?: number | null
           id?: string
           records_created?: number | null
+          records_deleted?: number | null
           records_processed?: number | null
           records_skipped?: number | null
           records_updated?: number | null
@@ -1096,6 +1098,7 @@ export type Database = {
           errors_count?: number | null
           id?: string
           records_created?: number | null
+          records_deleted?: number | null
           records_processed?: number | null
           records_skipped?: number | null
           records_updated?: number | null

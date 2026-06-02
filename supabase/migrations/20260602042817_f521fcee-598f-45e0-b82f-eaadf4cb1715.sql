@@ -1,0 +1,1 @@
+ALTER TABLE public.data_feed_runs ADD COLUMN IF NOT EXISTS records_deleted integer DEFAULT 0;
