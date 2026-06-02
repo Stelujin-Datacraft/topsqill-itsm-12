@@ -102,40 +102,33 @@ export default function FormSubmissionsTable() {
         </div>
       }
     >
-        <div className="space-y-6 h-full">
-          {/* Form Selection Header */}
-          <Card>
-            <CardHeader className="pb-4">
-              <div className="flex items-center justify-between">
-                <div className="space-y-2">
-                  <CardTitle className="text-2xl">Select Form</CardTitle>
-                  <Select value={selectedFormId} onValueChange={setSelectedFormId}>
-                    <SelectTrigger className="w-80">
-                      <SelectValue placeholder="Choose a form to view submissions" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {accessibleForms.map(form => (
-                        <SelectItem key={form.id} value={form.id}>
-                          <div className="flex items-center justify-between w-full">
-                            <span>{form.name}</span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {selectedForm && (
-                  <div className="text-right">
-                    <h3 className="font-semibold text-lg">{selectedForm.name}</h3>
-                    <p className="text-sm text-muted-foreground">
-                      {loading ? 'Loading...' : `${submissions.length} total submissions`}
-                    </p>
-                  </div>
-                )}
+        <div className="space-y-3 h-full flex flex-col">
+          {/* Form Selection Header (compact) */}
+          <div className="flex items-center justify-between gap-3 px-3 py-2 rounded-md border bg-card">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Form:</span>
+              <Select value={selectedFormId} onValueChange={setSelectedFormId}>
+                <SelectTrigger className="w-72 h-8 text-sm">
+                  <SelectValue placeholder="Choose a form to view submissions" />
+                </SelectTrigger>
+                <SelectContent>
+                  {accessibleForms.map(form => (
+                    <SelectItem key={form.id} value={form.id}>
+                      <span>{form.name}</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {selectedForm && (
+              <div className="text-right">
+                <span className="text-sm font-semibold">{selectedForm.name}</span>
+                <span className="text-xs text-muted-foreground ml-2">
+                  {loading ? 'Loading…' : `${submissions.length} total`}
+                </span>
               </div>
-            </CardHeader>
-          </Card>
+            )}
+          </div>
 
           {/* Data Table */}
           {selectedFormId ? (
