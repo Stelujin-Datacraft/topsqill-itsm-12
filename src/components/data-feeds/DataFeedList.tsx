@@ -163,7 +163,7 @@ export function DataFeedList({
                   )}
                   {feed.last_run_stats && (
                     <div className="text-muted-foreground">
-                      ({feed.last_run_stats.recordsUpdated} updated, {feed.last_run_stats.recordsCreated} created)
+                      ({feed.last_run_stats.recordsUpdated} updated, {feed.last_run_stats.recordsCreated} created, {feed.last_run_stats.recordsDeleted ?? 0} deleted)
                     </div>
                   )}
                 </div>

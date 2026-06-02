@@ -126,7 +126,7 @@ export function DataFeedHistoryDialog({ open, onOpenChange, feed }: DataFeedHist
                           </Badge>
                         </div>
                         <div className="text-sm text-muted-foreground">
-                          Processed: {run.records_processed} | Updated: {run.records_updated} | Created: {run.records_created}
+                          Processed: {run.records_processed} | Updated: {run.records_updated} | Created: {run.records_created} | Deleted: {run.records_deleted ?? 0}
                           {run.errors_count > 0 && (
                             <span className="text-destructive"> | Errors: {run.errors_count}</span>
                           )}

@@ -173,6 +173,7 @@ export interface DataFeedRun {
   records_processed: number;
   records_updated: number;
   records_created: number;
+  records_deleted: number;
   records_skipped: number;
   errors_count: number;
   run_log: { type: string; message: string; timestamp: string; input?: any; output?: any }[];
