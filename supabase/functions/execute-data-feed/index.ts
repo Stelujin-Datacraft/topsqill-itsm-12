@@ -1220,6 +1220,7 @@ Deno.serve(async (req) => {
       const matchingLogic = feed.matching_logic as string | undefined;
       const sourceFilters = (feed.source_filters || []) as SourceFilter[];
       const sourceFilterLogic = feed.source_filter_logic as string | undefined;
+      const globalSourceDateFormat: string = (feed as any).source_date_format || 'auto';
 
       // Load target field metadata (type + options) for value coercion
       // Supports multi-select / dropdown / radio / checkbox matching by VALUE or LABEL
