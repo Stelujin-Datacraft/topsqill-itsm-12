@@ -2272,7 +2272,7 @@ app.get('/users', validateApiKey, async (c) => {
 
   let query = supabase
     .from('user_profiles')
-    .select('id, email, first_name, last_name, role, status, mobile, organization_id, created_at, updated_at', { count: 'exact' })
+    .select('id, email, first_name, last_name, role, mobile, organization_id, created_at', { count: 'exact' })
     .eq('organization_id', keyInfo.organization_id);
 
   if (email) query = query.ilike('email', email);
@@ -2292,16 +2292,122 @@ app.get('/users', validateApiKey, async (c) => {
     return c.json({ error: 'Failed to fetch users', details: error.message }, 500, corsHeaders);
   }
 
-  let result: any[] = data || [];
-  if (wantFull && result.length > 0) {
-    result = await Promise.all(
-      result.map((u: any) => buildFullUserPayload(supabase, u.id, keyInfo.organization_id))
-    );
-    result = result.filter(Boolean);
+  const users = data || [];
+  const orgId = keyInfo.organization_id;
+
+  // If caller asked for the legacy nested full payload, keep that behavior
+  if (wantFull && users.length > 0) {
+    const full = (await Promise.all(
+      users.map((u: any) => buildFullUserPayload(supabase, u.id, orgId))
+    )).filter(Boolean);
+    await logRequest(c, 200);
+    return c.json({ data: full, count: full.length, total: count ?? full.length, limit, offset }, 200, corsHeaders);
   }
 
+  // Default: SQL-style flat row per user with project/role/group/template names
+  const userIds = users.map((u: any) => u.id);
+
+  const accProjects = new Map<string, string[]>();
+  const accRoles = new Map<string, string[]>();
+  const accGroups = new Map<string, string[]>();
+  const accTemplates = new Map<string, string[]>();
+
+  if (userIds.length > 0) {
+    const [{ data: projectRows }, { data: roleRows }, { data: groupRows }, { data: uspRows }] = await Promise.all([
+      supabase
+        .from('project_users')
+        .select('user_id, project:projects(name, organization_id)')
+        .in('user_id', userIds),
+      supabase
+        .from('user_role_assignments')
+        .select('user_id, role:roles(name, organization_id)')
+        .in('user_id', userIds),
+      supabase
+        .from('group_memberships')
+        .select('member_id, group:groups(name, organization_id)')
+        .in('member_id', userIds)
+        .eq('member_type', 'user'),
+      supabase
+        .from('user_security_parameters')
+        .select('user_id, security_template:security_templates(name)')
+        .in('user_id', userIds)
+        .eq('organization_id', orgId),
+    ]);
+
+    for (const r of projectRows || []) {
+      if (r.project && r.project.organization_id === orgId && r.project.name) {
+        const arr = accProjects.get(r.user_id) || [];
+        arr.push(r.project.name);
+        accProjects.set(r.user_id, arr);
+      }
+    }
+    for (const r of roleRows || []) {
+      if (r.role && r.role.organization_id === orgId && r.role.name) {
+        const arr = accRoles.get(r.user_id) || [];
+        arr.push(r.role.name);
+        accRoles.set(r.user_id, arr);
+      }
+    }
+    for (const r of groupRows || []) {
+      if (r.group && r.group.organization_id === orgId && r.group.name) {
+        const arr = accGroups.get(r.member_id) || [];
+        arr.push(r.group.name);
+        accGroups.set(r.member_id, arr);
+      }
+    }
+    for (const r of uspRows || []) {
+      const name = r.security_template?.name;
+      if (name) {
+        const arr = accTemplates.get(r.user_id) || [];
+        arr.push(name);
+        accTemplates.set(r.user_id, arr);
+      }
+    }
+  }
+
+  const rows = users.map((u: any) => ({
+    user_id: u.id,
+    email: u.email,
+    first_name: u.first_name,
+    last_name: u.last_name,
+    role: u.role,
+    mobile: u.mobile,
+    project_assigned_name: (accProjects.get(u.id) || []).join(', '),
+    role_assigned_name: (accRoles.get(u.id) || []).join(', '),
+    group_assigned_name: (accGroups.get(u.id) || []).join(', '),
+    template_assigned_name: (accTemplates.get(u.id) || []).join(', '),
+  }));
+
+  const columns = rows[0] ? Object.keys(rows[0]) : [
+    'user_id','email','first_name','last_name','role','mobile',
+    'project_assigned_name','role_assigned_name','group_assigned_name','template_assigned_name'
+  ];
+
+  const format = (url.searchParams.get('format') || 'json').toLowerCase();
   await logRequest(c, 200);
-  return c.json({ data: result, count: result.length, total: count ?? result.length, limit, offset }, 200, corsHeaders);
+
+  if (format === 'csv') {
+    const esc = (v: any) => {
+      if (v === null || v === undefined) return '';
+      const s = typeof v === 'object' ? JSON.stringify(v) : String(v);
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const lines = [columns.join(',')];
+    for (const r of rows) lines.push(columns.map((k) => esc((r as any)[k])).join(','));
+    return new Response(lines.join('\n') + '\n', {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'text/csv; charset=utf-8' },
+    });
+  }
+
+  return c.json({
+    data: rows,
+    row_count: rows.length,
+    total: count ?? rows.length,
+    limit,
+    offset,
+    columns,
+  }, 200, corsHeaders);
 });
 
 // GET /users/:id — full profile + roles + groups + projects + permissions + activity
