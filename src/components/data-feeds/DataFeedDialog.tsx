@@ -1162,7 +1162,8 @@ export function DataFeedDialog({
                 </div>
               )}
 
-              {/* Global Source Date Format — applied to matching rules + field mappings for any date target field */}
+              {/* Global Source Date Format — only shown when the source actually has a date/datetime/time field */}
+              {sourceFields.some(f => ['date', 'datetime', 'datetime-local', 'time'].includes(String(f.field_type).toLowerCase())) && (
               <div className="space-y-2 pt-4 border-t">
                 <Label>Source Date Format</Label>
                 <Select
@@ -1186,6 +1187,7 @@ export function DataFeedDialog({
                   How dates from this source are formatted. Used when matching records and when writing values into date fields. Leave on Auto-detect for ISO (YYYY-MM-DD) sources.
                 </p>
               </div>
+              )}
 
               {/* Show discovered fields */}
               {discoveredFields.length > 0 && (
