@@ -191,7 +191,12 @@ export function DataFeedDialog({
         ...f,
         options: f.options as { label: string; value: string }[] | undefined
       }));
-      setSourceFields(fields);
+      // Inject synthetic system fields so users can match on the record's submission ID
+      const systemFields: FieldOption[] = [
+        { id: '__submission_id__', label: 'Submission ID (record UUID)', field_type: 'text' },
+        { id: '__submission_ref_id__', label: 'Submission Ref ID (e.g. REC-001)', field_type: 'text' },
+      ];
+      setSourceFields([...systemFields, ...fields]);
       
       const crossRefs = fields.filter(f => f.field_type === 'cross-reference');
       setCrossRefFields(crossRefs);
@@ -244,7 +249,11 @@ export function DataFeedDialog({
         .eq('form_id', formData.target_form_id)
         .order('field_order');
 
-      setTargetFields(data || []);
+      const systemFields: FieldOption[] = [
+        { id: '__submission_id__', label: 'Submission ID (record UUID)', field_type: 'text' },
+        { id: '__submission_ref_id__', label: 'Submission Ref ID (e.g. REC-001)', field_type: 'text' },
+      ];
+      setTargetFields([...systemFields, ...(data || [])]);
     };
 
     fetchFields();
