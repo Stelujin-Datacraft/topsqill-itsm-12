@@ -11,6 +11,7 @@ export function NavMain({
     icon?: LucideIcon
     isActive?: boolean
     isDisabled?: boolean
+    iconColor?: string
   }[]
 }) {
   const location = useLocation()
@@ -32,7 +33,11 @@ export function NavMain({
                 <Link 
                   to={item.url}
                 >
-                  {item.icon && <item.icon className={active ? 'text-accent' : 'text-sidebar-foreground'} />}
+                  {item.icon && (
+                    <item.icon
+                      className={active ? 'text-accent' : (item.iconColor ?? 'text-sidebar-foreground')}
+                    />
+                  )}
                   <span>{item.title}</span>
                 </Link>
               </SidebarMenuButton>
