@@ -162,7 +162,7 @@ export function PortfolioDashboard() {
     <div className="space-y-4 mb-8">
       <div>
         <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-          <Shield className="h-5 w-5 text-primary" />
+          <Shield className="h-5 w-5 text-module-compliance" />
           Portfolio Governance & Risk Overview
         </h2>
         <p className="text-xs text-muted-foreground">Cross-project aggregated risk scoring, governance compliance, and health monitoring</p>
@@ -273,7 +273,7 @@ export function PortfolioDashboard() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
-              <BarChart3 className="h-4 w-4 text-primary" />
+              <BarChart3 className="h-4 w-4 text-module-reports" />
               Governance Compliance
             </CardTitle>
             <CardDescription className="text-xs">Monitoring coverage and control status</CardDescription>

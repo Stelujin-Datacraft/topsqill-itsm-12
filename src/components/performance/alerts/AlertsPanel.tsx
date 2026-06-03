@@ -47,7 +47,7 @@ export function AlertsPanel({ alerts, loading, updateAlertStatus }: Props) {
               <CardContent className="py-4">
                 <div className="flex items-start justify-between">
                   <div className="flex items-start gap-3">
-                    {alert.ai_generated ? <Brain className="h-5 w-5 text-primary mt-0.5" /> : <AlertTriangle className="h-5 w-5 text-orange-500 mt-0.5" />}
+                    {alert.ai_generated ? <Brain className="h-5 w-5 text-module-workflows mt-0.5" /> : <AlertTriangle className="h-5 w-5 text-orange-500 mt-0.5" />}
                     <div>
                       <div className="flex items-center gap-2">
                         <p className="font-medium text-sm text-foreground">{alert.title}</p>

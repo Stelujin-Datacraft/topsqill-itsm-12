@@ -112,7 +112,7 @@ export function TeamSwitcher({
                     <div className="truncate text-sm">{org.name}</div>
                     <div className="truncate text-xs text-muted-foreground capitalize">{org.role}</div>
                   </div>
-                  {isActive && <Check className="size-4 text-primary" />}
+                  {isActive && <Check className="size-4 text-module-performance" />}
                 </DropdownMenuItem>
               )
             })}

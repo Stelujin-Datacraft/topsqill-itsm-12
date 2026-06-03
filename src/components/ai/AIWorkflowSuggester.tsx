@@ -211,7 +211,7 @@ export function AIWorkflowSuggester({
       <DialogContent className="max-w-5xl max-h-[90vh]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <GitBranch className="h-5 w-5 text-primary" />
+            <GitBranch className="h-5 w-5 text-module-workflows" />
             AI Workflow Suggester
           </DialogTitle>
           <DialogDescription>

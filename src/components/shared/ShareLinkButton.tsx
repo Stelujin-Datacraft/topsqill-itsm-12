@@ -58,7 +58,7 @@ export function ShareLinkButton({
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant={variant} size={size} title={`Share ${assetName}`}>
-          <Share2 className="h-4 w-4 text-primary" />
+          <Share2 className="h-4 w-4 text-module-relationship" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">

@@ -183,7 +183,7 @@ export function SubmissionCommentBox({ open, onOpenChange, submissionId, formFie
       <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <MessageSquare className="h-5 w-5 text-primary" />
+            <MessageSquare className="h-5 w-5 text-module-email" />
             Field Comments
           </DialogTitle>
         </DialogHeader>

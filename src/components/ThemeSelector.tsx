@@ -60,7 +60,7 @@ export function ThemeSelector() {
                 <p className="text-[11px] font-medium truncate">{theme.name}</p>
               </div>
               {currentTheme.id === theme.id && (
-                <Check className="h-3.5 w-3.5 text-primary shrink-0" />
+                <Check className="h-3.5 w-3.5 text-module-performance shrink-0" />
               )}
             </button>
           ))}

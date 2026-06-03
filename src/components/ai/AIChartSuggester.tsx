@@ -135,7 +135,7 @@ export function AIChartSuggester({
       <DialogContent className="max-w-4xl max-h-[90vh]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <BarChart3 className="h-5 w-5 text-primary" />
+            <BarChart3 className="h-5 w-5 text-module-reports" />
             AI Chart Suggestions
           </DialogTitle>
           <DialogDescription>

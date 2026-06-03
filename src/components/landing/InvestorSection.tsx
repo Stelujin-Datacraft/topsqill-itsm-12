@@ -59,7 +59,7 @@ export default function InvestorSection() {
           <Card className="bg-white/80 backdrop-blur-sm border-border/50 hover:bg-white hover:shadow-lg transition-all duration-300">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-foreground">
-                <Target className="h-5 w-5 text-primary" />
+                <Target className="h-5 w-5 text-module-performance" />
                 Market Opportunity
               </CardTitle>
             </CardHeader>

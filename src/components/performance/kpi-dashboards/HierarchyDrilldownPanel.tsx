@@ -229,7 +229,7 @@ export function HierarchyDrilldownPanel({ selectedProject, hierarchy, loading, k
 
       {/* Current Level Header */}
       <div className="flex items-center gap-2">
-        <Network className="h-4 w-4 text-primary" />
+        <Network className="h-4 w-4 text-module-relationship" />
         <h3 className="text-sm font-semibold text-foreground">
           {LEVEL_LABELS[currentLevel]} Detail
         </h3>

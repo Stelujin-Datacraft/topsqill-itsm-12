@@ -245,7 +245,7 @@ export function ProjectLocationMap({ perfProjectId }: Props) {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-            <MapPin className="h-5 w-5 text-primary" />
+            <MapPin className="h-5 w-5 text-module-itam" />
             GIS & Engineering Intelligence
           </h2>
           <p className="text-sm text-muted-foreground">
@@ -463,7 +463,7 @@ export function ProjectLocationMap({ perfProjectId }: Props) {
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4 text-primary" />
+                  <AlertTriangle className="h-4 w-4 text-module-compliance" />
                   Geospatial Risk
                 </CardTitle>
                 <CardDescription className="text-xs">Spatial risk cluster detection</CardDescription>

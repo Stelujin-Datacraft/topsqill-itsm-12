@@ -68,7 +68,7 @@ export function LifecycleHistoryDialog({
       <DialogContent className="sm:max-w-[550px] max-h-[80vh]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Clock className="h-5 w-5 text-primary" />
+            <Clock className="h-5 w-5 text-module-workflows" />
             Stage History - {fieldLabel}
           </DialogTitle>
         </DialogHeader>
@@ -148,7 +148,7 @@ export function LifecycleHistoryDialog({
                       {entry.comment && (
                         <div className="mt-2 pt-2 border-t">
                           <div className="flex items-start gap-2">
-                            <MessageSquare className="h-3 w-3 mt-0.5 text-primary" />
+                            <MessageSquare className="h-3 w-3 mt-0.5 text-module-email" />
                             <p className="text-sm italic text-foreground">"{entry.comment}"</p>
                           </div>
                         </div>

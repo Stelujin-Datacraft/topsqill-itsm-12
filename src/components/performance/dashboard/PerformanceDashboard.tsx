@@ -354,7 +354,7 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                <BarChart3 className="h-5 w-5 text-primary" />
+                <BarChart3 className="h-5 w-5 text-module-reports" />
               </div>
               <div>
                 <CardTitle className="text-lg">Performance Dashboard</CardTitle>
@@ -439,7 +439,7 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
         <Card className="border-dashed border-2">
           <CardContent className="flex flex-col items-center justify-center py-16">
             <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-              <FileText className="h-8 w-8 text-primary" />
+              <FileText className="h-8 w-8 text-module-forms" />
             </div>
             <p className="font-semibold text-lg text-foreground">Select a Record to Begin</p>
             <p className="text-sm text-muted-foreground mt-1 max-w-md text-center">
@@ -472,7 +472,7 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
                   )}
                 </div>
                 <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                  <Brain className="h-6 w-6 text-primary" />
+                  <Brain className="h-6 w-6 text-module-workflows" />
                 </div>
               </div>
             </CardContent>
@@ -546,7 +546,7 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2 text-base">
                   <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <Brain className="h-4 w-4 text-primary" />
+                    <Brain className="h-4 w-4 text-module-workflows" />
                   </div>
                   AI Analysis Summary
                 </CardTitle>

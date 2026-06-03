@@ -211,7 +211,7 @@ export function SecurityTemplatesManager({ open, onOpenChange, inline = false }:
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Shield className="h-5 w-5 text-primary" />
+                  <Shield className="h-5 w-5 text-module-compliance" />
                 </div>
                 <div>
                 <CardTitle className="text-xl">Security Templates</CardTitle>
@@ -237,7 +237,7 @@ export function SecurityTemplatesManager({ open, onOpenChange, inline = false }:
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Shield className="h-5 w-5 text-primary" />
+                  <Shield className="h-5 w-5 text-module-compliance" />
                 </div>
                 <div>
                   <DialogTitle className="text-xl">Security Templates</DialogTitle>

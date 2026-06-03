@@ -355,7 +355,7 @@ export function SelectFieldConfig({ config, onUpdate, errors, fieldType, formId 
               {/* Visibility Condition */}
               <div className="rounded-lg border bg-muted/30 p-3 space-y-3">
                 <div className="flex items-center gap-3">
-                  <Eye className="h-4 w-4 text-primary" />
+                  <Eye className="h-4 w-4 text-module-overview" />
                   <div>
                     <div className="text-sm font-medium">Visibility Condition</div>
                     <p className="text-xs text-muted-foreground">Control when this lifecycle bar appears</p>

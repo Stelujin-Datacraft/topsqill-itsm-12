@@ -188,7 +188,7 @@ export default function FormBuilderMini() {
             {/* Properties Panel */}
             <div className="border-l bg-muted/20 p-4">
               <div className="flex items-center gap-2 mb-4">
-                <Settings className="h-5 w-5 text-primary"/>
+                <Settings className="h-5 w-5 text-module-overview"/>
                 <span className="font-semibold">Properties</span>
               </div>
               

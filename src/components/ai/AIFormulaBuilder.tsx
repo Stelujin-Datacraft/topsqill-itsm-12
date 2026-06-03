@@ -206,7 +206,7 @@ export function AIFormulaBuilder({
       <DialogContent className="max-w-2xl max-h-[85vh]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary" />
+            <Sparkles className="h-5 w-5 text-module-workflows" />
             {config.title}
           </DialogTitle>
           <DialogDescription>

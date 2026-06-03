@@ -459,7 +459,7 @@ export function KPIValidationInsight({ kpiLabel, breakdown, context, onClose }: 
     <Card className="border-primary/20 bg-gradient-to-br from-card via-card to-muted/20 shadow-sm animate-in slide-in-from-top-2 duration-200">
       <CardHeader className="pb-2 flex flex-row items-center justify-between">
         <div className="flex items-center gap-2">
-          <ShieldCheck className="h-4 w-4 text-primary" />
+          <ShieldCheck className="h-4 w-4 text-module-compliance" />
           <CardTitle className="text-sm">Validation & Insight — {kpiLabel}</CardTitle>
         </div>
       </CardHeader>

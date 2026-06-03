@@ -157,7 +157,7 @@ export function SelectFieldConfig({ field, onConfigChange }: SelectFieldConfigPr
       {/* Lifecycle Status Section */}
       <div className="space-y-3">
         <div className="flex items-center gap-2 pb-2 border-b">
-          <Activity className="h-4 w-4 text-primary" />
+          <Activity className="h-4 w-4 text-module-performance" />
           <h4 className="font-medium text-sm">Lifecycle Status</h4>
           {config.displayAsLifecycle && (
             <Badge variant="default" className="text-xs ml-auto">Enabled</Badge>
@@ -359,7 +359,7 @@ export function SelectFieldConfig({ field, onConfigChange }: SelectFieldConfigPr
                       }}
                     />
                     <Label htmlFor="enableSlaTracking" className="cursor-pointer flex items-center gap-2">
-                      <Zap className="h-4 w-4 text-primary" />
+                      <Zap className="h-4 w-4 text-module-workflows" />
                       Enable SLA Tracking
                     </Label>
                   </div>

@@ -80,7 +80,7 @@ export function ProjectSwitcher() {
                   </div>
                 </div>
                 {currentProject?.id === project.id && (
-                  <Check className="h-4 w-4 text-primary" />
+                  <Check className="h-4 w-4 text-module-performance" />
                 )}
               </DropdownMenuItem>
             ))

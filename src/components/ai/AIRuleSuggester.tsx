@@ -243,7 +243,7 @@
        <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden flex flex-col">
          <DialogHeader>
            <DialogTitle className="flex items-center gap-2">
-             <Sparkles className="h-5 w-5 text-primary" />
+             <Sparkles className="h-5 w-5 text-module-workflows" />
              AI Rule Suggester
            </DialogTitle>
          </DialogHeader>
@@ -319,7 +319,7 @@
                  <div className="flex flex-col h-full">
                    {fieldSummary && (
                      <div className="flex items-start gap-2 p-3 bg-muted/50 rounded-lg mb-3">
-                       <Info className="h-4 w-4 mt-0.5 text-primary" />
+                       <Info className="h-4 w-4 mt-0.5 text-module-overview" />
                        <p className="text-sm text-muted-foreground">{fieldSummary}</p>
                      </div>
                    )}
@@ -392,7 +392,7 @@
                  <div className="flex flex-col h-full">
                    {formSummary && (
                      <div className="flex items-start gap-2 p-3 bg-muted/50 rounded-lg mb-3">
-                       <Info className="h-4 w-4 mt-0.5 text-primary" />
+                       <Info className="h-4 w-4 mt-0.5 text-module-overview" />
                        <p className="text-sm text-muted-foreground">{formSummary}</p>
                      </div>
                    )}

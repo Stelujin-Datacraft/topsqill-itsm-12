@@ -97,12 +97,12 @@ const UserTableRow = memo(function UserTableRow({ user, onRoleChange, onDelete }
       <TableCell>
         <div className="flex gap-2">
           <Button variant="outline" size="sm">
-            <Edit className="h-4 w-4 text-primary" />
+            <Edit className="h-4 w-4 text-module-reports" />
           </Button>
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button variant="outline" size="sm">
-                <Trash2 className="h-4 w-4 text-primary" />
+                <Trash2 className="h-4 w-4 text-module-compliance" />
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>

@@ -33,7 +33,7 @@ export const DesktopOnlyNotice: React.FC<DesktopOnlyNoticeProps> = ({
       <Card className="max-w-md w-full">
         <CardContent className="pt-8 pb-6 text-center space-y-4">
           <div className="mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-            <Monitor className="h-8 w-8 text-primary" />
+            <Monitor className="h-8 w-8 text-module-itam" />
           </div>
           <div className="space-y-2">
             <h2 className="text-xl font-semibold">{toolName} works best on desktop</h2>

@@ -153,7 +153,7 @@ export function UsersExportButton(props: Props) {
           Excel (.xlsx)
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => run('csv')} className="cursor-pointer">
-          <FileText className="h-4 w-4 mr-2 text-primary" />
+          <FileText className="h-4 w-4 mr-2 text-module-forms" />
           CSV (.csv)
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => run('pdf')} className="cursor-pointer">

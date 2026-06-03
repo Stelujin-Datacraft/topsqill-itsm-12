@@ -147,7 +147,7 @@ export function AIFormGenerator({
       <DialogContent className="max-w-4xl max-h-[90vh]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary" />
+            <Sparkles className="h-5 w-5 text-module-workflows" />
             AI Form Generator
           </DialogTitle>
           <DialogDescription>
