@@ -19,6 +19,9 @@ import { ManualWorkflowTrigger } from './ManualWorkflowTrigger';
 import { Form, FormField } from '@/types/form';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { WorkflowExecutionService } from '@/services/workflowExecution';
+import { FormRuleWorkflowTrigger } from '@/services/formRuleWorkflowTrigger';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface SubmissionFormViewProps {
   submissionId: string;
@@ -44,6 +47,7 @@ function StageHistoryWrapper({ field, submissionId, open, onClose }: { field: Fo
 }
 
 export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewProps) {
+  const { userProfile } = useAuth();
   const [submission, setSubmission] = useState<FormSubmission | null>(null);
   const [form, setForm] = useState<Form | null>(null);
   const [loading, setLoading] = useState(true);
@@ -428,10 +432,36 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
       }
 
       console.log('Submission updated successfully');
-      
+
+      // Re-trigger workflows and form rules on resubmission
+      if (form && userProfile?.id) {
+        const enhancedFormData = {
+          ...formData,
+          userEmail: userProfile.email || (formData as any).email,
+          submittedBy: userProfile.id,
+          submitterName: `${userProfile.first_name || ''} ${userProfile.last_name || ''}`.trim(),
+          submissionRefId: submission.submission_ref_id,
+          isResubmission: true,
+        };
+        Promise.all([
+          WorkflowExecutionService.triggerWorkflowsForFormSubmission(
+            form.id,
+            enhancedFormData,
+            submission.id,
+            userProfile.id
+          ),
+          FormRuleWorkflowTrigger.evaluateAndTriggerWorkflows(
+            form.id,
+            enhancedFormData,
+            submission.id,
+            userProfile.id
+          ),
+        ]).catch((err) => console.error('Resubmission workflow trigger error:', err));
+      }
+
       toast({
-        title: "Success",
-        description: "Submission updated successfully",
+        title: "Submitted",
+        description: "Record updated and workflows re-triggered.",
       });
 
       // Update local state
@@ -567,24 +597,6 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
               disabled={saving}
               >
                 <X className='h-4 w-4'/>
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleSave('draft')}
-                  disabled={saving}
-                >
-                  <FileEdit className="h-4 w-4 mr-1" />
-                  {saving ? 'Saving...' : 'Save as Draft'}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleSave()}
-                  disabled={saving}
-                >
-                  <Save className="h-4 w-4 mr-1" />
-                  {saving ? 'Saving...' : 'Save'}
                 </Button>
                 <Button
                   size="sm"
