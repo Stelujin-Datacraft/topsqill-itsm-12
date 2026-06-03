@@ -80,7 +80,7 @@ export function SubmissionAnalytics({ data }: SubmissionAnalyticsProps) {
       <Card>
         <CardContent className="p-4">
           <div className="flex items-center space-x-2">
-            <Calendar className="h-4 w-4 text-primary" />
+            <Calendar className="h-4 w-4 text-module-reports" />
             <div>
               <p className="text-sm font-medium text-muted-foreground">Total</p>
               <p className="text-2xl font-bold">{analytics.totalSubmissions}</p>
@@ -140,7 +140,7 @@ export function SubmissionAnalytics({ data }: SubmissionAnalyticsProps) {
       <Card>
         <CardContent className="p-4">
           <div className="flex items-center space-x-2">
-            <BarChart3 className="h-4 w-4 text-primary" />
+            <BarChart3 className="h-4 w-4 text-module-reports" />
             <div>
               <p className="text-sm font-medium text-muted-foreground">Completion</p>
               <p className="text-2xl font-bold text-primary">{analytics.completionRate}%</p>

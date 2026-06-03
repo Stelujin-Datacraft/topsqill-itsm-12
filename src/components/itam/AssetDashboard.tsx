@@ -59,7 +59,7 @@ export function AssetDashboard() {
         <Card>
           <CardContent className="pt-4 pb-3">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary/10"><Monitor className="h-5 w-5 text-primary" /></div>
+              <div className="p-2 rounded-lg bg-primary/10"><Monitor className="h-5 w-5 text-module-itam" /></div>
               <div>
                 <p className="text-2xl font-bold">{totalAssets}</p>
                 <p className="text-xs text-muted-foreground">Total Assets</p>

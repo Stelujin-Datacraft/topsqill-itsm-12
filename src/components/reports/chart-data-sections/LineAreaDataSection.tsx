@@ -134,7 +134,7 @@ export function LineAreaDataSection({ config, formFields, onConfigChange, chartT
           {selectedDimension ? (
             <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border">
               <div className="flex items-center gap-2">
-                <Tag className="h-4 w-4 text-primary" />
+                <Tag className="h-4 w-4 text-module-reports" />
                 <span className="font-medium">{getFieldLabel(selectedDimension)}</span>
                 <Badge variant="secondary" className="text-xs">{getFieldTypeLabel(selectedDimension)}</Badge>
               </div>

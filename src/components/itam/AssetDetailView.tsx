@@ -44,7 +44,7 @@ export function AssetDetailView({ asset, onBack }: AssetDetailViewProps) {
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-4">
               <div className="p-3 rounded-lg bg-primary/10">
-                <Monitor className="h-8 w-8 text-primary" />
+                <Monitor className="h-8 w-8 text-module-itam" />
               </div>
               <div>
                 <h2 className="text-2xl font-bold">{asset.display_name}</h2>

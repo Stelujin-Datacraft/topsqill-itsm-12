@@ -484,7 +484,7 @@ export function NestedCrossRefMappings({
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         {mapping.linkToTarget ? (
-                          <Link2 className="h-5 w-5 text-primary" />
+                          <Link2 className="h-5 w-5 text-module-feeds" />
                         ) : (
                           <Unlink className="h-5 w-5 text-muted-foreground" />
                         )}
@@ -558,7 +558,7 @@ export function NestedCrossRefMappings({
                               </SelectContent>
                             </Select>
 
-                            <ArrowRight className="h-4 w-4 text-primary shrink-0" />
+                            <ArrowRight className="h-4 w-4 text-module-feeds shrink-0" />
 
                             <Select
                               value={fm.linkedFieldId}

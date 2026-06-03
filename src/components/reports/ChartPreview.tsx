@@ -5659,7 +5659,7 @@ export function ChartPreview({
               <Label htmlFor="drilldown-mode-toggle" className="text-sm font-medium cursor-pointer">
                 {isDrilldownModeActive ? (
                   <span className="flex items-center gap-1.5">
-                    <Layers className="h-3.5 w-3.5 text-primary" />
+                    <Layers className="h-3.5 w-3.5 text-module-reports" />
                     Drilldown Mode
                   </span>
                 ) : (

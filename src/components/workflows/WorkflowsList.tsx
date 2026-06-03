@@ -164,7 +164,7 @@ export function WorkflowsList({ workflows, onEdit, onDelete, onView, getPermissi
         <Card>
           <CardContent className="py-12">
             <div className="text-center space-y-4">
-              <FileText className="h-12 w-12 text-primary mx-auto" />
+              <FileText className="h-12 w-12 text-module-workflows mx-auto" />
               <div>
                 <h3 className="text-lg font-semibold">No workflows yet</h3>
                 <p className="text-muted-foreground">
@@ -214,7 +214,7 @@ export function WorkflowsList({ workflows, onEdit, onDelete, onView, getPermissi
                         onClick={() => handleCopyId(workflow.id)}
                         title="Copy Workflow ID"
                       >
-                        <Copy className="h-4 w-4 text-primary" />
+                        <Copy className="h-4 w-4 text-module-workflows" />
                       </Button>
                       <ShareLinkButton 
                         assetType="workflow" 
@@ -227,7 +227,7 @@ export function WorkflowsList({ workflows, onEdit, onDelete, onView, getPermissi
                         onClick={() => onView(workflow)}
                         title="View Workflow"
                       >
-                        <Eye className="h-4 w-4 text-primary" />
+                        <Eye className="h-4 w-4 text-module-workflows" />
                       </Button>
                       <TooltipProvider>
                         <Tooltip>
@@ -238,7 +238,7 @@ export function WorkflowsList({ workflows, onEdit, onDelete, onView, getPermissi
                               onClick={() => handleEditClick(workflow)}
                               disabled={editButtonState.disabled}
                             >
-                              <Edit className="h-4 w-4 text-primary" />
+                              <Edit className="h-4 w-4 text-module-workflows" />
                             </Button>
                           </TooltipTrigger>
                           <TooltipContent>
@@ -255,7 +255,7 @@ export function WorkflowsList({ workflows, onEdit, onDelete, onView, getPermissi
                               onClick={() => handleDeleteClick(workflow)}
                               disabled={deleteButtonState.disabled}
                             >
-                              <Trash2 className="h-4 w-4 text-primary" />
+                              <Trash2 className="h-4 w-4 text-module-workflows" />
                             </Button>
                           </TooltipTrigger>
                           <TooltipContent>
@@ -269,7 +269,7 @@ export function WorkflowsList({ workflows, onEdit, onDelete, onView, getPermissi
                 <CardContent>
                   <div className="flex items-center justify-between text-sm text-muted-foreground mb-3">
                     <div className="flex items-center space-x-1">
-                      <Calendar className="h-3 w-3 text-primary" />
+                      <Calendar className="h-3 w-3 text-module-workflows" />
                       <span>{format(new Date(workflow.createdAt), 'MMM d, yyyy')}</span>
                     </div>
                     <Badge 
@@ -285,7 +285,7 @@ export function WorkflowsList({ workflows, onEdit, onDelete, onView, getPermissi
                       className="w-full"
                       onClick={() => handleActivateWorkflow(workflow)}
                     >
-                      <Play className="h-4 w-4 mr-2 text-primary" />
+                      <Play className="h-4 w-4 mr-2 text-module-workflows" />
                       Activate Workflow
                     </Button>
                   )}
@@ -297,7 +297,7 @@ export function WorkflowsList({ workflows, onEdit, onDelete, onView, getPermissi
                       className="w-full"
                       onClick={() => handleDeactivateWorkflow(workflow)}
                     >
-                      <Pause className="h-4 w-4 mr-2 text-primary" />
+                      <Pause className="h-4 w-4 mr-2 text-module-workflows" />
                       Deactivate Workflow
                     </Button>
                   )}
@@ -308,7 +308,7 @@ export function WorkflowsList({ workflows, onEdit, onDelete, onView, getPermissi
                       className="w-full"
                       onClick={() => handleActivateWorkflow(workflow)}
                     >
-                      <Play className="h-4 w-4 mr-2 text-primary" />
+                      <Play className="h-4 w-4 mr-2 text-module-workflows" />
                       Reactivate Workflow
                     </Button>
                   )}

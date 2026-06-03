@@ -253,7 +253,7 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
     <div className="space-y-6">
       {/* Introduction */}
       <Alert className="bg-primary/5 border-primary/20">
-        <Info className="h-4 w-4 text-primary" />
+        <Info className="h-4 w-4 text-module-reports" />
         <AlertDescription className="text-sm">
           Configure your chart data in 3 simple steps: choose what to show, select your values, and pick how to group them.
         </AlertDescription>
@@ -315,7 +315,7 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
               <RadioGroupItem value="compare" id="mode-compare" className="mt-0.5" />
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
-                  <Layers className="h-4 w-4 text-primary" />
+                  <Layers className="h-4 w-4 text-module-reports" />
                   <span className="font-semibold">Compare Two Fields</span>
                 </div>
                 <p className="text-xs text-muted-foreground leading-relaxed">
@@ -363,7 +363,7 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
               {selectedDimensions[0] ? (
                 <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border">
                   <div className="flex items-center gap-2">
-                    <Tag className="h-4 w-4 text-primary" />
+                    <Tag className="h-4 w-4 text-module-reports" />
                     <span className="font-medium">{getFieldLabel(selectedDimensions[0])}</span>
                     <Badge variant="secondary" className="text-xs">{getFieldTypeLabel(selectedDimensions[0])}</Badge>
                     <Badge variant="outline" className="text-xs">X-axis</Badge>
@@ -636,7 +636,7 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
               {selectedDimensions[1] ? (
                 <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border">
                   <div className="flex items-center gap-2">
-                    <Layers className="h-4 w-4 text-primary" />
+                    <Layers className="h-4 w-4 text-module-reports" />
                     <span className="font-medium">{getFieldLabel(selectedDimensions[1])}</span>
                     <Badge variant="secondary" className="text-xs">{getFieldTypeLabel(selectedDimensions[1])}</Badge>
                     <Badge variant="outline" className="text-xs">Stack/Color</Badge>
@@ -741,7 +741,7 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
                                   >
                                     <GripVertical className="h-4 w-4" />
                                   </div>
-                                  <Tag className="h-4 w-4 text-primary" />
+                                  <Tag className="h-4 w-4 text-module-reports" />
                                   <span className="font-medium">{getFieldLabel(dimId)}</span>
                                   <Badge variant="secondary" className="text-xs">{getFieldTypeLabel(dimId)}</Badge>
                                   <Badge variant="outline" className="text-xs">{index === 0 ? 'Primary' : 'Secondary'}</Badge>

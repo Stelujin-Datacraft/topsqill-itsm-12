@@ -76,7 +76,7 @@ export function PieDonutDataSection({ config, formFields, onConfigChange, chartT
   return (
     <div className="space-y-6">
       <Alert className="bg-primary/5 border-primary/20">
-        <PieChart className="h-4 w-4 text-primary" />
+        <PieChart className="h-4 w-4 text-module-reports" />
         <AlertDescription className="text-sm">
           <strong>{chartLabel} Chart</strong> shows parts of a whole. Select a <strong>category</strong> to slice by and a <strong>value</strong> to measure each slice's size.
         </AlertDescription>
@@ -101,7 +101,7 @@ export function PieDonutDataSection({ config, formFields, onConfigChange, chartT
           {selectedDimension ? (
             <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border">
               <div className="flex items-center gap-2">
-                <Tag className="h-4 w-4 text-primary" />
+                <Tag className="h-4 w-4 text-module-reports" />
                 <span className="font-medium">{getFieldLabel(selectedDimension)}</span>
                 <Badge variant="secondary" className="text-xs">{getFieldTypeLabel(selectedDimension)}</Badge>
               </div>

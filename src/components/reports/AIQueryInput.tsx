@@ -71,7 +71,7 @@ export function AIQueryInput({
             className="gap-2"
             type="button"
           >
-            <Sparkles className="h-4 w-4 text-primary" />
+            <Sparkles className="h-4 w-4 text-module-reports" />
             AI Search
           </Button>
         </PopoverTrigger>

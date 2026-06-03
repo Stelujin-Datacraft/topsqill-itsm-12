@@ -289,7 +289,7 @@ export function EnhancedConditionBuilder({ value, onChange, triggerFormId, trigg
       <div className="flex items-center justify-between p-2 bg-muted/30 rounded-md border border-border/50">
         <div className="flex items-center gap-2">
           {useManualExpression ? (
-            <Code className="h-4 w-4 text-primary" />
+            <Code className="h-4 w-4 text-module-workflows" />
           ) : (
             <ListTree className="h-4 w-4 text-muted-foreground" />
           )}
@@ -1690,7 +1690,7 @@ const FieldLevelConditionBuilder = React.memo(({ condition, forms, triggerFormId
         {triggerFormId && !overrideForm ? (
           <div className="h-8 px-2 flex items-center justify-between rounded border border-dashed border-primary/30 bg-primary/5 text-xs">
             <div className="flex items-center gap-1 truncate">
-              <Database className="h-3 w-3 text-primary shrink-0" />
+              <Database className="h-3 w-3 text-module-workflows shrink-0" />
               <span className="font-medium truncate">
                 {triggerFormName || forms.find(f => f.id === triggerFormId)?.name || 'Trigger form'}
               </span>
