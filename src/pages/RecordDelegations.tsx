@@ -223,7 +223,7 @@ export default function RecordDelegations() {
         </Button>
       }
     >
-      <div className="space-y-4 max-w-6xl">
+      <div className="space-y-4 w-full">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
