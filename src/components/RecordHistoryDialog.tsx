@@ -70,18 +70,23 @@ export const RecordHistoryDialog: React.FC<RecordHistoryDialogProps> = ({
 
       // Fetch user info for all changed_by users (handle both direct user IDs and workflow:/datafeed: format)
       const rawUserIds = (data || []).map(h => h.changed_by).filter(Boolean) as string[];
-      const extractedUserIds = rawUserIds.map(id => {
+      const extractedUserIds = rawUserIds.flatMap(id => {
+        // Strip delegation suffix `actor|on_behalf_of:delegator` → collect BOTH ids
+        if (id.includes('|on_behalf_of:')) {
+          const [actor, delegator] = id.split('|on_behalf_of:');
+          return [actor, delegator].filter(Boolean);
+        }
         // Extract user ID from workflow format if present
         if (id.startsWith('workflow:')) {
           const extracted = id.replace('workflow:', '');
-          return extracted === 'system' ? null : extracted;
+          return extracted === 'system' ? [] : [extracted];
         }
         // Extract user ID from datafeed format if present
         if (id.startsWith('datafeed:')) {
           const extracted = id.replace('datafeed:', '');
-          return extracted === 'system' ? null : extracted;
+          return extracted === 'system' ? [] : [extracted];
         }
-        return id;
+        return [id];
       }).filter(Boolean) as string[];
       
       const userIds = [...new Set(extractedUserIds)];
