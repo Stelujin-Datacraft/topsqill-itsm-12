@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { useDelegation } from '@/contexts/DelegationContext';
 import { logRecordFieldChanges, detectRecordChanges } from '@/utils/recordHistoryLogger';
 import { Save, Users, Star, Calendar, Eye } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
@@ -42,6 +43,7 @@ export function MultiLineEditDialog({
   const { toast } = useToast();
   const { users, groups, getUserDisplayName, getGroupDisplayName } = useUsersAndGroups();
   const { user } = useAuth();
+  const { actingAs, delegationCoversScope } = useDelegation();
   
   // Helper function to ensure options are always an array
   const ensureOptionsArray = (opts: any): any[] => {
@@ -180,11 +182,15 @@ export function MultiLineEditDialog({
           );
 
           if (changes.length > 0) {
+            const sub = submissions.find((s: any) => s.id === update.id);
+            const formIdForScope = sub?.form_id ?? null;
+            const onBehalfId = actingAs && delegationCoversScope(formIdForScope, null) ? actingAs.id : null;
             await logRecordFieldChanges({
               submissionId: update.id,
               changes,
               changedBy: user.id,
-              changeType: 'updated'
+              changeType: 'updated',
+              onBehalfOfUserId: onBehalfId,
             });
           }
         }
