@@ -275,6 +275,7 @@ const App = () => (
                         <Route path="/investigate-access" element={<InvestigateAccess />} />
                         <Route path="/ldap-settings" element={<LdapSettings />} />
                         <Route path="/sla-management" element={<SLAManagementPage />} />
+                        <Route path="/record-delegations" element={<RecordDelegations />} />
                         <Route path="/api-integration" element={<ApiIntegration />} />
                         <Route path="/api-docs" element={<ApiDocs />} />
                         <Route path="/it-assets" element={<ITAssets />} />
