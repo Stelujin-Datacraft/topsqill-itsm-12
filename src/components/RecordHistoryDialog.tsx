@@ -144,6 +144,18 @@ export const RecordHistoryDialog: React.FC<RecordHistoryDialogProps> = ({
   const getUserDisplayName = (changedBy: string | null) => {
     if (!changedBy) return 'System';
     
+    // Handle delegated changes: `actorId|on_behalf_of:delegatorId`
+    if (changedBy.includes('|on_behalf_of:')) {
+      const [actorId, delegatorId] = changedBy.split('|on_behalf_of:');
+      const nameFor = (id: string) => {
+        const u = users[id];
+        if (!u) return 'Unknown User';
+        if (u.first_name && u.last_name) return `${u.first_name} ${u.last_name}`;
+        return u.email;
+      };
+      return `${nameFor(delegatorId)} (on behalf, by ${nameFor(actorId)})`;
+    }
+
     // Handle workflow changes
     if (isWorkflowChange(changedBy)) {
       const userId = getWorkflowUserId(changedBy);
