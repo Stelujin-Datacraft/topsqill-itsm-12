@@ -122,7 +122,7 @@ export function PerformanceActivityLog({ alerts, thresholds, loading, perfProjec
         description: `${threshold.operator} ${threshold.threshold_value} (${threshold.severity})`,
         severity: threshold.severity,
         timestamp: new Date(),
-        icon: <Plus className="h-4 w-4 text-primary" />,
+        icon: <Plus className="h-4 w-4 text-module-workflows" />,
         source: 'derived',
       });
     }
@@ -200,7 +200,7 @@ export function PerformanceActivityLog({ alerts, thresholds, loading, perfProjec
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="flex items-center gap-2">
-                <Clock className="h-5 w-5 text-primary" />
+                <Clock className="h-5 w-5 text-module-workflows" />
                 Performance Audit Trail
               </CardTitle>
               <CardDescription>

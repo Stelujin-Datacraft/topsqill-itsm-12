@@ -430,7 +430,7 @@ export function AnalyticsPanel({ perfProjectId, selectedRecordId }: Props) {
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-              <BarChart3 className="h-5 w-5 text-primary" />
+              <BarChart3 className="h-5 w-5 text-module-reports" />
               Portfolio Report — All Records
             </h2>
             <p className="text-sm text-muted-foreground">
@@ -449,7 +449,7 @@ export function AnalyticsPanel({ perfProjectId, selectedRecordId }: Props) {
           <Card className="border-l-4 border-l-primary">
             <CardContent className="pt-4 pb-3">
               <div className="flex items-center gap-2 mb-1">
-                <Activity className="h-4 w-4 text-primary" />
+                <Activity className="h-4 w-4 text-module-performance" />
                 <p className="text-xs text-muted-foreground">Total Records</p>
               </div>
               <p className="text-2xl font-bold text-foreground">{portfolioKPIs.totalProjects}</p>
@@ -636,7 +636,7 @@ export function AnalyticsPanel({ perfProjectId, selectedRecordId }: Props) {
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4 text-primary" />
+                  <AlertTriangle className="h-4 w-4 text-module-compliance" />
                   Risk & Predictions per Record
                 </CardTitle>
               </CardHeader>
@@ -662,7 +662,7 @@ export function AnalyticsPanel({ perfProjectId, selectedRecordId }: Props) {
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2">
-                  <Activity className="h-4 w-4 text-primary" />
+                  <Activity className="h-4 w-4 text-module-performance" />
                   Portfolio Health Radar
                 </CardTitle>
               </CardHeader>
@@ -686,7 +686,7 @@ export function AnalyticsPanel({ perfProjectId, selectedRecordId }: Props) {
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm flex items-center gap-2">
-                <Clock className="h-4 w-4 text-primary" />
+                <Clock className="h-4 w-4 text-module-workflows" />
                 Resource Hours Comparison
               </CardTitle>
             </CardHeader>
@@ -712,7 +712,7 @@ export function AnalyticsPanel({ perfProjectId, selectedRecordId }: Props) {
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4 text-primary" />
+                <AlertTriangle className="h-4 w-4 text-module-compliance" />
                 Risk Score Distribution
               </CardTitle>
             </CardHeader>
@@ -772,7 +772,7 @@ export function AnalyticsPanel({ perfProjectId, selectedRecordId }: Props) {
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm flex items-center gap-2">
-                <BarChart3 className="h-4 w-4 text-primary" />
+                <BarChart3 className="h-4 w-4 text-module-reports" />
                 Metric Values Chart
               </CardTitle>
             </CardHeader>
@@ -799,7 +799,7 @@ export function AnalyticsPanel({ perfProjectId, selectedRecordId }: Props) {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-            <BarChart3 className="h-5 w-5 text-primary" />
+            <BarChart3 className="h-5 w-5 text-module-reports" />
             Record Report
           </h2>
           <p className="text-sm text-muted-foreground">
@@ -991,7 +991,7 @@ export function AnalyticsPanel({ perfProjectId, selectedRecordId }: Props) {
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm flex items-center gap-2">
-                <Activity className="h-4 w-4 text-primary" />
+                <Activity className="h-4 w-4 text-module-performance" />
                 Record Health Radar
               </CardTitle>
             </CardHeader>
@@ -1017,7 +1017,7 @@ export function AnalyticsPanel({ perfProjectId, selectedRecordId }: Props) {
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm flex items-center gap-2">
-                <BarChart3 className="h-4 w-4 text-primary" />
+                <BarChart3 className="h-4 w-4 text-module-reports" />
                 Variance Analysis
               </CardTitle>
             </CardHeader>
@@ -1040,7 +1040,7 @@ export function AnalyticsPanel({ perfProjectId, selectedRecordId }: Props) {
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm flex items-center gap-2">
-                <Clock className="h-4 w-4 text-primary" />
+                <Clock className="h-4 w-4 text-module-workflows" />
                 Resource Hours Breakdown
               </CardTitle>
             </CardHeader>

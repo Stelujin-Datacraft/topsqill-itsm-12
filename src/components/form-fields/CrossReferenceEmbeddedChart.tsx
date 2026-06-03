@@ -785,7 +785,7 @@ export function CrossReferenceEmbeddedChart({
       {config.title && (
         <CardHeader className="py-3 px-4 border-b bg-muted/30">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <BarChart3 className="h-4 w-4 text-primary" />
+            <BarChart3 className="h-4 w-4 text-module-reports" />
             {config.title}
           </CardTitle>
         </CardHeader>

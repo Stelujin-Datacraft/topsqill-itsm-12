@@ -462,7 +462,7 @@ export function AIChatbot() {
       {/* Header */}
       <div className="flex items-center justify-between p-3 border-b bg-muted/50 rounded-t-lg">
         <div className="flex items-center gap-2">
-           <Zap className="h-5 w-5 text-primary" />
+           <Zap className="h-5 w-5 text-module-workflows" />
            <span className="font-semibold text-sm">AI Copilot</span>
            {copilotEnabled && (
              <Badge variant="secondary" className="text-xs h-5 px-1.5">

@@ -665,7 +665,7 @@ export function ExcelFormImporter({ onImport, children }: ExcelFormImporterProps
                               </TableCell>
                               <TableCell>
                                 {field.isValid ? (
-                                  <Check className="h-4 w-4 text-primary" />
+                                  <Check className="h-4 w-4 text-module-performance" />
                                 ) : (
                                   <span title={field.errors.join(', ')}>
                                     <AlertCircle className="h-4 w-4 text-destructive" />

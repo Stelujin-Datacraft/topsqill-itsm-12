@@ -122,7 +122,7 @@ export function SecurityParametersDialog({
         <DialogHeader>
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-              <Shield className="h-5 w-5 text-primary" />
+              <Shield className="h-5 w-5 text-module-compliance" />
             </div>
             <div>
               <DialogTitle className="text-xl">Security Parameters</DialogTitle>
@@ -150,7 +150,7 @@ export function SecurityParametersDialog({
               <CardContent className="p-4">
                 <div className="flex items-start gap-4">
                   <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                    <FileText className="h-5 w-5 text-primary" />
+                    <FileText className="h-5 w-5 text-module-forms" />
                   </div>
                   <div className="flex-1 space-y-3">
                     <div className="flex items-center justify-between">
@@ -237,7 +237,7 @@ export function SecurityParametersDialog({
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base flex items-center gap-2">
-                    <Key className="h-4 w-4 text-primary" />
+                    <Key className="h-4 w-4 text-module-api" />
                     Password Complexity
                   </CardTitle>
                   <CardDescription>Configure password strength requirements</CardDescription>
@@ -312,7 +312,7 @@ export function SecurityParametersDialog({
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-primary" />
+                    <Clock className="h-4 w-4 text-module-workflows" />
                     Password Lifecycle
                   </CardTitle>
                   <CardDescription>Configure password expiration settings</CardDescription>
@@ -372,7 +372,7 @@ export function SecurityParametersDialog({
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base flex items-center gap-2">
-                    <Lock className="h-4 w-4 text-primary" />
+                    <Lock className="h-4 w-4 text-module-compliance" />
                     Lockout Policy
                   </CardTitle>
                   <CardDescription>Configure account lockout behavior</CardDescription>
@@ -454,7 +454,7 @@ export function SecurityParametersDialog({
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-primary" />
+                    <Clock className="h-4 w-4 text-module-workflows" />
                     Session Timeout
                   </CardTitle>
                   <CardDescription>Configure session expiration behavior</CardDescription>
@@ -530,7 +530,7 @@ export function SecurityParametersDialog({
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-primary" />
+                    <Clock className="h-4 w-4 text-module-workflows" />
                     Time-Based Access
                   </CardTitle>
                   <CardDescription>Restrict login to specific hours</CardDescription>
@@ -591,7 +591,7 @@ export function SecurityParametersDialog({
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base flex items-center gap-2">
-                    <Globe className="h-4 w-4 text-primary" />
+                    <Globe className="h-4 w-4 text-module-api" />
                     IP Restrictions
                   </CardTitle>
                   <CardDescription>Restrict access by IP address</CardDescription>
@@ -704,7 +704,7 @@ export function SecurityParametersDialog({
             {/* Show message when template settings are active */}
             {formData.security_template_id && formData.use_template_settings && (
               <div className="flex items-center gap-3 p-4 bg-primary/5 rounded-lg border border-primary/20">
-                <Shield className="h-5 w-5 text-primary" />
+                <Shield className="h-5 w-5 text-module-compliance" />
                 <div>
                   <p className="text-sm font-medium">Template Settings Active</p>
                   <p className="text-xs text-muted-foreground">

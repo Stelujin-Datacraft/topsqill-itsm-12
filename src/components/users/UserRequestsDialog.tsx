@@ -71,7 +71,7 @@ const UserRequestsDialog = ({
       <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Mail className="h-5 w-5 text-primary" />
+            <Mail className="h-5 w-5 text-module-email" />
             Pending Invitations ({pendingInvitations.length})
           </DialogTitle>
           <DialogDescription>

@@ -90,7 +90,7 @@ export function SecurityTab({ securitySettings, loading }: SecurityTabProps) {
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {/* MFA Status */}
             <div className="flex items-start gap-3 p-4 bg-muted/50 rounded-lg">
-              <Key className="h-5 w-5 text-primary mt-0.5" />
+              <Key className="h-5 w-5 text-module-api mt-0.5" />
               <div>
                 <p className="font-medium">MFA Required</p>
                 <Badge variant={securitySettings.mfa_required ? 'default' : 'secondary'}>
@@ -101,7 +101,7 @@ export function SecurityTab({ securitySettings, loading }: SecurityTabProps) {
 
             {/* Session Limits */}
             <div className="flex items-start gap-3 p-4 bg-muted/50 rounded-lg">
-              <Shield className="h-5 w-5 text-primary mt-0.5" />
+              <Shield className="h-5 w-5 text-module-compliance mt-0.5" />
               <div>
                 <p className="font-medium">Max Concurrent Sessions</p>
                 <p className="text-lg font-semibold">
@@ -112,7 +112,7 @@ export function SecurityTab({ securitySettings, loading }: SecurityTabProps) {
 
             {/* Session Timeout */}
             <div className="flex items-start gap-3 p-4 bg-muted/50 rounded-lg">
-              <Clock className="h-5 w-5 text-primary mt-0.5" />
+              <Clock className="h-5 w-5 text-module-workflows mt-0.5" />
               <div>
                 <p className="font-medium">Session Timeout</p>
                 <p className="text-lg font-semibold">
@@ -126,7 +126,7 @@ export function SecurityTab({ securitySettings, loading }: SecurityTabProps) {
             {/* Access Time Restrictions */}
             {(securitySettings.access_start_time || securitySettings.access_end_time) && (
               <div className="flex items-start gap-3 p-4 bg-muted/50 rounded-lg">
-                <Clock className="h-5 w-5 text-primary mt-0.5" />
+                <Clock className="h-5 w-5 text-module-workflows mt-0.5" />
                 <div>
                   <p className="font-medium">Access Hours</p>
                   <p className="text-sm">
@@ -139,7 +139,7 @@ export function SecurityTab({ securitySettings, loading }: SecurityTabProps) {
             {/* Allowed Days */}
             {securitySettings.allowed_days && securitySettings.allowed_days.length > 0 && (
               <div className="flex items-start gap-3 p-4 bg-muted/50 rounded-lg md:col-span-2">
-                <Calendar className="h-5 w-5 text-primary mt-0.5" />
+                <Calendar className="h-5 w-5 text-module-workflows mt-0.5" />
                 <div>
                   <p className="font-medium">Allowed Days</p>
                   <div className="flex flex-wrap gap-1 mt-1">

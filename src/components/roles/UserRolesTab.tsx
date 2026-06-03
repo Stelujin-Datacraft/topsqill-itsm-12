@@ -365,7 +365,7 @@ export function UserRolesTab() {
                           <Popover>
                             <PopoverTrigger asChild>
                               <Button variant="outline" size="sm" className="flex items-center gap-2">
-                                <Shield className="h-4 w-4 text-primary" />
+                                <Shield className="h-4 w-4 text-module-compliance" />
                                 View Roles ({assignedRoles.length})
                                 <ChevronDown className="h-4 w-4" />
                               </Button>
@@ -378,7 +378,7 @@ export function UserRolesTab() {
                                     className="flex items-center justify-between gap-2 p-2 rounded border bg-background"
                                   >
                                     <div className="flex items-center gap-2 min-w-0">
-                                      <Shield className="h-4 w-4 text-primary shrink-0" />
+                                      <Shield className="h-4 w-4 text-module-compliance shrink-0" />
                                       <span className="text-sm font-medium truncate">{r.name}</span>
                                     </div>
                                     <button
@@ -403,7 +403,7 @@ export function UserRolesTab() {
                           <Popover>
                             <PopoverTrigger asChild>
                               <Button variant="outline" size="sm" className="flex items-center gap-2">
-                                <Users className="h-4 w-4 text-primary" />
+                                <Users className="h-4 w-4 text-module-access" />
                                 View Groups ({groupNames.length})
                                 <ChevronDown className="h-4 w-4" />
                               </Button>
@@ -415,7 +415,7 @@ export function UserRolesTab() {
                                     key={i}
                                     className="flex items-center gap-2 p-2 rounded border bg-background"
                                   >
-                                    <Users className="h-4 w-4 text-primary shrink-0" />
+                                    <Users className="h-4 w-4 text-module-access shrink-0" />
                                     <span className="text-sm font-medium truncate">{g}</span>
                                   </div>
                                 ))}

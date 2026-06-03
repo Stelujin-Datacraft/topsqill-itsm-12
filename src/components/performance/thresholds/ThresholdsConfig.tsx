@@ -299,7 +299,7 @@ export function ThresholdsConfig({ perfProjectId, thresholds, loading, createThr
               {formData.send_email && (
                 <div className="space-y-3 p-3 border border-border rounded-lg bg-muted/30">
                   <div className="flex items-center gap-2">
-                    <Users className="h-4 w-4 text-primary" />
+                    <Users className="h-4 w-4 text-module-access" />
                     <Label className="font-medium">Notify Performance Roles</Label>
                   </div>
                   <p className="text-xs text-muted-foreground">

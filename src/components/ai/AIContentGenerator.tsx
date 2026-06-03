@@ -123,7 +123,7 @@ export function AIContentGenerator({
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary" />
+            <Sparkles className="h-5 w-5 text-module-workflows" />
             AI {contentTypeLabels[contentType]} Generator
           </DialogTitle>
           <DialogDescription>

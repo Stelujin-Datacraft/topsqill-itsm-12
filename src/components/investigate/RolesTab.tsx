@@ -70,7 +70,7 @@ export function RolesTab({ roleAssignments, loading }: RolesTabProps) {
                 <CardContent className="pt-4">
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex items-center gap-2">
-                      <Shield className="h-5 w-5 text-primary" />
+                      <Shield className="h-5 w-5 text-module-compliance" />
                       <h4 className="font-semibold">{assignment.role.name}</h4>
                     </div>
                     <Badge className={getAccessLevelColor(assignment.role.top_level_access)}>

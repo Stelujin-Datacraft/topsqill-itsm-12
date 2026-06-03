@@ -91,7 +91,7 @@ export function SecurityTemplateFormDialog({
         <DialogHeader>
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-              <Shield className="h-5 w-5 text-primary" />
+              <Shield className="h-5 w-5 text-module-compliance" />
             </div>
             <div>
               <DialogTitle className="text-xl">
@@ -109,7 +109,7 @@ export function SecurityTemplateFormDialog({
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center gap-2">
-                <FileText className="h-4 w-4 text-primary" />
+                <FileText className="h-4 w-4 text-module-forms" />
                 Template Information
               </CardTitle>
             </CardHeader>

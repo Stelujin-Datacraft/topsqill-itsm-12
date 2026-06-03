@@ -347,7 +347,7 @@ export function GroupRolesTab() {
                             className="flex items-center space-x-2 p-2 hover:bg-muted rounded cursor-pointer"
                             onClick={() => toggleUserSelection(user.id)}
                           >
-                            <User className="h-4 w-4 text-primary" />
+                            <User className="h-4 w-4 text-module-access" />
                             <div className="flex-1 min-w-0">
                               <div className="text-sm font-medium truncate">
                                 {user.first_name} {user.last_name}
@@ -380,7 +380,7 @@ export function GroupRolesTab() {
                           return (
                             <div key={userId} className="flex items-center justify-between bg-background p-2 rounded border">
                               <div className="flex items-center space-x-2 min-w-0">
-                                <User className="h-4 w-4 text-primary shrink-0" />
+                                <User className="h-4 w-4 text-module-access shrink-0" />
                                 <div className="min-w-0">
                                   <div className="text-sm font-medium truncate">
                                     {user.first_name} {user.last_name}
@@ -413,7 +413,7 @@ export function GroupRolesTab() {
                               className="flex items-center space-x-2 p-2 hover:bg-muted rounded cursor-pointer"
                               onClick={() => toggleGroupSelection(group.id)}
                             >
-                              <Users className="h-4 w-4 text-primary" />
+                              <Users className="h-4 w-4 text-module-access" />
                               <div className="flex-1 min-w-0">
                                 <div className="text-sm font-medium truncate">{group.name}</div>
                                 <div className="text-xs text-muted-foreground">{group.member_count} members</div>
@@ -442,7 +442,7 @@ export function GroupRolesTab() {
                           return (
                             <div key={groupId} className="flex items-center justify-between bg-background p-2 rounded border">
                               <div className="flex items-center space-x-2 min-w-0">
-                                <Users className="h-4 w-4 text-primary shrink-0" />
+                                <Users className="h-4 w-4 text-module-access shrink-0" />
                                 <div className="min-w-0">
                                   <div className="text-sm font-medium truncate">{group.name}</div>
                                   <div className="text-xs text-muted-foreground">{group.member_count} members</div>

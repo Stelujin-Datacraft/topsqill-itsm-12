@@ -190,7 +190,7 @@ const MfaSetup: React.FC = () => {
             <div className="p-3 rounded-lg bg-background border">
               {mfaMethod === 'email' && (
                 <div className="flex items-start gap-3">
-                  <Mail className="h-5 w-5 text-primary mt-0.5" />
+                  <Mail className="h-5 w-5 text-module-email mt-0.5" />
                   <div>
                     <p className="font-medium">Email Verification</p>
                     <p className="text-sm text-muted-foreground">

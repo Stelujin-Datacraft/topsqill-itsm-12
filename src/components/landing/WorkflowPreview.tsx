@@ -25,7 +25,7 @@ const initialNodes: Node[] = [
     data: { 
       label: (
         <div className="flex items-center gap-2 p-2">
-          <FileText className="h-4 w-4 text-primary" />
+          <FileText className="h-4 w-4 text-module-forms" />
           <span>Form Submit</span>
         </div>
       ) 

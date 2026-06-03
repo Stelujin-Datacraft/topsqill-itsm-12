@@ -263,7 +263,7 @@ export function PerformanceOverview({ alerts, predictions, thresholds, loading, 
       <Card className="border-primary/20 bg-primary/5">
         <CardContent className="py-4 space-y-4">
           <div className="flex items-center gap-3">
-            <Brain className="h-6 w-6 text-primary" />
+            <Brain className="h-6 w-6 text-module-workflows" />
             <div>
               <p className="font-semibold text-foreground">AI Performance Analysis</p>
               <p className="text-sm text-muted-foreground">
@@ -322,7 +322,7 @@ export function PerformanceOverview({ alerts, predictions, thresholds, loading, 
                   </Badge>
                 )}
               </div>
-              <Brain className="h-8 w-8 text-primary" />
+              <Brain className="h-8 w-8 text-module-workflows" />
             </div>
           </CardContent>
         </Card>
@@ -384,7 +384,7 @@ export function PerformanceOverview({ alerts, predictions, thresholds, loading, 
           <Card className="border-primary/30">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Brain className="h-5 w-5 text-primary" />
+                <Brain className="h-5 w-5 text-module-workflows" />
                 AI Analysis Results
               </CardTitle>
               <CardDescription>{aiResult.summary}</CardDescription>
