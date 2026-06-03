@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { buildChangedByAttribution } from '@/utils/delegationHelpers';
 
 interface RecordChange {
   fieldId: string;
@@ -12,6 +13,8 @@ interface LogRecordChangesParams {
   changes: RecordChange[];
   changedBy: string;
   changeType?: 'created' | 'updated' | 'deleted';
+  /** Optional: delegator user ID when the current user is acting on their behalf */
+  onBehalfOfUserId?: string | null;
 }
 
 /**
@@ -31,12 +34,15 @@ export async function logRecordFieldChanges({
   submissionId,
   changes,
   changedBy,
-  changeType = 'updated'
+  changeType = 'updated',
+  onBehalfOfUserId = null,
 }: LogRecordChangesParams): Promise<{ success: boolean; error?: string }> {
   try {
     if (changes.length === 0) {
       return { success: true };
     }
+
+    const attributedChangedBy = buildChangedByAttribution(changedBy, onBehalfOfUserId);
 
     const historyRecords = changes.map(change => ({
       submission_id: submissionId,
@@ -44,7 +50,7 @@ export async function logRecordFieldChanges({
       field_label: change.fieldLabel,
       old_value: change.oldValue,
       new_value: change.newValue,
-      changed_by: changedBy,
+      changed_by: attributedChangedBy,
       change_type: changeType
     }));
 
