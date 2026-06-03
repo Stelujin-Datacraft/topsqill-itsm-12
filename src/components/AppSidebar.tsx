@@ -106,13 +106,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         iconColor: "text-module-feeds",
       },
       {
-        title: "Performance",
-        url: "/project-performance",
-        icon: Gauge,
-        isDisabled: !currentProject,
-        iconColor: "text-module-performance",
-      },
-      {
         title: "Knowledge Base",
         url: "/knowledge-base",
         icon: ScrollText,
