@@ -11,9 +11,11 @@ import { ProjectProvider } from "@/contexts/ProjectContext";
 import { FormProvider } from "@/contexts/FormContext";
 import { WorkflowProvider } from "@/contexts/WorkflowContext";
 import { ImpersonationProvider } from "@/contexts/ImpersonationContext";
+import { DelegationProvider } from "@/contexts/DelegationContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { SessionTimeoutWarning } from "@/components/SessionTimeoutWarning";
 import { ImpersonationBanner } from "@/components/ImpersonationBanner";
+import { DelegationBanner } from "@/components/DelegationBanner";
 import ProtectedLayout from "@/components/ProtectedLayout";
 import PasswordExpiryWarning from "./components/PasswordExpiryWarning";
 import { AIChatbot } from "./components/ai/AIChatbot";
@@ -160,7 +162,8 @@ const App = () => (
     <ThemeProvider>
     <AuthProvider>
       <ImpersonationProvider>
-        <OrganizationProvider>
+        <DelegationProvider>
+         <OrganizationProvider>
           <ProjectProvider>
             <FormProvider>
               <WorkflowProvider>
@@ -169,6 +172,7 @@ const App = () => (
                   <Sonner />
                   <SessionTimeoutWarning />
                   <ImpersonationBanner />
+                  <DelegationBanner />
                   <BrowserRouter>
                     <PasswordExpiryWarning />
                     <Routes>
@@ -291,7 +295,8 @@ const App = () => (
               </WorkflowProvider>
             </FormProvider>
           </ProjectProvider>
-        </OrganizationProvider>
+         </OrganizationProvider>
+        </DelegationProvider>
       </ImpersonationProvider>
     </AuthProvider>
     </ThemeProvider>
