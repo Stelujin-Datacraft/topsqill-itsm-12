@@ -208,13 +208,13 @@ export function ProjectsTable({
                   {canManage && (
                     <div className="flex items-center gap-1 pt-1 border-t">
                       <Button size="sm" variant="ghost" className="h-8 px-2" onClick={(e) => handleCopyId(e, project.id)} title="Copy ID">
-                        <Copy className="h-4 w-4 text-primary" />
+                        <Copy className="h-4 w-4 text-module-relationship" />
                       </Button>
                       <Button size="sm" variant="ghost" className="h-8 px-2" onClick={(e) => handleManageAccess(e, project)} title="Access">
-                        <Shield className="h-4 w-4 text-primary" />
+                        <Shield className="h-4 w-4 text-module-compliance" />
                       </Button>
                       <Button size="sm" variant="ghost" className="h-8 px-2 ml-auto" onClick={(e) => handleDeleteProject(e, project)} title="Delete">
-                        <Trash2 className="h-4 w-4 text-primary" />
+                        <Trash2 className="h-4 w-4 text-module-compliance" />
                       </Button>
                     </div>
                   )}
@@ -311,7 +311,7 @@ export function ProjectsTable({
                             onClick={(e) => handleCopyId(e, project.id)}
                             title="Copy Project ID"
                           >
-                            <Copy className="h-4 w-4 text-primary" />
+                            <Copy className="h-4 w-4 text-module-relationship" />
                           </Button>
                           <Button
                             size="sm"
@@ -319,7 +319,7 @@ export function ProjectsTable({
                             onClick={(e) => handleManageAccess(e, project)}
                             title="Manage Access"
                           >
-                            <Shield className="h-4 w-4 text-primary" />
+                            <Shield className="h-4 w-4 text-module-compliance" />
                           </Button>
                           <Button
                             size="sm"
