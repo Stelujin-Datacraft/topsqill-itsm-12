@@ -186,9 +186,9 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
             await logRecordFieldChanges({
               submissionId: update.id,
               changes,
-              changedBy: onBehalfId || user.id,
+              changedBy: user.id,
               changeType: 'updated',
-              onBehalfOfUserId: onBehalfId ? user.id : null,
+              onBehalfOfUserId: onBehalfId,
             });
           }
         }
