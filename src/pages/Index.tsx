@@ -342,8 +342,8 @@ const Index = () => {
               <div>
                 <h3 className="font-semibold mb-4">Resources</h3>
                 <ul className="space-y-2 text-muted-foreground">
-                  <li><Link to="/docs" className="hover:text-primary">Documentation</Link></li>
-                  <li><Link to="/docs" className="hover:text-primary">API Reference</Link></li>
+                  <li><Link to="/docs" className="hover:text-module-relationship">Documentation</Link></li>
+                  <li><Link to="/docs" className="hover:text-module-relationship">API Reference</Link></li>
                   <li><a href="#" className="hover:text-primary">Support</a></li>
                   <li><a href="#" className="hover:text-primary">Status</a></li>
                 </ul>

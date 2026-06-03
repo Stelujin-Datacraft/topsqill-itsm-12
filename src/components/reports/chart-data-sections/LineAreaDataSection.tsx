@@ -109,7 +109,7 @@ export function LineAreaDataSection({ config, formFields, onConfigChange, chartT
   return (
     <div className="space-y-6">
       <Alert className="bg-primary/5 border-primary/20">
-        <TrendingUp className="h-4 w-4 text-primary" />
+        <TrendingUp className="h-4 w-4 text-module-performance" />
         <AlertDescription className="text-sm">
           <strong>{chartLabel} Chart</strong> shows trends over a continuous axis. Select an <strong>X-axis</strong> (usually time or category) and one or more <strong>values</strong> to plot.
         </AlertDescription>

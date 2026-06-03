@@ -83,7 +83,7 @@ export const QueryHistory = memo(function QueryHistory({ history, onSelectQuery,
       <div className="flex flex-col h-full">
         <div className="p-3 border-b border-border flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Clock className="h-4 w-4 text-primary" />
+            <Clock className="h-4 w-4 text-module-sla" />
             <span className="text-sm font-medium">Query History</span>
           </div>
           {onClose && (
@@ -99,7 +99,7 @@ export const QueryHistory = memo(function QueryHistory({ history, onSelectQuery,
           )}
         </div>
         <div className="p-4 text-center text-muted-foreground flex-1 flex flex-col items-center justify-center">
-          <Clock className="h-8 w-8 mx-auto mb-2 opacity-50 text-primary" />
+          <Clock className="h-8 w-8 mx-auto mb-2 opacity-50 text-module-sla" />
           <p className="text-sm">No query history yet</p>
         </div>
       </div>
@@ -110,7 +110,7 @@ export const QueryHistory = memo(function QueryHistory({ history, onSelectQuery,
     <div className="flex flex-col h-full">
       <div className="p-3 border-b border-border flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
-          <Clock className="h-4 w-4 text-primary flex-shrink-0" />
+          <Clock className="h-4 w-4 text-module-sla flex-shrink-0" />
           <span className="text-sm font-medium truncate">Query History</span>
         </div>
         <div className="flex items-center gap-1 flex-shrink-0">

@@ -59,7 +59,7 @@ export function PolicyFieldSelector({ formId, selectedFieldIds, onSelectedFields
       {onRecordNameFieldChange && (
         <div className="p-3 border rounded-md bg-muted/30 space-y-1.5">
           <div className="flex items-center gap-1.5">
-            <Tag className="h-3.5 w-3.5 text-primary" />
+            <Tag className="h-3.5 w-3.5 text-module-reports" />
             <Label className="text-xs font-medium">Record Name Field</Label>
           </div>
           <p className="text-[11px] text-muted-foreground">Select a field whose value will be used as the record title instead of "Record 1, Record 2..."</p>
@@ -103,7 +103,7 @@ export function PolicyFieldSelector({ formId, selectedFieldIds, onSelectedFields
               className={`flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-muted/50 border-b last:border-b-0 transition-colors ${isSelected ? 'bg-primary/5' : ''}`}
             >
               <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${isSelected ? 'bg-primary border-primary' : 'border-muted-foreground/30'}`}>
-                {isSelected && <CheckCircle className="h-3 w-3 text-primary-foreground" />}
+                {isSelected && <CheckCircle className="h-3 w-3 text-module-knowledge-foreground" />}
               </div>
               <span className="text-sm flex-1">{field.label}</span>
               <Badge variant="outline" className="text-[10px] py-0 shrink-0">{field.field_type}</Badge>

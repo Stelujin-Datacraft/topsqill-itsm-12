@@ -45,7 +45,7 @@ export const ReportCard = memo(function ReportCard({
               onClick={() => onCopyId(report.id, report.name)} 
               title="Copy Report ID"
             >
-              <Copy className="h-4 w-4 text-module-reports" />
+              <Copy className="h-4 w-4 text-module-relationship" />
             </Button>
             <ShareLinkButton 
               assetType="report" 
@@ -53,7 +53,7 @@ export const ReportCard = memo(function ReportCard({
               assetName={report.name} 
             />
             <Button variant="ghost" size="sm" onClick={() => onView(report)} title="View Report">
-              <Eye className="h-4 w-4 text-module-reports" />
+              <Eye className="h-4 w-4 text-module-overview" />
             </Button>
             <TooltipProvider>
               <Tooltip>
@@ -81,7 +81,7 @@ export const ReportCard = memo(function ReportCard({
                     onClick={() => onDelete(report)} 
                     disabled={deleteButtonState.disabled || loading}
                   >
-                    <Trash2 className="h-4 w-4 text-module-reports" />
+                    <Trash2 className="h-4 w-4 text-module-compliance" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
@@ -95,7 +95,7 @@ export const ReportCard = memo(function ReportCard({
       <CardContent>
         <div className="flex items-center justify-between text-sm text-muted-foreground">
           <div className="flex items-center space-x-1">
-            <Calendar className="h-3 w-3 text-module-reports" />
+            <Calendar className="h-3 w-3 text-module-workflows" />
             <span>{format(new Date(report.created_at), 'MMM d, yyyy')}</span>
           </div>
           {report.is_public && <Badge variant="secondary">Public</Badge>}

@@ -318,7 +318,7 @@ export const QueryEditor = memo(forwardRef<QueryEditorRef, QueryEditorProps>(({
               <div className="border-t border-border bg-muted/10">
                 <CollapsibleTrigger className="w-full p-3 flex items-center justify-between hover:bg-muted/20 transition-colors">
                   <h4 className="text-sm font-medium text-muted-foreground">Example Queries</h4>
-                  {examplesOpen ? <ChevronUp className="h-4 w-4 text-primary" /> : <ChevronDown className="h-4 w-4 text-primary" />}
+                  {examplesOpen ? <ChevronUp className="h-4 w-4 text-module-overview" /> : <ChevronDown className="h-4 w-4 text-module-overview" />}
                 </CollapsibleTrigger>
                 <CollapsibleContent>
                   <div className="p-3 pt-0 space-y-1 text-xs text-muted-foreground font-mono max-h-[400px] overflow-y-auto">

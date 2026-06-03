@@ -42,7 +42,7 @@ export const QueryTabs = memo(function QueryTabs({ tabs, activeTabId, onTabSelec
               className="h-10 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
               onClick={() => onTabClose(tab.id)}
             >
-              <X className="h-3 w-3 text-primary" />
+              <X className="h-3 w-3 text-module-compliance" />
             </Button>
           )}
         </div>
@@ -53,7 +53,7 @@ export const QueryTabs = memo(function QueryTabs({ tabs, activeTabId, onTabSelec
         className="h-10 w-10 p-0 border-r border-border"
         onClick={onNewTab}
       >
-        <Plus className="h-4 w-4 text-primary" />
+        <Plus className="h-4 w-4 text-module-workflows" />
       </Button>
     </div>
   );

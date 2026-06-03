@@ -43,7 +43,7 @@
          <DropdownMenu>
            <DropdownMenuTrigger asChild>
              <Button variant="outline" size="sm" className="gap-2">
-               <TrendingUp className="h-4 w-4 text-module-sla" />
+               <TrendingUp className="h-4 w-4 text-module-performance" />
                Quick Stats
                <ChevronDown className="h-3 w-3" />
              </Button>

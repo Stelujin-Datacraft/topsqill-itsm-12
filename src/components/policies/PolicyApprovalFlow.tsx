@@ -129,7 +129,7 @@ export function PolicyApprovalFlow({
         {/* Start Node */}
         <div className="flex items-center gap-3 mb-1">
           <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center shrink-0">
-            <User className="h-4 w-4 text-primary-foreground" />
+            <User className="h-4 w-4 text-module-access-foreground" />
           </div>
           <div>
             <p className="text-sm font-medium">Submitted for Approval</p>

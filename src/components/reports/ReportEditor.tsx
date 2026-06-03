@@ -646,7 +646,7 @@ export function ReportEditor({
 
           {/* AI Report Builder Button */}
           <Button variant="outline" size="sm" onClick={() => setIsAIBuilderOpen(true)} className="gap-2">
-            <Sparkles className="h-4 w-4 text-module-reports" />
+            <Sparkles className="h-4 w-4 text-module-query" />
             <span className="hidden sm:inline">AI Builder</span>
           </Button>
           

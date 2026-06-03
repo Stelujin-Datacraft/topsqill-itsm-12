@@ -339,7 +339,7 @@ const UserProfile = () => {
             <Card>
               <CardHeader className="pb-4">
                 <CardTitle className="text-lg flex items-center gap-2">
-                  <User className="h-5 w-5 text-primary" />
+                  <User className="h-5 w-5 text-module-access" />
                   Personal Information
                 </CardTitle>
                 <CardDescription>Your basic profile details</CardDescription>
@@ -360,7 +360,7 @@ const UserProfile = () => {
             <Card>
               <CardHeader className="pb-4">
                 <CardTitle className="text-lg flex items-center gap-2">
-                  <Mail className="h-5 w-5 text-primary" />
+                  <Mail className="h-5 w-5 text-module-email" />
                   Contact Information
                 </CardTitle>
                 <CardDescription>How to reach you</CardDescription>
@@ -375,7 +375,7 @@ const UserProfile = () => {
             <Card className="lg:col-span-2">
               <CardHeader className="pb-4">
                 <CardTitle className="text-lg flex items-center gap-2">
-                  <Globe className="h-5 w-5 text-primary" />
+                  <Globe className="h-5 w-5 text-module-api" />
                   Preferences
                 </CardTitle>
                 <CardDescription>Your regional and display settings</CardDescription>
@@ -393,7 +393,7 @@ const UserProfile = () => {
               <Card>
                 <CardHeader className="pb-4">
                   <CardTitle className="text-lg flex items-center gap-2">
-                    <User className="h-5 w-5 text-primary" />
+                    <User className="h-5 w-5 text-module-access" />
                     Personal Information
                   </CardTitle>
                   <CardDescription>Update your basic profile details</CardDescription>
@@ -475,7 +475,7 @@ const UserProfile = () => {
               <Card>
                 <CardHeader className="pb-4">
                   <CardTitle className="text-lg flex items-center gap-2">
-                    <Mail className="h-5 w-5 text-primary" />
+                    <Mail className="h-5 w-5 text-module-email" />
                     Contact Information
                   </CardTitle>
                   <CardDescription>Update how to reach you</CardDescription>
@@ -515,7 +515,7 @@ const UserProfile = () => {
               <Card className="lg:col-span-2">
                 <CardHeader className="pb-4">
                   <CardTitle className="text-lg flex items-center gap-2">
-                    <Globe className="h-5 w-5 text-primary" />
+                    <Globe className="h-5 w-5 text-module-api" />
                     Preferences
                   </CardTitle>
                   <CardDescription>Update your regional and display settings</CardDescription>

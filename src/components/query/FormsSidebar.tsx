@@ -263,7 +263,7 @@ export const FormsSidebar = memo(function FormsSidebar({
       <div className="w-full h-full border-r border-border bg-muted/10">
         <div className="p-4">
           <div className="flex items-center gap-2 mb-4">
-            <Database className="h-4 w-4 text-primary" />
+            <Database className="h-4 w-4 text-module-query" />
             <span className="font-medium">Loading...</span>
           </div>
         </div>
@@ -275,7 +275,7 @@ export const FormsSidebar = memo(function FormsSidebar({
     <div className="w-full h-full border-r border-border bg-muted/10">
       <div className="p-4 border-b border-border">
         <h2 className="font-semibold text-sm flex items-center">
-          <Database className="h-4 w-4 mr-2 text-primary" />
+          <Database className="h-4 w-4 mr-2 text-module-query" />
           Query Explorer
         </h2>
       </div>
@@ -294,8 +294,8 @@ export const FormsSidebar = memo(function FormsSidebar({
           <Collapsible open={isSystemTablesExpanded} onOpenChange={setIsSystemTablesExpanded}>
             <CollapsibleTrigger className="w-full">
               <div className="flex items-center gap-2 p-2 rounded-md hover:bg-muted/50 border border-border">
-                {isSystemTablesExpanded ? <ChevronDown className="h-4 w-4 text-primary" /> : <ChevronRight className="h-4 w-4 text-primary" />}
-                <Database className="h-4 w-4 text-primary" />
+                {isSystemTablesExpanded ? <ChevronDown className="h-4 w-4 text-module-overview" /> : <ChevronRight className="h-4 w-4 text-module-overview" />}
+                <Database className="h-4 w-4 text-module-query" />
                 <span className="font-medium text-sm">System Tables</span>
               </div>
             </CollapsibleTrigger>
@@ -314,8 +314,8 @@ export const FormsSidebar = memo(function FormsSidebar({
           <Collapsible open={isFormsExpanded} onOpenChange={setIsFormsExpanded}>
             <CollapsibleTrigger className="w-full">
               <div className="flex items-center gap-2 p-2 rounded-md hover:bg-muted/50 border border-border">
-                {isFormsExpanded ? <ChevronDown className="h-4 w-4 text-primary" /> : <ChevronRight className="h-4 w-4 text-primary" />}
-                <Table className="h-4 w-4 text-primary" />
+                {isFormsExpanded ? <ChevronDown className="h-4 w-4 text-module-overview" /> : <ChevronRight className="h-4 w-4 text-module-overview" />}
+                <Table className="h-4 w-4 text-module-reports" />
                 <span className="font-medium text-sm">Forms & Fields</span>
               </div>
             </CollapsibleTrigger>
@@ -334,7 +334,7 @@ export const FormsSidebar = memo(function FormsSidebar({
               
               {Object.keys(forms).length === 0 && (
                 <div className="text-center py-8 text-muted-foreground ml-4">
-                  <Database className="h-8 w-8 mx-auto mb-2 opacity-50 text-primary" />
+                  <Database className="h-8 w-8 mx-auto mb-2 opacity-50 text-module-query" />
                   <p className="text-sm">No forms found</p>
                   <p className="text-xs">Create a form to see it here</p>
                 </div>
@@ -411,8 +411,8 @@ const FormItem = memo(function FormItem({
           className="flex items-center gap-2 flex-1 cursor-pointer"
           onClick={handleToggle}
         >
-          {isOpen ? <ChevronDown className="h-4 w-4 text-primary" /> : <ChevronRight className="h-4 w-4 text-primary" />}
-          <Table className="h-4 w-4 text-primary" />
+          {isOpen ? <ChevronDown className="h-4 w-4 text-module-overview" /> : <ChevronRight className="h-4 w-4 text-module-overview" />}
+          <Table className="h-4 w-4 text-module-reports" />
           <span className="text-sm font-medium truncate">{form.name}</span>
         </div>
         <ActionButtons 
@@ -428,13 +428,13 @@ const FormItem = memo(function FormItem({
         {/* System Columns Section */}
         <div className="mt-2">
           <div className="flex items-center gap-2 px-2 py-1">
-            <Settings className="h-3 w-3 text-primary" />
+            <Settings className="h-3 w-3 text-module-overview" />
             <span className="text-xs font-medium text-muted-foreground">System Columns</span>
           </div>
           {Object.values(form.systemColumns).map(column => (
             <div key={column.id} className="flex items-center justify-between p-2 rounded-md hover:bg-muted/30 group">
               <div className="flex items-center gap-2 flex-1 min-w-0">
-                <Settings className="h-3 w-3 text-primary flex-shrink-0" />
+                <Settings className="h-3 w-3 text-module-overview flex-shrink-0" />
                 <span className="text-xs truncate">{column.label}</span>
                 <Badge variant="secondary" className={`text-xs px-1 py-0 ${getTypeColor(column.type)} flex-shrink-0`}>
                   {column.type}

@@ -422,7 +422,7 @@ const Auth = () => {
                     {lookupLoading ? 'Checking…' : 'Next'}
                   </Button>
                   <div className="text-center pt-2">
-                    <Link to="/forgot-password" className="text-sm text-primary hover:underline">
+                    <Link to="/forgot-password" className="text-sm text-module-relationship hover:underline">
                       Forgot Password?
                     </Link>
                   </div>
@@ -524,7 +524,7 @@ const Auth = () => {
                   )}
 
                   <div className="text-center pt-2">
-                    <Link to="/forgot-password" className="text-sm text-primary hover:underline">
+                    <Link to="/forgot-password" className="text-sm text-module-relationship hover:underline">
                       Forgot Password?
                     </Link>
                   </div>
@@ -698,7 +698,7 @@ const Auth = () => {
           </Tabs>
 
           <div className="mt-6 text-center">
-            <Link to="/" className="text-sm text-primary hover:underline">
+            <Link to="/" className="text-sm text-module-relationship hover:underline">
               Back to home
             </Link>
           </div>

@@ -184,7 +184,7 @@ export function PolicyDynamicFieldsRenderer({ formId, displayFormat, selectedFie
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
-        <Database className="h-4 w-4 text-primary" />
+        <Database className="h-4 w-4 text-module-query" />
         <h3 className="text-sm font-semibold text-foreground">
           Dynamic Data — {formName}
         </h3>

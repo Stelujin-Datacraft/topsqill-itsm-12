@@ -134,7 +134,7 @@ export default function SettingsPage() {
                 </div>
                 <div className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-muted/50">
                   <div className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-primary" />
+                    <CheckCircle2 className="h-4 w-4 text-module-knowledge" />
                     <span className="text-sm">Active Configs</span>
                   </div>
                   <Badge variant="secondary" className="font-semibold bg-primary/10 text-primary">{stats.activeConfigs}</Badge>
@@ -148,14 +148,14 @@ export default function SettingsPage() {
                 </div>
                 <div className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-muted/50">
                   <div className="flex items-center gap-2">
-                    <Zap className="h-4 w-4 text-primary" />
+                    <Zap className="h-4 w-4 text-module-workflows" />
                     <span className="text-sm">Active Templates</span>
                   </div>
                   <Badge variant="secondary" className="font-semibold bg-primary/10 text-primary">{stats.activeTemplates}</Badge>
                 </div>
                 <div className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-muted/50">
                   <div className="flex items-center gap-2">
-                    <Send className="h-4 w-4 text-primary" />
+                    <Send className="h-4 w-4 text-module-email" />
                     <span className="text-sm">Emails Today</span>
                   </div>
                   <Badge variant="secondary" className="font-semibold bg-primary/10 text-primary">{stats.emailsSentToday}</Badge>

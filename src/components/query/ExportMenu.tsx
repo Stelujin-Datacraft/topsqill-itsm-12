@@ -55,17 +55,17 @@ export function ExportMenu({ data, disabled }: ExportMenuProps) {
           disabled={disabled || !data || data.length === 0}
           className="gap-2"
         >
-          <Download className="h-4 w-4 text-primary" />
+          <Download className="h-4 w-4 text-module-knowledge" />
           Export
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuItem onClick={() => handleExport('csv')} className="gap-2">
-          <FileText className="h-4 w-4 text-primary" />
+          <FileText className="h-4 w-4 text-module-forms" />
           Export as CSV
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => handleExport('excel')} className="gap-2">
-          <FileSpreadsheet className="h-4 w-4 text-primary" />
+          <FileSpreadsheet className="h-4 w-4 text-module-reports" />
           Export as Excel
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => handleExport('json')} className="gap-2">

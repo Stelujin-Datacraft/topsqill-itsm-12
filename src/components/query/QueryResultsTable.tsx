@@ -367,7 +367,7 @@ const QueryResultsTableInner: React.FC<QueryResultsTableProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="p-4 border rounded-lg">
                   <div className="flex items-center gap-2 mb-2">
-                    <Clock className="h-4 w-4 text-primary" />
+                    <Clock className="h-4 w-4 text-module-sla" />
                     <span className="font-medium">Execution Time</span>
                   </div>
                   <div className="text-2xl font-bold">{executionTime}ms</div>
@@ -375,7 +375,7 @@ const QueryResultsTableInner: React.FC<QueryResultsTableProps> = ({
                 
                 <div className="p-4 border rounded-lg">
                   <div className="flex items-center gap-2 mb-2">
-                    <BarChart3 className="h-4 w-4 text-primary" />
+                    <BarChart3 className="h-4 w-4 text-module-reports" />
                     <span className="font-medium">Rows Returned</span>
                   </div>
                   <div className="text-2xl font-bold">{data.length}</div>
@@ -383,7 +383,7 @@ const QueryResultsTableInner: React.FC<QueryResultsTableProps> = ({
                 
                 <div className="p-4 border rounded-lg">
                   <div className="flex items-center gap-2 mb-2">
-                    <Info className="h-4 w-4 text-primary" />
+                    <Info className="h-4 w-4 text-module-overview" />
                     <span className="font-medium">Status</span>
                   </div>
                   <Badge variant="secondary" className="bg-green-100 text-green-800">

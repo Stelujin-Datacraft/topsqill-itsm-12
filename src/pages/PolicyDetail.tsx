@@ -2552,7 +2552,7 @@ const PolicyDetail = () => {
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle className="text-sm flex items-center gap-2">
-                    <Eye className="h-4 w-4 text-module-knowledge" /> Pre-Reviewers
+                    <Eye className="h-4 w-4 text-module-overview" /> Pre-Reviewers
                   </CardTitle>
                   {canEdit && (
                     <Button size="sm" variant="outline" onClick={() => setShowPreReviewDialog(true)}>
@@ -2677,7 +2677,7 @@ const PolicyDetail = () => {
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle className="text-sm flex items-center gap-2">
-                    <Shield className="h-4 w-4 text-module-knowledge" /> Post-Reviewers
+                    <Shield className="h-4 w-4 text-module-compliance" /> Post-Reviewers
                   </CardTitle>
                   {canEdit && (
                     <Button size="sm" variant="outline" onClick={() => setShowPostReviewDialog(true)}>
