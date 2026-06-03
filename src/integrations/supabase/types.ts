@@ -6790,6 +6790,10 @@ export type Database = {
         Args: { _submission_id: string; _user_id: string }
         Returns: boolean
       }
+      can_act_for: {
+        Args: { _delegator: string; _form_id?: string; _project_id?: string }
+        Returns: boolean
+      }
       can_create_asset_in_project: {
         Args: { _project_id: string; _user_id: string }
         Returns: boolean
