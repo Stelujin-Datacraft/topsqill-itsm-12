@@ -70,18 +70,23 @@ export const RecordHistoryDialog: React.FC<RecordHistoryDialogProps> = ({
 
       // Fetch user info for all changed_by users (handle both direct user IDs and workflow:/datafeed: format)
       const rawUserIds = (data || []).map(h => h.changed_by).filter(Boolean) as string[];
-      const extractedUserIds = rawUserIds.map(id => {
+      const extractedUserIds = rawUserIds.flatMap(id => {
+        // Strip delegation suffix `actor|on_behalf_of:delegator` → collect BOTH ids
+        if (id.includes('|on_behalf_of:')) {
+          const [actor, delegator] = id.split('|on_behalf_of:');
+          return [actor, delegator].filter(Boolean);
+        }
         // Extract user ID from workflow format if present
         if (id.startsWith('workflow:')) {
           const extracted = id.replace('workflow:', '');
-          return extracted === 'system' ? null : extracted;
+          return extracted === 'system' ? [] : [extracted];
         }
         // Extract user ID from datafeed format if present
         if (id.startsWith('datafeed:')) {
           const extracted = id.replace('datafeed:', '');
-          return extracted === 'system' ? null : extracted;
+          return extracted === 'system' ? [] : [extracted];
         }
-        return id;
+        return [id];
       }).filter(Boolean) as string[];
       
       const userIds = [...new Set(extractedUserIds)];
@@ -139,6 +144,18 @@ export const RecordHistoryDialog: React.FC<RecordHistoryDialogProps> = ({
   const getUserDisplayName = (changedBy: string | null) => {
     if (!changedBy) return 'System';
     
+    // Handle delegated changes: `actorId|on_behalf_of:delegatorId`
+    if (changedBy.includes('|on_behalf_of:')) {
+      const [actorId, delegatorId] = changedBy.split('|on_behalf_of:');
+      const nameFor = (id: string) => {
+        const u = users[id];
+        if (!u) return 'Unknown User';
+        if (u.first_name && u.last_name) return `${u.first_name} ${u.last_name}`;
+        return u.email;
+      };
+      return `${nameFor(delegatorId)} (on behalf, by ${nameFor(actorId)})`;
+    }
+
     // Handle workflow changes
     if (isWorkflowChange(changedBy)) {
       const userId = getWorkflowUserId(changedBy);
