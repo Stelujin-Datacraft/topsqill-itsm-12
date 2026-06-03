@@ -2,6 +2,8 @@ import React, { useContext } from 'react';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from './AppSidebar';
 import { useImpersonation } from '@/contexts/ImpersonationContext';
+import { useDelegation } from '@/contexts/DelegationContext';
+import { DelegationSwitcher } from './DelegationSwitcher';
 import { LayoutContext } from './ProtectedLayout';
 
 interface DashboardLayoutProps {
@@ -23,6 +25,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   actions
 }) => {
   const { isImpersonating } = useImpersonation();
+  const { isActingOnBehalf } = useDelegation();
   const isInsideLayout = useContext(LayoutContext);
   
   // Content with header - shared between both modes
@@ -39,7 +42,13 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           </div>
           {actions && (
             <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap [&>*]:shrink-0 overflow-x-auto scrollbar-hide -mx-1 px-1">
+              <DelegationSwitcher />
               {actions}
+            </div>
+          )}
+          {!actions && (
+            <div className="flex items-center gap-2">
+              <DelegationSwitcher />
             </div>
           )}
         </div>
@@ -58,7 +67,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   // Standalone mode - render full layout with sidebar (for pages not yet migrated)
   return (
     <SidebarProvider>
-      <div className={`min-h-screen flex w-full ${isImpersonating ? 'pt-12' : ''}`}>
+      <div className={`min-h-screen flex w-full ${isImpersonating || isActingOnBehalf ? 'pt-12' : ''}`}>
         <AppSidebar />
         <main className="flex-1 flex flex-col">
           {content}
