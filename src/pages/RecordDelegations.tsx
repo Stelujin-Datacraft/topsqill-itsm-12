@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { format } from 'date-fns';
-import { Plus, Trash2, UserCheck, Calendar, Shield } from 'lucide-react';
+import { Plus, Trash2, UserCheck, Calendar, Shield, AlertTriangle, Check, ChevronsUpDown, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useForm as useFormCtx } from '@/contexts/FormContext';
@@ -18,6 +18,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { cn } from '@/lib/utils';
 
 type ScopeType = 'all' | 'form' | 'project';
 
@@ -40,6 +43,69 @@ interface UserOption { id: string; email: string; first_name: string | null; las
 
 const fullName = (u?: UserOption) => u ? (u.first_name || u.last_name ? `${u.first_name ?? ''} ${u.last_name ?? ''}`.trim() : u.email) : '—';
 
+// Generic multi-select combobox
+function MultiSelect({
+  options, selected, onChange, placeholder, emptyText,
+}: {
+  options: { value: string; label: string; sub?: string }[];
+  selected: string[];
+  onChange: (v: string[]) => void;
+  placeholder: string;
+  emptyText: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const toggle = (v: string) => onChange(selected.includes(v) ? selected.filter(x => x !== v) : [...selected, v]);
+  const labelFor = (v: string) => options.find(o => o.value === v)?.label ?? v;
+  return (
+    <div className="space-y-2">
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button variant="outline" role="combobox" className="w-full justify-between font-normal">
+            <span className="truncate">
+              {selected.length === 0 ? <span className="text-muted-foreground">{placeholder}</span> : `${selected.length} selected`}
+            </span>
+            <ChevronsUpDown className="h-4 w-4 opacity-50 shrink-0" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+          <Command>
+            <CommandInput placeholder="Search…" />
+            <CommandList>
+              <CommandEmpty>{emptyText}</CommandEmpty>
+              <CommandGroup>
+                {options.map(o => {
+                  const checked = selected.includes(o.value);
+                  return (
+                    <CommandItem key={o.value} value={`${o.label} ${o.sub ?? ''}`} onSelect={() => toggle(o.value)}>
+                      <div className={cn("mr-2 h-4 w-4 border rounded flex items-center justify-center", checked ? "bg-primary border-primary" : "border-input")}>
+                        {checked && <Check className="h-3 w-3 text-primary-foreground" />}
+                      </div>
+                      <div className="flex flex-col">
+                        <span>{o.label}</span>
+                        {o.sub && <span className="text-xs text-muted-foreground">{o.sub}</span>}
+                      </div>
+                    </CommandItem>
+                  );
+                })}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+      {selected.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {selected.map(v => (
+            <Badge key={v} variant="secondary" className="gap-1">
+              {labelFor(v)}
+              <button type="button" onClick={() => toggle(v)} className="hover:text-destructive"><X className="h-3 w-3" /></button>
+            </Badge>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function RecordDelegations() {
   const { userProfile } = useAuth();
   const { forms } = useFormCtx();
@@ -55,10 +121,10 @@ export default function RecordDelegations() {
   const [saving, setSaving] = useState(false);
 
   // Form fields
-  const [delegateId, setDelegateId] = useState('');
+  const [delegateIds, setDelegateIds] = useState<string[]>([]);
   const [scope, setScope] = useState<ScopeType>('all');
-  const [scopeFormId, setScopeFormId] = useState('');
-  const [scopeProjectId, setScopeProjectId] = useState('');
+  const [scopeFormIds, setScopeFormIds] = useState<string[]>([]);
+  const [scopeProjectIds, setScopeProjectIds] = useState<string[]>([]);
   const [startsAt, setStartsAt] = useState(() => new Date().toISOString().slice(0, 16));
   const [endsAt, setEndsAt] = useState(() => {
     const d = new Date(); d.setDate(d.getDate() + 7); return d.toISOString().slice(0, 16);
@@ -93,7 +159,7 @@ export default function RecordDelegations() {
   useEffect(() => { loadAll(); /* eslint-disable-next-line */ }, [userProfile?.id]);
 
   const resetForm = () => {
-    setDelegateId(''); setScope('all'); setScopeFormId(''); setScopeProjectId('');
+    setDelegateIds([]); setScope('all'); setScopeFormIds([]); setScopeProjectIds([]);
     setIncludeApprovals(true); setReason('');
     setStartsAt(new Date().toISOString().slice(0, 16));
     const d = new Date(); d.setDate(d.getDate() + 7);
@@ -102,29 +168,37 @@ export default function RecordDelegations() {
 
   const handleCreate = async () => {
     if (!userProfile?.id || !userProfile?.organization_id) return;
-    if (!delegateId) return toast({ title: 'Pick a delegate', variant: 'destructive' });
-    if (scope === 'form' && !scopeFormId) return toast({ title: 'Pick a form', variant: 'destructive' });
-    if (scope === 'project' && !scopeProjectId) return toast({ title: 'Pick a project', variant: 'destructive' });
+    if (delegateIds.length === 0) return toast({ title: 'Pick at least one delegate', variant: 'destructive' });
+    if (scope === 'form' && scopeFormIds.length === 0) return toast({ title: 'Pick at least one form', variant: 'destructive' });
+    if (scope === 'project' && scopeProjectIds.length === 0) return toast({ title: 'Pick at least one project', variant: 'destructive' });
     if (new Date(endsAt) <= new Date(startsAt)) return toast({ title: 'End time must be after start', variant: 'destructive' });
 
     setSaving(true);
     try {
-      const { error } = await supabase.from('record_delegations').insert({
+      // Build the row matrix: delegates × scope targets
+      const targets: { form: string | null; project: string | null }[] =
+        scope === 'form'    ? scopeFormIds.map(id => ({ form: id, project: null }))
+      : scope === 'project' ? scopeProjectIds.map(id => ({ form: null, project: id }))
+      :                       [{ form: null, project: null }];
+
+      const rows = delegateIds.flatMap(uid => targets.map(t => ({
         organization_id: userProfile.organization_id,
         delegator_user_id: userProfile.id,
-        delegate_user_id: delegateId,
+        delegate_user_id: uid,
         scope,
-        scope_form_id: scope === 'form' ? scopeFormId : null,
-        scope_project_id: scope === 'project' ? scopeProjectId : null,
+        scope_form_id: t.form,
+        scope_project_id: t.project,
         starts_at: new Date(startsAt).toISOString(),
         ends_at: new Date(endsAt).toISOString(),
         include_approvals: includeApprovals,
         reason: reason || null,
         created_by: userProfile.id,
         active: true,
-      });
+      })));
+
+      const { error } = await supabase.from('record_delegations').insert(rows);
       if (error) throw error;
-      toast({ title: 'Delegation created' });
+      toast({ title: `Created ${rows.length} delegation${rows.length === 1 ? '' : 's'}` });
       setOpen(false); resetForm(); loadAll();
     } catch (e: any) {
       toast({ title: 'Failed to create delegation', description: e.message, variant: 'destructive' });
@@ -259,13 +333,14 @@ export default function RecordDelegations() {
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>Delegate</Label>
-              <Select value={delegateId} onValueChange={setDelegateId}>
-                <SelectTrigger><SelectValue placeholder="Choose a user" /></SelectTrigger>
-                <SelectContent>
-                  {users.map(u => (<SelectItem key={u.id} value={u.id}>{fullName(u)} — {u.email}</SelectItem>))}
-                </SelectContent>
-              </Select>
+              <Label>Delegates</Label>
+              <MultiSelect
+                options={users.map(u => ({ value: u.id, label: fullName(u), sub: u.email }))}
+                selected={delegateIds}
+                onChange={setDelegateIds}
+                placeholder="Choose one or more users"
+                emptyText="No users found"
+              />
             </div>
 
             <div className="space-y-2">
@@ -282,20 +357,36 @@ export default function RecordDelegations() {
 
             {scope === 'form' && (
               <div className="space-y-2">
-                <Label>Form</Label>
-                <Select value={scopeFormId} onValueChange={setScopeFormId}>
-                  <SelectTrigger><SelectValue placeholder="Choose a form" /></SelectTrigger>
-                  <SelectContent>{forms.map(f => (<SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>))}</SelectContent>
-                </Select>
+                <Label>Forms</Label>
+                <MultiSelect
+                  options={forms.map(f => ({ value: f.id, label: f.name }))}
+                  selected={scopeFormIds}
+                  onChange={setScopeFormIds}
+                  placeholder="Choose one or more forms"
+                  emptyText="No forms found"
+                />
               </div>
             )}
             {scope === 'project' && (
               <div className="space-y-2">
-                <Label>Project</Label>
-                <Select value={scopeProjectId} onValueChange={setScopeProjectId}>
-                  <SelectTrigger><SelectValue placeholder="Choose a project" /></SelectTrigger>
-                  <SelectContent>{projects.map(p => (<SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>))}</SelectContent>
-                </Select>
+                <Label>Projects</Label>
+                <MultiSelect
+                  options={projects.map(p => ({ value: p.id, label: p.name }))}
+                  selected={scopeProjectIds}
+                  onChange={setScopeProjectIds}
+                  placeholder="Choose one or more projects"
+                  emptyText="No projects found"
+                />
+              </div>
+            )}
+
+            {(scope === 'form' || scope === 'project') && delegateIds.length > 0 && (
+              <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-muted-foreground">
+                <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                <p>
+                  Delegates will only see your records on a {scope === 'form' ? 'form' : 'project'} they already have access to.
+                  If the delegate isn't a member, share the {scope === 'form' ? 'form/project' : 'project'} with them first — otherwise this delegation will silently grant nothing.
+                </p>
               </div>
             )}
 
@@ -322,6 +413,14 @@ export default function RecordDelegations() {
               <Label>Reason (optional)</Label>
               <Textarea value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. On leave 5–12 Jun" />
             </div>
+
+            {delegateIds.length > 0 && (scope === 'all' || scopeFormIds.length > 0 || scopeProjectIds.length > 0) && (
+              <p className="text-xs text-muted-foreground">
+                Will create <b className="text-foreground">
+                  {delegateIds.length * (scope === 'form' ? scopeFormIds.length : scope === 'project' ? scopeProjectIds.length : 1)}
+                </b> delegation row(s).
+              </p>
+            )}
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
