@@ -246,7 +246,7 @@ const DashboardView = () => {
                                 }}
                                 disabled={editButtonState.disabled}
                               >
-                                <Star className={`h-4 w-4 ${isDefaultReport ? 'fill-primary text-primary' : 'text-primary'}`} />
+                                <Star className={`h-4 w-4 ${isDefaultReport ? 'fill-module-performance text-module-performance' : 'text-module-performance'}`} />
                               </Button>
                             </TooltipTrigger>
                             <TooltipContent>
