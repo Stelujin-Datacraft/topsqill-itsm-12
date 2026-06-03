@@ -114,6 +114,7 @@ const FormAuditLogs = lazyWithRetry(() => import("./pages/FormAuditLogs"));
 const InvestigateAccess = lazyWithRetry(() => import("./pages/InvestigateAccess"));
 const LdapSettings = lazyWithRetry(() => import("./pages/LdapSettings"));
 const SLAManagementPage = lazyWithRetry(() => import("./pages/SLAManagementPage"));
+const RecordDelegations = lazyWithRetry(() => import("./pages/RecordDelegations"));
 
 // Policies / Knowledge Base feature
 const Policies = lazyWithRetry(() => import("./pages/Policies"));
@@ -274,6 +275,7 @@ const App = () => (
                         <Route path="/investigate-access" element={<InvestigateAccess />} />
                         <Route path="/ldap-settings" element={<LdapSettings />} />
                         <Route path="/sla-management" element={<SLAManagementPage />} />
+                        <Route path="/record-delegations" element={<RecordDelegations />} />
                         <Route path="/api-integration" element={<ApiIntegration />} />
                         <Route path="/api-docs" element={<ApiDocs />} />
                         <Route path="/it-assets" element={<ITAssets />} />

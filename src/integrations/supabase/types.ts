@@ -5076,6 +5076,75 @@ export type Database = {
         }
         Relationships: []
       }
+      record_delegations: {
+        Row: {
+          active: boolean
+          created_at: string
+          created_by: string
+          delegate_user_id: string
+          delegator_user_id: string
+          ends_at: string
+          id: string
+          include_approvals: boolean
+          organization_id: string
+          reason: string | null
+          scope: Database["public"]["Enums"]["delegation_scope"]
+          scope_form_id: string | null
+          scope_project_id: string | null
+          starts_at: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          created_by: string
+          delegate_user_id: string
+          delegator_user_id: string
+          ends_at: string
+          id?: string
+          include_approvals?: boolean
+          organization_id: string
+          reason?: string | null
+          scope?: Database["public"]["Enums"]["delegation_scope"]
+          scope_form_id?: string | null
+          scope_project_id?: string | null
+          starts_at?: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          created_by?: string
+          delegate_user_id?: string
+          delegator_user_id?: string
+          ends_at?: string
+          id?: string
+          include_approvals?: boolean
+          organization_id?: string
+          reason?: string | null
+          scope?: Database["public"]["Enums"]["delegation_scope"]
+          scope_form_id?: string | null
+          scope_project_id?: string | null
+          starts_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "record_delegations_scope_form_id_fkey"
+            columns: ["scope_form_id"]
+            isOneToOne: false
+            referencedRelation: "forms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "record_delegations_scope_project_id_fkey"
+            columns: ["scope_project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       record_field_history: {
         Row: {
           change_type: string
@@ -6759,6 +6828,13 @@ export type Database = {
         Args: { form_ref_id: string }
         Returns: string
       }
+      get_active_delegators: {
+        Args: { _form_id?: string; _project_id?: string; _user_id: string }
+        Returns: {
+          delegator_user_id: string
+          include_approvals: boolean
+        }[]
+      }
       get_chart_data: {
         Args: {
           p_aggregation?: string
@@ -7111,6 +7187,7 @@ export type Database = {
         | "disposed"
         | "lost"
         | "stolen"
+      delegation_scope: "all" | "form" | "project"
       escalation_level: "L1" | "L2" | "L3" | "L4"
       sla_status: "on_track" | "warning" | "breached" | "completed" | "paused"
     }
@@ -7251,6 +7328,7 @@ export const Constants = {
         "lost",
         "stolen",
       ],
+      delegation_scope: ["all", "form", "project"],
       escalation_level: ["L1", "L2", "L3", "L4"],
       sla_status: ["on_track", "warning", "breached", "completed", "paused"],
     },
