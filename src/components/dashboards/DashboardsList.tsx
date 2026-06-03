@@ -113,7 +113,7 @@ export function DashboardsList({
         <Card>
           <CardContent className="py-12">
             <div className="text-center space-y-4">
-              <LayoutDashboard className="h-12 w-12 text-primary mx-auto" />
+              <LayoutDashboard className="h-12 w-12 text-module-reports mx-auto" />
               <div>
                 <h3 className="text-lg font-semibold">No dashboards yet</h3>
                 <p className="text-muted-foreground">
@@ -153,7 +153,7 @@ export function DashboardsList({
                   <div className="flex items-start justify-between">
                     <div className="space-y-1 flex-1">
                       <div className="flex items-center gap-2">
-                        <LayoutDashboard className="h-4 w-4 text-primary" />
+                        <LayoutDashboard className="h-4 w-4 text-module-reports" />
                         <CardTitle className="text-lg">{dashboard.name}</CardTitle>
                         {isDefault && <Badge variant="default" className="text-[10px]">Default</Badge>}
                       </div>
@@ -175,16 +175,16 @@ export function DashboardsList({
                         </Tooltip>
                       </TooltipProvider>
                       <Button variant="ghost" size="sm" onClick={() => handleCopyId(dashboard.id)} title="Copy Dashboard ID">
-                        <Copy className="h-4 w-4 text-primary" />
+                        <Copy className="h-4 w-4 text-module-relationship" />
                       </Button>
                       <Button variant="ghost" size="sm" onClick={() => onView(dashboard)} title="View Dashboard">
-                        <Eye className="h-4 w-4 text-primary" />
+                        <Eye className="h-4 w-4 text-module-overview" />
                       </Button>
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <Button variant="ghost" size="sm" onClick={() => handleEditClick(dashboard)} disabled={editButtonState.disabled}>
-                              <Edit className="h-4 w-4 text-primary" />
+                              <Edit className="h-4 w-4 text-module-reports" />
                             </Button>
                           </TooltipTrigger>
                           <TooltipContent>
@@ -196,7 +196,7 @@ export function DashboardsList({
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <Button variant="ghost" size="sm" onClick={() => handleDeleteClick(dashboard)} disabled={deleteButtonState.disabled || loading}>
-                              <Trash2 className="h-4 w-4 text-primary" />
+                              <Trash2 className="h-4 w-4 text-module-compliance" />
                             </Button>
                           </TooltipTrigger>
                           <TooltipContent>
@@ -211,11 +211,11 @@ export function DashboardsList({
                   <div className="flex items-center justify-between text-sm text-muted-foreground">
                     <div className="flex items-center space-x-4">
                       <div className="flex items-center space-x-1">
-                        <FileText className="h-3 w-3 text-primary" />
+                        <FileText className="h-3 w-3 text-module-forms" />
                         <span>{reportCount} report{reportCount !== 1 ? 's' : ''}</span>
                       </div>
                       <div className="flex items-center space-x-1">
-                        <Calendar className="h-3 w-3 text-primary" />
+                        <Calendar className="h-3 w-3 text-module-workflows" />
                         <span>{format(new Date(dashboard.created_at), 'MMM d, yyyy')}</span>
                       </div>
                     </div>

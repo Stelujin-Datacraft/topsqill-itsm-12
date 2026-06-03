@@ -73,7 +73,7 @@ export function SetDefaultReportDialog({ report, dashboardId, isOpen, onClose }:
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Star className="h-5 w-5 text-primary" />
+            <Star className="h-5 w-5 text-module-performance" />
             {isCurrentlyDefault ? 'Remove Default Report' : 'Set Default Report'}
           </DialogTitle>
           <DialogDescription>

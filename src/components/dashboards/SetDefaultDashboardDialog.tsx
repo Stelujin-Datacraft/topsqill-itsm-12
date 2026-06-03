@@ -191,7 +191,7 @@ export function SetDefaultDashboardDialog({ dashboard, isOpen, onClose }: SetDef
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Star className="h-5 w-5 text-primary" />
+            <Star className="h-5 w-5 text-module-performance" />
             Set Default Dashboard
           </DialogTitle>
           <DialogDescription>
@@ -205,7 +205,7 @@ export function SetDefaultDashboardDialog({ dashboard, isOpen, onClose }: SetDef
               onClick={() => setDefaultFor('all')}>
               <RadioGroupItem value="all" id="all-users" />
               <Label htmlFor="all-users" className="flex items-center gap-2 cursor-pointer flex-1">
-                <Users className="h-4 w-4 text-primary" />
+                <Users className="h-4 w-4 text-module-access" />
                 <div>
                   <div className="font-medium">All Users</div>
                   <div className="text-xs text-muted-foreground">Everyone in this project will see this dashboard after login</div>
@@ -217,7 +217,7 @@ export function SetDefaultDashboardDialog({ dashboard, isOpen, onClose }: SetDef
               onClick={() => setDefaultFor('specific')}>
               <RadioGroupItem value="specific" id="specific-users" />
               <Label htmlFor="specific-users" className="flex items-center gap-2 cursor-pointer flex-1">
-                <User className="h-4 w-4 text-primary" />
+                <User className="h-4 w-4 text-module-access" />
                 <div>
                   <div className="font-medium">Specific Users</div>
                   <div className="text-xs text-muted-foreground">Only selected users will see this dashboard</div>
