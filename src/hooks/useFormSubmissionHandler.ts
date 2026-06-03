@@ -76,9 +76,9 @@ export function useFormSubmissionHandler(formId: string | undefined, form?: Form
     try {
       console.log('📝 Submitting form data to database:', formData);
       
-      // If acting on behalf of a delegator (whose scope covers this form), attribute the
-      // record to them so the delegator's name appears as the creator.
-      const onBehalfId = actingAs && (delegationCoversScope(formId ?? null, null) || true)
+      // If acting on behalf of a delegator whose delegation scope covers this form,
+      // attribute the record to them so the delegator's name appears as the creator.
+      const onBehalfId = actingAs && delegationCoversScope(formId ?? null, null)
         ? actingAs.id
         : null;
       const effectiveSubmittedBy = onBehalfId || userProfile?.id || null;
