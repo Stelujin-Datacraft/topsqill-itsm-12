@@ -324,7 +324,7 @@ const ChangePassword = () => {
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
             <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
-              <Lock className="h-6 w-6 text-primary" />
+              <Lock className="h-6 w-6 text-module-compliance" />
             </div>
           </div>
           <CardTitle className="text-2xl">

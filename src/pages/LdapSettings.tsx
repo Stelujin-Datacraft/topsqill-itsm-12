@@ -704,7 +704,7 @@ const [showCreateDialog, setShowCreateDialog] = useState(false);
           <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">
             <div className="space-y-0.5">
               <Label className="flex items-center gap-2">
-                <RefreshCw className="h-4 w-4 text-primary" />
+                <RefreshCw className="h-4 w-4 text-module-feeds" />
                 Enable Directory Sync
               </Label>
               <p className="text-xs text-muted-foreground">
@@ -772,7 +772,7 @@ const [showCreateDialog, setShowCreateDialog] = useState(false);
             <CardContent className="py-16">
               <div className="flex flex-col items-center text-center max-w-2xl mx-auto">
                 <div className="mb-6 p-5 rounded-full bg-gradient-to-br from-primary/20 to-primary/5">
-                  <Server className="h-12 w-12 text-primary" />
+                  <Server className="h-12 w-12 text-module-itam" />
                 </div>
                 <h2 className="text-2xl font-semibold mb-2">No LDAP Configuration</h2>
                 <p className="text-muted-foreground mb-8 max-w-md">
@@ -831,7 +831,7 @@ const [showCreateDialog, setShowCreateDialog] = useState(false);
                       <p className="text-3xl font-bold">{configurations.length}</p>
                     </div>
                     <div className="p-3 rounded-full bg-primary/10">
-                      <Server className="h-6 w-6 text-primary" />
+                      <Server className="h-6 w-6 text-module-itam" />
                     </div>
                   </div>
                 </CardContent>

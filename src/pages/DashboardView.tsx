@@ -260,7 +260,7 @@ const DashboardView = () => {
                           onClick={() => handleCopyReportId(report.id)} 
                           title="Copy Report ID"
                         >
-                          <Copy className="h-4 w-4 text-module-overview" />
+                          <Copy className="h-4 w-4 text-module-relationship" />
                         </Button>
                         <ShareLinkButton 
                           assetType="report" 
@@ -284,7 +284,7 @@ const DashboardView = () => {
                                 onClick={() => handleEditReport(report.id)} 
                                 disabled={editButtonState.disabled}
                               >
-                                <Edit className="h-4 w-4 text-module-overview" />
+                                <Edit className="h-4 w-4 text-module-reports" />
                               </Button>
                             </TooltipTrigger>
                             <TooltipContent>
@@ -301,7 +301,7 @@ const DashboardView = () => {
                                 onClick={() => handleDeleteReport(report.id, report.name)} 
                                 disabled={deleteButtonState.disabled || isDeleting}
                               >
-                                <Trash2 className="h-4 w-4 text-module-overview" />
+                                <Trash2 className="h-4 w-4 text-module-compliance" />
                               </Button>
                             </TooltipTrigger>
                             <TooltipContent>
@@ -315,7 +315,7 @@ const DashboardView = () => {
                   <CardContent>
                     <div className="flex items-center justify-between text-sm text-muted-foreground">
                       <div className="flex items-center space-x-1">
-                        <Calendar className="h-3 w-3 text-module-overview" />
+                        <Calendar className="h-3 w-3 text-module-workflows" />
                         <span>{format(new Date(report.created_at), 'MMM d, yyyy')}</span>
                       </div>
                       {report.is_public && <Badge variant="secondary">Public</Badge>}

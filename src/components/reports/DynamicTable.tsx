@@ -1320,19 +1320,19 @@ export function DynamicTable({
                     </TableHead>
                     <TableHead className="text-xs font-semibold h-9 text-foreground min-w-[140px]">
                       <div className="flex items-center gap-1.5">
-                        <FileText className="h-3.5 w-3.5 text-module-reports" />
+                        <FileText className="h-3.5 w-3.5 text-module-forms" />
                         Submission ID
                       </div>
                     </TableHead>
                     <TableHead className="text-xs font-semibold h-9 text-foreground min-w-[100px]">
                       <div className="flex items-center gap-1.5">
-                        <User className="h-3.5 w-3.5 text-module-reports" />
+                        <User className="h-3.5 w-3.5 text-module-access" />
                         User
                       </div>
                     </TableHead>
                     <TableHead className="text-xs font-semibold h-9 text-foreground min-w-[120px]">
                       <div className="flex items-center gap-1.5">
-                        <Calendar className="h-3.5 w-3.5 text-module-reports" />
+                        <Calendar className="h-3.5 w-3.5 text-module-workflows" />
                         Submitted
                       </div>
                     </TableHead>

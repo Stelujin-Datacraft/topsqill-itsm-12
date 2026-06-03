@@ -95,7 +95,7 @@ export function PolicyRecordSelector({
       {onRecordNameFieldChange && (
         <div className="p-3 border rounded-md bg-muted/30 space-y-1.5">
           <div className="flex items-center gap-1.5">
-            <Tag className="h-3.5 w-3.5 text-primary" />
+            <Tag className="h-3.5 w-3.5 text-module-reports" />
             <Label className="text-xs font-medium">Record Name Field</Label>
           </div>
           <p className="text-[11px] text-muted-foreground">Select a field whose value will be used as the record title instead of "Record 1, Record 2..."</p>
@@ -233,7 +233,7 @@ export function PolicyRecordSelector({
         <Card className="border-primary/30">
           <CardHeader className="py-2 px-4">
             <div className="flex items-center gap-2">
-              <Eye className="h-4 w-4 text-primary" />
+              <Eye className="h-4 w-4 text-module-overview" />
               <CardTitle className="text-sm">Selection Preview</CardTitle>
               <Badge variant="outline" className="text-[10px]">
                 {selectedRecordsData.length} records × {selectedFieldIds.length} fields

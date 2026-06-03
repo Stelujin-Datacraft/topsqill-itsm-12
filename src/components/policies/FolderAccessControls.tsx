@@ -154,7 +154,7 @@ export function FolderAccessControls({ folderId }: FolderAccessControlsProps) {
                     onClick={() => toggleSelection(gId)}
                   >
                     <div className={`w-4 h-4 rounded border flex items-center justify-center ${isSelected ? 'bg-primary border-primary' : 'border-muted-foreground/30'}`}>
-                      {isSelected && <CheckCircle className="h-3 w-3 text-primary-foreground" />}
+                      {isSelected && <CheckCircle className="h-3 w-3 text-module-knowledge-foreground" />}
                     </div>
                     <Users className="h-3.5 w-3.5 text-muted-foreground" />
                     <span className="text-sm">{g.name}</span>
@@ -177,7 +177,7 @@ export function FolderAccessControls({ folderId }: FolderAccessControlsProps) {
                     onClick={() => toggleSelection(u.id)}
                   >
                     <div className={`w-4 h-4 rounded border flex items-center justify-center ${isSelected ? 'bg-primary border-primary' : 'border-muted-foreground/30'}`}>
-                      {isSelected && <CheckCircle className="h-3 w-3 text-primary-foreground" />}
+                      {isSelected && <CheckCircle className="h-3 w-3 text-module-knowledge-foreground" />}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-sm truncate">{name}</div>

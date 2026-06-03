@@ -253,7 +253,7 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
     <div className="space-y-6">
       {/* Introduction */}
       <Alert className="bg-primary/5 border-primary/20">
-        <Info className="h-4 w-4 text-module-reports" />
+        <Info className="h-4 w-4 text-module-overview" />
         <AlertDescription className="text-sm">
           Configure your chart data in 3 simple steps: choose what to show, select your values, and pick how to group them.
         </AlertDescription>
@@ -419,7 +419,7 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
                 <div className="p-4 bg-muted/50 rounded-lg border space-y-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <TrendingUp className="h-4 w-4 text-primary" />
+                      <TrendingUp className="h-4 w-4 text-module-performance" />
                       <span className="font-medium">{getFieldLabel(selectedMetrics[0])}</span>
                       <Badge variant="secondary" className="text-xs">
                         {getFieldTypeLabel(selectedMetrics[0])}
@@ -497,7 +497,7 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
                 {selectedMetrics[0] ? (
                   <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border">
                     <div className="flex items-center gap-2">
-                      <TrendingUp className="h-4 w-4 text-primary" />
+                      <TrendingUp className="h-4 w-4 text-module-performance" />
                       <span className="font-medium">{getFieldLabel(selectedMetrics[0])}</span>
                     </div>
                     <Button

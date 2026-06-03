@@ -1790,7 +1790,7 @@ export function DataFeedDialog({
                         </Select>
 
                         <div className="flex items-center justify-center w-8">
-                          <ArrowRight className="h-4 w-4 text-module-feeds" />
+                          <ArrowRight className="h-4 w-4 text-module-workflows" />
                         </div>
 
                         <Select
@@ -1876,7 +1876,7 @@ export function DataFeedDialog({
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <ArrowRight className="h-5 w-5 text-module-feeds" />
+                      <ArrowRight className="h-5 w-5 text-module-workflows" />
                       <div>
                         <Label className="text-base font-medium">Direct Field Mappings</Label>
                         <p className="text-sm text-muted-foreground">
@@ -2031,7 +2031,7 @@ export function DataFeedDialog({
               
               <div className="space-y-4">
                 <div className="flex items-center gap-2">
-                  <GitBranch className="h-5 w-5 text-module-feeds" />
+                  <GitBranch className="h-5 w-5 text-module-workflows" />
                   <div>
                     <Label className="text-base font-medium">Nested Cross-Reference Mappings</Label>
                     <p className="text-sm text-muted-foreground">

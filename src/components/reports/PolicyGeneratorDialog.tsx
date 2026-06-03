@@ -408,7 +408,7 @@ export function PolicyGeneratorDialog({
                 <input ref={smartFileInputRef} type="file" accept=".docx" onChange={handleFileChange} className="hidden" />
                 {templateFile ? (
                   <div className="flex items-center gap-2 p-2 rounded-md bg-muted border">
-                    <FileText className="h-4 w-4 text-module-reports shrink-0" />
+                    <FileText className="h-4 w-4 text-module-forms shrink-0" />
                     <span className="text-sm truncate flex-1">{templateFile.name}</span>
                     <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setTemplateFile(null); if (smartFileInputRef.current) smartFileInputRef.current.value = ''; }}>
                       <X className="h-3 w-3" />
@@ -426,7 +426,7 @@ export function PolicyGeneratorDialog({
                   <PopoverTrigger asChild>
                     <Button variant="outline" size="sm" className="w-full justify-between">
                       <div className="flex items-center gap-2">
-                        <Info className="h-4 w-4 text-module-reports" />
+                        <Info className="h-4 w-4 text-module-overview" />
                         <span>Available Placeholder Tags</span>
                       </div>
                       <ChevronDown className="h-4 w-4 text-muted-foreground" />
@@ -485,7 +485,7 @@ ${fieldTags.length > 1 ? `${fieldTags[1].label.replace(/\s+/g, '_')}: {${fieldTa
                 <input ref={fileInputRef} type="file" accept=".docx" onChange={handleFileChange} className="hidden" />
                 {templateFile ? (
                   <div className="flex items-center gap-2 p-2 rounded-md bg-muted border">
-                    <FileText className="h-4 w-4 text-module-reports shrink-0" />
+                    <FileText className="h-4 w-4 text-module-forms shrink-0" />
                     <span className="text-sm truncate flex-1">{templateFile.name}</span>
                     <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setTemplateFile(null); if (fileInputRef.current) fileInputRef.current.value = ''; }}>
                       <X className="h-3 w-3" />
@@ -544,7 +544,7 @@ ${fieldTags.length > 1 ? `${fieldTags[1].label.replace(/\s+/g, '_')}: {${fieldTa
               <div className="space-y-2">
                 {history.map(entry => (
                   <div key={entry.id} className="flex items-center gap-3 p-3 border rounded-lg">
-                    <FileText className="h-5 w-5 text-module-reports shrink-0" />
+                    <FileText className="h-5 w-5 text-module-forms shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{entry.file_name}</p>
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">

@@ -125,10 +125,10 @@ const AuditLogs: React.FC = () => {
   const getEventIcon = (eventType: string) => {
     if (eventType.includes('login')) return <LogIn className="h-4 w-4 text-module-knowledge" />;
     if (eventType.includes('logout')) return <LogOut className="h-4 w-4 text-module-workflows" />;
-    if (eventType.includes('password')) return <Key className="h-4 w-4 text-module-ldap" />;
+    if (eventType.includes('password')) return <Key className="h-4 w-4 text-module-api" />;
     if (eventType.includes('mfa') || eventType.includes('security')) return <Shield className="h-4 w-4 text-module-compliance" />;
     if (eventType.includes('user')) return <User className="h-4 w-4 text-module-access" />;
-    if (eventType.includes('setting')) return <Settings className="h-4 w-4 text-module-itam" />;
+    if (eventType.includes('setting')) return <Settings className="h-4 w-4 text-module-overview" />;
     if (eventType.includes('session')) return <AlertTriangle className="h-4 w-4 text-module-performance" />;
     return <FileText className="h-4 w-4 text-module-forms" />;
   };
@@ -224,7 +224,7 @@ const AuditLogs: React.FC = () => {
                 </div>
                 <Select value={categoryFilter} onValueChange={(v) => { setCategoryFilter(v); setPage(0); }}>
                   <SelectTrigger className="w-44">
-                    <Filter className="h-4 w-4 mr-2 text-module-feeds" />
+                    <Filter className="h-4 w-4 mr-2 text-module-query" />
                     <SelectValue placeholder="Category" />
                   </SelectTrigger>
                   <SelectContent>
@@ -239,7 +239,7 @@ const AuditLogs: React.FC = () => {
           <CardContent>
             {loading ? (
               <div className="flex justify-center py-8">
-                <RefreshCw className="h-8 w-8 animate-spin text-module-overview" />
+                <RefreshCw className="h-8 w-8 animate-spin text-module-feeds" />
               </div>
             ) : logs.length === 0 ? (
               <div className="text-center py-12">

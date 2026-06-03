@@ -113,7 +113,7 @@
        {/* Summary Cards */}
        <div className="flex items-center justify-between">
          <h3 className="text-lg font-semibold flex items-center gap-2">
-           <Brain className="h-5 w-5 text-primary" />
+           <Brain className="h-5 w-5 text-module-query" />
            AI-Powered SLA Predictions
          </h3>
          <Button variant="outline" size="sm" onClick={loadPredictions}>
@@ -160,7 +160,7 @@
        {/* AI Insights */}
        {aiInsights && (
          <Alert className="border-primary/30 bg-primary/5">
-           <Brain className="h-4 w-4 text-primary" />
+           <Brain className="h-4 w-4 text-module-query" />
            <AlertTitle className="text-primary">AI Insights</AlertTitle>
            <AlertDescription className="prose prose-sm dark:prose-invert max-w-none">
              <ReactMarkdown>{aiInsights}</ReactMarkdown>

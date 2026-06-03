@@ -179,7 +179,7 @@ export function AIReportBuilder({ open, onOpenChange, reportId, onComponentGener
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-module-reports" />
+            <Sparkles className="h-5 w-5 text-module-query" />
             AI Report Builder
             <Badge variant="secondary" className="text-xs">Beta</Badge>
           </DialogTitle>

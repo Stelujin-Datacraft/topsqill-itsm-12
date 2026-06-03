@@ -203,7 +203,7 @@ function LinkMedia({ media }: { media: ReportMedia }) {
           />
         ) : (
           <div className="w-16 h-16 bg-primary/10 rounded flex items-center justify-center shrink-0">
-            <ExternalLink className="h-6 w-6 text-module-reports" />
+            <ExternalLink className="h-6 w-6 text-module-relationship" />
           </div>
         )}
         <div className="flex-1 min-w-0">
@@ -231,7 +231,7 @@ function DocumentMedia({ media }: { media: ReportMedia }) {
       <div className="h-full w-full flex flex-col">
         <div className="flex items-center justify-between p-2 bg-muted/50 rounded-t">
           <div className="flex items-center gap-2 min-w-0">
-            <FileText className="h-4 w-4 text-module-reports shrink-0" />
+            <FileText className="h-4 w-4 text-module-forms shrink-0" />
             <span className="text-sm font-medium truncate">{fileName}</span>
           </div>
           <a
@@ -240,7 +240,7 @@ function DocumentMedia({ media }: { media: ReportMedia }) {
             className="shrink-0 p-1.5 rounded bg-primary/10 hover:bg-primary/20 transition-colors no-drag"
             onClick={(e) => e.stopPropagation()}
           >
-            <ExternalLink className="h-3.5 w-3.5 text-module-reports" />
+            <ExternalLink className="h-3.5 w-3.5 text-module-relationship" />
           </a>
         </div>
         <iframe
@@ -257,7 +257,7 @@ function DocumentMedia({ media }: { media: ReportMedia }) {
     <div className="block p-4 bg-muted/50 rounded hover:bg-muted transition-colors h-full">
       <div className="flex items-center gap-3 h-full">
         <div className="w-12 h-12 bg-primary/10 rounded flex items-center justify-center shrink-0">
-          <FileText className="h-6 w-6 text-module-reports" />
+          <FileText className="h-6 w-6 text-module-forms" />
         </div>
         <div className="flex-1 min-w-0">
           <h4 className="font-medium text-sm truncate">{fileName}</h4>
@@ -274,7 +274,7 @@ function DocumentMedia({ media }: { media: ReportMedia }) {
             className="shrink-0 p-2 rounded bg-primary/10 hover:bg-primary/20 transition-colors no-drag"
             onClick={(e) => e.stopPropagation()}
           >
-            <ExternalLink className="h-4 w-4 text-module-reports" />
+            <ExternalLink className="h-4 w-4 text-module-relationship" />
           </a>
         )}
       </div>

@@ -519,7 +519,7 @@ export default function RelationshipMap() {
       <div className="flex-shrink-0 border-b bg-background px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <GitBranch className="h-6 w-6 text-module-relationship" />
+            <GitBranch className="h-6 w-6 text-module-workflows" />
             <div>
               <h1 className="text-xl font-bold">Relationship Map</h1>
               <p className="text-sm text-muted-foreground">Visualize upstream and downstream record linkages</p>

@@ -72,7 +72,7 @@ export default function DataFeeds() {
             Data Feeds
           </TabsTrigger>
           <TabsTrigger value="status" className="flex items-center gap-2">
-            <Activity className="h-4 w-4 text-module-feeds" />
+            <Activity className="h-4 w-4 text-module-performance" />
             Status Monitor
           </TabsTrigger>
         </TabsList>

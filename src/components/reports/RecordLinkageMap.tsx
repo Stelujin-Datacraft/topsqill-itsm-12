@@ -199,7 +199,7 @@ function NodeCard({
           onNavigate(node.id);
         }}
       >
-        <ExternalLink className="h-3 w-3 text-module-reports" />
+        <ExternalLink className="h-3 w-3 text-module-relationship" />
       </Button>
     </div>
   );
@@ -310,7 +310,7 @@ export function RecordLinkageMap({
       <DialogContent className="max-w-[65vw] max-h-[90vh] overflow-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <GitBranch className="h-5 w-5 text-module-reports" />
+            <GitBranch className="h-5 w-5 text-module-workflows" />
             Relationship Map
             <Badge variant="outline">{submissions.length}</Badge>
             <div className="ml-auto">
