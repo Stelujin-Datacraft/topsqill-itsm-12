@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { AppSidebar } from './AppSidebar';
 import { useImpersonation } from '@/contexts/ImpersonationContext';
+import { useDelegation } from '@/contexts/DelegationContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProject } from '@/contexts/ProjectContext';
 import { usePermissionRealtimeSync } from '@/hooks/usePermissionRealtimeSync';
@@ -36,6 +37,7 @@ const ProtectedLayout: React.FC = () => {
   const { user, userProfile, isLoading, profileError, retryProfile } = useAuth();
   const { currentProject } = useProject();
   const { isImpersonating } = useImpersonation();
+  const { isActingOnBehalf } = useDelegation();
   const { hasPermission, loading: permissionLoading } = useUnifiedAccessControl();
   const location = useLocation();
   const navigate = useNavigate();
@@ -216,7 +218,7 @@ const ProtectedLayout: React.FC = () => {
     return (
       <LayoutContext.Provider value={true}>
         <SidebarProvider>
-          <div className={`h-screen flex w-full ${isImpersonating ? 'pt-12' : ''}`}>
+          <div className={`h-screen flex w-full ${isImpersonating || isActingOnBehalf ? 'pt-12' : ''}`}>
             <AppSidebar />
             <main className="flex-1 flex flex-col overflow-hidden min-h-0">
               <ContentLoader />
@@ -280,7 +282,7 @@ const ProtectedLayout: React.FC = () => {
   return (
     <LayoutContext.Provider value={true}>
       <SidebarProvider>
-        <div className={`h-screen flex w-full ${isImpersonating ? 'pt-12' : ''}`}>
+        <div className={`h-screen flex w-full ${isImpersonating || isActingOnBehalf ? 'pt-12' : ''}`}>
           <AppSidebar />
           <main className="flex-1 flex flex-col overflow-hidden min-h-0">
             {/* Suspense wraps only the content, sidebar stays visible */}
