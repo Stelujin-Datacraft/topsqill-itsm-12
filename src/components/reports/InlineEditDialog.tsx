@@ -10,6 +10,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { useDelegation } from '@/contexts/DelegationContext';
 import { logRecordFieldChanges, detectRecordChanges } from '@/utils/recordHistoryLogger';
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
@@ -37,6 +38,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
   const [saving, setSaving] = useState(false);
   const { users, groups, getUserDisplayName, getGroupDisplayName } = useUsersAndGroups();
   const { user } = useAuth();
+  const { actingAs, delegationCoversScope } = useDelegation();
   
   // Get cross-reference records from all forms - we'll filter by target form in renderFieldInput
   const [crossRefRecordsByForm, setCrossRefRecordsByForm] = useState<Record<string, any[]>>({});
@@ -177,11 +179,16 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
           );
 
           if (changes.length > 0) {
+            // Resolve form id for this submission to scope-check delegation
+            const sub = submissions.find((s: any) => s.id === update.id);
+            const formIdForScope = sub?.form_id ?? null;
+            const onBehalfId = actingAs && delegationCoversScope(formIdForScope, null) ? actingAs.id : null;
             await logRecordFieldChanges({
               submissionId: update.id,
               changes,
-              changedBy: user.id,
-              changeType: 'updated'
+              changedBy: onBehalfId || user.id,
+              changeType: 'updated',
+              onBehalfOfUserId: onBehalfId ? user.id : null,
             });
           }
         }
