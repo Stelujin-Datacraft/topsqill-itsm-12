@@ -358,7 +358,7 @@ const COUNTRIES = [
         <HoverCardContent className="w-72 p-3" align="start">
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-              <MapPin className="h-4 w-4 text-primary" />
+              <MapPin className="h-4 w-4 text-module-reports" />
               <span>Address Details</span>
             </div>
             <div className="space-y-1.5 text-sm">

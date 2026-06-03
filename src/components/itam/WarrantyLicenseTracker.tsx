@@ -220,7 +220,7 @@ export function WarrantyLicenseTracker() {
         <Card>
           <CardContent className="pt-4 pb-3">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary/10"><ShieldCheck className="h-5 w-5 text-primary" /></div>
+              <div className="p-2 rounded-lg bg-primary/10"><ShieldCheck className="h-5 w-5 text-module-itam" /></div>
               <div>
                 <p className="text-2xl font-bold">{warrantyActive.length}</p>
                 <p className="text-xs text-muted-foreground">Warranty Active</p>
@@ -253,7 +253,7 @@ export function WarrantyLicenseTracker() {
         <Card>
           <CardContent className="pt-4 pb-3">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary/10"><Key className="h-5 w-5 text-primary" /></div>
+              <div className="p-2 rounded-lg bg-primary/10"><Key className="h-5 w-5 text-module-itam" /></div>
               <div>
                 <p className="text-2xl font-bold">{activeLicenses.length}</p>
                 <p className="text-xs text-muted-foreground">Active Licenses</p>

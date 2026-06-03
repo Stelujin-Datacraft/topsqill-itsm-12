@@ -271,7 +271,7 @@ export function SimpleTablePreview({
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Database className="h-5 w-5 text-primary" />
+          <Database className="h-5 w-5 text-module-reports" />
           <div>
             <h3 className="font-semibold">
               {title || 'Table Preview'}

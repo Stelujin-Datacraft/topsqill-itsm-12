@@ -317,7 +317,7 @@ export function AIEmailTemplateGenerator({ onTemplateCreated }: AIEmailTemplateG
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary" />
+            <Sparkles className="h-5 w-5 text-module-email" />
             AI Email Template Generator
           </DialogTitle>
           <DialogDescription>
