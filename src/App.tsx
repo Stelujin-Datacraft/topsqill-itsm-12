@@ -114,6 +114,7 @@ const FormAuditLogs = lazyWithRetry(() => import("./pages/FormAuditLogs"));
 const InvestigateAccess = lazyWithRetry(() => import("./pages/InvestigateAccess"));
 const LdapSettings = lazyWithRetry(() => import("./pages/LdapSettings"));
 const SLAManagementPage = lazyWithRetry(() => import("./pages/SLAManagementPage"));
+const RecordDelegations = lazyWithRetry(() => import("./pages/RecordDelegations"));
 
 // Policies / Knowledge Base feature
 const Policies = lazyWithRetry(() => import("./pages/Policies"));
