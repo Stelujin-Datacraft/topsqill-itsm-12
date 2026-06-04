@@ -537,12 +537,70 @@ export default function RecordDelegations() {
           <TabsList>
             <TabsTrigger value="mine"><UserCheck className="h-4 w-4 mr-2" />My Delegations</TabsTrigger>
             <TabsTrigger value="received"><Calendar className="h-4 w-4 mr-2" />Granted To Me</TabsTrigger>
+            <TabsTrigger value="activity"><Activity className="h-4 w-4 mr-2" />Activity on My Behalf</TabsTrigger>
           </TabsList>
           <TabsContent value="mine">
+            {selected.size > 0 && (
+              <div className="flex items-center justify-between bg-primary/5 border border-primary/20 rounded-md px-3 py-2 mb-2">
+                <span className="text-sm">{selected.size} selected</span>
+                <div className="flex items-center gap-2">
+                  <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>Clear</Button>
+                  <Button size="sm" variant="destructive" onClick={handleBulkEnd}>
+                    <Power className="h-4 w-4 mr-1" /> End selected
+                  </Button>
+                </div>
+              </div>
+            )}
             <Card><CardContent className="p-0">{loading ? <div className="p-6 text-sm text-muted-foreground">Loading…</div> : renderTable(mine, false)}</CardContent></Card>
           </TabsContent>
           <TabsContent value="received">
             <Card><CardContent className="p-0">{loading ? <div className="p-6 text-sm text-muted-foreground">Loading…</div> : renderTable(received, true)}</CardContent></Card>
+          </TabsContent>
+          <TabsContent value="activity">
+            <Card>
+              <CardContent className="p-0">
+                {activityLoading ? (
+                  <div className="p-6 text-sm text-muted-foreground">Loading…</div>
+                ) : activity.length === 0 ? (
+                  <div className="p-6 text-sm text-muted-foreground text-center">
+                    No actions have been taken on your behalf yet.
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>When</TableHead>
+                        <TableHead>Delegate</TableHead>
+                        <TableHead>Field</TableHead>
+                        <TableHead>Change</TableHead>
+                        <TableHead>Type</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {activity.map(a => (
+                        <TableRow key={a.id}>
+                          <TableCell className="text-sm whitespace-nowrap">{format(new Date(a.changed_at), 'dd MMM yyyy HH:mm')}</TableCell>
+                          <TableCell className="font-medium">{fullName(userMap[a.actor_id])}</TableCell>
+                          <TableCell>{a.field_label}</TableCell>
+                          <TableCell className="text-sm">
+                            <div className="flex items-center gap-2">
+                              <span className="px-2 py-0.5 rounded bg-destructive/10 text-destructive max-w-[180px] truncate" title={a.old_value ?? ''}>
+                                {a.old_value || <em className="text-muted-foreground">empty</em>}
+                              </span>
+                              <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0" />
+                              <span className="px-2 py-0.5 rounded bg-primary/10 text-primary max-w-[180px] truncate" title={a.new_value ?? ''}>
+                                {a.new_value || <em className="text-muted-foreground">empty</em>}
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell><Badge variant="outline">{a.change_type}</Badge></TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </div>
@@ -550,8 +608,12 @@ export default function RecordDelegations() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>New Delegation</DialogTitle>
-            <DialogDescription>Choose who should act on your records and for how long.</DialogDescription>
+            <DialogTitle>{editingId ? 'Edit Delegation' : 'New Delegation'}</DialogTitle>
+            <DialogDescription>
+              {editingId
+                ? 'Update the scope, dates, approvals, or reason. The delegate stays the same.'
+                : 'Choose who should act on your records and for how long.'}
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
