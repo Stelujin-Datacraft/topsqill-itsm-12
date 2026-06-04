@@ -165,6 +165,13 @@
    layer (loaded after this block).
    ============================================================ */
 
+/* Default: every lucide icon gets a colored tint (primary blue).
+   Specific selectors below override per icon name. Any explicit
+   Tailwind `text-*` utility on the icon still wins. */
+.lucide {
+  color: hsl(var(--primary));
+}
+
 /* Destructive / danger */
 .lucide-trash,
 .lucide-trash-2,
