@@ -178,12 +178,75 @@ export default function RecordDelegations() {
 
   useEffect(() => { loadAll(); /* eslint-disable-next-line */ }, [userProfile?.id]);
 
+  // Load activity (changes made on my behalf) when Activity tab is active
+  useEffect(() => {
+    if (tab !== 'activity' || !userProfile?.id) return;
+    let cancelled = false;
+    (async () => {
+      setActivityLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('record_field_history')
+          .select('id, submission_id, field_label, old_value, new_value, changed_at, change_type, changed_by')
+          .ilike('changed_by', `%|on_behalf_of:${userProfile.id}`)
+          .order('changed_at', { ascending: false })
+          .limit(200);
+        if (error) throw error;
+        if (cancelled) return;
+        const rows = (data || []).map((r: any) => {
+          const actor = String(r.changed_by || '').split('|on_behalf_of:')[0] || '';
+          return {
+            id: r.id,
+            submission_id: r.submission_id,
+            field_label: r.field_label,
+            old_value: r.old_value,
+            new_value: r.new_value,
+            changed_at: r.changed_at,
+            change_type: r.change_type,
+            actor_id: actor,
+          };
+        });
+        // Ensure we have user profiles for actors
+        const missing = Array.from(new Set(rows.map(r => r.actor_id).filter(id => id && !userMap[id])));
+        if (missing.length) {
+          const { data: extra } = await supabase
+            .from('user_profiles')
+            .select('id, email, first_name, last_name')
+            .in('id', missing);
+          if (extra && !cancelled) setUsers(prev => [...prev, ...(extra as UserOption[])]);
+        }
+        if (!cancelled) setActivity(rows);
+      } catch (e: any) {
+        toast({ title: 'Failed to load delegated activity', description: e.message, variant: 'destructive' });
+      } finally {
+        if (!cancelled) setActivityLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, userProfile?.id]);
+
   const resetForm = () => {
     setDelegateIds([]); setScope('all'); setScopeFormIds([]); setScopeProjectIds([]);
     setIncludeApprovals(true); setReason('');
     setStartsAt(new Date().toISOString().slice(0, 16));
     const d = new Date(); d.setDate(d.getDate() + 7);
     setEndsAt(d.toISOString().slice(0, 16));
+    setEditingId(null);
+  };
+
+  // Open the dialog pre-populated with an existing row's values
+  const openEdit = (row: DelegationRow) => {
+    setEditingId(row.id);
+    setDelegateIds([row.delegate_user_id]);
+    setScope(row.scope);
+    setScopeFormIds(row.scope_form_id ? [row.scope_form_id] : []);
+    setScopeProjectIds(row.scope_project_id ? [row.scope_project_id] : []);
+    setStartsAt(new Date(row.starts_at).toISOString().slice(0, 16));
+    setEndsAt(new Date(row.ends_at).toISOString().slice(0, 16));
+    setIncludeApprovals(row.include_approvals);
+    setReason(row.reason || '');
+    setOpen(true);
   };
 
   const handleCreate = async () => {
