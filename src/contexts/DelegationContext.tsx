@@ -38,8 +38,8 @@ interface DelegationContextType {
   setActingAs: (delegator: DelegatorOption | null) => void;
   /** True if the current user is acting on behalf of someone */
   isActingOnBehalf: boolean;
-  /** Returns true if the current delegation covers the given form/project */
-  delegationCoversScope: (formId?: string | null, projectId?: string | null) => boolean;
+  /** Returns true if the current delegation covers the given form/project/submission */
+  delegationCoversScope: (formId?: string | null, projectId?: string | null, submissionId?: string | null) => boolean;
   reload: () => Promise<void>;
 }
 
