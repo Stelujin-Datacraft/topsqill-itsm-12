@@ -428,10 +428,23 @@ export default function RecordDelegations() {
     return '—';
   };
 
-  const renderTable = (rows: DelegationRow[], showDelegator: boolean) => (
+  const renderTable = (rows: DelegationRow[], showDelegator: boolean) => {
+    const selectable = !showDelegator;
+    const liveIds = rows.filter(r => r.active && new Date() <= new Date(r.ends_at)).map(r => r.id);
+    const allSelected = selectable && liveIds.length > 0 && liveIds.every(id => selected.has(id));
+    const toggleAll = () => {
+      if (allSelected) setSelected(new Set());
+      else setSelected(new Set(liveIds));
+    };
+    return (
     <Table>
       <TableHeader>
         <TableRow>
+          {selectable && (
+            <TableHead className="w-8">
+              <Checkbox checked={allSelected} onCheckedChange={toggleAll} aria-label="Select all" />
+            </TableHead>
+          )}
           <TableHead>{showDelegator ? 'From' : 'Delegate'}</TableHead>
           <TableHead>Scope</TableHead>
           <TableHead>Window</TableHead>
@@ -443,13 +456,20 @@ export default function RecordDelegations() {
       <TableBody>
         {rows.length === 0 && (
           <TableRow>
-            <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+            <TableCell colSpan={selectable ? 7 : 6} className="text-center text-muted-foreground py-8">
               No delegations yet.
             </TableCell>
           </TableRow>
         )}
         {rows.map(r => (
           <TableRow key={r.id}>
+            {selectable && (
+              <TableCell>
+                {r.active && new Date() <= new Date(r.ends_at) ? (
+                  <Checkbox checked={selected.has(r.id)} onCheckedChange={() => toggleSelected(r.id)} aria-label="Select row" />
+                ) : null}
+              </TableCell>
+            )}
             <TableCell className="font-medium">
               {fullName(userMap[showDelegator ? r.delegator_user_id : r.delegate_user_id])}
             </TableCell>
@@ -466,6 +486,11 @@ export default function RecordDelegations() {
                 return (
                   <div className="flex items-center justify-end gap-1">
                     {isLive && (
+                      <Button size="sm" variant="ghost" onClick={() => openEdit(r)} title="Edit dates / scope">
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    )}
+                    {isLive && (
                       <Button size="sm" variant="ghost" onClick={() => handleEnd(r.id)} title="Revoke access now (keeps history)">
                         <Power className="h-4 w-4 mr-1" /> End
                       </Button>
@@ -481,7 +506,8 @@ export default function RecordDelegations() {
         ))}
       </TableBody>
     </Table>
-  );
+    );
+  };
 
   return (
     <DashboardLayout
