@@ -22,6 +22,9 @@ import { toast } from '@/hooks/use-toast';
 import { WorkflowExecutionService } from '@/services/workflowExecution';
 import { FormRuleWorkflowTrigger } from '@/services/formRuleWorkflowTrigger';
 import { useAuth } from '@/contexts/AuthContext';
+import { useDelegation } from '@/contexts/DelegationContext';
+import { logRecordFieldChanges, detectRecordChanges } from '@/utils/recordHistoryLogger';
+import { useUsersAndGroups } from '@/hooks/useUsersAndGroups';
 
 interface SubmissionFormViewProps {
   submissionId: string;
@@ -48,6 +51,8 @@ function StageHistoryWrapper({ field, submissionId, open, onClose }: { field: Fo
 
 export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewProps) {
   const { userProfile } = useAuth();
+  const { actingAs, delegationCoversScope } = useDelegation();
+  const { getUserDisplayName, getGroupDisplayName } = useUsersAndGroups();
   const [submission, setSubmission] = useState<FormSubmission | null>(null);
   const [form, setForm] = useState<Form | null>(null);
   const [loading, setLoading] = useState(true);
@@ -409,6 +414,19 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
   const handleSave = async (statusOverride?: string) => {
     if (!submission) return;
 
+    // Scope enforcement: when acting on behalf, block writes outside the delegation scope
+    if (actingAs && form) {
+      const projectId = (form as any).projectId ?? (form as any).project_id ?? null;
+      if (!delegationCoversScope(form.id, projectId)) {
+        toast({
+          title: 'Outside delegation scope',
+          description: `Your delegation from ${actingAs.email} does not cover this form or project. Action blocked.`,
+          variant: 'destructive',
+        });
+        return;
+      }
+    }
+
     try {
       setSaving(true);
       const updatePayload: any = { submission_data: formData };
@@ -432,6 +450,32 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
       }
 
       console.log('Submission updated successfully');
+
+      // Log field-level changes to history (with on-behalf-of attribution if applicable)
+      if (userProfile?.id && form?.fields) {
+        try {
+          const fieldLabels: Record<string, string> = {};
+          form.fields.forEach((f) => { fieldLabels[f.id] = f.label || f.id; });
+          const changes = detectRecordChanges(
+            submission.submission_data || {},
+            formData,
+            fieldLabels,
+            form.fields,
+            { getUserDisplayName, getGroupDisplayName }
+          );
+          if (changes.length > 0) {
+            await logRecordFieldChanges({
+              submissionId: submission.id,
+              changes,
+              changedBy: userProfile.id,
+              changeType: 'updated',
+              onBehalfOfUserId: actingAs?.id ?? null,
+            });
+          }
+        } catch (histErr) {
+          console.error('Record history log failed:', histErr);
+        }
+      }
 
       // Re-trigger workflows and form rules on resubmission
       if (form && userProfile?.id) {

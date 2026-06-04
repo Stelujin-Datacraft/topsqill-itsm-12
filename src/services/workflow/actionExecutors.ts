@@ -133,6 +133,41 @@ export class ActionExecutors {
         assignedTo: assignment.assigned_to_email
       });
 
+      // Step 4b: Mirror this assignment to the assignee's active delegates (during leave)
+      try {
+        if (assigneeResult.userId) {
+          const { expandAssigneesWithDelegates } = await import('@/utils/delegationHelpers');
+          const expanded = await expandAssigneesWithDelegates([assigneeResult.userId], {
+            formId: config.targetFormId,
+            projectId: (targetForm as any)?.project_id ?? null,
+          });
+          const delegateIds = expanded.filter((id) => id !== assigneeResult.userId);
+          if (delegateIds.length > 0) {
+            const { data: delegateProfiles } = await supabase
+              .from('user_profiles')
+              .select('id, email')
+              .in('id', delegateIds);
+            const delegateRows = (delegateProfiles || []).map((p: any) => ({
+              form_id: config.targetFormId,
+              assigned_to_user_id: p.id,
+              assigned_to_email: p.email,
+              assigned_by_user_id: context.submitterId,
+              assignment_type: 'workflow',
+              workflow_execution_id: context.executionId,
+              status: 'pending',
+              notes: `Delegated assignment for ${assigneeResult.email} (on leave): ${targetForm.name}`,
+            }));
+            if (delegateRows.length > 0) {
+              const { error: dErr } = await supabase.from('form_assignments').insert(delegateRows);
+              if (dErr) console.warn('⚠️ Delegate assignment fan-out failed:', dErr.message);
+              else console.log(`✅ Fanned out assignment to ${delegateRows.length} delegate(s)`);
+            }
+          }
+        }
+      } catch (delegationErr) {
+        console.warn('⚠️ Delegate fan-out skipped:', delegationErr);
+      }
+
       // Step 5: Assign role if configured
       let roleAssignmentResult = { success: false, assigned: false };
       if (config.assignRoleId && assigneeResult.userId) {
@@ -674,6 +709,33 @@ export class ActionExecutors {
       }
 
       console.log('👤 Notification recipients resolved:', recipients);
+
+      // Fan out to active delegates (during leave) — only when include_approvals is true
+      try {
+        const baseUserIds = recipients.map(r => r.userId).filter(Boolean) as string[];
+        if (baseUserIds.length > 0) {
+          const { expandAssigneesWithDelegates } = await import('@/utils/delegationHelpers');
+          const expanded = await expandAssigneesWithDelegates(baseUserIds, {
+            formId: (context.triggerData as any)?.formId ?? null,
+            projectId: (context.triggerData as any)?.projectId ?? null,
+          });
+          const newIds = expanded.filter(id => !baseUserIds.includes(id));
+          if (newIds.length > 0) {
+            const { data: delegateProfiles } = await supabase
+              .from('user_profiles')
+              .select('id, email')
+              .in('id', newIds);
+            (delegateProfiles || []).forEach((p: any) => {
+              if (p?.email && !recipients.some(r => r.email === p.email)) {
+                recipients.push({ userId: p.id, email: p.email });
+              }
+            });
+            console.log(`📧 Added ${(delegateProfiles || []).length} delegate recipient(s)`);
+          }
+        }
+      } catch (delErr) {
+        console.warn('⚠️ Delegate recipient fan-out skipped:', delErr);
+      }
 
       // Send in-app notifications
       let notificationsCreated = 0;
