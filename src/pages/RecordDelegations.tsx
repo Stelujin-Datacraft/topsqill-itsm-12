@@ -113,7 +113,7 @@ export default function RecordDelegations() {
   const { projects } = useProject();
   const { toast } = useToast();
 
-  const [tab, setTab] = useState<'mine' | 'received'>('mine');
+  const [tab, setTab] = useState<'mine' | 'received' | 'activity'>('mine');
   const [loading, setLoading] = useState(true);
   const [mine, setMine] = useState<DelegationRow[]>([]);
   const [received, setReceived] = useState<DelegationRow[]>([]);
