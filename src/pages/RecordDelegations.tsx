@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { format } from 'date-fns';
-import { Plus, Trash2, UserCheck, Calendar, Shield, AlertTriangle, Check, ChevronsUpDown, X, Power } from 'lucide-react';
+import { Plus, Trash2, UserCheck, Calendar, Shield, AlertTriangle, Check, ChevronsUpDown, X, Power, Pencil, Activity, ArrowRight } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useForm as useFormCtx } from '@/contexts/FormContext';
@@ -20,6 +20,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 
 type ScopeType = 'all' | 'form' | 'project';
