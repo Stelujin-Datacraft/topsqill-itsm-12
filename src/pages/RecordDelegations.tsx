@@ -258,6 +258,24 @@ export default function RecordDelegations() {
 
     setSaving(true);
     try {
+      // EDIT MODE: update only mutable fields on the single existing row
+      if (editingId) {
+        const patch = {
+          scope,
+          scope_form_id: scope === 'form' ? (scopeFormIds[0] ?? null) : null,
+          scope_project_id: scope === 'project' ? (scopeProjectIds[0] ?? null) : null,
+          starts_at: new Date(startsAt).toISOString(),
+          ends_at: new Date(endsAt).toISOString(),
+          include_approvals: includeApprovals,
+          reason: reason || null,
+        };
+        const { error: upErr } = await supabase.from('record_delegations').update(patch).eq('id', editingId);
+        if (upErr) throw upErr;
+        toast({ title: 'Delegation updated' });
+        setOpen(false); resetForm(); loadAll();
+        return;
+      }
+
       // Build the row matrix: delegates × scope targets
       const targets: { form: string | null; project: string | null }[] =
         scope === 'form'    ? scopeFormIds.map(id => ({ form: id, project: null }))
