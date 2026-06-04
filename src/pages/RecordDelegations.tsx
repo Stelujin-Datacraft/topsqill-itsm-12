@@ -617,14 +617,21 @@ export default function RecordDelegations() {
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>Delegates</Label>
-              <MultiSelect
-                options={users.map(u => ({ value: u.id, label: fullName(u), sub: u.email }))}
-                selected={delegateIds}
-                onChange={setDelegateIds}
-                placeholder="Choose one or more users"
-                emptyText="No users found"
-              />
+              <Label>Delegate{editingId ? '' : 's'}</Label>
+              {editingId ? (
+                <div className="rounded-md border bg-muted/40 px-3 py-2 text-sm">
+                  {fullName(userMap[delegateIds[0]])}
+                  <span className="text-xs text-muted-foreground ml-2">(delegate cannot be changed — end and recreate to switch)</span>
+                </div>
+              ) : (
+                <MultiSelect
+                  options={users.map(u => ({ value: u.id, label: fullName(u), sub: u.email }))}
+                  selected={delegateIds}
+                  onChange={setDelegateIds}
+                  placeholder="Choose one or more users"
+                  emptyText="No users found"
+                />
+              )}
             </div>
 
             <div className="space-y-2">
@@ -698,7 +705,7 @@ export default function RecordDelegations() {
               <Textarea value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. On leave 5–12 Jun" />
             </div>
 
-            {delegateIds.length > 0 && (scope === 'all' || scopeFormIds.length > 0 || scopeProjectIds.length > 0) && (
+            {!editingId && delegateIds.length > 0 && (scope === 'all' || scopeFormIds.length > 0 || scopeProjectIds.length > 0) && (
               <p className="text-xs text-muted-foreground">
                 Will create <b className="text-foreground">
                   {delegateIds.length * (scope === 'form' ? scopeFormIds.length : scope === 'project' ? scopeProjectIds.length : 1)}
@@ -708,7 +715,9 @@ export default function RecordDelegations() {
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button onClick={handleCreate} disabled={saving}>{saving ? 'Saving…' : 'Create Delegation'}</Button>
+            <Button onClick={handleCreate} disabled={saving}>
+              {saving ? 'Saving…' : editingId ? 'Save Changes' : 'Create Delegation'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
