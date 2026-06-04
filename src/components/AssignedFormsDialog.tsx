@@ -17,6 +17,16 @@ import { FileText, User, Calendar, ExternalLink, Loader2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 
+// Detects assignments fanned out via record delegation.
+// actionExecutors writes notes prefixed with "Delegated assignment for <email> (on leave)"
+const DELEGATION_NOTE_PREFIX = 'Delegated assignment for ';
+const parseDelegatedFromEmail = (notes: string | null | undefined): string | null => {
+  if (!notes || !notes.startsWith(DELEGATION_NOTE_PREFIX)) return null;
+  const tail = notes.slice(DELEGATION_NOTE_PREFIX.length);
+  const idx = tail.indexOf(' (on leave)');
+  return idx > 0 ? tail.slice(0, idx) : null;
+};
+
 export function AssignedFormsDialog() {
   const [open, setOpen] = useState(false);
   const { assignments, loading, updateAssignmentStatus } = useFormAssignments();
@@ -107,6 +117,11 @@ export function AssignedFormsDialog() {
                       )}
                     </div>
                     <div className="flex items-center space-x-2">
+                      {parseDelegatedFromEmail(assignment.notes) && (
+                        <Badge variant="outline" className="border-primary/40 text-primary bg-primary/5">
+                          Delegated from {parseDelegatedFromEmail(assignment.notes)}
+                        </Badge>
+                      )}
                       <Badge className={getStatusColor(assignment.status)}>
                         {assignment.status.replace('_', ' ').toUpperCase()}
                       </Badge>
