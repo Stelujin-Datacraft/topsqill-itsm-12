@@ -7,9 +7,10 @@ export interface DelegationRow {
   id: string;
   delegator_user_id: string;
   delegate_user_id: string;
-  scope: 'all' | 'form' | 'project';
+  scope: 'all' | 'form' | 'project' | 'submission';
   scope_form_id: string | null;
   scope_project_id: string | null;
+  scope_submission_id?: string | null;
   starts_at: string;
   ends_at: string;
   include_approvals: boolean;
@@ -135,12 +136,13 @@ export const DelegationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }
   }, []);
 
-  const delegationCoversScope = useCallback((formId?: string | null, projectId?: string | null) => {
+  const delegationCoversScope = useCallback((formId?: string | null, projectId?: string | null, submissionId?: string | null) => {
     if (!actingAs) return false;
     return actingAs.delegations.some(d => {
       if (d.scope === 'all') return true;
       if (d.scope === 'form' && formId && d.scope_form_id === formId) return true;
       if (d.scope === 'project' && projectId && d.scope_project_id === projectId) return true;
+      if (d.scope === 'submission' && submissionId && d.scope_submission_id === submissionId) return true;
       return false;
     });
   }, [actingAs]);
