@@ -710,6 +710,33 @@ export class ActionExecutors {
 
       console.log('👤 Notification recipients resolved:', recipients);
 
+      // Fan out to active delegates (during leave) — only when include_approvals is true
+      try {
+        const baseUserIds = recipients.map(r => r.userId).filter(Boolean) as string[];
+        if (baseUserIds.length > 0) {
+          const { expandAssigneesWithDelegates } = await import('@/utils/delegationHelpers');
+          const expanded = await expandAssigneesWithDelegates(baseUserIds, {
+            formId: (context.triggerData as any)?.formId ?? null,
+            projectId: (context.triggerData as any)?.projectId ?? null,
+          });
+          const newIds = expanded.filter(id => !baseUserIds.includes(id));
+          if (newIds.length > 0) {
+            const { data: delegateProfiles } = await supabase
+              .from('user_profiles')
+              .select('id, email')
+              .in('id', newIds);
+            (delegateProfiles || []).forEach((p: any) => {
+              if (p?.email && !recipients.some(r => r.email === p.email)) {
+                recipients.push({ userId: p.id, email: p.email });
+              }
+            });
+            console.log(`📧 Added ${(delegateProfiles || []).length} delegate recipient(s)`);
+          }
+        }
+      } catch (delErr) {
+        console.warn('⚠️ Delegate recipient fan-out skipped:', delErr);
+      }
+
       // Send in-app notifications
       let notificationsCreated = 0;
       let emailsSent = 0;
