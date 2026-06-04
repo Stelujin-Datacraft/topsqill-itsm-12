@@ -678,12 +678,12 @@ export default function RecordDelegations() {
               </div>
             )}
 
-            {(scope === 'form' || scope === 'project') && delegateIds.length > 0 && (
+            {(scope === 'form' || scope === 'project') && delegateIds.length > 0 && !grantDelegatorAccess && (
               <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-muted-foreground">
                 <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
                 <p>
-                  Delegates will only see your records on a {scope === 'form' ? 'form' : 'project'} they already have access to.
-                  If the delegate isn't a member, share the {scope === 'form' ? 'form/project' : 'project'} with them first — otherwise this delegation will silently grant nothing.
+                  "Grant my access" is OFF — delegates will only see your records on a {scope === 'form' ? 'form' : 'project'} they already have access to.
+                  If the delegate isn't a member, share the {scope === 'form' ? 'form/project' : 'project'} with them first or turn on "Grant my access" below.
                 </p>
               </div>
             )}
@@ -705,6 +705,21 @@ export default function RecordDelegations() {
                 <p className="text-xs text-muted-foreground">Delegate also handles items assigned to you.</p>
               </div>
               <Switch checked={includeApprovals} onCheckedChange={setIncludeApprovals} />
+            </div>
+
+            <div className="flex items-center justify-between rounded-md border p-3">
+              <div className="pr-3">
+                <Label className="text-sm flex items-center gap-2">
+                  Grant my access to delegate
+                  <Badge variant="secondary" className="text-[10px]">trusted</Badge>
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  {grantDelegatorAccess
+                    ? 'ON — delegate can act on every record within the scope, even ones they normally can\'t see. Access auto-revokes when the delegation ends.'
+                    : 'OFF — delegate only re-routes; they can only act on records they already have access to.'}
+                </p>
+              </div>
+              <Switch checked={grantDelegatorAccess} onCheckedChange={setGrantDelegatorAccess} />
             </div>
 
             <div className="space-y-2">
