@@ -217,6 +217,26 @@ export default function RecordDelegations() {
         await supabase.from('notifications').insert(notifs);
       } catch (e) { /* non-fatal */ }
 
+      // Fire-and-forget email notifications
+      try {
+        const scopeSummary = scope === 'all' ? 'All their records' : scope === 'form' ? `${scopeFormIds.length} form(s)` : `${scopeProjectIds.length} project(s)`;
+        await Promise.all(delegateIds.map(uid =>
+          supabase.functions.invoke('send-delegation-email', {
+            body: {
+              type: 'delegation_created',
+              recipientUserId: uid,
+              organizationId: userProfile.organization_id,
+              delegatorName: fullName({ id: userProfile.id, email: (userProfile as any).email ?? '', first_name: userProfile.first_name ?? null, last_name: userProfile.last_name ?? null }),
+              scope,
+              scopeSummary,
+              endsAt: new Date(endsAt).toISOString(),
+              reason: reason || null,
+              includeApprovals,
+            },
+          }).catch((e) => console.warn('delegation email failed:', e?.message))
+        ));
+      } catch { /* non-fatal */ }
+
       toast({ title: `Created ${rows.length} delegation${rows.length === 1 ? '' : 's'}` });
       setOpen(false); resetForm(); loadAll();
     } catch (e: any) {
@@ -241,6 +261,16 @@ export default function RecordDelegations() {
           data: { delegation_id: id, delegator_user_id: row.delegator_user_id },
         });
       } catch { /* non-fatal */ }
+      try {
+        await supabase.functions.invoke('send-delegation-email', {
+          body: {
+            type: 'delegation_ended',
+            recipientUserId: row.delegate_user_id,
+            organizationId: (row as any).organization_id ?? userProfile?.organization_id,
+            delegatorName: fullName(userMap[row.delegator_user_id]) || 'A user',
+          },
+        });
+      } catch (e: any) { console.warn('delegation email failed:', e?.message); }
     }
     toast({ title: 'Delegation ended' });
     loadAll();

@@ -74,3 +74,6 @@ verify_jwt = false
 
 [functions.idp-oauth-callback]
 verify_jwt = false
+
+[functions.send-delegation-email]
+verify_jwt = false
