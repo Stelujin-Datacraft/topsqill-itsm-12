@@ -133,6 +133,41 @@ export class ActionExecutors {
         assignedTo: assignment.assigned_to_email
       });
 
+      // Step 4b: Mirror this assignment to the assignee's active delegates (during leave)
+      try {
+        if (assigneeResult.userId) {
+          const { expandAssigneesWithDelegates } = await import('@/utils/delegationHelpers');
+          const expanded = await expandAssigneesWithDelegates([assigneeResult.userId], {
+            formId: config.targetFormId,
+            projectId: targetForm?.project_id ?? null,
+          });
+          const delegateIds = expanded.filter((id) => id !== assigneeResult.userId);
+          if (delegateIds.length > 0) {
+            const { data: delegateProfiles } = await supabase
+              .from('user_profiles')
+              .select('id, email')
+              .in('id', delegateIds);
+            const delegateRows = (delegateProfiles || []).map((p: any) => ({
+              form_id: config.targetFormId,
+              assigned_to_user_id: p.id,
+              assigned_to_email: p.email,
+              assigned_by_user_id: context.submitterId,
+              assignment_type: 'workflow',
+              workflow_execution_id: context.executionId,
+              status: 'pending',
+              notes: `Delegated assignment for ${assigneeResult.email} (on leave): ${targetForm.name}`,
+            }));
+            if (delegateRows.length > 0) {
+              const { error: dErr } = await supabase.from('form_assignments').insert(delegateRows);
+              if (dErr) console.warn('⚠️ Delegate assignment fan-out failed:', dErr.message);
+              else console.log(`✅ Fanned out assignment to ${delegateRows.length} delegate(s)`);
+            }
+          }
+        }
+      } catch (delegationErr) {
+        console.warn('⚠️ Delegate fan-out skipped:', delegationErr);
+      }
+
       // Step 5: Assign role if configured
       let roleAssignmentResult = { success: false, assigned: false };
       if (config.assignRoleId && assigneeResult.userId) {
