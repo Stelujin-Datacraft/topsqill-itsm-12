@@ -201,7 +201,12 @@ export default function RecordDelegations() {
 
       // Notify each delegate in-app
       try {
-        const delegatorName = fullName(userProfile);
+        const delegatorName = fullName({
+          id: userProfile.id,
+          email: (userProfile as any).email ?? '',
+          first_name: userProfile.first_name ?? null,
+          last_name: userProfile.last_name ?? null,
+        });
         const notifs = delegateIds.map(uid => ({
           user_id: uid,
           type: 'delegation_created',
@@ -223,7 +228,7 @@ export default function RecordDelegations() {
 
   const handleEnd = async (id: string) => {
     if (!confirm('End this delegation now? The delegate will lose access immediately, but the history will be kept.')) return;
-    const row = asDelegator.find(r => r.id === id) || asDelegate.find(r => r.id === id);
+    const row = mine.find(r => r.id === id) || received.find(r => r.id === id);
     const { error } = await supabase.from('record_delegations').update({ active: false, ends_at: new Date().toISOString() }).eq('id', id);
     if (error) return toast({ title: 'Failed to end delegation', description: error.message, variant: 'destructive' });
     if (row) {
