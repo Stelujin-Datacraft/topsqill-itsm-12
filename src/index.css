@@ -152,6 +152,378 @@
   }
 }
 
+/* ============================================================
+   Global colorful icon system (lucide-react)
+   ------------------------------------------------------------
+   Lucide renders each icon with a `lucide-{kebab-name}` class.
+   We color them globally so the whole app gets semantic icon
+   color out of the box. Authored as plain selectors (NOT inside
+   @layer base) so they win over the default `currentColor`
+   inheritance, but any explicit Tailwind `text-*` utility on
+   the icon (e.g. `text-module-forms`, `text-white`, etc.) still
+   wins because Tailwind utilities are emitted in the utilities
+   layer (loaded after this block).
+   ============================================================ */
+
+/* Destructive / danger */
+.lucide-trash,
+.lucide-trash-2,
+.lucide-x-circle,
+.lucide-circle-x,
+.lucide-ban,
+.lucide-octagon-alert,
+.lucide-octagon-x,
+.lucide-shield-x,
+.lucide-shield-alert,
+.lucide-bug,
+.lucide-flame {
+  color: hsl(var(--destructive));
+}
+
+/* Success / positive */
+.lucide-check,
+.lucide-check-circle,
+.lucide-check-circle-2,
+.lucide-circle-check,
+.lucide-circle-check-big,
+.lucide-badge-check,
+.lucide-shield-check,
+.lucide-save,
+.lucide-thumbs-up,
+.lucide-trending-up,
+.lucide-arrow-up,
+.lucide-arrow-up-right,
+.lucide-arrow-up-circle,
+.lucide-circle-arrow-up,
+.lucide-play,
+.lucide-play-circle,
+.lucide-circle-play,
+.lucide-rocket,
+.lucide-sparkles,
+.lucide-leaf,
+.lucide-sprout {
+  color: hsl(var(--success));
+}
+
+/* Warning / caution */
+.lucide-alert-triangle,
+.lucide-triangle-alert,
+.lucide-alert-circle,
+.lucide-circle-alert,
+.lucide-alert-octagon,
+.lucide-bell,
+.lucide-bell-ring,
+.lucide-bell-dot,
+.lucide-pause,
+.lucide-pause-circle,
+.lucide-circle-pause,
+.lucide-hourglass,
+.lucide-zap,
+.lucide-star,
+.lucide-bookmark,
+.lucide-flag,
+.lucide-key,
+.lucide-key-round,
+.lucide-crown,
+.lucide-award,
+.lucide-trophy,
+.lucide-medal,
+.lucide-lightbulb,
+.lucide-sun {
+  color: hsl(var(--warning));
+}
+
+/* Info */
+.lucide-info,
+.lucide-help-circle,
+.lucide-circle-help,
+.lucide-message-circle,
+.lucide-message-square,
+.lucide-message-square-text,
+.lucide-message-square-more,
+.lucide-messages-square,
+.lucide-circle-dot {
+  color: hsl(var(--info));
+}
+
+/* Primary / brand actions */
+.lucide-plus,
+.lucide-plus-circle,
+.lucide-circle-plus,
+.lucide-plus-square,
+.lucide-square-plus,
+.lucide-pencil,
+.lucide-pencil-line,
+.lucide-pen,
+.lucide-pen-line,
+.lucide-pen-tool,
+.lucide-edit,
+.lucide-edit-2,
+.lucide-edit-3,
+.lucide-square-pen,
+.lucide-pencil-ruler,
+.lucide-wand,
+.lucide-wand-2,
+.lucide-wand-sparkles {
+  color: hsl(var(--primary));
+}
+
+/* Files & docs (forms blue) */
+.lucide-file,
+.lucide-file-text,
+.lucide-file-input,
+.lucide-file-output,
+.lucide-file-search,
+.lucide-file-check,
+.lucide-file-plus,
+.lucide-file-code,
+.lucide-files,
+.lucide-clipboard,
+.lucide-clipboard-list,
+.lucide-clipboard-check,
+.lucide-clipboard-copy,
+.lucide-notebook,
+.lucide-notebook-pen,
+.lucide-notebook-text {
+  color: hsl(var(--module-forms));
+}
+
+/* Folders & storage (amber) */
+.lucide-folder,
+.lucide-folder-open,
+.lucide-folder-closed,
+.lucide-folder-plus,
+.lucide-folder-tree,
+.lucide-folders,
+.lucide-archive,
+.lucide-archive-restore,
+.lucide-package,
+.lucide-package-2,
+.lucide-package-open,
+.lucide-box,
+.lucide-boxes,
+.lucide-inbox {
+  color: hsl(var(--module-workflows));
+}
+
+/* Reports / charts (violet) */
+.lucide-bar-chart,
+.lucide-bar-chart-2,
+.lucide-bar-chart-3,
+.lucide-bar-chart-4,
+.lucide-bar-chart-horizontal,
+.lucide-chart-bar,
+.lucide-chart-bar-big,
+.lucide-chart-column,
+.lucide-line-chart,
+.lucide-chart-line,
+.lucide-pie-chart,
+.lucide-chart-pie,
+.lucide-chart-area,
+.lucide-area-chart,
+.lucide-activity,
+.lucide-gauge {
+  color: hsl(var(--module-reports));
+}
+
+/* People (indigo) */
+.lucide-user,
+.lucide-user-2,
+.lucide-users,
+.lucide-users-2,
+.lucide-user-plus,
+.lucide-user-check,
+.lucide-user-cog,
+.lucide-user-round,
+.lucide-users-round,
+.lucide-contact,
+.lucide-contact-round,
+.lucide-circle-user,
+.lucide-circle-user-round {
+  color: hsl(var(--module-projects));
+}
+
+/* Email (pink) */
+.lucide-mail,
+.lucide-mails,
+.lucide-mail-open,
+.lucide-mail-plus,
+.lucide-mail-check,
+.lucide-send,
+.lucide-send-horizontal,
+.lucide-at-sign,
+.lucide-inbox {
+  color: hsl(var(--module-email));
+}
+
+/* Time / calendar */
+.lucide-calendar,
+.lucide-calendar-days,
+.lucide-calendar-check,
+.lucide-calendar-clock,
+.lucide-calendar-plus,
+.lucide-calendar-range {
+  color: hsl(var(--module-reports));
+}
+.lucide-clock,
+.lucide-clock-1,
+.lucide-clock-2,
+.lucide-clock-3,
+.lucide-clock-4,
+.lucide-clock-5,
+.lucide-clock-6,
+.lucide-clock-7,
+.lucide-clock-8,
+.lucide-clock-9,
+.lucide-clock-10,
+.lucide-clock-11,
+.lucide-clock-12,
+.lucide-timer,
+.lucide-alarm-clock {
+  color: hsl(var(--module-performance));
+}
+
+/* Transfers (download/upload) */
+.lucide-download,
+.lucide-download-cloud,
+.lucide-arrow-down-to-line,
+.lucide-cloud-download {
+  color: hsl(var(--module-projects));
+}
+.lucide-upload,
+.lucide-upload-cloud,
+.lucide-arrow-up-from-line,
+.lucide-cloud-upload {
+  color: hsl(var(--module-itam));
+}
+
+/* Trending down / negative metrics */
+.lucide-trending-down,
+.lucide-arrow-down,
+.lucide-arrow-down-right,
+.lucide-arrow-down-circle,
+.lucide-circle-arrow-down,
+.lucide-thumbs-down {
+  color: hsl(var(--destructive));
+}
+
+/* Security */
+.lucide-shield,
+.lucide-shield-half,
+.lucide-lock,
+.lucide-lock-keyhole {
+  color: hsl(var(--module-compliance));
+}
+.lucide-unlock,
+.lucide-lock-open {
+  color: hsl(var(--success));
+}
+.lucide-eye {
+  color: hsl(var(--info));
+}
+.lucide-eye-off {
+  color: hsl(var(--muted-foreground));
+}
+
+/* Workflow / automation */
+.lucide-workflow,
+.lucide-git-branch,
+.lucide-git-fork,
+.lucide-git-merge,
+.lucide-git-pull-request,
+.lucide-git-commit,
+.lucide-share-2,
+.lucide-network {
+  color: hsl(var(--module-workflows));
+}
+
+/* Knowledge base / books */
+.lucide-book,
+.lucide-book-open,
+.lucide-book-open-text,
+.lucide-book-marked,
+.lucide-library,
+.lucide-graduation-cap,
+.lucide-scroll,
+.lucide-scroll-text {
+  color: hsl(var(--module-knowledge));
+}
+
+/* IT assets / hardware */
+.lucide-monitor,
+.lucide-laptop,
+.lucide-smartphone,
+.lucide-tablet,
+.lucide-server,
+.lucide-cpu,
+.lucide-hard-drive,
+.lucide-database,
+.lucide-router,
+.lucide-wifi {
+  color: hsl(var(--module-itam));
+}
+
+/* Filters / search / utility (subtle) */
+.lucide-filter,
+.lucide-filter-x,
+.lucide-list-filter,
+.lucide-sliders,
+.lucide-sliders-horizontal {
+  color: hsl(var(--module-query));
+}
+
+/* Refresh / sync */
+.lucide-refresh-cw,
+.lucide-refresh-ccw,
+.lucide-rotate-cw,
+.lucide-rotate-ccw,
+.lucide-loader,
+.lucide-loader-2,
+.lucide-loader-circle {
+  color: hsl(var(--module-relationship));
+}
+
+/* External / links */
+.lucide-external-link,
+.lucide-link,
+.lucide-link-2,
+.lucide-paperclip,
+.lucide-globe,
+.lucide-globe-2 {
+  color: hsl(var(--module-api));
+}
+
+/* Hearts / favourites */
+.lucide-heart,
+.lucide-heart-handshake {
+  color: hsl(var(--module-access));
+}
+
+/* Misc accents */
+.lucide-tag,
+.lucide-tags,
+.lucide-bookmark-check,
+.lucide-pin {
+  color: hsl(var(--module-feeds));
+}
+
+/* Buttons should override icon coloring — icons inside primary/destructive
+   buttons need to follow the button's foreground for contrast. */
+button .lucide,
+[role="button"] .lucide,
+a.button .lucide {
+  /* fallback: if the button explicitly sets a text color, honor it */
+}
+button[class*="bg-primary"] .lucide,
+button[class*="bg-destructive"] .lucide,
+button[class*="bg-success"] .lucide,
+button[class*="bg-accent"] .lucide,
+button[class*="bg-secondary"] .lucide,
+[data-state="checked"] .lucide,
+[data-sidebar] .lucide:not([class*="text-module"]):not([class*="text-primary"]):not([class*="text-destructive"]):not([class*="text-success"]):not([class*="text-warning"]):not([class*="text-info"]) {
+  color: currentColor;
+}
+
 @layer utilities {
   .scrollbar-hide {
     -ms-overflow-style: none;
