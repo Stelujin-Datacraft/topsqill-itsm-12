@@ -152,6 +152,9 @@ export default function RecordDelegations() {
   });
   const [includeApprovals, setIncludeApprovals] = useState(true);
   const [reason, setReason] = useState('');
+  // Trust toggle: when ON, delegate inherits delegator's scope access even if they don't have it themselves.
+  // When OFF, delegation only re-routes work — delegate must already have access to act.
+  const [grantDelegatorAccess, setGrantDelegatorAccess] = useState(true);
 
   const userMap = React.useMemo(() => Object.fromEntries(users.map(u => [u.id, u])), [users]);
 
@@ -229,7 +232,7 @@ export default function RecordDelegations() {
 
   const resetForm = () => {
     setDelegateIds([]); setScope('all'); setScopeFormIds([]); setScopeProjectIds([]);
-    setIncludeApprovals(true); setReason('');
+    setIncludeApprovals(true); setReason(''); setGrantDelegatorAccess(true);
     setStartsAt(new Date().toISOString().slice(0, 16));
     const d = new Date(); d.setDate(d.getDate() + 7);
     setEndsAt(d.toISOString().slice(0, 16));
@@ -247,6 +250,7 @@ export default function RecordDelegations() {
     setEndsAt(new Date(row.ends_at).toISOString().slice(0, 16));
     setIncludeApprovals(row.include_approvals);
     setReason(row.reason || '');
+    setGrantDelegatorAccess(row.grant_delegator_access ?? true);
     setOpen(true);
   };
 
@@ -269,6 +273,7 @@ export default function RecordDelegations() {
           ends_at: new Date(endsAt).toISOString(),
           include_approvals: includeApprovals,
           reason: reason || null,
+          grant_delegator_access: grantDelegatorAccess,
         };
         const { error: upErr } = await supabase.from('record_delegations').update(patch).eq('id', editingId);
         if (upErr) throw upErr;
@@ -294,6 +299,7 @@ export default function RecordDelegations() {
         ends_at: new Date(endsAt).toISOString(),
         include_approvals: includeApprovals,
         reason: reason || null,
+        grant_delegator_access: grantDelegatorAccess,
         created_by: userProfile.id,
         active: true,
       })));
