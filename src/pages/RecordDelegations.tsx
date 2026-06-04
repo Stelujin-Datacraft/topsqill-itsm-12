@@ -385,6 +385,33 @@ export default function RecordDelegations() {
     loadAll();
   };
 
+  // Bulk-end all selected live delegations in My Delegations.
+  const handleBulkEnd = async () => {
+    const ids = Array.from(selected);
+    if (ids.length === 0) return;
+    if (!confirm(`End ${ids.length} delegation(s) now? Delegates will lose access immediately. History is kept.`)) return;
+    const nowIso = new Date().toISOString();
+    const { error } = await supabase
+      .from('record_delegations')
+      .update({ active: false, ends_at: nowIso })
+      .in('id', ids);
+    if (error) return toast({ title: 'Bulk end failed', description: error.message, variant: 'destructive' });
+    toast({ title: `Ended ${ids.length} delegation(s)` });
+    setSelected(new Set());
+    loadAll();
+  };
+
+  // Clear selection whenever tab switches to avoid acting on stale rows
+  useEffect(() => { setSelected(new Set()); }, [tab]);
+
+  const toggleSelected = (id: string) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
   const statusBadge = (row: DelegationRow) => {
     const now = new Date();
     const start = new Date(row.starts_at);
