@@ -169,7 +169,7 @@
    Specific selectors below override per icon name. Any explicit
    Tailwind `text-*` utility on the icon still wins. */
 .lucide {
-  color: hsl(var(--primary));
+  color: hsl(var(--primary)) !important;
 }
 
 /* Destructive / danger */
@@ -184,7 +184,7 @@
 .lucide-shield-alert,
 .lucide-bug,
 .lucide-flame {
-  color: hsl(var(--destructive));
+  color: hsl(var(--destructive)) !important;
 }
 
 /* Success / positive */
@@ -209,7 +209,7 @@
 .lucide-sparkles,
 .lucide-leaf,
 .lucide-sprout {
-  color: hsl(var(--success));
+  color: hsl(var(--success)) !important;
 }
 
 /* Warning / caution */
@@ -237,7 +237,7 @@
 .lucide-medal,
 .lucide-lightbulb,
 .lucide-sun {
-  color: hsl(var(--warning));
+  color: hsl(var(--warning)) !important;
 }
 
 /* Info */
@@ -250,7 +250,7 @@
 .lucide-message-square-more,
 .lucide-messages-square,
 .lucide-circle-dot {
-  color: hsl(var(--info));
+  color: hsl(var(--info)) !important;
 }
 
 /* Primary / brand actions */
@@ -272,7 +272,7 @@
 .lucide-wand,
 .lucide-wand-2,
 .lucide-wand-sparkles {
-  color: hsl(var(--primary));
+  color: hsl(var(--primary)) !important;
 }
 
 /* Files & docs (forms blue) */
@@ -292,7 +292,7 @@
 .lucide-notebook,
 .lucide-notebook-pen,
 .lucide-notebook-text {
-  color: hsl(var(--module-forms));
+  color: hsl(var(--module-forms)) !important;
 }
 
 /* Folders & storage (amber) */
@@ -310,7 +310,7 @@
 .lucide-box,
 .lucide-boxes,
 .lucide-inbox {
-  color: hsl(var(--module-workflows));
+  color: hsl(var(--module-workflows)) !important;
 }
 
 /* Reports / charts (violet) */
@@ -330,7 +330,7 @@
 .lucide-area-chart,
 .lucide-activity,
 .lucide-gauge {
-  color: hsl(var(--module-reports));
+  color: hsl(var(--module-reports)) !important;
 }
 
 /* People (indigo) */
@@ -347,7 +347,7 @@
 .lucide-contact-round,
 .lucide-circle-user,
 .lucide-circle-user-round {
-  color: hsl(var(--module-projects));
+  color: hsl(var(--module-projects)) !important;
 }
 
 /* Email (pink) */
@@ -360,7 +360,7 @@
 .lucide-send-horizontal,
 .lucide-at-sign,
 .lucide-inbox {
-  color: hsl(var(--module-email));
+  color: hsl(var(--module-email)) !important;
 }
 
 /* Time / calendar */
@@ -370,7 +370,7 @@
 .lucide-calendar-clock,
 .lucide-calendar-plus,
 .lucide-calendar-range {
-  color: hsl(var(--module-reports));
+  color: hsl(var(--module-reports)) !important;
 }
 .lucide-clock,
 .lucide-clock-1,
@@ -387,7 +387,7 @@
 .lucide-clock-12,
 .lucide-timer,
 .lucide-alarm-clock {
-  color: hsl(var(--module-performance));
+  color: hsl(var(--module-performance)) !important;
 }
 
 /* Transfers (download/upload) */
@@ -395,13 +395,13 @@
 .lucide-download-cloud,
 .lucide-arrow-down-to-line,
 .lucide-cloud-download {
-  color: hsl(var(--module-projects));
+  color: hsl(var(--module-projects)) !important;
 }
 .lucide-upload,
 .lucide-upload-cloud,
 .lucide-arrow-up-from-line,
 .lucide-cloud-upload {
-  color: hsl(var(--module-itam));
+  color: hsl(var(--module-itam)) !important;
 }
 
 /* Trending down / negative metrics */
@@ -411,7 +411,7 @@
 .lucide-arrow-down-circle,
 .lucide-circle-arrow-down,
 .lucide-thumbs-down {
-  color: hsl(var(--destructive));
+  color: hsl(var(--destructive)) !important;
 }
 
 /* Security */
@@ -419,17 +419,17 @@
 .lucide-shield-half,
 .lucide-lock,
 .lucide-lock-keyhole {
-  color: hsl(var(--module-compliance));
+  color: hsl(var(--module-compliance)) !important;
 }
 .lucide-unlock,
 .lucide-lock-open {
-  color: hsl(var(--success));
+  color: hsl(var(--success)) !important;
 }
 .lucide-eye {
-  color: hsl(var(--info));
+  color: hsl(var(--info)) !important;
 }
 .lucide-eye-off {
-  color: hsl(var(--muted-foreground));
+  color: hsl(var(--muted-foreground)) !important;
 }
 
 /* Workflow / automation */
@@ -441,7 +441,7 @@
 .lucide-git-commit,
 .lucide-share-2,
 .lucide-network {
-  color: hsl(var(--module-workflows));
+  color: hsl(var(--module-workflows)) !important;
 }
 
 /* Knowledge base / books */
@@ -453,7 +453,7 @@
 .lucide-graduation-cap,
 .lucide-scroll,
 .lucide-scroll-text {
-  color: hsl(var(--module-knowledge));
+  color: hsl(var(--module-knowledge)) !important;
 }
 
 /* IT assets / hardware */
@@ -467,7 +467,7 @@
 .lucide-database,
 .lucide-router,
 .lucide-wifi {
-  color: hsl(var(--module-itam));
+  color: hsl(var(--module-itam)) !important;
 }
 
 /* Filters / search / utility (subtle) */
@@ -476,7 +476,7 @@
 .lucide-list-filter,
 .lucide-sliders,
 .lucide-sliders-horizontal {
-  color: hsl(var(--module-query));
+  color: hsl(var(--module-query)) !important;
 }
 
 /* Refresh / sync */
@@ -487,7 +487,7 @@
 .lucide-loader,
 .lucide-loader-2,
 .lucide-loader-circle {
-  color: hsl(var(--module-relationship));
+  color: hsl(var(--module-relationship)) !important;
 }
 
 /* External / links */
@@ -497,13 +497,13 @@
 .lucide-paperclip,
 .lucide-globe,
 .lucide-globe-2 {
-  color: hsl(var(--module-api));
+  color: hsl(var(--module-api)) !important;
 }
 
 /* Hearts / favourites */
 .lucide-heart,
 .lucide-heart-handshake {
-  color: hsl(var(--module-access));
+  color: hsl(var(--module-access)) !important;
 }
 
 /* Misc accents */
@@ -511,7 +511,7 @@
 .lucide-tags,
 .lucide-bookmark-check,
 .lucide-pin {
-  color: hsl(var(--module-feeds));
+  color: hsl(var(--module-feeds)) !important;
 }
 
 /* Buttons should override icon coloring — icons inside primary/destructive
@@ -528,7 +528,7 @@ button[class*="bg-accent"] .lucide,
 button[class*="bg-secondary"] .lucide,
 [data-state="checked"] .lucide,
 [data-sidebar] .lucide:not([class*="text-module"]):not([class*="text-primary"]):not([class*="text-destructive"]):not([class*="text-success"]):not([class*="text-warning"]):not([class*="text-info"]) {
-  color: currentColor;
+  color: currentColor !important;
 }
 
 @layer utilities {
