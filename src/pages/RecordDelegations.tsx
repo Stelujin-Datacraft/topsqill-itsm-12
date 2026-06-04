@@ -121,6 +121,25 @@ export default function RecordDelegations() {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  // Edit mode state — when set, the dialog edits this row instead of creating new ones
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  // Bulk-end selection
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  // Activity tab data: changes other users made on my behalf
+  const [activity, setActivity] = useState<Array<{
+    id: string;
+    submission_id: string;
+    field_label: string;
+    old_value: string | null;
+    new_value: string | null;
+    changed_at: string;
+    change_type: string;
+    actor_id: string;
+  }>>([]);
+  const [activityLoading, setActivityLoading] = useState(false);
+
   // Form fields
   const [delegateIds, setDelegateIds] = useState<string[]>([]);
   const [scope, setScope] = useState<ScopeType>('all');
