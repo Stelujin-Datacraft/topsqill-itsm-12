@@ -266,7 +266,7 @@ export default function RecordDelegations() {
           body: {
             type: 'delegation_ended',
             recipientUserId: row.delegate_user_id,
-            organizationId: row.organization_id ?? userProfile?.organization_id,
+            organizationId: (row as any).organization_id ?? userProfile?.organization_id,
             delegatorName: fullName(userMap[row.delegator_user_id]) || 'A user',
           },
         });
