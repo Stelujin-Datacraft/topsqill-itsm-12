@@ -198,6 +198,25 @@ export default function RecordDelegations() {
 
       const { error } = await supabase.from('record_delegations').insert(rows);
       if (error) throw error;
+
+      // Notify each delegate in-app
+      try {
+        const delegatorName = fullName({
+          id: userProfile.id,
+          email: (userProfile as any).email ?? '',
+          first_name: userProfile.first_name ?? null,
+          last_name: userProfile.last_name ?? null,
+        });
+        const notifs = delegateIds.map(uid => ({
+          user_id: uid,
+          type: 'delegation_created',
+          title: 'You have been delegated access',
+          message: `${delegatorName} delegated ${scope === 'all' ? 'all their records' : scope === 'form' ? `${scopeFormIds.length} form(s)` : `${scopeProjectIds.length} project(s)`} to you until ${format(new Date(endsAt), 'dd MMM yyyy HH:mm')}.`,
+          data: { scope, ends_at: new Date(endsAt).toISOString(), delegator_user_id: userProfile.id, reason: reason || null },
+        }));
+        await supabase.from('notifications').insert(notifs);
+      } catch (e) { /* non-fatal */ }
+
       toast({ title: `Created ${rows.length} delegation${rows.length === 1 ? '' : 's'}` });
       setOpen(false); resetForm(); loadAll();
     } catch (e: any) {
@@ -209,8 +228,20 @@ export default function RecordDelegations() {
 
   const handleEnd = async (id: string) => {
     if (!confirm('End this delegation now? The delegate will lose access immediately, but the history will be kept.')) return;
+    const row = mine.find(r => r.id === id) || received.find(r => r.id === id);
     const { error } = await supabase.from('record_delegations').update({ active: false, ends_at: new Date().toISOString() }).eq('id', id);
     if (error) return toast({ title: 'Failed to end delegation', description: error.message, variant: 'destructive' });
+    if (row) {
+      try {
+        await supabase.from('notifications').insert({
+          user_id: row.delegate_user_id,
+          type: 'delegation_ended',
+          title: 'A delegation has ended',
+          message: `${fullName(userMap[row.delegator_user_id]) || 'A user'} ended a delegation that was assigned to you.`,
+          data: { delegation_id: id, delegator_user_id: row.delegator_user_id },
+        });
+      } catch { /* non-fatal */ }
+    }
     toast({ title: 'Delegation ended' });
     loadAll();
   };
