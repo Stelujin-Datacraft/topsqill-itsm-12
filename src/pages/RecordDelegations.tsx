@@ -38,6 +38,7 @@ interface DelegationRow {
   active: boolean;
   reason: string | null;
   created_at: string;
+  grant_delegator_access?: boolean;
 }
 
 interface UserOption { id: string; email: string; first_name: string | null; last_name: string | null; }
