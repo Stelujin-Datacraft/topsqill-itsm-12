@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { format } from 'date-fns';
-import { Plus, Trash2, UserCheck, Calendar, Shield, AlertTriangle, Check, ChevronsUpDown, X } from 'lucide-react';
+import { Plus, Trash2, UserCheck, Calendar, Shield, AlertTriangle, Check, ChevronsUpDown, X, Power } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useForm as useFormCtx } from '@/contexts/FormContext';
@@ -208,6 +208,7 @@ export default function RecordDelegations() {
   };
 
   const handleEnd = async (id: string) => {
+    if (!confirm('End this delegation now? The delegate will lose access immediately, but the history will be kept.')) return;
     const { error } = await supabase.from('record_delegations').update({ active: false, ends_at: new Date().toISOString() }).eq('id', id);
     if (error) return toast({ title: 'Failed to end delegation', description: error.message, variant: 'destructive' });
     toast({ title: 'Delegation ended' });
@@ -215,7 +216,7 @@ export default function RecordDelegations() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Delete this delegation? This cannot be undone.')) return;
+    if (!confirm('Permanently delete this delegation record? This removes it from history and cannot be undone. Use "End" instead if you just want to revoke access.')) return;
     const { error } = await supabase.from('record_delegations').delete().eq('id', id);
     if (error) return toast({ title: 'Failed to delete', description: error.message, variant: 'destructive' });
     toast({ title: 'Delegation deleted' });
@@ -270,16 +271,22 @@ export default function RecordDelegations() {
             <TableCell>{r.include_approvals ? 'Included' : 'Excluded'}</TableCell>
             <TableCell>{statusBadge(r)}</TableCell>
             <TableCell className="text-right">
-              {!showDelegator && r.active && (
-                <>
-                  <Button size="sm" variant="ghost" onClick={() => handleEnd(r.id)} title="End now">
-                    End
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={() => handleDelete(r.id)} title="Delete">
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </>
-              )}
+              {!showDelegator && (() => {
+                const now = new Date();
+                const isLive = r.active && now <= new Date(r.ends_at);
+                return (
+                  <div className="flex items-center justify-end gap-1">
+                    {isLive && (
+                      <Button size="sm" variant="ghost" onClick={() => handleEnd(r.id)} title="Revoke access now (keeps history)">
+                        <Power className="h-4 w-4 mr-1" /> End
+                      </Button>
+                    )}
+                    <Button size="sm" variant="ghost" onClick={() => handleDelete(r.id)} title="Permanently delete this record" className="text-destructive hover:text-destructive">
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                );
+              })()}
             </TableCell>
           </TableRow>
         ))}
