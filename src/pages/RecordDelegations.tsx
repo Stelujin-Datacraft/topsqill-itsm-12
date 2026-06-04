@@ -23,7 +23,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 
-type ScopeType = 'all' | 'form' | 'project';
+type ScopeType = 'all' | 'form' | 'project' | 'submission';
 
 interface DelegationRow {
   id: string;
@@ -32,6 +32,7 @@ interface DelegationRow {
   scope: ScopeType;
   scope_form_id: string | null;
   scope_project_id: string | null;
+  scope_submission_id: string | null;
   starts_at: string;
   ends_at: string;
   include_approvals: boolean;
@@ -146,6 +147,11 @@ export default function RecordDelegations() {
   const [scope, setScope] = useState<ScopeType>('all');
   const [scopeFormIds, setScopeFormIds] = useState<string[]>([]);
   const [scopeProjectIds, setScopeProjectIds] = useState<string[]>([]);
+  // For 'submission' scope — choose a form first, then one of your submissions in it
+  const [scopeSubmissionFormId, setScopeSubmissionFormId] = useState<string>('');
+  const [scopeSubmissionIds, setScopeSubmissionIds] = useState<string[]>([]);
+  const [submissionOptions, setSubmissionOptions] = useState<{ id: string; label: string; sub?: string }[]>([]);
+  const [submissionsLoading, setSubmissionsLoading] = useState(false);
   const [startsAt, setStartsAt] = useState(() => new Date().toISOString().slice(0, 16));
   const [endsAt, setEndsAt] = useState(() => {
     const d = new Date(); d.setDate(d.getDate() + 7); return d.toISOString().slice(0, 16);
@@ -232,6 +238,7 @@ export default function RecordDelegations() {
 
   const resetForm = () => {
     setDelegateIds([]); setScope('all'); setScopeFormIds([]); setScopeProjectIds([]);
+    setScopeSubmissionFormId(''); setScopeSubmissionIds([]); setSubmissionOptions([]);
     setIncludeApprovals(true); setReason(''); setGrantDelegatorAccess(true);
     setStartsAt(new Date().toISOString().slice(0, 16));
     const d = new Date(); d.setDate(d.getDate() + 7);
@@ -246,6 +253,9 @@ export default function RecordDelegations() {
     setScope(row.scope);
     setScopeFormIds(row.scope_form_id ? [row.scope_form_id] : []);
     setScopeProjectIds(row.scope_project_id ? [row.scope_project_id] : []);
+    setScopeSubmissionIds(row.scope_submission_id ? [row.scope_submission_id] : []);
+    setScopeSubmissionFormId('');
+    setSubmissionOptions([]);
     setStartsAt(new Date(row.starts_at).toISOString().slice(0, 16));
     setEndsAt(new Date(row.ends_at).toISOString().slice(0, 16));
     setIncludeApprovals(row.include_approvals);
@@ -259,6 +269,7 @@ export default function RecordDelegations() {
     if (delegateIds.length === 0) return toast({ title: 'Pick at least one delegate', variant: 'destructive' });
     if (scope === 'form' && scopeFormIds.length === 0) return toast({ title: 'Pick at least one form', variant: 'destructive' });
     if (scope === 'project' && scopeProjectIds.length === 0) return toast({ title: 'Pick at least one project', variant: 'destructive' });
+    if (scope === 'submission' && scopeSubmissionIds.length === 0) return toast({ title: 'Pick at least one record', variant: 'destructive' });
     if (new Date(endsAt) <= new Date(startsAt)) return toast({ title: 'End time must be after start', variant: 'destructive' });
 
     setSaving(true);
@@ -269,6 +280,7 @@ export default function RecordDelegations() {
           scope,
           scope_form_id: scope === 'form' ? (scopeFormIds[0] ?? null) : null,
           scope_project_id: scope === 'project' ? (scopeProjectIds[0] ?? null) : null,
+          scope_submission_id: scope === 'submission' ? (scopeSubmissionIds[0] ?? null) : null,
           starts_at: new Date(startsAt).toISOString(),
           ends_at: new Date(endsAt).toISOString(),
           include_approvals: includeApprovals,
@@ -283,10 +295,11 @@ export default function RecordDelegations() {
       }
 
       // Build the row matrix: delegates × scope targets
-      const targets: { form: string | null; project: string | null }[] =
-        scope === 'form'    ? scopeFormIds.map(id => ({ form: id, project: null }))
-      : scope === 'project' ? scopeProjectIds.map(id => ({ form: null, project: id }))
-      :                       [{ form: null, project: null }];
+      const targets: { form: string | null; project: string | null; submission: string | null }[] =
+        scope === 'form'       ? scopeFormIds.map(id => ({ form: id, project: null, submission: null }))
+      : scope === 'project'    ? scopeProjectIds.map(id => ({ form: null, project: id, submission: null }))
+      : scope === 'submission' ? scopeSubmissionIds.map(id => ({ form: null, project: null, submission: id }))
+      :                          [{ form: null, project: null, submission: null }];
 
       const rows = delegateIds.flatMap(uid => targets.map(t => ({
         organization_id: userProfile.organization_id,
@@ -295,6 +308,7 @@ export default function RecordDelegations() {
         scope,
         scope_form_id: t.form,
         scope_project_id: t.project,
+        scope_submission_id: t.submission,
         starts_at: new Date(startsAt).toISOString(),
         ends_at: new Date(endsAt).toISOString(),
         include_approvals: includeApprovals,
@@ -315,11 +329,15 @@ export default function RecordDelegations() {
           first_name: userProfile.first_name ?? null,
           last_name: userProfile.last_name ?? null,
         });
+        const scopeMsg = scope === 'all' ? 'all their records'
+          : scope === 'form' ? `${scopeFormIds.length} form(s)`
+          : scope === 'project' ? `${scopeProjectIds.length} project(s)`
+          : `${scopeSubmissionIds.length} record(s)`;
         const notifs = delegateIds.map(uid => ({
           user_id: uid,
           type: 'delegation_created',
           title: 'You have been delegated access',
-          message: `${delegatorName} delegated ${scope === 'all' ? 'all their records' : scope === 'form' ? `${scopeFormIds.length} form(s)` : `${scopeProjectIds.length} project(s)`} to you until ${format(new Date(endsAt), 'dd MMM yyyy HH:mm')}.`,
+          message: `${delegatorName} delegated ${scopeMsg} to you until ${format(new Date(endsAt), 'dd MMM yyyy HH:mm')}.`,
           data: { scope, ends_at: new Date(endsAt).toISOString(), delegator_user_id: userProfile.id, reason: reason || null },
         }));
         await supabase.from('notifications').insert(notifs);
@@ -327,7 +345,10 @@ export default function RecordDelegations() {
 
       // Fire-and-forget email notifications
       try {
-        const scopeSummary = scope === 'all' ? 'All their records' : scope === 'form' ? `${scopeFormIds.length} form(s)` : `${scopeProjectIds.length} project(s)`;
+        const scopeSummary = scope === 'all' ? 'All their records'
+          : scope === 'form' ? `${scopeFormIds.length} form(s)`
+          : scope === 'project' ? `${scopeProjectIds.length} project(s)`
+          : `${scopeSubmissionIds.length} specific record(s)`;
         await Promise.all(delegateIds.map(uid =>
           supabase.functions.invoke('send-delegation-email', {
             body: {
@@ -432,6 +453,7 @@ export default function RecordDelegations() {
     if (row.scope === 'all') return 'All records';
     if (row.scope === 'form') return `Form: ${forms.find(f => f.id === row.scope_form_id)?.name ?? '—'}`;
     if (row.scope === 'project') return `Project: ${projects.find(p => p.id === row.scope_project_id)?.name ?? '—'}`;
+    if (row.scope === 'submission') return `Record: ${row.scope_submission_id?.slice(0, 8) ?? '—'}…`;
     return '—';
   };
 
@@ -649,6 +671,7 @@ export default function RecordDelegations() {
                   <SelectItem value="all">All my records</SelectItem>
                   <SelectItem value="form">Specific form</SelectItem>
                   <SelectItem value="project">Specific project</SelectItem>
+                  <SelectItem value="submission">Specific record</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -675,6 +698,72 @@ export default function RecordDelegations() {
                   placeholder="Choose one or more projects"
                   emptyText="No projects found"
                 />
+              </div>
+            )}
+            {scope === 'submission' && (
+              <div className="space-y-3 rounded-md border p-3 bg-muted/30">
+                <div className="space-y-2">
+                  <Label>Form</Label>
+                  <Select
+                    value={scopeSubmissionFormId}
+                    onValueChange={async (formId) => {
+                      setScopeSubmissionFormId(formId);
+                      setScopeSubmissionIds([]);
+                      setSubmissionOptions([]);
+                      if (!formId || !userProfile?.id) return;
+                      setSubmissionsLoading(true);
+                      try {
+                        const { data, error } = await supabase
+                          .from('form_submissions')
+                          .select('id, submission_ref_id, submission_data, submitted_at')
+                          .eq('form_id', formId)
+                          .eq('submitted_by', userProfile.id)
+                          .order('submitted_at', { ascending: false })
+                          .limit(500);
+                        if (error) throw error;
+                        const opts = (data || []).map((s: any) => {
+                          const d = s.submission_data || {};
+                          const titleCandidate = d.title || d.name || d.subject || d.summary || '';
+                          const label = s.submission_ref_id
+                            ? `${s.submission_ref_id}${titleCandidate ? ` — ${String(titleCandidate).slice(0, 60)}` : ''}`
+                            : (titleCandidate ? String(titleCandidate).slice(0, 80) : s.id.slice(0, 8) + '…');
+                          return { id: s.id, label, sub: format(new Date(s.submitted_at), 'dd MMM yyyy HH:mm') };
+                        });
+                        setSubmissionOptions(opts);
+                      } catch (e: any) {
+                        toast({ title: 'Failed to load your records', description: e.message, variant: 'destructive' });
+                      } finally {
+                        setSubmissionsLoading(false);
+                      }
+                    }}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Pick a form to list your records" /></SelectTrigger>
+                    <SelectContent>
+                      {forms.map(f => (<SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {scopeSubmissionFormId && (
+                  <div className="space-y-2">
+                    <Label>Record(s)</Label>
+                    {submissionsLoading ? (
+                      <div className="text-xs text-muted-foreground py-2">Loading your records…</div>
+                    ) : submissionOptions.length === 0 ? (
+                      <div className="text-xs text-muted-foreground py-2">No records submitted by you in this form.</div>
+                    ) : (
+                      <MultiSelect
+                        options={submissionOptions.map(o => ({ value: o.id, label: o.label, sub: o.sub }))}
+                        selected={scopeSubmissionIds}
+                        onChange={setScopeSubmissionIds}
+                        placeholder="Choose one or more of your records"
+                        emptyText="No records"
+                      />
+                    )}
+                    <p className="text-[11px] text-muted-foreground">
+                      Only records you submitted are listed. Delegate will get access strictly to the selected record(s).
+                    </p>
+                  </div>
+                )}
               </div>
             )}
 
@@ -730,7 +819,7 @@ export default function RecordDelegations() {
             {!editingId && delegateIds.length > 0 && (scope === 'all' || scopeFormIds.length > 0 || scopeProjectIds.length > 0) && (
               <p className="text-xs text-muted-foreground">
                 Will create <b className="text-foreground">
-                  {delegateIds.length * (scope === 'form' ? scopeFormIds.length : scope === 'project' ? scopeProjectIds.length : 1)}
+                  {delegateIds.length * (scope === 'form' ? scopeFormIds.length : scope === 'project' ? scopeProjectIds.length : scope === 'submission' ? scopeSubmissionIds.length : 1)}
                 </b> delegation row(s).
               </p>
             )}
