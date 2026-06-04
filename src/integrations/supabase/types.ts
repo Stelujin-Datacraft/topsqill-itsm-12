@@ -5084,6 +5084,7 @@ export type Database = {
           delegate_user_id: string
           delegator_user_id: string
           ends_at: string
+          grant_delegator_access: boolean
           id: string
           include_approvals: boolean
           organization_id: string
@@ -5101,6 +5102,7 @@ export type Database = {
           delegate_user_id: string
           delegator_user_id: string
           ends_at: string
+          grant_delegator_access?: boolean
           id?: string
           include_approvals?: boolean
           organization_id: string
@@ -5118,6 +5120,7 @@ export type Database = {
           delegate_user_id?: string
           delegator_user_id?: string
           ends_at?: string
+          grant_delegator_access?: boolean
           id?: string
           include_approvals?: boolean
           organization_id?: string

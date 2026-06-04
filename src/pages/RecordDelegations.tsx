@@ -38,6 +38,7 @@ interface DelegationRow {
   active: boolean;
   reason: string | null;
   created_at: string;
+  grant_delegator_access?: boolean;
 }
 
 interface UserOption { id: string; email: string; first_name: string | null; last_name: string | null; }
@@ -151,6 +152,9 @@ export default function RecordDelegations() {
   });
   const [includeApprovals, setIncludeApprovals] = useState(true);
   const [reason, setReason] = useState('');
+  // Trust toggle: when ON, delegate inherits delegator's scope access even if they don't have it themselves.
+  // When OFF, delegation only re-routes work — delegate must already have access to act.
+  const [grantDelegatorAccess, setGrantDelegatorAccess] = useState(true);
 
   const userMap = React.useMemo(() => Object.fromEntries(users.map(u => [u.id, u])), [users]);
 
@@ -228,7 +232,7 @@ export default function RecordDelegations() {
 
   const resetForm = () => {
     setDelegateIds([]); setScope('all'); setScopeFormIds([]); setScopeProjectIds([]);
-    setIncludeApprovals(true); setReason('');
+    setIncludeApprovals(true); setReason(''); setGrantDelegatorAccess(true);
     setStartsAt(new Date().toISOString().slice(0, 16));
     const d = new Date(); d.setDate(d.getDate() + 7);
     setEndsAt(d.toISOString().slice(0, 16));
@@ -246,6 +250,7 @@ export default function RecordDelegations() {
     setEndsAt(new Date(row.ends_at).toISOString().slice(0, 16));
     setIncludeApprovals(row.include_approvals);
     setReason(row.reason || '');
+    setGrantDelegatorAccess(row.grant_delegator_access ?? true);
     setOpen(true);
   };
 
@@ -268,6 +273,7 @@ export default function RecordDelegations() {
           ends_at: new Date(endsAt).toISOString(),
           include_approvals: includeApprovals,
           reason: reason || null,
+          grant_delegator_access: grantDelegatorAccess,
         };
         const { error: upErr } = await supabase.from('record_delegations').update(patch).eq('id', editingId);
         if (upErr) throw upErr;
@@ -293,6 +299,7 @@ export default function RecordDelegations() {
         ends_at: new Date(endsAt).toISOString(),
         include_approvals: includeApprovals,
         reason: reason || null,
+        grant_delegator_access: grantDelegatorAccess,
         created_by: userProfile.id,
         active: true,
       })));
@@ -671,12 +678,12 @@ export default function RecordDelegations() {
               </div>
             )}
 
-            {(scope === 'form' || scope === 'project') && delegateIds.length > 0 && (
+            {(scope === 'form' || scope === 'project') && delegateIds.length > 0 && !grantDelegatorAccess && (
               <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-muted-foreground">
                 <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
                 <p>
-                  Delegates will only see your records on a {scope === 'form' ? 'form' : 'project'} they already have access to.
-                  If the delegate isn't a member, share the {scope === 'form' ? 'form/project' : 'project'} with them first — otherwise this delegation will silently grant nothing.
+                  "Grant my access" is OFF — delegates will only see your records on a {scope === 'form' ? 'form' : 'project'} they already have access to.
+                  If the delegate isn't a member, share the {scope === 'form' ? 'form/project' : 'project'} with them first or turn on "Grant my access" below.
                 </p>
               </div>
             )}
@@ -698,6 +705,21 @@ export default function RecordDelegations() {
                 <p className="text-xs text-muted-foreground">Delegate also handles items assigned to you.</p>
               </div>
               <Switch checked={includeApprovals} onCheckedChange={setIncludeApprovals} />
+            </div>
+
+            <div className="flex items-center justify-between rounded-md border p-3">
+              <div className="pr-3">
+                <Label className="text-sm flex items-center gap-2">
+                  Grant my access to delegate
+                  <Badge variant="secondary" className="text-[10px]">trusted</Badge>
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  {grantDelegatorAccess
+                    ? 'ON — delegate can act on every record within the scope, even ones they normally can\'t see. Access auto-revokes when the delegation ends.'
+                    : 'OFF — delegate only re-routes; they can only act on records they already have access to.'}
+                </p>
+              </div>
+              <Switch checked={grantDelegatorAccess} onCheckedChange={setGrantDelegatorAccess} />
             </div>
 
             <div className="space-y-2">
