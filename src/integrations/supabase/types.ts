@@ -5092,6 +5092,7 @@ export type Database = {
           scope: Database["public"]["Enums"]["delegation_scope"]
           scope_form_id: string | null
           scope_project_id: string | null
+          scope_submission_id: string | null
           starts_at: string
           updated_at: string
         }
@@ -5110,6 +5111,7 @@ export type Database = {
           scope?: Database["public"]["Enums"]["delegation_scope"]
           scope_form_id?: string | null
           scope_project_id?: string | null
+          scope_submission_id?: string | null
           starts_at?: string
           updated_at?: string
         }
@@ -5128,6 +5130,7 @@ export type Database = {
           scope?: Database["public"]["Enums"]["delegation_scope"]
           scope_form_id?: string | null
           scope_project_id?: string | null
+          scope_submission_id?: string | null
           starts_at?: string
           updated_at?: string
         }
@@ -5144,6 +5147,13 @@ export type Database = {
             columns: ["scope_project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "record_delegations_scope_submission_id_fkey"
+            columns: ["scope_submission_id"]
+            isOneToOne: false
+            referencedRelation: "form_submissions"
             referencedColumns: ["id"]
           },
         ]
@@ -6798,6 +6808,10 @@ export type Database = {
         Args: { _delegator: string; _form_id?: string; _project_id?: string }
         Returns: boolean
       }
+      can_act_for_submission: {
+        Args: { _delegator: string; _submission_id: string }
+        Returns: boolean
+      }
       can_create_asset_in_project: {
         Args: { _project_id: string; _user_id: string }
         Returns: boolean
@@ -7195,7 +7209,7 @@ export type Database = {
         | "disposed"
         | "lost"
         | "stolen"
-      delegation_scope: "all" | "form" | "project"
+      delegation_scope: "all" | "form" | "project" | "submission"
       escalation_level: "L1" | "L2" | "L3" | "L4"
       sla_status: "on_track" | "warning" | "breached" | "completed" | "paused"
     }
@@ -7336,7 +7350,7 @@ export const Constants = {
         "lost",
         "stolen",
       ],
-      delegation_scope: ["all", "form", "project"],
+      delegation_scope: ["all", "form", "project", "submission"],
       escalation_level: ["L1", "L2", "L3", "L4"],
       sla_status: ["on_track", "warning", "breached", "completed", "paused"],
     },
