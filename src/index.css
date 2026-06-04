@@ -528,7 +528,7 @@ button[class*="bg-accent"] .lucide,
 button[class*="bg-secondary"] .lucide,
 [data-state="checked"] .lucide,
 [data-sidebar] .lucide:not([class*="text-module"]):not([class*="text-primary"]):not([class*="text-destructive"]):not([class*="text-success"]):not([class*="text-warning"]):not([class*="text-info"]) {
-  color: currentColor;
+  color: currentColor !important;
 }
 
 @layer utilities {
