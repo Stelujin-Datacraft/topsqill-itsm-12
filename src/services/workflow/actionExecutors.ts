@@ -139,7 +139,7 @@ export class ActionExecutors {
           const { expandAssigneesWithDelegates } = await import('@/utils/delegationHelpers');
           const expanded = await expandAssigneesWithDelegates([assigneeResult.userId], {
             formId: config.targetFormId,
-            projectId: targetForm?.project_id ?? null,
+            projectId: (targetForm as any)?.project_id ?? null,
           });
           const delegateIds = expanded.filter((id) => id !== assigneeResult.userId);
           if (delegateIds.length > 0) {
