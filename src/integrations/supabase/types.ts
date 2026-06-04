@@ -6753,6 +6753,7 @@ export type Database = {
         Args: { _role_id: string; _user_id: string }
         Returns: undefined
       }
+      auto_expire_delegations: { Args: never; Returns: undefined }
       bulk_update_submission_field: {
         Args: { _field_id: string; _form_id: string; _new_value: Json }
         Returns: number
