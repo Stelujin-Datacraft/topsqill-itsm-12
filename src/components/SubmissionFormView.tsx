@@ -417,7 +417,7 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
     // Scope enforcement: when acting on behalf, block writes outside the delegation scope
     if (actingAs && form) {
       const projectId = (form as any).projectId ?? (form as any).project_id ?? null;
-      if (!delegationCoversScope(form.id, projectId)) {
+      if (!delegationCoversScope(form.id, projectId, submission.id)) {
         toast({
           title: 'Outside delegation scope',
           description: `Your delegation from ${actingAs.email} does not cover this form or project. Action blocked.`,
@@ -464,12 +464,16 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
             { getUserDisplayName, getGroupDisplayName }
           );
           if (changes.length > 0) {
+            const projectIdForScope = (form as any).projectId ?? (form as any).project_id ?? null;
+            const onBehalfId = actingAs && delegationCoversScope(form.id, projectIdForScope, submission.id)
+              ? actingAs.id
+              : null;
             await logRecordFieldChanges({
               submissionId: submission.id,
               changes,
               changedBy: userProfile.id,
               changeType: 'updated',
-              onBehalfOfUserId: actingAs?.id ?? null,
+              onBehalfOfUserId: onBehalfId,
             });
           }
         } catch (histErr) {
