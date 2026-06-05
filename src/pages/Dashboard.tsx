@@ -76,7 +76,7 @@ const Dashboard = () => {
               <CardTitle>Quick Actions</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 ">
                 {quickActions.map((action, index) => (
                   <Button
                     key={index}
@@ -85,7 +85,7 @@ const Dashboard = () => {
                     onClick={action.onClick}
                     disabled={action.disabled}
                   >
-                    <action.icon className="h-6 w-6 text-primary" />
+                    <action.icon className="h-6 w-6 text-module-access" />
                     <div className="text-left">
                       <div className="text-xl">{action.title}</div>
                       <div className="text-xs text-muted-foreground">

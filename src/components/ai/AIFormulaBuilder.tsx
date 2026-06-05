@@ -92,7 +92,7 @@ export function AIFormulaBuilder({
       resultLabel: 'Generated Formula'
     },
     sql_query: {
-      icon: <Database className="h-4 w-4" />,
+      icon: <Database className="h-4 w-4 " />,
       title: 'AI Query Builder',
       description: 'Describe what data you want to retrieve or aggregate.',
       buttonLabel: buttonLabel || 'AI Query',
