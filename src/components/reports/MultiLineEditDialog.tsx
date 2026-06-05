@@ -184,7 +184,7 @@ export function MultiLineEditDialog({
           if (changes.length > 0) {
             const sub = submissions.find((s: any) => s.id === update.id);
             const formIdForScope = sub?.form_id ?? null;
-            const onBehalfId = actingAs && delegationCoversScope(formIdForScope, null) ? actingAs.id : null;
+            const onBehalfId = actingAs && delegationCoversScope(formIdForScope, null, update.id) ? actingAs.id : null;
             await logRecordFieldChanges({
               submissionId: update.id,
               changes,
