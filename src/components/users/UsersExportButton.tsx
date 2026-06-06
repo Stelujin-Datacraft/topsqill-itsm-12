@@ -139,9 +139,9 @@ export function UsersExportButton(props: Props) {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="outline" size="sm">
-          <Download className="h-4 w-4 mr-2" />
+          <Download className="h-4 w-4 mr-2 text-module-access" />
           Export
-          <ChevronDown className="h-4 w-4 ml-2" />
+          <ChevronDown className="h-4 w-4 ml-2 " />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
@@ -149,7 +149,7 @@ export function UsersExportButton(props: Props) {
         className="w-48 bg-background border border-border shadow-lg z-50"
       >
         <DropdownMenuItem onClick={() => run('xlsx')} className="cursor-pointer">
-          <FileSpreadsheet className="h-4 w-4 mr-2 text-primary" />
+          <FileSpreadsheet className="h-4 w-4 mr-2  text-module-forms" />
           Excel (.xlsx)
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => run('csv')} className="cursor-pointer">
@@ -157,7 +157,7 @@ export function UsersExportButton(props: Props) {
           CSV (.csv)
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => run('pdf')} className="cursor-pointer">
-          <FileType2 className="h-4 w-4 mr-2 text-primary" />
+          <FileType2 className="h-4 w-4 mr-2  text-module-forms" />
           PDF (.pdf)
         </DropdownMenuItem>
       </DropdownMenuContent>

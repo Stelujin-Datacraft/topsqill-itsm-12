@@ -234,7 +234,7 @@ const Forms = () => {
       {canReadForms && (
         <FormSubmissionsDialog>
           <Button variant="outline" size="sm">
-            <BarChart3 className="h-4 w-4 mr-2" />
+            <BarChart3 className="h-4 w-4 mr-2 text-module-forms" />
             View Data Tables
           </Button>
         </FormSubmissionsDialog>
@@ -264,11 +264,11 @@ const Forms = () => {
             </ExcelFormImporter>
           )}
           <DropdownMenuItem onClick={() => navigate('/form-audit-logs')}>
-            <History className="h-4 w-4 mr-2 text-module-sla" />
+            <History className="h-4 w-4 mr-2 text-module-reports" />
             Form History
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => navigate('/sla-management')} disabled={!currentProject}>
-            <Timer className="h-4 w-4 mr-2 text-module-sla" />
+            <Timer className="h-4 w-4 mr-2 text-module-reports" />
             SLA Management
           </DropdownMenuItem>
         </DropdownMenuContent>

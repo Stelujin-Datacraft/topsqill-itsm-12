@@ -366,9 +366,9 @@ export function QueryField({
                   disabled={disabled || isExecuting || !query.trim()}
                 >
                   {isExecuting ? (
-                    <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                    <Loader2 className="h-3 w-3 animate-spin mr-1 text-module-forms" />
                   ) : (
-                    <Play className="h-3 w-3 mr-1" />
+                    <Play className="h-3 w-3 mr-1 text-module-forms" />
                   )}
                   Execute
                 </Button>

@@ -304,7 +304,7 @@ const Users = () => {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">
-                <BarChart2 className="h-4 w-4 mr-2" />
+                <BarChart2 className="h-4 w-4 mr-2 text-module-access" />
                 Data Analytics
                 <ChevronDown className="h-4 w-4 ml-2" />
               </Button>
@@ -316,7 +316,7 @@ const Users = () => {
               <div className="p-2 space-y-1">
                 <div className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-muted/50">
                   <div className="flex items-center gap-2">
-                    <UsersIcon className="h-4 w-4 text-muted-foreground" />
+                    <UsersIcon className="h-4 w-4 text-module-access" />
                     <span className="text-sm">Total Members</span>
                   </div>
                   <Badge variant="secondary" className="font-semibold">{totalUsers}</Badge>
@@ -330,7 +330,7 @@ const Users = () => {
                 </div>
                 <div className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-muted/50">
                   <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-muted-foreground" />
+                    <Clock className="h-4 w-4 text-module-access" />
                     <span className="text-sm">Pending</span>
                   </div>
                   <Badge variant="secondary" className="font-semibold">{pendingUsers}</Badge>
@@ -345,7 +345,7 @@ const Users = () => {
                 <DropdownMenuSeparator />
                 <div className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-muted/50">
                   <div className="flex items-center gap-2">
-                    <User className="h-4 w-4 text-muted-foreground" />
+                    <User className="h-4 w-4 text-module-access" />
                     <span className="text-sm">Users</span>
                   </div>
                   <Badge variant="secondary" className="font-semibold">{regularUsers}</Badge>
@@ -370,13 +370,13 @@ const Users = () => {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-52 bg-background border border-border shadow-lg z-50">
               <DropdownMenuItem onClick={() => navigate('/investigate-access')} className="cursor-pointer">
-                <Eye className="h-4 w-4 mr-2 text-module-overview" />
+                <Eye className="h-4 w-4 mr-2 text-module-access" />
                 {effectiveRole === 'admin' ? 'Investigate Access' : 'My Access'}
               </DropdownMenuItem>
               {effectiveRole === 'admin' && (
                 <>
                   <DropdownMenuItem onClick={() => navigate('/manage-sessions')} className="cursor-pointer">
-                    <Monitor className="h-4 w-4 mr-2 text-module-itam" />
+                    <Monitor className="h-4 w-4 mr-2 text-module-access" />
                     Manage Sessions
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => navigate('/audit-logs')} className="cursor-pointer">
@@ -693,7 +693,7 @@ const Users = () => {
                               }}
                               title="Security Parameters"
                             >
-                              <Shield className="h-4 w-4 text-module-compliance" />
+                              <Shield className="h-4 w-4 text-module-forms" />
                             </Button>
                             <Button 
                               variant="ghost" 

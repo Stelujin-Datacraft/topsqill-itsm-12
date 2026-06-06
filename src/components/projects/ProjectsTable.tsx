@@ -319,7 +319,7 @@ export function ProjectsTable({
                             onClick={(e) => handleManageAccess(e, project)}
                             title="Manage Access"
                           >
-                            <Shield className="h-4 w-4 text-module-compliance" />
+                            <Shield className="h-4 w-4 text-module-forms" />
                           </Button>
                           <Button
                             size="sm"
@@ -328,7 +328,7 @@ export function ProjectsTable({
                             title="Delete Project"
                             className="text-primary hover:text-primary"
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="h-4 w-4 text-module-compliance" />
                           </Button>
                         </>
                       ) : (

@@ -140,7 +140,7 @@ export function AIFormGenerator({
     <Dialog open={isOpen} onOpenChange={(open) => { setIsOpen(open); if (!open) resetForm(); }}>
       <DialogTrigger asChild>
         <Button variant={buttonVariant} size={buttonSize} className="gap-2">
-          <Wand2 className="h-4 w-4" />
+          <Wand2 className="h-4 w-4 text-module-forms" />
           {buttonLabel}
         </Button>
       </DialogTrigger>
