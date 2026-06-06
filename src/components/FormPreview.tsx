@@ -474,7 +474,7 @@ export function FormPreview({ form, showNavigation = false }: FormPreviewProps) 
               
               {/* Page Navigation Section */}
               {pages.length > 1 && (
-              <div className="px-16 py-4 bg-white dark:bg-gray-950 border-b border-slate-100 dark:border-slate-800">
+              <div className="px-4 py-4 bg-white dark:bg-gray-950 border-b border-slate-100 dark:border-slate-800">
                   <div className="w-full">
                     <FormPagination
                       pages={pages}
@@ -550,7 +550,7 @@ export function FormPreview({ form, showNavigation = false }: FormPreviewProps) 
         
         {/* Page Navigation Section */}
         {pages.length > 1 && (
-          <div className="px-16 py-4 bg-white dark:bg-gray-950 border-b border-slate-100 dark:border-slate-800">
+          <div className="px-4 py-4 bg-white dark:bg-gray-950 border-b border-slate-100 dark:border-slate-800">
             <div className="w-full">
               <FormPagination
                 pages={pages}
