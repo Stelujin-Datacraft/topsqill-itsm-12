@@ -50,6 +50,26 @@ const fieldTypeIcons = {
   switch: CheckSquare,
 };
 
+const FIELD_ICON_COLORS: Record<string, string> = {
+  text: 'text-module-forms',
+  textarea: 'text-module-forms',
+  email: 'text-module-email',
+  number: 'text-module-query',
+  date: 'text-module-workflows',
+  time: 'text-module-workflows',
+  datetime: 'text-module-workflows',
+  checkbox: 'text-module-reports',
+  radio: 'text-module-reports',
+  select: 'text-module-reports',
+  'multi-select': 'text-module-reports',
+  switch: 'text-module-reports',
+  'toggle-switch': 'text-module-reports',
+  file: 'text-module-knowledge',
+  image: 'text-module-knowledge',
+  phone: 'text-module-itam',
+};
+const getFieldIconColor = (type: string) => FIELD_ICON_COLORS[type] || 'text-module-forms';
+
 export function FormNavigationPanel({
   pages,
   fields,
@@ -236,7 +256,7 @@ export function FormNavigationPanel({
                             }`}
                             onClick={() => handleFieldClick(field)}
                           >
-                            <FieldIcon className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                            <FieldIcon className={`h-3 w-3 flex-shrink-0 ${getFieldIconColor(field.type)}`} />
                             <span className="text-sm truncate flex-1">{field.label}</span>
                             {field.required && (
                               <div className="w-2 h-2 bg-red-500 rounded-full flex-shrink-0" />
