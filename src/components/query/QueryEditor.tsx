@@ -239,11 +239,11 @@ export const QueryEditor = memo(forwardRef<QueryEditorRef, QueryEditorProps>(({
             disabled={!value}
             title="Format SQL (Ctrl+F)"
           >
-            <Wand2 className="h-4 w-4 text-foreground" />
+            <Wand2 className="h-4 w-4 text-module-reports" />
           </Button>
           
           <Button onClick={handleCopy} variant="outline" size="sm" className="gap-2" title="Copy to clipboard">
-            {copied ? <Check className="h-4 w-4 text-foreground" /> : <Copy className="h-4 w-4 text-foreground" />}
+            {copied ? <Check className="h-4 w-4 text-foreground" /> : <Copy className="h-4 w-4 text-module-reports" />}
             {copied ? 'Copied!' : 'Copy'}
           </Button>
           
@@ -255,7 +255,7 @@ export const QueryEditor = memo(forwardRef<QueryEditorRef, QueryEditorProps>(({
             disabled={!value.trim()}
             title="Save query (Ctrl+S)"
           >
-            <Save className="h-4 w-4 text-foreground" />
+            <Save className="h-4 w-4 text-module-reports" />
             Save
           </Button>
           
@@ -265,7 +265,7 @@ export const QueryEditor = memo(forwardRef<QueryEditorRef, QueryEditorProps>(({
             variant="ghost"
             title="Keyboard shortcuts (Ctrl+?)"
           >
-            <Keyboard className="h-4 w-4 text-foreground" />
+            <Keyboard className="h-4 w-4 text-module-reports" />
           </Button>
           
           <Button onClick={handleExecute} disabled={!isValid || isExecuting} size="sm" className="gap-2">

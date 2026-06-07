@@ -646,16 +646,16 @@ export function CreateRolesTab() {
                           size="sm"
                           onClick={() => handleStartEdit(role)}
                         >
-                          <Edit className="h-4 w-4 mr-2" />
+                          <Edit className="h-4 w-4 mr-2 text-module-forms" />
                           Edit
                         </Button>
                         <Button
                           variant="outline"
                           size="sm"
-                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                          className="hover:text-destructive hover:bg-destructive/10"
                           onClick={() => setRoleToDelete(role)}
                         >
-                          <Trash2 className="h-4 w-4 mr-2" />
+                          <Trash2 className="h-4 w-4 mr-2 text-module-access" />
                           Delete
                         </Button>
                       </div>

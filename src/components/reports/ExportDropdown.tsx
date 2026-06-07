@@ -89,7 +89,7 @@ export function ExportDropdown({ data, disabled, formId, formName, asSubMenu = f
     return (
       <DropdownMenuSub>
         <DropdownMenuSubTrigger>
-          <Download className="h-4 w-4 mr-2" />
+          <Download className="h-4 w-4 mr-2 text-module-forms" />
           Export Data
         </DropdownMenuSubTrigger>
         <DropdownMenuSubContent className="bg-popover">

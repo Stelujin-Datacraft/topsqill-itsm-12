@@ -989,7 +989,7 @@ export function OptimizedRecordTableConfig({ config, onUpdate, errors, fieldType
         <CardHeader>
           <CardTitle className="text-base flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Filter className="h-4 w-4 text-blue-600" />
+              <Filter className="h-4 w-4 text-blue-600 text-module-forms" />
               Filters
             </div>
             <Button type="button" variant="outline" size="sm" onClick={addFilter}>

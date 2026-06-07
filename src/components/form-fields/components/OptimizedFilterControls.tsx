@@ -87,7 +87,7 @@ export function OptimizedFilterControls({
     <Popover open={filterOpen} onOpenChange={setFilterOpen}>
       <PopoverTrigger asChild>
         <Button variant="outline" size="sm">
-          <Filter className="h-4 w-4 mr-2" />
+          <Filter className="h-4 w-4 mr-2 text-module-reports" />
           Filters {activeFilters.length > 0 && `(${activeFilters.length})`}
         </Button>
       </PopoverTrigger>

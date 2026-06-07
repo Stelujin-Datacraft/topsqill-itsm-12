@@ -88,17 +88,17 @@ export default function FormSubmissionsTable() {
   const headerActions = selectedFormId ? (
     <div className="flex items-center gap-2">
       <Button variant="outline" size="sm" onClick={() => setShowSaveDialog(true)}>
-        <Save className="h-4 w-4 mr-1" />
+        <Save className="h-4 w-4 mr-1 text-module-workflows" />
         Save as Report
       </Button>
       <Button variant="ghost" size="sm" onClick={handleBack}>
-        <ArrowLeft className="h-4 w-4 mr-1" />
+        <ArrowLeft className="h-4 w-4 mr-1 text-module-workflows" />
         Back
       </Button>
     </div>
   ) : (
     <Button variant="ghost" size="sm" onClick={handleBack}>
-      <ArrowLeft className="h-4 w-4 mr-1" />
+      <ArrowLeft className="h-4 w-4 mr-1 text-module-forms" />
       Back
     </Button>
   );
@@ -140,7 +140,7 @@ export default function FormSubmissionsTable() {
                   title={isExpanded ? 'Normal View' : 'Expand View'}
                   className="px-2"
                 >
-                  {isExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+                  {isExpanded ? <Minimize2 className="h-4 w-4 text-module-workflows" /> : <Maximize2 className="h-4 w-4 text-module-workflows" />}
                 </Button>
               </>
             )}

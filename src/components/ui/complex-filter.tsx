@@ -197,7 +197,7 @@ export function ComplexFilter({ filters, onFiltersChange, availableFields, class
       <Popover open={isOpen} onOpenChange={setIsOpen}>
         <PopoverTrigger asChild>
           <Button variant="outline" size="sm" className="gap-2">
-            <Filter className="h-4 w-4" />
+            <Filter className="h-4 w-4 text-module-forms" />
             Filters
             {getActiveFilterCount() > 0 && (
               <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">

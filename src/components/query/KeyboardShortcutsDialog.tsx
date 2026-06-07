@@ -34,7 +34,7 @@ export function KeyboardShortcutsDialog({ open, onOpenChange }: KeyboardShortcut
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Keyboard className="h-5 w-5 text-primary" />
+            <Keyboard className="h-5 w-5 text-module-query" />
             Keyboard Shortcuts
           </DialogTitle>
           <DialogDescription>

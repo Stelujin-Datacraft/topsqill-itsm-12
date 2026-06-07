@@ -147,7 +147,7 @@ export function SecurityTemplatesManager({ open, onOpenChange, inline = false }:
                       </div>
                       <div className="flex items-center gap-1">
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(template)}>
-                          <Edit2 className="h-4 w-4" />
+                          <Edit2 className="h-4 w-4 text-module-forms" />
                         </Button>
                         <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleDelete(template)}>
                           <Trash2 className="h-4 w-4" />

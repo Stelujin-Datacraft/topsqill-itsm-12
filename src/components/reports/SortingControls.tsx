@@ -60,7 +60,7 @@ export function SortingControls({
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" size="sm">
-              <Plus className="h-3 w-3 mr-1" />
+              <Plus className="h-3 w-3 mr-1 text-module-workflows" />
               Add Sort
             </Button>
           </DropdownMenuTrigger>

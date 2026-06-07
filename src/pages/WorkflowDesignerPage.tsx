@@ -657,7 +657,7 @@ const WorkflowDesignerPage = () => {
             </Button>
           )}
           <Button variant="outline" onClick={handleBackToList}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
+            <ArrowLeft className="h-4 w-4 mr-2 text-module-workflows" />
             Back to Workflows
           </Button>
         </div>

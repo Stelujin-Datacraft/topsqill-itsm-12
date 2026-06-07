@@ -120,7 +120,7 @@ export default function DataTablePreview() {
             </div>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" className="hover:bg-emerald-100 hover:border-emerald-400 hover:text-emerald-700 transition-all duration-300">
-                <Filter className="h-4 w-4 mr-2" />
+                <Filter className="h-4 w-4 mr-2 text-module-forms" />
                 Filter
               </Button>
               <DropdownMenu>

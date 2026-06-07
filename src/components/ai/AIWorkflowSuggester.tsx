@@ -204,7 +204,7 @@ export function AIWorkflowSuggester({
     <Dialog open={isOpen} onOpenChange={(open) => { setIsOpen(open); if (!open) resetForm(); }}>
       <DialogTrigger asChild>
         <Button variant={buttonVariant} size={buttonSize} className="gap-2">
-          <Sparkles className="h-4 w-4" />
+          <Sparkles className="h-4 w-4 text-module-workflows" />
           {buttonLabel}
         </Button>
       </DialogTrigger>

@@ -640,7 +640,7 @@ export function ReportEditor({
       <div className="flex items-center justify-end gap-2">
           {/* Drag Mode Toggle */}
           <Button variant={isDragEnabled ? "default" : "outline"} size="sm" onClick={toggleDragMode} className="flex items-center gap-2">
-            {isDragEnabled ? <Move className="h-4 w-4" /> : <MousePointer className="h-4 w-4" />}
+            {isDragEnabled ? <Move className="h-4  " /> : <MousePointer className="h-4 w-4 " />}
             <span className="hidden sm:inline">{isDragEnabled ? 'Drag' : 'Select'}</span>
           </Button>
 
@@ -654,41 +654,41 @@ export function ReportEditor({
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">
-                <Plus className="h-4 w-4 mr-2" />
+                <Plus className="h-4 w-4 mr-2 text-module-query " />
                 Add Component
                 <ChevronDown className="h-3 w-3 ml-1" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
               <DropdownMenuItem onClick={() => handleAddComponent('chart')}>
-                <BarChart3 className="h-4 w-4 mr-2" />
+                <BarChart3 className="h-4 w-4 mr-2 text-module-forms" />
                 Chart
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => handleAddComponent('query-chart')}>
-                <Database className="h-4 w-4 mr-2" />
+                <Database className="h-4 w-4 mr-2 text-module-forms" />
                 Query Chart
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => handleAddComponent('table')}>
-                <TableIcon className="h-4 w-4 mr-2" />
+                <TableIcon className="h-4 w-4 mr-2 text-module-forms" />
                 Table
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => handleAddComponent('form-submissions')}>
-                <FileText className="h-4 w-4 mr-2" />
+                <FileText className="h-4 w-4 mr-2 text-module-forms " />
                 Form Submissions
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => handleAddComponent('metric-card')}>
-                <Hash className="h-4 w-4 mr-2" />
+                <Hash className="h-4 w-4 mr-2 text-module-forms" />
                 Metric Card
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => handleAddComponent('text')}>
-                <Type className="h-4 w-4 mr-2" />
+                <Type className="h-4 w-4 mr-2 text-module-forms" />
                 Text Block
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => setIsMediaDialogOpen(true)}>
-                <Image className="h-4 w-4 mr-2" />
+                <Image className="h-4 w-4 mr-2 text-module-forms  " />
                 Media
               </DropdownMenuItem>
             </DropdownMenuContent>

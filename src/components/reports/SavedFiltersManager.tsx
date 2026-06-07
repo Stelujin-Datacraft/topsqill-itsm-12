@@ -63,7 +63,7 @@ export function SavedFiltersManager({
       <Popover open={isOpen} onOpenChange={setIsOpen}>
         <PopoverTrigger asChild>
           <Button variant="outline" size="sm">
-            <BookmarkPlus className="h-4 w-4 mr-2" />
+            <BookmarkPlus className="h-4 w-4 mr-2 text-module-forms" />
             Saved Filters
             {savedFilters.length > 0 && (
               <Badge variant="secondary" className="ml-2">

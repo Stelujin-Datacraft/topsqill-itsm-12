@@ -566,7 +566,7 @@ export function FormViewLayoutRenderer({
                     size="sm"
                     className="flex items-center gap-1"
                   >
-                    <ArrowLeft className="h-4 w-4" />
+                    <ArrowLeft className="h-4 w-4 text-module-workflows" />
                     Back
                   </Button>
                   <AIAutoFillInput
@@ -582,7 +582,7 @@ export function FormViewLayoutRenderer({
                     size="sm"
                     className="flex items-center gap-2"
                   >
-                    <FileDown className="h-4 w-4" />
+                    <FileDown className="h-4 w-4 text-module-workflows" />
                     Save as PDF
                   </Button>
                 </div>

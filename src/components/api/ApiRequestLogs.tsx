@@ -309,7 +309,7 @@ export function ApiRequestLogs() {
               onClick={() => setShowFilters(!showFilters)}
               className={cn(showFilters && 'bg-accent')}
             >
-              <Filter className="h-4 w-4 mr-2" />
+              <Filter className="h-4 w-4 mr-2 text-module-forms" />
               Filters
             </Button>
 

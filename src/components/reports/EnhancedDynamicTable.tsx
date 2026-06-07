@@ -539,7 +539,7 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
         {/* Active Drilldown Filters - Breadcrumb style */}
         {drilldownFilters.length > 0 && (
           <div className="flex items-center gap-2 pt-2 flex-wrap">
-            <Filter className="h-4 w-4 text-muted-foreground" />
+            <Filter className="h-4 w-4 text-muted-forms" />
             <span className="text-sm text-muted-foreground">Drilldown:</span>
             {drilldownFilters.map((filter, index) => (
               <Badge 
@@ -589,7 +589,7 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
                 onClick={() => setShowFilterPanel(!showFilterPanel)}
                 className="h-8 gap-1"
               >
-                <Filter className="h-4 w-4" />
+                <Filter className="h-4 w-4 text-module-forms" />
                 Filters
                 {activeFilters.length > 0 && (
                   <Badge variant="secondary" className="ml-1 h-5 px-1.5">

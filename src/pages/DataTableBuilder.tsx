@@ -183,7 +183,7 @@ const DataTableBuilder = () => {
         {loading ? 'Creating...' : 'Create Report'}
       </Button>
       <Button variant="outline" onClick={() => navigate('/reports')}>
-        <ArrowLeft className="h-4 w-4 mr-2" />
+        <ArrowLeft className="h-4 w-4 mr-2 text-module-workflows" />
         Back to Reports
       </Button>
     </div>

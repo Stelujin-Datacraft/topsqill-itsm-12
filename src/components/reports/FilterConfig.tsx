@@ -1437,7 +1437,7 @@ export function FilterConfig({
     <Card>
       <CardHeader>
         <CardTitle className="text-lg flex items-center gap-2">
-          <Filter className="h-5 w-5" />
+          <Filter className="h-5 w-5 text-module-forms" />
           Filters
         </CardTitle>
       </CardHeader>

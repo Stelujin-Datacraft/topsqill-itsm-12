@@ -397,25 +397,25 @@ const Users = () => {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48 bg-background border border-border shadow-lg z-50">
               <DropdownMenuItem onClick={() => setIsCreateOpen(true)} className="cursor-pointer">
-                <UserPlus className="h-4 w-4 mr-2" />
+                <UserPlus className="h-4 w-4 mr-2 text-module-forms" />
                 Create User
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setIsInviteOpen(true)} className="cursor-pointer">
-                <Mail className="h-4 w-4 mr-2" />
+                <Mail className="h-4 w-4 mr-2 text-module-forms" />
                 Invite User
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => setIsImportOpen(true)} className="cursor-pointer">
-                <Upload className="h-4 w-4 mr-2" />
+                <Upload className="h-4 w-4 mr-2 text-module-forms" />
                 Import Users
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setIsUpdateOpen(true)} className="cursor-pointer">
-                <RefreshCw className="h-4 w-4 mr-2" />
+                <RefreshCw className="h-4 w-4 mr-2 text-module-forms" />
                 Update Users
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => setIsRequestsOpen(true)} className="cursor-pointer">
-                <Clock className="h-4 w-4 mr-2" />
+                <Clock className="h-4 w-4 mr-2 text-module-forms" />
                 Pending Requests
                 {requests.length > 0 && (
                   <Badge variant="secondary" className="ml-2 h-5 min-w-5 px-1.5 flex items-center justify-center text-xs bg-primary/10 text-primary border-0">

@@ -248,7 +248,7 @@ const ReportViewerPage = () => {
         <div className="text-center py-12">
           <p className="text-muted-foreground mb-4">You do not have permission to view this report</p>
           <Button onClick={() => navigate('/reports')} variant="outline">
-            <ArrowLeft className="h-4 w-4 mr-2" />
+            <ArrowLeft className="h-4 w-4 mr-2 text-module-workflows" />
             Back to Reports
           </Button>
         </div>
@@ -262,7 +262,7 @@ const ReportViewerPage = () => {
         <div className="text-center py-12">
           <p className="text-muted-foreground mb-4">Report not found</p>
           <Button onClick={() => navigate('/reports')} variant="outline">
-            <ArrowLeft className="h-4 w-4 mr-2" />
+            <ArrowLeft className="h-4 w-4 mr-2 text-module-workflows" />
             Back to Reports
           </Button>
         </div>
@@ -307,7 +307,7 @@ const ReportViewerPage = () => {
       </Button>
       
       <Button variant="outline" onClick={() => navigate('/reports')}>
-        <ArrowLeft className="h-4 w-4 mr-2" />
+        <ArrowLeft className="h-4 w-4 mr-2 text-module-workflows" />
         Back to Reports
       </Button>
     </div>

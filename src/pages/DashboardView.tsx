@@ -150,7 +150,7 @@ const DashboardView = () => {
   const CreateReportButton = () => (
     <CreateReportDialog dashboardId={dashboard.id}>
       <Button disabled={createButtonState.disabled}>
-        <Plus className="h-4 w-4 mr-2" />
+        <Plus className="h-4 w-4 mr-2 text-module-workflows" />
         Add Report
       </Button>
     </CreateReportDialog>
@@ -173,7 +173,7 @@ const DashboardView = () => {
         <CreateReportButton />
       )}
       <Button variant="outline" onClick={() => navigate('/reports')}>
-        <ArrowLeft className="h-4 w-4 mr-2" />
+        <ArrowLeft className="h-4 w-4 mr-2 text-module-workflows" />
         Back to Dashboards
       </Button>
     </div>

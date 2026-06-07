@@ -1099,7 +1099,7 @@ export function DynamicTable({
                     title="Reorder Columns"
                     className="h-7 px-2"
                   >
-                    <Move className="h-3.5 w-3.5 mr-1" />
+                    <Move className="h-3.5 w-3.5 mr-1 text-module-reports" />
                     Reorder
                   </Button>
                   <div className="w-px h-4 bg-border" />
@@ -1114,7 +1114,7 @@ export function DynamicTable({
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" size="sm" className="h-7 px-2">
-                        <Database className="h-3.5 w-3.5 mr-1" />
+                        <Database className="h-3.5 w-3.5 mr-1 text-module-query" />
                         Manage
                         <ChevronDown className="h-3 w-3 ml-1" />
                       </Button>
@@ -1124,22 +1124,22 @@ export function DynamicTable({
                       <DropdownMenuSeparator />
                       <ExportDropdown data={exportData} formId={config.formId} formName={currentForm?.name} asSubMenu />
                       <DropdownMenuItem onClick={() => setShowImportDialog(true)}>
-                        <Upload className="h-4 w-4 mr-2" />
+                        <Upload className="h-4 w-4 mr-2 text-module-forms" />
                         Import Data
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={() => setShowUpdateDialog(true)}>
-                        <RefreshCw className="h-4 w-4 mr-2" />
+                        <RefreshCw className="h-4 w-4 mr-2 text-module-forms  " />
                         Update Records
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={() => setShowPolicyDialog(true)}>
-                        <ScrollText className="h-4 w-4 mr-2" />
+                        <ScrollText className="h-4 w-4 mr-2 text-module-forms " />
                         Create Docs
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={() => setShowLinkageMap(true)}>
-                        <GitBranch className="h-4 w-4 mr-2" />
+                        <GitBranch className="h-4 w-4 mr-2 text-module-forms" />
                         Relationship Map
                       </DropdownMenuItem>
                     </DropdownMenuContent>
@@ -1345,7 +1345,7 @@ export function DynamicTable({
                           {config.enableFiltering && <Popover>
                               <PopoverTrigger asChild>
                                 <Button variant="ghost" size="icon" className={`${columnFilters[field.id] ? 'text-primary' : 'text-muted-foreground'} h-5 w-5 p-0 hover:bg-primary/10`} aria-label={`Filter ${field.label}`}>
-                                  <Filter className="h-2.5 w-2.5" />
+                                  <Filter className="h-2.5 w-2.5 text-module-forms" />
                                 </Button>
                               </PopoverTrigger>
                               <PopoverContent align="start" className="w-64">

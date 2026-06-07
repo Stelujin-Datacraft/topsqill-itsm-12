@@ -199,14 +199,14 @@ export function AIFormulaBuilder({
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
         <Button variant={buttonVariant} size={buttonSize} className="gap-2">
-          <Sparkles className="h-4 w-4 text-foreground" />
+          <Sparkles className="h-4 w-4 text-mdoule-reports" />
           {config.buttonLabel}
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-2xl max-h-[85vh]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-module-workflows" />
+            <Sparkles className="h-5 w-5 text-module-reports" />
             {config.title}
           </DialogTitle>
           <DialogDescription>
@@ -284,7 +284,7 @@ export function AIFormulaBuilder({
               </>
             ) : (
               <>
-                <Sparkles className="h-4 w-4 mr-2" />
+                <Sparkles className="h-4 w-4 mr-2 text-module-reports" />
                 {config.generateLabel}
               </>
             )}
