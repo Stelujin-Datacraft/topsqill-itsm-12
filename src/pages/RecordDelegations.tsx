@@ -516,12 +516,12 @@ export default function RecordDelegations() {
                   <div className="flex items-center justify-end gap-1">
                     {isLive && (
                       <Button size="sm" variant="ghost" onClick={() => openEdit(r)} title="Edit dates / scope">
-                        <Pencil className="h-4 w-4" />
+                        <Pencil className="h-4 w-4 text-module-reports" />
                       </Button>
                     )}
                     {isLive && (
                       <Button size="sm" variant="ghost" onClick={() => handleEnd(r.id)} title="Revoke access now (keeps history)">
-                        <Power className="h-4 w-4 mr-1" /> End
+                        <Power className="h-4 w-4 text-module-forms" />
                       </Button>
                     )}
                     <Button size="sm" variant="ghost" onClick={() => handleDelete(r.id)} title="Permanently delete this record" className="text-destructive hover:text-destructive">

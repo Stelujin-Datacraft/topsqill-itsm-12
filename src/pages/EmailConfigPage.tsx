@@ -224,7 +224,7 @@ export default function EmailConfigPage() {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">
-                <BarChart2 className="h-4 w-4 mr-2" />
+                <BarChart2 className="h-4 w-4 mr-2 text-module-workflows" />
                 Data Analytics
                 <ChevronDown className="h-4 w-4 ml-2" />
               </Button>

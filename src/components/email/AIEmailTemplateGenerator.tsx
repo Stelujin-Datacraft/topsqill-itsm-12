@@ -310,7 +310,7 @@ export function AIEmailTemplateGenerator({ onTemplateCreated }: AIEmailTemplateG
     <Dialog open={isOpen} onOpenChange={(open) => { setIsOpen(open); if (!open) resetForm(); }}>
       <DialogTrigger asChild>
         <Button variant="outline" className="gap-2">
-          <Sparkles className="h-4 w-4" />
+          <Sparkles className="h-4 w-4 text-module-workflows" />
           AI Generate
         </Button>
       </DialogTrigger>

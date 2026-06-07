@@ -20,7 +20,7 @@ export function ThemeSelector() {
           size="sm"
           className="w-full justify-start gap-2 px-2 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
         >
-          <Palette className="h-4 w-4" />
+          <Palette className="h-4 w-4 text-module-query" />
           <span className="group-data-[collapsible=icon]:hidden text-xs">Theme</span>
           <div className="ml-auto flex gap-1 group-data-[collapsible=icon]:hidden">
             <div

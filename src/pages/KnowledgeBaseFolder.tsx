@@ -138,7 +138,7 @@ const KnowledgeBaseFolder = () => {
         {isAdmin && (
           <div className="flex items-center gap-2">
             <Button variant="outline" onClick={() => navigate('/policies/create-template')} className="gap-2">
-              <LayoutTemplate className="h-4 w-4" />
+              <LayoutTemplate className="h-4 w-4 text-module-workflows" />
               Create Template
             </Button>
             <Button onClick={() => navigate(`/policies/create?folder=${folderId}&type=policy`)} className="gap-2">

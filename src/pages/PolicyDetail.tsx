@@ -1886,17 +1886,17 @@ const PolicyDetail = () => {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">
-                <Download className="h-4 w-4 mr-1" /> Export
+                <Download className="h-4 w-4 mr-1 text-module-workflows" /> Export
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="bg-popover">
                 <DropdownMenuItem onClick={downloadOriginalDocxWithContent}>
-                  <FileDown className="h-4 w-4 mr-2" /> Download DOCX
+                  <FileDown className="h-4 w-4 mr-2 text-module-forms" /> Download DOCX
                 </DropdownMenuItem>
               
    
                 <DropdownMenuItem onClick={downloadOriginalPdfWithContent}>
-                  <FileDown className="h-4 w-4 mr-2" /> Download PDF
+                  <FileDown className="h-4 w-4 mr-2 text-module-forms" /> Download PDF
                 </DropdownMenuItem>
               {/* <DropdownMenuItem onClick={() => {
                 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -1933,10 +1933,10 @@ const PolicyDetail = () => {
           {canEdit && policy.status === 'draft' && (
             <>
               <Button variant="outline" size="sm" onClick={() => clonePolicy.mutateAsync(policy.id)}>
-                <FileText className="h-4 w-4 mr-1" /> Clone
+                <FileText className="h-4 w-4 mr-1 text-module-workflows" /> Clone
               </Button>
               <Button variant="outline" size="sm" onClick={startEditing}>
-                <Edit className="h-4 w-4 mr-1" /> Edit
+                <Edit className="h-4 w-4 mr-1 text-module-workflows" /> Edit
               </Button>
               {/* <Button size="sm" onClick={() => setShowApprovalDialog(true)}>
                 <Send className="h-4 w-4 mr-1" /> Submit for Approval

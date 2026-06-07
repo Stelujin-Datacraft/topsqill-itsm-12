@@ -39,7 +39,7 @@ export function NavProjects({
                 to={project.url}
                 onClick={() => handleProjectClick(project.url)}
               >
-                {project.icon && <project.icon />}
+                {project.icon && <project.icon className="text-module-projects"/>}
                 <span>{project.name}</span>
               </Link>
             </SidebarMenuButton>

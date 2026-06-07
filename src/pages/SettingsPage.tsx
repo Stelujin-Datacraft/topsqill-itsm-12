@@ -115,7 +115,7 @@ export default function SettingsPage() {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">
-                <BarChart2 className="h-4 w-4 mr-2" />
+                <BarChart2 className="h-4 w-4 mr-2 text-module-workflows" />
                 Data Analytics
                 <ChevronDown className="h-4 w-4 ml-2" />
               </Button>
@@ -127,42 +127,42 @@ export default function SettingsPage() {
               <div className="p-2 space-y-1">
                 <div className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-muted/50">
                   <div className="flex items-center gap-2">
-                    <Server className="h-4 w-4 text-muted-foreground" />
+                    <Server className="h-4 w-4 text-module-forms" />
                     <span className="text-sm">SMTP Configs</span>
                   </div>
                   <Badge variant="secondary" className="font-semibold">{stats.totalConfigs}</Badge>
                 </div>
                 <div className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-muted/50">
                   <div className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-module-knowledge" />
+                    <CheckCircle2 className="h-4 w-4 text-module-forms" />
                     <span className="text-sm">Active Configs</span>
                   </div>
                   <Badge variant="secondary" className="font-semibold bg-primary/10 text-primary">{stats.activeConfigs}</Badge>
                 </div>
                 <div className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-muted/50">
                   <div className="flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-muted-foreground" />
+                    <FileText className="h-4 w-4 text-module-forms" />
                     <span className="text-sm">Templates</span>
                   </div>
                   <Badge variant="secondary" className="font-semibold">{stats.totalTemplates}</Badge>
                 </div>
                 <div className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-muted/50">
                   <div className="flex items-center gap-2">
-                    <Zap className="h-4 w-4 text-module-workflows" />
+                    <Zap className="h-4 w-4 text-module-forms" />
                     <span className="text-sm">Active Templates</span>
                   </div>
                   <Badge variant="secondary" className="font-semibold bg-primary/10 text-primary">{stats.activeTemplates}</Badge>
                 </div>
                 <div className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-muted/50">
                   <div className="flex items-center gap-2">
-                    <Send className="h-4 w-4 text-module-email" />
+                    <Send className="h-4 w-4 text-module-forms" />
                     <span className="text-sm">Emails Today</span>
                   </div>
                   <Badge variant="secondary" className="font-semibold bg-primary/10 text-primary">{stats.emailsSentToday}</Badge>
                 </div>
                 <div className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-muted/50">
                   <div className="flex items-center gap-2">
-                    <Activity className="h-4 w-4 text-muted-foreground" />
+                    <Activity className="h-4 w-4 text-module-forms" />
                     <span className="text-sm">Emails This Month</span>
                   </div>
                   <Badge variant="secondary" className="font-semibold">{stats.emailsSentThisMonth}</Badge>
