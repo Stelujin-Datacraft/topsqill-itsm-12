@@ -3214,7 +3214,6 @@ export type Database = {
           mobile: string | null
           nationality: string | null
           organization_id: string | null
-          password_hash: string | null
           requested_at: string
           reviewed_at: string | null
           reviewed_by: string | null
@@ -3236,7 +3235,6 @@ export type Database = {
           mobile?: string | null
           nationality?: string | null
           organization_id?: string | null
-          password_hash?: string | null
           requested_at?: string
           reviewed_at?: string | null
           reviewed_by?: string | null
@@ -3258,7 +3256,6 @@ export type Database = {
           mobile?: string | null
           nationality?: string | null
           organization_id?: string | null
-          password_hash?: string | null
           requested_at?: string
           reviewed_at?: string | null
           reviewed_by?: string | null
@@ -5940,7 +5937,6 @@ export type Database = {
           mobile: string | null
           nationality: string | null
           organization_id: string | null
-          password: string | null
           role: string
           status: string
           timezone: string | null
@@ -5956,7 +5952,6 @@ export type Database = {
           mobile?: string | null
           nationality?: string | null
           organization_id?: string | null
-          password?: string | null
           role?: string
           status?: string
           timezone?: string | null
@@ -5972,7 +5967,6 @@ export type Database = {
           mobile?: string | null
           nationality?: string | null
           organization_id?: string | null
-          password?: string | null
           role?: string
           status?: string
           timezone?: string | null
