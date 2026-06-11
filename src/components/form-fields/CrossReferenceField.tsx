@@ -126,28 +126,24 @@ export function CrossReferenceField({ field, value, onChange, onFieldUpdate, isP
     setCreateDialogOpen(true);
   };
 
-  const handleRecordCreated = async () => {
-    // Fetch the latest record from the target form to auto-link it
-    if (targetForm) {
-      const { data } = await supabase
-        .from('form_submissions')
-        .select('id, submission_ref_id, form_id')
-        .eq('form_id', targetForm.id)
-        .order('submitted_at', { ascending: false })
-        .limit(1)
-        .single();
-
-      if (data && onChange) {
-        const currentValue = Array.isArray(value) ? value : [];
-        const newRecord = {
-          id: data.id,
-          submission_ref_id: data.submission_ref_id,
-          form_id: data.form_id,
-        };
-        onChange([...currentValue, newRecord]);
+  const handleRecordCreated = async (created?: { id: string; submission_ref_id?: string; form_id: string }) => {
+    // Auto-link the newly created record to this cross-reference field, if enabled
+    const autoLinkEnabled = field.customConfig?.autoLinkCreated !== false; // default true
+    if (autoLinkEnabled && created && onChange) {
+      const currentValue = Array.isArray(value) ? value : [];
+      const alreadyLinked = currentValue.some((v: any) =>
+        (v?.id && v.id === created.id) ||
+        (v?.submission_ref_id && created.submission_ref_id && v.submission_ref_id === created.submission_ref_id)
+      );
+      if (!alreadyLinked) {
+        onChange([...currentValue, {
+          id: created.id,
+          submission_ref_id: created.submission_ref_id,
+          form_id: created.form_id,
+        }]);
       }
-      setRefreshTrigger(prev => prev + 1);
     }
+    setRefreshTrigger(prev => prev + 1);
   };
 
   // Create properly typed config object with better defaults

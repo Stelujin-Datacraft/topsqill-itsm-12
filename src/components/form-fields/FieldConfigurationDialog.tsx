@@ -379,6 +379,14 @@ export function FieldConfigurationDialog({ field, open, onClose, onSave }: Field
                   />
                   <Label>Enable Search</Label>
                 </div>
+
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    checked={config.autoLinkCreated !== false}
+                    onCheckedChange={(checked) => setConfig({ ...config, autoLinkCreated: checked })}
+                  />
+                  <Label>Auto-link created record</Label>
+                </div>
               </div>
 
               {/* Relationship Map Display Fields */}

@@ -12,7 +12,7 @@ interface CreateRecordDialogProps {
   open: boolean;
   onClose: () => void;
   targetForm: Form;
-  onRecordCreated?: () => void;
+  onRecordCreated?: (record?: { id: string; submission_ref_id?: string; form_id: string }) => void;
 }
 
 export function CreateRecordDialog({ 
@@ -53,7 +53,11 @@ export function CreateRecordDialog({
       
       // Call the callback to refresh the parent table
       if (onRecordCreated) {
-        onRecordCreated();
+        onRecordCreated(data ? {
+          id: (data as any).id,
+          submission_ref_id: (data as any).submission_ref_id,
+          form_id: (data as any).form_id,
+        } : undefined);
       }
       
       // Close the dialog
