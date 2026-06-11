@@ -92,6 +92,8 @@ export interface CreateLinkedRecordConfig {
   specificSubmitterId?: string;
   // Initial status for the new record
   initialStatus?: 'pending' | 'approved' | 'rejected' | 'in_review';
+  // Whether to update the parent cross-reference field with the newly created child refs
+  autoLinkBack?: boolean;
 }
 
 export interface UpdateLinkedRecordsConfig {

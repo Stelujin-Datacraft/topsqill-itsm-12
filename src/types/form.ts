@@ -271,7 +271,6 @@ export interface FormField {
     enableSorting?: boolean;
     enableSearch?: boolean;
     pageSize?: number;
-    autoLinkCreated?: boolean; // Auto-link newly created record to this cross-reference field
     includeMetadata?: boolean;
     showOnlyUserRecords?: boolean;
     isParentReference?: boolean;
