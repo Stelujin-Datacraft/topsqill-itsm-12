@@ -918,7 +918,8 @@ export class RecordActionExecutors {
 
       // Now update the parent (trigger) submission's cross-reference field
       // to include all new child records' submission_ref_ids
-      if (triggerSubmissionId && createdRecords.length > 0) {
+      const autoLinkBack = config.autoLinkBack !== false; // default true
+      if (autoLinkBack && triggerSubmissionId && createdRecords.length > 0) {
         // Fetch current parent submission data
         const { data: parentSubmission, error: fetchError } = await supabase
           .from('form_submissions')

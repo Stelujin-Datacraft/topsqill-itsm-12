@@ -892,6 +892,23 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
                       </Select>
                     </div>
 
+                    <div className="flex items-start space-x-2 p-3 rounded border bg-muted/30">
+                      <Checkbox
+                        id="autoLinkBack"
+                        checked={localConfig?.autoLinkBack !== false}
+                        onCheckedChange={(checked) => handleConfigUpdate('autoLinkBack', checked === true)}
+                        className="mt-0.5"
+                      />
+                      <div className="space-y-1">
+                        <Label htmlFor="autoLinkBack" className="cursor-pointer">
+                          Auto-link created record(s) back to parent
+                        </Label>
+                        <p className="text-xs text-muted-foreground">
+                          When enabled, the newly created child record(s) will be added to the parent form's cross-reference field automatically.
+                        </p>
+                      </div>
+                    </div>
+
                     <div>
                       <Label>Submitted By</Label>
                       <Select
