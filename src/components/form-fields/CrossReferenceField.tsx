@@ -127,9 +127,8 @@ export function CrossReferenceField({ field, value, onChange, onFieldUpdate, isP
   };
 
   const handleRecordCreated = async (created?: { id: string; submission_ref_id?: string; form_id: string }) => {
-    // Auto-link the newly created record to this cross-reference field, if enabled
-    const autoLinkEnabled = field.customConfig?.autoLinkCreated !== false; // default true
-    if (autoLinkEnabled && created && onChange) {
+    // Auto-link the newly created record to this cross-reference field
+    if (created && onChange) {
       const currentValue = Array.isArray(value) ? value : [];
       const alreadyLinked = currentValue.some((v: any) =>
         (v?.id && v.id === created.id) ||
