@@ -121,13 +121,29 @@ export function AIWorkflowSuggester({
   const handleAddForm = (formId: string) => {
     if (!formId || selectedForms.some(f => f.id === formId)) return;
     const form = availableForms.find(f => f.id === formId);
-    if (form) {
-      const updated = [...selectedForms, form];
-      setSelectedForms(updated);
-      // Auto-set trigger form to first added
-      if (updated.length === 1) {
-        setTriggerFormId(form.id);
-      }
+    if (!form) return;
+
+    // Collect linked cross-reference target forms so AI has them in context immediately.
+    const linkedIds = new Set<string>();
+    (form.fields || []).forEach(f => {
+      const tId = f.crossRefConfig?.targetFormId;
+      if (tId && tId !== form.id) linkedIds.add(tId);
+    });
+
+    const linkedForms = availableForms.filter(
+      af => linkedIds.has(af.id) && !selectedForms.some(sf => sf.id === af.id) && af.id !== form.id
+    );
+
+    const updated = [...selectedForms, form, ...linkedForms];
+    setSelectedForms(updated);
+    // Auto-set trigger form to first added (the parent, not the auto-linked ones)
+    if (selectedForms.length === 0) {
+      setTriggerFormId(form.id);
+    }
+    if (linkedForms.length > 0) {
+      toast.success(
+        `Added "${form.name}" + ${linkedForms.length} linked form${linkedForms.length > 1 ? 's' : ''} (${linkedForms.map(l => l.name).join(', ')})`
+      );
     }
   };
 
