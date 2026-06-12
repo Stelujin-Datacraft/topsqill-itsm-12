@@ -1144,12 +1144,6 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
                       </Select>
                     </div>
 
-                    <div>
-                      <Label>Submitted By</Label>
-                      <Select
-                        value={localConfig?.setSubmittedBy || 'trigger_submitter'}
-                    </div>
-
                     <div className="flex items-start space-x-2 p-3 rounded border bg-muted/30">
                        <Checkbox
                         id="autoLinkBackLinked"
