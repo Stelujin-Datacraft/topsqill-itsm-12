@@ -1151,7 +1151,7 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
                     </div>
 
                     <div className="flex items-start space-x-2 p-3 rounded border bg-muted/30">
-                      <Checkbox
+                       <Checkbox
                         id="autoLinkBackLinked"
                         checked={localConfig?.autoLinkBack !== false}
                         onCheckedChange={(checked) => handleConfigUpdate('autoLinkBack', checked === true)}
