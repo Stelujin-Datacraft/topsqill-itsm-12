@@ -137,10 +137,17 @@ export class RuleProcessor {
 
     // Also initialize states for any target fields referenced in rules but not in formFields
     fieldRules.forEach(rule => {
-      if (rule.isActive && rule.targetFieldId && !fieldStates[rule.targetFieldId]) {
-        const targetField = formFields.find(f => f.id === rule.targetFieldId);
+      if (!rule.isActive) return;
+      const targetIds: string[] = [];
+      if (rule.actions && rule.actions.length > 0) {
+        rule.actions.forEach(a => { if (a.targetFieldId) targetIds.push(a.targetFieldId); });
+      }
+      if (rule.targetFieldId) targetIds.push(rule.targetFieldId);
+      targetIds.forEach(tid => {
+        if (fieldStates[tid]) return;
+        const targetField = formFields.find(f => f.id === tid);
         if (targetField) {
-          fieldStates[rule.targetFieldId] = {
+          fieldStates[tid] = {
             isVisible: targetField.isVisible ?? true,
             isEnabled: targetField.isEnabled ?? true,
             isRequired: targetField.required ?? false,
@@ -151,7 +158,7 @@ export class RuleProcessor {
             defaultValue: targetField.defaultValue,
           };
         }
-      }
+      });
     });
 
     // Process active rules
@@ -192,7 +199,21 @@ export class RuleProcessor {
       }
 
       if (conditionMet) {
-        this.applyFieldAction(rule, fieldStates, context);
+        // If rule has multiple action items, apply each as a synthetic single-action rule.
+        if (rule.actions && rule.actions.length > 0) {
+          rule.actions.forEach(item => {
+            if (!item.targetFieldId) return;
+            const syntheticRule: FieldRule = {
+              ...rule,
+              targetFieldId: item.targetFieldId,
+              action: item.action,
+              actionValue: item.actionValue,
+            };
+            this.applyFieldAction(syntheticRule, fieldStates, context);
+          });
+        } else {
+          this.applyFieldAction(rule, fieldStates, context);
+        }
       }
     });
 
