@@ -9,7 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Trash2, Plus, HelpCircle } from 'lucide-react';
 import { FormField } from '@/types/form';
-import { FieldRule, FieldRuleAction, FieldOperator, FieldRuleCondition } from '@/types/rules';
+import { FieldRule, FieldRuleAction, FieldOperator, FieldRuleCondition, FieldRuleActionItem } from '@/types/rules';
 import { RuleDynamicValueInput } from './RuleDynamicValueInput';
 import { ActionValueInput } from './ActionValueInput';
 import { ExpressionEvaluator } from '@/utils/expressionEvaluator';
