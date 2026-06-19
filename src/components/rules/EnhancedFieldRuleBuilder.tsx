@@ -299,7 +299,19 @@ export function EnhancedFieldRuleBuilder({ fields, rules, onRulesChange }: Enhan
                     variant="ghost"
                     size="sm"
                     onClick={() => {
-                      setEditingRule(rule);
+                      // Migrate legacy single-target into actions[] if needed
+                      const migrated: FieldRule = {
+                        ...rule,
+                        actions: (rule.actions && rule.actions.length > 0)
+                          ? rule.actions
+                          : [{
+                              id: `action-${Date.now()}`,
+                              targetFieldId: rule.targetFieldId,
+                              action: rule.action,
+                              actionValue: rule.actionValue,
+                            }],
+                      };
+                      setEditingRule(migrated);
                       // Initialize field comparison states
                       const comparisons: Record<string, boolean> = {};
                       if (rule.conditions) {
