@@ -9,7 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Trash2, Plus, HelpCircle } from 'lucide-react';
 import { FormField } from '@/types/form';
-import { FieldRule, FieldRuleAction, FieldOperator, FieldRuleCondition } from '@/types/rules';
+import { FieldRule, FieldRuleAction, FieldOperator, FieldRuleCondition, FieldRuleActionItem } from '@/types/rules';
 import { RuleDynamicValueInput } from './RuleDynamicValueInput';
 import { ActionValueInput } from './ActionValueInput';
 import { ExpressionEvaluator } from '@/utils/expressionEvaluator';
@@ -120,6 +120,11 @@ export function EnhancedFieldRuleBuilder({ fields, rules, onRulesChange }: Enhan
     isActive: true,
     appliesTo: 'all',
     appliesToUserIds: [],
+    actions: [{
+      id: `action-${Date.now()}`,
+      targetFieldId: '',
+      action: 'show',
+    }],
   });
 
   const addRule = () => {
@@ -138,15 +143,33 @@ export function EnhancedFieldRuleBuilder({ fields, rules, onRulesChange }: Enhan
       setExpressionError(validation.error || 'Invalid expression');
       return;
     }
-    
-    const existingIndex = rules.findIndex(r => r.id === editingRule.id);
+
+    // Normalize actions: ensure at least one item; mirror first item into legacy fields
+    const normalizedActions: FieldRuleActionItem[] = (editingRule.actions && editingRule.actions.length > 0)
+      ? editingRule.actions
+      : [{
+          id: `action-${Date.now()}`,
+          targetFieldId: editingRule.targetFieldId,
+          action: editingRule.action,
+          actionValue: editingRule.actionValue,
+        }];
+    const first = normalizedActions[0];
+    const ruleToSave: FieldRule = {
+      ...editingRule,
+      actions: normalizedActions,
+      targetFieldId: first.targetFieldId,
+      action: first.action,
+      actionValue: first.actionValue,
+    };
+
+    const existingIndex = rules.findIndex(r => r.id === ruleToSave.id);
     let updatedRules;
     
     if (existingIndex >= 0) {
       updatedRules = [...rules];
-      updatedRules[existingIndex] = editingRule;
+      updatedRules[existingIndex] = ruleToSave;
     } else {
-      updatedRules = [...rules, editingRule];
+      updatedRules = [...rules, ruleToSave];
     }
     
     onRulesChange(updatedRules);
@@ -276,7 +299,19 @@ export function EnhancedFieldRuleBuilder({ fields, rules, onRulesChange }: Enhan
                     variant="ghost"
                     size="sm"
                     onClick={() => {
-                      setEditingRule(rule);
+                      // Migrate legacy single-target into actions[] if needed
+                      const migrated: FieldRule = {
+                        ...rule,
+                        actions: (rule.actions && rule.actions.length > 0)
+                          ? rule.actions
+                          : [{
+                              id: `action-${Date.now()}`,
+                              targetFieldId: rule.targetFieldId,
+                              action: rule.action,
+                              actionValue: rule.actionValue,
+                            }],
+                      };
+                      setEditingRule(migrated);
                       // Initialize field comparison states
                       const comparisons: Record<string, boolean> = {};
                       if (rule.conditions) {
@@ -324,43 +359,113 @@ export function EnhancedFieldRuleBuilder({ fields, rules, onRulesChange }: Enhan
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Target Field</Label>
-                <Select
-                  value={editingRule.targetFieldId}
-                  onValueChange={(value) => setEditingRule({ ...editingRule, targetFieldId: value })}
+            {/* Target Fields & Actions (multi) */}
+            <div className="border rounded-md p-3 space-y-3 bg-muted/20">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-base">Target Fields & Actions</Label>
+                  <p className="text-xs text-muted-foreground">
+                    All listed actions will run when the conditions below are met.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const current = editingRule.actions || [];
+                    setEditingRule({
+                      ...editingRule,
+                      actions: [
+                        ...current,
+                        { id: `action-${Date.now()}`, targetFieldId: '', action: 'show' },
+                      ],
+                    });
+                  }}
                 >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select target field" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {fields.map((field) => (
-                      <SelectItem key={field.id} value={field.id}>
-                        {field.label} ({field.type})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  <Plus className="h-4 w-4 mr-1" />
+                  Add Action
+                </Button>
               </div>
 
-              <div>
-                <Label>Action</Label>
-                <Select
-                  value={editingRule.action}
-                  onValueChange={(value: FieldRuleAction) => setEditingRule({ ...editingRule, action: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {fieldActions.map((action) => (
-                      <SelectItem key={action.value} value={action.value}>
-                        {action.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="space-y-3">
+                {(editingRule.actions || []).map((item, idx) => {
+                  const updateItem = (updates: Partial<FieldRuleActionItem>) => {
+                    const next = (editingRule.actions || []).map((a) =>
+                      a.id === item.id ? { ...a, ...updates } : a
+                    );
+                    setEditingRule({ ...editingRule, actions: next });
+                  };
+                  const removeItem = () => {
+                    const next = (editingRule.actions || []).filter((a) => a.id !== item.id);
+                    setEditingRule({ ...editingRule, actions: next });
+                  };
+                  const itemTargetField = fields.find((f) => f.id === item.targetFieldId) || null;
+                  return (
+                    <Card key={item.id} className="p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <Badge variant="secondary">Action {idx + 1}</Badge>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={removeItem}
+                          disabled={(editingRule.actions || []).length === 1}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <Label>Target Field</Label>
+                          <Select
+                            value={item.targetFieldId}
+                            onValueChange={(value) => updateItem({ targetFieldId: value })}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select target field" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {fields.map((field) => (
+                                <SelectItem key={field.id} value={field.id}>
+                                  {field.label} ({field.type})
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label>Action</Label>
+                          <Select
+                            value={item.action}
+                            onValueChange={(value: FieldRuleAction) =>
+                              updateItem({ action: value, actionValue: undefined })
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {fieldActions.map((action) => (
+                                <SelectItem key={action.value} value={action.value}>
+                                  {action.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <div className="mt-2">
+                        <Label>Action Value</Label>
+                        <ActionValueInput
+                          action={item.action}
+                          targetField={itemTargetField}
+                          value={item.actionValue}
+                          onChange={(value) => updateItem({ actionValue: value })}
+                        />
+                      </div>
+                    </Card>
+                  );
+                })}
               </div>
             </div>
 
@@ -527,17 +632,6 @@ export function EnhancedFieldRuleBuilder({ fields, rules, onRulesChange }: Enhan
                 </p>
               </div>
             )}
-
-            {/* Action Value Input */}
-            <div>
-              <Label>Action Value</Label>
-              <ActionValueInput
-                action={editingRule.action}
-                targetField={fields.find(f => f.id === editingRule.targetFieldId) || null}
-                value={editingRule.actionValue}
-                onChange={(value) => setEditingRule({ ...editingRule, actionValue: value })}
-              />
-            </div>
 
             <div className="flex items-center space-x-2">
               <Switch

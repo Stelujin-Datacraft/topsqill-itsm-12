@@ -89,6 +89,17 @@ export interface FieldRule {
   isActive: boolean;
   appliesTo?: 'all' | 'specific'; // Whether rule applies to all users or specific ones
   appliesToUserIds?: string[]; // User IDs the rule is scoped to (when appliesTo === 'specific')
+  // Multiple target-field actions that all fire when conditions are met.
+  // When present and non-empty, this supersedes the single targetFieldId/action/actionValue trio.
+  // The legacy fields are still written as a mirror of actions[0] for backward compatibility.
+  actions?: FieldRuleActionItem[];
+}
+
+export interface FieldRuleActionItem {
+  id: string;
+  targetFieldId: string;
+  action: FieldAction;
+  actionValue?: string | string[] | number | boolean;
 }
 
 export interface FormRuleCondition {
