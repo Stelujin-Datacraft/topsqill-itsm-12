@@ -13,6 +13,18 @@ import { useForm } from '@/contexts/FormContext';
 import { useFormsData } from '@/hooks/useFormsData';
 import { toast } from '@/hooks/use-toast';
 
+// Field types that accept user input and can meaningfully appear in cross-reference config lists.
+const INPUT_FIELD_TYPES = new Set([
+  'text', 'textarea', 'number', 'date', 'time', 'datetime',
+  'select', 'multi-select', 'radio', 'checkbox', 'toggle-switch',
+  'slider', 'rating', 'file', 'image', 'color', 'country', 'phone',
+  'address', 'currency', 'email', 'url', 'password', 'ip-address',
+  'barcode', 'user-picker', 'group-picker', 'signature', 'tags',
+  'dynamic-dropdown', 'calculated', 'lookup', 'geo-location'
+]);
+
+
+
 interface FieldConfigurationDialogProps {
   field: FormField;
   open: boolean;
@@ -157,7 +169,8 @@ export function FieldConfigurationDialog({ field, open, onClose, onSave }: Field
 
   const targetForm = forms.find(f => f.id === config.targetFormId);
   const availableForms = forms.filter(f => f.fields.some(fld => fld.id === field.id) ? false : true);
-  const targetFormFields = targetForm?.fields || [];
+  const targetFormFields = (targetForm?.fields || []).filter(f => INPUT_FIELD_TYPES.has(f.type));
+
 
   if (!field || field.type !== 'cross-reference') {
     return null;
