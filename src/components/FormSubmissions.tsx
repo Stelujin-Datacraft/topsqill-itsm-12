@@ -45,7 +45,12 @@ export function FormSubmissions({
   const [approvalFilter, setApprovalFilter] = useState<string>('all');
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const { userProfile } = useAuth();
-  const { filterSubmissions: applyAccessFilter, loading: accessFilterLoading } = useSubmissionAccessFilter(form, userProfile?.id);
+  const {
+    filterSubmissions: applyAccessFilter,
+    canEditSubmission,
+    canDeleteSubmission,
+    loading: accessFilterLoading,
+  } = useSubmissionAccessFilter(form, userProfile?.id);
 
   // Get all fields from all pages
   const getAllFields = () => {
@@ -375,6 +380,7 @@ export function FormSubmissions({
                           <Button size="sm" variant="ghost" onClick={() => handleViewSubmission(submission)} title="View submission">
                             <Eye className="h-4 w-4" />
                           </Button>
+                          {canDeleteSubmission(submission.submissionData) && (
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
                               <Button size="sm" variant="ghost" title="Delete submission" disabled={deletingId === submission.id}>
@@ -399,6 +405,7 @@ export function FormSubmissions({
                               </AlertDialogFooter>
                             </AlertDialogContent>
                           </AlertDialog>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>)}

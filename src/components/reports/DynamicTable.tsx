@@ -143,7 +143,12 @@ export function DynamicTable({
   } = useReports();
   const navigate = useNavigate();
   const { userProfile } = useAuth();
-  const { filterSubmissions: applyAccessFilter, loading: accessFilterLoading } = useSubmissionAccessFilter(
+  const {
+    filterSubmissions: applyAccessFilter,
+    canEditSubmission,
+    canDeleteSubmission,
+    loading: accessFilterLoading,
+  } = useSubmissionAccessFilter(
     currentForm,
     userProfile?.id
   );
@@ -1438,12 +1443,14 @@ export function DynamicTable({
                                 <Button variant="ghost" size="sm" onClick={() => handleViewSubmission(row.id)} className="h-6 w-6 p-0 hover:bg-blue-500/10" title="View submission">
                                   <Eye className="h-3 w-3 text-blue-500" />
                                </Button>
-                              <Button variant="ghost" size="sm" onClick={e => {
-                                 e.stopPropagation();
-                                 handleEditSubmission(row);
-                                }} className="h-6 w-6 p-0 hover:bg-amber-500/10" title="Edit submission">
-                                  <Edit3 className="h-3 w-3 text-amber-500" />
-                               </Button>
+                               {canEditSubmission(row.submission_data || {}) && (
+                                 <Button variant="ghost" size="sm" onClick={e => {
+                                    e.stopPropagation();
+                                    handleEditSubmission(row);
+                                   }} className="h-6 w-6 p-0 hover:bg-amber-500/10" title="Edit submission">
+                                     <Edit3 className="h-3 w-3 text-amber-500" />
+                                  </Button>
+                               )}
                               <Button variant="ghost" size="sm" onClick={e => {
                                  e.stopPropagation();
                                  setRecordHistorySubmission({ id: row.id, refId: row.submission_ref_id || row.id.slice(0, 8) });
@@ -1458,7 +1465,7 @@ export function DynamicTable({
                                submissionRefId={row.submission_ref_id}
                                compact
                              />
-                             {canDeleteSubmissions && (
+                              {canDeleteSubmissions && canDeleteSubmission(row.submission_data || {}) && (
                                <DeleteSubmissionButton submissionId={row.id} onDelete={() => handleDeleteSubmission(row.id)} checkPermission={() => checkDeletePermission(row.id)} />
                              )}
                           </div>
