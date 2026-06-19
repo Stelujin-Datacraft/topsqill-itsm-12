@@ -120,6 +120,11 @@ export function EnhancedFieldRuleBuilder({ fields, rules, onRulesChange }: Enhan
     isActive: true,
     appliesTo: 'all',
     appliesToUserIds: [],
+    actions: [{
+      id: `action-${Date.now()}`,
+      targetFieldId: '',
+      action: 'show',
+    }],
   });
 
   const addRule = () => {
