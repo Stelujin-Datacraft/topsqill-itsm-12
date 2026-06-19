@@ -45,7 +45,12 @@ export function FormSubmissions({
   const [approvalFilter, setApprovalFilter] = useState<string>('all');
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const { userProfile } = useAuth();
-  const { filterSubmissions: applyAccessFilter, loading: accessFilterLoading } = useSubmissionAccessFilter(form, userProfile?.id);
+  const {
+    filterSubmissions: applyAccessFilter,
+    canEditSubmission,
+    canDeleteSubmission,
+    loading: accessFilterLoading,
+  } = useSubmissionAccessFilter(form, userProfile?.id);
 
   // Get all fields from all pages
   const getAllFields = () => {
