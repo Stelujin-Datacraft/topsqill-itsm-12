@@ -143,15 +143,33 @@ export function EnhancedFieldRuleBuilder({ fields, rules, onRulesChange }: Enhan
       setExpressionError(validation.error || 'Invalid expression');
       return;
     }
-    
-    const existingIndex = rules.findIndex(r => r.id === editingRule.id);
+
+    // Normalize actions: ensure at least one item; mirror first item into legacy fields
+    const normalizedActions: FieldRuleActionItem[] = (editingRule.actions && editingRule.actions.length > 0)
+      ? editingRule.actions
+      : [{
+          id: `action-${Date.now()}`,
+          targetFieldId: editingRule.targetFieldId,
+          action: editingRule.action,
+          actionValue: editingRule.actionValue,
+        }];
+    const first = normalizedActions[0];
+    const ruleToSave: FieldRule = {
+      ...editingRule,
+      actions: normalizedActions,
+      targetFieldId: first.targetFieldId,
+      action: first.action,
+      actionValue: first.actionValue,
+    };
+
+    const existingIndex = rules.findIndex(r => r.id === ruleToSave.id);
     let updatedRules;
     
     if (existingIndex >= 0) {
       updatedRules = [...rules];
-      updatedRules[existingIndex] = editingRule;
+      updatedRules[existingIndex] = ruleToSave;
     } else {
-      updatedRules = [...rules, editingRule];
+      updatedRules = [...rules, ruleToSave];
     }
     
     onRulesChange(updatedRules);
