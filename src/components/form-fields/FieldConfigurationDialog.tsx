@@ -169,7 +169,8 @@ export function FieldConfigurationDialog({ field, open, onClose, onSave }: Field
 
   const targetForm = forms.find(f => f.id === config.targetFormId);
   const availableForms = forms.filter(f => f.fields.some(fld => fld.id === field.id) ? false : true);
-  const targetFormFields = targetForm?.fields || [];
+  const targetFormFields = (targetForm?.fields || []).filter(f => INPUT_FIELD_TYPES.has(f.type));
+
 
   if (!field || field.type !== 'cross-reference') {
     return null;
