@@ -633,17 +633,6 @@ export function EnhancedFieldRuleBuilder({ fields, rules, onRulesChange }: Enhan
               </div>
             )}
 
-            {/* Action Value Input */}
-            <div>
-              <Label>Action Value</Label>
-              <ActionValueInput
-                action={editingRule.action}
-                targetField={fields.find(f => f.id === editingRule.targetFieldId) || null}
-                value={editingRule.actionValue}
-                onChange={(value) => setEditingRule({ ...editingRule, actionValue: value })}
-              />
-            </div>
-
             <div className="flex items-center space-x-2">
               <Switch
                 checked={editingRule.isActive}
