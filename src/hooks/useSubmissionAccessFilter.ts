@@ -62,41 +62,52 @@ export function useSubmissionAccessFilter(form: Form | null, userId: string | un
   }, [userId]);
 
   /**
-   * Filter submissions based on submission-access field
-   * Returns true if user can see the submission
-   * Admins can always see all submissions
+   * Returns the access level granted to the current user for a submission.
+   * - 'admin' = full control (admins / Full Admin level)
+   * - 'edit'  = view + edit, no delete
+   * - 'view'  = view only
+   * - null    = not granted (no access)
+   *
+   * When no submission-access field exists, access is unrestricted ('admin').
+   * When access data is empty (no users/groups selected), access is unrestricted ('admin').
    */
-  const canViewSubmission = (submissionData: Record<string, any>): boolean => {
-    // Admins can always view all submissions
-    if (isAdmin) {
-      return true;
-    }
+  const getAccessLevel = (submissionData: Record<string, any>): 'admin' | 'edit' | 'view' | null => {
+    // Org admins always have full control
+    if (isAdmin) return 'admin';
 
-    // If no submission-access field exists, all users can see all submissions
-    if (!submissionAccessField) {
-      return true;
-    }
+    // No access-control field on this form -> unrestricted
+    if (!submissionAccessField) return 'admin';
 
-    const accessData = submissionData[submissionAccessField.id] as SubmissionAccessData | undefined;
+    const accessData = submissionData?.[submissionAccessField.id] as SubmissionAccessData | undefined;
 
-    // If no access data or empty, all users can see it
+    // No restrictions configured on this row -> unrestricted
     if (!accessData || (!accessData.users?.length && !accessData.groups?.length)) {
-      return true;
+      return 'admin';
     }
 
-    // Check if current user is in the selected users
-    if (accessData.users?.includes(userId || '')) {
-      return true;
-    }
+    const isInUsers = accessData.users?.includes(userId || '') ?? false;
+    const isInGroups = accessData.groups?.some(g => userGroups.includes(g)) ?? false;
 
-    // Check if current user is in any of the selected groups
-    if (accessData.groups?.some(groupId => userGroups.includes(groupId))) {
-      return true;
-    }
+    if (!isInUsers && !isInGroups) return null;
 
-    // User is not authorized to view this submission
-    return false;
+    const configured = (submissionAccessField.customConfig as any)?.accessLevel;
+    if (configured === 'admin' || configured === 'edit' || configured === 'view') {
+      return configured;
+    }
+    // Default: view-only when configured value is missing/unknown
+    return 'view';
   };
+
+  const canViewSubmission = (submissionData: Record<string, any>): boolean =>
+    getAccessLevel(submissionData) !== null;
+
+  const canEditSubmission = (submissionData: Record<string, any>): boolean => {
+    const lvl = getAccessLevel(submissionData);
+    return lvl === 'edit' || lvl === 'admin';
+  };
+
+  const canDeleteSubmission = (submissionData: Record<string, any>): boolean =>
+    getAccessLevel(submissionData) === 'admin';
 
   /**
    * Filter array of submissions based on access control
@@ -114,9 +125,13 @@ export function useSubmissionAccessFilter(form: Form | null, userId: string | un
 
   return {
     submissionAccessField,
+    getAccessLevel,
     canViewSubmission,
+    canEditSubmission,
+    canDeleteSubmission,
     filterSubmissions,
     loading,
-    hasAccessControl: !!submissionAccessField
+    hasAccessControl: !!submissionAccessField,
+    isAdmin,
   };
 }
