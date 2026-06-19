@@ -46,6 +46,17 @@ const METADATA_COLUMNS = [
   { id: 'submission_id', label: 'Submission ID', type: 'uuid' },
 ];
 
+// Only fields that capture/display real data should appear in cross-ref / record-table config lists.
+const INPUT_FIELD_TYPES = new Set([
+  'text', 'textarea', 'number', 'date', 'time', 'datetime',
+  'select', 'multi-select', 'radio', 'checkbox', 'toggle-switch',
+  'slider', 'rating', 'file', 'image', 'color', 'country', 'phone',
+  'address', 'currency', 'email', 'url', 'password', 'ip-address',
+  'barcode', 'user-picker', 'group-picker', 'signature', 'tags',
+  'dynamic-dropdown', 'calculated', 'lookup', 'geo-location'
+]);
+const isInputField = (t?: string) => !!t && INPUT_FIELD_TYPES.has(t);
+
 // Helper component for Dynamic Mapping Logical Expression
 function DynamicMappingLogicalExpression({
   value,
@@ -356,7 +367,7 @@ export function OptimizedRecordTableConfig({ config, onUpdate, errors, fieldType
         setSelectedFormFields([]);
       } else {
         console.log('Successfully fetched form fields:', fields);
-        setSelectedFormFields(fields || []);
+        setSelectedFormFields((fields || []).filter(f => isInputField(f.field_type)));
       }
     } catch (error) {
       console.error('Exception while fetching form fields:', error);
