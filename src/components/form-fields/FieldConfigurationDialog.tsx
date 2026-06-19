@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { X, Plus } from 'lucide-react';
 import { useForm } from '@/contexts/FormContext';
 import { useFormsData } from '@/hooks/useFormsData';
-const toast = useToast();
+import { toast } from '@/hooks/use-toast';
 
 // Field types that accept user input and can meaningfully appear in cross-reference config lists.
 const INPUT_FIELD_TYPES = new Set([
@@ -22,6 +22,7 @@ const INPUT_FIELD_TYPES = new Set([
   'barcode', 'user-picker', 'group-picker', 'signature', 'tags',
   'dynamic-dropdown', 'calculated', 'lookup', 'geo-location'
 ]);
+
 
 
 interface FieldConfigurationDialogProps {
