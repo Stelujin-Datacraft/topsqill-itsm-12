@@ -11,7 +11,18 @@ import { Badge } from '@/components/ui/badge';
 import { X, Plus } from 'lucide-react';
 import { useForm } from '@/contexts/FormContext';
 import { useFormsData } from '@/hooks/useFormsData';
-import { toast } from '@/hooks/use-toast';
+const toast = useToast();
+
+// Field types that accept user input and can meaningfully appear in cross-reference config lists.
+const INPUT_FIELD_TYPES = new Set([
+  'text', 'textarea', 'number', 'date', 'time', 'datetime',
+  'select', 'multi-select', 'radio', 'checkbox', 'toggle-switch',
+  'slider', 'rating', 'file', 'image', 'color', 'country', 'phone',
+  'address', 'currency', 'email', 'url', 'password', 'ip-address',
+  'barcode', 'user-picker', 'group-picker', 'signature', 'tags',
+  'dynamic-dropdown', 'calculated', 'lookup', 'geo-location'
+]);
+
 
 interface FieldConfigurationDialogProps {
   field: FormField;
