@@ -69,8 +69,8 @@ export default function FormBuilderMini() {
     <section aria-labelledby="builder-mini-heading" className="container mx-auto px-4">
       <Card className="overflow-hidden">
         <CardHeader className="bg-gradient-to-r from-primary/5 to-secondary/5">
-          <div className="flex items-center justify-between">
-            <div>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="min-w-0">
               <CardTitle id="builder-mini-heading" className="text-2xl text-foreground">
                 Drag-and-Drop Form Builder
               </CardTitle>
@@ -78,14 +78,15 @@ export default function FormBuilderMini() {
                 Build complex forms with validation and conditional logic in minutes
               </CardDescription>
             </div>
-            <Button className="bg-foreground text-background hover:bg-foreground/90">
+            <Button className="bg-foreground text-background hover:bg-foreground/90 w-full sm:w-auto shrink-0">
               <Eye className="h-4 w-4 mr-2" />
               Preview Form
             </Button>
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="grid gap-0 md:grid-cols-4 min-h-[400px]">
+          <div className="overflow-x-auto">
+          <div className="grid gap-0 grid-cols-4 min-w-[820px] min-h-[400px]">
             {/* Field Palette */}
             <div className="border-r bg-muted/20 p-4">
               <div className="flex items-center gap-2 mb-4">
@@ -219,16 +220,17 @@ export default function FormBuilderMini() {
               )}
             </div>
           </div>
+          </div>
           
           <div className="border-t bg-muted/30 p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex gap-4 text-sm text-muted-foreground">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-muted-foreground">
                 <span>✨ Smart validation</span>
                 <span>🔄 Conditional logic</span>
                 <span>📱 Mobile responsive</span>
                 <span>🌐 Multi-language</span>
               </div>
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" className="w-full sm:w-auto shrink-0">
                 <ArrowUpRight className="h-3 w-3 mr-1" />
                 Advanced Settings
               </Button>
