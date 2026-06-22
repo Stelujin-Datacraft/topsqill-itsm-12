@@ -68,6 +68,7 @@ const Documentation = lazyWithRetry(() => import("./pages/Documentation"));
 const ForgotPassword = lazyWithRetry(() => import("./pages/ForgotPassword"));
 const AcceptInvitation = lazyWithRetry(() => import("./pages/AcceptInvitation"));
 const AuthCallback = lazyWithRetry(() => import("./pages/AuthCallback"));
+const SolutionOnboarding = lazyWithRetry(() => import("./pages/SolutionOnboarding"));
 
 // Forms feature
 const FormBuilder = lazyWithRetry(() => import("./pages/FormBuilder"));
@@ -190,6 +191,11 @@ const App = () => (
                       <Route path="/docs" element={
                         <Suspense fallback={<RouteLoader />}>
                           <Documentation />
+                        </Suspense>
+                      } />
+                      <Route path="/solutions/employee-onboarding" element={
+                        <Suspense fallback={<RouteLoader />}>
+                          <SolutionOnboarding />
                         </Suspense>
                       } />
                       <Route path="/forgot-password" element={
