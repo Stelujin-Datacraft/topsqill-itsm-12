@@ -128,8 +128,8 @@ export default function WorkflowPreview() {
     <section aria-labelledby="workflow-preview-heading" className="container mx-auto px-4">
       <Card className="overflow-hidden">
         <CardHeader className="bg-gradient-to-r from-primary/5 to-secondary/5">
-          <div className="flex items-center justify-between">
-            <div>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="min-w-0">
               <CardTitle id="workflow-preview-heading" className="text-2xl text-foreground">
                 Visual Workflow Automation
               </CardTitle>
@@ -139,7 +139,7 @@ export default function WorkflowPreview() {
             </div>
             <Button 
               onClick={handlePlayDemo}
-              className="bg-foreground text-background hover:bg-foreground/90"
+              className="bg-foreground text-background hover:bg-foreground/90 w-full sm:w-auto shrink-0"
               disabled={isPlaying}
             >
               <Play className="h-4 w-4 mr-2" />
@@ -148,7 +148,7 @@ export default function WorkflowPreview() {
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="h-96 relative">
+          <div className="h-80 sm:h-96 relative overflow-hidden">
             <ReactFlow
               nodes={nodes}
               edges={edges}
@@ -156,6 +156,7 @@ export default function WorkflowPreview() {
               onEdgesChange={onEdgesChange}
               onConnect={onConnect}
               fitView
+              minZoom={0.2}
               attributionPosition="bottom-left"
               className={isPlaying ? 'workflow-playing' : ''}
             >
@@ -164,12 +165,12 @@ export default function WorkflowPreview() {
               <MiniMap 
                 nodeColor="#e2e8f0"
                 nodeStrokeWidth={2}
-                className="!bg-background !border !border-border"
+                className="!bg-background !border !border-border hidden sm:block"
               />
             </ReactFlow>
           </div>
           
-          <div className="p-6 bg-muted/30">
+          <div className="p-4 sm:p-6 bg-muted/30">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
               <div>
                 <Badge variant="secondary" className="mb-2 bg-primary/10 text-primary">Triggers</Badge>
