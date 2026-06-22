@@ -57,6 +57,7 @@ const ITAssets = () => {
             History
           </TabsTrigger>
         </TabsList>
+        </div>
 
         <TabsContent value="dashboard"><AssetDashboard /></TabsContent>
         <TabsContent value="assets"><AssetList /></TabsContent>
