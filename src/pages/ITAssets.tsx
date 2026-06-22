@@ -26,7 +26,8 @@ const ITAssets = () => {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="inline-flex max-w-full w-auto sm:w-full justify-start overflow-x-auto sm:grid sm:grid-cols-7 h-auto scrollbar-hide">
+        <div className="w-full overflow-x-auto scrollbar-hide -mx-1 px-1">
+          <TabsList className="inline-flex w-max sm:w-full justify-start sm:grid sm:grid-cols-7 h-auto">
           <TabsTrigger value="dashboard" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm whitespace-nowrap">
             <BarChart3 className="h-4 w-4 shrink-0" />
             Dashboard
