@@ -8,21 +8,25 @@ import { SoftwareInventory } from '@/components/itam/SoftwareInventory';
 import { AssetHistoryView } from '@/components/itam/AssetHistoryView';
 import { WarrantyLicenseTracker } from '@/components/itam/WarrantyLicenseTracker';
 import { AssetExport } from '@/components/itam/AssetExport';
+import { SidebarTrigger } from '@/components/ui/sidebar';
 
 const ITAssets = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
 
   return (
     <div className="flex-1 space-y-6 p-4 sm:p-6 overflow-y-auto max-h-[calc(100vh-4rem)]">
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">IT Asset Management</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Track, manage, and monitor all IT assets across your organization
-        </p>
+      <div className="flex items-start gap-2">
+        <SidebarTrigger className="shrink-0 mt-1" />
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-3xl font-bold tracking-tight truncate">IT Asset Management</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1 line-clamp-2">
+            Track, manage, and monitor all IT assets across your organization
+          </p>
+        </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="flex w-full justify-start overflow-x-auto sm:grid sm:grid-cols-7 h-auto">
+        <TabsList className="inline-flex max-w-full w-auto sm:w-full justify-start overflow-x-auto sm:grid sm:grid-cols-7 h-auto scrollbar-hide">
           <TabsTrigger value="dashboard" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm whitespace-nowrap">
             <BarChart3 className="h-4 w-4 shrink-0" />
             Dashboard
