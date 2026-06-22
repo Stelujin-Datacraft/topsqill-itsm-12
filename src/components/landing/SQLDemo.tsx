@@ -127,18 +127,20 @@ export default function SQLDemo() {
           <CardTitle id="sql-demo-heading">SQL editor for your forms</CardTitle>
           <CardDescription>Run SQL on form data with instant results and export-ready tables.</CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-6 lg:grid-cols-2">
-          <div className="min-h-64">
-            <Suspense fallback={<div className="h-64 rounded-md border bg-muted" />}>
-              <CodeMirror
-                value={query}
-                height="260px"
-                extensions={[sqlLang()]}
-                theme="dark"
-                onChange={(val) => setQuery(val)}
-              />
-            </Suspense>
-            <div className="mt-3 flex gap-3">
+        <CardContent className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <div className="min-h-64 min-w-0">
+            <div className="overflow-x-auto rounded-md border">
+              <Suspense fallback={<div className="h-64 rounded-md border bg-muted" />}>
+                <CodeMirror
+                  value={query}
+                  height="260px"
+                  extensions={[sqlLang()]}
+                  theme="dark"
+                  onChange={(val) => setQuery(val)}
+                />
+              </Suspense>
+            </div>
+            <div className="mt-3 flex flex-wrap gap-3">
               <Button onClick={handleRun}>Run</Button>
               <Button variant="outline" onClick={handleShowRaw}>
                 Raw Data
@@ -148,29 +150,27 @@ export default function SQLDemo() {
               </Button>
             </div>
           </div>
-          <div>
-            <div className="rounded border bg-background p-4">
+          <div className="min-w-0">
+            <div className="rounded border bg-background p-4 overflow-x-auto">
               <h4 className="font-medium mb-3">Query Results</h4>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b">
-                      {Object.keys(result[0] || {}).map(key => (
-                        <th key={key} className="text-left p-2 font-medium">{key}</th>
+              <table className="w-full min-w-max text-sm">
+                <thead>
+                  <tr className="border-b">
+                    {Object.keys(result[0] || {}).map(key => (
+                      <th key={key} className="text-left p-2 font-medium whitespace-nowrap">{key}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {result.map((row, i) => (
+                    <tr key={i} className="border-b">
+                      {Object.values(row).map((val, j) => (
+                        <td key={j} className="p-2 whitespace-nowrap">{String(val)}</td>
                       ))}
                     </tr>
-                  </thead>
-                  <tbody>
-                    {result.map((row, i) => (
-                      <tr key={i} className="border-b">
-                        {Object.values(row).map((val, j) => (
-                          <td key={j} className="p-2">{String(val)}</td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         </CardContent>
