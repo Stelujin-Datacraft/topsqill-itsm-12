@@ -15,6 +15,7 @@ import { useProject } from '@/contexts/ProjectContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUnifiedAccessControl } from '@/hooks/useUnifiedAccessControl';
 import { format } from 'date-fns';
+import { SidebarTrigger } from '@/components/ui/sidebar';
 
 const KnowledgeBase = () => {
   const navigate = useNavigate();
@@ -95,14 +96,17 @@ const KnowledgeBase = () => {
   }
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Knowledge Base</h1>
-          <p className="text-sm text-muted-foreground">Organize docs, audits, and governance documents</p>
+    <div className="space-y-6 p-4 sm:p-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <SidebarTrigger className="shrink-0" />
+          <div className="min-w-0">
+            <h1 className="text-xl sm:text-2xl font-bold text-foreground truncate">Knowledge Base</h1>
+            <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2">Organize docs, audits, and governance documents</p>
+          </div>
         </div>
         {(isAdmin || canCreatePolicies) && (
-          <Button onClick={() => setShowCreate(true)} className="gap-2">
+          <Button onClick={() => setShowCreate(true)} className="gap-2 w-full sm:w-auto shrink-0">
             <Plus className="h-4 w-4" />
             Create Folder
           </Button>
