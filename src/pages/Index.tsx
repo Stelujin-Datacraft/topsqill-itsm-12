@@ -37,7 +37,7 @@ const Index = () => {
         
         {/* Navigation */}
         <nav className="border-b bg-background/80 backdrop-blur-sm sticky top-0 z-50">
-          <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+          <div className="container mx-auto px-4 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex items-center space-x-3">
               <img 
                 src="/lovable-uploads/7355d9d6-30ec-4b86-9922-9058a15f6cca.png" 
@@ -56,12 +56,12 @@ const Index = () => {
               <a href="#investors" className="text-foreground hover:text-primary transition-colors">Investors</a>
               <a href="#faq" className="text-foreground hover:text-primary transition-colors">FAQ</a>
             </div>
-            <div className="flex items-center space-x-4">
-              <Link to="/auth">
-                <Button variant="outline" size="sm">Sign In</Button>
+            <div className="flex items-center space-x-3 sm:space-x-4">
+              <Link to="/auth" className="flex-1 sm:flex-initial">
+                <Button variant="outline" size="sm" className="w-full sm:w-auto">Sign In</Button>
               </Link>
-              <Link to="/auth">
-                <Button size="sm">
+              <Link to="/auth" className="flex-1 sm:flex-initial">
+                <Button size="sm" className="w-full sm:w-auto">
                   Start Free Trial
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
