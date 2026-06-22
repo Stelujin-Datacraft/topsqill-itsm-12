@@ -896,14 +896,14 @@ const [showCreateDialog, setShowCreateDialog] = useState(false);
             {configurations.map((config) => (
               <Card key={config.id} className={`overflow-hidden ${config.is_enabled ? 'border-l-4 border-l-green-500' : ''}`}>
                 <CardHeader className="pb-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className={`p-3 rounded-xl ${config.is_enabled ? 'bg-green-100 dark:bg-green-900/30' : 'bg-muted'}`}>
-                        <Server className={`h-6 w-6 ${config.is_enabled ? 'text-green-600' : 'text-muted-foreground'}`} />
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div className="flex items-start gap-3 sm:gap-4 min-w-0 flex-1">
+                      <div className={`p-2 sm:p-3 rounded-xl shrink-0 ${config.is_enabled ? 'bg-green-100 dark:bg-green-900/30' : 'bg-muted'}`}>
+                        <Server className={`h-5 w-5 sm:h-6 sm:w-6 ${config.is_enabled ? 'text-green-600' : 'text-muted-foreground'}`} />
                       </div>
-                      <div>
-                        <CardTitle className="flex items-center gap-3">
-                          {config.name}
+                      <div className="min-w-0 flex-1">
+                        <CardTitle className="flex flex-wrap items-center gap-2 text-base sm:text-lg">
+                          <span className="break-words">{config.name}</span>
                           <Badge variant="outline" className="text-xs">
                             {getProviderLabel(config.provider_type)}
                           </Badge>
@@ -913,23 +913,21 @@ const [showCreateDialog, setShowCreateDialog] = useState(false);
                             <Badge variant="secondary">Disabled</Badge>
                           )}
                         </CardTitle>
-                        <CardDescription className="font-mono text-xs mt-1">
+                        <CardDescription className="font-mono text-xs mt-1 break-all">
                           {isOidcProvider(config.provider_type)
                             ? config.oidc_issuer_url
                             : config.server_url}
                         </CardDescription>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-muted-foreground">
-                          {config.is_enabled ? 'Active' : 'Inactive'}
-                        </span>
-                        <Switch
-                          checked={config.is_enabled}
-                          onCheckedChange={(checked) => toggleEnabled(config.id, checked)}
-                        />
-                      </div>
+                    <div className="flex items-center gap-2 shrink-0 self-start sm:self-center">
+                      <span className="text-sm text-muted-foreground">
+                        {config.is_enabled ? 'Active' : 'Inactive'}
+                      </span>
+                      <Switch
+                        checked={config.is_enabled}
+                        onCheckedChange={(checked) => toggleEnabled(config.id, checked)}
+                      />
                     </div>
                   </div>
                 </CardHeader>
