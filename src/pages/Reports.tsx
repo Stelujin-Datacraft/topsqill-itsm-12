@@ -67,25 +67,25 @@ const Reports = () => {
       title="Dashboards"
       description="Create and manage analytics dashboards with reports and visualizations"
       actions={
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => navigate('/data-table-builder')}>
+        <>
+          <Button variant="outline" size="sm" onClick={() => navigate('/data-table-builder')} className="whitespace-nowrap">
             Data Table Reports
           </Button>
-          <Button variant="outline" onClick={() => navigate('/analytics-dashboard')}>
+          <Button variant="outline" size="sm" onClick={() => navigate('/analytics-dashboard')} className="whitespace-nowrap">
             Form Analysis
           </Button>
           {(() => {
             const s = getButtonState('dashboards', 'create');
             return (
               <CreateDashboardDialog>
-                <Button disabled={s.disabled} title={s.tooltip || undefined}>
+                <Button size="sm" disabled={s.disabled} title={s.tooltip || undefined} className="whitespace-nowrap">
                   <Plus className="h-4 w-4 mr-2" />
                   Create Dashboard
                 </Button>
               </CreateDashboardDialog>
             );
           })()}
-        </div>
+        </>
       }
     >
       <DashboardsList
