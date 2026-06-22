@@ -199,6 +199,11 @@ const App = () => (
                           <SolutionOnboarding />
                         </Suspense>
                       } />
+                      <Route path="/solutions/grc" element={
+                        <Suspense fallback={<RouteLoader />}>
+                          <SolutionGRC />
+                        </Suspense>
+                      } />
                       <Route path="/forgot-password" element={
                         <Suspense fallback={<RouteLoader />}>
                           <ForgotPassword />
