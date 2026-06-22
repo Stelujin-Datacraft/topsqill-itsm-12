@@ -13,6 +13,7 @@ import { useForm } from '@/contexts/FormContext';
 import { useProject } from '@/contexts/ProjectContext';
 import { exportAsPng, exportAsSvg } from '@/utils/diagramExport';
 import { useToast } from '@/hooks/use-toast';
+import { SidebarTrigger } from '@/components/ui/sidebar';
 
 interface TreeNode {
   id: string;
@@ -516,20 +517,21 @@ export default function RelationshipMap() {
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Header */}
-      <div className="flex-shrink-0 border-b bg-background px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <GitBranch className="h-6 w-6 text-module-workflows" />
-            <div>
-              <h1 className="text-xl font-bold">Relationship Map</h1>
-              <p className="text-sm text-muted-foreground">Visualize upstream and downstream record linkages</p>
+      <div className="flex-shrink-0 border-b bg-background px-4 sm:px-6 py-3 sm:py-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <SidebarTrigger className="shrink-0" />
+            <GitBranch className="h-5 w-5 sm:h-6 sm:w-6 text-module-workflows shrink-0" />
+            <div className="min-w-0">
+              <h1 className="text-lg sm:text-xl font-bold truncate">Relationship Map</h1>
+              <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2">Visualize upstream and downstream record linkages</p>
             </div>
           </div>
 
           {treeRoot && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" className="w-full sm:w-auto shrink-0">
                   <Download className="h-4 w-4 mr-2" /> Export
                 </Button>
               </DropdownMenuTrigger>
@@ -555,9 +557,9 @@ export default function RelationshipMap() {
       </div>
 
       {/* Controls */}
-      <div className="flex-shrink-0 px-6 py-4 border-b bg-muted/30">
-        <div className="flex items-end gap-4">
-          <div className="space-y-1 min-w-[250px]">
+      <div className="flex-shrink-0 px-4 sm:px-6 py-3 sm:py-4 border-b bg-muted/30">
+        <div className="flex flex-col sm:flex-row sm:items-end gap-3 sm:gap-4">
+          <div className="space-y-1 w-full sm:min-w-[250px] sm:w-auto">
             <Label className="text-sm font-medium">Select Form</Label>
             <Select value={selectedFormId} onValueChange={(v) => { setSelectedFormId(v); setSelectedSubmissionRefId(''); setTreeRoot(null); }}>
               <SelectTrigger><SelectValue placeholder="Choose a form" /></SelectTrigger>
@@ -569,7 +571,7 @@ export default function RelationshipMap() {
             </Select>
           </div>
 
-          <div className="space-y-1 min-w-[250px]">
+          <div className="space-y-1 w-full sm:min-w-[250px] sm:w-auto">
             <Label className="text-sm font-medium">Select Record (Submission Ref ID)</Label>
             <Select value={selectedSubmissionRefId} onValueChange={setSelectedSubmissionRefId} disabled={!selectedFormId || loadingSubmissions}>
               <SelectTrigger>
