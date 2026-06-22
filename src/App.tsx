@@ -69,6 +69,7 @@ const ForgotPassword = lazyWithRetry(() => import("./pages/ForgotPassword"));
 const AcceptInvitation = lazyWithRetry(() => import("./pages/AcceptInvitation"));
 const AuthCallback = lazyWithRetry(() => import("./pages/AuthCallback"));
 const SolutionOnboarding = lazyWithRetry(() => import("./pages/SolutionOnboarding"));
+const SolutionGRC = lazyWithRetry(() => import("./pages/SolutionGRC"));
 
 // Forms feature
 const FormBuilder = lazyWithRetry(() => import("./pages/FormBuilder"));
