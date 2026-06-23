@@ -55,6 +55,8 @@ const Index = () => {
               <Link to="/solutions/grc" className="text-foreground hover:text-primary transition-colors">GRC</Link>
               <Link to="/solutions/itsm" className="text-foreground hover:text-primary transition-colors">ITSM</Link>
               <Link to="/solutions/vendor-management" className="text-foreground hover:text-primary transition-colors">Vendors</Link>
+              <Link to="/solutions/security" className="text-foreground hover:text-primary transition-colors">Security</Link>
+              <Link to="/solutions/hr" className="text-foreground hover:text-primary transition-colors">HR</Link>
               <a href="#pricing" className="text-foreground hover:text-primary transition-colors">Pricing</a>
               <a href="#roadmap" className="text-foreground hover:text-primary transition-colors">AI Roadmap</a>
               <a href="#investors" className="text-foreground hover:text-primary transition-colors">Investors</a>
