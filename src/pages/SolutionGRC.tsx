@@ -6,6 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import {
   ArrowRight, ArrowLeft, FileText, ShieldCheck, AlertTriangle, Workflow,
   ListChecks, FolderLock, ClipboardList, BarChart3, CheckCircle, Sparkles,
+  TrendingDown, Clock, Users, Layers, Link2, Lock,
 } from 'lucide-react';
 import policyImg from '@/assets/solution-grc/01-policy-form.jpg';
 import frameworksImg from '@/assets/solution-grc/02-frameworks.jpg';
@@ -249,6 +250,29 @@ const SolutionGRC: React.FC = () => {
         </Card>
       </section>
 
+      {/* Personas */}
+      <section className="container mx-auto px-4 pb-12">
+        <div className="max-w-5xl mx-auto">
+          <h2 className="text-2xl md:text-3xl font-bold text-center mb-8">Built for the whole GRC team</h2>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[
+              { icon: ShieldCheck, role: 'CISO', use: 'Live compliance posture, risk heatmap, board-ready reports' },
+              { icon: ClipboardList, role: 'Compliance Lead', use: 'Frameworks, control mapping, audit cycles' },
+              { icon: AlertTriangle, role: 'Risk Manager', use: 'Risk register, treatments, KRI tracking' },
+              { icon: Users, role: 'Control Owners', use: 'Tasks, evidence uploads, control testing' },
+            ].map(({ icon: Icon, role, use }) => (
+              <Card key={role} className="bg-card/60 backdrop-blur">
+                <CardContent className="p-5">
+                  <Icon className="h-6 w-6 text-primary mb-3" />
+                  <h3 className="font-semibold mb-1">{role}</h3>
+                  <p className="text-sm text-muted-foreground">{use}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Timeline */}
       <section className="container mx-auto px-4 py-12 md:py-20">
         <div className="relative max-w-6xl mx-auto">
@@ -308,6 +332,108 @@ const SolutionGRC: React.FC = () => {
                 </div>
               );
             })}
+          </div>
+        </div>
+      </section>
+
+      {/* Outcomes / Metrics */}
+      <section className="container mx-auto px-4 py-12">
+        <div className="max-w-5xl mx-auto">
+          <h2 className="text-2xl md:text-3xl font-bold text-center mb-2">Outcomes teams see in the first quarter</h2>
+          <p className="text-center text-muted-foreground mb-8">Based on customers replacing spreadsheets and disconnected point tools.</p>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[
+              { icon: Clock, stat: '70%', label: 'less time prepping for audits' },
+              { icon: TrendingDown, stat: '4×', label: 'faster policy review cycles' },
+              { icon: CheckCircle, stat: '100%', label: 'control evidence traceability' },
+              { icon: BarChart3, stat: 'Real-time', label: 'compliance score & risk posture' },
+            ].map(({ icon: Icon, stat, label }) => (
+              <Card key={label} className="text-center bg-card/60 backdrop-blur">
+                <CardContent className="p-6">
+                  <Icon className="h-6 w-6 text-primary mx-auto mb-3" />
+                  <div className="text-3xl font-bold text-primary mb-1">{stat}</div>
+                  <p className="text-sm text-muted-foreground">{label}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Why it works */}
+      <section className="container mx-auto px-4 py-12 md:py-20">
+        <div className="max-w-5xl mx-auto">
+          <h2 className="text-2xl md:text-3xl font-bold text-center mb-10">Why TopSqill works for GRC</h2>
+          <div className="grid md:grid-cols-3 gap-6">
+            {[
+              { icon: Link2, title: 'Everything is connected', body: 'Policies link to controls, controls to risks, risks to findings, findings to evidence — one graph, full traceability.' },
+              { icon: Layers, title: 'One framework, many standards', body: 'Map one control once and satisfy ISO 27001, SOC 2, NIST and GDPR in parallel. No duplicate work.' },
+              { icon: Workflow, title: 'Automation, not chasing', body: 'Approvals, review reminders, evidence expiry, remediation SLAs — all automated with full audit trail.' },
+              { icon: Lock, title: 'Granular access control', body: 'Field- and record-level permissions keep sensitive audit data only with the people who should see it.' },
+              { icon: BarChart3, title: 'Live, drillable dashboards', body: 'Executive scorecards refresh in real time. Drill from any number to the underlying record in one click.' },
+              { icon: FolderLock, title: 'Audit-ready by default', body: 'Every change is timestamped and attributed. Hand auditors a read-only view, not a Dropbox folder.' },
+            ].map(({ icon: Icon, title, body }) => (
+              <Card key={title} className="bg-card/60 backdrop-blur">
+                <CardContent className="p-6">
+                  <Icon className="h-6 w-6 text-primary mb-3" />
+                  <h3 className="font-semibold mb-2">{title}</h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{body}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Modules in the platform */}
+      <section className="container mx-auto px-4 py-12">
+        <div className="max-w-5xl mx-auto">
+          <Card className="bg-card/60 backdrop-blur border-primary/20">
+            <CardContent className="p-6 md:p-8">
+              <h2 className="text-xl md:text-2xl font-semibold mb-2">All powered by real modules in the platform</h2>
+              <p className="text-muted-foreground mb-6">Every step above maps to a live module you can open today inside TopSqill.</p>
+              <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-3">
+                {[
+                  ['Policies', '/policies'],
+                  ['Compliance Frameworks', '/compliance'],
+                  ['Audit Programs', '/audit-programs'],
+                  ['Evidence Locker', '/evidence-locker'],
+                  ['Workflows', '/workflows'],
+                  ['Reports & Dashboards', '/reports'],
+                  ['Forms', '/forms'],
+                  ['Knowledge Base', '/knowledge-base'],
+                  ['Relationship Map', '/relationship-map'],
+                ].map(([label, href]) => (
+                  <Link key={label} to={href} className="flex items-center gap-2 rounded-md border border-border bg-background/60 px-3 py-2 text-sm hover:border-primary/40 hover:bg-primary/5 transition-colors">
+                    <CheckCircle className="h-4 w-4 text-primary shrink-0" />
+                    <span className="truncate">{label}</span>
+                  </Link>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section className="container mx-auto px-4 py-12">
+        <div className="max-w-3xl mx-auto">
+          <h2 className="text-2xl md:text-3xl font-bold text-center mb-8">Common questions</h2>
+          <div className="space-y-4">
+            {[
+              { q: 'Which frameworks are supported out of the box?', a: 'ISO 27001, SOC 2, NIST CSF, HIPAA, GDPR and PCI DSS ship preloaded. You can also build custom frameworks and map controls to multiple standards simultaneously.' },
+              { q: 'Can one control satisfy multiple standards?', a: 'Yes. Map a control once and reuse it across every framework it satisfies. Evidence collected for that control counts for all linked standards.' },
+              { q: 'How is evidence kept fresh?', a: 'Each evidence item carries a collection and expiry date. Owners get automated reminders before expiry so audits never catch stale artefacts.' },
+              { q: 'Can auditors get read-only access?', a: 'Yes. Granular role and field-level permissions let you give auditors a scoped, read-only view of policies, controls, evidence and findings.' },
+              { q: 'Does it work with our existing systems?', a: 'Data Feeds pull in users, assets, vulnerabilities and tickets from HRMS, ITAM, scanners and ticketing tools on schedule, so the register stays in sync.' },
+            ].map(({ q, a }) => (
+              <Card key={q} className="bg-card/60 backdrop-blur">
+                <CardContent className="p-5">
+                  <h3 className="font-semibold mb-2">{q}</h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{a}</p>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         </div>
       </section>
