@@ -70,6 +70,8 @@ const AcceptInvitation = lazyWithRetry(() => import("./pages/AcceptInvitation"))
 const AuthCallback = lazyWithRetry(() => import("./pages/AuthCallback"));
 const SolutionOnboarding = lazyWithRetry(() => import("./pages/SolutionOnboarding"));
 const SolutionGRC = lazyWithRetry(() => import("./pages/SolutionGRC"));
+const SolutionITSM = lazyWithRetry(() => import("./pages/SolutionITSM"));
+const SolutionVendor = lazyWithRetry(() => import("./pages/SolutionVendor"));
 
 // Forms feature
 const FormBuilder = lazyWithRetry(() => import("./pages/FormBuilder"));
@@ -202,6 +204,16 @@ const App = () => (
                       <Route path="/solutions/grc" element={
                         <Suspense fallback={<RouteLoader />}>
                           <SolutionGRC />
+                        </Suspense>
+                      } />
+                      <Route path="/solutions/itsm" element={
+                        <Suspense fallback={<RouteLoader />}>
+                          <SolutionITSM />
+                        </Suspense>
+                      } />
+                      <Route path="/solutions/vendor-management" element={
+                        <Suspense fallback={<RouteLoader />}>
+                          <SolutionVendor />
                         </Suspense>
                       } />
                       <Route path="/forgot-password" element={
