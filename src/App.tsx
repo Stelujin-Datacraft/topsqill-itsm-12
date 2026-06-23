@@ -72,6 +72,8 @@ const SolutionOnboarding = lazyWithRetry(() => import("./pages/SolutionOnboardin
 const SolutionGRC = lazyWithRetry(() => import("./pages/SolutionGRC"));
 const SolutionITSM = lazyWithRetry(() => import("./pages/SolutionITSM"));
 const SolutionVendor = lazyWithRetry(() => import("./pages/SolutionVendor"));
+const SolutionSecurity = lazyWithRetry(() => import("./pages/SolutionSecurity"));
+const SolutionHR = lazyWithRetry(() => import("./pages/SolutionHR"));
 
 // Forms feature
 const FormBuilder = lazyWithRetry(() => import("./pages/FormBuilder"));
@@ -214,6 +216,16 @@ const App = () => (
                       <Route path="/solutions/vendor-management" element={
                         <Suspense fallback={<RouteLoader />}>
                           <SolutionVendor />
+                        </Suspense>
+                      } />
+                      <Route path="/solutions/security" element={
+                        <Suspense fallback={<RouteLoader />}>
+                          <SolutionSecurity />
+                        </Suspense>
+                      } />
+                      <Route path="/solutions/hr" element={
+                        <Suspense fallback={<RouteLoader />}>
+                          <SolutionHR />
                         </Suspense>
                       } />
                       <Route path="/forgot-password" element={
