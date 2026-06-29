@@ -51,12 +51,7 @@ const Index = () => {
             <div className="hidden md:flex items-center space-x-6">
               <a href="#features" className="text-foreground hover:text-primary transition-colors">Features</a>
               <a href="#showcase" className="text-foreground hover:text-primary transition-colors">Showcase</a>
-              <Link to="/solutions/employee-onboarding" className="text-foreground hover:text-primary transition-colors">Onboarding</Link>
-              <Link to="/solutions/grc" className="text-foreground hover:text-primary transition-colors">GRC</Link>
-              <Link to="/solutions/itsm" className="text-foreground hover:text-primary transition-colors">ITSM</Link>
-              <Link to="/solutions/vendor-management" className="text-foreground hover:text-primary transition-colors">Vendors</Link>
-              <Link to="/solutions/security" className="text-foreground hover:text-primary transition-colors">Security</Link>
-              <Link to="/solutions/hr" className="text-foreground hover:text-primary transition-colors">HR</Link>
+              <Link to="/solutions" className="text-foreground hover:text-primary transition-colors">Solutions</Link>
               <a href="#pricing" className="text-foreground hover:text-primary transition-colors">Pricing</a>
               <a href="#roadmap" className="text-foreground hover:text-primary transition-colors">AI Roadmap</a>
               <a href="#investors" className="text-foreground hover:text-primary transition-colors">Investors</a>

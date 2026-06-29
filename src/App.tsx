@@ -68,12 +68,7 @@ const Documentation = lazyWithRetry(() => import("./pages/Documentation"));
 const ForgotPassword = lazyWithRetry(() => import("./pages/ForgotPassword"));
 const AcceptInvitation = lazyWithRetry(() => import("./pages/AcceptInvitation"));
 const AuthCallback = lazyWithRetry(() => import("./pages/AuthCallback"));
-const SolutionOnboarding = lazyWithRetry(() => import("./pages/SolutionOnboarding"));
-const SolutionGRC = lazyWithRetry(() => import("./pages/SolutionGRC"));
-const SolutionITSM = lazyWithRetry(() => import("./pages/SolutionITSM"));
-const SolutionVendor = lazyWithRetry(() => import("./pages/SolutionVendor"));
-const SolutionSecurity = lazyWithRetry(() => import("./pages/SolutionSecurity"));
-const SolutionHR = lazyWithRetry(() => import("./pages/SolutionHR"));
+const Solutions = lazyWithRetry(() => import("./pages/Solutions"));
 
 // Forms feature
 const FormBuilder = lazyWithRetry(() => import("./pages/FormBuilder"));
@@ -198,36 +193,18 @@ const App = () => (
                           <Documentation />
                         </Suspense>
                       } />
-                      <Route path="/solutions/employee-onboarding" element={
+                      <Route path="/solutions" element={
                         <Suspense fallback={<RouteLoader />}>
-                          <SolutionOnboarding />
+                          <Solutions />
                         </Suspense>
                       } />
-                      <Route path="/solutions/grc" element={
-                        <Suspense fallback={<RouteLoader />}>
-                          <SolutionGRC />
-                        </Suspense>
-                      } />
-                      <Route path="/solutions/itsm" element={
-                        <Suspense fallback={<RouteLoader />}>
-                          <SolutionITSM />
-                        </Suspense>
-                      } />
-                      <Route path="/solutions/vendor-management" element={
-                        <Suspense fallback={<RouteLoader />}>
-                          <SolutionVendor />
-                        </Suspense>
-                      } />
-                      <Route path="/solutions/security" element={
-                        <Suspense fallback={<RouteLoader />}>
-                          <SolutionSecurity />
-                        </Suspense>
-                      } />
-                      <Route path="/solutions/hr" element={
-                        <Suspense fallback={<RouteLoader />}>
-                          <SolutionHR />
-                        </Suspense>
-                      } />
+                      {/* Legacy direct links redirect into the tabbed Solutions page */}
+                      <Route path="/solutions/employee-onboarding" element={<Navigate to="/solutions?tab=onboarding" replace />} />
+                      <Route path="/solutions/grc" element={<Navigate to="/solutions?tab=grc" replace />} />
+                      <Route path="/solutions/itsm" element={<Navigate to="/solutions?tab=itsm" replace />} />
+                      <Route path="/solutions/vendor-management" element={<Navigate to="/solutions?tab=vendor" replace />} />
+                      <Route path="/solutions/security" element={<Navigate to="/solutions?tab=security" replace />} />
+                      <Route path="/solutions/hr" element={<Navigate to="/solutions?tab=hr" replace />} />
                       <Route path="/forgot-password" element={
                         <Suspense fallback={<RouteLoader />}>
                           <ForgotPassword />
