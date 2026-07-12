@@ -56,7 +56,8 @@ function exportExcelDirect(data: Record<string, any>[], filename: string) {
 export function exportToCSV(exportData: ExportData) {
   const filename = exportData.filename || 'export';
   const csv = Papa.unparse(exportData.data);
-  downloadFile(csv, `${filename}.csv`, 'text/csv');
+  // Prepend BOM so Excel opens UTF-8 correctly
+  downloadFile('\ufeff' + csv, `${filename}.csv`, 'text/csv;charset=utf-8;');
 }
 
 export function exportToJSON(exportData: ExportData) {
@@ -107,8 +108,14 @@ function downloadFile(content: string, filename: string, mimeType: string) {
   const link = document.createElement('a');
   link.href = url;
   link.download = filename;
+  link.rel = 'noopener';
+  link.style.display = 'none';
   document.body.appendChild(link);
   link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  // Defer cleanup so the browser has time to start the download,
+  // especially when triggered from a closing Radix dropdown/submenu.
+  setTimeout(() => {
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, 200);
 }
