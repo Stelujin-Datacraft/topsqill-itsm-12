@@ -62,23 +62,23 @@ export function ExportDropdown({ data, disabled, formId, formName, asSubMenu = f
 
   const exportItems = (
     <>
-      <DropdownMenuItem onClick={() => handleExport('csv')}>
+      <DropdownMenuItem onSelect={(e) => { e.preventDefault(); handleExport('csv'); }}>
         <FileText className="h-4 w-4 mr-2" />
         Export as CSV
       </DropdownMenuItem>
-      <DropdownMenuItem onClick={() => handleExport('pdf')}>
+      <DropdownMenuItem onSelect={(e) => { e.preventDefault(); handleExport('pdf'); }}>
         <FileText className="h-4 w-4 mr-2" />
         Export as PDF
       </DropdownMenuItem>
-      <DropdownMenuItem onClick={() => handleExport('json')}>
+      <DropdownMenuItem onSelect={(e) => { e.preventDefault(); handleExport('json'); }}>
         <FileJson className="h-4 w-4 mr-2" />
         Export as JSON
       </DropdownMenuItem>
-      <DropdownMenuItem onClick={() => handleExport('parquet')}>
+      <DropdownMenuItem onSelect={(e) => { e.preventDefault(); handleExport('parquet'); }}>
         <Database className="h-4 w-4 mr-2" />
         Export as Parquet
       </DropdownMenuItem>
-      <DropdownMenuItem onClick={() => handleExport('avro')}>
+      <DropdownMenuItem onSelect={(e) => { e.preventDefault(); handleExport('avro'); }}>
         <Database className="h-4 w-4 mr-2" />
         Export as Avro
       </DropdownMenuItem>
