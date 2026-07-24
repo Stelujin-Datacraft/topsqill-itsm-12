@@ -3,6 +3,7 @@ import { SupabaseService } from '../supabase/supabase.service';
 import {
   DEFAULT_QUERY_LIMIT,
   MAX_BATCH_INSERT_SIZE,
+  MAX_MUTATION_ROWS,
   MAX_QUERY_LIMIT,
   RPC_NAME_PATTERN,
 } from '../common/constants/database.constants';
@@ -286,9 +287,14 @@ export class DatabaseService {
     let query = client.from(dto.table).update(dto.data);
     query = this.applyFilters(query, dto.filters);
 
-    const select = dto.returning || '*';
-    const { data, error } = await query.select(select);
+    const select = dto.returning || 'id';
+    const { data, error } = await query.select(select).limit(MAX_MUTATION_ROWS + 1);
     if (error) throw new BadRequestException(error.message);
+    if (Array.isArray(data) && data.length > MAX_MUTATION_ROWS) {
+      throw new BadRequestException(
+        `Update would affect more than ${MAX_MUTATION_ROWS} rows. Add more specific filters.`,
+      );
+    }
     return { data, error: null };
   }
 
@@ -300,14 +306,14 @@ export class DatabaseService {
     let query = client.from(dto.table).delete();
     query = this.applyFilters(query, dto.filters);
 
-    if (dto.returning) {
-      const { data, error } = await query.select(dto.returning);
-      if (error) throw new BadRequestException(error.message);
-      return { data, error: null };
-    }
-
-    const { data, error } = await query;
+    const returning = dto.returning || 'id';
+    const { data, error } = await query.select(returning).limit(MAX_MUTATION_ROWS + 1);
     if (error) throw new BadRequestException(error.message);
+    if (Array.isArray(data) && data.length > MAX_MUTATION_ROWS) {
+      throw new BadRequestException(
+        `Delete would affect more than ${MAX_MUTATION_ROWS} rows. Add more specific filters.`,
+      );
+    }
     return { data, error: null };
   }
 

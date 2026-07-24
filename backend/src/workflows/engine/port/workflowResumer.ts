@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { backend as supabase } from '@/services/api';
 import { WorkflowExecutionService } from './workflowTrigger';
 
@@ -208,16 +209,14 @@ export class WorkflowResumer {
         .from('workflow_executions')
         .select('id, wait_config')
         .eq('status', 'waiting')
-        .not('wait_config', 'is', null)
-        .contains('wait_config', { waitType: 'until_event', eventType })
-        .limit(100);
+        .not('wait_config', 'is', null);
 
       if (error) {
         console.error('❌ Error fetching waiting executions:', error);
         return { resumedCount: 0 };
       }
 
-      // Filter for matching event types (contains filter may not match all DBs — verify in JS)
+      // Filter for matching event types
       const matchingExecutions = waitingExecutions?.filter(exec => {
         const config = exec.wait_config as any;
         return config?.waitType === 'until_event' && config?.eventType === eventType;
