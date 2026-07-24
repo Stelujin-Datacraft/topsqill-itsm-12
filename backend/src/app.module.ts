@@ -21,6 +21,7 @@ import { ItamModule } from './itam/itam.module';
 import { PoliciesModule } from './policies/policies.module';
 import { PublicApiModule } from './public-api/public-api.module';
 import { FormApiModule } from './form-api/form-api.module';
+import { EnginesModule } from './engines/engines.module';
 import { CronModule } from './cron/cron.module';
 import { QueueModule } from './queue/queue.module';
 import { HealthController } from './health.controller';
@@ -50,6 +51,7 @@ import { HealthController } from './health.controller';
     PoliciesModule,
     PublicApiModule,
     FormApiModule,
+    EnginesModule,
     CronModule,
     QueueModule,
   ],

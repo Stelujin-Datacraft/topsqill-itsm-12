@@ -21,7 +21,7 @@ export class DataFeedsService {
   ) {
     this.supabaseUrl = this.configService.getOrThrow<string>('SUPABASE_URL');
     this.serviceKey = this.configService.getOrThrow<string>('SUPABASE_SERVICE_ROLE_KEY');
-    this.executorMode = this.configService.get<string>('DATA_FEED_EXECUTOR_MODE', 'nestjs');
+    this.executorMode = 'nestjs';
   }
 
   async executeFeed(body: { feedId: string; triggeredBy?: string }): Promise<Record<string, unknown>> {
