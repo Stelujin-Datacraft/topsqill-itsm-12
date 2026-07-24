@@ -196,7 +196,7 @@ export class WorkflowsService {
       batch_size: limit,
     });
 
-    if (!rpcError && rpcClaimed?.length) {
+    if (!rpcError && Array.isArray(rpcClaimed) && rpcClaimed.length) {
       return rpcClaimed as QueueItem[];
     }
 

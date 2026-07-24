@@ -12,6 +12,9 @@
     "build:all": "npm run build:backend && npm run build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
+    "test": "npm run test --prefix backend",
+    "test:e2e": "npm run test:e2e --prefix backend",
+    "test:all": "npm run test:all --prefix backend",
     "preview": "vite preview"
   },
   "dependencies": {

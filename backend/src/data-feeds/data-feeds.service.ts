@@ -5,7 +5,6 @@ import { SupabaseService } from '../supabase/supabase.service';
 
 @Injectable()
 export class DataFeedsService {
-  private readonly logger = new Logger(DataFeedsService.name);
   private readonly supabaseUrl: string;
   private readonly serviceKey: string;
 
