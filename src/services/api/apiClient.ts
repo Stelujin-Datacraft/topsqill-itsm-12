@@ -4,14 +4,32 @@
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
+let cachedAuthToken: string | null = null;
+let authTokenExpiresAt = 0;
+const AUTH_TOKEN_CACHE_MS = 30_000;
+
 async function getAuthToken(): Promise<string | null> {
+  if (cachedAuthToken && Date.now() < authTokenExpiresAt) {
+    return cachedAuthToken;
+  }
+
   try {
     const { rawSupabase } = await import('@/integrations/supabase/rawClient');
     const { data: { session } } = await rawSupabase.auth.getSession();
-    return session?.access_token || null;
+    cachedAuthToken = session?.access_token || null;
+    authTokenExpiresAt = Date.now() + AUTH_TOKEN_CACHE_MS;
+    return cachedAuthToken;
   } catch {
+    cachedAuthToken = null;
+    authTokenExpiresAt = 0;
     return null;
   }
+}
+
+/** Clear cached auth token after login/logout. */
+export function clearAuthTokenCache(): void {
+  cachedAuthToken = null;
+  authTokenExpiresAt = 0;
 }
 
 export interface ApiResponse<T = unknown> {

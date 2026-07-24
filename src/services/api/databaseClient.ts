@@ -210,10 +210,7 @@ class DeleteBuilder extends FilterMixin {
   }
 
   then(resolve: (value: QueryResult) => void, reject?: (reason: unknown) => void) {
-    return request('/database/delete', {
-      method: 'POST',
-      body: JSON.stringify({ table: this.table, filters: this.filters }),
-    }).then(normalizeResult).then(resolve, reject);
+    return this.select().then(resolve, reject);
   }
 }
 

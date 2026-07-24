@@ -1,10 +1,30 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { createHash } from 'crypto';
+import { runWithConcurrency } from '../common/utils/concurrency.util';
 import { SupabaseService } from '../supabase/supabase.service';
+
+interface QueueItem {
+  id: string;
+  workflow_id: string;
+  submission_id?: string;
+  trigger_data?: unknown;
+}
 
 @Injectable()
 export class WorkflowsService {
-  constructor(private readonly supabaseService: SupabaseService) {}
+  private readonly logger = new Logger(WorkflowsService.name);
+  private queueProcessing = false;
+  private readonly queueBatchSize: number;
+  private readonly queueConcurrency: number;
+
+  constructor(
+    private readonly supabaseService: SupabaseService,
+    private readonly configService: ConfigService,
+  ) {
+    this.queueBatchSize = Number(this.configService.get('WORKFLOW_QUEUE_BATCH_SIZE', 20));
+    this.queueConcurrency = Number(this.configService.get('WORKFLOW_QUEUE_CONCURRENCY', 10));
+  }
 
   async enqueue(body: Record<string, unknown>) {
     const supabase = this.supabaseService.getServiceClient();
@@ -117,34 +137,107 @@ export class WorkflowsService {
   }
 
   private processQueueAsync() {
-    setImmediate(() => this.processQueue().catch(console.error));
+    setImmediate(() => {
+      this.processQueue().catch((err) => {
+        this.logger.error('Workflow queue processing failed', err);
+      });
+    });
   }
 
+  /**
+   * Atomically claims pending jobs and processes them concurrently.
+   * Skips if a run is already in progress (prevents cron + enqueue overlap).
+   */
   async processQueue() {
-    const supabase = this.supabaseService.getServiceClient();
-    const { data: pending } = await supabase
-      .from('workflow_queue')
-      .select('*')
-      .eq('status', 'pending')
-      .order('priority', { ascending: true })
-      .order('created_at', { ascending: true })
-      .limit(5);
+    if (this.queueProcessing) {
+      return { success: true, skipped: true, reason: 'already_processing' };
+    }
 
-    for (const item of pending || []) {
-      await supabase.from('workflow_queue').update({ status: 'processing' }).eq('id', item.id);
-      try {
-        await this.executeWorkflow(item.workflow_id, item.id, item.submission_id, item.trigger_data);
-        await supabase.from('workflow_queue').update({ status: 'completed' }).eq('id', item.id);
-      } catch (err) {
-        await supabase.from('workflow_queue').update({
-          status: 'failed',
-          error_message: err instanceof Error ? err.message : String(err),
-        }).eq('id', item.id);
+    this.queueProcessing = true;
+    const supabase = this.supabaseService.getServiceClient();
+
+    try {
+      const claimed = await this.claimPendingItems(supabase, this.queueBatchSize);
+      if (!claimed.length) {
+        return { success: true, processed: 0 };
       }
+
+      let completed = 0;
+      let failed = 0;
+
+      await runWithConcurrency(claimed, this.queueConcurrency, async (item) => {
+        try {
+          await this.executeWorkflow(
+            item.workflow_id,
+            item.id,
+            item.submission_id,
+            item.trigger_data,
+          );
+          await supabase
+            .from('workflow_queue')
+            .update({ status: 'completed', completed_at: new Date().toISOString() })
+            .eq('id', item.id);
+          completed += 1;
+        } catch (err) {
+          failed += 1;
+          await supabase
+            .from('workflow_queue')
+            .update({
+              status: 'failed',
+              error_message: err instanceof Error ? err.message : String(err),
+              completed_at: new Date().toISOString(),
+            })
+            .eq('id', item.id);
+        }
+      });
+
+      return { success: true, processed: claimed.length, completed, failed };
+    } finally {
+      this.queueProcessing = false;
     }
   }
 
-  async executeWorkflow(workflowId: string, queueId?: string, submissionId?: string, triggerData?: unknown) {
+  /**
+   * Optimistic claim: only transitions rows still in pending state.
+   * Safe for multiple API instances — duplicate claims are rejected by status check.
+   */
+  private async claimPendingItems(supabase: ReturnType<SupabaseService['getServiceClient']>, limit: number): Promise<QueueItem[]> {
+    const { data: pending } = await supabase
+      .from('workflow_queue')
+      .select('id, workflow_id, submission_id, trigger_data')
+      .eq('status', 'pending')
+      .order('priority', { ascending: true })
+      .order('created_at', { ascending: true })
+      .limit(limit);
+
+    const claimed: QueueItem[] = [];
+
+    for (const item of pending || []) {
+      const { data: updated } = await supabase
+        .from('workflow_queue')
+        .update({
+          status: 'processing',
+          started_at: new Date().toISOString(),
+        })
+        .eq('id', item.id)
+        .eq('status', 'pending')
+        .select('id, workflow_id, submission_id, trigger_data')
+        .maybeSingle();
+
+      if (updated) {
+        claimed.push(updated as QueueItem);
+      }
+    }
+
+    return claimed;
+  }
+
+  async executeWorkflow(
+    workflowId: string,
+    queueId?: string,
+    submissionId?: string,
+    triggerData?: unknown,
+  ) {
     const supabase = this.supabaseService.getServiceClient();
 
     const { data: execution, error } = await supabase
@@ -163,18 +256,21 @@ export class WorkflowsService {
 
     const { data: nodes } = await supabase
       .from('workflow_nodes')
-      .select('*')
+      .select('id')
       .eq('workflow_id', workflowId)
       .order('execution_order', { ascending: true });
 
-    for (const node of nodes || []) {
-      await supabase.from('workflow_node_executions').insert({
+    if (nodes?.length) {
+      const now = new Date().toISOString();
+      const nodeRows = nodes.map((node) => ({
         execution_id: execution.id,
         node_id: node.id,
         status: 'completed',
-        started_at: new Date().toISOString(),
-        completed_at: new Date().toISOString(),
-      });
+        started_at: now,
+        completed_at: now,
+      }));
+
+      await supabase.from('workflow_node_executions').insert(nodeRows);
     }
 
     await supabase
@@ -191,20 +287,21 @@ export class WorkflowsService {
 
     let query = supabase
       .from('workflow_executions')
-      .select('*')
+      .select('id')
       .eq('status', 'waiting');
 
     if (executionId) query = query.eq('id', executionId);
 
-    const { data: waiting } = await query.limit(10);
+    const { data: waiting } = await query.limit(50);
     const resumed: string[] = [];
 
-    for (const exec of waiting || []) {
+    if (waiting?.length) {
+      const ids = waiting.map((exec) => exec.id);
       await supabase
         .from('workflow_executions')
         .update({ status: 'running' })
-        .eq('id', exec.id);
-      resumed.push(exec.id);
+        .in('id', ids);
+      resumed.push(...ids);
     }
 
     return { success: true, resumed };
@@ -232,13 +329,21 @@ export class WorkflowsService {
     const errorText = typeof error === 'string' ? error : JSON.stringify(error);
     const errorHash = createHash('sha256').update(errorText.slice(0, 500)).digest('hex').slice(0, 32);
 
+    const { data: existing } = await supabase
+      .from('failure_notifications')
+      .select('occurrence_count')
+      .eq('entity_type', entity_type)
+      .eq('entity_id', entity_id)
+      .eq('error_hash', errorHash)
+      .maybeSingle();
+
     await supabase.from('failure_notifications').upsert({
       entity_type,
       entity_id,
       error_hash: errorHash,
       error_message: errorText.slice(0, 1000),
       last_notified_at: new Date().toISOString(),
-      occurrence_count: 1,
+      occurrence_count: (existing?.occurrence_count ?? 0) + 1,
     }, { onConflict: 'entity_type,entity_id,error_hash' });
 
     return { success: true, notified: true };

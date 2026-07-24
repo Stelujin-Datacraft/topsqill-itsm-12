@@ -34,23 +34,26 @@ export class PoliciesService {
 
     const { data: policies } = await supabase
       .from('policies')
-      .select('*')
+      .select('id, title, owner_id')
       .lte('next_review_date', weekFromNow.toISOString())
-      .eq('status', 'published');
+      .eq('status', 'published')
+      .limit(200);
 
-    const reminded: string[] = [];
-    for (const policy of policies || []) {
-      if (policy.owner_id) {
-        await supabase.from('notifications').insert({
-          user_id: policy.owner_id,
-          type: 'policy_review_due',
-          title: 'Policy Review Due',
-          message: `Policy "${policy.title}" is due for review.`,
-          data: { policy_id: policy.id },
-        });
-        reminded.push(policy.id);
-      }
+    const notifications = (policies || [])
+      .filter((policy) => policy.owner_id)
+      .map((policy) => ({
+        user_id: policy.owner_id,
+        type: 'policy_review_due',
+        title: 'Policy Review Due',
+        message: `Policy "${policy.title}" is due for review.`,
+        data: { policy_id: policy.id },
+      }));
+
+    if (notifications.length) {
+      await supabase.from('notifications').insert(notifications);
     }
+
+    const reminded = notifications.map((n) => (n.data as { policy_id: string }).policy_id);
 
     return { success: true, reminded: reminded.length };
   }
