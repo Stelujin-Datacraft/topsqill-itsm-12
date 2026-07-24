@@ -2725,7 +2725,7 @@ export function ChartPreview({
               <div key={idx} className="space-y-1">
                 <div className="flex items-center gap-2">
                   <div 
-                    className="w-3 h-3 rounded-sm" 
+                    className="icon-xs rounded-sm" 
                     style={{ backgroundColor: entry.color || entry.fill }} 
                   />
                   <span className="text-sm text-muted-foreground">Field: <span className="text-foreground">{fieldDisplayName}</span></span>
@@ -4208,13 +4208,13 @@ export function ChartPreview({
                     {/* Show color dot if option has a color, otherwise show number */}
                     {color ? (
                       <div 
-                        className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 border border-border"
+                        className="icon-xl rounded-full flex items-center justify-center shrink-0 border border-border"
                         style={{ backgroundColor: color }}
                         title={`Color: ${color}`}
                       />
                     ) : (
                       <div 
-                        className="w-6 h-6 rounded flex items-center justify-center text-xs font-bold bg-muted text-foreground border border-border shrink-0"
+                        className="icon-xl rounded flex items-center justify-center text-xs font-bold bg-muted text-foreground border border-border shrink-0"
                       >
                         {number}
                       </div>
@@ -5294,13 +5294,13 @@ export function ChartPreview({
               {/* Table Header Info */}
               <div className="mb-3 p-3 bg-muted/50 rounded-lg border border-border">
                 <div className="flex flex-wrap gap-2 text-xs">
-                  <span className="px-2 py-1 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                  <span className="px-2 py-1 rounded bg-emerald-500/10 text-success dark:text-emerald-400 border border-emerald-500/20">
                     Compare Mode
                   </span>
-                  <span className="px-2 py-1 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+                  <span className="px-2 py-1 rounded bg-blue-500/10 text-info dark:text-blue-400 border border-blue-500/20">
                     X-Axis: {field1Name}
                   </span>
-                  <span className="px-2 py-1 rounded bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
+                  <span className="px-2 py-1 rounded bg-purple-500/10 text-accent dark:text-purple-400 border border-purple-500/20">
                     Y-Axis: {field2Name}
                   </span>
                   {dimensionField && (
@@ -5359,19 +5359,19 @@ export function ChartPreview({
               {/* Table Header Info */}
               <div className="mb-3 p-3 bg-muted/50 rounded-lg border border-border">
                 <div className="flex flex-wrap gap-2 text-xs">
-                  <span className="px-2 py-1 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                  <span className="px-2 py-1 rounded bg-emerald-500/10 text-success dark:text-emerald-400 border border-emerald-500/20">
                     {getAggregationLabel(effectiveAggregation)}
                   </span>
-                  <span className="px-2 py-1 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+                  <span className="px-2 py-1 rounded bg-blue-500/10 text-info dark:text-blue-400 border border-blue-500/20">
                     Grouped by: {dimensionLabel}
                   </span>
                   {config.groupByField && (
-                    <span className="px-2 py-1 rounded bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
+                    <span className="px-2 py-1 rounded bg-purple-500/10 text-accent dark:text-purple-400 border border-purple-500/20">
                       Segmented by: {getFormFieldName(config.groupByField)}
                     </span>
                   )}
                   {config.dimensions?.[1] && (
-                    <span className="px-2 py-1 rounded bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
+                    <span className="px-2 py-1 rounded bg-purple-500/10 text-accent dark:text-purple-400 border border-purple-500/20">
                       Stacked by: {getFormFieldName(config.dimensions[1])}
                     </span>
                   )}
@@ -5479,11 +5479,11 @@ export function ChartPreview({
             {/* Table Header Info */}
             <div className="mb-3 p-3 bg-muted/50 rounded-lg border border-border">
               <div className="flex flex-wrap gap-2 text-xs">
-                <span className="px-2 py-1 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                <span className="px-2 py-1 rounded bg-emerald-500/10 text-success dark:text-emerald-400 border border-emerald-500/20">
                   {getAggregationLabel(effectiveAggregation)}
                   {!isCountMode && metricsToDisplay[0] && `: ${getFormFieldName(metricsToDisplay[0])}`}
                 </span>
-                <span className="px-2 py-1 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+                <span className="px-2 py-1 rounded bg-blue-500/10 text-info dark:text-blue-400 border border-blue-500/20">
                   Grouped by: {dimensionLabel}
                 </span>
                 <span className="px-2 py-1 rounded bg-muted text-muted-foreground border border-border">
@@ -5591,7 +5591,7 @@ export function ChartPreview({
               title={config.title || chartInfo.title}
             />
             {canDrillUp && <Button variant="outline" size="sm" onClick={() => onDrilldown?.(DRILLDOWN_BACK_ACTION, '')}>
-              <ArrowLeft className="h-4 w-4 mr-1" />
+              <ArrowLeft className="icon-md mr-1" />
               Back
             </Button>}
           </div>
@@ -5605,7 +5605,7 @@ export function ChartPreview({
           </span>
           
           {/* Aggregation Badge */}
-          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-success dark:text-emerald-400 border border-emerald-500/20">
             {config.crossRefConfig?.enabled ? (
               // Cross-reference mode badges
               chartInfo.aggregation === 'compare' ? (
@@ -5628,13 +5628,13 @@ export function ChartPreview({
           </span>
           
           {/* Form Badge */}
-          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-500/10 text-info dark:text-blue-400 border border-blue-500/20">
             Form: {config.formId ? getFormName(config.formId) : 'Form'}
           </span>
           
           {/* Dimension Badge */}
           {(config.dimensions?.[0] || config.xAxis) && (
-            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
+            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-purple-500/10 text-accent dark:text-purple-400 border border-purple-500/20">
               Grouped by: {getFormFieldName(config.dimensions?.[0] || config.xAxis || '')}
             </span>
           )}
@@ -5680,7 +5680,7 @@ export function ChartPreview({
         
         {/* Drilldown Active Filter - supports both normal and cross-reference drilldown */}
         {drilldownState?.values && drilldownState.values.length > 0 && <div className="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700 mt-3">
-            <span className="text-sm font-medium text-blue-700 dark:text-blue-300">Filtered by:</span>
+            <span className="text-sm font-medium text-info dark:text-blue-300">Filtered by:</span>
             <div className="flex items-center gap-1 flex-wrap">
               {drilldownState.values.map((value, index) => {
                 // Support both normal drilldownConfig and crossRefConfig drilldown levels
@@ -5703,7 +5703,7 @@ export function ChartPreview({
                 }
                 
                 return <React.Fragment key={index}>
-                    {index > 0 && <ChevronRight className="h-4 w-4 text-blue-500" />}
+                    {index > 0 && <ChevronRight className="icon-md text-blue-500" />}
                     <div className="flex items-center gap-1 bg-white dark:bg-gray-800 px-2 py-1 rounded border">
                       <span className="text-xs font-medium text-gray-600 dark:text-gray-400">{fieldName}:</span>
                       <span className="text-xs font-semibold text-gray-900 dark:text-gray-100">{value}</span>
@@ -5722,7 +5722,7 @@ export function ChartPreview({
           </Button>}
         
         {onEdit && <Button size="sm" variant="outline" className="h-8 px-2" onClick={onEdit}>
-            <Edit className="h-3 w-3 mr-1" />
+            <Edit className="icon-xs mr-1" />
             Edit
           </Button>}
         
@@ -5735,7 +5735,7 @@ export function ChartPreview({
       {(config.drilldownConfig?.enabled || (config.crossRefConfig?.enabled && config.crossRefConfig?.drilldownEnabled)) && showDrilldownPanel && <div className="mb-4 p-3 bg-muted/30 rounded-lg border flex-shrink-0">
               <div className="flex flex-col gap-3">
                 <div className="flex items-center gap-2">
-                  <Filter className="h-4 w-4 text-muted-foreground" />
+                  <Filter className="icon-md text-muted-foreground" />
                   <span className="text-sm font-medium">
                     {config.crossRefConfig?.enabled ? 'Cross-Reference Drilldown' : 'Drilldown Controls'}
                   </span>
@@ -5745,7 +5745,7 @@ export function ChartPreview({
                 {drilldownState?.path && drilldownState.path.length > 0 && (
                   <div className="flex items-center gap-1 text-sm text-muted-foreground">
                     {drilldownState.path.map((level, index) => <React.Fragment key={index}>
-                        {index > 0 && <ChevronRight className="h-3 w-3" />}
+                        {index > 0 && <ChevronRight className="icon-xs" />}
                         <span className="font-medium">
                           {getFormFieldName(level)}: {drilldownState.values?.[index] || ''}
                         </span>

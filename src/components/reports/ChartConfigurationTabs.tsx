@@ -293,7 +293,7 @@ export function ChartConfigurationTabs({
                     });
                   }}
                 >
-                  <CheckSquare className="h-4 w-4 mr-1" />
+                  <CheckSquare className="icon-md mr-1" />
                   {(config.displayFields?.length === formFields.length) ? 'Deselect All' : 'Select All'}
                 </Button>
               )}

@@ -67,7 +67,7 @@ function MultiSelect({
             <span className="truncate">
               {selected.length === 0 ? <span className="text-muted-foreground">{placeholder}</span> : `${selected.length} selected`}
             </span>
-            <ChevronsUpDown className="h-4 w-4 opacity-50 shrink-0" />
+            <ChevronsUpDown className="icon-md opacity-50 shrink-0" />
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
@@ -81,7 +81,7 @@ function MultiSelect({
                   return (
                     <CommandItem key={o.value} value={`${o.label} ${o.sub ?? ''}`} onSelect={() => toggle(o.value)}>
                       <div className={cn("mr-2 h-4 w-4 border rounded flex items-center justify-center", checked ? "bg-primary border-primary" : "border-input")}>
-                        {checked && <Check className="h-3 w-3 text-primary-foreground" />}
+                        {checked && <Check className="icon-xs text-primary-foreground" />}
                       </div>
                       <div className="flex flex-col">
                         <span>{o.label}</span>
@@ -100,7 +100,7 @@ function MultiSelect({
           {selected.map(v => (
             <Badge key={v} variant="secondary" className="gap-1">
               {labelFor(v)}
-              <button type="button" onClick={() => toggle(v)} className="hover:text-destructive"><X className="h-3 w-3" /></button>
+              <button type="button" onClick={() => toggle(v)} className="hover:text-destructive"><X className="icon-xs" /></button>
             </Badge>
           ))}
         </div>
@@ -516,16 +516,16 @@ export default function RecordDelegations() {
                   <div className="flex items-center justify-end gap-1">
                     {isLive && (
                       <Button size="sm" variant="ghost" onClick={() => openEdit(r)} title="Edit dates / scope">
-                        <Pencil className="h-4 w-4 text-module-reports" />
+                        <Pencil className="icon-md text-module-reports" />
                       </Button>
                     )}
                     {isLive && (
                       <Button size="sm" variant="ghost" onClick={() => handleEnd(r.id)} title="Revoke access now (keeps history)">
-                        <Power className="h-4 w-4 text-module-forms" />
+                        <Power className="icon-md text-module-forms" />
                       </Button>
                     )}
                     <Button size="sm" variant="ghost" onClick={() => handleDelete(r.id)} title="Permanently delete this record" className="text-destructive hover:text-destructive">
-                      <Trash2 className="h-4 w-4" />
+                      <Trash2 className="icon-md" />
                     </Button>
                   </div>
                 );
@@ -544,7 +544,7 @@ export default function RecordDelegations() {
       description="Temporarily hand off your records to another user (e.g. during leave)"
       actions={
         <Button size="sm" onClick={() => { resetForm(); setOpen(true); }}>
-          <Plus className="h-4 w-4 mr-2" /> New Delegation
+          <Plus className="icon-md mr-2" /> New Delegation
         </Button>
       }
     >
@@ -552,7 +552,7 @@ export default function RecordDelegations() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
-              <Shield className="h-4 w-4 text-primary" />
+              <Shield className="icon-md text-primary" />
               How it works
             </CardTitle>
             <CardDescription>
@@ -564,9 +564,9 @@ export default function RecordDelegations() {
 
         <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
           <TabsList>
-            <TabsTrigger value="mine"><UserCheck className="h-4 w-4 mr-2" />My Delegations</TabsTrigger>
-            <TabsTrigger value="received"><Calendar className="h-4 w-4 mr-2" />Granted To Me</TabsTrigger>
-            <TabsTrigger value="activity"><Activity className="h-4 w-4 mr-2" />Activity on My Behalf</TabsTrigger>
+            <TabsTrigger value="mine"><UserCheck className="icon-md mr-2" />My Delegations</TabsTrigger>
+            <TabsTrigger value="received"><Calendar className="icon-md mr-2" />Granted To Me</TabsTrigger>
+            <TabsTrigger value="activity"><Activity className="icon-md mr-2" />Activity on My Behalf</TabsTrigger>
           </TabsList>
           <TabsContent value="mine">
             {selected.size > 0 && (
@@ -575,7 +575,7 @@ export default function RecordDelegations() {
                 <div className="flex items-center gap-2">
                   <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>Clear</Button>
                   <Button size="sm" variant="destructive" onClick={handleBulkEnd}>
-                    <Power className="h-4 w-4 mr-1" /> End selected
+                    <Power className="icon-md mr-1" /> End selected
                   </Button>
                 </div>
               </div>
@@ -616,7 +616,7 @@ export default function RecordDelegations() {
                               <span className="px-2 py-0.5 rounded bg-destructive/10 text-destructive max-w-[180px] truncate" title={a.old_value ?? ''}>
                                 {a.old_value || <em className="text-muted-foreground">empty</em>}
                               </span>
-                              <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0" />
+                              <ArrowRight className="icon-xs text-muted-foreground shrink-0" />
                               <span className="px-2 py-0.5 rounded bg-primary/10 text-primary max-w-[180px] truncate" title={a.new_value ?? ''}>
                                 {a.new_value || <em className="text-muted-foreground">empty</em>}
                               </span>
@@ -769,7 +769,7 @@ export default function RecordDelegations() {
 
             {(scope === 'form' || scope === 'project') && delegateIds.length > 0 && !grantDelegatorAccess && (
               <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-muted-foreground">
-                <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                <AlertTriangle className="icon-md text-amber-600 shrink-0 mt-0.5" />
                 <p>
                   "Grant my access" is OFF — delegates will only see your records on a {scope === 'form' ? 'form' : 'project'} they already have access to.
                   If the delegate isn't a member, share the {scope === 'form' ? 'form/project' : 'project'} with them first or turn on "Grant my access" below.

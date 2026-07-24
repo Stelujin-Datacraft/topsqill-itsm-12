@@ -122,10 +122,10 @@ export function FinanceDashboard({ kpis, projectList = [], onSelectProject }: Pr
                       </span>
                     </TableCell>
                     <TableCell className="text-right">
-                      <span className={p.cpi >= 1 ? 'text-emerald-600 font-semibold' : 'text-destructive font-semibold'}>{p.cpi.toFixed(2)}</span>
+                      <span className={p.cpi >= 1 ? 'text-success font-semibold' : 'text-destructive font-semibold'}>{p.cpi.toFixed(2)}</span>
                     </TableCell>
                     <TableCell className="text-right">
-                      <span className={p.spi >= 1 ? 'text-emerald-600 font-semibold' : 'text-destructive font-semibold'}>{p.spi.toFixed(2)}</span>
+                      <span className={p.spi >= 1 ? 'text-success font-semibold' : 'text-destructive font-semibold'}>{p.spi.toFixed(2)}</span>
                     </TableCell>
                   </TableRow>
                 );

@@ -193,13 +193,13 @@ function NodeCard({
       <Button
         variant="ghost"
         size="icon"
-        className="h-4 w-4"
+        className="icon-md"
         onClick={(e) => {
           e.stopPropagation();
           onNavigate(node.id);
         }}
       >
-        <ExternalLink className="h-3 w-3 text-module-relationship" />
+        <ExternalLink className="icon-xs text-module-relationship" />
       </Button>
     </div>
   );
@@ -310,14 +310,14 @@ export function RecordLinkageMap({
       <DialogContent className="max-w-[65vw] max-h-[90vh] overflow-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <GitBranch className="h-5 w-5 text-module-workflows" />
+            <GitBranch className="icon-lg text-module-workflows" />
             Relationship Map
             <Badge variant="outline">{submissions.length}</Badge>
             <div className="ml-auto">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm">
-                    <Download className="h-4 w-4 mr-2" />
+                    <Download className="icon-md mr-2" />
                     Export
                   </Button>
                 </DropdownMenuTrigger>
@@ -327,7 +327,7 @@ export function RecordLinkageMap({
                     await exportAsPng(treeContainerRef.current, `${formName}-relationship-map`);
                     toast({ title: "Exported", description: "Map downloaded as PNG" });
                   }}>
-                    <Image className="h-4 w-4 mr-2" />
+                    <Image className="icon-md mr-2" />
                     Download as PNG
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={async () => {
@@ -335,7 +335,7 @@ export function RecordLinkageMap({
                     await exportAsSvg(treeContainerRef.current, `${formName}-relationship-map`);
                     toast({ title: "Exported", description: "Map downloaded as SVG (Visio)" });
                   }}>
-                    <FileImage className="h-4 w-4 mr-2" />
+                    <FileImage className="icon-md mr-2" />
                     Download as SVG (Visio)
                   </DropdownMenuItem>
                 </DropdownMenuContent>

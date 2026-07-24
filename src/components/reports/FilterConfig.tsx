@@ -626,7 +626,7 @@ export function FilterConfig({
                     onClick={() => removeTag(tag)}
                     className="ml-1 hover:text-destructive"
                   >
-                    <X className="h-3 w-3" />
+                    <X className="icon-xs" />
                   </button>
                 </Badge>
               ))}
@@ -1015,14 +1015,14 @@ export function FilterConfig({
                 const displayName = isGroup ? getGroupDisplayName(val) : getUserDisplayName(val);
                 return (
                   <Badge key={i} variant="secondary" className="flex items-center gap-1">
-                    {isGroup ? <Users className="h-3 w-3" /> : <User className="h-3 w-3" />}
+                    {isGroup ? <Users className="icon-xs" /> : <User className="icon-xs" />}
                     {displayName}
                     <button
                       type="button"
                       onClick={() => toggleOption(val)}
                       className="ml-1 hover:text-destructive"
                     >
-                      <X className="h-3 w-3" />
+                      <X className="icon-xs" />
                     </button>
                   </Badge>
                 );
@@ -1051,7 +1051,7 @@ export function FilterConfig({
             {groups.length > 0 && (
               <>
                 <div className="text-xs font-medium text-muted-foreground px-1 py-1 flex items-center gap-1">
-                  <Users className="h-3 w-3" /> Groups
+                  <Users className="icon-xs" /> Groups
                 </div>
                 {groups.map((group) => (
                   <div key={`group-${group.id}`} className="flex items-center gap-2 pl-2" data-filterable>
@@ -1074,7 +1074,7 @@ export function FilterConfig({
             {users.length > 0 && (
               <>
                 <div className="text-xs font-medium text-muted-foreground px-1 py-1 mt-2 flex items-center gap-1">
-                  <User className="h-3 w-3" /> Users
+                  <User className="icon-xs" /> Users
                 </div>
                 {users.map((user) => (
                   <div key={`user-${user.id}`} className="flex items-center gap-2 pl-2" data-filterable>
@@ -1147,7 +1147,7 @@ export function FilterConfig({
                           onClick={() => toggleOption(val)}
                           className="ml-1 hover:text-destructive"
                         >
-                          <X className="h-3 w-3" />
+                          <X className="icon-xs" />
                         </button>
                       </Badge>
                     );
@@ -1437,7 +1437,7 @@ export function FilterConfig({
     <Card>
       <CardHeader>
         <CardTitle className="text-lg flex items-center gap-2">
-          <Filter className="h-5 w-5 text-module-forms" />
+          <Filter className="icon-lg text-module-forms" />
           Filters
         </CardTitle>
       </CardHeader>
@@ -1452,13 +1452,13 @@ export function FilterConfig({
             {onUseManualLogicChange && filters.length >= 1 && (
               <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                 <div className="flex items-center gap-2">
-                  <Code className="h-4 w-4 text-muted-foreground" />
+                  <Code className="icon-md text-muted-foreground" />
                   <span className="text-sm font-medium">Manual Logic Expression</span>
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Button variant="ghost" size="sm" className="h-5 w-5 p-0">
-                          <AlertCircle className="h-3 w-3 text-muted-foreground" />
+                        <Button variant="ghost" size="sm" className="icon-lg p-0">
+                          <AlertCircle className="icon-xs text-muted-foreground" />
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent className="max-w-xs">
@@ -1481,12 +1481,12 @@ export function FilterConfig({
                   <Label className="text-sm font-medium">Logic Expression</Label>
                   {expressionError ? (
                     <div className="flex items-center gap-1 text-destructive text-xs">
-                      <AlertCircle className="h-3 w-3" />
+                      <AlertCircle className="icon-xs" />
                       <span>{expressionError}</span>
                     </div>
                   ) : localExpression ? (
                     <div className="flex items-center gap-1 text-green-600 text-xs">
-                      <CheckCircle className="h-3 w-3" />
+                      <CheckCircle className="icon-xs" />
                       <span>Valid expression</span>
                     </div>
                   ) : null}
@@ -1516,7 +1516,7 @@ export function FilterConfig({
             {/* Default AND logic indicator */}
             {!useManualLogic && filters.length > 1 && (
               <div className="flex items-center gap-2 p-2 bg-muted/30 rounded text-xs text-muted-foreground">
-                <Eye className="h-3 w-3" />
+                <Eye className="icon-xs" />
                 <span>Filters are combined with AND logic. Enable manual mode for custom expressions.</span>
               </div>
             )}
@@ -1536,9 +1536,9 @@ export function FilterConfig({
                       size="sm"
                       variant="ghost"
                       onClick={() => removeFilter(index)}
-                      className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                      className="size-8 p-0 text-destructive hover:text-destructive"
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <Trash2 className="icon-md" />
                     </Button>
                   </div>
 
@@ -1605,7 +1605,7 @@ export function FilterConfig({
           className="w-full"
           disabled={formFields.length === 0}
         >
-          <Plus className="h-4 w-4 mr-2" />
+          <Plus className="icon-md mr-2" />
           Add Filter
         </Button>
       </CardContent>

@@ -230,7 +230,7 @@ const Timeline: React.FC<{ steps: Step[] }> = ({ steps }) => (
                     {step.num}
                   </div>
                   <Badge variant="secondary" className="bg-primary/10 text-primary">
-                    <Icon className="w-3 h-3 mr-1" />
+                    <Icon className="icon-xs mr-1" />
                     {step.module}
                   </Badge>
                 </div>
@@ -239,7 +239,7 @@ const Timeline: React.FC<{ steps: Step[] }> = ({ steps }) => (
                 <ul className="space-y-2">
                   {step.bullets.map((b) => (
                     <li key={b} className="flex items-start gap-2 text-sm">
-                      <CheckCircle className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                      <CheckCircle className="icon-md text-primary mt-0.5 shrink-0" />
                       <span>{b}</span>
                     </li>
                   ))}
@@ -251,7 +251,7 @@ const Timeline: React.FC<{ steps: Step[] }> = ({ steps }) => (
                     src={step.image}
                     alt={step.alt}
                     loading="lazy"
-                    className="w-full h-auto block transition-transform duration-500 group-hover:scale-[1.02]"
+                    className="w-full h-auto block transition-transform duration-500 group-"
                   />
                   <div className="absolute inset-0 ring-1 ring-inset ring-white/10 pointer-events-none rounded-xl" />
                 </div>
@@ -322,7 +322,7 @@ const Solutions: React.FC = () => {
       {/* Page heading */}
       <header className="container mx-auto px-4 pt-12 md:pt-16 pb-6 text-center">
         <Badge variant="secondary" className="mb-4 bg-primary/10 text-primary">
-          <Sparkles className="w-3 h-3 mr-1" />
+          <Sparkles className="icon-xs mr-1" />
           Solutions
         </Badge>
         <h1 className="text-3xl md:text-5xl font-bold mb-3 leading-tight">
@@ -375,7 +375,7 @@ const Solutions: React.FC = () => {
                 <CardContent className="p-6 md:p-8">
                   <div className="flex items-start gap-4">
                     <div className="rounded-full bg-primary/10 p-3 shrink-0">
-                      <CheckCircle className="h-6 w-6 text-primary" />
+                      <CheckCircle className="icon-xl text-primary" />
                     </div>
                     <div>
                       <h3 className="text-xl md:text-2xl font-semibold mb-2">{s.scenarioTitle}</h3>

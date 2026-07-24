@@ -40,7 +40,7 @@ const FormAccessManagement = () => {
       variant="outline" 
       onClick={() => navigate(`/form-builder/${id}`)}
     >
-      <ArrowLeft className="h-4 w-4 mr-2" />
+      <ArrowLeft className="icon-md mr-2" />
       Back to Form Builder
     </Button>
   );
@@ -60,13 +60,13 @@ const FormAccessManagement = () => {
       <DashboardLayout title="Form Not Found" actions={actions}>
         <Card>
           <CardContent className="p-8 text-center">
-            <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+            <AlertTriangle className="h-12 w-12 text-destructive mx-auto mb-4" />
             <h3 className="text-lg font-semibold mb-2">Form Not Found</h3>
             <p className="text-muted-foreground mb-4">
               The form you're looking for doesn't exist or you don't have permission to access it.
             </p>
             <Button onClick={() => navigate('/forms')}>
-              <ArrowLeft className="h-4 w-4 mr-2" />
+              <ArrowLeft className="icon-md mr-2" />
               Back to Forms
             </Button>
           </CardContent>

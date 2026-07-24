@@ -579,7 +579,7 @@ export function ComponentConfigDialog({
             onClick={() => setConfig({ ...config, chartType: chartType.value })}
           >
             <div className="flex items-center space-x-2">
-              <Icon className="h-4 w-4" />
+              <Icon className="icon-md" />
               <div>
                 <div className="font-medium text-sm">{chartType.label}</div>
                 <div className="text-xs text-muted-foreground">{chartType.description}</div>
@@ -616,7 +616,7 @@ export function ComponentConfigDialog({
       </Select>
       {loadingFields && (
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" />
+          <Loader2 className="icon-md animate-spin" />
           Loading form fields...
         </div>
       )}
@@ -937,7 +937,7 @@ export function ComponentConfigDialog({
           <Card>
             <CardHeader>
               <CardTitle className="text-sm flex items-center gap-2">
-                <Settings className="h-4 w-4" />
+                <Settings className="icon-md" />
                 Display Options
               </CardTitle>
             </CardHeader>
@@ -1018,7 +1018,7 @@ export function ComponentConfigDialog({
                           {theme.colors.map((color, index) => (
                             <div
                               key={index}
-                              className="w-4 h-4 rounded-full border border-border/50"
+                              className="icon-md rounded-full border border-border/50"
                               style={{ backgroundColor: color }}
                             />
                           ))}
@@ -1592,7 +1592,7 @@ export function ComponentConfigDialog({
                 onClick={() => setConfig({ ...config, chartType: chartType.value })}
               >
                 <div className="flex items-center space-x-2">
-                  <Icon className="h-4 w-4 shrink-0" />
+                  <Icon className="icon-md shrink-0" />
                   <div className="min-w-0">
                     <div className="font-medium text-sm">{chartType.label}</div>
                     <div className="text-xs text-muted-foreground truncate">{chartType.description}</div>
@@ -1629,7 +1629,7 @@ export function ComponentConfigDialog({
           {/* Forms & Fields Sidebar */}
           <div className="col-span-2 border rounded-lg p-3 max-h-[350px] overflow-y-auto bg-muted/30">
             <div className="text-sm font-medium mb-2 flex items-center gap-2">
-              <Database className="h-4 w-4" />
+              <Database className="icon-md" />
               Forms & Fields
             </div>
             <p className="text-xs text-muted-foreground mb-3">
@@ -1648,23 +1648,23 @@ export function ComponentConfigDialog({
                     >
                       <div className="flex items-center gap-1 flex-1 min-w-0">
                         {queryChartExpandedForms.has(form.id) ? (
-                          <ChevronDown className="h-3 w-3 shrink-0" />
+                          <ChevronDown className="icon-xs shrink-0" />
                         ) : (
-                          <ChevronRight className="h-3 w-3 shrink-0" />
+                          <ChevronRight className="icon-xs shrink-0" />
                         )}
                         <span className="truncate text-xs font-medium">{form.name}</span>
                       </div>
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-5 w-5 p-0 shrink-0"
+                        className="icon-lg p-0 shrink-0"
                         onClick={(e) => {
                           e.stopPropagation();
                           insertTextAtCursor(`"${form.id}"`);
                         }}
                         title="Insert form ID"
                       >
-                        <Plus className="h-3 w-3" />
+                        <Plus className="icon-xs" />
                       </Button>
                     </div>
                     
@@ -1672,7 +1672,7 @@ export function ComponentConfigDialog({
                       <div className="ml-4 pl-2 border-l space-y-0.5">
                         {queryChartLoadingFields && queryChartSelectedFormId === form.id ? (
                           <div className="flex items-center gap-1 py-1 text-xs text-muted-foreground">
-                            <Loader2 className="h-3 w-3 animate-spin" />
+                            <Loader2 className="icon-xs animate-spin" />
                             Loading...
                           </div>
                         ) : queryChartSelectedFormId === form.id && queryChartFormFields.length > 0 ? (
@@ -1688,11 +1688,11 @@ export function ComponentConfigDialog({
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 shrink-0"
+                                className="icon-lg p-0 opacity-0 group-hover:opacity-100 shrink-0"
                                 onClick={() => insertTextAtCursor(`FIELD("${field.id}")`)}
                                 title="Insert field reference"
                               >
-                                <Plus className="h-3 w-3" />
+                                <Plus className="icon-xs" />
                               </Button>
                             </div>
                           ))
@@ -1849,7 +1849,7 @@ export function ComponentConfigDialog({
       <DialogContent className={`max-h-[90vh] overflow-y-auto ${componentType === 'query-chart' ? 'max-w-6xl' : 'max-w-4xl'}`}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <DialogIcon className="h-5 w-5" />
+            <DialogIcon className="icon-lg" />
             {getDialogTitle()}
           </DialogTitle>
           <DialogDescription>

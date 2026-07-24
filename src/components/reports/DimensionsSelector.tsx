@@ -65,7 +65,7 @@ export function DimensionsSelector({
           <div className="space-y-2">
             {selectedDimensions.map((fieldId, index) => (
               <div key={fieldId} className="flex items-center gap-2 p-2 bg-muted/50 rounded-md">
-                <Tag className="h-4 w-4 text-secondary" />
+                <Tag className="icon-md text-secondary" />
                 <div className="flex-1">
                   <div className="font-medium text-sm">
                     {index === 0 && "Primary: "}{index === 1 && "Secondary: "}{index === 2 && "Tertiary: "}
@@ -82,7 +82,7 @@ export function DimensionsSelector({
                   onClick={() => removeDimension(fieldId)}
                   className="h-7 w-7 p-0"
                 >
-                  <X className="h-3 w-3" />
+                  <X className="icon-xs" />
                 </Button>
               </div>
             ))}
@@ -130,7 +130,7 @@ export function DimensionsSelector({
 
       {selectedDimensions.length > 0 && (
         <div className="p-2 bg-blue-50 dark:bg-blue-950/20 rounded-md border border-blue-200 dark:border-blue-800">
-          <p className="text-xs text-blue-700 dark:text-blue-300">
+          <p className="text-xs text-info dark:text-blue-300">
             <strong>Tip:</strong> Primary dimension will be used for main grouping. 
             {selectedDimensions.length > 1 && " Secondary dimension will create sub-groups within each primary group."}
             {selectedDimensions.length > 2 && " Tertiary dimension adds another level of detail."}

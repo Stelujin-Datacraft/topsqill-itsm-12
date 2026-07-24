@@ -237,7 +237,7 @@ export function ScenarioSimulator({ perfProjectId, selectedRecordId }: Props) {
     <div className="space-y-6">
       <div>
         <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-          <FlaskConical className="h-5 w-5 text-primary" />
+          <FlaskConical className="icon-lg text-primary" />
           What-If Scenario Simulator
         </h2>
         <p className="text-sm text-muted-foreground">
@@ -267,7 +267,7 @@ export function ScenarioSimulator({ perfProjectId, selectedRecordId }: Props) {
                       {v.adjustedValue > 0 && v.id !== 'budget' && v.id !== 'resources' ? '+' : ''}{v.adjustedValue}{v.unit}
                     </Badge>
                     {v.adjustedValue !== v.baseValue && (
-                      <span className={`text-xs ${v.adjustedValue > v.baseValue ? 'text-green-600' : 'text-red-500'}`}>
+                      <span className={`text-xs ${v.adjustedValue > v.baseValue ? 'text-green-600' : 'text-destructive'}`}>
                         ({v.adjustedValue > v.baseValue ? '+' : ''}{v.adjustedValue - v.baseValue}{v.unit})
                       </span>
                     )}
@@ -291,9 +291,9 @@ export function ScenarioSimulator({ perfProjectId, selectedRecordId }: Props) {
 
             <Button onClick={runSimulation} disabled={isSimulating || !submission} className="w-full gap-2 mt-2">
               {isSimulating ? (
-                <><Loader2 className="h-4 w-4 animate-spin" /> Simulating...</>
+                <><Loader2 className="icon-md animate-spin" /> Simulating...</>
               ) : (
-                <><FlaskConical className="h-4 w-4" /> Run Simulation</>
+                <><FlaskConical className="icon-md" /> Run Simulation</>
               )}
             </Button>
           </CardContent>
@@ -329,7 +329,7 @@ export function ScenarioSimulator({ perfProjectId, selectedRecordId }: Props) {
                     const isNegativeGood = ['Budget Utilization', 'Predicted Delay Days', 'Risk Score', 'Resource Utilization'].includes(r.metric);
                     const isGood = isPositiveGood ? r.changePct > 0 : isNegativeGood ? r.changePct < 0 : false;
                     const isBad = isPositiveGood ? r.changePct < 0 : isNegativeGood ? r.changePct > 0 : false;
-                    const changeColor = r.changePct === 0 ? 'text-muted-foreground' : isGood ? 'text-green-600' : isBad ? 'text-red-500' : 'text-muted-foreground';
+                    const changeColor = r.changePct === 0 ? 'text-muted-foreground' : isGood ? 'text-green-600' : isBad ? 'text-destructive' : 'text-muted-foreground';
 
                     return (
                       <TableRow key={i}>
@@ -343,11 +343,11 @@ export function ScenarioSimulator({ perfProjectId, selectedRecordId }: Props) {
                         <TableCell className={`text-sm text-right py-2.5 font-mono font-semibold ${changeColor}`}>
                           <span className="inline-flex items-center gap-1">
                             {r.changePct === 0 ? (
-                              <Minus className="h-3 w-3" />
+                              <Minus className="icon-xs" />
                             ) : r.changePct > 0 ? (
-                              <TrendingUp className="h-3 w-3" />
+                              <TrendingUp className="icon-xs" />
                             ) : (
-                              <TrendingDown className="h-3 w-3" />
+                              <TrendingDown className="icon-xs" />
                             )}
                             {r.changePct > 0 ? '+' : ''}{r.changePct}%
                           </span>

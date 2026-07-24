@@ -53,7 +53,7 @@ export function SaveFilterDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Save className="h-5 w-5" />
+            <Save className="icon-lg" />
             Save Current Filter
           </DialogTitle>
           <DialogDescription>
@@ -110,7 +110,7 @@ export function SaveFilterDialog({
             onClick={handleSave} 
             disabled={!filterName.trim() || isSaving || filters.length === 0}
           >
-            {isSaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            {isSaving && <Loader2 className="icon-md mr-2 animate-spin" />}
             Save Filter
           </Button>
         </DialogFooter>

@@ -224,9 +224,9 @@ export default function EmailConfigPage() {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">
-                <BarChart2 className="h-4 w-4 mr-2 text-module-workflows" />
+                <BarChart2 className="icon-md mr-2 text-module-workflows" />
                 Data Analytics
-                <ChevronDown className="h-4 w-4 ml-2" />
+                <ChevronDown className="icon-md ml-2" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56 bg-background border border-border shadow-lg z-50">
@@ -236,28 +236,28 @@ export default function EmailConfigPage() {
               <div className="p-2 space-y-1">
                 <div className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-muted/50">
                   <div className="flex items-center gap-2">
-                    <Server className="h-4 w-4 text-muted-foreground" />
+                    <Server className="icon-md text-muted-foreground" />
                     <span className="text-sm">Total Configs</span>
                   </div>
                   <Badge variant="secondary" className="font-semibold">{totalConfigs}</Badge>
                 </div>
                 <div className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-muted/50">
                   <div className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-module-knowledge" />
+                    <CheckCircle className="icon-md text-module-knowledge" />
                     <span className="text-sm">Active</span>
                   </div>
                   <Badge variant="secondary" className="font-semibold bg-primary/10 text-primary">{activeConfigs}</Badge>
                 </div>
                 <div className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-muted/50">
                   <div className="flex items-center gap-2">
-                    <XCircle className="h-4 w-4 text-muted-foreground" />
+                    <XCircle className="icon-md text-muted-foreground" />
                     <span className="text-sm">Inactive</span>
                   </div>
                   <Badge variant="secondary" className="font-semibold">{inactiveConfigs}</Badge>
                 </div>
                 <div className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-muted/50">
                   <div className="flex items-center gap-2">
-                    <Mail className="h-4 w-4 text-module-email" />
+                    <Mail className="icon-md text-module-email" />
                     <span className="text-sm">Default</span>
                   </div>
                   <Badge variant="secondary" className="font-semibold bg-primary/10 text-primary">{defaultConfigs}</Badge>
@@ -266,11 +266,11 @@ export default function EmailConfigPage() {
             </DropdownMenuContent>
           </DropdownMenu>
           <Button size="sm" variant="outline" onClick={() => window.location.href = '/email-templates'}>
-            <Mail className="h-4 w-4 mr-2" />
+            <Mail className="icon-md mr-2" />
             Templates
           </Button>
           <Button size="sm" onClick={() => setIsCreating(true)}>
-            <Plus className="h-4 w-4 mr-2" />
+            <Plus className="icon-md mr-2" />
             Add SMTP Config
           </Button>
         </div>
@@ -305,7 +305,7 @@ export default function EmailConfigPage() {
                       onClick={() => openTestDialog(config)}
                       disabled={testingConfig === config.id}
                     >
-                      <TestTube className="h-4 w-4 mr-1" />
+                      <TestTube className="icon-md mr-1" />
                       {testingConfig === config.id ? 'Testing...' : 'Test'}
                     </Button>
                     <Button
@@ -328,7 +328,7 @@ export default function EmailConfigPage() {
                         deleteConfig(config.id);
                       }}
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <Trash2 className="icon-md" />
                     </Button>
                   </div>
                 </div>

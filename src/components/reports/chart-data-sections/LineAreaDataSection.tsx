@@ -109,7 +109,7 @@ export function LineAreaDataSection({ config, formFields, onConfigChange, chartT
   return (
     <div className="space-y-6">
       <Alert className="bg-primary/5 border-primary/20">
-        <TrendingUp className="h-4 w-4 text-module-performance" />
+        <TrendingUp className="icon-md text-module-performance" />
         <AlertDescription className="text-sm">
           <strong>{chartLabel} Chart</strong> shows trends over a continuous axis. Select an <strong>X-axis</strong> (usually time or category) and one or more <strong>values</strong> to plot.
         </AlertDescription>
@@ -134,7 +134,7 @@ export function LineAreaDataSection({ config, formFields, onConfigChange, chartT
           {selectedDimension ? (
             <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border">
               <div className="flex items-center gap-2">
-                <Tag className="h-4 w-4 text-module-reports" />
+                <Tag className="icon-md text-module-reports" />
                 <span className="font-medium">{getFieldLabel(selectedDimension)}</span>
                 <Badge variant="secondary" className="text-xs">{getFieldTypeLabel(selectedDimension)}</Badge>
               </div>
@@ -144,7 +144,7 @@ export function LineAreaDataSection({ config, formFields, onConfigChange, chartT
                 onClick={() => onConfigChange({ dimensions: [] })}
                 className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
               >
-                <X className="h-4 w-4" />
+                <X className="icon-md" />
               </Button>
             </div>
           ) : categoryFields.length > 0 ? (
@@ -165,7 +165,7 @@ export function LineAreaDataSection({ config, formFields, onConfigChange, chartT
             </Select>
           ) : (
             <Alert>
-              <Info className="h-4 w-4" />
+              <Info className="icon-md" />
               <AlertDescription>No suitable fields found for X-axis.</AlertDescription>
             </Alert>
           )}
@@ -196,7 +196,7 @@ export function LineAreaDataSection({ config, formFields, onConfigChange, chartT
             <div key={metricId} className="p-3 bg-muted/50 rounded-lg border space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Calculator className="h-4 w-4 text-primary" />
+                  <Calculator className="icon-md text-primary" />
                   <span className="font-medium">{getFieldLabel(metricId)}</span>
                   <Badge variant="secondary" className="text-xs">{getFieldTypeLabel(metricId)}</Badge>
                 </div>
@@ -206,7 +206,7 @@ export function LineAreaDataSection({ config, formFields, onConfigChange, chartT
                   onClick={() => removeMetric(metricId)}
                   className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
                 >
-                  <X className="h-4 w-4" />
+                  <X className="icon-md" />
                 </Button>
               </div>
               
@@ -236,7 +236,7 @@ export function LineAreaDataSection({ config, formFields, onConfigChange, chartT
             <Select onValueChange={addMetric}>
               <SelectTrigger className="border-dashed border-2">
                 <div className="flex items-center gap-2 text-muted-foreground">
-                  <Plus className="h-4 w-4" />
+                  <Plus className="icon-md" />
                   <span>{selectedMetrics.length === 0 ? 'Select a value field...' : 'Add another line...'}</span>
                 </div>
               </SelectTrigger>
@@ -255,7 +255,7 @@ export function LineAreaDataSection({ config, formFields, onConfigChange, chartT
 
           {numericFields.length === 0 && (
             <Alert>
-              <Info className="h-4 w-4" />
+              <Info className="icon-md" />
               <AlertDescription>No numeric fields found. Add number, currency, or rating fields to your form.</AlertDescription>
             </Alert>
           )}

@@ -70,7 +70,7 @@ export function CrossReferenceDialog({
         <ScrollArea className="max-h-96">
           {loading ? (
             <div className="flex items-center justify-center py-6">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <Loader2 className="icon-xl animate-spin text-muted-foreground" />
               <span className="ml-2 text-muted-foreground">Loading records...</span>
             </div>
           ) : (

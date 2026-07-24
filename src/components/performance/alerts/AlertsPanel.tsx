@@ -17,10 +17,10 @@ interface Props {
 export function AlertsPanel({ alerts, loading, updateAlertStatus }: Props) {
   const statusIcon = (status: string) => {
     switch (status) {
-      case 'active': return <AlertTriangle className="h-4 w-4 text-orange-500" />;
-      case 'acknowledged': return <Eye className="h-4 w-4 text-blue-500" />;
-      case 'resolved': return <CheckCircle2 className="h-4 w-4 text-emerald-500" />;
-      case 'dismissed': return <XCircle className="h-4 w-4 text-muted-foreground" />;
+      case 'active': return <AlertTriangle className="icon-md text-orange-500" />;
+      case 'acknowledged': return <Eye className="icon-md text-blue-500" />;
+      case 'resolved': return <CheckCircle2 className="icon-md text-emerald-500" />;
+      case 'dismissed': return <XCircle className="icon-md text-muted-foreground" />;
       default: return null;
     }
   };
@@ -29,7 +29,7 @@ export function AlertsPanel({ alerts, loading, updateAlertStatus }: Props) {
   const otherAlerts = alerts.filter(a => a.status !== 'active');
 
   if (loading) {
-    return <div className="flex items-center justify-center h-32"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
+    return <div className="flex items-center justify-center h-32"><Loader2 className="icon-xl animate-spin text-primary" /></div>;
   }
 
   return (
@@ -47,7 +47,7 @@ export function AlertsPanel({ alerts, loading, updateAlertStatus }: Props) {
               <CardContent className="py-4">
                 <div className="flex items-start justify-between">
                   <div className="flex items-start gap-3">
-                    {alert.ai_generated ? <Brain className="h-5 w-5 text-module-workflows mt-0.5" /> : <AlertTriangle className="h-5 w-5 text-orange-500 mt-0.5" />}
+                    {alert.ai_generated ? <Brain className="icon-lg text-module-workflows mt-0.5" /> : <AlertTriangle className="icon-lg text-orange-500 mt-0.5" />}
                     <div>
                       <div className="flex items-center gap-2">
                         <p className="font-medium text-sm text-foreground">{alert.title}</p>

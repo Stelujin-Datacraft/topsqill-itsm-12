@@ -86,11 +86,11 @@ const Policies = () => {
         {isAdmin && (
           <div className="flex items-center gap-2">
             <Button variant="outline" onClick={() => navigate('/policies/create-template')} className="gap-2">
-              <LayoutTemplate className="h-4 w-4" />
+              <LayoutTemplate className="icon-md" />
               Create Template
             </Button>
             <Button onClick={() => navigate('/policies/create')} className="gap-2">
-              <Plus className="h-4 w-4" />
+              <Plus className="icon-md" />
               Create Policy
             </Button>
           </div>
@@ -101,15 +101,15 @@ const Policies = () => {
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="list" className="gap-2">
-            <FileText className="h-4 w-4" />
+            <FileText className="icon-md" />
             All Policies
           </TabsTrigger>
           <TabsTrigger value="templates" className="gap-2">
-            <LayoutTemplate className="h-4 w-4" />
+            <LayoutTemplate className="icon-md" />
             Templates
           </TabsTrigger>
           <TabsTrigger value="dashboard" className="gap-2">
-            <BarChart3 className="h-4 w-4" />
+            <BarChart3 className="icon-md" />
             Dashboard
           </TabsTrigger>
         </TabsList>
@@ -180,7 +180,7 @@ const Policies = () => {
                 </p>
                 {policies.length === 0 && (
                   <Button onClick={() => navigate('/policies/create')} className="mt-4 gap-2">
-                    <Plus className="h-4 w-4" />
+                    <Plus className="icon-md" />
                     Create Policy
                   </Button>
                 )}
@@ -212,12 +212,12 @@ const Policies = () => {
                             )}
                             {isOverdueReview && (
                               <Badge variant="destructive" className="gap-1 text-xs">
-                                <CalendarClock className="h-3 w-3" />
+                                <CalendarClock className="icon-xs" />
                                 Review Overdue
                               </Badge>
                             )}
                             {policy.acknowledgment_required && (
-                              <Badge variant="outline" className="text-xs border-blue-300 text-blue-700 dark:text-blue-300">
+                              <Badge variant="outline" className="text-xs border-blue-300 text-info dark:text-blue-300">
                                 ACK Required
                               </Badge>
                             )}
@@ -258,7 +258,7 @@ const Policies = () => {
                 <h3 className="text-lg font-medium">No templates yet</h3>
                 <p className="text-sm text-muted-foreground mt-1">Create your first policy template.</p>
                 <Button onClick={() => navigate('/policies/create-template')} className="mt-4 gap-2">
-                  <Plus className="h-4 w-4" /> Create Template
+                  <Plus className="icon-md" /> Create Template
                 </Button>
               </CardContent>
             </Card>
@@ -281,16 +281,16 @@ const Policies = () => {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8"
+                        className="size-8"
                         onClick={() => setViewTemplate(t)}
                         title="View"
                       >
-                        <Eye className="h-4 w-4" />
+                        <Eye className="icon-md" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8"
+                        className="size-8"
                         onClick={() => {
                           setEditTemplate(t);
                           setEditName(t.name);
@@ -301,17 +301,17 @@ const Policies = () => {
                         disabled={t.is_system_template}
                         title="Edit"
                       >
-                        <Edit className="h-4 w-4" />
+                        <Edit className="icon-md" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                        className="size-8 text-destructive hover:text-destructive hover:bg-destructive/10"
                         onClick={() => setDeleteConfirmId(t.id)}
                         disabled={t.is_system_template}
                         title="Delete"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="icon-md" />
                       </Button>
                     </div>
                   </CardContent>

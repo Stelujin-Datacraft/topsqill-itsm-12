@@ -35,7 +35,7 @@ export function AssetDetailView({ asset, onBack }: AssetDetailViewProps) {
   return (
     <div className="space-y-4 mt-4">
       <Button variant="ghost" onClick={onBack} className="mb-2">
-        <ArrowLeft className="h-4 w-4 mr-2" />Back to Assets
+        <ArrowLeft className="icon-md mr-2" />Back to Assets
       </Button>
 
       {/* Asset Header */}
@@ -44,7 +44,7 @@ export function AssetDetailView({ asset, onBack }: AssetDetailViewProps) {
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-4">
               <div className="p-3 rounded-lg bg-primary/10">
-                <Monitor className="h-8 w-8 text-module-itam" />
+                <Monitor className="size-8 text-module-itam" />
               </div>
               <div>
                 <h2 className="text-2xl font-bold">{asset.display_name}</h2>
@@ -93,16 +93,16 @@ export function AssetDetailView({ asset, onBack }: AssetDetailViewProps) {
       ) : (
         <Tabs defaultValue="hardware" className="w-full">
           <TabsList>
-            <TabsTrigger value="hardware"><Cpu className="h-4 w-4 mr-2" />Hardware</TabsTrigger>
-            <TabsTrigger value="software"><Package className="h-4 w-4 mr-2" />Software ({software.length})</TabsTrigger>
-            <TabsTrigger value="history"><Clock className="h-4 w-4 mr-2" />History ({history.length})</TabsTrigger>
+            <TabsTrigger value="hardware"><Cpu className="icon-md mr-2" />Hardware</TabsTrigger>
+            <TabsTrigger value="software"><Package className="icon-md mr-2" />Software ({software.length})</TabsTrigger>
+            <TabsTrigger value="history"><Clock className="icon-md mr-2" />History ({history.length})</TabsTrigger>
           </TabsList>
 
           <TabsContent value="hardware">
             {hardware ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Card>
-                  <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><Cpu className="h-4 w-4" />Processor</CardTitle></CardHeader>
+                  <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><Cpu className="icon-md" />Processor</CardTitle></CardHeader>
                   <CardContent className="space-y-2 text-sm">
                     <div className="flex justify-between"><span className="text-muted-foreground">Model</span><span>{hardware.cpu_model || '-'}</span></div>
                     <div className="flex justify-between"><span className="text-muted-foreground">Cores</span><span>{hardware.cpu_cores || '-'}</span></div>
@@ -110,7 +110,7 @@ export function AssetDetailView({ asset, onBack }: AssetDetailViewProps) {
                   </CardContent>
                 </Card>
                 <Card>
-                  <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><MemoryStick className="h-4 w-4" />Memory & Storage</CardTitle></CardHeader>
+                  <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><MemoryStick className="icon-md" />Memory & Storage</CardTitle></CardHeader>
                   <CardContent className="space-y-2 text-sm">
                     <div className="flex justify-between"><span className="text-muted-foreground">RAM</span><span>{hardware.ram_total_gb ? `${hardware.ram_total_gb} GB` : '-'}</span></div>
                     <div className="flex justify-between"><span className="text-muted-foreground">Disk Total</span><span>{hardware.disk_total_gb ? `${hardware.disk_total_gb} GB` : '-'}</span></div>
@@ -118,7 +118,7 @@ export function AssetDetailView({ asset, onBack }: AssetDetailViewProps) {
                   </CardContent>
                 </Card>
                 <Card>
-                  <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><Monitor className="h-4 w-4" />OS & System</CardTitle></CardHeader>
+                  <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><Monitor className="icon-md" />OS & System</CardTitle></CardHeader>
                   <CardContent className="space-y-2 text-sm">
                     <div className="flex justify-between"><span className="text-muted-foreground">OS</span><span>{hardware.os_name || '-'}</span></div>
                     <div className="flex justify-between"><span className="text-muted-foreground">Version</span><span>{hardware.os_version || '-'}</span></div>
@@ -127,7 +127,7 @@ export function AssetDetailView({ asset, onBack }: AssetDetailViewProps) {
                   </CardContent>
                 </Card>
                 <Card>
-                  <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><Server className="h-4 w-4" />Board & BIOS</CardTitle></CardHeader>
+                  <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><Server className="icon-md" />Board & BIOS</CardTitle></CardHeader>
                   <CardContent className="space-y-2 text-sm">
                     <div className="flex justify-between"><span className="text-muted-foreground">Motherboard</span><span>{hardware.motherboard_model || '-'}</span></div>
                     <div className="flex justify-between"><span className="text-muted-foreground">BIOS</span><span>{hardware.bios_version || '-'}</span></div>
@@ -185,7 +185,7 @@ export function AssetDetailView({ asset, onBack }: AssetDetailViewProps) {
                   <div className="space-y-3">
                     {history.map(h => (
                       <div key={h.id} className="flex items-start gap-3 p-3 border rounded-lg">
-                        <Clock className="h-4 w-4 mt-0.5 text-muted-foreground" />
+                        <Clock className="icon-md mt-0.5 text-muted-foreground" />
                         <div className="flex-1">
                           <div className="flex items-center justify-between">
                             <Badge variant="outline" className="text-xs">{h.event_type}</Badge>

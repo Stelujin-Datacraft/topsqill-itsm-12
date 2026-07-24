@@ -275,12 +275,12 @@ export function EnhancedTableConfig({ config, forms, onConfigChange }: EnhancedT
               >
                 {allSelected ? (
                   <>
-                    <Square className="h-4 w-4 mr-2" />
+                    <Square className="icon-md mr-2" />
                     Deselect All
                   </>
                 ) : (
                   <>
-                    <CheckSquare className="h-4 w-4 mr-2" />
+                    <CheckSquare className="icon-md mr-2" />
                     Select All
                   </>
                 )}
@@ -340,7 +340,7 @@ export function EnhancedTableConfig({ config, forms, onConfigChange }: EnhancedT
             <CardContent className="space-y-4">
               <div className="flex justify-end">
                 <Button onClick={addJoin} size="sm">
-                  <Plus className="h-4 w-4 mr-2" />
+                  <Plus className="icon-md mr-2" />
                   Add Join
                 </Button>
               </div>
@@ -355,7 +355,7 @@ export function EnhancedTableConfig({ config, forms, onConfigChange }: EnhancedT
                         size="sm"
                         onClick={() => removeJoin(join.id)}
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="icon-md" />
                       </Button>
                     </div>
 

@@ -59,7 +59,7 @@ function VariableRow({ variable, depth = 0 }: { variable: FormulaVariable; depth
           <TableRow className="bg-muted/30">
             <TableCell colSpan={3} className="py-1.5" style={{ paddingLeft: (depth + 1) * 20 + 8 }}>
               <div className="flex items-center gap-2">
-                <Calculator className="h-3 w-3 text-primary" />
+                <Calculator className="icon-xs text-primary" />
                 <code className="text-[11px] font-mono text-primary">{sub.formula}</code>
                 {sub.description && (
                   <span className="text-[10px] text-muted-foreground">— {sub.description}</span>
@@ -214,7 +214,7 @@ function ContributingRecordRow({ rec }: { rec: ContributingRecord }) {
           <TableCell colSpan={6} className="p-0">
             <div className="bg-muted/30 border-t border-b px-4 py-2.5 space-y-2">
               <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                <Eye className="h-3 w-3" />
+                <Eye className="icon-xs" />
                 Source Data — {rec.refId} ({rec.name})
               </p>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-1.5">
@@ -261,7 +261,7 @@ export function FormulaBreakdownTable({ title, breakdown, onClose }: FormulaBrea
     <Card className="border-primary/30 shadow-md">
       <CardHeader className="pb-2 flex flex-row items-center justify-between">
         <div className="flex items-center gap-2">
-          <Calculator className="h-4 w-4 text-primary" />
+          <Calculator className="icon-md text-primary" />
           <CardTitle className="text-sm">{title} — Formula Breakdown</CardTitle>
         </div>
       </CardHeader>

@@ -1741,14 +1741,14 @@ const PolicyDetail = () => {
         <div className="max-w-4xl mx-auto py-8 px-6 space-y-6">
           <div className="flex items-center justify-between">
             <Button variant="ghost" size="sm" onClick={() => window.close()}>
-              <ArrowLeft className="h-4 w-4 mr-1" /> Close Preview
+              <ArrowLeft className="icon-md mr-1" /> Close Preview
             </Button>
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" onClick={() => navigate(`/policy/${policy.id}`)}>
-                <Edit className="h-4 w-4 mr-1" /> Open Full View
+                <Edit className="icon-md mr-1" /> Open Full View
               </Button>
               <Button variant="outline" size="sm" onClick={exportToPDF}>
-                <FileDown className="h-4 w-4 mr-1" /> Export PDF
+                <FileDown className="icon-md mr-1" /> Export PDF
               </Button>
             </div>
           </div>
@@ -1856,7 +1856,7 @@ const PolicyDetail = () => {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft className="icon-md" />
           </Button>
           <div>
             <div className="flex items-center gap-2 flex-wrap">
@@ -1870,7 +1870,7 @@ const PolicyDetail = () => {
               <Badge variant="secondary">v{policy.current_version}</Badge>
               {isOverdueReview && (
                 <Badge variant="destructive" className="gap-1">
-                  <CalendarClock className="h-3 w-3" /> Review Overdue
+                  <CalendarClock className="icon-xs" /> Review Overdue
                 </Badge>
               )}
             </div>
@@ -1878,7 +1878,7 @@ const PolicyDetail = () => {
               <span>{policy.description || 'No description'}</span>
             </div>
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1">
-              <Users className="h-3 w-3" />
+              <Users className="icon-xs" />
               <span>Owner: <span className="font-medium text-foreground">{getUserName(policy.created_by)}</span></span>
             </div>
           </div>
@@ -1887,17 +1887,17 @@ const PolicyDetail = () => {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">
-                <Download className="h-4 w-4 mr-1 text-module-workflows" /> Export
+                <Download className="icon-md mr-1 text-module-workflows" /> Export
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="bg-popover">
                 <DropdownMenuItem onClick={downloadOriginalDocxWithContent}>
-                  <FileDown className="h-4 w-4 mr-2 text-module-forms" /> Download DOCX
+                  <FileDown className="icon-md mr-2 text-module-forms" /> Download DOCX
                 </DropdownMenuItem>
               
    
                 <DropdownMenuItem onClick={downloadOriginalPdfWithContent}>
-                  <FileDown className="h-4 w-4 mr-2 text-module-forms" /> Download PDF
+                  <FileDown className="icon-md mr-2 text-module-forms" /> Download PDF
                 </DropdownMenuItem>
               {/* <DropdownMenuItem onClick={() => {
                 const previewUrl = `${(await import('@/services/api')).getPolicyPreviewUrl(policy.id)}`;
@@ -1920,26 +1920,26 @@ const PolicyDetail = () => {
                   void generatePDF('preview');
                 });
               }}>
-                <Eye className="h-4 w-4 mr-2" /> Preview Document
+                <Eye className="icon-md mr-2" /> Preview Document
               </DropdownMenuItem>
               <DropdownMenuItem onClick={exportToPDF}>
-                <FileDown className="h-4 w-4 mr-2" /> Export as PDF
+                <FileDown className="icon-md mr-2" /> Export as PDF
               </DropdownMenuItem>
               <DropdownMenuItem onClick={exportToDocx}>
-                <FileDown className="h-4 w-4 mr-2" /> Export as DOCX
+                <FileDown className="icon-md mr-2" /> Export as DOCX
               </DropdownMenuItem> */}
             </DropdownMenuContent>
           </DropdownMenu>
           {canEdit && policy.status === 'draft' && (
             <>
               <Button variant="outline" size="sm" onClick={() => clonePolicy.mutateAsync(policy.id)}>
-                <FileText className="h-4 w-4 mr-1 text-module-workflows" /> Clone
+                <FileText className="icon-md mr-1 text-module-workflows" /> Clone
               </Button>
               <Button variant="outline" size="sm" onClick={startEditing}>
-                <Edit className="h-4 w-4 mr-1 text-module-workflows" /> Edit
+                <Edit className="icon-md mr-1 text-module-workflows" /> Edit
               </Button>
               {/* <Button size="sm" onClick={() => setShowApprovalDialog(true)}>
-                <Send className="h-4 w-4 mr-1" /> Submit for Approval
+                <Send className="icon-md mr-1" /> Submit for Approval
               </Button> */}
               <Button size="sm" variant="default" onClick={async () => {
                 await updatePolicy.mutateAsync({
@@ -1958,7 +1958,7 @@ const PolicyDetail = () => {
                 }
                 toast.success('Document published successfully');
               }}>
-                <CheckCircle className="h-4 w-4 mr-1" /> Publish
+                <CheckCircle className="icon-md mr-1" /> Publish
               </Button>
             </>
           )}
@@ -1996,7 +1996,7 @@ const PolicyDetail = () => {
                     }
                     toast.success('Document published successfully');
                   }}>
-                    <CheckCircle className="h-4 w-4 mr-1" /> Publish
+                    <CheckCircle className="icon-md mr-1" /> Publish
                   </Button>
                 )}
               </>
@@ -2005,16 +2005,16 @@ const PolicyDetail = () => {
           {canEdit && policy.status === 'published' && (
             <>
               <Button variant="outline" size="sm" onClick={startEditing}>
-                <Edit className="h-4 w-4 mr-1" /> Edit
+                <Edit className="icon-md mr-1" /> Edit
               </Button>
               <Button variant="outline" size="sm" onClick={async () => {
                 await updatePolicy.mutateAsync({ id: policy.id, status: 'draft' });
                 toast.success('Document moved back to draft');
               }}>
-                <RotateCcw className="h-4 w-4 mr-1" /> Back to Draft
+                <RotateCcw className="icon-md mr-1" /> Back to Draft
               </Button>
               <Button variant="outline" size="sm" onClick={retirePolicy}>
-                <Archive className="h-4 w-4 mr-1" /> Retire
+                <Archive className="icon-md mr-1" /> Retire
               </Button>
             </>
           )}
@@ -2023,13 +2023,13 @@ const PolicyDetail = () => {
               await updatePolicy.mutateAsync({ id: policy.id, status: 'draft' });
               toast.success('Document moved back to draft');
             }}>
-              <Edit className="h-4 w-4 mr-1" /> Reopen as Draft
+              <Edit className="icon-md mr-1" /> Reopen as Draft
             </Button>
           )}
           {canAdmin && (
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="destructive" size="sm"><Trash2 className="h-4 w-4" /></Button>
+                <Button variant="destructive" size="sm"><Trash2 className="icon-md" /></Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
@@ -2142,7 +2142,7 @@ const PolicyDetail = () => {
             <div className="flex gap-2 justify-end">
               <Button variant="outline" onClick={() => setIsEditing(false)}>Cancel</Button>
               <Button onClick={() => setShowSaveConfirmDialog(true)} disabled={updatePolicy.isPending}>
-                <Save className="h-4 w-4 mr-1" /> Save Changes
+                <Save className="icon-md mr-1" /> Save Changes
               </Button>
             </div>
 
@@ -2206,7 +2206,7 @@ const PolicyDetail = () => {
                             <Card>
                               <CardHeader className="flex flex-row items-center gap-2 py-3 px-4">
                                 <div {...provided.dragHandleProps} className="cursor-grab active:cursor-grabbing">
-                                  <GripVertical className="h-4 w-4 text-muted-foreground" />
+                                  <GripVertical className="icon-md text-muted-foreground" />
                                 </div>
                                 <CardTitle className="text-sm flex-1">Dates & Metadata</CardTitle>
                               </CardHeader>
@@ -2236,7 +2236,7 @@ const PolicyDetail = () => {
                               <Card>
                                 <CardHeader className="flex flex-row items-center gap-2 py-3 px-4">
                                   <div {...provided.dragHandleProps} className="cursor-grab active:cursor-grabbing">
-                                    <GripVertical className="h-4 w-4 text-muted-foreground" />
+                                    <GripVertical className="icon-md text-muted-foreground" />
                                   </div>
                                   <CardTitle className="text-sm flex-1">Custom Fields Data</CardTitle>
                                   <Select
@@ -2295,7 +2295,7 @@ const PolicyDetail = () => {
                                                       >
                                                         <div className="flex items-center gap-1 mb-1">
                                                           <div {...cfDrag.dragHandleProps}>
-                                                            <GripVertical className="h-3 w-3 text-muted-foreground cursor-grab" />
+                                                            <GripVertical className="icon-xs text-muted-foreground cursor-grab" />
                                                           </div>
                                                           <span className="text-xs font-medium text-muted-foreground">{field.label}</span>
                                                         </div>
@@ -2369,7 +2369,7 @@ const PolicyDetail = () => {
                             <div>
                               <div className="flex items-center gap-2 mb-2">
                                 <div {...provided.dragHandleProps} className="cursor-grab active:cursor-grabbing">
-                                  <GripVertical className="h-4 w-4 text-muted-foreground" />
+                                  <GripVertical className="icon-md text-muted-foreground" />
                                 </div>
                                 <span className="text-sm font-medium text-foreground flex-1">Dynamic Fields Display</span>
                                 <Select
@@ -2430,7 +2430,7 @@ const PolicyDetail = () => {
                             <Card>
                               <CardHeader className="flex flex-row items-center gap-2 py-3 px-4">
                                 <div {...provided.dragHandleProps} className="cursor-grab active:cursor-grabbing">
-                                  <GripVertical className="h-4 w-4 text-muted-foreground" />
+                                  <GripVertical className="icon-md text-muted-foreground" />
                                 </div>
                                 <CardTitle className="text-sm flex-1">Attachments</CardTitle>
                                 {canEdit && (
@@ -2448,9 +2448,9 @@ const PolicyDetail = () => {
                                       disabled={isUploadingAttachment}
                                     >
                                       {isUploadingAttachment ? (
-                                        <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Uploading...</>
+                                        <><Loader2 className="icon-md mr-1 animate-spin" /> Uploading...</>
                                       ) : (
-                                        <><Upload className="h-4 w-4 mr-1" /> Upload</>
+                                        <><Upload className="icon-md mr-1" /> Upload</>
                                       )}
                                     </Button>
                                   </div>
@@ -2463,7 +2463,7 @@ const PolicyDetail = () => {
                                   <div className="space-y-2">
                                     {policy.attachments.map((att: any, i: number) => (
                                       <div key={i} className="flex items-center gap-2 text-sm p-2 rounded-md border">
-                                        <FileText className="h-4 w-4 text-muted-foreground" />
+                                        <FileText className="icon-md text-muted-foreground" />
                                         <span className="flex-1 truncate">{att.name}</span>
                                         {att.size && <span className="text-xs text-muted-foreground shrink-0">{(att.size / 1024).toFixed(1)} KB</span>}
                                         {canEdit && (
@@ -2552,7 +2552,7 @@ const PolicyDetail = () => {
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle className="text-sm flex items-center gap-2">
-                    <Eye className="h-4 w-4 text-module-overview" /> Pre-Reviewers
+                    <Eye className="icon-md text-module-overview" /> Pre-Reviewers
                   </CardTitle>
                   {canEdit && (
                     <Button size="sm" variant="outline" onClick={() => setShowPreReviewDialog(true)}>
@@ -2575,7 +2575,7 @@ const PolicyDetail = () => {
                             <div key={i} className={`p-3 rounded-md border space-y-2 ${r.status === 'reviewed' ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30' : 'border-muted'}`}>
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
-                                  {r.status === 'reviewed' ? <CheckCircle className="h-4 w-4 text-emerald-500" /> : <Clock className="h-4 w-4 text-muted-foreground" />}
+                                  {r.status === 'reviewed' ? <CheckCircle className="icon-md text-emerald-500" /> : <Clock className="icon-md text-muted-foreground" />}
                                   <Badge variant="outline" className="text-[10px]">{r.type === 'user' ? 'User' : 'Group'}</Badge>
                                   <span className="text-sm font-medium">{name}</span>
                                 </div>
@@ -2629,7 +2629,7 @@ const PolicyDetail = () => {
               <Card>
                 <CardHeader>
                   <CardTitle className="text-sm flex items-center gap-2">
-                    <CalendarClock className="h-4 w-4 text-module-knowledge" /> Review Cycles
+                    <CalendarClock className="icon-md text-module-knowledge" /> Review Cycles
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -2677,7 +2677,7 @@ const PolicyDetail = () => {
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle className="text-sm flex items-center gap-2">
-                    <Shield className="h-4 w-4 text-module-compliance" /> Post-Reviewers
+                    <Shield className="icon-md text-module-compliance" /> Post-Reviewers
                   </CardTitle>
                   {canEdit && (
                     <Button size="sm" variant="outline" onClick={() => setShowPostReviewDialog(true)}>
@@ -2700,7 +2700,7 @@ const PolicyDetail = () => {
                             <div key={i} className={`p-3 rounded-md border space-y-2 ${r.status === 'reviewed' ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30' : 'border-muted'}`}>
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
-                                  {r.status === 'reviewed' ? <CheckCircle className="h-4 w-4 text-emerald-500" /> : <Clock className="h-4 w-4 text-muted-foreground" />}
+                                  {r.status === 'reviewed' ? <CheckCircle className="icon-md text-emerald-500" /> : <Clock className="icon-md text-muted-foreground" />}
                                   <Badge variant="outline" className="text-[10px]">{r.type === 'user' ? 'User' : 'Group'}</Badge>
                                   <span className="text-sm font-medium">{name}</span>
                                 </div>
@@ -2754,7 +2754,7 @@ const PolicyDetail = () => {
               <Card>
                 <CardHeader>
                   <CardTitle className="text-sm flex items-center gap-2">
-                    <CalendarClock className="h-4 w-4 text-module-knowledge" /> Review Cycles
+                    <CalendarClock className="icon-md text-module-knowledge" /> Review Cycles
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -2840,10 +2840,10 @@ const PolicyDetail = () => {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="bg-popover">
                               <DropdownMenuItem onClick={() => generateVersionPDF(v, 'preview')}>
-                                <FileText className="h-4 w-4 mr-2" /> Preview PDF
+                                <FileText className="icon-md mr-2" /> Preview PDF
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => generateVersionPDF(v, 'download')}>
-                                <FileDown className="h-4 w-4 mr-2" /> Download PDF
+                                <FileDown className="icon-md mr-2" /> Download PDF
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
@@ -2907,7 +2907,7 @@ const PolicyDetail = () => {
                       }}
                     >
                       <div className={`w-4 h-4 rounded border flex items-center justify-center ${isSelected ? 'bg-primary border-primary' : 'border-muted-foreground/30'}`}>
-                        {isSelected && <CheckCircle className="h-3 w-3 text-module-knowledge-foreground" />}
+                        {isSelected && <CheckCircle className="icon-xs text-module-knowledge-foreground" />}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-medium truncate">{name}</div>
@@ -2931,7 +2931,7 @@ const PolicyDetail = () => {
                     <div key={g.id} className={`flex items-center gap-3 p-2.5 cursor-pointer hover:bg-muted/50 border-b last:border-b-0 ${isSelected ? 'bg-primary/5' : ''}`}
                       onClick={() => setSelectedApproverIds(prev => isSelected ? prev.filter(id => id !== `group:${g.id}`) : [...prev, `group:${g.id}`])}>
                       <div className={`w-4 h-4 rounded border flex items-center justify-center ${isSelected ? 'bg-primary border-primary' : 'border-muted-foreground/30'}`}>
-                        {isSelected && <CheckCircle className="h-3 w-3 text-module-knowledge-foreground" />}
+                        {isSelected && <CheckCircle className="icon-xs text-module-knowledge-foreground" />}
                       </div>
                       <span className="text-sm font-medium">{g.name}</span>
                       <Badge variant="outline" className="text-[10px]">Group</Badge>
@@ -3034,7 +3034,7 @@ const PolicyDetail = () => {
                     <div key={u.id} className={`flex items-center gap-3 p-2.5 cursor-pointer hover:bg-muted/50 border-b last:border-b-0 ${isSelected ? 'bg-primary/5' : ''}`}
                       onClick={() => setPreReviewerIds(prev => isSelected ? prev.filter(id => id !== `user:${u.id}`) : [...prev, `user:${u.id}`])}>
                       <div className={`w-4 h-4 rounded border flex items-center justify-center ${isSelected ? 'bg-primary border-primary' : 'border-muted-foreground/30'}`}>
-                        {isSelected && <CheckCircle className="h-3 w-3 text-module-knowledge-foreground" />}
+                        {isSelected && <CheckCircle className="icon-xs text-module-knowledge-foreground" />}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-medium truncate">{name}</div>
@@ -3055,7 +3055,7 @@ const PolicyDetail = () => {
                     <div key={g.id} className={`flex items-center gap-3 p-2.5 cursor-pointer hover:bg-muted/50 border-b last:border-b-0 ${isSelected ? 'bg-primary/5' : ''}`}
                       onClick={() => setPreReviewerIds(prev => isSelected ? prev.filter(id => id !== `group:${g.id}`) : [...prev, `group:${g.id}`])}>
                       <div className={`w-4 h-4 rounded border flex items-center justify-center ${isSelected ? 'bg-primary border-primary' : 'border-muted-foreground/30'}`}>
-                        {isSelected && <CheckCircle className="h-3 w-3 text-module-knowledge-foreground" />}
+                        {isSelected && <CheckCircle className="icon-xs text-module-knowledge-foreground" />}
                       </div>
                       <span className="text-sm font-medium">{g.name}</span>
                       <Badge variant="outline" className="text-[10px]">Group</Badge>
@@ -3163,7 +3163,7 @@ const PolicyDetail = () => {
                     <div key={u.id} className={`flex items-center gap-3 p-2.5 cursor-pointer hover:bg-muted/50 border-b last:border-b-0 ${isSelected ? 'bg-primary/5' : ''}`}
                       onClick={() => setPostReviewerIds(prev => isSelected ? prev.filter(id => id !== `user:${u.id}`) : [...prev, `user:${u.id}`])}>
                       <div className={`w-4 h-4 rounded border flex items-center justify-center ${isSelected ? 'bg-primary border-primary' : 'border-muted-foreground/30'}`}>
-                        {isSelected && <CheckCircle className="h-3 w-3 text-module-knowledge-foreground" />}
+                        {isSelected && <CheckCircle className="icon-xs text-module-knowledge-foreground" />}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-medium truncate">{name}</div>
@@ -3184,7 +3184,7 @@ const PolicyDetail = () => {
                     <div key={g.id} className={`flex items-center gap-3 p-2.5 cursor-pointer hover:bg-muted/50 border-b last:border-b-0 ${isSelected ? 'bg-primary/5' : ''}`}
                       onClick={() => setPostReviewerIds(prev => isSelected ? prev.filter(id => id !== `group:${g.id}`) : [...prev, `group:${g.id}`])}>
                       <div className={`w-4 h-4 rounded border flex items-center justify-center ${isSelected ? 'bg-primary border-primary' : 'border-muted-foreground/30'}`}>
-                        {isSelected && <CheckCircle className="h-3 w-3 text-module-knowledge-foreground" />}
+                        {isSelected && <CheckCircle className="icon-xs text-module-knowledge-foreground" />}
                       </div>
                       <span className="text-sm font-medium">{g.name}</span>
                       <Badge variant="outline" className="text-[10px]">Group</Badge>
@@ -3286,7 +3286,7 @@ const PolicyDetail = () => {
         <DialogContent className="max-w-5xl h-[85vh] flex flex-col p-0" hideCloseButton={false}>
           <DialogHeader className="px-6 pt-6 pb-2">
             <DialogTitle className="flex items-center gap-2">
-              <Eye className="h-5 w-5" />
+              <Eye className="icon-lg" />
               Document Preview — {policy?.name}
             </DialogTitle>
           </DialogHeader>
@@ -3299,7 +3299,7 @@ const PolicyDetail = () => {
               />
             ) : (
               <div className="flex items-center justify-center h-full">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                <Loader2 className="size-8 animate-spin text-muted-foreground" />
               </div>
             )}
           </div>

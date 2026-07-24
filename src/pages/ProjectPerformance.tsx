@@ -108,7 +108,7 @@ export default function ProjectPerformance() {
     <div className="flex-1 overflow-auto p-4 sm:p-6 space-y-6">
       <div className="flex items-start gap-2 sm:gap-3">
         <Button variant="ghost" size="icon" className="shrink-0" onClick={() => { setSelectedPerfProject(null); setActiveTab('dashboard'); setSelectedRecordId(''); }}>
-          <ArrowLeft className="h-4 w-4" />
+          <ArrowLeft className="icon-md" />
         </Button>
         <div className="flex-1 min-w-0">
           <h1 className="text-xl sm:text-2xl font-bold text-foreground truncate">{selectedPerfProject.name}</h1>

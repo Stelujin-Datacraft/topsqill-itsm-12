@@ -103,11 +103,11 @@ export function EnhancedProjectUsersDialog({ projectId, isOpen, onClose }: Enhan
 
   const getRoleBadgeColor = (role: string) => {
     switch (role) {
-      case 'admin': return 'bg-red-100 text-red-800';
-      case 'editor': return 'bg-blue-100 text-blue-800';
+      case 'admin': return 'bg-destructive/10 text-destructive';
+      case 'editor': return 'bg-info/10 text-info';
       case 'viewer': return 'bg-green-100 text-green-800';
-      case 'member': return 'bg-gray-100 text-gray-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'member': return 'bg-muted text-muted-foreground';
+      default: return 'bg-muted text-muted-foreground';
     }
   };
 
@@ -139,7 +139,7 @@ export function EnhancedProjectUsersDialog({ projectId, isOpen, onClose }: Enhan
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <div className="flex items-center justify-center p-8">
-            <div className="text-center text-red-600">Error loading users: {error}</div>
+            <div className="text-center text-destructive">Error loading users: {error}</div>
           </div>
         </DialogContent>
       </Dialog>
@@ -167,7 +167,7 @@ export function EnhancedProjectUsersDialog({ projectId, isOpen, onClose }: Enhan
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <UserPlus className="h-5 w-5" />
+                    <UserPlus className="icon-lg" />
                     Add User to Project
                   </CardTitle>
                 </CardHeader>
@@ -225,7 +225,7 @@ export function EnhancedProjectUsersDialog({ projectId, isOpen, onClose }: Enhan
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <User className="h-5 w-5" />
+                  <User className="icon-lg" />
                   Project Members ({users.length})
                 </CardTitle>
               </CardHeader>
@@ -235,7 +235,7 @@ export function EnhancedProjectUsersDialog({ projectId, isOpen, onClose }: Enhan
                     <div key={user.user_id} className="flex items-center justify-between p-4 border rounded-lg">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                          <User className="h-5 w-5 text-blue-600" />
+                          <User className="icon-lg text-info" />
                         </div>
                         <div>
                           <div className="font-medium">
@@ -245,11 +245,11 @@ export function EnhancedProjectUsersDialog({ projectId, isOpen, onClose }: Enhan
                             }
                           </div>
                           <div className="text-sm text-muted-foreground flex items-center gap-2">
-                            <Mail className="h-3 w-3" />
+                            <Mail className="icon-xs" />
                             {user.email}
                           </div>
                           <div className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-                            <Clock className="h-3 w-3" />
+                            <Clock className="icon-xs" />
                             Joined {new Date(user.assigned_at).toLocaleDateString()}
                           </div>
                         </div>
@@ -283,7 +283,7 @@ export function EnhancedProjectUsersDialog({ projectId, isOpen, onClose }: Enhan
                               onClick={() => setSelectedUserForSettings(user.user_id)}
                               className="flex items-center gap-1"
                             >
-                              <Settings className="h-4 w-4" />
+                              <Settings className="icon-md" />
                               Settings
                             </Button>
                             

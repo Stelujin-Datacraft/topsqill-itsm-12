@@ -75,7 +75,7 @@ export function DrilldownConfig({
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="text-lg flex items-center gap-2">
-          <TrendingDown className="h-5 w-5" />
+          <TrendingDown className="icon-lg" />
           Drilldown Configuration
         </CardTitle>
       </CardHeader>
@@ -110,7 +110,7 @@ export function DrilldownConfig({
                   <div key={index} className="flex items-center gap-3">
                     <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground min-w-0">
                       Level {index + 1}
-                      {index > 0 && <ChevronRight className="h-4 w-4" />}
+                      {index > 0 && <ChevronRight className="icon-md" />}
                     </div>
                     
                     <div className="flex-1">
@@ -172,7 +172,7 @@ export function DrilldownConfig({
                     const field = formFields.find(f => f.id === fieldId);
                     return (
                       <React.Fragment key={index}>
-                        {index > 0 && <ChevronRight className="h-4 w-4" />}
+                        {index > 0 && <ChevronRight className="icon-md" />}
                         <Badge variant="secondary">
                           {field?.label || 'Unselected'}
                         </Badge>

@@ -248,7 +248,7 @@ const ReportViewerPage = () => {
         <div className="text-center py-12">
           <p className="text-muted-foreground mb-4">You do not have permission to view this report</p>
           <Button onClick={() => navigate('/reports')} variant="outline">
-            <ArrowLeft className="h-4 w-4 mr-2 text-module-workflows" />
+            <ArrowLeft className="icon-md mr-2 text-module-workflows" />
             Back to Reports
           </Button>
         </div>
@@ -262,7 +262,7 @@ const ReportViewerPage = () => {
         <div className="text-center py-12">
           <p className="text-muted-foreground mb-4">Report not found</p>
           <Button onClick={() => navigate('/reports')} variant="outline">
-            <ArrowLeft className="h-4 w-4 mr-2 text-module-workflows" />
+            <ArrowLeft className="icon-md mr-2 text-module-workflows" />
             Back to Reports
           </Button>
         </div>
@@ -277,26 +277,26 @@ const ReportViewerPage = () => {
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="outline">
-            <Share2 className="h-4 w-4 mr-2" />
+            <Share2 className="icon-md mr-2" />
             Share
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-48">
           <DropdownMenuItem onClick={handleCopyLink}>
-            <Copy className="h-4 w-4 mr-2" />
+            <Copy className="icon-md mr-2" />
             Copy Link
           </DropdownMenuItem>
           <DropdownMenuItem onClick={handleShareReport}>
-            <Link className="h-4 w-4 mr-2" />
+            <Link className="icon-md mr-2" />
             Share Report
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={handleDownload}>
-            <Download className="h-4 w-4 mr-2" />
+            <Download className="icon-md mr-2" />
             Download
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => window.open(`/report-view/${id}`, '_blank')}>
-            <ExternalLink className="h-4 w-4 mr-2" />
+            <ExternalLink className="icon-md mr-2" />
             Open in New Tab
           </DropdownMenuItem>
         </DropdownMenuContent>
@@ -307,7 +307,7 @@ const ReportViewerPage = () => {
       </Button>
       
       <Button variant="outline" onClick={() => navigate('/reports')}>
-        <ArrowLeft className="h-4 w-4 mr-2 text-module-workflows" />
+        <ArrowLeft className="icon-md mr-2 text-module-workflows" />
         Back to Reports
       </Button>
     </div>
@@ -325,22 +325,22 @@ const ReportViewerPage = () => {
             )}
             {report.is_public && (
               <Badge variant="secondary">
-                <Eye className="h-3 w-3 mr-1" />
+                <Eye className="icon-xs mr-1" />
                 Public
               </Badge>
             )}
           </div>
           <div className="flex items-center gap-4 text-sm text-muted-foreground">
             <div className="flex items-center gap-1">
-              <Calendar className="h-4 w-4" />
+              <Calendar className="icon-md" />
               <span>Created {format(new Date(report.created_at), 'MMM d, yyyy')}</span>
             </div>
             <div className="flex items-center gap-1">
-              <Calendar className="h-4 w-4" />
+              <Calendar className="icon-md" />
               <span>Updated {format(new Date(report.updated_at), 'MMM d, yyyy')}</span>
             </div>
             <div className="flex items-center gap-1">
-              <User className="h-4 w-4" />
+              <User className="icon-md" />
               <span>By {report.created_by}</span>
             </div>
           </div>

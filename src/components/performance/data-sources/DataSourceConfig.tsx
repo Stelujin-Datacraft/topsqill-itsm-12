@@ -370,7 +370,7 @@ export function DataSourceConfig({ perfProjectId, perfFormId }: DataSourceConfig
 
               {loadingFields && (
                 <div className="flex items-center justify-center py-4">
-                  <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                  <Loader2 className="icon-lg animate-spin text-primary" />
                 </div>
               )}
 
@@ -436,7 +436,7 @@ export function DataSourceConfig({ perfProjectId, perfFormId }: DataSourceConfig
             <CardContent className="py-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <FileText className="h-5 w-5 text-module-forms" />
+                  <FileText className="icon-lg text-module-forms" />
                   <div>
                     <p className="text-sm font-medium text-foreground">{ds.source_form_name}</p>
                     <div className="flex items-center gap-2 mt-1 flex-wrap">
@@ -468,7 +468,7 @@ export function DataSourceConfig({ perfProjectId, perfFormId }: DataSourceConfig
                     className="text-destructive"
                     onClick={() => deleteDataSource.mutate(ds.id)}
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <Trash2 className="icon-md" />
                   </Button>
                 </div>
               </div>

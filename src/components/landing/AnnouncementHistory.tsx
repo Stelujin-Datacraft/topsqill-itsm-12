@@ -63,13 +63,13 @@ const announcements = [
 const getTypeIcon = (type: string) => {
   switch (type) {
     case "feature":
-      return <Sparkles className="h-4 w-4" />;
+      return <Sparkles className="icon-md" />;
     case "bugfix":
-      return <Bug className="h-4 w-4" />;
+      return <Bug className="icon-md" />;
     case "update":
-      return <Zap className="h-4 w-4" />;
+      return <Zap className="icon-md" />;
     default:
-      return <Calendar className="h-4 w-4" />;
+      return <Calendar className="icon-md" />;
   }
 };
 
@@ -77,18 +77,18 @@ const getTypeBadge = (type: string, status: string) => {
   const baseClasses = "capitalize";
   
   if (status === "beta") {
-    return <Badge variant="secondary" className="bg-amber-100 text-amber-800">{type} (Beta)</Badge>;
+    return <Badge variant="secondary" className="bg-warning/10 text-warning">{type} (Beta)</Badge>;
   }
   
   switch (type) {
     case "feature":
       return <Badge variant="secondary" className="bg-green-100 text-green-800">{type}</Badge>;
     case "bugfix":
-      return <Badge variant="secondary" className="bg-red-100 text-red-800">Bug Fix</Badge>;
+      return <Badge variant="secondary" className="bg-destructive/10 text-destructive">Bug Fix</Badge>;
     case "update":
-      return <Badge variant="secondary" className="bg-blue-100 text-blue-800">{type}</Badge>;
+      return <Badge variant="secondary" className="bg-info/10 text-info">{type}</Badge>;
     case "announcement":
-      return <Badge variant="secondary" className="bg-purple-100 text-purple-800">{type}</Badge>;
+      return <Badge variant="secondary" className="bg-accent/10 text-accent-foreground">{type}</Badge>;
     default:
       return <Badge variant="secondary">{type}</Badge>;
   }
@@ -111,7 +111,7 @@ export default function AnnouncementHistory() {
         <div className="max-w-4xl mx-auto">
           <div className="space-y-6">
             {announcements.map((announcement, index) => (
-              <Card key={announcement.id} className="hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
+              <Card key={announcement.id} className="hover:shadow-token-md transition-all duration-300">
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
@@ -131,7 +131,7 @@ export default function AnnouncementHistory() {
                       </div>
                     </div>
                     <div className="text-sm text-muted-foreground flex items-center gap-2">
-                      <Calendar className="h-4 w-4" />
+                      <Calendar className="icon-md" />
                       {new Date(announcement.date).toLocaleDateString('en-US', { 
                         month: 'short', 
                         day: 'numeric', 

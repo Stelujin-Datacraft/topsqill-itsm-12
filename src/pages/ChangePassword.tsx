@@ -289,7 +289,7 @@ const ChangePassword = () => {
         <Card className="w-full max-w-md">
           <CardContent className="py-8 text-center space-y-4">
             <div className="flex justify-center">
-              <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+              <div className="size-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
             </div>
             <p className="text-muted-foreground">Loading...</p>
           </CardContent>
@@ -308,7 +308,7 @@ const ChangePassword = () => {
             <p className="text-muted-foreground">Please log in to change your password</p>
             <Link to="/auth">
               <Button>
-                <ArrowLeft className="w-4 h-4 mr-2" />
+                <ArrowLeft className="icon-md mr-2" />
                 Go to Login
               </Button>
             </Link>
@@ -324,7 +324,7 @@ const ChangePassword = () => {
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
             <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
-              <Lock className="h-6 w-6 text-module-compliance" />
+              <Lock className="icon-xl text-module-compliance" />
             </div>
           </div>
           <CardTitle className="text-2xl">
@@ -340,7 +340,7 @@ const ChangePassword = () => {
         <CardContent>
           {!canChangePassword && !isResetMode && (
             <Alert variant="destructive" className="mb-4">
-              <AlertTriangle className="h-4 w-4" />
+              <AlertTriangle className="icon-md" />
               <AlertDescription>
                 You must wait {hoursUntilChange} more hours before you can change your password again.
               </AlertDescription>

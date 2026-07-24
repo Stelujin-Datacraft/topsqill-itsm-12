@@ -153,7 +153,7 @@ export function PortfolioDashboard() {
   const unmonitoredCount = configuredProjects.filter(p => p.thresholdCount === 0).length;
 
   if (loadingProjects) {
-    return <div className="flex items-center justify-center h-32"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
+    return <div className="flex items-center justify-center h-32"><Loader2 className="icon-xl animate-spin text-primary" /></div>;
   }
 
   if (perfProjects.length === 0) return null;
@@ -162,7 +162,7 @@ export function PortfolioDashboard() {
     <div className="space-y-4 mb-8">
       <div>
         <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-          <Shield className="h-5 w-5 text-module-compliance" />
+          <Shield className="icon-lg text-module-compliance" />
           Portfolio Governance & Risk Overview
         </h2>
         <p className="text-xs text-muted-foreground">Cross-project aggregated risk scoring, governance compliance, and health monitoring</p>
@@ -173,7 +173,7 @@ export function PortfolioDashboard() {
         <Card>
           <CardContent className="pt-4 pb-3">
             <p className="text-xs text-muted-foreground">Portfolio Risk</p>
-            <p className={`text-2xl font-bold ${portfolioRiskScore >= 60 ? 'text-red-600' : portfolioRiskScore >= 30 ? 'text-yellow-600' : 'text-emerald-600'}`}>
+            <p className={`text-2xl font-bold ${portfolioRiskScore >= 60 ? 'text-destructive' : portfolioRiskScore >= 30 ? 'text-yellow-600' : 'text-success'}`}>
               {portfolioRiskScore}/100
             </p>
           </CardContent>
@@ -187,14 +187,14 @@ export function PortfolioDashboard() {
         <Card>
           <CardContent className="pt-4 pb-3">
             <p className="text-xs text-muted-foreground">Active Alerts</p>
-            <p className="text-2xl font-bold text-red-500">{totalAlerts}</p>
+            <p className="text-2xl font-bold text-destructive">{totalAlerts}</p>
             <p className="text-[10px] text-muted-foreground">{criticalCount} critical/high</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-4 pb-3">
             <p className="text-xs text-muted-foreground">Not Configured</p>
-            <p className={`text-2xl font-bold ${notConfiguredCount > 0 ? 'text-muted-foreground' : 'text-emerald-600'}`}>{notConfiguredCount}</p>
+            <p className={`text-2xl font-bold ${notConfiguredCount > 0 ? 'text-muted-foreground' : 'text-success'}`}>{notConfiguredCount}</p>
             <p className="text-[10px] text-muted-foreground">no data source</p>
           </CardContent>
         </Card>
@@ -241,7 +241,7 @@ export function PortfolioDashboard() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
-              <ShieldAlert className="h-4 w-4 text-primary" />
+              <ShieldAlert className="icon-md text-primary" />
               Risk Matrix
             </CardTitle>
             <CardDescription className="text-xs">Projects by risk score and alert severity</CardDescription>
@@ -273,7 +273,7 @@ export function PortfolioDashboard() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
-              <BarChart3 className="h-4 w-4 text-module-reports" />
+              <BarChart3 className="icon-md text-module-reports" />
               Governance Compliance
             </CardTitle>
             <CardDescription className="text-xs">Monitoring coverage and control status</CardDescription>
@@ -281,11 +281,11 @@ export function PortfolioDashboard() {
           <CardContent className="space-y-3">
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">With Thresholds</span>
-              <span className="font-medium text-emerald-600">{portfolioData.filter(p => p.thresholdCount > 0).length}</span>
+              <span className="font-medium text-success">{portfolioData.filter(p => p.thresholdCount > 0).length}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Without Thresholds</span>
-              <span className={`font-medium ${unmonitoredCount > 0 ? 'text-orange-500' : 'text-emerald-600'}`}>{unmonitoredCount}</span>
+              <span className={`font-medium ${unmonitoredCount > 0 ? 'text-orange-500' : 'text-success'}`}>{unmonitoredCount}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">With Predictions</span>
@@ -298,7 +298,7 @@ export function PortfolioDashboard() {
             {unmonitoredCount > 0 && (
               <div className="p-2 rounded-lg bg-orange-500/10 border border-orange-500/20 text-xs">
                 <p className="font-medium text-orange-600 flex items-center gap-1">
-                  <AlertTriangle className="h-3 w-3" />
+                  <AlertTriangle className="icon-xs" />
                   {unmonitoredCount} project{unmonitoredCount > 1 ? 's' : ''} without monitoring rules
                 </p>
                 <p className="text-muted-foreground mt-0.5">Configure thresholds for full governance coverage.</p>
@@ -317,11 +317,11 @@ export function PortfolioDashboard() {
         <CardContent className="space-y-2">
           {portfolioData.map(p => (
             <div key={p.id} className="flex items-center gap-3 p-2.5 rounded-lg border bg-card">
-              {p.health === 'not_configured' ? <Settings className="h-4 w-4 text-muted-foreground shrink-0" /> :
-               p.health === 'healthy' ? <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" /> :
-               p.health === 'critical' ? <XCircle className="h-4 w-4 text-red-500 shrink-0" /> :
-               p.health === 'warning' ? <AlertTriangle className="h-4 w-4 text-orange-500 shrink-0" /> :
-               <TrendingUp className="h-4 w-4 text-yellow-500 shrink-0" />}
+              {p.health === 'not_configured' ? <Settings className="icon-md text-muted-foreground shrink-0" /> :
+               p.health === 'healthy' ? <CheckCircle2 className="icon-md text-success shrink-0" /> :
+               p.health === 'critical' ? <XCircle className="icon-md text-destructive shrink-0" /> :
+               p.health === 'warning' ? <AlertTriangle className="icon-md text-orange-500 shrink-0" /> :
+               <TrendingUp className="icon-md text-yellow-500 shrink-0" />}
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium truncate">{p.name}</p>
                 <p className="text-[10px] text-muted-foreground">

@@ -23,6 +23,7 @@ import DataTablePreview from '@/components/landing/DataTablePreview';
 import TestimonialsSection from '@/components/landing/TestimonialsSection';
 import PricingSection from '@/components/landing/PricingSection';
 import IntegrationsSection from '@/components/landing/IntegrationsSection';
+import { AppIcon } from '@/components/icons';
 import TrustLogosSection from '@/components/landing/TrustLogosSection';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 
@@ -87,8 +88,8 @@ const Index = () => {
                 <Star className="icon-sm me-1" />
                 {t('landing.rating')}
               </Badge>
-              <Badge variant="secondary" className="bg-violet-50 text-violet-800 border-violet-200">
-                <Award className="w-3 h-3 me-1" />
+              <Badge variant="secondary" className="bg-accent/10 text-accent-foreground border-accent/20">
+                <Award className="icon-xs me-1" />
                 {t('landing.enterpriseReady')}
               </Badge>
             </div>
@@ -117,15 +118,15 @@ const Index = () => {
 
             <div className="flex flex-wrap justify-center gap-8 text-sm text-muted-foreground">
               <div className="flex items-center gap-2">
-                <TrendingUp className="h-4 w-4" />
+                <TrendingUp className="icon-md" />
                 {t('landing.orgs')}
               </div>
               <div className="flex items-center gap-2">
-                <Users className="h-4 w-4" />
+                <Users className="icon-md" />
                 {t('landing.formsCreated')}
               </div>
               <div className="flex items-center gap-2">
-                <Globe className="h-4 w-4" />
+                <Globe className="icon-md" />
                 {t('landing.countries')}
               </div>
             </div>
@@ -200,13 +201,13 @@ const Index = () => {
                     icon: Workflow,
                     title: "Visual Workflows",
                     description: "Automate approvals, notifications, integrations, and business processes with our visual workflow designer.",
-                    gradient: "hover:bg-gradient-to-r hover:from-purple-50 hover:to-pink-50 hover:border-purple-200"
+                    gradient: "hover:bg-gradient-to-r hover:from-accent/5 hover:to-secondary/5 hover:border-accent/20"
                   },
                   {
                     icon: BarChart3,
                     title: "Advanced Analytics",
                     description: "Real-time dashboards, custom reports, submission tracking, and powerful data visualization tools.",
-                    gradient: "hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 hover:border-blue-200"
+                    gradient: "hover:bg-gradient-to-r hover:from-info/5 hover:to-accent/5 hover:border-info/20"
                   },
                   {
                     icon: Brain,
@@ -221,19 +222,24 @@ const Index = () => {
                 ].map((feature, index) => (
                   <Card 
                     key={index} 
-                    className={`hover:shadow-xl transition-all duration-500 hover:-translate-y-3 group/card cursor-pointer ${
+                    className={`hover:shadow-token-md transition-all duration-500 group/card cursor-pointer ${
                       feature.gradient || 'hover:border-primary/30 hover:bg-gradient-to-br hover:from-primary/5 hover:to-secondary/5'
                     }`}
                   >
-                    <CardHeader className="group-hover/card:scale-105 transition-transform duration-300">
-                      <feature.icon className={`h-12 w-12 mb-4 transition-all duration-500 ${
-                        feature.title === "Advanced Analytics" 
-                          ? "text-primary group-hover/card:text-blue-600 group-hover/card:scale-125 group-hover/card:drop-shadow-lg" 
-                          : feature.title === "Visual Workflows"
-                          ? "text-primary group-hover/card:text-purple-600 group-hover/card:scale-125 group-hover/card:drop-shadow-lg"
-                          : "text-primary group-hover/card:scale-125 group-hover/card:text-emerald-600 group-hover/card:drop-shadow-lg"
-                      }`} />
-                      <CardTitle className="text-xl group-hover/card:text-primary transition-colors duration-300">{feature.title}</CardTitle>
+                    <CardHeader>
+                      <AppIcon
+                        icon={feature.icon}
+                        size="2xl"
+                        boxed="lg"
+                        className={
+                          feature.title === "Advanced Analytics"
+                            ? "text-info"
+                            : feature.title === "Visual Workflows"
+                            ? "text-accent"
+                            : "text-success"
+                        }
+                      />
+                      <CardTitle className="text-xl mt-4 group-hover/card:text-primary transition-colors duration-300">{feature.title}</CardTitle>
                       <CardDescription className="text-base leading-relaxed group-hover/card:text-foreground transition-colors duration-300">
                         {feature.description}
                       </CardDescription>
@@ -309,7 +315,7 @@ const Index = () => {
                   <img 
                     src="/lovable-uploads/7355d9d6-30ec-4b86-9922-9058a15f6cca.png" 
                     alt="Topsqill Logo" 
-                    className="w-8 h-8 object-contain"
+                    className="size-8 object-contain"
                   />
                   <span className="text-xl font-bold">TopSqill</span>
                 </div>

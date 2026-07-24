@@ -148,7 +148,7 @@ function KPICard({ label, value, unit, icon: Icon, trend, formula, breakdown, on
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Info className="h-3 w-3 text-muted-foreground/60 shrink-0 cursor-help" />
+                      <Info className="icon-xs text-muted-foreground/60 shrink-0 cursor-help" />
                     </TooltipTrigger>
                     <TooltipContent side="top" className="max-w-[250px] z-[9999]">
                       <p className="text-xs font-mono">{formula}</p>
@@ -167,7 +167,7 @@ function KPICard({ label, value, unit, icon: Icon, trend, formula, breakdown, on
           </div>
           {Icon && (
             <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-              <Icon className="h-5 w-5 text-primary" />
+              <Icon className="icon-lg text-primary" />
             </div>
           )}
         </div>
@@ -220,12 +220,12 @@ function ChildRecordRow({ record, level, onClick, metrics }: {
       </div>
       <div className="flex items-center gap-2 shrink-0">
         {metrics.map((m, i) => (
-          <div key={i} className={`text-right ${m.variant === 'danger' ? 'text-destructive' : m.variant === 'success' ? 'text-emerald-600' : 'text-muted-foreground'}`}>
+          <div key={i} className={`text-right ${m.variant === 'danger' ? 'text-destructive' : m.variant === 'success' ? 'text-success' : 'text-muted-foreground'}`}>
             <p className="text-[10px] text-muted-foreground">{m.label}</p>
             <p className="text-xs font-bold">{m.value}</p>
           </div>
         ))}
-        <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+        <ChevronRight className="icon-md text-muted-foreground group-hover:text-primary transition-colors" />
       </div>
     </div>
   );
@@ -248,7 +248,7 @@ function ChildRecordsSection({ childRecords, childLevel, childLevelLabel, onSele
       <CardHeader className="pb-3 cursor-pointer" onClick={() => setExpanded(!expanded)}>
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm flex items-center gap-2">
-            {expanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+            {expanded ? <ChevronDown className="icon-md text-muted-foreground" /> : <ChevronRight className="icon-md text-muted-foreground" />}
             {childLevelLabel[childLevel]}
             <Badge variant="secondary" className="text-[10px]">{childRecords.length}</Badge>
           </CardTitle>

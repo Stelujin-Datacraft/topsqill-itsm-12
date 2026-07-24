@@ -134,7 +134,7 @@ export function TopLevelPermissions({ projectId, userId, isCurrentUserAdmin }: T
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Settings className="h-5 w-5" />
+          <Settings className="icon-lg" />
           Top-Level Permissions
         </CardTitle>
         <p className="text-sm text-muted-foreground">
@@ -183,7 +183,7 @@ export function TopLevelPermissions({ projectId, userId, isCurrentUserAdmin }: T
               disabled={!hasChanges || saving}
               className="flex items-center gap-2"
             >
-              <Save className="h-4 w-4" />
+              <Save className="icon-md" />
               {saving ? 'Saving...' : 'Save Changes'}
             </Button>
             <Button
@@ -192,7 +192,7 @@ export function TopLevelPermissions({ projectId, userId, isCurrentUserAdmin }: T
               disabled={saving}
               className="flex items-center gap-2"
             >
-              <RotateCcw className="h-4 w-4" />
+              <RotateCcw className="icon-md" />
               Reset to Default
             </Button>
           </div>

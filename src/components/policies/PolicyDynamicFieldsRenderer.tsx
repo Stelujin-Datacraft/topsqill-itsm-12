@@ -148,7 +148,7 @@ export function PolicyDynamicFieldsRenderer({ formId, displayFormat, selectedFie
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-8">
-        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground mr-2" />
+        <Loader2 className="icon-lg animate-spin text-muted-foreground mr-2" />
         <span className="text-sm text-muted-foreground">Loading dynamic field data...</span>
       </div>
     );
@@ -169,7 +169,7 @@ export function PolicyDynamicFieldsRenderer({ formId, displayFormat, selectedFie
     return (
       <Card className="border-dashed">
         <CardContent className="py-6 text-center">
-          <Database className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+          <Database className="size-8 text-muted-foreground mx-auto mb-2" />
           <p className="text-sm text-muted-foreground">
             No records found in the linked form "{formName}".
           </p>
@@ -184,7 +184,7 @@ export function PolicyDynamicFieldsRenderer({ formId, displayFormat, selectedFie
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
-        <Database className="h-4 w-4 text-module-query" />
+        <Database className="icon-md text-module-query" />
         <h3 className="text-sm font-semibold text-foreground">
           Dynamic Data — {formName}
         </h3>
@@ -219,7 +219,7 @@ export function PolicyDynamicFieldsRenderer({ formId, displayFormat, selectedFie
                   />
                 )}
                 <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => exportRecordToPDF(submission, dataFields, linkedData, refId, comments)}>
-                  <Download className="h-3 w-3 mr-1" /> Export
+                  <Download className="icon-xs mr-1" /> Export
                 </Button>
               </div>
             </CardHeader>
@@ -239,7 +239,7 @@ export function PolicyDynamicFieldsRenderer({ formId, displayFormat, selectedFie
               )}
               {comments.length > 0 && (
                 <div className="border-t pt-2 space-y-2">
-                  <p className="text-xs font-medium text-muted-foreground flex items-center gap-1"><MessageSquare className="h-3 w-3" /> Comments ({comments.length})</p>
+                  <p className="text-xs font-medium text-muted-foreground flex items-center gap-1"><MessageSquare className="icon-xs" /> Comments ({comments.length})</p>
                   {comments.map((c, ci) => (
                     <div key={ci} className="text-xs p-2 rounded border bg-muted/30">
                       <div className="flex justify-between">
@@ -273,7 +273,7 @@ function RecordCommentButton({ recordId, fields, onAddComment, currentUserName }
   if (!open) {
     return (
       <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setOpen(true)}>
-        <MessageSquare className="h-3 w-3 mr-1" /> Comment
+        <MessageSquare className="icon-xs mr-1" /> Comment
       </Button>
     );
   }
@@ -307,7 +307,7 @@ function RecordCommentButton({ recordId, fields, onAddComment, currentUserName }
         setOpen(false);
         toast.success('Comment added');
       }}>
-        <Plus className="h-3 w-3" />
+        <Plus className="icon-xs" />
       </Button>
       <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setOpen(false)}>✕</Button>
     </div>

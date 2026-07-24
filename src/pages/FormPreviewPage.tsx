@@ -16,7 +16,7 @@ const FormPreviewPage = () => {
 
   const headerActions = (
     <Button variant="outline" onClick={() => navigate('/dashboard')}>
-      <ArrowLeft className="h-4 w-4 mr-2" />
+      <ArrowLeft className="icon-md mr-2" />
       Back to Dashboard
     </Button>
   );
@@ -42,7 +42,7 @@ const FormPreviewPage = () => {
       <div className="space-y-4">
         <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg dark:bg-blue-900/20 dark:border-blue-800">
           <p className="text-blue-800 font-medium dark:text-blue-200">Preview Mode</p>
-          <p className="text-blue-600 text-sm dark:text-blue-300">This is a preview of your form. Submissions will not be saved.</p>
+          <p className="text-info text-sm dark:text-blue-300">This is a preview of your form. Submissions will not be saved.</p>
         </div>
         
         <FormPreview form={form} />

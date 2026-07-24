@@ -271,7 +271,7 @@ export function SimpleTablePreview({
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Database className="h-5 w-5 text-module-query" />
+          <Database className="icon-lg text-module-query" />
           <div>
             <h3 className="font-semibold">
               {title || 'Table Preview'}
@@ -298,7 +298,7 @@ export function SimpleTablePreview({
               onClick={handleExport}
               disabled={sortedData.length === 0}
             >
-              <Download className="h-4 w-4 mr-2" />
+              <Download className="icon-md mr-2" />
               Export
             </Button>
           )}
@@ -308,7 +308,7 @@ export function SimpleTablePreview({
       {/* Search */}
       {enableSearch && (
         <div className="flex items-center space-x-2">
-          <Search className="h-4 w-4 text-muted-foreground" />
+          <Search className="icon-md text-muted-foreground" />
           <Input
             placeholder="Search records..."
             value={searchTerm}
@@ -344,16 +344,16 @@ export function SimpleTablePreview({
                             variant="ghost"
                             size="sm"
                             onClick={() => handleSort(field.id)}
-                            className="h-4 w-4 p-0"
+                            className="icon-md p-0"
                           >
                             {sortField === field.id ? (
                               sortDirection === 'asc' ? (
-                                <ChevronUp className="h-3 w-3" />
+                                <ChevronUp className="icon-xs" />
                               ) : (
-                                <ChevronDown className="h-3 w-3" />
+                                <ChevronDown className="icon-xs" />
                               )
                             ) : (
-                              <ChevronUp className="h-3 w-3 opacity-50" />
+                              <ChevronUp className="icon-xs opacity-50" />
                             )}
                           </Button>
                         )}

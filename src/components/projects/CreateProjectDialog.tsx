@@ -108,7 +108,7 @@ export function CreateProjectDialog({ onProjectCreated, trigger }: CreateProject
 
   const defaultTrigger = (
     <Button>
-      <Plus className="h-4 w-4 mr-2" />
+      <Plus className="icon-md mr-2" />
       Create Project
     </Button>
   );

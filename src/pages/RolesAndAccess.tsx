@@ -18,7 +18,7 @@ const RolesAndAccess = () => {
     return (
       <DashboardLayout title="Access Denied" actions={<BackToMembersButton />}>
         <div className="text-center py-12">
-          <Shield className="h-12 w-12 text-red-500 mx-auto mb-4" />
+          <Shield className="h-12 w-12 text-destructive mx-auto mb-4" />
           <h3 className="text-lg font-semibold mb-2">Access Denied</h3>
           <p className="text-muted-foreground">
             You need administrator privileges to access this page.

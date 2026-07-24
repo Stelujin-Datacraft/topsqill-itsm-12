@@ -62,7 +62,7 @@ export default function FormSubmissionsTable() {
   };
   if (!canViewSubmissions && selectedFormId) {
     return <DashboardLayout title="Form Submissions" actions={<Button variant="ghost" onClick={handleBack}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
+            <ArrowLeft className="icon-md mr-2" />
             Back
           </Button>}>
         <div className="flex items-center justify-center h-full">
@@ -76,7 +76,7 @@ export default function FormSubmissionsTable() {
                   You don't have permission to view submissions for this form.
                 </p>
                 <Button onClick={handleBack} className="mt-4">
-                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  <ArrowLeft className="icon-md mr-2" />
                   Go Back
                 </Button>
               </div>
@@ -88,17 +88,17 @@ export default function FormSubmissionsTable() {
   const headerActions = selectedFormId ? (
     <div className="flex items-center gap-2">
       <Button variant="outline" size="sm" onClick={() => setShowSaveDialog(true)}>
-        <Save className="h-4 w-4 mr-1 text-module-workflows" />
+        <Save className="icon-md mr-1 text-module-workflows" />
         Save as Report
       </Button>
       <Button variant="ghost" size="sm" onClick={handleBack}>
-        <ArrowLeft className="h-4 w-4 mr-1 text-module-workflows" />
+        <ArrowLeft className="icon-md mr-1 text-module-workflows" />
         Back
       </Button>
     </div>
   ) : (
     <Button variant="ghost" size="sm" onClick={handleBack}>
-      <ArrowLeft className="h-4 w-4 mr-1 text-module-forms" />
+      <ArrowLeft className="icon-md mr-1 text-module-forms" />
       Back
     </Button>
   );
@@ -130,7 +130,7 @@ export default function FormSubmissionsTable() {
             {selectedFormId && (
               <>
                 <Button variant="default" size="sm" onClick={() => navigate(`/form/${selectedFormId}`)}>
-                  <FileText className="h-4 w-4 mr-1" />
+                  <FileText className="icon-md mr-1" />
                   Create Record
                 </Button>
                 <Button
@@ -140,7 +140,7 @@ export default function FormSubmissionsTable() {
                   title={isExpanded ? 'Normal View' : 'Expand View'}
                   className="px-2"
                 >
-                  {isExpanded ? <Minimize2 className="h-4 w-4 text-module-workflows" /> : <Maximize2 className="h-4 w-4 text-module-workflows" />}
+                  {isExpanded ? <Minimize2 className="icon-md text-module-workflows" /> : <Maximize2 className="icon-md text-module-workflows" />}
                 </Button>
               </>
             )}

@@ -89,11 +89,11 @@ const Workflows = () => {
      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
        <TabsList>
           <TabsTrigger value="workflows" className="flex items-center gap-2">
-            <ListTree className="h-4 w-4 text-module-workflows" />
+            <ListTree className="icon-md text-module-workflows" />
             {t('workflows.tabWorkflows')}
           </TabsTrigger>
           <TabsTrigger value="queue" className="flex items-center gap-2">
-            <Inbox className="h-4 w-4 text-module-workflows" />
+            <Inbox className="icon-md text-module-workflows" />
             {t('workflows.tabQueue')}
           </TabsTrigger>
        </TabsList>

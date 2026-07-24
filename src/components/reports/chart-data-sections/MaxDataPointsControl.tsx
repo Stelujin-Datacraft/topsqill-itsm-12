@@ -38,7 +38,7 @@ export function MaxDataPointsControl({
               {stepNumber}
             </div>
           ) : (
-            <ListFilter className="h-5 w-5 text-muted-foreground shrink-0" />
+            <ListFilter className="icon-lg text-muted-foreground shrink-0" />
           )}
           <div>
             <CardTitle className="text-base">{label}</CardTitle>

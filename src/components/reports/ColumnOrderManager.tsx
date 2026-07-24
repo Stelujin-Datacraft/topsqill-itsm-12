@@ -89,7 +89,7 @@ export function ColumnOrderManager({
       <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Move className="h-5 w-5" />
+            <Move className="icon-lg" />
             Reorder Columns
           </DialogTitle>
           <p className="text-sm text-muted-foreground">
@@ -101,7 +101,7 @@ export function ColumnOrderManager({
           <div className="space-y-4">
             {columnOrder.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
-                <Move className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                <Move className="size-8 mx-auto mb-2 opacity-50" />
                 <p>No columns selected</p>
                 <p className="text-sm">Select columns from the Columns dropdown first</p>
               </div>
@@ -134,7 +134,7 @@ export function ColumnOrderManager({
                                     {...provided.dragHandleProps}
                                     className="text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing"
                                   >
-                                    <GripVertical className="h-4 w-4" />
+                                    <GripVertical className="icon-md" />
                                   </div>
                                   
                                   <div className="flex items-center gap-2 flex-1">
@@ -156,18 +156,18 @@ export function ColumnOrderManager({
                                     size="sm"
                                     onClick={() => moveUp(index)}
                                     disabled={index === 0}
-                                    className="h-8 w-8 p-0"
+                                    className="size-8 p-0"
                                   >
-                                    <ArrowUp className="h-3 w-3" />
+                                    <ArrowUp className="icon-xs" />
                                   </Button>
                                   <Button
                                     variant="ghost"
                                     size="sm"
                                     onClick={() => moveDown(index)}
                                     disabled={index === columnOrder.length - 1}
-                                    className="h-8 w-8 p-0"
+                                    className="size-8 p-0"
                                   >
-                                    <ArrowDown className="h-3 w-3" />
+                                    <ArrowDown className="icon-xs" />
                                   </Button>
                                 </div>
                               </div>

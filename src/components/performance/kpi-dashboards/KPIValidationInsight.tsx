@@ -459,7 +459,7 @@ export function KPIValidationInsight({ kpiLabel, breakdown, context, onClose }: 
     <Card className="border-primary/20 bg-gradient-to-br from-card via-card to-muted/20 shadow-sm animate-in slide-in-from-top-2 duration-200">
       <CardHeader className="pb-2 flex flex-row items-center justify-between">
         <div className="flex items-center gap-2">
-          <ShieldCheck className="h-4 w-4 text-module-compliance" />
+          <ShieldCheck className="icon-md text-module-compliance" />
           <CardTitle className="text-sm">Validation & Insight — {kpiLabel}</CardTitle>
         </div>
       </CardHeader>
@@ -468,7 +468,7 @@ export function KPIValidationInsight({ kpiLabel, breakdown, context, onClose }: 
         {analysis.consistencyChecks.length > 0 && (
           <div>
             <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
-              <FileSearch className="h-3 w-3" /> Data Consistency Check
+              <FileSearch className="icon-xs" /> Data Consistency Check
             </p>
             <div className="rounded-md border overflow-hidden">
               <Table>
@@ -496,12 +496,12 @@ export function KPIValidationInsight({ kpiLabel, breakdown, context, onClose }: 
                       </TableCell>
                       <TableCell className="py-2 text-center">
                         {check.match ? (
-                          <Badge className="bg-emerald-500/15 text-emerald-600 border-emerald-500/30 text-[10px] gap-1">
-                            <CheckCircle2 className="h-3 w-3" /> Correct
+                          <Badge className="bg-emerald-500/15 text-success border-emerald-500/30 text-[10px] gap-1">
+                            <CheckCircle2 className="icon-xs" /> Correct
                           </Badge>
                         ) : (
                           <Badge variant="destructive" className="text-[10px] gap-1">
-                            <XCircle className="h-3 w-3" /> Mismatch
+                            <XCircle className="icon-xs" /> Mismatch
                           </Badge>
                         )}
                       </TableCell>
@@ -517,7 +517,7 @@ export function KPIValidationInsight({ kpiLabel, breakdown, context, onClose }: 
         {analysis.comparisons.length > 0 && (
           <div>
             <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
-              <TrendingUp className="h-3 w-3" /> Performance Comparison
+              <TrendingUp className="icon-xs" /> Performance Comparison
             </p>
             <div className="space-y-1.5">
               {analysis.comparisons.map((comp, i) => (
@@ -527,9 +527,9 @@ export function KPIValidationInsight({ kpiLabel, breakdown, context, onClose }: 
                   comp.icon === 'warn' ? 'bg-warning/5 border-warning/20' :
                   'bg-destructive/5 border-destructive/20'
                 )}>
-                  {comp.icon === 'check' ? <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" /> :
-                   comp.icon === 'warn' ? <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" /> :
-                   <XCircle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />}
+                  {comp.icon === 'check' ? <CheckCircle2 className="icon-md text-emerald-500 shrink-0 mt-0.5" /> :
+                   comp.icon === 'warn' ? <AlertTriangle className="icon-md text-warning shrink-0 mt-0.5" /> :
+                   <XCircle className="icon-md text-destructive shrink-0 mt-0.5" />}
                   <span className="text-foreground text-xs">{comp.text}</span>
                 </div>
               ))}
@@ -576,7 +576,7 @@ export function KPIValidationInsight({ kpiLabel, breakdown, context, onClose }: 
         {analysis.healthIndicators.length > 0 && (
           <div>
             <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
-              <ShieldCheck className="h-3 w-3" /> KPI Health Indicator
+              <ShieldCheck className="icon-xs" /> KPI Health Indicator
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {analysis.healthIndicators.map((hi, i) => (
@@ -591,11 +591,11 @@ export function KPIValidationInsight({ kpiLabel, breakdown, context, onClose }: 
                     <span className="text-lg font-bold font-mono text-foreground">{hi.value.toFixed(2)}</span>
                     <Badge variant="outline" className={cn(
                       'text-[10px]',
-                      hi.status === 'good' ? 'text-emerald-600 border-emerald-500/30' :
+                      hi.status === 'good' ? 'text-success border-emerald-500/30' :
                       hi.status === 'neutral' ? 'text-muted-foreground' :
                       'text-destructive border-destructive/30'
                     )}>
-                      {hi.status === 'good' ? <TrendingUp className="h-3 w-3 mr-0.5" /> : hi.status === 'poor' ? <TrendingDown className="h-3 w-3 mr-0.5" /> : null}
+                      {hi.status === 'good' ? <TrendingUp className="icon-xs mr-0.5" /> : hi.status === 'poor' ? <TrendingDown className="icon-xs mr-0.5" /> : null}
                       {hi.label}
                     </Badge>
                   </div>
@@ -609,7 +609,7 @@ export function KPIValidationInsight({ kpiLabel, breakdown, context, onClose }: 
         {analysis.rootCauses.length > 0 && (
           <div>
             <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
-              <AlertTriangle className="h-3 w-3" /> Root Cause Highlight
+              <AlertTriangle className="icon-xs" /> Root Cause Highlight
             </p>
             <div className="rounded-md border overflow-hidden">
               <Table>
@@ -647,7 +647,7 @@ export function KPIValidationInsight({ kpiLabel, breakdown, context, onClose }: 
         {analysis.summary && (
           <div className="rounded-lg bg-primary/5 border border-primary/20 px-4 py-3">
             <div className="flex items-start gap-2">
-              <MessageSquareText className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+              <MessageSquareText className="icon-md text-primary shrink-0 mt-0.5" />
               <div>
                 <p className="text-[10px] font-semibold text-primary uppercase tracking-wider mb-1">Summary</p>
                 <p className="text-sm text-foreground leading-relaxed">{analysis.summary}</p>

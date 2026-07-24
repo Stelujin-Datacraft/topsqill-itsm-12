@@ -105,7 +105,7 @@ export function AssetLevelPermissions({ user, open, onOpenChange }: AssetLevelPe
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Shield className="h-5 w-5" />
+            <Shield className="icon-lg" />
             Asset-Level Permissions
           </DialogTitle>
         </DialogHeader>
@@ -136,7 +136,7 @@ export function AssetLevelPermissions({ user, open, onOpenChange }: AssetLevelPe
 
           {/* Info Alert */}
           <Alert>
-            <Info className="h-4 w-4" />
+            <Info className="icon-md" />
             <AlertDescription>
               {assignedRole 
                 ? `Permissions are automatically applied based on the assigned role "${assignedRole.name}". These cannot be manually edited.`
@@ -159,7 +159,7 @@ export function AssetLevelPermissions({ user, open, onOpenChange }: AssetLevelPe
 
           {!assignedRole && (
             <Alert>
-              <Info className="h-4 w-4" />
+              <Info className="icon-md" />
               <AlertDescription>
                 To grant additional permissions, assign a role to this user through the Role-Based Access system.
               </AlertDescription>

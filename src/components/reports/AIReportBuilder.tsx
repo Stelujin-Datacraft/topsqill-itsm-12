@@ -179,7 +179,7 @@ export function AIReportBuilder({ open, onOpenChange, reportId, onComponentGener
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-module-query" />
+            <Sparkles className="icon-lg text-module-query" />
             AI Report Builder
             <Badge variant="secondary" className="text-xs">Beta</Badge>
           </DialogTitle>
@@ -214,9 +214,9 @@ export function AIReportBuilder({ open, onOpenChange, reportId, onComponentGener
             <Collapsible open={showFieldRef} onOpenChange={setShowFieldRef}>
               <CollapsibleTrigger asChild>
                 <button className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
-                  <Info className="h-3 w-3" />
+                  <Info className="icon-xs" />
                   <span>Available Fields ({formFields.length})</span>
-                  {showFieldRef ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                  {showFieldRef ? <ChevronUp className="icon-xs" /> : <ChevronDown className="icon-xs" />}
                 </button>
               </CollapsibleTrigger>
               <CollapsibleContent>
@@ -244,7 +244,7 @@ export function AIReportBuilder({ open, onOpenChange, reportId, onComponentGener
 
           {loadingFields && (
             <div className="text-xs text-muted-foreground flex items-center gap-1">
-              <Loader2 className="h-3 w-3 animate-spin" />
+              <Loader2 className="icon-xs animate-spin" />
               Loading fields...
             </div>
           )}
@@ -276,12 +276,12 @@ export function AIReportBuilder({ open, onOpenChange, reportId, onComponentGener
           >
             {isGenerating ? (
               <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                <Loader2 className="icon-md mr-2 animate-spin" />
                 Generating Chart Config...
               </>
             ) : (
               <>
-                <Sparkles className="h-4 w-4 mr-2" />
+                <Sparkles className="icon-md mr-2" />
                 Generate Chart
               </>
             )}

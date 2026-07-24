@@ -181,6 +181,12 @@
     letter-spacing: -0.025em;
   }
 
+  /* HD Lucide icons — crisp strokes at all sizes */
+  svg.lucide {
+    stroke-width: 1.75;
+    shape-rendering: geometricPrecision;
+  }
+
   code, kbd, samp, pre {
     font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     font-feature-settings: 'liga' 0;

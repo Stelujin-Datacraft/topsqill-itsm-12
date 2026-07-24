@@ -53,12 +53,12 @@ export function ChartExportButton({
     >
       {isExporting ? (
         <>
-          <Loader2 className="h-4 w-4 animate-spin" />
+          <Loader2 className="icon-md animate-spin" />
           <span className="hidden sm:inline">Exporting...</span>
         </>
       ) : (
         <>
-          <Download className="h-4 w-4" />
+          <Download className="icon-md" />
           <span className="hidden sm:inline">PDF</span>
         </>
       )}

@@ -63,23 +63,23 @@ export function ExportDropdown({ data, disabled, formId, formName, asSubMenu = f
   const exportItems = (
     <>
       <DropdownMenuItem onSelect={(e) => { e.preventDefault(); handleExport('csv'); }}>
-        <FileText className="h-4 w-4 mr-2" />
+        <FileText className="icon-md mr-2" />
         Export as CSV
       </DropdownMenuItem>
       <DropdownMenuItem onSelect={(e) => { e.preventDefault(); handleExport('pdf'); }}>
-        <FileText className="h-4 w-4 mr-2" />
+        <FileText className="icon-md mr-2" />
         Export as PDF
       </DropdownMenuItem>
       <DropdownMenuItem onSelect={(e) => { e.preventDefault(); handleExport('json'); }}>
-        <FileJson className="h-4 w-4 mr-2" />
+        <FileJson className="icon-md mr-2" />
         Export as JSON
       </DropdownMenuItem>
       <DropdownMenuItem onSelect={(e) => { e.preventDefault(); handleExport('parquet'); }}>
-        <Database className="h-4 w-4 mr-2" />
+        <Database className="icon-md mr-2" />
         Export as Parquet
       </DropdownMenuItem>
       <DropdownMenuItem onSelect={(e) => { e.preventDefault(); handleExport('avro'); }}>
-        <Database className="h-4 w-4 mr-2" />
+        <Database className="icon-md mr-2" />
         Export as Avro
       </DropdownMenuItem>
     </>
@@ -89,7 +89,7 @@ export function ExportDropdown({ data, disabled, formId, formName, asSubMenu = f
     return (
       <DropdownMenuSub>
         <DropdownMenuSubTrigger>
-          <Download className="h-4 w-4 mr-2 text-module-forms" />
+          <Download className="icon-md mr-2 text-module-forms" />
           Export Data
         </DropdownMenuSubTrigger>
         <DropdownMenuSubContent className="bg-popover">
@@ -103,7 +103,7 @@ export function ExportDropdown({ data, disabled, formId, formName, asSubMenu = f
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="outline" size="sm" disabled={disabled}>
-          <Download className="h-4 w-4 mr-2" />
+          <Download className="icon-md mr-2" />
           Export
         </Button>
       </DropdownMenuTrigger>

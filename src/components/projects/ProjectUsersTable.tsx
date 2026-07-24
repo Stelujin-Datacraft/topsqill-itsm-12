@@ -58,10 +58,10 @@ export function ProjectUsersTable({
 
   const getRoleBadge = (user: EnhancedProjectUser) => {
     if (user.effective_permissions.is_org_admin) {
-      return <Badge className="bg-purple-100 text-purple-800"><Crown className="h-3 w-3 mr-1" />Org Admin</Badge>;
+      return <Badge className="bg-accent/10 text-accent-foreground"><Crown className="icon-xs mr-1" />Org Admin</Badge>;
     }
     if (user.effective_permissions.is_project_admin) {
-      return <Badge className="bg-blue-100 text-blue-800"><Shield className="h-3 w-3 mr-1" />Project Admin</Badge>;
+      return <Badge className="bg-info/10 text-info"><Shield className="icon-xs mr-1" />Project Admin</Badge>;
     }
     if (user.role === 'editor') {
       return <Badge variant="secondary">Project Editor</Badge>;
@@ -182,14 +182,14 @@ export function ProjectUsersTable({
                   
                   <TableCell>
                     <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                      <Calendar className="h-3 w-3" />
+                      <Calendar className="icon-xs" />
                       {format(new Date(user.assigned_at), 'MMM d, yyyy')}
                     </div>
                   </TableCell>
                   
                   <TableCell>
                     <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                      <Activity className="h-3 w-3" />
+                      <Activity className="icon-xs" />
                       {format(new Date(user.last_activity), 'MMM d, yyyy')}
                     </div>
                   </TableCell>
@@ -201,7 +201,7 @@ export function ProjectUsersTable({
                         variant="outline"
                         onClick={() => onManagePermissions(user)}
                       >
-                        <Settings className="h-4 w-4" />
+                        <Settings className="icon-md" />
                       </Button>
                       
                       {!user.effective_permissions.is_org_admin && (
@@ -210,7 +210,7 @@ export function ProjectUsersTable({
                           variant="outline"
                           onClick={() => onRemoveUser(user.user_id)}
                         >
-                          <UserMinus className="h-4 w-4" />
+                          <UserMinus className="icon-md" />
                         </Button>
                       )}
                     </div>

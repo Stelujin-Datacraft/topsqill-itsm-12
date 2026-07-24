@@ -220,7 +220,7 @@ export function WarrantyLicenseTracker() {
         <Card>
           <CardContent className="pt-4 pb-3">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary/10"><ShieldCheck className="h-5 w-5 text-module-compliance" /></div>
+              <div className="p-2 rounded-lg bg-primary/10"><ShieldCheck className="icon-lg text-module-compliance" /></div>
               <div>
                 <p className="text-2xl font-bold">{warrantyActive.length}</p>
                 <p className="text-xs text-muted-foreground">Warranty Active</p>
@@ -231,7 +231,7 @@ export function WarrantyLicenseTracker() {
         <Card>
           <CardContent className="pt-4 pb-3">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-amber-500/10"><AlertTriangle className="h-5 w-5 text-amber-500" /></div>
+              <div className="p-2 rounded-lg bg-amber-500/10"><AlertTriangle className="icon-lg text-amber-500" /></div>
               <div>
                 <p className="text-2xl font-bold">{warrantyExpiringSoon.length}</p>
                 <p className="text-xs text-muted-foreground">Warranty Expiring</p>
@@ -242,7 +242,7 @@ export function WarrantyLicenseTracker() {
         <Card>
           <CardContent className="pt-4 pb-3">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-destructive/10"><Clock className="h-5 w-5 text-destructive" /></div>
+              <div className="p-2 rounded-lg bg-destructive/10"><Clock className="icon-lg text-destructive" /></div>
               <div>
                 <p className="text-2xl font-bold">{warrantyExpired.length}</p>
                 <p className="text-xs text-muted-foreground">Warranty Expired</p>
@@ -253,7 +253,7 @@ export function WarrantyLicenseTracker() {
         <Card>
           <CardContent className="pt-4 pb-3">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary/10"><Key className="h-5 w-5 text-module-api" /></div>
+              <div className="p-2 rounded-lg bg-primary/10"><Key className="icon-lg text-module-api" /></div>
               <div>
                 <p className="text-2xl font-bold">{activeLicenses.length}</p>
                 <p className="text-xs text-muted-foreground">Active Licenses</p>
@@ -264,7 +264,7 @@ export function WarrantyLicenseTracker() {
         <Card>
           <CardContent className="pt-4 pb-3">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-amber-500/10"><AlertTriangle className="h-5 w-5 text-amber-500" /></div>
+              <div className="p-2 rounded-lg bg-amber-500/10"><AlertTriangle className="icon-lg text-amber-500" /></div>
               <div>
                 <p className="text-2xl font-bold">{expiringLicenses.length}</p>
                 <p className="text-xs text-muted-foreground">Licenses Expiring</p>
@@ -275,7 +275,7 @@ export function WarrantyLicenseTracker() {
         <Card>
           <CardContent className="pt-4 pb-3">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-destructive/10"><Clock className="h-5 w-5 text-destructive" /></div>
+              <div className="p-2 rounded-lg bg-destructive/10"><Clock className="icon-lg text-destructive" /></div>
               <div>
                 <p className="text-2xl font-bold">{expiredLicenses.length}</p>
                 <p className="text-xs text-muted-foreground">Licenses Expired</p>
@@ -290,14 +290,14 @@ export function WarrantyLicenseTracker() {
         <div className="flex items-center justify-between">
           <TabsList>
             <TabsTrigger value="warranties" className="flex items-center gap-2">
-              <ShieldCheck className="h-4 w-4" />Warranties ({assetsWithWarranty.length})
+              <ShieldCheck className="icon-md" />Warranties ({assetsWithWarranty.length})
             </TabsTrigger>
             <TabsTrigger value="licenses" className="flex items-center gap-2">
-              <Key className="h-4 w-4" />Licenses ({licenses.length})
+              <Key className="icon-md" />Licenses ({licenses.length})
             </TabsTrigger>
           </TabsList>
           {activeTab === 'licenses' && (
-            <Button size="sm" onClick={openAddDialog}><Plus className="h-4 w-4 mr-2" />Add License</Button>
+            <Button size="sm" onClick={openAddDialog}><Plus className="icon-md mr-2" />Add License</Button>
           )}
         </div>
 
@@ -402,8 +402,8 @@ export function WarrantyLicenseTracker() {
                           <TableCell>{getLicenseBadge(license)}</TableCell>
                           <TableCell className="text-right">
                             <div className="flex justify-end gap-1">
-                              <Button variant="ghost" size="icon" onClick={() => openEditDialog(license)}><Edit className="h-4 w-4" /></Button>
-                              <Button variant="ghost" size="icon" onClick={() => deleteLicense(license.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                              <Button variant="ghost" size="icon" onClick={() => openEditDialog(license)}><Edit className="icon-md" /></Button>
+                              <Button variant="ghost" size="icon" onClick={() => deleteLicense(license.id)}><Trash2 className="icon-md text-destructive" /></Button>
                             </div>
                           </TableCell>
                         </TableRow>

@@ -59,9 +59,9 @@ export function PolicyApprovalFlow({
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'approved': return <CheckCircle className="h-5 w-5 text-emerald-500" />;
-      case 'rejected': return <AlertOctagon className="h-5 w-5 text-destructive" />;
-      default: return <Clock className="h-5 w-5 text-amber-500" />;
+      case 'approved': return <CheckCircle className="icon-lg text-emerald-500" />;
+      case 'rejected': return <AlertOctagon className="icon-lg text-destructive" />;
+      default: return <Clock className="icon-lg text-amber-500" />;
     }
   };
 
@@ -97,9 +97,9 @@ export function PolicyApprovalFlow({
       <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50 border">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5">
-            {flowStatus === 'approved' && <CheckCircle className="h-5 w-5 text-emerald-500" />}
-            {flowStatus === 'rejected' && <AlertOctagon className="h-5 w-5 text-destructive" />}
-            {flowStatus === 'in_progress' && <Clock className="h-5 w-5 text-amber-500" />}
+            {flowStatus === 'approved' && <CheckCircle className="icon-lg text-emerald-500" />}
+            {flowStatus === 'rejected' && <AlertOctagon className="icon-lg text-destructive" />}
+            {flowStatus === 'in_progress' && <Clock className="icon-lg text-amber-500" />}
             <span className="text-sm font-semibold capitalize">
               {flowStatus === 'in_progress' ? 'In Progress' : flowStatus}
             </span>
@@ -129,7 +129,7 @@ export function PolicyApprovalFlow({
         {/* Start Node */}
         <div className="flex items-center gap-3 mb-1">
           <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center shrink-0">
-            <User className="h-4 w-4 text-module-access-foreground" />
+            <User className="icon-md text-module-access-foreground" />
           </div>
           <div>
             <p className="text-sm font-medium">Submitted for Approval</p>
@@ -243,11 +243,11 @@ export function PolicyApprovalFlow({
             flowStatus === 'approved' ? 'bg-emerald-500' : flowStatus === 'rejected' ? 'bg-destructive' : 'bg-muted'
           }`}>
             {flowStatus === 'approved' ? (
-              <CheckCircle className="h-4 w-4 text-white" />
+              <CheckCircle className="icon-md text-white" />
             ) : flowStatus === 'rejected' ? (
-              <AlertOctagon className="h-4 w-4 text-white" />
+              <AlertOctagon className="icon-md text-white" />
             ) : (
-              <Clock className="h-4 w-4 text-muted-foreground" />
+              <Clock className="icon-md text-muted-foreground" />
             )}
           </div>
           <div>

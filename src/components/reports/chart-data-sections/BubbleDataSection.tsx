@@ -83,7 +83,7 @@ export function BubbleDataSection({ config, formFields, onConfigChange }: Bubble
   return (
     <div className="space-y-6">
       <Alert className="bg-primary/5 border-primary/20">
-        <Circle className="h-4 w-4 text-primary" />
+        <Circle className="icon-md text-primary" />
         <AlertDescription className="text-sm">
           <strong>Bubble Chart</strong> is like a scatter plot but adds a third dimension through bubble size. Great for showing 3 variables at once.
         </AlertDescription>
@@ -117,7 +117,7 @@ export function BubbleDataSection({ config, formFields, onConfigChange }: Bubble
                 onClick={() => onConfigChange({ metrics: config.metrics?.slice(1) || [] })}
                 className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
               >
-                <X className="h-4 w-4" />
+                <X className="icon-md" />
               </Button>
             </div>
           ) : (
@@ -172,7 +172,7 @@ export function BubbleDataSection({ config, formFields, onConfigChange }: Bubble
                 onClick={() => onConfigChange({ metrics: [config.metrics?.[0] || ''] })}
                 className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
               >
-                <X className="h-4 w-4" />
+                <X className="icon-md" />
               </Button>
             </div>
           ) : (
@@ -223,7 +223,7 @@ export function BubbleDataSection({ config, formFields, onConfigChange }: Bubble
           {sizeField ? (
             <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border">
               <div className="flex items-center gap-2">
-                <Circle className="h-4 w-4 text-primary" />
+                <Circle className="icon-md text-primary" />
                 <span className="font-medium">{getFieldLabel(sizeField)}</span>
                 <Badge variant="secondary" className="text-xs">{getFieldTypeLabel(sizeField)}</Badge>
                 <Badge variant="outline" className="text-xs">Size</Badge>
@@ -234,7 +234,7 @@ export function BubbleDataSection({ config, formFields, onConfigChange }: Bubble
                 onClick={() => onConfigChange({ sizeField: undefined })}
                 className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
               >
-                <X className="h-4 w-4" />
+                <X className="icon-md" />
               </Button>
             </div>
           ) : (
@@ -288,7 +288,7 @@ export function BubbleDataSection({ config, formFields, onConfigChange }: Bubble
                 onClick={() => onConfigChange({ dimensions: [] })}
                 className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
               >
-                <X className="h-4 w-4" />
+                <X className="icon-md" />
               </Button>
             </div>
           ) : categoryFields.length > 0 ? (

@@ -109,7 +109,7 @@ const ReportEditorPage = () => {
         <div className="text-center py-12">
           <p className="text-muted-foreground">Report not found</p>
           <Button onClick={() => navigate('/reports')} className="mt-4">
-            <ArrowLeft className="h-4 w-4 mr-2 text-module-workflows" />
+            <ArrowLeft className="icon-md mr-2 text-module-workflows" />
             Back to Reports
           </Button>
         </div>
@@ -119,7 +119,7 @@ const ReportEditorPage = () => {
 
   const headerActions = (
     <Button variant="outline" onClick={() => navigate('/reports')}>
-      <ArrowLeft className="h-4 w-4 mr-2 text-module-workflows" />
+      <ArrowLeft className="icon-md mr-2 text-module-workflows" />
       Back to Reports
     </Button>
   );

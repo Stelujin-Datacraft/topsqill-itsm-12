@@ -125,7 +125,7 @@ export function CrossReferenceInlineExpand({
   if (loading) {
     return (
       <div className="flex items-center gap-2 py-3 px-3">
-        <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+        <Loader2 className="icon-xs animate-spin text-muted-foreground" />
         <span className="text-xs text-muted-foreground">Loading linked records...</span>
       </div>
     );
@@ -175,7 +175,7 @@ export function CrossReferenceInlineExpand({
           onClick={handleExportExcel}
           disabled={exporting}
         >
-          <Download className="h-3 w-3" />
+          <Download className="icon-xs" />
           {exporting ? 'Exporting...' : 'Export Excel'}
         </Button>
       </div>
@@ -185,7 +185,7 @@ export function CrossReferenceInlineExpand({
              <tr className="bg-muted border-b border-border">
                {hasAnyCrossRefs && (
                  <th className="px-2 py-2 w-[40px] sticky left-0 bg-muted">
-                   <Link2 className="h-3 w-3 text-accent mx-auto" />
+                   <Link2 className="icon-xs text-accent mx-auto" />
                  </th>
                )}
                <th className="px-3 py-2 text-left font-semibold text-muted-foreground whitespace-nowrap sticky left-0 bg-muted">ID</th>
@@ -210,10 +210,10 @@ export function CrossReferenceInlineExpand({
                            <Button
                              variant="outline"
                              size="sm"
-                             className="h-6 w-6 p-0 border-border bg-background hover:bg-muted"
+                             className="icon-xl p-0 border-border bg-background hover:bg-muted"
                              onClick={() => toggleCrossRef(rowKey)}
                            >
-                             {isRowExpanded ? <Minus className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
+                             {isRowExpanded ? <Minus className="icon-xs" /> : <Plus className="icon-xs" />}
                            </Button>
                          ) : (
                            <span className="text-muted-foreground">—</span>
@@ -224,7 +224,7 @@ export function CrossReferenceInlineExpand({
                        <div className="flex items-center gap-1.5">
                          <SubmissionRefDisplay submissionRefId={rec.submissionRefId} submissionId={rec.id} formName={targetFormName || undefined} variant="compact" />
                          <Button variant="ghost" size="sm" className="h-5 px-1 text-xs" onClick={() => navigate(`/submission/${rec.id}`)}>
-                           <ExternalLink className="h-3 w-3 text-info" />
+                           <ExternalLink className="icon-xs text-info" />
                          </Button>
                        </div>
                      </td>
@@ -243,7 +243,7 @@ export function CrossReferenceInlineExpand({
                     <tr key={`${rec.id}-${crData.fieldId}`}>
                       <td colSpan={allFields.length + (hasAnyCrossRefs ? 2 : 1)} className="px-4 py-2 bg-muted/10 border-b border-border/40">
                         <div className="flex items-center gap-2 mb-2">
-                          <Link2 className="h-3 w-3 text-accent" />
+                          <Link2 className="icon-xs text-accent" />
                           <span className="text-xs font-semibold">{crData.label}</span>
                           <Badge variant="outline" className="text-[10px] px-1.5 py-0">
                             {crData.targetFormName} · {crData.linkedRecords.length}
@@ -328,7 +328,7 @@ function MultiRecordTable({ linkedRecords, formId, formName, depth = 0 }: { link
   if (loading) {
     return (
       <div className="flex items-center gap-2 py-2">
-        <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+        <Loader2 className="icon-xs animate-spin text-muted-foreground" />
         <span className="text-xs text-muted-foreground">Loading...</span>
       </div>
     );
@@ -382,7 +382,7 @@ function MultiRecordTable({ linkedRecords, formId, formName, depth = 0 }: { link
                           <Button
                             variant="outline"
                             size="sm"
-                            className="h-5 w-5 p-0 border-border bg-background hover:bg-muted"
+                            className="icon-lg p-0 border-border bg-background hover:bg-muted"
                             onClick={() => toggleCrossRef(rowKey)}
                           >
                             {isRowExpanded ? <Minus className="h-2.5 w-2.5" /> : <Plus className="h-2.5 w-2.5" />}
@@ -396,7 +396,7 @@ function MultiRecordTable({ linkedRecords, formId, formName, depth = 0 }: { link
                       <div className="flex items-center gap-1.5">
                         <SubmissionRefDisplay submissionRefId={rec.submission_ref_id || rec.id?.slice(0, 8)} submissionId={rec.id} formName={formName} variant="compact" />
                         <Button variant="ghost" size="sm" className="h-5 px-1 text-xs" onClick={() => navigate(`/submission/${rec.id}`)}>
-                          <ExternalLink className="h-3 w-3 text-info" />
+                          <ExternalLink className="icon-xs text-info" />
                         </Button>
                       </div>
                     </td>
@@ -462,7 +462,7 @@ function LazyMultiRecordTable({ linkedRefIds, formId, formName, depth = 0 }: { l
   if (loading) {
     return (
       <div className="flex items-center gap-2 py-2">
-        <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+        <Loader2 className="icon-xs animate-spin text-muted-foreground" />
         <span className="text-xs text-muted-foreground">Loading...</span>
       </div>
     );

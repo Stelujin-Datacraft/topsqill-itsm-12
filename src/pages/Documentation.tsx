@@ -811,19 +811,19 @@ const Documentation = () => {
             className="md:hidden mr-2"
             onClick={() => setSidebarOpen(!sidebarOpen)}
           >
-            {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            {sidebarOpen ? <X className="icon-lg" /> : <Menu className="icon-lg" />}
           </Button>
           <Link to="/" className="flex items-center gap-2 mr-6">
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft className="icon-md" />
             <img 
               src="/lovable-uploads/7355d9d6-30ec-4b86-9922-9058a15f6cca.png" 
               alt="Topsqill" 
-              className="h-8 w-8"
+              className="size-8"
             />
             <span className="font-semibold">Topsqill</span>
           </Link>
           <div className="flex items-center gap-2">
-            <Book className="h-4 w-4 text-muted-foreground" />
+            <Book className="icon-md text-muted-foreground" />
             <span className="text-sm font-medium">API Documentation</span>
           </div>
           <div className="ml-auto">
@@ -866,7 +866,7 @@ const Documentation = () => {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Database className="h-5 w-5" />
+                  <Database className="icon-lg" />
                   Base URL
                 </CardTitle>
               </CardHeader>
@@ -976,7 +976,7 @@ const Documentation = () => {
           {/* Forms Endpoints */}
           <section className="mb-12">
             <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
-              <FileText className="h-6 w-6" />
+              <FileText className="icon-xl" />
               Forms Endpoints
             </h2>
             <div className="space-y-4">
@@ -991,7 +991,7 @@ const Documentation = () => {
           {/* Records Endpoints */}
           <section className="mb-12">
             <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
-              <Database className="h-6 w-6" />
+              <Database className="icon-xl" />
               Records (Submissions) Endpoints
             </h2>
             <div className="space-y-4">
@@ -1006,7 +1006,7 @@ const Documentation = () => {
           {/* Bulk Operations */}
           <section className="mb-12">
             <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
-              <Code className="h-6 w-6" />
+              <Code className="icon-xl" />
               Bulk Operations
             </h2>
             <div className="space-y-4">
@@ -1036,7 +1036,7 @@ const Documentation = () => {
               </p>
               <Link to="/">
                 <Button variant="outline" size="sm">
-                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  <ArrowLeft className="icon-md mr-2" />
                   Back to Home
                 </Button>
               </Link>

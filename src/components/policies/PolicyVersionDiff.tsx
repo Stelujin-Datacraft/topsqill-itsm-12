@@ -109,7 +109,7 @@ export function PolicyVersionDiff({ versions, currentContent, currentVersion, po
             </SelectContent>
           </Select>
         </div>
-        <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
+        <ArrowRight className="icon-md text-muted-foreground shrink-0" />
         <div className="flex-1">
           <Select value={rightVersionNum} onValueChange={setRightVersionNum}>
             <SelectTrigger className="h-9 text-sm">
@@ -130,8 +130,8 @@ export function PolicyVersionDiff({ versions, currentContent, currentVersion, po
       {leftVersionNum && rightVersionNum ? (
         <div className="space-y-2">
           <div className="flex items-center gap-3 text-xs text-muted-foreground">
-            <GitCompare className="h-4 w-4" />
-            <span className="text-emerald-600 font-medium">+{addedCount} added</span>
+            <GitCompare className="icon-md" />
+            <span className="text-success font-medium">+{addedCount} added</span>
             <span className="text-destructive font-medium">-{removedCount} removed</span>
           </div>
           <ScrollArea className="h-[400px] border rounded-lg">

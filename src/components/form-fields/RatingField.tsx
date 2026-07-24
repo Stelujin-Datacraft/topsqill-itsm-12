@@ -125,7 +125,7 @@ export function RatingField({ field, value, onChange, error, disabled = false }:
           onClick={() => handleClick(i)}
           disabled={disabled || readOnly}
           className={`transition-colors ${
-            disabled || readOnly ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:scale-110'
+            disabled || readOnly ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:opacity-80'
           }`}
         >
           {renderIcon(i, isFilled, isHalfFilled)}

@@ -80,9 +80,9 @@ function CopyableTag({ tag, label }: { tag: string; label: string }) {
           >
             <span className="text-primary/80">{tag}</span>
             {copied ? (
-              <Check className="h-3 w-3 text-green-500" />
+              <Check className="icon-xs text-green-500" />
             ) : (
-              <Copy className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+              <Copy className="icon-xs text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
             )}
           </button>
         </TooltipTrigger>
@@ -330,7 +330,7 @@ export function PolicyGeneratorDialog({
       <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <ScrollText className="h-5 w-5 text-primary" />
+            <ScrollText className="icon-lg text-primary" />
             Create Docs
           </DialogTitle>
           <DialogDescription>
@@ -341,11 +341,11 @@ export function PolicyGeneratorDialog({
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 min-h-0 flex flex-col">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="generate">
-              <FileText className="h-4 w-4 mr-1" />
+              <FileText className="icon-md mr-1" />
               Generate
             </TabsTrigger>
             <TabsTrigger value="history">
-              <History className="h-4 w-4 mr-1" />
+              <History className="icon-md mr-1" />
               History
             </TabsTrigger>
           </TabsList>
@@ -364,7 +364,7 @@ export function PolicyGeneratorDialog({
                   <Label htmlFor="default" className="font-medium cursor-pointer">Default Template</Label>
                   <p className="text-xs text-muted-foreground mt-1">Built-in professional layout with title page, summary, and records.</p>
                 </div>
-                <FileText className="h-5 w-5 text-muted-foreground" />
+                <FileText className="icon-lg text-muted-foreground" />
               </div>
 
               <div
@@ -378,7 +378,7 @@ export function PolicyGeneratorDialog({
                   <Label htmlFor="template" className="font-medium cursor-pointer">Custom Template</Label>
                   <p className="text-xs text-muted-foreground mt-1">Upload your own .docx template. Records appended after your content.</p>
                 </div>
-                <Upload className="h-5 w-5 text-muted-foreground" />
+                <Upload className="icon-lg text-muted-foreground" />
               </div>
 
               <div
@@ -397,7 +397,7 @@ export function PolicyGeneratorDialog({
                     Upload a .docx with <code className="text-[11px] bg-muted px-1 rounded">{'{Field_Name}'}</code> placeholders. Values are dynamically replaced per record.
                   </p>
                 </div>
-                <Wand2 className="h-5 w-5 text-muted-foreground" />
+                <Wand2 className="icon-lg text-muted-foreground" />
               </div>
             </RadioGroup>
 
@@ -408,15 +408,15 @@ export function PolicyGeneratorDialog({
                 <input ref={smartFileInputRef} type="file" accept=".docx" onChange={handleFileChange} className="hidden" />
                 {templateFile ? (
                   <div className="flex items-center gap-2 p-2 rounded-md bg-muted border">
-                    <FileText className="h-4 w-4 text-module-forms shrink-0" />
+                    <FileText className="icon-md text-module-forms shrink-0" />
                     <span className="text-sm truncate flex-1">{templateFile.name}</span>
-                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setTemplateFile(null); if (smartFileInputRef.current) smartFileInputRef.current.value = ''; }}>
-                      <X className="h-3 w-3" />
+                    <Button variant="ghost" size="icon" className="icon-xl" onClick={() => { setTemplateFile(null); if (smartFileInputRef.current) smartFileInputRef.current.value = ''; }}>
+                      <X className="icon-xs" />
                     </Button>
                   </div>
                 ) : (
                   <Button variant="outline" size="sm" className="w-full" onClick={() => smartFileInputRef.current?.click()}>
-                    <Upload className="h-4 w-4 mr-2" />
+                    <Upload className="icon-md mr-2" />
                     Upload Smart .docx Template
                   </Button>
                 )}
@@ -426,10 +426,10 @@ export function PolicyGeneratorDialog({
                   <PopoverTrigger asChild>
                     <Button variant="outline" size="sm" className="w-full justify-between">
                       <div className="flex items-center gap-2">
-                        <Info className="h-4 w-4 text-module-overview" />
+                        <Info className="icon-md text-module-overview" />
                         <span>Available Placeholder Tags</span>
                       </div>
-                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                      <ChevronDown className="icon-md text-muted-foreground" />
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-[380px] p-0" align="start" sideOffset={4}>
@@ -485,15 +485,15 @@ ${fieldTags.length > 1 ? `${fieldTags[1].label.replace(/\s+/g, '_')}: {${fieldTa
                 <input ref={fileInputRef} type="file" accept=".docx" onChange={handleFileChange} className="hidden" />
                 {templateFile ? (
                   <div className="flex items-center gap-2 p-2 rounded-md bg-muted border">
-                    <FileText className="h-4 w-4 text-module-forms shrink-0" />
+                    <FileText className="icon-md text-module-forms shrink-0" />
                     <span className="text-sm truncate flex-1">{templateFile.name}</span>
-                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setTemplateFile(null); if (fileInputRef.current) fileInputRef.current.value = ''; }}>
-                      <X className="h-3 w-3" />
+                    <Button variant="ghost" size="icon" className="icon-xl" onClick={() => { setTemplateFile(null); if (fileInputRef.current) fileInputRef.current.value = ''; }}>
+                      <X className="icon-xs" />
                     </Button>
                   </div>
                 ) : (
                   <Button variant="outline" size="sm" className="w-full" onClick={() => fileInputRef.current?.click()}>
-                    <Upload className="h-4 w-4 mr-2" />
+                    <Upload className="icon-md mr-2" />
                     Upload .docx Template
                   </Button>
                 )}
@@ -534,7 +534,7 @@ ${fieldTags.length > 1 ? `${fieldTags[1].label.replace(/\s+/g, '_')}: {${fieldTa
           <TabsContent value="history" className="flex-1 min-h-0 overflow-auto py-2">
             {loadingHistory ? (
               <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                <Loader2 className="icon-lg animate-spin text-muted-foreground" />
               </div>
             ) : history.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground text-sm">
@@ -544,7 +544,7 @@ ${fieldTags.length > 1 ? `${fieldTags[1].label.replace(/\s+/g, '_')}: {${fieldTa
               <div className="space-y-2">
                 {history.map(entry => (
                   <div key={entry.id} className="flex items-center gap-3 p-3 border rounded-lg">
-                    <FileText className="h-5 w-5 text-module-forms shrink-0" />
+                    <FileText className="icon-lg text-module-forms shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{entry.file_name}</p>
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -561,11 +561,11 @@ ${fieldTags.length > 1 ? `${fieldTags[1].label.replace(/\s+/g, '_')}: {${fieldTa
                       )}
                     </div>
                     <div className="flex gap-1">
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDownloadHistory(entry)}>
-                        <Download className="h-4 w-4" />
+                      <Button variant="ghost" size="icon" className="size-8" onClick={() => handleDownloadHistory(entry)}>
+                        <Download className="icon-md" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDeleteHistory(entry)}>
-                        <Trash2 className="h-4 w-4" />
+                      <Button variant="ghost" size="icon" className="size-8 text-destructive" onClick={() => handleDeleteHistory(entry)}>
+                        <Trash2 className="icon-md" />
                       </Button>
                     </div>
                   </div>
@@ -587,9 +587,9 @@ ${fieldTags.length > 1 ? `${fieldTags[1].label.replace(/\s+/g, '_')}: {${fieldTa
               }
             >
               {generating ? (
-                <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Generating...</>
+                <><Loader2 className="icon-md mr-2 animate-spin" />Generating...</>
               ) : (
-                <><ScrollText className="h-4 w-4 mr-2" />Generate Doc</>
+                <><ScrollText className="icon-md mr-2" />Generate Doc</>
               )}
             </Button>
           </DialogFooter>

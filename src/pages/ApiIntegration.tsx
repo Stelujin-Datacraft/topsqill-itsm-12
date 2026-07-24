@@ -13,7 +13,7 @@ const ApiIntegration: React.FC = () => {
       description="Manage API keys and external integrations"
       actions={
         <Button onClick={() => setShowCreateDialog(true)}>
-          <Plus className="h-4 w-4 mr-2" />
+          <Plus className="icon-md mr-2" />
           Create API Key
         </Button>
       }

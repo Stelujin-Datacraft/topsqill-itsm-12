@@ -88,7 +88,7 @@ const AcceptInvitation = () => {
                 )}
                 <Link to="/auth">
                   <Button className="w-full">
-                    <LogIn className="h-4 w-4 mr-2" />
+                    <LogIn className="icon-md mr-2" />
                     Go to Login
                   </Button>
                 </Link>
@@ -98,11 +98,11 @@ const AcceptInvitation = () => {
             {status === 'already_exists' && (
               <>
                 <CheckCircle className="h-16 w-16 text-blue-500 mx-auto mb-4" />
-                <h2 className="text-xl font-semibold text-blue-600 mb-2">Account Already Exists</h2>
+                <h2 className="text-xl font-semibold text-info mb-2">Account Already Exists</h2>
                 <p className="text-muted-foreground mb-6">{message}</p>
                 <Link to="/auth">
                   <Button className="w-full">
-                    <LogIn className="h-4 w-4 mr-2" />
+                    <LogIn className="icon-md mr-2" />
                     Go to Login
                   </Button>
                 </Link>
@@ -111,19 +111,19 @@ const AcceptInvitation = () => {
 
             {status === 'error' && (
               <>
-                <XCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
-                <h2 className="text-xl font-semibold text-red-600 mb-2">Invitation Error</h2>
+                <XCircle className="h-16 w-16 text-destructive mx-auto mb-4" />
+                <h2 className="text-xl font-semibold text-destructive mb-2">Invitation Error</h2>
                 <p className="text-muted-foreground mb-6">{message}</p>
                 <div className="space-y-3">
                   <Link to="/auth" className="block">
                     <Button className="w-full">
-                      <LogIn className="h-4 w-4 mr-2" />
+                      <LogIn className="icon-md mr-2" />
                       Go to Login
                     </Button>
                   </Link>
                   <Link to="/" className="block">
                     <Button variant="outline" className="w-full">
-                      <Home className="h-4 w-4 mr-2" />
+                      <Home className="icon-md mr-2" />
                       Go to Homepage
                     </Button>
                   </Link>

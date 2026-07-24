@@ -60,7 +60,7 @@ export function FormulaBreakdownDialog({
 
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base">
-            <Calculator className="h-4 w-4 text-primary" />
+            <Calculator className="icon-md text-primary" />
             {title}
           </DialogTitle>
         </DialogHeader>
@@ -152,7 +152,7 @@ export function FormulaBreakdownDialog({
                       {step.expression}
                     </span>
 
-                    <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                    <ArrowRight className="icon-xs text-muted-foreground" />
 
                     <span className="font-mono font-bold text-foreground">
                       {step.result}
@@ -193,7 +193,7 @@ export function FormulaBreakdownDialog({
               {/* DELAYED */}
               {breakdown.delayedProjects && (
                 <div className="rounded-lg border p-3">
-                  <p className="text-red-600 font-semibold mb-2">
+                  <p className="text-destructive font-semibold mb-2">
                     🔴 Delayed Projects ({breakdown.delayedProjects.length})
                   </p>
 
@@ -220,7 +220,7 @@ export function FormulaBreakdownDialog({
           {/* ================= RESULT ================= */}
           <div className="flex items-center justify-between rounded-lg bg-primary/5 border border-primary/20 px-4 py-3">
             <div className="flex items-center gap-2">
-              <Equal className="h-4 w-4 text-primary" />
+              <Equal className="icon-md text-primary" />
               <span className="text-sm font-semibold text-foreground">
                 Result
               </span>

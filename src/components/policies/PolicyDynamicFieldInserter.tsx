@@ -39,7 +39,7 @@ export function PolicyDynamicFieldInserter({ formId, onInsert }: PolicyDynamicFi
   return (
     <div className="space-y-2 rounded-md border p-3 bg-muted/30">
       <div className="flex items-center gap-2">
-        <Braces className="h-4 w-4 text-primary" />
+        <Braces className="icon-md text-primary" />
         <Label className="text-sm font-medium">Insert Dynamic Fields</Label>
       </div>
       <p className="text-xs text-muted-foreground">
@@ -58,7 +58,7 @@ export function PolicyDynamicFieldInserter({ formId, onInsert }: PolicyDynamicFi
               className="cursor-pointer hover:bg-primary/10 hover:border-primary transition-colors gap-1 py-1"
               onClick={() => handleInsert(field)}
             >
-              <Plus className="h-3 w-3" />
+              <Plus className="icon-xs" />
               {field.label}
               <span className="text-[10px] text-muted-foreground ml-0.5">({field.field_type})</span>
             </Badge>

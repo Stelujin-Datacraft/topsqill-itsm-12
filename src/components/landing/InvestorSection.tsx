@@ -27,7 +27,7 @@ export default function InvestorSection() {
       <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-gradient-to-r from-indigo-400/10 to-purple-400/10 rounded-full blur-3xl"></div>
       <div className="container mx-auto px-4 relative z-10">
         <div className="text-center mb-12">
-          <Badge variant="secondary" className="mb-4 bg-gradient-to-r from-amber-100 to-yellow-100 text-amber-800 border-amber-200">
+          <Badge variant="secondary" className="mb-4 bg-gradient-to-r from-amber-100 to-yellow-100 text-warning border-amber-200">
             <span className="flex items-center gap-1">
               ✨ Investment Opportunity
             </span>
@@ -42,12 +42,12 @@ export default function InvestorSection() {
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-12">
           {metrics.map((metric, index) => (
-            <Card key={index} className="text-center bg-white/80 backdrop-blur-sm border-border/50 hover:bg-white hover:scale-105 hover:shadow-lg transition-all duration-300 group">
+            <Card key={index} className="text-center bg-card/80 backdrop-blur-sm border-border/50 hover:bg-card hover:shadow-token-md transition-all duration-300 group">
               <CardContent className="pt-6">
-                <metric.icon className="h-8 w-8 text-primary mx-auto mb-2 group-hover:text-primary/80 group-hover:scale-110 transition-all duration-300" />
+                <metric.icon className="size-8 text-primary mx-auto mb-2 group-hover:text-primary/80 group- transition-all duration-300" />
                 <div className="text-2xl font-bold text-foreground group-hover:text-primary transition-colors duration-300">{metric.value}</div>
                 <div className="text-sm text-muted-foreground">{metric.label}</div>
-                <Badge variant="outline" className="mt-2 text-emerald-600 border-emerald-500/50 bg-emerald-50 group-hover:bg-emerald-100 transition-all duration-300">
+                <Badge variant="outline" className="mt-2 text-success border-success/50 bg-success/10 group-hover:bg-success/20 transition-all duration-300">
                   {metric.growth}
                 </Badge>
               </CardContent>
@@ -56,10 +56,10 @@ export default function InvestorSection() {
         </div>
 
         <div className="grid gap-8 lg:grid-cols-2">
-          <Card className="bg-white/80 backdrop-blur-sm border-border/50 hover:bg-white hover:shadow-lg transition-all duration-300">
+          <Card className="bg-card/80 backdrop-blur-sm border-border/50 hover:bg-card hover:shadow-token-md transition-all duration-300">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-foreground">
-                <Target className="h-5 w-5 text-module-performance" />
+                <Target className="icon-lg text-module-performance" />
                 Market Opportunity
               </CardTitle>
             </CardHeader>
@@ -86,7 +86,7 @@ export default function InvestorSection() {
             </CardContent>
           </Card>
 
-          <Card className="bg-white/80 backdrop-blur-sm border-border/50 hover:bg-white hover:shadow-lg transition-all duration-300">
+          <Card className="bg-card/80 backdrop-blur-sm border-border/50 hover:bg-card hover:shadow-token-md transition-all duration-300">
             <CardHeader>
               <CardTitle>Investment Highlights</CardTitle>
               <CardDescription>Why leading VCs are choosing Topsqill</CardDescription>
@@ -112,8 +112,8 @@ export default function InvestorSection() {
         </div>
 
         <div className="mt-12 text-center">
-          <div className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-foreground text-background font-semibold hover:bg-foreground/90 transition-all duration-300 shadow-lg hover:shadow-xl">
-            <DollarSign className="h-5 w-5" />
+          <div className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-foreground text-background font-semibold hover:bg-foreground/90 transition-all duration-300 shadow-lg hover:shadow-token-md">
+            <DollarSign className="icon-lg" />
             <span className="font-medium">Seeking $8M Series A • Contact: investors@topsqill.com</span>
           </div>
         </div>

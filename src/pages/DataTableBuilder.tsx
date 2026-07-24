@@ -179,11 +179,11 @@ const DataTableBuilder = () => {
   const headerActions = (
     <div className="flex items-center gap-2">
       <Button onClick={handleSave} disabled={loading || !selectedFormId}>
-        <Save className="h-4 w-4 mr-2" />
+        <Save className="icon-md mr-2" />
         {loading ? 'Creating...' : 'Create Report'}
       </Button>
       <Button variant="outline" onClick={() => navigate('/reports')}>
-        <ArrowLeft className="h-4 w-4 mr-2 text-module-workflows" />
+        <ArrowLeft className="icon-md mr-2 text-module-workflows" />
         Back to Reports
       </Button>
     </div>

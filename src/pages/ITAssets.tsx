@@ -29,31 +29,31 @@ const ITAssets = () => {
         <div className="w-full overflow-x-auto scrollbar-hide -mx-1 px-1">
           <TabsList className="inline-flex w-max max-w-none flex-nowrap items-center justify-start h-10 bg-muted p-1 rounded-md gap-1">
             <TabsTrigger value="dashboard" className="shrink-0 flex items-center gap-1 sm:gap-2 text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">
-              <BarChart3 className="h-4 w-4 shrink-0" />
+              <BarChart3 className="icon-md shrink-0" />
               Dashboard
             </TabsTrigger>
             <TabsTrigger value="assets" className="shrink-0 flex items-center gap-1 sm:gap-2 text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">
-              <Monitor className="h-4 w-4 shrink-0" />
+              <Monitor className="icon-md shrink-0" />
               Assets
             </TabsTrigger>
             <TabsTrigger value="software" className="shrink-0 flex items-center gap-1 sm:gap-2 text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">
-              <Cpu className="h-4 w-4 shrink-0" />
+              <Cpu className="icon-md shrink-0" />
               Software
             </TabsTrigger>
             <TabsTrigger value="warranty" className="shrink-0 flex items-center gap-1 sm:gap-2 text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">
-              <ShieldCheck className="h-4 w-4 shrink-0" />
+              <ShieldCheck className="icon-md shrink-0" />
               Warranty
             </TabsTrigger>
             <TabsTrigger value="agents" className="shrink-0 flex items-center gap-1 sm:gap-2 text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">
-              <Download className="h-4 w-4 shrink-0" />
+              <Download className="icon-md shrink-0" />
               Agents
             </TabsTrigger>
             <TabsTrigger value="reports" className="shrink-0 flex items-center gap-1 sm:gap-2 text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">
-              <FileText className="h-4 w-4 shrink-0" />
+              <FileText className="icon-md shrink-0" />
               Reports
             </TabsTrigger>
             <TabsTrigger value="history" className="shrink-0 flex items-center gap-1 sm:gap-2 text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">
-              <History className="h-4 w-4 shrink-0" />
+              <History className="icon-md shrink-0" />
               History
             </TabsTrigger>
           </TabsList>

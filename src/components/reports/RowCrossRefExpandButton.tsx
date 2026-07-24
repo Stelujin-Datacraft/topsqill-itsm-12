@@ -78,7 +78,7 @@ function CrossRefPopoverContent({ fieldInfo, row }: { fieldInfo: CrossRefFieldIn
           onClick={handleExport}
           disabled={exporting}
         >
-          <Download className="h-3 w-3" />
+          <Download className="icon-xs" />
           {exporting ? 'Exporting...' : 'Export Excel'}
         </Button>
       </div>
@@ -149,10 +149,10 @@ export function RowCrossRefExpandButton({ row, crossRefFields }: RowCrossRefExpa
               <Button
                 variant="outline"
                 size="icon"
-                className="h-6 w-6 flex-shrink-0 border-border bg-background hover:bg-muted"
+                className="icon-xl flex-shrink-0 border-border bg-background hover:bg-muted"
                 onClick={(e) => e.stopPropagation()}
               >
-                {expanded ? <Minus className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
+                {expanded ? <Minus className="icon-xs" /> : <Plus className="icon-xs" />}
               </Button>
             </PopoverTrigger>
           </TooltipTrigger>

@@ -24,7 +24,7 @@ export function DynamicTableColumnSelector({ formFields, selectedColumns, onColu
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="outline" size="sm">
-          <Columns3 className="h-4 w-4 mr-2 text-module-reports" />
+          <Columns3 className="icon-md mr-2 text-module-reports" />
           Columns ({selectedColumns.length})
         </Button>
       </DropdownMenuTrigger>

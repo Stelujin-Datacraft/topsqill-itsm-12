@@ -172,31 +172,31 @@ const WorkflowViewerPage = () => {
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="outline" size="sm">
-            <Download className="h-4 w-4 mr-2" />
+            <Download className="icon-md mr-2" />
             Export Diagram
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem onClick={handleExportPng}>
-            <Image className="h-4 w-4 mr-2" />
+            <Image className="icon-md mr-2" />
             Download as PNG
           </DropdownMenuItem>
           <DropdownMenuItem onClick={handleExportSvg}>
-            <FileImage className="h-4 w-4 mr-2" />
+            <FileImage className="icon-md mr-2" />
             Download as SVG (Visio)
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
       <Button variant="outline" size="sm" onClick={handleCopyLink}>
-        <Copy className="h-4 w-4 mr-2" />
+        <Copy className="icon-md mr-2" />
         Copy Link
       </Button>
       <Button variant="outline" size="sm" onClick={() => navigate(`/workflow-designer/${id}`)}>
-        <Edit className="h-4 w-4 mr-2" />
+        <Edit className="icon-md mr-2" />
         Edit Workflow
       </Button>
       <Button variant="outline" onClick={() => navigate('/workflows')}>
-        <ArrowLeft className="h-4 w-4 mr-2" />
+        <ArrowLeft className="icon-md mr-2" />
         Back to Workflows
       </Button>
     </div>
@@ -239,7 +239,7 @@ const WorkflowViewerPage = () => {
             )}
             <div className="flex items-center gap-4 text-sm text-muted-foreground mt-2">
               <div className="flex items-center gap-1">
-                <Calendar className="h-4 w-4" />
+                <Calendar className="icon-md" />
                 <span>Created {format(new Date(workflow.createdAt), 'MMM d, yyyy')}</span>
               </div>
             </div>
@@ -250,11 +250,11 @@ const WorkflowViewerPage = () => {
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList>
             <TabsTrigger value="overview">
-              <Eye className="h-4 w-4 mr-2" />
+              <Eye className="icon-md mr-2" />
               Overview
             </TabsTrigger>
             <TabsTrigger value="history">
-              <Activity className="h-4 w-4 mr-2" />
+              <Activity className="icon-md mr-2" />
               Execution History
             </TabsTrigger>
           </TabsList>

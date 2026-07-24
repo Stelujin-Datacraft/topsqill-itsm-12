@@ -67,8 +67,8 @@ export function AssetHistoryView() {
 
   const getEventColor = (type: string) => {
     if (type.includes('create') || type.includes('register')) return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
-    if (type.includes('delete') || type.includes('dispose')) return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
-    if (type.includes('update') || type.includes('report')) return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
+    if (type.includes('delete') || type.includes('dispose')) return 'bg-destructive/10 text-destructive dark:bg-red-900 dark:text-red-200';
+    if (type.includes('update') || type.includes('report')) return 'bg-info/10 text-info dark:bg-blue-900 dark:text-blue-200';
     return 'bg-muted text-muted-foreground';
   };
 
@@ -77,7 +77,7 @@ export function AssetHistoryView() {
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-lg flex items-center gap-2">
-            <History className="h-5 w-5" />
+            <History className="icon-lg" />
             Asset Activity Log
           </CardTitle>
         </CardHeader>
@@ -95,7 +95,7 @@ export function AssetHistoryView() {
             <div className="space-y-3">
               {filtered.map(entry => (
                 <div key={entry.id} className="flex items-start gap-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
-                  <Clock className="h-4 w-4 mt-1 text-muted-foreground shrink-0" />
+                  <Clock className="icon-md mt-1 text-muted-foreground shrink-0" />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <Badge className={`text-xs ${getEventColor(entry.event_type)}`}>{entry.event_type}</Badge>

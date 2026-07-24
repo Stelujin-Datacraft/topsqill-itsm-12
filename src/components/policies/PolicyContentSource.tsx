@@ -200,12 +200,12 @@ export function PolicyContentSource({
           >
             {isUploading ? (
               <div className="flex flex-col items-center gap-2">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <Loader2 className="size-8 animate-spin text-primary" />
                 <p className="text-sm text-muted-foreground">Parsing document...</p>
               </div>
             ) : (
               <div className="flex flex-col items-center gap-2">
-                <Upload className="h-8 w-8 text-muted-foreground" />
+                <Upload className="size-8 text-muted-foreground" />
                 <p className="text-sm font-medium">Click to upload a DOCX file</p>
                 <p className="text-xs text-muted-foreground">
                   Content, images, tables, and headings will be extracted with original formatting
@@ -231,7 +231,7 @@ export function PolicyContentSource({
                   className="gap-1.5 text-xs h-7"
                   onClick={() => setUploadViewMode('edit')}
                 >
-                  <Edit3 className="h-3 w-3" /> Edit Content
+                  <Edit3 className="icon-xs" /> Edit Content
                 </Button>
                 {uploadedFile && (
                   <Button
@@ -241,7 +241,7 @@ export function PolicyContentSource({
                     className="gap-1.5 text-xs h-7"
                     onClick={() => setUploadViewMode('original')}
                   >
-                    <FileImage className="h-3 w-3" /> Original Document
+                    <FileImage className="icon-xs" /> Original Document
                   </Button>
                 )}
               </div>

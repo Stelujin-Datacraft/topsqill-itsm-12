@@ -43,9 +43,9 @@
          <DropdownMenu>
            <DropdownMenuTrigger asChild>
              <Button variant="outline" size="sm" className="gap-2">
-               <TrendingUp className="h-4 w-4 text-module-performance" />
+               <TrendingUp className="icon-md text-module-performance" />
                Quick Stats
-               <ChevronDown className="h-3 w-3" />
+               <ChevronDown className="icon-xs" />
              </Button>
            </DropdownMenuTrigger>
            <DropdownMenuContent align="end" className="w-56">
@@ -53,7 +53,7 @@
                <React.Fragment key={item.label}>
                  <DropdownMenuItem className="flex items-center justify-between cursor-default">
                    <span className="flex items-center gap-2 text-sm">
-                     <item.icon className="h-4 w-4 text-primary" />
+                     <item.icon className="icon-md text-primary" />
                      {item.label}
                    </span>
                    <span className="font-bold text-foreground">{item.value}</span>
@@ -69,23 +69,23 @@
        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <TabsList className="flex w-full max-w-3xl justify-start sm:grid sm:grid-cols-5 h-auto">
             <TabsTrigger value="predictions" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm whitespace-nowrap">
-              <Brain className="h-4 w-4 shrink-0" />
+              <Brain className="icon-md shrink-0" />
               <span className="hidden sm:inline">AI </span>Predictions
             </TabsTrigger>
            <TabsTrigger value="dashboard" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm whitespace-nowrap">
-             <TrendingUp className="h-4 w-4 shrink-0" />
+             <TrendingUp className="icon-md shrink-0" />
              Dashboard
            </TabsTrigger>
            <TabsTrigger value="templates" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm whitespace-nowrap">
-             <Clock className="h-4 w-4 shrink-0" />
+             <Clock className="icon-md shrink-0" />
              <span className="sm:hidden">SLAs</span><span className="hidden sm:inline">SLA Templates</span>
            </TabsTrigger>
            <TabsTrigger value="escalations" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm whitespace-nowrap">
-             <AlertTriangle className="h-4 w-4 shrink-0" />
+             <AlertTriangle className="icon-md shrink-0" />
              <span className="sm:hidden">Escalation</span><span className="hidden sm:inline">Escalation Chains</span>
            </TabsTrigger>
            <TabsTrigger value="holidays" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm whitespace-nowrap">
-             <Calendar className="h-4 w-4 shrink-0" />
+             <Calendar className="icon-md shrink-0" />
              Holidays
            </TabsTrigger>
          </TabsList>

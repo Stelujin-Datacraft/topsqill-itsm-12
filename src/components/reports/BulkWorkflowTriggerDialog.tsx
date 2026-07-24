@@ -57,9 +57,9 @@ export function BulkWorkflowTriggerDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {mode === 'selected' ? (
-              <Play className="h-5 w-5 text-blue-600" />
+              <Play className="icon-lg text-info" />
             ) : (
-              <PlayCircle className="h-5 w-5 text-purple-600" />
+              <PlayCircle className="icon-lg text-accent" />
             )}
             {mode === 'selected' ? 'Run Workflow for Selected Records' : 'Run Workflow for All Records'}
           </DialogTitle>
@@ -75,13 +75,13 @@ export function BulkWorkflowTriggerDialog({
             <div className="space-y-3">
               {result.success > 0 && (
                 <div className="flex items-center gap-2 text-green-600">
-                  <CheckCircle2 className="h-5 w-5" />
+                  <CheckCircle2 className="icon-lg" />
                   <span>{result.success} record{result.success > 1 ? 's' : ''} triggered successfully</span>
                 </div>
               )}
               {result.failed > 0 && (
                 <div className="flex items-center gap-2 text-destructive">
-                  <AlertCircle className="h-5 w-5" />
+                  <AlertCircle className="icon-lg" />
                   <span>{result.failed} record{result.failed > 1 ? 's' : ''} failed</span>
                 </div>
               )}
@@ -89,7 +89,7 @@ export function BulkWorkflowTriggerDialog({
           ) : executing ? (
             <div className="space-y-3">
               <div className="flex items-center gap-2 text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader2 className="icon-md animate-spin" />
                 <span>Processing records...</span>
               </div>
               <Progress value={progress} className="h-2" />
@@ -126,15 +126,15 @@ export function BulkWorkflowTriggerDialog({
               >
                 {executing ? (
                   <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    <Loader2 className="icon-md mr-2 animate-spin" />
                     Processing...
                   </>
                 ) : (
                   <>
                     {mode === 'selected' ? (
-                      <Play className="h-4 w-4 mr-2" />
+                      <Play className="icon-md mr-2" />
                     ) : (
-                      <PlayCircle className="h-4 w-4 mr-2" />
+                      <PlayCircle className="icon-md mr-2" />
                     )}
                     Run for {recordCount} Record{recordCount > 1 ? 's' : ''}
                   </>

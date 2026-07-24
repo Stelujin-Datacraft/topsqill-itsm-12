@@ -247,7 +247,7 @@ export function TiptapToolbar({ editor, disabled = false }: TiptapToolbarProps) 
             {COLORS.map(color => (
               <button
                 key={color}
-                className="w-5 h-5 rounded-sm border border-border hover:scale-110 transition-transform"
+                className="w-5 h-5 rounded-sm border border-border hover:ring-2 hover:ring-ring/30 transition-shadow"
                 style={{ background: color }}
                 onClick={() => editor.chain().focus().setColor(color).run()}
                 title={color}
@@ -272,7 +272,7 @@ export function TiptapToolbar({ editor, disabled = false }: TiptapToolbarProps) 
             {['#FFFF00', '#00FF00', '#00FFFF', '#FF00FF', '#FF9900', '#FF0000', '#FCE5CD', '#D9EAD3', '#CFE2F3', '#D9D2E9', '#EAD1DC', '#F4CCCC'].map(color => (
               <button
                 key={color}
-                className="w-5 h-5 rounded-sm border border-border hover:scale-110 transition-transform"
+                className="w-5 h-5 rounded-sm border border-border hover:ring-2 hover:ring-ring/30 transition-shadow"
                 style={{ background: color }}
                 onClick={() => editor.chain().focus().toggleHighlight({ color }).run()}
                 title={color}

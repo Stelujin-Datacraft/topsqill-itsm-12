@@ -83,7 +83,7 @@ const EvidenceLockerPage = () => {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={() => navigate('/knowledge-base')}>
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft className="icon-md" />
           </Button>
           <div>
             <h1 className="text-2xl font-bold text-foreground">Evidence Locker</h1>
@@ -92,26 +92,26 @@ const EvidenceLockerPage = () => {
         </div>
         {isAdmin && (
           <Button onClick={() => { resetForm(); setShowCreate(true); }} className="gap-2">
-            <Plus className="h-4 w-4" /> Add Evidence
+            <Plus className="icon-md" /> Add Evidence
           </Button>
         )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card><CardContent className="p-4 flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-primary/10"><FileBox className="h-5 w-5 text-module-compliance" /></div>
+          <div className="p-2 rounded-lg bg-primary/10"><FileBox className="icon-lg text-module-compliance" /></div>
           <div><div className="text-2xl font-bold">{evidence.length}</div><div className="text-xs text-muted-foreground">Total Evidence</div></div>
         </CardContent></Card>
         <Card><CardContent className="p-4 flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-green-500/10"><File className="h-5 w-5 text-green-600" /></div>
+          <div className="p-2 rounded-lg bg-green-500/10"><File className="icon-lg text-green-600" /></div>
           <div><div className="text-2xl font-bold">{evidence.length - expiredCount}</div><div className="text-xs text-muted-foreground">Current</div></div>
         </CardContent></Card>
         <Card><CardContent className="p-4 flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-yellow-500/10"><AlertTriangle className="h-5 w-5 text-yellow-600" /></div>
+          <div className="p-2 rounded-lg bg-yellow-500/10"><AlertTriangle className="icon-lg text-yellow-600" /></div>
           <div><div className="text-2xl font-bold">{expiringSoonCount}</div><div className="text-xs text-muted-foreground">Expiring Soon</div></div>
         </CardContent></Card>
         <Card><CardContent className="p-4 flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-red-500/10"><Calendar className="h-5 w-5 text-red-600" /></div>
+          <div className="p-2 rounded-lg bg-red-500/10"><Calendar className="icon-lg text-destructive" /></div>
           <div><div className="text-2xl font-bold">{expiredCount}</div><div className="text-xs text-muted-foreground">Expired</div></div>
         </CardContent></Card>
       </div>
@@ -160,35 +160,35 @@ const EvidenceLockerPage = () => {
                 <CardContent className="p-4 flex items-center justify-between">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                      <File className="h-4 w-4 text-muted-foreground" />
+                      <File className="icon-md text-muted-foreground" />
                       <h3 className="font-medium text-sm">{item.name}</h3>
                       <Badge variant="outline" className="text-xs">{typeDef?.label}</Badge>
                       {expiryStatus === 'expired' && <Badge variant="destructive" className="text-xs">Expired</Badge>}
                       {expiryStatus === 'expiring_soon' && (
                         <Badge className="text-xs bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
-                          <AlertTriangle className="h-3 w-3 mr-1" />
+                          <AlertTriangle className="icon-xs mr-1" />
                           {daysLeft} days left
                         </Badge>
                       )}
                     </div>
                     <div className="flex items-center gap-3 ml-6 flex-wrap">
                       {item.description && <p className="text-xs text-muted-foreground line-clamp-1">{item.description}</p>}
-                      {item.control_id && <span className="text-xs text-muted-foreground flex items-center gap-0.5"><Shield className="h-3 w-3" /> Control linked</span>}
-                      {item.audit_id && <span className="text-xs text-muted-foreground flex items-center gap-0.5"><FileBox className="h-3 w-3" /> Audit linked</span>}
-                      {item.policy_id && <span className="text-xs text-muted-foreground flex items-center gap-0.5"><Link2 className="h-3 w-3" /> Policy linked</span>}
+                      {item.control_id && <span className="text-xs text-muted-foreground flex items-center gap-0.5"><Shield className="icon-xs" /> Control linked</span>}
+                      {item.audit_id && <span className="text-xs text-muted-foreground flex items-center gap-0.5"><FileBox className="icon-xs" /> Audit linked</span>}
+                      {item.policy_id && <span className="text-xs text-muted-foreground flex items-center gap-0.5"><Link2 className="icon-xs" /> Policy linked</span>}
                     </div>
                   </div>
                   <div className="flex items-center gap-2 ml-4">
                     {item.collection_date && <span className="text-xs text-muted-foreground">{format(new Date(item.collection_date), 'MMM d, yyyy')}</span>}
                     {item.expiry_date && <span className="text-xs text-muted-foreground">→ {format(new Date(item.expiry_date), 'MMM d, yyyy')}</span>}
                     {item.file_url && (
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => window.open(item.file_url!, '_blank')}>
-                        <ExternalLink className="h-4 w-4" />
+                      <Button variant="ghost" size="icon" className="size-8" onClick={() => window.open(item.file_url!, '_blank')}>
+                        <ExternalLink className="icon-md" />
                       </Button>
                     )}
                     {isAdmin && (
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteId(item.id)}>
-                        <Trash2 className="h-4 w-4" />
+                      <Button variant="ghost" size="icon" className="size-8 text-destructive" onClick={() => setDeleteId(item.id)}>
+                        <Trash2 className="icon-md" />
                       </Button>
                     )}
                   </div>
@@ -219,7 +219,7 @@ const EvidenceLockerPage = () => {
 
             {/* Linking Section */}
             <div className="border-t pt-4 space-y-3">
-              <h4 className="text-sm font-medium flex items-center gap-1"><Link2 className="h-4 w-4" /> Link to Resources</h4>
+              <h4 className="text-sm font-medium flex items-center gap-1"><Link2 className="icon-md" /> Link to Resources</h4>
               <div><Label>Audit Program</Label>
                 <Select value={form.audit_id || "none"} onValueChange={v => setForm(f => ({ ...f, audit_id: v === "none" ? "" : v }))}>
                   <SelectTrigger><SelectValue placeholder="Select audit..." /></SelectTrigger>

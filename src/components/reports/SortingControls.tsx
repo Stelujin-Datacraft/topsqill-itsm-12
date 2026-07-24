@@ -44,14 +44,14 @@ export function SortingControls({
             className="flex items-center gap-1 hover:opacity-70"
           >
             <span>{config.label}</span>
-            <ArrowUpDown className="h-3 w-3" />
+            <ArrowUpDown className="icon-xs" />
             <span className="text-xs">{config.direction.toUpperCase()}</span>
           </button>
           <button
             onClick={() => onRemoveSort(index)}
             className="ml-1 hover:text-destructive"
           >
-            <X className="h-3 w-3" />
+            <X className="icon-xs" />
           </button>
         </Badge>
       ))}
@@ -60,7 +60,7 @@ export function SortingControls({
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" size="sm">
-              <Plus className="h-3 w-3 mr-1 text-module-workflows" />
+              <Plus className="icon-xs mr-1 text-module-workflows" />
               Add Sort
             </Button>
           </DropdownMenuTrigger>

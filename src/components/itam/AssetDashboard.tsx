@@ -59,7 +59,7 @@ export function AssetDashboard() {
         <Card>
           <CardContent className="pt-4 pb-3">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary/10"><Monitor className="h-5 w-5 text-module-itam" /></div>
+              <div className="p-2 rounded-lg bg-primary/10"><Monitor className="icon-lg text-module-itam" /></div>
               <div>
                 <p className="text-2xl font-bold">{totalAssets}</p>
                 <p className="text-xs text-muted-foreground">Total Assets</p>
@@ -70,7 +70,7 @@ export function AssetDashboard() {
         <Card>
           <CardContent className="pt-4 pb-3">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-green-500/10"><CheckCircle className="h-5 w-5 text-green-500" /></div>
+              <div className="p-2 rounded-lg bg-green-500/10"><CheckCircle className="icon-lg text-green-500" /></div>
               <div>
                 <p className="text-2xl font-bold">{activeAssets}</p>
                 <p className="text-xs text-muted-foreground">Active</p>
@@ -81,7 +81,7 @@ export function AssetDashboard() {
         <Card>
           <CardContent className="pt-4 pb-3">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-emerald-500/10"><Wifi className="h-5 w-5 text-emerald-500" /></div>
+              <div className="p-2 rounded-lg bg-emerald-500/10"><Wifi className="icon-lg text-emerald-500" /></div>
               <div>
                 <p className="text-2xl font-bold">{onlineAgents}</p>
                 <p className="text-xs text-muted-foreground">Agents Online</p>
@@ -92,7 +92,7 @@ export function AssetDashboard() {
         <Card>
           <CardContent className="pt-4 pb-3">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-red-500/10"><WifiOff className="h-5 w-5 text-red-500" /></div>
+              <div className="p-2 rounded-lg bg-red-500/10"><WifiOff className="icon-lg text-destructive" /></div>
               <div>
                 <p className="text-2xl font-bold">{offlineAgents}</p>
                 <p className="text-xs text-muted-foreground">Agents Offline</p>
@@ -103,7 +103,7 @@ export function AssetDashboard() {
         <Card>
           <CardContent className="pt-4 pb-3">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-yellow-500/10"><Clock className="h-5 w-5 text-yellow-500" /></div>
+              <div className="p-2 rounded-lg bg-yellow-500/10"><Clock className="icon-lg text-yellow-500" /></div>
               <div>
                 <p className="text-2xl font-bold">{maintenanceAssets}</p>
                 <p className="text-xs text-muted-foreground">Maintenance</p>
@@ -114,7 +114,7 @@ export function AssetDashboard() {
         <Card>
           <CardContent className="pt-4 pb-3">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-orange-500/10"><AlertTriangle className="h-5 w-5 text-orange-500" /></div>
+              <div className="p-2 rounded-lg bg-orange-500/10"><AlertTriangle className="icon-lg text-orange-500" /></div>
               <div>
                 <p className="text-2xl font-bold">{warrantyExpiring}</p>
                 <p className="text-xs text-muted-foreground">Warranty Soon</p>
@@ -179,7 +179,7 @@ export function AssetDashboard() {
                 return (
                   <div key={asset.id} className="flex items-center justify-between p-3 border rounded-lg">
                     <div className="flex items-center gap-3">
-                      <Icon className="h-5 w-5 text-muted-foreground" />
+                      <Icon className="icon-lg text-muted-foreground" />
                       <div>
                         <p className="font-medium text-sm">{asset.display_name}</p>
                         <p className="text-xs text-muted-foreground">{asset.asset_tag} · {asset.asset_type} · {asset.ip_address || 'No IP'}</p>

@@ -82,19 +82,19 @@ const Settings = () => {
       <Tabs defaultValue="profile" className="space-y-6">
         <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-auto gap-1">
           <TabsTrigger value="profile" className="flex items-center gap-2">
-            <User className="h-4 w-4" />
+            <User className="icon-md" />
             Profile
           </TabsTrigger>
           <TabsTrigger value="organization" className="flex items-center gap-2">
-            <Building2 className="h-4 w-4" />
+            <Building2 className="icon-md" />
             Organization
           </TabsTrigger>
           <TabsTrigger value="security" className="flex items-center gap-2">
-            <Shield className="h-4 w-4" />
+            <Shield className="icon-md" />
             Security
           </TabsTrigger>
           <TabsTrigger value="notifications" className="flex items-center gap-2">
-            <Bell className="h-4 w-4" />
+            <Bell className="icon-md" />
             Notifications
           </TabsTrigger>
         </TabsList>
@@ -124,7 +124,7 @@ const Settings = () => {
               </div>
               <Separator />
               <Button onClick={handleSaveProfile}>
-                <Save className="h-4 w-4 mr-2" />
+                <Save className="icon-md mr-2" />
                 Save Profile
               </Button>
             </CardContent>
@@ -182,7 +182,7 @@ const Settings = () => {
               </div>
               <Separator />
               <Button onClick={handleSaveOrganization}>
-                <Save className="h-4 w-4 mr-2" />
+                <Save className="icon-md mr-2" />
                 Save Organization
               </Button>
             </CardContent>
@@ -228,7 +228,7 @@ const Settings = () => {
               </div>
               <Separator />
               <Button onClick={handleSaveSecurity}>
-                <Save className="h-4 w-4 mr-2" />
+                <Save className="icon-md mr-2" />
                 Save Security
               </Button>
             </CardContent>
@@ -291,7 +291,7 @@ const Settings = () => {
               </div>
               <Separator />
               <Button onClick={handleSaveNotifications}>
-                <Save className="h-4 w-4 mr-2" />
+                <Save className="icon-md mr-2" />
                 Save Notifications
               </Button>
             </CardContent>

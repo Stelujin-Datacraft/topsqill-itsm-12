@@ -121,7 +121,7 @@ export function MetricsSelector({
               
               return (
                 <div key={fieldId} className="flex items-center gap-2 p-2 bg-muted/50 rounded-md">
-                  <TrendingUp className="h-4 w-4 text-module-performance" />
+                  <TrendingUp className="icon-md text-module-performance" />
                   <div className="flex-1">
                     <div className="font-medium text-sm">{getFieldLabel(fieldId)}</div>
                     <Badge variant="secondary" className="text-xs">
@@ -153,7 +153,7 @@ export function MetricsSelector({
                     onClick={() => removeMetric(fieldId)}
                     className="h-7 w-7 p-0"
                   >
-                    <X className="h-3 w-3" />
+                    <X className="icon-xs" />
                   </Button>
                 </div>
               );

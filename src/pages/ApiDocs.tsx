@@ -1214,10 +1214,10 @@ console.log(data);`,
 
 const methodColors: Record<string, string> = {
   GET: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-  POST: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-  PUT: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200',
+  POST: 'bg-info/10 text-info dark:bg-blue-900 dark:text-blue-200',
+  PUT: 'bg-warning/10 text-warning dark:bg-amber-900 dark:text-amber-200',
   PATCH: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
-  DELETE: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+  DELETE: 'bg-destructive/10 text-destructive dark:bg-red-900 dark:text-red-200',
 };
 
 const ApiDocs: React.FC = () => {
@@ -1315,7 +1315,7 @@ const ApiDocs: React.FC = () => {
                 <div className="flex items-center justify-between mb-2">
                   <h4 className="text-sm font-semibold">Request Body</h4>
                   <Button variant="ghost" size="sm" onClick={() => handleCopy(endpoint.requestExample!)}>
-                    <Copy className="h-4 w-4" />
+                    <Copy className="icon-md" />
                   </Button>
                 </div>
                 <pre className="bg-muted rounded-md p-3 overflow-x-auto text-xs">
@@ -1342,7 +1342,7 @@ const ApiDocs: React.FC = () => {
                           className="absolute top-2 right-2 z-10"
                           onClick={() => handleCopy(endpoint.curlExample!)}
                         >
-                          <Copy className="h-4 w-4" />
+                          <Copy className="icon-md" />
                         </Button>
                         <pre className="bg-muted rounded-md p-3 overflow-x-auto text-xs">
                           {endpoint.curlExample}
@@ -1359,7 +1359,7 @@ const ApiDocs: React.FC = () => {
                           className="absolute top-2 right-2 z-10"
                           onClick={() => handleCopy(endpoint.jsExample!)}
                         >
-                          <Copy className="h-4 w-4" />
+                          <Copy className="icon-md" />
                         </Button>
                         <pre className="bg-muted rounded-md p-3 overflow-x-auto text-xs">
                           {endpoint.jsExample}
@@ -1375,7 +1375,7 @@ const ApiDocs: React.FC = () => {
               <div className="flex items-center justify-between mb-2">
                 <h4 className="text-sm font-semibold">Response Example</h4>
                 <Button variant="ghost" size="sm" onClick={() => handleCopy(endpoint.responseExample)}>
-                  <Copy className="h-4 w-4" />
+                  <Copy className="icon-md" />
                 </Button>
               </div>
               <pre className="bg-muted rounded-md p-3 overflow-x-auto text-xs">
@@ -1404,7 +1404,7 @@ const ApiDocs: React.FC = () => {
       title="API Documentation"
       actions={
         <Button variant="outline" onClick={() => navigate('/api-integration')}>
-          <ArrowLeft className="h-4 w-4 mr-2" />
+          <ArrowLeft className="icon-md mr-2" />
           Back to API Keys
         </Button>
       }
@@ -1422,7 +1422,7 @@ const ApiDocs: React.FC = () => {
                 className="w-full justify-start"
                 onClick={() => setActiveSection('getting-started')}
               >
-                <Key className="h-4 w-4 mr-2" />
+                <Key className="icon-md mr-2" />
                 Getting Started
               </Button>
               <Button
@@ -1430,7 +1430,7 @@ const ApiDocs: React.FC = () => {
                 className="w-full justify-start"
                 onClick={() => setActiveSection('authentication')}
               >
-                <Shield className="h-4 w-4 mr-2" />
+                <Shield className="icon-md mr-2" />
                 Authentication
               </Button>
               <Button
@@ -1438,7 +1438,7 @@ const ApiDocs: React.FC = () => {
                 className="w-full justify-start"
                 onClick={() => setActiveSection('request-format')}
               >
-                <FileText className="h-4 w-4 mr-2" />
+                <FileText className="icon-md mr-2" />
                 Request Format
               </Button>
               <Separator className="my-2" />
@@ -1447,7 +1447,7 @@ const ApiDocs: React.FC = () => {
                 className="w-full justify-start"
                 onClick={() => setActiveSection('forms')}
               >
-                <FileText className="h-4 w-4 mr-2" />
+                <FileText className="icon-md mr-2" />
                 Forms
               </Button>
               <Button
@@ -1455,7 +1455,7 @@ const ApiDocs: React.FC = () => {
                 className="w-full justify-start"
                 onClick={() => setActiveSection('submissions')}
               >
-                <FileText className="h-4 w-4 mr-2" />
+                <FileText className="icon-md mr-2" />
                 Submissions
               </Button>
               <Button
@@ -1463,7 +1463,7 @@ const ApiDocs: React.FC = () => {
                 className="w-full justify-start"
                 onClick={() => setActiveSection('workflows')}
               >
-                <GitBranch className="h-4 w-4 mr-2" />
+                <GitBranch className="icon-md mr-2" />
                 Workflows
               </Button>
               <Button
@@ -1471,7 +1471,7 @@ const ApiDocs: React.FC = () => {
                 className="w-full justify-start"
                 onClick={() => setActiveSection('reports')}
               >
-                <BarChart3 className="h-4 w-4 mr-2" />
+                <BarChart3 className="icon-md mr-2" />
                 Reports
               </Button>
               <Separator className="my-2" />
@@ -1480,7 +1480,7 @@ const ApiDocs: React.FC = () => {
                 className="w-full justify-start"
                 onClick={() => setActiveSection('bulk-operations')}
               >
-                <Layers className="h-4 w-4 mr-2" />
+                <Layers className="icon-md mr-2" />
                 Bulk Operations
               </Button>
               <Separator className="my-2" />
@@ -1489,7 +1489,7 @@ const ApiDocs: React.FC = () => {
                 className="w-full justify-start"
                 onClick={() => setActiveSection('rate-limiting')}
               >
-                <Clock className="h-4 w-4 mr-2" />
+                <Clock className="icon-md mr-2" />
                 Rate Limiting
               </Button>
               <Button
@@ -1497,7 +1497,7 @@ const ApiDocs: React.FC = () => {
                 className="w-full justify-start"
                 onClick={() => setActiveSection('pagination')}
               >
-                <BookOpen className="h-4 w-4 mr-2" />
+                <BookOpen className="icon-md mr-2" />
                 Pagination
               </Button>
               <Button
@@ -1505,7 +1505,7 @@ const ApiDocs: React.FC = () => {
                 className="w-full justify-start"
                 onClick={() => setActiveSection('error-reference')}
               >
-                <AlertTriangle className="h-4 w-4 mr-2" />
+                <AlertTriangle className="icon-md mr-2" />
                 Error Reference
               </Button>
               <Button
@@ -1513,7 +1513,7 @@ const ApiDocs: React.FC = () => {
                 className="w-full justify-start"
                 onClick={() => setActiveSection('versioning')}
               >
-                <Zap className="h-4 w-4 mr-2" />
+                <Zap className="icon-md mr-2" />
                 Versioning
               </Button>
             </CardContent>
@@ -1540,7 +1540,7 @@ const ApiDocs: React.FC = () => {
                           {BASE_URL}
                         </code>
                         <Button variant="outline" size="icon" onClick={() => handleCopy(BASE_URL)}>
-                          <Copy className="h-4 w-4" />
+                          <Copy className="icon-md" />
                         </Button>
                       </div>
                     </div>
@@ -1826,7 +1826,7 @@ console.log(data);`}
             {activeSection === 'forms' && (
               <div className="space-y-4">
                 <h2 className="text-xl font-bold flex items-center gap-2">
-                  <FileText className="h-5 w-5" />
+                  <FileText className="icon-lg" />
                   Forms Endpoints
                 </h2>
                 {endpoints.forms.map((endpoint, index) => renderEndpoint(endpoint, index))}
@@ -1836,7 +1836,7 @@ console.log(data);`}
             {activeSection === 'submissions' && (
               <div className="space-y-4">
                 <h2 className="text-xl font-bold flex items-center gap-2">
-                  <FileText className="h-5 w-5" />
+                  <FileText className="icon-lg" />
                   Submissions Endpoints
                 </h2>
                 {endpoints.submissions.map((endpoint, index) => renderEndpoint(endpoint, index))}
@@ -1846,7 +1846,7 @@ console.log(data);`}
             {activeSection === 'workflows' && (
               <div className="space-y-4">
                 <h2 className="text-xl font-bold flex items-center gap-2">
-                  <GitBranch className="h-5 w-5" />
+                  <GitBranch className="icon-lg" />
                   Workflows Endpoints
                 </h2>
                 {endpoints.workflows.map((endpoint, index) => renderEndpoint(endpoint, index))}
@@ -1856,7 +1856,7 @@ console.log(data);`}
             {activeSection === 'reports' && (
               <div className="space-y-4">
                 <h2 className="text-xl font-bold flex items-center gap-2">
-                  <BarChart3 className="h-5 w-5" />
+                  <BarChart3 className="icon-lg" />
                   Reports Endpoints
                 </h2>
                 {endpoints.reports.map((endpoint, index) => renderEndpoint(endpoint, index))}
@@ -1866,7 +1866,7 @@ console.log(data);`}
             {activeSection === 'bulk-operations' && (
               <div className="space-y-4">
                 <h2 className="text-xl font-bold flex items-center gap-2">
-                  <Layers className="h-5 w-5" />
+                  <Layers className="icon-lg" />
                   Bulk Operations
                 </h2>
                 <p className="text-muted-foreground">
@@ -1882,7 +1882,7 @@ console.log(data);`}
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <Clock className="h-5 w-5" />
+                      <Clock className="icon-lg" />
                       Rate Limiting
                     </CardTitle>
                     <CardDescription>
@@ -1988,7 +1988,7 @@ console.log(data);`}
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <BookOpen className="h-5 w-5" />
+                      <BookOpen className="icon-lg" />
                       Pagination
                     </CardTitle>
                     <CardDescription>
@@ -2088,7 +2088,7 @@ GET /submissions?limit=100&offset=200`}
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <AlertTriangle className="h-5 w-5" />
+                      <AlertTriangle className="icon-lg" />
                       Error Reference
                     </CardTitle>
                     <CardDescription>
@@ -2114,7 +2114,7 @@ GET /submissions?limit=100&offset=200`}
                           </div>
                         </div>
                         <div className="flex items-start gap-3 p-3 bg-muted/50 rounded-md">
-                          <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">202</Badge>
+                          <Badge className="bg-info/10 text-info dark:bg-blue-900 dark:text-blue-200">202</Badge>
                           <div>
                             <span className="font-medium">Accepted</span>
                             <p className="text-sm text-muted-foreground">Request accepted for async processing (e.g., workflow trigger).</p>
@@ -2156,7 +2156,7 @@ GET /submissions?limit=100&offset=200`}
                           </div>
                         </div>
                         <div className="flex items-start gap-3 p-3 bg-muted/50 rounded-md">
-                          <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">429</Badge>
+                          <Badge className="bg-warning/10 text-warning dark:bg-amber-900 dark:text-amber-200">429</Badge>
                           <div>
                             <span className="font-medium">Too Many Requests</span>
                             <p className="text-sm text-muted-foreground">Rate limit exceeded. Check Retry-After header.</p>
@@ -2264,7 +2264,7 @@ GET /submissions?limit=100&offset=200`}
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <Zap className="h-5 w-5" />
+                      <Zap className="icon-lg" />
                       API Versioning
                     </CardTitle>
                     <CardDescription>
@@ -2304,7 +2304,7 @@ GET /submissions?limit=100&offset=200`}
                     <div>
                       <h3 className="font-semibold mb-2">Deprecation Policy</h3>
                       <div className="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-md p-3">
-                        <p className="text-sm text-amber-800 dark:text-amber-200">
+                        <p className="text-sm text-warning dark:text-amber-200">
                           When features are deprecated, we provide at least <strong>6 months notice</strong> before removal. 
                           Deprecated features will be marked in the documentation and return a 
                           <code className="bg-amber-100 dark:bg-amber-900 px-1 mx-1 rounded">X-Deprecated</code> header.

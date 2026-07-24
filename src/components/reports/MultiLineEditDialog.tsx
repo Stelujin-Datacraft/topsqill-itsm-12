@@ -384,7 +384,7 @@ const renderFieldInput = (field: any, value: any, submissionId: string
               <ScrollArea className="max-h-full w-full mt-1">
                 <div className="flex flex-col gap-1 pr-2">
                   {selectedUserIds.map((userId, i) => (
-                    <Badge key={i} variant="outline" className="bg-blue-100 text-blue-800 text-xs justify-start">
+                    <Badge key={i} variant="outline" className="bg-info/10 text-info text-xs justify-start">
                       {getUserDisplayName(userId)}
                     </Badge>
                   ))}
@@ -427,7 +427,7 @@ const renderFieldInput = (field: any, value: any, submissionId: string
                   <ScrollArea className="max-h-full w-full mt-1">
                     <div className="flex flex-col gap-1 pr-2">
                       {currentUsers.map((userId, i) => (
-                        <Badge key={i} variant="outline" className="bg-blue-100 text-blue-800 text-xs justify-start">
+                        <Badge key={i} variant="outline" className="bg-info/10 text-info text-xs justify-start">
                           {getUserDisplayName(userId)}
                         </Badge>
                       ))}
@@ -552,7 +552,7 @@ const renderFieldInput = (field: any, value: any, submissionId: string
                   className={`h-4 w-4 cursor-pointer transition-colors ${
                     starValue <= (value || 0)
                       ? 'fill-yellow-400 text-yellow-400'
-                      : 'text-gray-300'
+                      : 'text-muted-foreground/40'
                   }`}
                   onClick={() =>
                     handleFieldValueChange(submissionId, field.id, starValue)
@@ -616,7 +616,7 @@ const renderFieldInput = (field: any, value: any, submissionId: string
                   onChange={(e) =>
                     handleFieldValueChange(submissionId, field.id, e.target.value)
                   }
-                  className="h-4 w-4"
+                  className="icon-md"
                 />
                 <label className="text-sm">{option.label || option.name}</label>
               </div>
@@ -813,7 +813,7 @@ const renderFieldInput = (field: any, value: any, submissionId: string
                       variant="outline"
                       size="sm"
                       onClick={() => handleFieldValueChange(submissionId, field.id, null)}
-                      className="h-7 px-2 text-red-500"
+                      className="h-7 px-2 text-destructive"
                     >
                       Remove
                     </Button>
@@ -873,7 +873,7 @@ return (
     <DialogContent className="max-w-6xl max-h-[80vh] flex flex-col">
       <DialogHeader>
         <DialogTitle className="flex items-center gap-2">
-          <Users className="h-5 w-5" />
+          <Users className="icon-lg" />
           Multi-Line Edit - {Array.isArray(submissions) ? submissions.length : 0} Records
         </DialogTitle>
         <p className="text-sm text-muted-foreground">
@@ -1021,7 +1021,7 @@ return (
             Cancel
           </Button>
           <Button onClick={handleSave} disabled={saving} className="gap-2">
-            <Save className="h-4 w-4" />
+            <Save className="icon-md" />
             {saving
               ? "Saving..."
               : `Update ${Array.isArray(submissions) ? submissions.length : 0} Records`}

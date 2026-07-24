@@ -701,7 +701,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
           <ScrollArea className="max-h-full w-full">
             <div className="flex flex-col gap-1 pr-2">
               {selectedUserIds.map((userId, i) => (
-                <Badge key={i} variant="outline" className="bg-blue-100 text-blue-800 justify-start text-xs max-w-[270px] truncate">
+                <Badge key={i} variant="outline" className="bg-info/10 text-info justify-start text-xs max-w-[270px] truncate">
                   {getUserDisplayName(userId)}
                 </Badge>
               ))}
@@ -759,7 +759,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
                 <Badge
                   key={`${item.type}-${item.id}-${i}`} 
                   variant="outline"
-                  className={`justify-start text-xs max-w-[270px] truncate ${item.type === 'user' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}`}
+                  className={`justify-start text-xs max-w-[270px] truncate ${item.type === 'user' ? 'bg-info/10 text-info' : 'bg-green-100 text-green-800'}`}
                 >
                   {item.type === 'user' ? getUserDisplayName(item.id) : getGroupDisplayName(item.id)}
                 </Badge>
@@ -976,7 +976,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
         }
 
         if (countriesError) {
-          return <p className="text-red-600">{countriesError}</p>;
+          return <p className="text-destructive">{countriesError}</p>;
         }
 
         return (
@@ -1201,7 +1201,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
                     className={`h-4 w-4 cursor-pointer transition-colors ${
                       starValue <= (fieldValue || 0)
                         ? 'fill-yellow-400 text-yellow-400'
-                        : 'text-gray-300'
+                        : 'text-muted-foreground/40'
                     }`}
                     onClick={() =>
                       !isDisabled &&
@@ -1277,7 +1277,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
                   <button
                     type="button"
                     onClick={() => removeTag(tag)}
-                    className="text-xs text-red-500 hover:text-red-700"
+                    className="text-xs text-destructive hover:text-red-700"
                     disabled={isDisabled}
                   >
                     ×
@@ -1338,7 +1338,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
       //             onClick={() => window.open(f.url, '_blank')}
       //             className="h-8"
       //           >
-      //             <Eye className="h-3 w-3 mr-1" /> View
+      //             <Eye className="icon-xs mr-1" /> View
       //           </Button>
       //           <Button
       //             variant="outline"
@@ -1459,7 +1459,7 @@ export function InlineEditDialog({ isOpen, onOpenChange, submissions, formFields
                       variant="outline"
                       size="sm"
                       onClick={() => handleFieldChange(submissionId, field.id, null)}
-                      className="h-7 px-2 text-red-500"
+                      className="h-7 px-2 text-destructive"
                       disabled={isDisabled}
                     >
                       Remove

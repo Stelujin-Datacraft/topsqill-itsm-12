@@ -121,7 +121,7 @@ export function PolicyCustomFieldsBuilder({ fields, onFieldsChange, values = {},
               />
               {search && (
                 <Button variant="ghost" size="sm" onClick={() => setSearch('')} className="absolute right-1 top-1 h-6 w-6 p-0">
-                  <X className="h-3 w-3" />
+                  <X className="icon-xs" />
                 </Button>
               )}
             </div>
@@ -179,11 +179,11 @@ export function PolicyCustomFieldsBuilder({ fields, onFieldsChange, values = {},
                           <Badge variant="secondary" className="text-[10px] ml-1">{field.type}</Badge>
                         </div>
                         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setEditingField(field)}>
-                            <Settings2 className="h-3 w-3" />
+                          <Button variant="ghost" size="icon" className="icon-xl" onClick={() => setEditingField(field)}>
+                            <Settings2 className="icon-xs" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => removeField(field.id)}>
-                            <Trash2 className="h-3 w-3" />
+                          <Button variant="ghost" size="icon" className="icon-xl text-destructive" onClick={() => removeField(field.id)}>
+                            <Trash2 className="icon-xs" />
                           </Button>
                         </div>
                       </div>

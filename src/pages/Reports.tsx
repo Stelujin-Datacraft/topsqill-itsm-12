@@ -81,7 +81,7 @@ const Reports = () => {
             return (
               <CreateDashboardDialog>
                 <Button size="sm" disabled={s.disabled} title={s.tooltip || undefined} className="whitespace-nowrap">
-                  <Plus className="h-4 w-4 me-2" />
+                  <Plus className="icon-md me-2" />
                   {t('reports.createDashboard')}
                 </Button>
               </CreateDashboardDialog>

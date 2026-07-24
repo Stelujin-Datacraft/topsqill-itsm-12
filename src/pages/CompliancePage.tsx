@@ -61,7 +61,7 @@ const CompliancePage = () => {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={() => navigate('/knowledge-base')}>
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft className="icon-md" />
           </Button>
           <div>
             <h1 className="text-2xl font-bold text-foreground">Compliance Frameworks</h1>
@@ -70,7 +70,7 @@ const CompliancePage = () => {
         </div>
         {isAdmin && (
           <Button onClick={() => { resetForm(); setShowCreate(true); }} className="gap-2">
-            <Plus className="h-4 w-4" /> Add Framework
+            <Plus className="icon-md" /> Add Framework
           </Button>
         )}
       </div>
@@ -84,7 +84,7 @@ const CompliancePage = () => {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-4 flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-primary/10"><Shield className="h-5 w-5 text-module-compliance" /></div>
+            <div className="p-2 rounded-lg bg-primary/10"><Shield className="icon-lg text-module-compliance" /></div>
             <div>
               <div className="text-2xl font-bold">{frameworks.length}</div>
               <div className="text-xs text-muted-foreground">Frameworks</div>
@@ -93,7 +93,7 @@ const CompliancePage = () => {
         </Card>
         <Card>
           <CardContent className="p-4 flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-green-500/10"><CheckCircle className="h-5 w-5 text-green-600" /></div>
+            <div className="p-2 rounded-lg bg-green-500/10"><CheckCircle className="icon-lg text-green-600" /></div>
             <div>
               <div className="text-2xl font-bold">{frameworks.filter(f => f.status === 'active').length}</div>
               <div className="text-xs text-muted-foreground">Active</div>
@@ -114,7 +114,7 @@ const CompliancePage = () => {
             <p className="text-sm text-muted-foreground mt-1">Create your first compliance framework.</p>
             {isAdmin && (
               <Button onClick={() => { resetForm(); setShowCreate(true); }} className="mt-4 gap-2">
-                <Plus className="h-4 w-4" /> Add Framework
+                <Plus className="icon-md" /> Add Framework
               </Button>
             )}
           </CardContent>
@@ -146,7 +146,7 @@ const CompliancePage = () => {
                 <div className="flex items-center gap-3 mt-3 text-xs text-muted-foreground">
                   {fw.version && <Badge variant="secondary" className="text-xs">v{fw.version}</Badge>}
                   <Badge variant={fw.status === 'active' ? 'default' : 'secondary'} className="text-xs">{fw.status}</Badge>
-                  <ChevronRight className="h-4 w-4 ml-auto" />
+                  <ChevronRight className="icon-md ml-auto" />
                 </div>
               </CardContent>
             </Card>
@@ -232,7 +232,7 @@ const FrameworkDetail = ({ frameworkId, onBack }: { frameworkId: string; onBack:
     <div className="space-y-6 p-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={onBack}><ArrowLeft className="h-4 w-4" /></Button>
+          <Button variant="ghost" size="icon" onClick={onBack}><ArrowLeft className="icon-md" /></Button>
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-2xl font-bold text-foreground">{fw?.name || 'Framework'}</h1>
@@ -243,7 +243,7 @@ const FrameworkDetail = ({ frameworkId, onBack }: { frameworkId: string; onBack:
         </div>
         {isAdmin && (
           <Button onClick={() => { resetForm(); setShowCreate(true); }} className="gap-2">
-            <Plus className="h-4 w-4" /> Add Control
+            <Plus className="icon-md" /> Add Control
           </Button>
         )}
       </div>
@@ -265,7 +265,7 @@ const FrameworkDetail = ({ frameworkId, onBack }: { frameworkId: string; onBack:
         <Card>
           <CardContent className="p-4">
             <div className="text-xs text-muted-foreground mb-1">Not Implemented</div>
-            <div className="text-2xl font-bold text-red-600">{controls.filter(c => c.implementation_status === 'not_implemented').length}</div>
+            <div className="text-2xl font-bold text-destructive">{controls.filter(c => c.implementation_status === 'not_implemented').length}</div>
           </CardContent>
         </Card>
         <Card>
@@ -327,15 +327,15 @@ const FrameworkDetail = ({ frameworkId, onBack }: { frameworkId: string; onBack:
                           <SelectTrigger className="w-[170px] h-8 text-xs"><SelectValue /></SelectTrigger>
                           <SelectContent>{IMPLEMENTATION_STATUSES.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent>
                         </Select>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => {
+                        <Button variant="ghost" size="icon" className="size-8" onClick={(e) => {
                           e.stopPropagation();
                           setEditCtrl(ctrl);
                           setForm({ control_id_ref: ctrl.control_id_ref, title: ctrl.title, description: ctrl.description || '', category: ctrl.category || '', implementation_status: ctrl.implementation_status, risk_level: ctrl.risk_level });
-                        }}><Edit className="h-4 w-4" /></Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={(e) => { e.stopPropagation(); setDeleteId(ctrl.id); }}><Trash2 className="h-4 w-4" /></Button>
+                        }}><Edit className="icon-md" /></Button>
+                        <Button variant="ghost" size="icon" className="size-8 text-destructive" onClick={(e) => { e.stopPropagation(); setDeleteId(ctrl.id); }}><Trash2 className="icon-md" /></Button>
                       </div>
                     )}
-                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    <ChevronRight className="icon-md text-muted-foreground" />
                     </div>
                   </div>
                 </CardContent>

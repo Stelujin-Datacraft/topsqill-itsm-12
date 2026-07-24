@@ -71,7 +71,7 @@ export function AIQueryInput({
             className="gap-2"
             type="button"
           >
-            <Sparkles className="h-4 w-4 text-module-query" />
+            <Sparkles className="icon-md text-module-query" />
             AI Search
           </Button>
         </PopoverTrigger>
@@ -109,12 +109,12 @@ export function AIQueryInput({
             >
               {isLoading ? (
                 <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  <Loader2 className="icon-md mr-2 animate-spin" />
                   Processing...
                 </>
               ) : (
                 <>
-                  <Search className="h-4 w-4 mr-2" />
+                  <Search className="icon-md mr-2" />
                   Search with AI
                 </>
               )}
@@ -125,13 +125,13 @@ export function AIQueryInput({
 
       {activeInterpretation && (
         <Badge variant="secondary" className="flex items-center gap-1 text-xs max-w-xs truncate">
-          <Sparkles className="h-3 w-3" />
+          <Sparkles className="icon-xs" />
           <span className="truncate">{activeInterpretation}</span>
           <button
             onClick={handleClear}
             className="ml-1 hover:text-destructive"
           >
-            <X className="h-3 w-3" />
+            <X className="icon-xs" />
           </button>
         </Badge>
       )}
