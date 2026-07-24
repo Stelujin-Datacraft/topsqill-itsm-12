@@ -31,13 +31,13 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   // Content with header - shared between both modes
   const content = (
     <>
-      <header className="border-b bg-background/95 backdrop-blur p-3 sm:p-4 shrink-0">
+      <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 px-4 py-3 sm:py-4 shrink-0">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+          <div className="flex items-center gap-3 sm:gap-4 min-w-0">
             <SidebarTrigger className="shrink-0" />
             <div className="min-w-0 flex-1">
-              {title && <h1 className="text-lg sm:text-2xl font-semibold truncate">{title}</h1>}
-              {description && <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2">{description}</p>}
+              {title && <h1 className="page-header-title truncate">{title}</h1>}
+              {description && <p className="page-header-description line-clamp-2 mt-0.5">{description}</p>}
             </div>
           </div>
           {actions && (
@@ -53,7 +53,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           )}
         </div>
       </header>
-      <div className="flex-1 px-[10px] mx-0 py-[10px] overflow-auto min-h-0 flex flex-col">
+      <div className="flex-1 p-4 sm:p-6 overflow-auto min-h-0 flex flex-col">
         {children}
       </div>
     </>

@@ -1,4 +1,5 @@
 import { LucideIcon } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import { SidebarGroup, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar"
 import { Link, useLocation } from "react-router-dom"
 
@@ -15,10 +16,11 @@ export function NavMain({
   }[]
 }) {
   const location = useLocation()
+  const { t } = useTranslation()
 
   return (
     <SidebarGroup>
-      <SidebarGroupLabel>Platform</SidebarGroupLabel>
+      <SidebarGroupLabel>{t('nav.platform')}</SidebarGroupLabel>
       <SidebarMenu>
         {items.map((item) => {
           const active = location.pathname === item.url

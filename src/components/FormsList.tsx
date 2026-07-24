@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { useFormsData } from '@/hooks/useFormsData';
 import { useProject } from '@/contexts/ProjectContext';
@@ -15,6 +16,7 @@ import { LoadingScreen } from '@/components/LoadingScreen';
 import NoProjectSelected from '@/components/NoProjectSelected';
 import { ShareLinkButton } from '@/components/shared/ShareLinkButton';
 export function FormsList() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const {
     forms,
@@ -38,11 +40,14 @@ export function FormsList() {
   console.log('📋 FormsList - Current project:', currentProject?.id);
   console.log('📋 FormsList - Forms data:', forms);
   console.log('📋 FormsList - Loading state:', loading);
+  const getStatusLabel = (status: string) =>
+    t(`forms.status.${status}`, status.replace('_', ' '));
+
   if (!currentProject) {
     return <NoProjectSelected />;
   }
   if (loading) {
-    return <LoadingScreen message="Loading forms..." />;
+    return <LoadingScreen message={t('forms.loading')} />;
   }
 
   // Filter forms based on user's permissions
@@ -63,7 +68,7 @@ export function FormsList() {
     if (!checkPermissionWithAlert('forms', 'delete', formId)) {
       return;
     }
-    if (window.confirm('Are you sure you want to delete this form?')) {
+    if (window.confirm(t('forms.deleteConfirm'))) {
       try {
         await deleteForm(formId);
         console.log('🗑️ Form deleted successfully');
@@ -91,7 +96,7 @@ export function FormsList() {
   
   const handleCopyId = (formId: string) => {
     navigator.clipboard.writeText(formId);
-    toast.success('Form ID copied to clipboard');
+    toast.success(t('forms.idCopied'));
   };
 
   
@@ -103,7 +108,7 @@ export function FormsList() {
     setCopyingFormId(form.id);
     try {
       const newForm = await createForm({
-        name: `Copy of ${form.name}`,
+        name: t('forms.copyOf', { name: form.name }),
         description: form.description,
         projectId: currentProject.id,
         organizationId: userProfile.organization_id,
@@ -138,11 +143,11 @@ export function FormsList() {
       }
 
       if (newForm) {
-        toast.success(`Form "${newForm.name}" created successfully`);
+        toast.success(t('forms.createdSuccess', { name: newForm.name }));
       }
     } catch (error) {
       console.error('Error copying form:', error);
-      toast.error('Failed to copy form');
+      toast.error(t('forms.copyFailed'));
     } finally {
       setCopyingFormId(null);
     }
@@ -202,9 +207,9 @@ export function FormsList() {
           <div className="text-center space-y-4">
             <FileText className="h-12 w-12 text-muted-foreground mx-auto" />
             <div>
-              <h3 className="text-lg font-semibold">No forms available</h3>
+              <h3 className="text-lg font-semibold">{t('forms.noFormsTitle')}</h3>
               <p className="text-muted-foreground">
-                {forms.length === 0 ? "No forms have been created yet." : "You don't have permission to view any forms in this project."}
+                {forms.length === 0 ? t('forms.noFormsCreated') : t('forms.noFormsPermission')}
               </p>
             </div>
           </div>
@@ -224,10 +229,10 @@ export function FormsList() {
                   {/*{form.description && <p className="text-sm text-muted-foreground">{form.description}</p>}*/}
                   <div className="flex items-center gap-2">
                     <Badge {...statusBadgeProps}>
-                      {form.status.replace('_', ' ')}
+                      {getStatusLabel(form.status)}
                     </Badge>
                     <Badge variant={form.isPublic ? 'default' : 'secondary'} className={form.isPublic ? 'bg-cyan-500 hover:bg-cyan-600 text-white border-cyan-400' : 'hidden'}>
-  {form.isPublic ? 'Public' : ''}
+  {form.isPublic ? t('forms.public') : ''}
 </Badge>
                   </div>
                 </div>
@@ -235,13 +240,13 @@ export function FormsList() {
                   {/* <Button variant="ghost" size="sm" onClick={() => handleCopyId(form.id)} title="Copy Form ID">
                     <Copy className="h-4 w-4 text-module-relationship" />
                   </Button> */}
-                  <Button variant="ghost" size="sm" onClick={() => handleCopyForm(form)} disabled={copyingFormId === form.id} title="Duplicate Form">
+                  <Button variant="ghost" size="sm" onClick={() => handleCopyForm(form)} disabled={copyingFormId === form.id} title={t('forms.duplicateForm')}>
                     <Files className="h-4 w-4 text-module-knowledge" />
                   </Button>
-                  <Button variant="ghost" size="sm" onClick={() => handleViewForm(form.id)} title="Add Record">
+                  <Button variant="ghost" size="sm" onClick={() => handleViewForm(form.id)} title={t('forms.addRecord')}>
                     <Plus className="h-4 w-4 text-module-workflows" />
                   </Button>
-                  <Button variant="ghost" size="sm" onClick={() => handleViewRecords(form.id)} title="View Records">
+                  <Button variant="ghost" size="sm" onClick={() => handleViewRecords(form.id)} title={t('forms.viewRecords')}>
                     <Database className="h-4 w-4 text-module-query" />
                   </Button>
                   <TooltipProvider>
@@ -252,7 +257,7 @@ export function FormsList() {
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p>{editButtonState.disabled ? editButtonState.tooltip : "Edit Form"}</p>
+                        <p>{editButtonState.disabled ? editButtonState.tooltip : t('forms.editForm')}</p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
@@ -265,7 +270,7 @@ export function FormsList() {
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p>{deleteButtonState.disabled ? deleteButtonState.tooltip : "Delete Form"}</p>
+                        <p>{deleteButtonState.disabled ? deleteButtonState.tooltip : t('forms.deleteForm')}</p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
@@ -304,19 +309,19 @@ export function FormsList() {
                         <span>{format(new Date(form.createdAt), 'MMM d, yyyy')}</span>
                       </div>
                       <Badge {...statusBadgeProps}>
-                        {form.status.replace('_', ' ')}
+                        {getStatusLabel(form.status)}
                       </Badge>
                     </div>
                   </div>
                 </div>
                 <div className="flex items-center flex-wrap sm:flex-nowrap gap-1 -mx-1 sm:mx-0 sm:justify-end shrink-0">
-                  <Button variant="ghost" size="sm" onClick={() => handleCopyForm(form)} disabled={copyingFormId === form.id} title="Duplicate Form">
+                  <Button variant="ghost" size="sm" onClick={() => handleCopyForm(form)} disabled={copyingFormId === form.id} title={t('forms.duplicateForm')}>
                     <Files className="h-4 w-4 text-module-knowledge" />
                   </Button>
-                  <Button variant="ghost" size="sm" onClick={() => handleViewForm(form.id)} title="Add Record">
+                  <Button variant="ghost" size="sm" onClick={() => handleViewForm(form.id)} title={t('forms.addRecord')}>
                     <Plus className="h-4 w-4 text-module-workflows" />
                   </Button>
-                  <Button variant="ghost" size="sm" onClick={() => handleViewRecords(form.id)} title="View Records">
+                  <Button variant="ghost" size="sm" onClick={() => handleViewRecords(form.id)} title={t('forms.viewRecords')}>
                     <Database className="h-4 w-4 text-module-query" />
                   </Button>
                   <TooltipProvider>
@@ -327,7 +332,7 @@ export function FormsList() {
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p>{editButtonState.disabled ? editButtonState.tooltip : "Edit Form"}</p>
+                        <p>{editButtonState.disabled ? editButtonState.tooltip : t('forms.editForm')}</p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
@@ -340,7 +345,7 @@ export function FormsList() {
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p>{deleteButtonState.disabled ? deleteButtonState.tooltip : "Delete Form"}</p>
+                        <p>{deleteButtonState.disabled ? deleteButtonState.tooltip : t('forms.deleteForm')}</p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
@@ -353,49 +358,49 @@ export function FormsList() {
  const renderKanbanView = () => {
     const statusColumns = [{
       key: 'draft',
-      label: 'Draft',
+      label: getStatusLabel('draft'),
       bgColor: 'bg-amber-100 border-amber-200',
       headerColor: 'bg-amber-500 text-white',
       count: visibleForms.filter(f => f.status === 'draft').length
     }, {
       key: 'active',
-      label: 'Active',
+      label: getStatusLabel('active'),
       bgColor: 'bg-emerald-100 border-emerald-200',
       headerColor: 'bg-emerald-500 text-white',
       count: visibleForms.filter(f => f.status === 'active').length
     }, {
       key: 'pending_review',
-      label: 'Pending Review',
+      label: getStatusLabel('pending_review'),
       bgColor: 'bg-orange-100 border-orange-200',
       headerColor: 'bg-orange-500 text-white',
       count: visibleForms.filter(f => f.status === 'pending_review').length
     }, {
       key: 'approved',
-      label: 'Approved',
+      label: getStatusLabel('approved'),
       bgColor: 'bg-green-100 border-green-200',
       headerColor: 'bg-green-500 text-white',
       count: visibleForms.filter(f => f.status === 'approved').length
     }, {
       key: 'completed',
-      label: 'Completed',
+      label: getStatusLabel('completed'),
       bgColor: 'bg-blue-100 border-blue-200',
       headerColor: 'bg-blue-500 text-white',
       count: visibleForms.filter(f => f.status === 'completed').length
     }, {
       key: 'rejected',
-      label: 'Rejected',
+      label: getStatusLabel('rejected'),
       bgColor: 'bg-red-100 border-red-200',
       headerColor: 'bg-red-500 text-white',
       count: visibleForms.filter(f => f.status === 'rejected').length
     }, {
       key: 'in_progress',
-      label: 'In Progress',
+      label: getStatusLabel('in_progress'),
       bgColor: 'bg-purple-100 border-purple-200',
       headerColor: 'bg-purple-500 text-white',
       count: visibleForms.filter(f => f.status === 'in_progress').length
     }, {
       key: 'archived',
-      label: 'Archived',
+      label: getStatusLabel('archived'),
       bgColor: 'bg-gray-100 border-gray-200',
       headerColor: 'bg-gray-500 text-white',
       count: visibleForms.filter(f => f.status === 'archived').length
@@ -428,13 +433,13 @@ export function FormsList() {
                         </div>
                         <div className="flex justify-between gap-1">
                           <div className="flex gap-1">
-                            <Button variant="ghost" size="sm" onClick={() => handleCopyId(form.id)} title="Copy Form ID" className="h-8 w-8 p-0">
+                            <Button variant="ghost" size="sm" onClick={() => handleCopyId(form.id)} title={t('forms.copyFormId')} className="h-8 w-8 p-0">
                               <Copy className="h-3 w-3 text-module-relationship" />
                             </Button>
-                            <Button variant="ghost" size="sm" onClick={() => handleCopyForm(form)} disabled={copyingFormId === form.id} title="Duplicate Form" className="h-8 w-8 p-0">
+                            <Button variant="ghost" size="sm" onClick={() => handleCopyForm(form)} disabled={copyingFormId === form.id} title={t('forms.duplicateForm')} className="h-8 w-8 p-0">
                               <Files className="h-3 w-3 text-module-knowledge" />
                             </Button>
-                            <Button variant="ghost" size="sm" onClick={() => handleViewForm(form.id)} title="Add Record" className="h-8 w-8 p-0">
+                            <Button variant="ghost" size="sm" onClick={() => handleViewForm(form.id)} title={t('forms.addRecord')} className="h-8 w-8 p-0">
                               <Plus className="h-3 w-3 text-module-workflows" />
                             </Button>
                             <Button variant="ghost" size="sm" onClick={() => handleViewRecords(form.id)} className="h-8 w-8 p-0">
@@ -448,7 +453,7 @@ export function FormsList() {
                                   </Button>
                                 </TooltipTrigger>
                                 <TooltipContent>
-                                  <p>{editButtonState.disabled ? editButtonState.tooltip : "Edit Form"}</p>
+                                  <p>{editButtonState.disabled ? editButtonState.tooltip : t('forms.editForm')}</p>
                                 </TooltipContent>
                               </Tooltip>
                             </TooltipProvider>
@@ -468,7 +473,7 @@ export function FormsList() {
                                   </Button>
                                 </TooltipTrigger>
                                 <TooltipContent>
-                                  <p>{deleteButtonState.disabled ? deleteButtonState.tooltip : "Delete Form"}</p>
+                                  <p>{deleteButtonState.disabled ? deleteButtonState.tooltip : t('forms.deleteForm')}</p>
                                 </TooltipContent>
                               </Tooltip>
                             </TooltipProvider>
@@ -488,11 +493,11 @@ export function FormsList() {
         <div className="flex items-center space-x-2">
           <Button variant={viewMode === 'grid' ? 'default' : 'outline'} size="sm" onClick={() => setViewMode('grid')} className={viewMode === 'grid' ? 'bg-primary hover:bg-primary/90' : ''}>
             <Grid className="h-4 w-4 mr-1" />
-            Grid
+            {t('forms.gridView')}
           </Button>
           <Button variant={viewMode === 'list' ? 'default' : 'outline'} size="sm" onClick={() => setViewMode('list')} className={viewMode === 'list' ? 'bg-primary hover:bg-primary/90' : ''}>
             <List className="h-4 w-4 mr-1" />
-            List
+            {t('forms.listView')}
           </Button>
          {/* <Button variant={viewMode === 'kanban' ? 'default' : 'outline'} size="sm" onClick={() => setViewMode('kanban')} className={viewMode === 'kanban' ? 'bg-blue-500 hover:bg-blue-600' : ''}>
             <Columns className="h-4 w-4 mr-1" />

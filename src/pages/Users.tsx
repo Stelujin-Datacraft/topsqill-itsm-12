@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -53,6 +54,7 @@ import { UserEditDialog } from '@/components/users/UserEditDialog';
 import { UsersExportButton } from '@/components/users/UsersExportButton';
 
 const Users = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { userProfile } = useAuth();
   const { isImpersonating, impersonatedUser } = useImpersonation();
@@ -140,9 +142,9 @@ const Users = () => {
       assigned_by: userProfile?.id,
     });
     if (error) {
-      toast({ title: 'Error', description: 'Failed to assign role', variant: 'destructive' });
+      toast({ title: t('common.error'), description: t('users.failedAssignRole'), variant: 'destructive' });
     } else {
-      toast({ title: 'Role assigned', description: 'User added to projects derived from role permissions.' });
+      toast({ title: t('users.roleAssignedTitle'), description: t('users.roleAssignedDesc') });
       await refetchRoleAssignments();
     }
   };
@@ -150,9 +152,9 @@ const Users = () => {
   const handleRemoveCustomRole = async (userId: string) => {
     const { error } = await supabase.from('user_role_assignments').delete().eq('user_id', userId);
     if (error) {
-      toast({ title: 'Error', description: 'Failed to remove role', variant: 'destructive' });
+      toast({ title: t('common.error'), description: t('users.failedRemoveRole'), variant: 'destructive' });
     } else {
-      toast({ title: 'Role removed' });
+      toast({ title: t('users.roleRemoved') });
       await refetchRoleAssignments();
     }
   };
@@ -210,9 +212,10 @@ const Users = () => {
     timezone?: string;
   }>) => {
     const results = await handleBulkImportUsers(importedUsers);
+    const failedPart = results.failed > 0 ? t('users.failedPart', { failed: results.failed }) : '';
     toast({
-      title: results.failed === 0 ? 'Success' : 'Partial Success',
-      description: `${results.successful} user(s) imported successfully${results.failed > 0 ? `, ${results.failed} failed` : ''}`,
+      title: results.failed === 0 ? t('common.success') : t('common.partialSuccess'),
+      description: t('users.importSuccess', { successful: results.successful, failedPart }),
       variant: results.failed === 0 ? 'default' : 'destructive'
     });
     if (results.errors.length > 0) {
@@ -231,9 +234,10 @@ const Users = () => {
     timezone?: string;
   }>) => {
     const results = await handleBulkUpdateUsers(updates);
+    const failedPart = results.failed > 0 ? t('users.failedPart', { failed: results.failed }) : '';
     toast({
-      title: results.failed === 0 ? 'Success' : 'Partial Success',
-      description: `${results.successful} user(s) updated successfully${results.failed > 0 ? `, ${results.failed} failed` : ''}`,
+      title: results.failed === 0 ? t('common.success') : t('common.partialSuccess'),
+      description: t('users.updateSuccess', { successful: results.successful, failedPart }),
       variant: results.failed === 0 ? 'default' : 'destructive'
     });
     if (results.errors.length > 0) {
@@ -281,7 +285,7 @@ const Users = () => {
 
   if (loading) {
     return (
-      <DashboardLayout title="Access Control">
+      <DashboardLayout title={t('users.title')}>
         <div className="flex items-center justify-center py-24">
           <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full" />
         </div>
@@ -291,8 +295,8 @@ const Users = () => {
 
   return (
     <DashboardLayout 
-      title="Access Control" 
-      description="Manage your organization's team members and access"
+      title={t('users.title')} 
+      description={t('users.description')}
       actions={
         <div className="flex flex-wrap items-center gap-2">
           <UsersExportButton
@@ -305,40 +309,40 @@ const Users = () => {
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">
                 <BarChart2 className="h-4 w-4 mr-2 text-module-access" />
-                Data Analytics
+                {t('common.dataAnalytics')}
                 <ChevronDown className="h-4 w-4 ml-2" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56 bg-background border border-border shadow-lg z-50">
               <div className="px-3 py-2 border-b border-border">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Team Statistics</p>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t('users.teamStatistics')}</p>
               </div>
               <div className="p-2 space-y-1">
                 <div className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-muted/50">
                   <div className="flex items-center gap-2">
                     <UsersIcon className="h-4 w-4 text-module-access" />
-                    <span className="text-sm">Total Members</span>
+                    <span className="text-sm">{t('users.totalMembers')}</span>
                   </div>
                   <Badge variant="secondary" className="font-semibold">{totalUsers}</Badge>
                 </div>
                 <div className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-muted/50">
                   <div className="flex items-center gap-2">
                     <UserCheck className="h-4 w-4 text-module-access" />
-                    <span className="text-sm">Active</span>
+                    <span className="text-sm">{t('users.active')}</span>
                   </div>
                   <Badge variant="secondary" className="font-semibold bg-primary/10 text-primary">{activeUsers}</Badge>
                 </div>
                 <div className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-muted/50">
                   <div className="flex items-center gap-2">
                     <Clock className="h-4 w-4 text-module-access" />
-                    <span className="text-sm">Pending</span>
+                    <span className="text-sm">{t('users.pending')}</span>
                   </div>
                   <Badge variant="secondary" className="font-semibold">{pendingUsers}</Badge>
                 </div>
                 <div className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-muted/50">
                   <div className="flex items-center gap-2">
                     <UserMinus className="h-4 w-4 text-destructive" />
-                    <span className="text-sm">Inactive</span>
+                    <span className="text-sm">{t('users.inactive')}</span>
                   </div>
                   <Badge variant="secondary" className="font-semibold bg-destructive/10 text-destructive">{inactiveUsers}</Badge>
                 </div>
@@ -346,14 +350,14 @@ const Users = () => {
                 <div className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-muted/50">
                   <div className="flex items-center gap-2">
                     <User className="h-4 w-4 text-module-access" />
-                    <span className="text-sm">Users</span>
+                    <span className="text-sm">{t('users.tabUsers')}</span>
                   </div>
                   <Badge variant="secondary" className="font-semibold">{regularUsers}</Badge>
                 </div>
                 <div className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-muted/50">
                   <div className="flex items-center gap-2">
                     <Shield className="h-4 w-4 text-module-compliance" />
-                    <span className="text-sm">Admins</span>
+                    <span className="text-sm">{t('users.admins')}</span>
                   </div>
                   <Badge variant="secondary" className="font-semibold bg-primary/10 text-primary">{adminUsers}</Badge>
                 </div>
@@ -364,24 +368,24 @@ const Users = () => {
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">
                 <Shield className="h-4 w-4 mr-2 text-module-compliance" />
-                Administration
+                {t('users.administration')}
                 <ChevronDown className="h-4 w-4 ml-2" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-52 bg-background border border-border shadow-lg z-50">
               <DropdownMenuItem onClick={() => navigate('/investigate-access')} className="cursor-pointer">
                 <Eye className="h-4 w-4 mr-2 text-module-access" />
-                {effectiveRole === 'admin' ? 'Investigate Access' : 'My Access'}
+                {effectiveRole === 'admin' ? t('users.investigateAccess') : t('users.myAccess')}
               </DropdownMenuItem>
               {effectiveRole === 'admin' && (
                 <>
                   <DropdownMenuItem onClick={() => navigate('/manage-sessions')} className="cursor-pointer">
                     <Monitor className="h-4 w-4 mr-2 text-module-access" />
-                    Manage Sessions
+                    {t('users.manageSessions')}
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => navigate('/audit-logs')} className="cursor-pointer">
                     <ClipboardList className="h-4 w-4 mr-2 text-module-access" />
-                    Audit Logs
+                    {t('users.auditLogs')}
                   </DropdownMenuItem>
                 </>
               )}
@@ -391,32 +395,32 @@ const Users = () => {
             <DropdownMenuTrigger asChild>
               <Button size="sm">
                 <UserPlus className="h-4 w-4 mr-2" />
-                Create
+                {t('common.create')}
                 <ChevronDown className="h-4 w-4 ml-2" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48 bg-background border border-border shadow-lg z-50">
               <DropdownMenuItem onClick={() => setIsCreateOpen(true)} className="cursor-pointer">
                 <UserPlus className="h-4 w-4 mr-2 text-module-forms" />
-                Create User
+                {t('users.createUser')}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setIsInviteOpen(true)} className="cursor-pointer">
                 <Mail className="h-4 w-4 mr-2 text-module-forms" />
-                Invite User
+                {t('users.inviteUser')}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => setIsImportOpen(true)} className="cursor-pointer">
                 <Upload className="h-4 w-4 mr-2 text-module-forms" />
-                Import Users
+                {t('users.importUsers')}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setIsUpdateOpen(true)} className="cursor-pointer">
                 <RefreshCw className="h-4 w-4 mr-2 text-module-forms" />
-                Update Users
+                {t('users.updateUsers')}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => setIsRequestsOpen(true)} className="cursor-pointer">
                 <Clock className="h-4 w-4 mr-2 text-module-forms" />
-                Pending Requests
+                {t('users.pendingRequests')}
                 {requests.length > 0 && (
                   <Badge variant="secondary" className="ml-2 h-5 min-w-5 px-1.5 flex items-center justify-center text-xs bg-primary/10 text-primary border-0">
                     {requests.length}
@@ -431,10 +435,10 @@ const Users = () => {
       <div className="space-y-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-auto gap-1">
-            <TabsTrigger value="users">Users</TabsTrigger>
-            {effectiveRole === 'admin' && <TabsTrigger value="roles">Roles</TabsTrigger>}
-            {effectiveRole === 'admin' && <TabsTrigger value="groups">Groups</TabsTrigger>}
-            {effectiveRole === 'admin' && <TabsTrigger value="security-templates">Security Templates</TabsTrigger>}
+            <TabsTrigger value="users">{t('users.tabUsers')}</TabsTrigger>
+            {effectiveRole === 'admin' && <TabsTrigger value="roles">{t('users.tabRoles')}</TabsTrigger>}
+            {effectiveRole === 'admin' && <TabsTrigger value="groups">{t('users.tabGroups')}</TabsTrigger>}
+            {effectiveRole === 'admin' && <TabsTrigger value="security-templates">{t('users.tabSecurityTemplates')}</TabsTrigger>}
           </TabsList>
 
           <TabsContent value="users" className="space-y-6">
@@ -445,7 +449,7 @@ const Users = () => {
               <div className="relative max-w-sm">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                 <Input
-                  placeholder="Search members..."
+                  placeholder={t('users.searchMembers')}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-9 bg-background border-border/60 focus-visible:ring-primary/20"
@@ -459,7 +463,7 @@ const Users = () => {
                 <div className="text-center py-16 text-muted-foreground">
                   <div className="flex flex-col items-center gap-2">
                     <UsersIcon className="h-10 w-10 text-muted-foreground/50" />
-                    <p>{searchTerm ? 'No members match your search.' : 'No members found.'}</p>
+                    <p>{searchTerm ? t('users.noMembersMatch') : t('users.noMembersFound')}</p>
                   </div>
                 </div>
               ) : (
@@ -478,10 +482,10 @@ const Users = () => {
                         <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                         <div className="flex items-center gap-2 mt-2 flex-wrap">
                           <Badge variant="outline" className={`text-xs font-medium capitalize px-2 py-0 ${getStatusBadge(user.status)}`}>
-                            {user.status}
+                            {t(`users.statuses.${user.status}`, user.status)}
                           </Badge>
                           <span className="text-xs text-muted-foreground">
-                            Joined {new Date(user.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                            {t('users.joined')} {new Date(user.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                           </span>
                         </div>
                       </div>
@@ -490,15 +494,15 @@ const Users = () => {
                       <Select value={user.role} onValueChange={(value) => handleRoleChange(user.id, value)}>
                         <SelectTrigger className="w-[110px] h-8 text-xs"><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="user">User</SelectItem>
-                          <SelectItem value="admin">Admin</SelectItem>
+                          <SelectItem value="user">{t('users.roleUser')}</SelectItem>
+                          <SelectItem value="admin">{t('users.roleAdmin')}</SelectItem>
                         </SelectContent>
                       </Select>
                       <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setSelectedUserForEdit(user); setEditDialogOpen(true); }} title="Edit User">
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setSelectedUserForEdit(user); setEditDialogOpen(true); }} title={t('users.editUser')}>
                           <Pencil className="h-4 w-4 text-module-reports" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setSelectedUserForSecurity({ id: user.id, name: user.first_name && user.last_name ? `${user.first_name} ${user.last_name}` : user.email.split('@')[0], email: user.email }); setSecurityDialogOpen(true); }} title="Security">
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setSelectedUserForSecurity({ id: user.id, name: user.first_name && user.last_name ? `${user.first_name} ${user.last_name}` : user.email.split('@')[0], email: user.email }); setSecurityDialogOpen(true); }} title={t('users.security')}>
                           <Shield className="h-4 w-4 text-module-compliance" />
                         </Button>
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => confirmDelete(user.id, user.first_name && user.last_name ? `${user.first_name} ${user.last_name}` : user.email)}>
@@ -516,14 +520,14 @@ const Users = () => {
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent border-border/40 bg-muted/20">
-                    <TableHead className="font-semibold text-foreground/80">Member</TableHead>
-                    <TableHead className="font-semibold text-foreground/80">Role</TableHead>
-                    <TableHead className="font-semibold text-foreground/80">Role Assigned</TableHead>
-                    <TableHead className="font-semibold text-foreground/80">Group Assigned</TableHead>
-                    <TableHead className="font-semibold text-foreground/80">Template</TableHead>
-                    <TableHead className="font-semibold text-foreground/80">Status</TableHead>
-                    <TableHead className="font-semibold text-foreground/80">Joined</TableHead>
-                    <TableHead className="w-[100px] font-semibold text-foreground/80">Actions</TableHead>
+                    <TableHead className="font-semibold text-foreground/80">{t('users.member')}</TableHead>
+                    <TableHead className="font-semibold text-foreground/80">{t('users.role')}</TableHead>
+                    <TableHead className="font-semibold text-foreground/80">{t('users.roleAssigned')}</TableHead>
+                    <TableHead className="font-semibold text-foreground/80">{t('users.groupAssigned')}</TableHead>
+                    <TableHead className="font-semibold text-foreground/80">{t('users.template')}</TableHead>
+                    <TableHead className="font-semibold text-foreground/80">{t('users.statusLabel')}</TableHead>
+                    <TableHead className="font-semibold text-foreground/80">{t('users.joined')}</TableHead>
+                    <TableHead className="w-[100px] font-semibold text-foreground/80">{t('users.actions')}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -532,7 +536,7 @@ const Users = () => {
                         <TableCell colSpan={8} className="text-center py-16 text-muted-foreground">
                         <div className="flex flex-col items-center gap-2">
                           <UsersIcon className="h-10 w-10 text-muted-foreground/50" />
-                          <p>{searchTerm ? 'No members match your search.' : 'No members found.'}</p>
+                          <p>{searchTerm ? t('users.noMembersMatch') : t('users.noMembersFound')}</p>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -566,8 +570,8 @@ const Users = () => {
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="user">User</SelectItem>
-                              <SelectItem value="admin">Admin</SelectItem>
+                              <SelectItem value="user">{t('users.roleUser')}</SelectItem>
+                              <SelectItem value="admin">{t('users.roleAdmin')}</SelectItem>
                             </SelectContent>
                           </Select>
                         </TableCell>
@@ -575,17 +579,17 @@ const Users = () => {
                           {(() => {
                             const assignedRoles = getAssignedRoles(user.id);
                             if (user.role === 'admin') {
-                              return <Badge variant="secondary" className="text-xs">No Role</Badge>;
+                              return <Badge variant="secondary" className="text-xs">{t('users.noRole')}</Badge>;
                             }
                             if (assignedRoles.length === 0) {
-                              return <Badge variant="secondary" className="text-xs">No Role</Badge>;
+                              return <Badge variant="secondary" className="text-xs">{t('users.noRole')}</Badge>;
                             }
                             return (
                               <Popover>
                                 <PopoverTrigger asChild>
                                   <Button variant="outline" size="sm" className="flex items-center gap-2">
                                     <Shield className="h-4 w-4 text-module-compliance" />
-                                    View Roles ({assignedRoles.length})
+                                    {t('users.viewRoles', { count: assignedRoles.length })}
                                     <ChevronDown className="h-4 w-4" />
                                   </Button>
                                 </PopoverTrigger>
@@ -610,14 +614,14 @@ const Users = () => {
                           {(() => {
                             const groupNames = userGroupsMap[user.id] || [];
                             if (groupNames.length === 0) {
-                              return <Badge variant="secondary" className="text-xs">No Group</Badge>;
+                              return <Badge variant="secondary" className="text-xs">{t('users.noGroup')}</Badge>;
                             }
                             return (
                               <Popover>
                                 <PopoverTrigger asChild>
                                   <Button variant="outline" size="sm" className="flex items-center gap-2">
                                     <UsersIcon className="h-4 w-4 text-module-access" />
-                                    View Groups ({groupNames.length})
+                                    {t('users.viewGroups', { count: groupNames.length })}
                                     <ChevronDown className="h-4 w-4" />
                                   </Button>
                                 </PopoverTrigger>
@@ -644,7 +648,7 @@ const Users = () => {
                             return tpl ? (
                               <Badge variant="default" className="text-xs">{tpl.name}</Badge>
                             ) : (
-                              <Badge variant="secondary" className="text-xs">No Template</Badge>
+                              <Badge variant="secondary" className="text-xs">{t('users.noTemplate')}</Badge>
                             );
                           })()}
                         </TableCell>
@@ -653,7 +657,7 @@ const Users = () => {
                             variant="outline" 
                             className={`text-xs font-medium capitalize px-2.5 py-0.5 ${getStatusBadge(user.status)}`}
                           >
-                            {user.status}
+                            {t(`users.statuses.${user.status}`, user.status)}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
@@ -673,7 +677,7 @@ const Users = () => {
                                 setSelectedUserForEdit(user);
                                 setEditDialogOpen(true);
                               }}
-                              title="Edit User"
+                              title={t('users.editUser')}
                             >
                               <Pencil className="h-4 w-4 text-module-reports" />
                             </Button>
@@ -691,7 +695,7 @@ const Users = () => {
                                 });
                                 setSecurityDialogOpen(true);
                               }}
-                              title="Security Parameters"
+                              title={t('users.securityParameters')}
                             >
                               <Shield className="h-4 w-4 text-module-forms" />
                             </Button>
@@ -724,8 +728,8 @@ const Users = () => {
             <TabsContent value="roles" className="space-y-6">
               <Tabs defaultValue="create-roles" className="space-y-4">
                 <TabsList className="grid w-full grid-cols-2 sm:w-auto sm:inline-flex h-auto gap-1">
-                  <TabsTrigger value="create-roles">Create Roles</TabsTrigger>
-                  <TabsTrigger value="assign-roles">Assign Roles to Users</TabsTrigger>
+                  <TabsTrigger value="create-roles">{t('users.createRoles')}</TabsTrigger>
+                  <TabsTrigger value="assign-roles">{t('users.assignRoles')}</TabsTrigger>
                 </TabsList>
                 <TabsContent value="create-roles" className="space-y-6">
                   <CreateRolesTab />
@@ -747,8 +751,8 @@ const Users = () => {
             <TabsContent value="security-templates" className="space-y-6">
               <Tabs defaultValue="create-templates" className="w-full">
                 <TabsList>
-                  <TabsTrigger value="create-templates">Create Templates</TabsTrigger>
-                  <TabsTrigger value="assign-templates">Assign Templates to Users</TabsTrigger>
+                  <TabsTrigger value="create-templates">{t('users.createTemplates')}</TabsTrigger>
+                  <TabsTrigger value="assign-templates">{t('users.assignTemplates')}</TabsTrigger>
                 </TabsList>
                 <TabsContent value="create-templates" className="mt-4">
                   <SecurityTemplatesManager inline />
@@ -798,18 +802,18 @@ const Users = () => {
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove Member</AlertDialogTitle>
+            <AlertDialogTitle>{t('users.removeMember')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to remove {userToDelete?.name} from the organization? This action cannot be undone.
+              {t('users.removeMemberConfirm', { name: userToDelete?.name })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction 
               onClick={executeDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Remove
+              {t('common.remove')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

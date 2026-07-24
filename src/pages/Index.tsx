@@ -1,6 +1,7 @@
 
 import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -23,12 +24,14 @@ import TestimonialsSection from '@/components/landing/TestimonialsSection';
 import PricingSection from '@/components/landing/PricingSection';
 import IntegrationsSection from '@/components/landing/IntegrationsSection';
 import TrustLogosSection from '@/components/landing/TrustLogosSection';
+import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 
 const Index = () => {
+  const { t } = useTranslation();
+
   useEffect(() => {
-    // Set the page title dynamically
-    document.title = 'TopSqill BPM - Enterprise Form Platform with AI & Workflow Automation';
-  }, []);
+    document.title = t('landing.title');
+  }, [t]);
 
   return (
       <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
@@ -36,35 +39,36 @@ const Index = () => {
         <AnnouncementBanner />
         
         {/* Navigation */}
-        <nav className="border-b bg-background/80 backdrop-blur-sm sticky top-0 z-50">
-          <div className="container mx-auto px-4 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <nav className="border-b bg-background/90 backdrop-blur-md sticky top-0 z-50">
+          <div className="container mx-auto px-4 py-3 sm:py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex items-center space-x-3">
               <img 
                 src="/lovable-uploads/7355d9d6-30ec-4b86-9922-9058a15f6cca.png" 
-                alt="Topsqill Logo" 
-                className="w-10 h-10 object-contain"
+                alt="TopSqill" 
+                className="w-9 h-9 object-contain"
               />
-              <span className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
-                TopSqill
+              <span className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground">
+                {t('common.appName')}
               </span>
             </div>
-            <div className="hidden md:flex items-center space-x-6">
-              <a href="#features" className="text-foreground hover:text-primary transition-colors">Features</a>
-              <a href="#showcase" className="text-foreground hover:text-primary transition-colors">Showcase</a>
-              <Link to="/solutions" className="text-foreground hover:text-primary transition-colors">Solutions</Link>
-              <a href="#pricing" className="text-foreground hover:text-primary transition-colors">Pricing</a>
-              <a href="#roadmap" className="text-foreground hover:text-primary transition-colors">AI Roadmap</a>
-              <a href="#investors" className="text-foreground hover:text-primary transition-colors">Investors</a>
-              <a href="#faq" className="text-foreground hover:text-primary transition-colors">FAQ</a>
+            <div className="hidden lg:flex items-center gap-6 text-sm font-medium">
+              <a href="#features" className="text-muted-foreground hover:text-foreground transition-colors">{t('nav.features')}</a>
+              <a href="#showcase" className="text-muted-foreground hover:text-foreground transition-colors">{t('nav.showcase')}</a>
+              <Link to="/solutions" className="text-muted-foreground hover:text-foreground transition-colors">{t('nav.solutions')}</Link>
+              <a href="#pricing" className="text-muted-foreground hover:text-foreground transition-colors">{t('nav.pricing')}</a>
+              <a href="#roadmap" className="text-muted-foreground hover:text-foreground transition-colors">{t('nav.roadmap')}</a>
+              <a href="#investors" className="text-muted-foreground hover:text-foreground transition-colors">{t('nav.investors')}</a>
+              <a href="#faq" className="text-muted-foreground hover:text-foreground transition-colors">{t('nav.faq')}</a>
             </div>
-            <div className="flex items-center space-x-3 sm:space-x-4">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <LanguageSwitcher variant="ghost" />
               <Link to="/auth" className="flex-1 sm:flex-initial">
-                <Button variant="outline" size="sm" className="w-full sm:w-auto">Sign In</Button>
+                <Button variant="outline" size="sm" className="w-full sm:w-auto">{t('nav.signIn')}</Button>
               </Link>
               <Link to="/auth" className="flex-1 sm:flex-initial">
                 <Button size="sm" className="w-full sm:w-auto">
-                  Start Free Trial
-                  <ArrowRight className="ml-2 h-4 w-4" />
+                  {t('nav.startTrial')}
+                  <ArrowRight className="ms-2 h-4 w-4" />
                 </Button>
               </Link>
             </div>
@@ -73,57 +77,56 @@ const Index = () => {
 
         {/* Hero Section */}
         <main>
-          <section className="container mx-auto px-4 py-20 text-center">
-            <div className="flex flex-wrap justify-center gap-2 mb-6">
-              <Badge variant="secondary" className="bg-green-100 text-green-800">
-                <CheckCircle className="w-3 h-3 mr-1" />
-                SOC 2 Compliant
+          <section className="container mx-auto px-4 py-16 sm:py-24 text-center">
+            <div className="flex flex-wrap justify-center gap-2 mb-8">
+              <Badge variant="secondary" className="bg-emerald-50 text-emerald-800 border-emerald-200">
+                <CheckCircle className="w-3 h-3 me-1" />
+                {t('landing.soc2')}
               </Badge>
-              <Badge variant="secondary" className="bg-blue-100 text-blue-800">
-                <Star className="w-3 h-3 mr-1" />
-                4.8/5 Rating
+              <Badge variant="secondary" className="bg-sky-50 text-sky-800 border-sky-200">
+                <Star className="w-3 h-3 me-1" />
+                {t('landing.rating')}
               </Badge>
-              <Badge variant="secondary" className="bg-purple-100 text-purple-800">
-                <Award className="w-3 h-3 mr-1" />
-                Enterprise Ready
+              <Badge variant="secondary" className="bg-violet-50 text-violet-800 border-violet-200">
+                <Award className="w-3 h-3 me-1" />
+                {t('landing.enterpriseReady')}
               </Badge>
             </div>
             
-            <h1 className="text-4xl md:text-7xl font-bold mb-6 text-foreground leading-tight">
-              Enterprise Forms<br />
-              <span className="text-3xl md:text-5xl">Meet AI Automation</span>
+            <h1 className="text-4xl md:text-6xl lg:text-7xl font-semibold mb-6 text-foreground leading-[1.1] tracking-tight">
+              {t('landing.heroTitle')}<br />
+              <span className="text-3xl md:text-4xl lg:text-5xl text-muted-foreground font-medium">{t('landing.heroSubtitle')}</span>
             </h1>
             
-            <p className="text-xl md:text-2xl text-muted-foreground mb-8 max-w-4xl mx-auto leading-relaxed">
-              Build intelligent forms, automate complex workflows, and query data with SQL. 
-              The only platform that scales from startup to Fortune 500 with AI-powered insights.
+            <p className="text-lg md:text-xl text-muted-foreground mb-10 max-w-3xl mx-auto leading-relaxed">
+              {t('landing.heroDescription')}
             </p>
             
-            <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
+            <div className="flex flex-col sm:flex-row gap-3 justify-center mb-12">
               <Link to="/auth">
-                <Button size="lg" className="w-full sm:w-auto bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70">
-                  Start Free 30-Day Trial
-                  <ArrowRight className="ml-2 h-5 w-5" />
+                <Button size="lg" className="w-full sm:w-auto min-w-[220px]">
+                  {t('landing.startTrialCta')}
+                  <ArrowRight className="ms-2 h-5 w-5" />
                 </Button>
               </Link>
-              <Button variant="outline" size="lg" className="w-full sm:w-auto">
-                <Globe className="mr-2 h-5 w-5" />
-                Watch 2-Min Demo
+              <Button variant="outline" size="lg" className="w-full sm:w-auto min-w-[220px]">
+                <Globe className="me-2 h-5 w-5" />
+                {t('landing.watchDemo')}
               </Button>
             </div>
 
             <div className="flex flex-wrap justify-center gap-8 text-sm text-muted-foreground">
               <div className="flex items-center gap-2">
                 <TrendingUp className="h-4 w-4" />
-                500+ Organizations
+                {t('landing.orgs')}
               </div>
               <div className="flex items-center gap-2">
                 <Users className="h-4 w-4" />
-                50K+ Forms Created
+                {t('landing.formsCreated')}
               </div>
               <div className="flex items-center gap-2">
                 <Globe className="h-4 w-4" />
-                25+ Countries
+                {t('landing.countries')}
               </div>
             </div>
           </section>
@@ -135,12 +138,12 @@ const Index = () => {
           <section id="showcase" className="py-20 bg-gradient-to-br from-secondary/5 to-background">
             <div className="container mx-auto px-4">
               <div className="text-center mb-16">
-                <Badge variant="secondary" className="mb-4">Live Previews</Badge>
-                <h2 className="text-3xl md:text-4xl font-bold mb-4">
-                  See the Platform in Action
+                <Badge variant="secondary" className="mb-4">{t('landing.showcaseBadge')}</Badge>
+                <h2 className="text-3xl md:text-4xl font-semibold tracking-tight mb-4">
+                  {t('landing.showcaseTitle')}
                 </h2>
-                <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-                  Interactive examples of our core features working together
+                <p className="text-lg text-muted-foreground max-w-3xl mx-auto leading-relaxed">
+                  {t('landing.showcaseDescription')}
                 </p>
               </div>
 

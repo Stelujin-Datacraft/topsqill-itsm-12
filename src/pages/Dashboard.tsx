@@ -1,5 +1,6 @@
 
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProject } from '@/contexts/ProjectContext';
 import { useNavigate } from 'react-router-dom';
@@ -12,6 +13,7 @@ import { RecentActivityList } from '@/components/RecentActivityList';
 import { Plus, BarChart3, Users, FileText, Settings, Workflow } from 'lucide-react';
 
 const Dashboard = () => {
+  const { t } = useTranslation();
   const { userProfile } = useAuth();
   const { currentProject, projects } = useProject();
   const navigate = useNavigate();
@@ -25,29 +27,29 @@ const Dashboard = () => {
 
   const quickActions = [
     {
-      title: 'Forms',
-      description: 'Build a new form for data collection',
+      title: t('dashboard.forms'),
+      description: t('dashboard.formsDesc'),
       icon: FileText,
       onClick: () => navigate('/forms'),
       disabled: !currentProject,
     },
     {
-      title: 'Workflow',
-      description: 'Design automated processes',
+      title: t('dashboard.workflow'),
+      description: t('dashboard.workflowDesc'),
       icon: Workflow,
       onClick: () => navigate('/workflows'),
       disabled: !currentProject,
     },
     {
-      title: 'Reports',
-      description: 'Analyze your data and metrics',
+      title: t('dashboard.reports'),
+      description: t('dashboard.reportsDesc'),
       icon: BarChart3,
       onClick: () => navigate('/reports'),
       disabled: !currentProject,
     },
     {
-      title: 'Users',
-      description: 'Invite and manage team members',
+      title: t('dashboard.users'),
+      description: t('dashboard.usersDesc'),
       icon: Users,
       onClick: () => navigate('/users'),
       disabled: false,
@@ -58,8 +60,8 @@ const Dashboard = () => {
   try {
     return (
       <DashboardLayout 
-        title="Overview"
-        description={currentProject ? `Currently working on: ${currentProject.name}` : 'Select a project to get started or create a new one'}
+        title={t('dashboard.title')}
+        description={currentProject ? t('dashboard.workingOn', { project: currentProject.name }) : t('dashboard.selectProject')}
         actions={
           userProfile?.role === 'admin' ? (
             <CreateProjectDialog onProjectCreated={handleProjectCreated} />
@@ -71,9 +73,9 @@ const Dashboard = () => {
           {/* Project Invitations - removed, available in Project section */}
 
           {/* Quick Actions */}
-          <Card>
+          <Card className="enterprise-card">
             <CardHeader>
-              <CardTitle>Quick Actions</CardTitle>
+              <CardTitle>{t('dashboard.quickActions')}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 ">
@@ -116,9 +118,9 @@ const Dashboard = () => {
                 ))}
               </div>*/}
               {!currentProject && (
-                <div className="mt-4 p-3 bg-primary-light rounded-lg">
-                  <p className="text-sm text-primary">
-                    💡 Tip: Select a project from the sidebar or create a new one to access forms, workflows, and reports.
+                <div className="mt-4 p-4 bg-primary/5 border border-primary/10 rounded-lg">
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    {t('dashboard.projectTip')}
                   </p>
                 </div>
               )}
@@ -127,43 +129,46 @@ const Dashboard = () => {
 
           {/* Stats Overview */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card className="bg-primary-light border-primary/20">
+            <Card className="enterprise-card bg-primary/5 border-primary/10">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Projects</CardTitle>
+                <CardTitle className="text-sm font-medium">{t('dashboard.totalProjects')}</CardTitle>
                 <Settings className="h-4 w-4 text-module-forms" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{projects.length}</div>
-                <p className="text-xs text-muted-foreground">
-                  {projects.length === 1 ? 'project' : 'projects'} available
+                <div className="text-2xl font-semibold tabular-nums">{projects.length}</div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {t('dashboard.projectsAvailable', {
+                    count: projects.length,
+                    label: t(projects.length === 1 ? 'dashboard.project_one' : 'dashboard.project_other'),
+                  })}
                 </p>
               </CardContent>
             </Card>
 
-            <Card className="bg-primary-light border-primary/20">
+            <Card className="enterprise-card bg-primary/5 border-primary/10">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Current Role</CardTitle>
+                <CardTitle className="text-sm font-medium">{t('dashboard.currentRole')}</CardTitle>
                 <Users className="h-4 w-4 text-module-forms" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold capitalize">{userProfile?.role || 'User'}</div>
-                <p className="text-xs text-muted-foreground">
-                  Organization member
+                <div className="text-2xl font-semibold capitalize">{userProfile?.role || t('common.user')}</div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {t('dashboard.orgMember')}
                 </p>
               </CardContent>
             </Card>
 
-            <Card className="bg-primary-light border-primary/20">
+            <Card className="enterprise-card bg-primary/5 border-primary/10">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Active Project</CardTitle>
+                <CardTitle className="text-sm font-medium">{t('dashboard.activeProject')}</CardTitle>
                 <FileText className="h-4 w-4 text-module-forms" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">
+                <div className="text-2xl font-semibold tabular-nums">
                   {currentProject ? '1' : '0'}
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  {currentProject ? currentProject.name : 'No project selected'}
+                <p className="text-xs text-muted-foreground mt-1">
+                  {currentProject ? currentProject.name : t('dashboard.noProjectSelected')}
                 </p>
               </CardContent>
             </Card>
@@ -177,18 +182,18 @@ const Dashboard = () => {
   } catch (error) {
     console.error('Dashboard render error:', error);
     return (
-      <DashboardLayout title="Overview">
+      <DashboardLayout title={t('dashboard.title')}>
         <div className="flex items-center justify-center min-h-[50vh]">
-          <Card className="p-6 text-center">
+          <Card className="enterprise-card p-6 text-center max-w-md">
             <CardHeader>
-              <CardTitle className="text-destructive">Dashboard Error</CardTitle>
+              <CardTitle className="text-destructive">{t('dashboard.errorTitle')}</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-muted-foreground mb-4">
-                There was an error loading the dashboard. Please try refreshing the page.
+              <p className="text-muted-foreground mb-4 leading-relaxed">
+                {t('dashboard.errorDescription')}
               </p>
               <Button onClick={() => window.location.reload()}>
-                Refresh Page
+                {t('dashboard.refreshPage')}
               </Button>
             </CardContent>
           </Card>
