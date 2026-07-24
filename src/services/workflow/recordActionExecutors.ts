@@ -84,6 +84,13 @@ export class RecordActionExecutors {
       const results: Array<{ fieldId: string; fieldName?: string; newValue: any; success: boolean; error?: string }> = [];
       const fieldValueMap: Record<string, any> = {};
 
+      const fieldIds = [...new Set(fieldUpdates.map((u) => u.targetFieldId))];
+      const { data: targetFields } = await supabase
+        .from('form_fields')
+        .select('id, field_type, custom_config')
+        .in('id', fieldIds);
+      const fieldMap = new Map((targetFields || []).map((f) => [f.id, f]));
+
       for (const update of fieldUpdates) {
         let newValue: any;
 
@@ -125,11 +132,7 @@ export class RecordActionExecutors {
         }
 
         // Fetch target field to check type and normalize
-        const { data: targetField } = await supabase
-          .from('form_fields')
-          .select('id, field_type, custom_config')
-          .eq('id', update.targetFieldId)
-          .single();
+        const targetField = fieldMap.get(update.targetFieldId);
 
         if (targetField) {
           const targetFieldType = targetField.field_type?.toLowerCase();
@@ -1456,26 +1459,54 @@ export class RecordActionExecutors {
       let existingCombinations: Set<string> = new Set();
       if (config.preventDuplicates && config.targetLinkFields && config.targetLinkFields.length > 0) {
         console.log('🔍 Checking for existing combinations...');
-        
-        const { data: existingRecords } = await supabase
-          .from('form_submissions')
-          .select('submission_data')
-          .eq('form_id', config.targetFormId);
 
-        if (existingRecords) {
-          for (const record of existingRecords) {
-            const data = record.submission_data as Record<string, any>;
-            // Build combination key from all link fields
-            const keyParts: string[] = [];
-            for (const linkField of config.targetLinkFields) {
-              const refId = this.extractSubmissionRefId(data[linkField.targetFieldId]);
-              if (refId) keyParts.push(refId);
+        const fieldIds = config.targetLinkFields.map((f: { targetFieldId: string }) => f.targetFieldId);
+        let offset = 0;
+        const pageSize = 500;
+
+        while (true) {
+          const { data: keys, error: keysError } = await supabase.rpc('get_form_combination_keys', {
+            p_form_id: config.targetFormId,
+            p_field_ids: fieldIds,
+            p_limit: pageSize,
+            p_offset: offset,
+          });
+
+          if (keysError) {
+            console.warn('RPC get_form_combination_keys unavailable, using paginated fallback:', keysError.message);
+            const { data: page } = await supabase
+              .from('form_submissions')
+              .select('submission_data')
+              .eq('form_id', config.targetFormId)
+              .range(offset, offset + pageSize - 1);
+
+            if (!page?.length) break;
+
+            for (const record of page) {
+              const data = record.submission_data as Record<string, any>;
+              const keyParts: string[] = [];
+              for (const linkField of config.targetLinkFields) {
+                const refId = this.extractSubmissionRefId(data[linkField.targetFieldId]);
+                if (refId) keyParts.push(refId);
+              }
+              if (keyParts.length > 0) {
+                existingCombinations.add(keyParts.sort().join('|'));
+              }
             }
-            if (keyParts.length > 0) {
-              existingCombinations.add(keyParts.sort().join('|'));
-            }
+
+            if (page.length < pageSize) break;
+            offset += pageSize;
+            continue;
           }
+
+          if (!keys?.length) break;
+          for (const row of keys as Array<{ combo_key: string }>) {
+            if (row.combo_key) existingCombinations.add(row.combo_key);
+          }
+          if (keys.length < pageSize) break;
+          offset += pageSize;
         }
+
         console.log(`📋 Found ${existingCombinations.size} existing combinations`);
       }
 

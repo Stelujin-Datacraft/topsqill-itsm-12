@@ -220,6 +220,13 @@ function normalizeResult(result: { data: unknown; error: { message: string } | n
   return { data: payload?.data ?? payload, error: null, count: payload?.count };
 }
 
+export function paginatedRange(page = 1, pageSize = 100) {
+  const safePage = Math.max(1, page);
+  const safeSize = Math.min(1000, Math.max(1, pageSize));
+  const from = (safePage - 1) * safeSize;
+  return { from, to: from + safeSize - 1, page: safePage, pageSize: safeSize };
+}
+
 /** Supabase-compatible database client that routes through NestJS API */
 export const db = {
   from(table: string) {

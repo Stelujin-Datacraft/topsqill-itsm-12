@@ -1,9 +1,12 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { WorkflowsService } from './workflows.service';
 import { WorkflowsController } from './workflows.controller';
+import { WorkflowExecutorService } from './workflow-executor.service';
+import { QueueModule } from '../queue/queue.module';
 
 @Module({
-  providers: [WorkflowsService],
+  imports: [forwardRef(() => QueueModule)],
+  providers: [WorkflowsService, WorkflowExecutorService],
   controllers: [WorkflowsController],
   exports: [WorkflowsService],
 })
