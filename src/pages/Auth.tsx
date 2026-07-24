@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/contexts/AuthContext';
 import { backend as supabase } from '@/services/api';
 import { Button } from '@/components/ui/button';
@@ -15,9 +16,11 @@ import { validatePassword, DEFAULT_PASSWORD_POLICY, PasswordPolicy } from '@/uti
 import { getOrganizationPasswordPolicy } from '@/utils/securityEnforcement';
 import { MfaVerificationDialog } from '@/components/MfaVerificationDialog';
 import { LdapLoginForm } from '@/components/ldap/LdapLoginForm';
+import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { getProviderLabel, isOidcProvider } from '@/lib/idp/providerDefaults';
 
 const Auth = () => {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState('signin');
   const { signIn, signUp, signInWithGoogle, registerOrganization, requestToJoinOrganization, isLoading, user, pendingMfa, completeMfaVerification } = useAuth();
   const navigate = useNavigate();
@@ -367,25 +370,28 @@ const Auth = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-secondary/20 p-4">
-      <Card className="w-full max-w-2xl">
-        <CardHeader className="text-center">
-          <div className="flex items-center justify-center space-x-2 mb-4">
-            <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-lg">T</span>
-            </div>
-            <span className="text-2xl font-bold">TopSqill</span>
+      <Card className="w-full max-w-2xl enterprise-card shadow-lg">
+        <CardHeader className="text-center relative">
+          <div className="absolute end-4 top-4">
+            <LanguageSwitcher variant="ghost" />
           </div>
-          <CardTitle className="text-2xl">Authentication</CardTitle>
-          <CardDescription>
-            Sign in to your account or register your organization
+          <div className="flex items-center justify-center gap-2 mb-4">
+            <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
+              <span className="text-primary-foreground font-semibold text-lg">T</span>
+            </div>
+            <span className="text-2xl font-semibold tracking-tight">{t('common.appName')}</span>
+          </div>
+          <CardTitle className="text-2xl font-semibold tracking-tight">{t('auth.signIn')}</CardTitle>
+          <CardDescription className="leading-relaxed">
+            {t('auth.signInSubtitle')}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full grid-cols-3 h-auto gap-1">
-              <TabsTrigger value="signin" className="text-xs sm:text-sm px-1 sm:px-3 py-2 whitespace-normal sm:whitespace-nowrap leading-tight">Sign In</TabsTrigger>
-              <TabsTrigger value="register-org" className="text-xs sm:text-sm px-1 sm:px-3 py-2 whitespace-normal sm:whitespace-nowrap leading-tight">Register Org</TabsTrigger>
-              <TabsTrigger value="join-org" className="text-xs sm:text-sm px-1 sm:px-3 py-2 whitespace-normal sm:whitespace-nowrap leading-tight">Join Org</TabsTrigger>
+              <TabsTrigger value="signin" className="text-xs sm:text-sm px-1 sm:px-3 py-2 whitespace-normal sm:whitespace-nowrap leading-tight">{t('auth.signIn')}</TabsTrigger>
+              <TabsTrigger value="register-org" className="text-xs sm:text-sm px-1 sm:px-3 py-2 whitespace-normal sm:whitespace-nowrap leading-tight">{t('auth.registerOrg')}</TabsTrigger>
+              <TabsTrigger value="join-org" className="text-xs sm:text-sm px-1 sm:px-3 py-2 whitespace-normal sm:whitespace-nowrap leading-tight">{t('auth.joinOrg')}</TabsTrigger>
             </TabsList>
 
             <TabsContent value="signin" className="space-y-4">
@@ -402,7 +408,7 @@ const Auth = () => {
               ) : signinStep === 'email' ? (
                 <form onSubmit={handleEmailNext} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="signin-email">Email</Label>
+                    <Label htmlFor="signin-email">{t('auth.email')}</Label>
                     <Input
                       id="signin-email"
                       type="email"
@@ -423,7 +429,7 @@ const Auth = () => {
                   </Button>
                   <div className="text-center pt-2">
                     <Link to="/forgot-password" className="text-sm text-module-relationship hover:underline">
-                      Forgot Password?
+                      {t('auth.forgotPassword')}
                     </Link>
                   </div>
                 </form>
@@ -494,7 +500,7 @@ const Auth = () => {
                   ) : (
                     <>
                       <div className="space-y-2">
-                        <Label htmlFor="signin-password">Password</Label>
+                        <Label htmlFor="signin-password">{t('auth.password')}</Label>
                         <Input
                           id="signin-password"
                           type="password"
@@ -507,7 +513,7 @@ const Auth = () => {
                         />
                       </div>
                       <Button type="submit" className="w-full" disabled={isLoading}>
-                        {isLoading ? 'Signing in...' : 'Sign In'}
+                        {isLoading ? t('auth.signingIn') : t('auth.signIn')}
                       </Button>
                       {ldapEnabled && (
                         <Button
@@ -525,7 +531,7 @@ const Auth = () => {
 
                   <div className="text-center pt-2">
                     <Link to="/forgot-password" className="text-sm text-module-relationship hover:underline">
-                      Forgot Password?
+                      {t('auth.forgotPassword')}
                     </Link>
                   </div>
                 </form>
@@ -593,7 +599,7 @@ const Auth = () => {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="admin-email">Admin Email</Label>
+                  <Label htmlFor="admin-email">{t('auth.adminEmail')}</Label>
                   <Input
                     id="admin-email"
                     type="email"
@@ -604,7 +610,7 @@ const Auth = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="admin-password">Admin Password</Label>
+                  <Label htmlFor="admin-password">{t('auth.adminPassword')}</Label>
                   <Input
                     id="admin-password"
                     type="password"
@@ -670,7 +676,7 @@ const Auth = () => {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="join-email">Email</Label>
+                  <Label htmlFor="join-email">{t('auth.email')}</Label>
                   <Input
                     id="join-email"
                     type="email"

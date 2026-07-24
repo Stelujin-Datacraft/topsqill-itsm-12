@@ -1,6 +1,7 @@
 
 import * as React from "react"
-import { LayoutDashboard, FolderKanban, GalleryVerticalEnd, Calendar, ChevronUp, User2, Plus, LogOut, Bell, Building2, Shield, FileText, Mail, GitBranch, BarChart3, Database, Monitor, ClipboardList, History, RefreshCw, Search, ServerCog, Key, Timer, Map, ScrollText, HardDrive, UserCheck } from "lucide-react"
+import { LayoutDashboard, FolderKanban, GalleryVerticalEnd, Calendar, User2, GitBranch, BarChart3, Database, RefreshCw, Map, ScrollText, HardDrive, Mail, ServerCog, Key, UserCheck } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import { NavMain } from "@/components/nav-main"
 import { NavProjects } from "@/components/nav-projects"
 import { NavUser } from "@/components/nav-user"
@@ -20,8 +21,10 @@ import { useProject } from "@/contexts/ProjectContext"
 import { useOrganization } from "@/contexts/OrganizationContext"
 import { NotificationPanel } from "@/components/NotificationPanel"
 import { ThemeSelector } from "@/components/ThemeSelector"
+import { LanguageSwitcher } from "@/components/LanguageSwitcher"
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const { t } = useTranslation();
   const { userProfile: realUserProfile } = useAuth();
   const { isImpersonating, impersonatedUser } = useImpersonation();
   const { projects, currentProject } = useProject();
@@ -33,113 +36,112 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   
   const data = {
     user: {
-      name: effectiveProfile?.first_name ? `${effectiveProfile.first_name} ${effectiveProfile.last_name}` : effectiveProfile?.email || "User",
+      name: effectiveProfile?.first_name ? `${effectiveProfile.first_name} ${effectiveProfile.last_name}` : effectiveProfile?.email || t('common.user'),
       email: effectiveProfile?.email || "",
       avatar: "",
     },
     teams: [
       {
-        name: currentOrganization?.name || "Organization",
+        name: currentOrganization?.name || t('common.enterprise'),
         logo: GalleryVerticalEnd,
-        plan: "Enterprise",
+        plan: t('common.enterprise'),
       },
     ],
     navMain: [
       {
-        title: "Overview",
+        title: t('nav.overview'),
         url: "/dashboard",
         icon: LayoutDashboard,
         isActive: true,
         iconColor: "text-module-overview",
       },
       {
-        title: "Projects",
+        title: t('nav.projects'),
         url: "/projects",
         icon: FolderKanban,
         iconColor: "text-module-projects",
       },
       {
-        title: "Access Control",
+        title: t('nav.accessControl'),
         url: "/users",
         icon: User2,
         iconColor: "text-module-access",
       },
       {
-        title: "SQL Builder",
+        title: t('nav.sqlBuilder'),
         url: "/query",
         icon: Database,
         iconColor: "text-module-query",
       },
       {
-        title: "Form Builder", 
+        title: t('nav.formBuilder'),
         url: "/forms",
         icon: Calendar,
         isDisabled: !currentProject,
         iconColor: "text-module-forms",
       },
       {
-        title: "Workflows",
-        url: "/workflows", 
+        title: t('nav.workflows'),
+        url: "/workflows",
         icon: GitBranch,
         isDisabled: !currentProject,
         iconColor: "text-module-workflows",
       },
       {
-        title: "Report Analytics",
+        title: t('nav.reportAnalytics'),
         url: "/reports",
         icon: BarChart3,
         isDisabled: !currentProject,
         iconColor: "text-module-reports",
       },
       {
-        title: "Relationship Map",
+        title: t('nav.relationshipMap'),
         url: "/relationship-map",
         icon: Map,
         isDisabled: !currentProject,
         iconColor: "text-module-relationship",
       },
       {
-        title: "Data Feeds",
+        title: t('nav.dataFeeds'),
         url: "/data-feeds",
         icon: RefreshCw,
         isDisabled: !currentProject,
         iconColor: "text-module-feeds",
       },
       {
-        title: "Knowledge Base",
+        title: t('nav.knowledgeBase'),
         url: "/knowledge-base",
         icon: ScrollText,
         isDisabled: !currentProject,
         iconColor: "text-module-knowledge",
       },
       {
-        title: "IT Assets",
+        title: t('nav.itAssets'),
         url: "/it-assets",
         icon: HardDrive,
         iconColor: "text-module-itam",
       },
       {
-        title: "Email Config",
+        title: t('nav.emailConfig'),
         url: "/settings",
         icon: Mail,
         iconColor: "text-module-email",
       },
       {
-        title: "Record Delegation",
+        title: t('nav.recordDelegation'),
         url: "/record-delegations",
         icon: UserCheck,
         iconColor: "text-module-access",
       },
       {
-        title: "LDAP / AD",
+        title: t('nav.ldap'),
         url: "/ldap-settings",
         icon: ServerCog,
         iconColor: "text-module-ldap",
       },
-      // Add admin-only navigation items - only show if effective role is admin
       ...(effectiveRole === 'admin' ? [
         {
-          title: "API Integration",
+          title: t('nav.apiIntegration'),
           url: "/api-integration",
           icon: Key,
           iconColor: "text-module-api",
@@ -167,7 +169,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         {/* Project Switcher Section */}
         <div className="px-2 py-4 group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:py-2">
           <div className="text-xs font-medium text-sidebar-foreground/60 mb-2 px-2 group-data-[collapsible=icon]:hidden">
-            Current Project
+            {t('nav.currentProject')}
           </div>
           <ProjectSwitcher />
         </div>
@@ -178,6 +180,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <NavProjects projects={data.projects} />
       </SidebarContent>
       <SidebarFooter>
+        <LanguageSwitcher variant="sidebar" />
         <ThemeSelector />
         <NavUser user={data.user} />
       </SidebarFooter>

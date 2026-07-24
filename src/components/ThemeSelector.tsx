@@ -1,5 +1,6 @@
 import React from 'react';
 import { Palette, Check } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useTheme, themes } from '@/contexts/ThemeContext';
 import {
   Popover,
@@ -11,6 +12,7 @@ import { cn } from '@/lib/utils';
 
 export function ThemeSelector() {
   const { currentTheme, setTheme } = useTheme();
+  const { t } = useTranslation();
 
   return (
     <Popover>
@@ -21,7 +23,7 @@ export function ThemeSelector() {
           className="w-full justify-start gap-2 px-2 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
         >
           <Palette className="h-4 w-4 text-module-query" />
-          <span className="group-data-[collapsible=icon]:hidden text-xs">Theme</span>
+          <span className="group-data-[collapsible=icon]:hidden text-xs">{t('common.theme')}</span>
           <div className="ml-auto flex gap-1 group-data-[collapsible=icon]:hidden">
             <div
               className="w-3 h-3 rounded-full border border-white/20"
@@ -35,7 +37,7 @@ export function ThemeSelector() {
         </Button>
       </PopoverTrigger>
       <PopoverContent side="right" align="end" className="w-[420px] p-3">
-        <p className="text-xs font-semibold text-muted-foreground px-1 pb-2">Select Theme</p>
+        <p className="text-xs font-semibold text-muted-foreground px-1 pb-2">{t('common.selectTheme')}</p>
         <div className="grid grid-cols-2 gap-1.5 max-h-[360px] overflow-y-auto scrollbar-thin">
           {themes.map((theme) => (
             <button
