@@ -324,7 +324,7 @@ export function EnhancedFormCard({
 
   // Grid layout
   return (
-    <Card className="bg-white border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-300 hover:border-gray-300 hover:-translate-y-1 h-full">
+    <Card className="enterprise-card hover:shadow-md transition-shadow duration-200 h-full">
       <CardHeader className="pb-4">
         <div className="flex items-start justify-between gap-3 mb-3">
           <CardTitle className="text-lg font-semibold leading-tight flex-1">

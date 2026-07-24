@@ -2,28 +2,28 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. */
+/* TopSqill HD design system — tokens, typography, surfaces, icons */
 
 @layer base {
   :root {
-    --background: 210 20% 98%;
-    --primary-light: 217 60% 95%;
-    --foreground: 215 25% 12%;
+    --background: 210 25% 97%;
+    --primary-light: 217 65% 94%;
+    --foreground: 215 28% 11%;
 
     --card: 0 0% 100%;
-    --card-foreground: 215 25% 12%;
+    --card-foreground: 215 28% 11%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 215 25% 12%;
+    --popover-foreground: 215 28% 11%;
 
-    --primary: 217 71% 30%;
+    --primary: 217 72% 32%;
     --primary-foreground: 210 40% 98%;
 
-    --secondary: 210 25% 93%;
-    --secondary-foreground: 215 25% 12%;
+    --secondary: 210 22% 92%;
+    --secondary-foreground: 215 28% 11%;
 
-    --muted: 210 20% 95%;
-    --muted-foreground: 215 14% 46%;
+    --muted: 210 18% 94%;
+    --muted-foreground: 215 14% 42%;
 
     --accent: 37 92% 50%;
     --accent-foreground: 37 92% 14%;
@@ -32,7 +32,7 @@
     --destructive-foreground: 210 40% 98%;
 
     --success: 152 60% 36%;
-    --success-foreground: 355.7 100% 97.3%;
+    --success-foreground: 152 60% 98%;
 
     --warning: 38 92% 50%;
     --warning-foreground: 38 92% 14%;
@@ -40,105 +40,118 @@
     --info: 199 89% 42%;
     --info-foreground: 210 40% 98%;
 
-    --border: 214 20% 88%;
-    --input: 214 20% 88%;
-    --ring: 217 71% 30%;
+    --border: 214 22% 86%;
+    --input: 214 22% 86%;
+    --ring: 217 72% 32%;
 
-    --radius: 0.5rem;
+    --radius: 0.625rem;
 
-    --sidebar-background: 217 71% 20%;
-    --sidebar-foreground: 0 0% 90%;
-    --sidebar-primary: 217 71% 30%;
+    --shadow-xs: 0 1px 2px 0 hsl(215 28% 11% / 0.04);
+    --shadow-sm: 0 1px 3px 0 hsl(215 28% 11% / 0.06), 0 1px 2px -1px hsl(215 28% 11% / 0.06);
+    --shadow-md: 0 4px 6px -1px hsl(215 28% 11% / 0.07), 0 2px 4px -2px hsl(215 28% 11% / 0.05);
+    --shadow-lg: 0 10px 15px -3px hsl(215 28% 11% / 0.08), 0 4px 6px -4px hsl(215 28% 11% / 0.05);
+    --shadow-xl: 0 20px 25px -5px hsl(215 28% 11% / 0.08), 0 8px 10px -6px hsl(215 28% 11% / 0.04);
+
+    --sidebar-background: 217 68% 18%;
+    --sidebar-foreground: 210 20% 92%;
+    --sidebar-primary: 217 72% 42%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 217 60% 28%;
-    --sidebar-accent-foreground: 0 0% 90%;
-    --sidebar-border: 217 50% 25%;
-    --sidebar-ring: 217 91.2% 59.8%;
+    --sidebar-accent: 217 55% 24%;
+    --sidebar-accent-foreground: 210 20% 95%;
+    --sidebar-border: 217 45% 26%;
+    --sidebar-ring: 217 91% 59%;
 
-    /* Module accent colors — used for icons across the app */
-    --module-forms: 217 91% 60%;        /* blue   — Forms / Form Builder */
-    --module-reports: 262 83% 65%;      /* violet — Reports / Dashboards */
-    --module-workflows: 38 92% 55%;     /* amber  — Workflows */
-    --module-knowledge: 160 84% 42%;    /* emerald— Knowledge Base */
-    --module-compliance: 350 89% 60%;   /* rose   — Compliance / Audit */
-    --module-itam: 189 94% 48%;         /* cyan   — IT Assets (ITAM) */
-    --module-performance: 24 95% 58%;   /* orange — Project Performance */
-    --module-projects: 239 84% 67%;     /* indigo — Projects */
-    --module-overview: 199 89% 55%;     /* sky    — Overview / Dashboard */
-    --module-access: 346 77% 60%;       /* rose   — Access Control */
-    --module-query: 292 84% 61%;        /* fuchsia— SQL Builder */
-    --module-relationship: 173 80% 42%; /* teal   — Relationship Map */
-    --module-feeds: 84 81% 48%;         /* lime   — Data Feeds */
-    --module-email: 330 81% 65%;        /* pink   — Email Config */
-    --module-ldap: 48 96% 58%;          /* yellow — LDAP / AD */
-    --module-api: 0 84% 60%;            /* red    — API Integration */
-    --module-sla: 217 91% 60%;          /* blue   — SLA */
+    /* Module accent colors */
+    --module-forms: 217 91% 58%;
+    --module-reports: 262 83% 62%;
+    --module-workflows: 38 92% 52%;
+    --module-knowledge: 160 84% 40%;
+    --module-compliance: 350 89% 58%;
+    --module-itam: 189 94% 46%;
+    --module-performance: 24 95% 55%;
+    --module-projects: 239 84% 65%;
+    --module-overview: 199 89% 52%;
+    --module-access: 346 77% 58%;
+    --module-query: 292 84% 58%;
+    --module-relationship: 173 80% 40%;
+    --module-feeds: 84 81% 46%;
+    --module-email: 330 81% 62%;
+    --module-ldap: 48 96% 55%;
+    --module-api: 0 84% 58%;
+    --module-sla: 217 91% 58%;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
+    --background: 222 47% 6%;
+    --primary-light: 217 45% 18%;
     --foreground: 210 40% 98%;
 
-    --card: 222.2 84% 4.9%;
+    --card: 222 40% 9%;
     --card-foreground: 210 40% 98%;
 
-    --popover: 222.2 84% 4.9%;
+    --popover: 222 40% 9%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary: 217 72% 58%;
+    --primary-foreground: 222 47% 8%;
 
-    --secondary: 217.2 32.6% 17.5%;
+    --secondary: 217 28% 16%;
     --secondary-foreground: 210 40% 98%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 217 28% 14%;
+    --muted-foreground: 215 18% 62%;
 
-    --accent: 217.2 91.2% 59.8%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 217 72% 58%;
+    --accent-foreground: 222 47% 8%;
 
-    --destructive: 0 62.8% 30.6%;
+    --destructive: 0 62% 45%;
     --destructive-foreground: 210 40% 98%;
 
-    --success: 142.1 70.6% 45.3%;
-    --success-foreground: 355.7 100% 97.3%;
+    --success: 142 60% 45%;
+    --success-foreground: 142 60% 98%;
 
-    --warning: 32.6 95.9% 58%;
-    --warning-foreground: 210 40% 98%;
+    --warning: 38 92% 55%;
+    --warning-foreground: 38 92% 10%;
 
-    --info: 199.2 95.7% 39.4%;
+    --info: 199 85% 48%;
     --info-foreground: 210 40% 98%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --border: 217 28% 18%;
+    --input: 217 28% 18%;
+    --ring: 217 72% 58%;
 
-    /* Module accent colors — slightly lighter in dark mode for contrast */
-    --module-forms: 217 91% 70%;
-    --module-reports: 262 83% 72%;
-    --module-workflows: 38 92% 62%;
-    --module-knowledge: 160 84% 52%;
-    --module-compliance: 350 89% 70%;
-    --module-itam: 189 94% 58%;
-    --module-performance: 24 95% 65%;
-    --module-projects: 239 84% 75%;
-    --module-overview: 199 89% 65%;
-    --module-access: 346 77% 70%;
-    --module-query: 292 84% 71%;
-    --module-relationship: 173 80% 52%;
-    --module-feeds: 84 81% 58%;
-    --module-email: 330 81% 72%;
-    --module-ldap: 48 96% 65%;
-    --module-api: 0 84% 70%;
-    --module-sla: 217 91% 70%;
+    --shadow-xs: 0 1px 2px 0 hsl(0 0% 0% / 0.2);
+    --shadow-sm: 0 1px 3px 0 hsl(0 0% 0% / 0.25), 0 1px 2px -1px hsl(0 0% 0% / 0.2);
+    --shadow-md: 0 4px 6px -1px hsl(0 0% 0% / 0.3), 0 2px 4px -2px hsl(0 0% 0% / 0.2);
+    --shadow-lg: 0 10px 15px -3px hsl(0 0% 0% / 0.35), 0 4px 6px -4px hsl(0 0% 0% / 0.2);
+    --shadow-xl: 0 20px 25px -5px hsl(0 0% 0% / 0.4), 0 8px 10px -6px hsl(0 0% 0% / 0.2);
+
+    --sidebar-background: 222 47% 5%;
+    --sidebar-foreground: 210 20% 92%;
+    --sidebar-primary: 217 72% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 217 30% 14%;
+    --sidebar-accent-foreground: 210 20% 95%;
+    --sidebar-border: 217 28% 16%;
+    --sidebar-ring: 217 72% 58%;
+
+    --module-forms: 217 91% 68%;
+    --module-reports: 262 83% 70%;
+    --module-workflows: 38 92% 60%;
+    --module-knowledge: 160 84% 50%;
+    --module-compliance: 350 89% 68%;
+    --module-itam: 189 94% 55%;
+    --module-performance: 24 95% 62%;
+    --module-projects: 239 84% 72%;
+    --module-overview: 199 89% 62%;
+    --module-access: 346 77% 68%;
+    --module-query: 292 84% 68%;
+    --module-relationship: 173 80% 50%;
+    --module-feeds: 84 81% 55%;
+    --module-email: 330 81% 70%;
+    --module-ldap: 48 96% 62%;
+    --module-api: 0 84% 68%;
+    --module-sla: 217 91% 68%;
   }
 }
 
@@ -151,23 +164,33 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
+    font-synthesis: none;
   }
 
   body {
     @apply bg-background text-foreground;
     font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
-    letter-spacing: -0.011em;
+    font-optical-sizing: auto;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11', 'ss01';
+    letter-spacing: -0.014em;
+    line-height: 1.5;
   }
 
   h1, h2, h3, h4, h5, h6 {
-    @apply tracking-tight text-foreground;
+    @apply tracking-tight text-foreground font-semibold;
+    letter-spacing: -0.025em;
+  }
+
+  code, kbd, samp, pre {
+    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-feature-settings: 'liga' 0;
   }
 }
 
 @layer components {
   .page-header-title {
     @apply text-xl sm:text-2xl font-semibold tracking-tight text-foreground;
+    letter-spacing: -0.03em;
   }
 
   .page-header-description {
@@ -175,40 +198,116 @@
   }
 
   .enterprise-card {
-    @apply rounded-lg border bg-card shadow-sm;
+    @apply rounded-xl border border-border/70 bg-card shadow-sm transition-shadow duration-200;
+  }
+
+  .enterprise-card:hover {
+    box-shadow: var(--shadow-md);
+  }
+
+  .surface-elevated {
+    @apply rounded-xl border border-border/60 bg-card;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .surface-glass {
+    @apply border border-border/50 bg-background/80 backdrop-blur-xl;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .app-shell-bg {
+    background:
+      radial-gradient(ellipse 80% 50% at 50% -20%, hsl(var(--primary) / 0.06), transparent),
+      hsl(var(--background));
+  }
+
+  .icon-box {
+    @apply inline-flex items-center justify-center rounded-lg bg-muted/60 text-foreground;
+  }
+
+  .icon-box-sm {
+    @apply inline-flex items-center justify-center rounded-lg bg-muted/60 text-foreground size-8 [&_svg]:size-4;
+  }
+
+  .icon-box-md {
+    @apply inline-flex items-center justify-center rounded-lg bg-muted/60 text-foreground size-10 [&_svg]:size-5;
+  }
+
+  .icon-box-lg {
+    @apply inline-flex items-center justify-center rounded-lg bg-muted/60 text-foreground size-12 [&_svg]:size-6;
   }
 }
 
 @layer utilities {
+  .icon-xs {
+    @apply size-3 shrink-0;
+  }
+
+  .icon-sm {
+    @apply size-3.5 shrink-0;
+  }
+
+  .icon-md {
+    @apply size-4 shrink-0;
+  }
+
+  .icon-lg {
+    @apply size-5 shrink-0;
+  }
+
+  .icon-xl {
+    @apply size-6 shrink-0;
+  }
+
+  .shadow-token-xs {
+    box-shadow: var(--shadow-xs);
+  }
+
+  .shadow-token-sm {
+    box-shadow: var(--shadow-sm);
+  }
+
+  .shadow-token-md {
+    box-shadow: var(--shadow-md);
+  }
+
+  .shadow-token-lg {
+    box-shadow: var(--shadow-lg);
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
-  
+
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
 
-  /* Thin sleek scrollbar */
   .scrollbar-thin {
     scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.25) transparent;
   }
-  
+
   .scrollbar-thin::-webkit-scrollbar {
-    width: 4px;
-    height: 4px;
+    width: 6px;
+    height: 6px;
   }
-  
-  .scrollbar-thumb-muted-foreground\/20::-webkit-scrollbar-thumb {
-    background-color: hsl(var(--muted-foreground) / 0.2);
-    border-radius: 2px;
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--muted-foreground) / 0.25);
+    border-radius: 9999px;
   }
-  
-  .scrollbar-thumb-muted-foreground\/40:hover::-webkit-scrollbar-thumb {
+
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
     background-color: hsl(var(--muted-foreground) / 0.4);
   }
-  
-  .scrollbar-track-transparent::-webkit-scrollbar-track {
+
+  .scrollbar-thin::-webkit-scrollbar-track {
     background: transparent;
   }
 }

@@ -221,7 +221,7 @@ export function FormsList() {
       const editButtonState = getButtonState('forms', 'update', form.id);
       const deleteButtonState = getButtonState('forms', 'delete', form.id);
       const statusBadgeProps = getStatusBadgeProps(form.status);
-      return <Card key={form.id} className="hover:shadow-lg transition-all duration-300 hover:scale-[1.02]">
+      return <Card key={form.id} className="enterprise-card hover:shadow-md transition-shadow duration-200">
             <CardHeader>
               <div className="flex items-start justify-between">
                 <div className="space-y-2 flex-1">
@@ -293,7 +293,7 @@ export function FormsList() {
       const editButtonState = getButtonState('forms', 'update', form.id);
       const deleteButtonState = getButtonState('forms', 'delete', form.id);
       const statusBadgeProps = getStatusBadgeProps(form.status);
-      return <Card key={form.id} className="hover:shadow-lg transition-all duration-300">
+      return <Card key={form.id} className="enterprise-card hover:shadow-md transition-shadow duration-200">
             <CardContent className="p-3 sm:p-4">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div className="flex items-start sm:items-center gap-3 sm:gap-4 flex-1 min-w-0">
@@ -415,7 +415,7 @@ export function FormsList() {
               {visibleForms.filter(f => f.status === status.key).map(form => {
             const editButtonState = getButtonState('forms', 'update', form.id);
             const deleteButtonState = getButtonState('forms', 'delete', form.id);
-            return <Card key={form.id} className="hover:shadow-md transition-all duration-200 hover:scale-[1.02] bg-white">
+            return <Card key={form.id} className="enterprise-card hover:shadow-md transition-shadow duration-200 bg-card">
                     <CardContent className="p-4">
                       <div className="space-y-3">
                         <div className="flex items-start justify-between">

@@ -725,13 +725,15 @@ export const themes: AppTheme[] = [
   },
 ];
 
+const DEFAULT_THEME = themes.find((t) => t.id === 'no-theme') ?? themes[0];
+
 interface ThemeContextType {
   currentTheme: AppTheme;
   setTheme: (themeId: string) => void;
 }
 
 const ThemeContext = createContext<ThemeContextType>({
-  currentTheme: themes[0],
+  currentTheme: DEFAULT_THEME,
   setTheme: () => {},
 });
 
@@ -785,7 +787,7 @@ function applyTheme(theme: AppTheme) {
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [currentTheme, setCurrentTheme] = useState<AppTheme>(() => {
     const savedId = localStorage.getItem(THEME_STORAGE_KEY);
-    return themes.find(t => t.id === savedId) || themes[0];
+    return themes.find(t => t.id === savedId) || DEFAULT_THEME;
   });
 
   useEffect(() => {
