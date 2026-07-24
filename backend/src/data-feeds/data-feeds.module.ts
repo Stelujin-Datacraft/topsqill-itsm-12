@@ -5,5 +5,6 @@ import { DataFeedsController } from './data-feeds.controller';
 @Module({
   providers: [DataFeedsService],
   controllers: [DataFeedsController],
+  exports: [DataFeedsService],
 })
 export class DataFeedsModule {}
