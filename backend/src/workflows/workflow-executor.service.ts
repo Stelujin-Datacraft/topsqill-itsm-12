@@ -68,13 +68,26 @@ export class WorkflowExecutorService {
     }
 
     if (this.executorMode === 'edge') {
-      await this.invokeEdgeFunction('execute-workflow', {
-        workflowId,
-        executionId: execution.id,
-        triggerData: payload,
-        submissionId: submissionId || payload.submissionId,
-        submitterId: payload.submitterId,
-      });
+      try {
+        await this.invokeEdgeFunction('execute-workflow', {
+          workflowId,
+          executionId: execution.id,
+          triggerData: payload,
+          submissionId: submissionId || payload.submissionId,
+          submitterId: payload.submitterId,
+        });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        this.logger.error(`Workflow edge execution failed for ${execution.id}: ${message}`);
+        await supabase
+          .from('workflow_executions')
+          .update({
+            status: 'failed',
+            error_message: message.slice(0, 1000),
+            completed_at: new Date().toISOString(),
+          })
+          .eq('id', execution.id);
+      }
     } else {
       this.logger.warn(
         `WORKFLOW_EXECUTOR_MODE=${this.executorMode} — using minimal completion path. Set WORKFLOW_EXECUTOR_MODE=edge for full execution.`,
@@ -128,31 +141,44 @@ export class WorkflowExecutorService {
     body: Record<string, unknown>,
   ): Promise<Record<string, unknown> | null> {
     const url = `${this.supabaseUrl}/functions/v1/${functionName}`;
-
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${this.serviceKey}`,
-        apikey: this.serviceKey,
-      },
-      body: JSON.stringify(body),
-    });
-
-    const text = await response.text();
-    let data: Record<string, unknown> | null = null;
+    const timeoutMs = Number(this.configService.get('EDGE_FUNCTION_TIMEOUT_MS', 120000));
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
-      data = text ? JSON.parse(text) : null;
-    } catch {
-      data = { raw: text };
-    }
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${this.serviceKey}`,
+          apikey: this.serviceKey,
+        },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
 
-    if (!response.ok) {
-      const message = (data?.error as string) || (data?.message as string) || text || response.statusText;
-      throw new Error(`${functionName} failed (${response.status}): ${message}`);
-    }
+      const text = await response.text();
+      let data: Record<string, unknown> | null = null;
 
-    return data;
+      try {
+        data = text ? JSON.parse(text) : null;
+      } catch {
+        data = { raw: text };
+      }
+
+      if (!response.ok) {
+        const message = (data?.error as string) || (data?.message as string) || text || response.statusText;
+        throw new Error(`${functionName} failed (${response.status}): ${message}`);
+      }
+
+      return data;
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') {
+        throw new Error(`${functionName} timed out after ${timeoutMs}ms`);
+      }
+      throw err;
+    } finally {
+      clearTimeout(timer);
+    }
   }
 }

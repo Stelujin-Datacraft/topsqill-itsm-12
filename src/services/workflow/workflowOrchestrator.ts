@@ -4,6 +4,7 @@ import { parseNodeConfig } from './utils';
 import { NodeExecutors } from './nodeExecutors';
 import { WorkflowExecutionContext } from './types';
 import { notifyWorkflowFailure } from './notifyFailure';
+import { WorkflowGraph } from './workflowGraph';
 
 export class WorkflowOrchestrator {
   static async executeWorkflow(
@@ -47,14 +48,16 @@ export class WorkflowOrchestrator {
 
       console.log('✅ Workflow execution created:', execution);
 
-      // Create execution context
+      // Create execution context with preloaded workflow graph
+      const graph = await WorkflowGraph.load(workflowId);
       const context: WorkflowExecutionContext = {
         executionId: execution.id,
         workflowId,
         triggerData,
         submissionId,
         submitterId,
-        formOwnerId
+        formOwnerId,
+        graph,
       };
 
       // Execute the workflow starting from the start node
@@ -123,12 +126,14 @@ export class WorkflowOrchestrator {
   ) {
     console.log('▶️ Continuing workflow from node:', { executionId, workflowId, nodeId });
 
+    const graph = await WorkflowGraph.load(workflowId);
     const context: WorkflowExecutionContext = {
       executionId,
       workflowId,
       triggerData,
       submissionId,
-      submitterId
+      submitterId,
+      graph,
     };
 
     const result = await this.executeNode(executionId, nodeId, triggerData, context);
@@ -220,19 +225,22 @@ export class WorkflowOrchestrator {
     const nodeStartTime = Date.now();
 
     try {
-      // Get node details
-      const { data: nodeData, error: nodeError } = await supabase
-        .from('workflow_nodes')
-        .select('*')
-        .eq('id', nodeId)
-        .single();
+      const nodeData = context.graph?.getNode(nodeId);
+      if (!nodeData) {
+        const { data: fetchedNode, error: nodeError } = await supabase
+          .from('workflow_nodes')
+          .select('*')
+          .eq('id', nodeId)
+          .single();
 
-      if (nodeError || !nodeData) {
-        console.error('❌ Error fetching node:', nodeError);
-        return { success: false, error: 'Node not found' };
+        if (nodeError || !fetchedNode) {
+          console.error('❌ Error fetching node:', nodeError);
+          return { success: false, error: 'Node not found' };
+        }
+        node = fetchedNode;
+      } else {
+        node = nodeData;
       }
-      
-      node = nodeData;
 
       // Create node execution log
       const { data: logData, error: logError } = await supabase

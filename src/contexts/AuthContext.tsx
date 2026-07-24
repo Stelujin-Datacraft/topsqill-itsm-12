@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
-import { backend as supabase } from '@/services/api';
+import { backend as supabase, clearAuthTokenCache } from '@/services/api';
 import { User, Session } from '@supabase/supabase-js';
 import { useQueryClient } from '@tanstack/react-query';
 import { prefetchDefaultProjectPermissions } from '@/utils/prefetchPermissions';
@@ -508,6 +508,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       
       await supabase.auth.signOut();
+      clearAuthTokenCache();
       setUser(null);
       setUserProfile(null);
       setOrganization(null);
