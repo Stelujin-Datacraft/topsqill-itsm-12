@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SupabaseService } from '../supabase/supabase.service';
+import { NestjsWorkflowEngineService } from './engine/nestjs-workflow-engine.service';
 
 export interface WorkflowTriggerPayload {
   formId?: string;
@@ -24,10 +25,11 @@ export class WorkflowExecutorService {
   constructor(
     private readonly supabaseService: SupabaseService,
     private readonly configService: ConfigService,
+    private readonly nestjsEngine: NestjsWorkflowEngineService,
   ) {
     this.supabaseUrl = this.configService.getOrThrow<string>('SUPABASE_URL');
     this.serviceKey = this.configService.getOrThrow<string>('SUPABASE_SERVICE_ROLE_KEY');
-    this.executorMode = this.configService.get<string>('WORKFLOW_EXECUTOR_MODE', 'edge');
+    this.executorMode = this.configService.get<string>('WORKFLOW_EXECUTOR_MODE', 'nestjs');
   }
 
   async runExecution(
@@ -67,8 +69,8 @@ export class WorkflowExecutorService {
         .eq('id', queueId);
     }
 
-    if (this.executorMode === 'edge') {
-      try {
+    try {
+      if (this.executorMode === 'edge') {
         await this.invokeEdgeFunction('execute-workflow', {
           workflowId,
           executionId: execution.id,
@@ -76,25 +78,42 @@ export class WorkflowExecutorService {
           submissionId: submissionId || payload.submissionId,
           submitterId: payload.submitterId,
         });
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        this.logger.error(`Workflow edge execution failed for ${execution.id}: ${message}`);
-        await supabase
-          .from('workflow_executions')
-          .update({
-            status: 'failed',
-            error_message: message.slice(0, 1000),
-            completed_at: new Date().toISOString(),
-          })
-          .eq('id', execution.id);
+      } else {
+        const result = await this.nestjsEngine.executeExisting(
+          workflowId,
+          execution.id,
+          payload,
+          submissionId || payload.submissionId,
+          payload.submitterId,
+        );
+        if (!result.success) {
+          const { data: current } = await supabase
+            .from('workflow_executions')
+            .select('status')
+            .eq('id', execution.id)
+            .single();
+          if (current?.status === 'running') {
+            await supabase
+              .from('workflow_executions')
+              .update({
+                status: 'failed',
+                error_message: (result.error || 'Workflow execution failed').slice(0, 1000),
+                completed_at: new Date().toISOString(),
+              })
+              .eq('id', execution.id);
+          }
+        }
       }
-    } else {
-      this.logger.warn(
-        `WORKFLOW_EXECUTOR_MODE=${this.executorMode} — using minimal completion path. Set WORKFLOW_EXECUTOR_MODE=edge for full execution.`,
-      );
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      this.logger.error(`Workflow execution failed for ${execution.id}: ${message}`);
       await supabase
         .from('workflow_executions')
-        .update({ status: 'completed', completed_at: new Date().toISOString() })
+        .update({
+          status: 'failed',
+          error_message: message.slice(0, 1000),
+          completed_at: new Date().toISOString(),
+        })
         .eq('id', execution.id);
     }
 
@@ -118,22 +137,10 @@ export class WorkflowExecutorService {
       const result = await this.invokeEdgeFunction('resume-waiting-workflows', {
         execution_id: executionId,
       });
-      return { resumed: (result?.resumed as string[]) || [] };
+      return { resumed: (result?.resumed as string[]) || (result?.resumedExecutions as string[]) || [] };
     }
 
-    const supabase = this.supabaseService.getServiceClient();
-    let query = supabase.from('workflow_executions').select('id').eq('status', 'waiting');
-    if (executionId) query = query.eq('id', executionId);
-
-    const { data: waiting } = await query
-      .lte('scheduled_resume_at', new Date().toISOString())
-      .limit(50);
-
-    const ids = (waiting || []).map((w) => w.id);
-    if (ids.length) {
-      await supabase.from('workflow_executions').update({ status: 'running' }).in('id', ids);
-    }
-    return { resumed: ids };
+    return this.nestjsEngine.resumeWaiting(executionId);
   }
 
   private async invokeEdgeFunction(

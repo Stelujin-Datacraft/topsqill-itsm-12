@@ -22,4 +22,12 @@ export const backend = {
   storage: rawSupabase.storage,
 };
 
+import { initWorkflowDb } from '@/services/workflow/db';
+
+initWorkflowDb({
+  from: backend.from.bind(backend),
+  rpc: backend.rpc.bind(backend),
+  functions: backend.functions,
+});
+
 export default backend;

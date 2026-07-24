@@ -144,14 +144,26 @@ export function useReports() {
   };
 
   const getFormSubmissionData = useCallback(async (formId: string) => {
-    // Optimized: Select only columns needed for reports (id, submission_data, metadata)
-    const { data, error } = await supabase
-      .from('form_submissions')
-      .select('id, form_id, submitted_at, submitted_by, approval_status, submission_data, submission_ref_id')
-      .eq('form_id', formId);
+    const PAGE_SIZE = 1000;
+    const allRows: Record<string, unknown>[] = [];
+    let from = 0;
 
-    if (error) throw error;
-    return data || [];
+    while (true) {
+      const { data, error } = await supabase
+        .from('form_submissions')
+        .select('id, form_id, submitted_at, submitted_by, approval_status, submission_data, submission_ref_id')
+        .eq('form_id', formId)
+        .order('submitted_at', { ascending: false })
+        .range(from, from + PAGE_SIZE - 1);
+
+      if (error) throw error;
+      if (!data?.length) break;
+      allRows.push(...data);
+      if (data.length < PAGE_SIZE) break;
+      from += PAGE_SIZE;
+    }
+
+    return allRows;
   }, []);
 
   const getChartData = useCallback(async (

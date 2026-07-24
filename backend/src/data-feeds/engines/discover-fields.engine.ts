@@ -1,0 +1,679 @@
+// @ts-nocheck
+import { SupabaseClient } from '@supabase/supabase-js';
+import * as XLSX from 'xlsx';
+import { Client as FtpClient } from 'basic-ftp';
+import { Client as PgClient } from 'pg';
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+interface DiscoveredField {
+  id: string;
+  name: string;
+  type: 'text' | 'number' | 'boolean' | 'date' | 'array' | 'object';
+  sample?: string;
+}
+
+interface HttpApiConfig {
+  url: string;
+  method: 'GET' | 'POST';
+  headers?: Record<string, string>;
+  authType: 'none' | 'bearer' | 'basic' | 'api_key';
+  authConfig?: {
+    token?: string;
+    username?: string;
+    password?: string;
+    apiKeyHeader?: string;
+    apiKeyValue?: string;
+  };
+  responsePath?: string;
+  body?: string;
+}
+
+interface FileConfig {
+  sourceMode: 'upload' | 'url';
+  fileUrl?: string;
+  uploadedFilePath?: string;
+  fileType: 'csv' | 'excel' | 'json';
+  sheetName?: string;
+  delimiter?: string;
+  hasHeader?: boolean;
+}
+
+interface FtpConfig {
+  protocol: 'ftp' | 'sftp';
+  host: string;
+  port: number;
+  username: string;
+  password?: string;
+  privateKey?: string;
+  remotePath: string;
+  fileType: 'csv' | 'excel' | 'json';
+  hasHeader?: boolean;
+}
+
+interface CloudStorageConfig {
+  provider: 's3' | 'gcs' | 'azure_blob';
+  bucketName: string;
+  objectPath: string;
+  region?: string;
+  accessKeyId?: string;
+  secretAccessKey?: string;
+  serviceAccountJson?: string;
+  connectionString?: string;
+  fileType: 'csv' | 'excel' | 'json';
+  hasHeader?: boolean;
+}
+
+interface GoogleSheetsConfig {
+  spreadsheetId: string;
+  sheetName?: string;
+  range?: string;
+  authType: 'api_key' | 'service_account';
+  apiKey?: string;
+  serviceAccountJson?: string;
+  hasHeader?: boolean;
+}
+
+interface ExternalSourceConfig {
+  httpApi?: HttpApiConfig;
+  file?: FileConfig;
+  ftp?: FtpConfig;
+  cloudStorage?: CloudStorageConfig;
+  googleSheets?: GoogleSheetsConfig;
+  database?: DatabaseConfig;
+}
+
+interface DatabaseConfig {
+  type: 'postgresql' | 'mysql' | 'mssql';
+  connectionString: string;
+  query: string;
+}
+
+async function discoverDatabaseFields(config: DatabaseConfig): Promise<DiscoveryResult> {
+  if (config.type !== 'postgresql') {
+    throw new Error(`Database type "${config.type}" is not supported yet. Only PostgreSQL is supported.`);
+  }
+  if (!config.connectionString) throw new Error('Database connection string is required');
+  if (!config.query) throw new Error('SQL query is required');
+
+  const trimmed = config.query.trim().replace(/;+\s*$/, '');
+  if (!/^select\s/i.test(trimmed) && !/^with\s/i.test(trimmed)) {
+    throw new Error('Only SELECT (or WITH ... SELECT) queries are allowed for field discovery');
+  }
+
+  // Wrap with LIMIT for safe preview
+  const previewSql = `SELECT * FROM (${trimmed}) AS __preview LIMIT 50`;
+
+  const client = new PgClient({ connectionString: config.connectionString });
+  let records: any[] = [];
+  try {
+    await client.connect();
+    const result = await client.query(previewSql);
+    records = result.rows as any[];
+  } catch (e) {
+    throw new Error(`Database query failed: ${(e as Error).message || String(e)}`);
+  } finally {
+    try { await client.end(); } catch { /* ignore */ }
+  }
+
+  return {
+    fields: extractFieldsFromData(records),
+    previewData: records.slice(0, 10),
+  };
+}
+
+function inferFieldType(value: any): DiscoveredField['type'] {
+  if (value === null || value === undefined) return 'text';
+  if (typeof value === 'boolean') return 'boolean';
+  if (typeof value === 'number') return 'number';
+  if (Array.isArray(value)) return 'array';
+  if (typeof value === 'object') return 'object';
+  
+  const strValue = String(value);
+  
+  // Check for date patterns
+  if (/^\d{4}-\d{2}-\d{2}/.test(strValue) || /^\d{2}\/\d{2}\/\d{4}/.test(strValue)) {
+    return 'date';
+  }
+  
+  // Check for number
+  if (/^-?\d+\.?\d*$/.test(strValue) && !isNaN(parseFloat(strValue))) {
+    return 'number';
+  }
+  
+  // Check for boolean strings
+  if (['true', 'false', 'yes', 'no', '1', '0'].includes(strValue.toLowerCase())) {
+    return 'boolean';
+  }
+  
+  return 'text';
+}
+
+function extractFieldsFromData(data: any[]): DiscoveredField[] {
+  if (!Array.isArray(data) || data.length === 0) return [];
+  
+  const sample = data[0];
+  if (typeof sample !== 'object' || sample === null) return [];
+  
+  const fields: DiscoveredField[] = [];
+  
+  for (const key of Object.keys(sample)) {
+    const value = sample[key];
+    fields.push({
+      id: key,
+      name: key,
+      type: inferFieldType(value),
+      sample: value !== null && value !== undefined ? String(value).substring(0, 100) : undefined
+    });
+  }
+  
+  return fields;
+}
+
+function navigateJsonPath(data: any, path: string): any[] {
+  if (!path || path === '$' || path === '$.') {
+    if (Array.isArray(data)) return data;
+    // Auto-detect an array inside common wrapper keys
+    if (data && typeof data === 'object') {
+      const commonKeys = ['data', 'results', 'records', 'items', 'rows', 'list', 'value'];
+      for (const k of commonKeys) {
+        if (Array.isArray(data[k])) return data[k];
+      }
+      // Fallback: first property that is an array
+      for (const k of Object.keys(data)) {
+        if (Array.isArray(data[k])) return data[k];
+      }
+    }
+    return [data];
+  }
+  
+  // Simple JSONPath navigation
+  const parts = path.replace(/^\$\.?/, '').split(/\.|\[|\]/).filter(Boolean);
+  let current = data;
+  
+  for (const part of parts) {
+    if (current === null || current === undefined) return [];
+    if (part === '*') {
+      if (Array.isArray(current)) return current;
+      continue;
+    }
+    current = current[part];
+  }
+  
+  return Array.isArray(current) ? current : [current];
+}
+
+function parseCSV(content: string, hasHeader: boolean = true): any[] {
+  const lines = content.split(/\r?\n/).filter(line => line.trim());
+  if (lines.length === 0) return [];
+  
+  const parseLine = (line: string): string[] => {
+    const result: string[] = [];
+    let current = '';
+    let inQuotes = false;
+    
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      if (char === '"') {
+        inQuotes = !inQuotes;
+      } else if (char === ',' && !inQuotes) {
+        result.push(current.trim());
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+    result.push(current.trim());
+    return result;
+  };
+  
+  const headers = hasHeader ? parseLine(lines[0]) : parseLine(lines[0]).map((_, i) => `column_${i + 1}`);
+  const dataLines = hasHeader ? lines.slice(1) : lines;
+  
+  return dataLines.map(line => {
+    const values = parseLine(line);
+    const obj: Record<string, string> = {};
+    headers.forEach((header, i) => {
+      obj[header] = values[i] || '';
+    });
+    return obj;
+  });
+}
+
+function parseExcel(buffer: ArrayBuffer, sheetName?: string, hasHeader: boolean = true): any[] {
+  const workbook = XLSX.read(new Uint8Array(buffer), { type: 'array' });
+  const targetSheet = sheetName && workbook.SheetNames.includes(sheetName)
+    ? sheetName
+    : workbook.SheetNames[0];
+  if (!targetSheet) throw new Error('Excel workbook has no sheets');
+  const worksheet = workbook.Sheets[targetSheet];
+  if (hasHeader) {
+    return XLSX.utils.sheet_to_json(worksheet, { defval: '', raw: false });
+  }
+  const rows: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '', raw: false });
+  return rows.map((row: any[]) => {
+    const obj: Record<string, any> = {};
+    row.forEach((v, i) => { obj[`column_${i + 1}`] = v; });
+    return obj;
+  });
+}
+
+interface DiscoveryResult {
+  fields: DiscoveredField[];
+  previewData: any[];
+}
+
+async function discoverHttpApiFields(config: HttpApiConfig): Promise<DiscoveryResult> {
+  const headers: Record<string, string> = {
+    'Accept': 'application/json',
+    ...(config.headers || {})
+  };
+  
+  if (config.authType === 'bearer' && config.authConfig?.token) {
+    headers['Authorization'] = `Bearer ${config.authConfig.token}`;
+  } else if (config.authType === 'basic' && config.authConfig?.username) {
+    const credentials = btoa(`${config.authConfig.username}:${config.authConfig.password || ''}`);
+    headers['Authorization'] = `Basic ${credentials}`;
+  } else if (config.authType === 'api_key' && config.authConfig?.apiKeyHeader && config.authConfig?.apiKeyValue) {
+    headers[config.authConfig.apiKeyHeader] = config.authConfig.apiKeyValue;
+  }
+  
+  const fetchOptions: RequestInit = {
+    method: config.method,
+    headers
+  };
+  
+  if (config.method === 'POST' && config.body) {
+    fetchOptions.body = config.body;
+    headers['Content-Type'] = 'application/json';
+  }
+  
+  console.log(`Fetching from ${config.url} with method ${config.method}`);
+  
+  const response = await fetch(config.url, fetchOptions);
+  
+  if (!response.ok) {
+    throw new Error(`HTTP error ${response.status}: ${await response.text()}`);
+  }
+  
+  const data = await response.json();
+  const records = navigateJsonPath(data, config.responsePath || '$');
+  
+  console.log(`Found ${records.length} records`);
+  
+  const previewData = records.slice(0, 10).map((record: any) => {
+    const flattened: Record<string, any> = {};
+    for (const key of Object.keys(record)) {
+      const value = record[key];
+      if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+        flattened[key] = JSON.stringify(value);
+      } else if (Array.isArray(value)) {
+        flattened[key] = JSON.stringify(value);
+      } else {
+        flattened[key] = value;
+      }
+    }
+    return flattened;
+  });
+  
+  return {
+    fields: extractFieldsFromData(records),
+    previewData
+  };
+}
+
+async function discoverFileFields(config: FileConfig, supabase: any): Promise<DiscoveryResult> {
+  let blob: Blob;
+
+  if (config.sourceMode === 'url' && config.fileUrl) {
+    const response = await fetch(config.fileUrl);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch file: HTTP ${response.status} ${response.statusText}`);
+    }
+    blob = await response.blob();
+  } else if (config.sourceMode === 'upload' && config.uploadedFilePath) {
+    const { data, error } = await supabase.storage
+      .from('data-feed-files')
+      .download(config.uploadedFilePath);
+    if (error) throw new Error(`Failed to read uploaded file: ${error.message}`);
+    blob = data;
+  } else {
+    throw new Error('No file source configured');
+  }
+
+  let records: any[] = [];
+
+  if (config.fileType === 'excel') {
+    const buf = await blob.arrayBuffer();
+    records = parseExcel(buf, config.sheetName, config.hasHeader !== false);
+  } else if (config.fileType === 'json') {
+    const text = await blob.text();
+    try {
+      const data = JSON.parse(text);
+      records = Array.isArray(data) ? data : [data];
+    } catch (e) {
+      throw new Error(`Invalid JSON file: ${(e as Error).message}`);
+    }
+  } else {
+    const text = await blob.text();
+    if (!text.trim()) throw new Error('CSV file is empty');
+    records = parseCSV(text, config.hasHeader !== false);
+    if (records.length === 0) throw new Error('CSV file has no data rows');
+  }
+
+  return {
+    fields: extractFieldsFromData(records),
+    previewData: records.slice(0, 10),
+  };
+}
+
+async function discoverGoogleSheetsFields(config: GoogleSheetsConfig): Promise<DiscoveryResult> {
+  if (!config.spreadsheetId) {
+    throw new Error('Spreadsheet ID is required');
+  }
+
+  let url = `https://sheets.googleapis.com/v4/spreadsheets/${config.spreadsheetId}/values/`;
+  
+  // Build the range
+  const range = config.sheetName 
+    ? `'${config.sheetName}'!${config.range || 'A:Z'}`
+    : config.range || 'A:Z';
+  
+  url += encodeURIComponent(range);
+  
+  if (config.authType === 'api_key' && config.apiKey) {
+    url += `?key=${config.apiKey}`;
+  } else {
+    throw new Error('API key authentication is required for Google Sheets');
+  }
+
+  console.log(`Fetching Google Sheets: ${config.spreadsheetId}`);
+  
+  const response = await fetch(url);
+  
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Google Sheets API error ${response.status}: ${errorText}`);
+  }
+  
+  const data = await response.json();
+  const values = data.values || [];
+  
+  if (values.length === 0) {
+    return { fields: [], previewData: [] };
+  }
+  
+  // First row is headers if hasHeader is true
+  const headers = config.hasHeader !== false 
+    ? values[0].map((h: string) => String(h).trim())
+    : values[0].map((_: any, i: number) => `column_${i + 1}`);
+  
+  const dataRows = config.hasHeader !== false ? values.slice(1) : values;
+  
+  const records = dataRows.map((row: any[]) => {
+    const obj: Record<string, any> = {};
+    headers.forEach((header: string, i: number) => {
+      obj[header] = row[i] !== undefined ? row[i] : '';
+    });
+    return obj;
+  });
+  
+  console.log(`Found ${records.length} records from Google Sheets`);
+  
+  return {
+    fields: extractFieldsFromData(records),
+    previewData: records.slice(0, 10)
+  };
+}
+
+async function discoverCloudStorageFields(config: CloudStorageConfig): Promise<DiscoveryResult> {
+  let content: string;
+  
+  if (config.provider === 's3') {
+    // For S3, we need to construct a pre-signed URL or use public access
+    // This is a simplified implementation - in production you'd use AWS SDK
+    if (!config.accessKeyId || !config.secretAccessKey) {
+      throw new Error('AWS credentials are required for S3 access');
+    }
+    
+    // Try public URL first for read-only access
+    const s3Url = `https://${config.bucketName}.s3.${config.region || 'us-east-1'}.amazonaws.com/${config.objectPath}`;
+    
+    console.log(`Fetching from S3: ${s3Url}`);
+    
+    const response = await fetch(s3Url);
+    if (!response.ok) {
+      throw new Error(`S3 access error ${response.status}: Ensure the object is publicly readable or use proper AWS SDK authentication`);
+    }
+    content = await response.text();
+    
+  } else if (config.provider === 'gcs') {
+    // Google Cloud Storage public URL
+    const gcsUrl = `https://storage.googleapis.com/${config.bucketName}/${config.objectPath}`;
+    
+    console.log(`Fetching from GCS: ${gcsUrl}`);
+    
+    const response = await fetch(gcsUrl);
+    if (!response.ok) {
+      throw new Error(`GCS access error ${response.status}: Ensure the object is publicly readable`);
+    }
+    content = await response.text();
+    
+  } else if (config.provider === 'azure_blob') {
+    // Azure Blob Storage - requires connection string for private blobs
+    if (!config.connectionString) {
+      throw new Error('Azure connection string is required');
+    }
+    
+    // Extract account name from connection string
+    const accountMatch = config.connectionString.match(/AccountName=([^;]+)/);
+    if (!accountMatch) {
+      throw new Error('Invalid Azure connection string');
+    }
+    const accountName = accountMatch[1];
+    
+    // Try public URL
+    const azureUrl = `https://${accountName}.blob.core.windows.net/${config.bucketName}/${config.objectPath}`;
+    
+    console.log(`Fetching from Azure Blob: ${azureUrl}`);
+    
+    const response = await fetch(azureUrl);
+    if (!response.ok) {
+      throw new Error(`Azure Blob access error ${response.status}: Ensure the blob is publicly readable`);
+    }
+    content = await response.text();
+    
+  } else {
+    throw new Error(`Unsupported cloud provider: ${config.provider}`);
+  }
+  
+  // Parse content based on file type
+  let records: any[] = [];
+  
+  if (config.fileType === 'json') {
+    const data = JSON.parse(content);
+    records = Array.isArray(data) ? data : [data];
+  } else if (config.fileType === 'csv') {
+    records = parseCSV(content, config.hasHeader !== false);
+  } else if (config.fileType === 'excel') {
+    throw new Error('Excel from cloud storage not yet supported. Use CSV or download via signed URL.');
+  }
+  
+  console.log(`Found ${records.length} records from cloud storage`);
+  
+  return {
+    fields: extractFieldsFromData(records),
+    previewData: records.slice(0, 10)
+  };
+}
+
+async function discoverFtpFields(config: FtpConfig): Promise<DiscoveryResult> {
+  if (config.protocol === 'sftp') {
+    throw new Error(
+      'SFTP is not supported in this environment. Please use plain FTP, or upload the file to Cloud Storage / Supabase Storage instead.'
+    );
+  }
+
+  if (!config.host || !config.username || !config.remotePath) {
+    throw new Error('FTP host, username, and remote file path are required');
+  }
+
+  const client = new FtpClient(15000);
+  client.ftp.verbose = false;
+
+  let buffer: Uint8Array;
+  try {
+    await client.access({
+      host: config.host,
+      port: config.port || 21,
+      user: config.username,
+      password: config.password || '',
+      secure: false,
+    });
+
+    // Download into an in-memory writable stream
+    const chunks: Uint8Array[] = [];
+    const { Writable } = await import('node:stream');
+    const writable = new Writable({
+      write(chunk: any, _enc: string, cb: (e?: Error) => void) {
+        chunks.push(chunk instanceof Uint8Array ? chunk : new Uint8Array(chunk));
+        cb();
+      },
+    });
+
+    await client.downloadTo(writable as any, config.remotePath);
+
+    const total = chunks.reduce((n, c) => n + c.byteLength, 0);
+    buffer = new Uint8Array(total);
+    let offset = 0;
+    for (const c of chunks) {
+      buffer.set(c, offset);
+      offset += c.byteLength;
+    }
+  } catch (e) {
+    throw new Error(`FTP connection/download failed: ${(e as Error).message || String(e)}`);
+  } finally {
+    try { client.close(); } catch { /* ignore */ }
+  }
+
+  let records: any[] = [];
+  const hasHeader = config.hasHeader !== false;
+
+  if (config.fileType === 'excel') {
+    records = parseExcel(buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength), undefined, hasHeader);
+  } else if (config.fileType === 'json') {
+    const text = new TextDecoder().decode(buffer);
+    const data = JSON.parse(text);
+    records = Array.isArray(data) ? data : [data];
+  } else {
+    const text = new TextDecoder().decode(buffer);
+    if (!text.trim()) throw new Error('FTP file is empty');
+    records = parseCSV(text, hasHeader);
+  }
+
+  return {
+    fields: extractFieldsFromData(records),
+    previewData: records.slice(0, 10),
+  };
+}
+
+
+export async function discoverExternalFields(supabase: SupabaseClient, params: Record<string, unknown>) {
+
+  try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    const { sourceType, config, connectionId } = await req.json();
+
+    console.log(`Discovering fields for source type: ${sourceType}`);
+
+    let externalConfig = config as ExternalSourceConfig;
+
+    // If using a shared connection, load the connection config
+    if (connectionId) {
+      const { data: connection, error } = await supabase
+        .from('data_source_connections')
+        .select('*')
+        .eq('id', connectionId)
+        .single();
+
+      if (error) throw error;
+
+      if (connection.connection_type === 'http_api') {
+        externalConfig = {
+          httpApi: {
+            url: connection.http_url,
+            method: connection.http_method as 'GET' | 'POST',
+            headers: connection.http_headers,
+            authType: connection.http_auth_type as any,
+            authConfig: connection.http_auth_config,
+            responsePath: connection.http_response_path
+          }
+        };
+      } else if (connection.connection_type === 'file_url') {
+        externalConfig = {
+          file: {
+            sourceMode: 'url',
+            fileUrl: connection.file_url,
+            fileType: connection.file_type as any,
+            sheetName: connection.file_sheet_name,
+            hasHeader: true
+          }
+        };
+      } else if (connection.connection_type === 'database') {
+        externalConfig = {
+          database: {
+            type: (connection.db_type as any) || 'postgresql',
+            connectionString: connection.db_connection_string,
+            query: connection.db_query,
+          },
+        };
+      }
+    }
+
+    let result: DiscoveryResult = { fields: [], previewData: [] };
+
+    if (sourceType === 'http_api' && externalConfig.httpApi) {
+      result = await discoverHttpApiFields(externalConfig.httpApi);
+    } else if ((sourceType === 'csv' || sourceType === 'excel' || sourceType === 'file_url') && externalConfig.file) {
+      result = await discoverFileFields(externalConfig.file, supabase);
+    } else if (sourceType === 'google_sheets' && externalConfig.googleSheets) {
+      result = await discoverGoogleSheetsFields(externalConfig.googleSheets);
+    } else if (sourceType === 'cloud_storage' && externalConfig.cloudStorage) {
+      result = await discoverCloudStorageFields(externalConfig.cloudStorage);
+    } else if (sourceType === 'ftp' && externalConfig.ftp) {
+      result = await discoverFtpFields(externalConfig.ftp);
+    } else if (sourceType === 'database' && externalConfig.database) {
+      result = await discoverDatabaseFields(externalConfig.database);
+    } else if (sourceType === 'webhook') {
+      // Webhooks don't have field discovery - fields are determined when data is received
+      return { success: true, fields: [], previewData: [], message: 'Webhook fields will be discovered when data is first received' };
+    } else {
+      throw new Error(`Unsupported source type: ${sourceType}`);
+    }
+
+    console.log(`Discovered ${result.fields.length} fields, ${result.previewData.length} preview records`);
+
+    // Update connection with discovered fields if using shared connection
+    if (connectionId && result.fields.length > 0) {
+      await supabase
+        .from('data_source_connections')
+        .update({ 
+          discovered_fields: result.fields,
+          last_field_discovery_at: new Date().toISOString()
+        })
+        .eq('id', connectionId);
+    }
+
+    return { success: true, fields: result.fields, previewData: result.previewData };
+
+  } catch (error) {
+    console.error('Field discovery error:', error);
+    return { success: false, error: String(error) };
+  }
+}

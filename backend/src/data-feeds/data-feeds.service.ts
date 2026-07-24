@@ -1,55 +1,74 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { shouldRunCronSchedule } from '../common/utils/cron-schedule.util';
 import { SupabaseService } from '../supabase/supabase.service';
+import { WorkflowsService } from '../workflows/workflows.service';
+import { discoverExternalFields } from './engines/discover-fields.engine';
+import { executeDataFeed } from './engines/execute-feed.engine';
 
 @Injectable()
 export class DataFeedsService {
   private readonly logger = new Logger(DataFeedsService.name);
   private readonly supabaseUrl: string;
   private readonly serviceKey: string;
+  private readonly executorMode: string;
 
   constructor(
     private readonly supabaseService: SupabaseService,
     private readonly configService: ConfigService,
+    @Inject(forwardRef(() => WorkflowsService))
+    private readonly workflowsService: WorkflowsService,
   ) {
     this.supabaseUrl = this.configService.getOrThrow<string>('SUPABASE_URL');
     this.serviceKey = this.configService.getOrThrow<string>('SUPABASE_SERVICE_ROLE_KEY');
+    this.executorMode = this.configService.get<string>('DATA_FEED_EXECUTOR_MODE', 'nestjs');
   }
 
-  async executeFeed(body: { feedId: string; triggeredBy?: string }) {
+  async executeFeed(body: { feedId: string; triggeredBy?: string }): Promise<Record<string, unknown>> {
     const { feedId, triggeredBy } = body;
 
-    try {
-      const result = await this.invokeEdgeFunction('execute-data-feed', {
-        feedId,
-        triggeredBy: triggeredBy || 'api',
-      });
-      return { success: true, ...result };
-    } catch (err) {
-      return {
-        success: false,
-        error: err instanceof Error ? err.message : String(err),
-      };
+    if (this.executorMode === 'edge') {
+      try {
+        const result = await this.invokeEdgeFunction('execute-data-feed', {
+          feedId,
+          triggeredBy: triggeredBy || 'api',
+        });
+        return { success: true, ...result };
+      } catch (err) {
+        return {
+          success: false,
+          error: err instanceof Error ? err.message : String(err),
+        };
+      }
     }
+
+    const supabase = this.supabaseService.getServiceClient();
+    const result = await executeDataFeed(
+      supabase,
+      { feedId, triggeredBy: triggeredBy || 'api' },
+      {
+        notifyFailure: (payload) => this.workflowsService.notifyFailure(payload as {
+          entity_type: string;
+          entity_id: string;
+          error: string;
+          context?: unknown;
+        }),
+      },
+    );
+    return result;
   }
 
-  async discoverFields(body: Record<string, unknown>) {
-    const { sourceType, config } = body as { sourceType: string; config: Record<string, unknown> };
-
-    switch (sourceType) {
-      case 'database':
-        return { success: true, fields: [{ name: 'id', type: 'uuid' }, { name: 'name', type: 'text' }] };
-      case 'api':
-        return { success: true, fields: [{ name: 'id', type: 'string' }] };
-      case 'file':
-      case 'google_sheets':
-      case 'ftp':
-      case 's3':
-        return { success: true, fields: [] };
-      default:
-        return { success: false, error: `Unknown source type: ${sourceType}` };
+  async discoverFields(body: Record<string, unknown>): Promise<Record<string, unknown>> {
+    if (this.executorMode === 'edge') {
+      try {
+        return await this.invokeEdgeFunction('discover-external-fields', body);
+      } catch (err) {
+        return { success: false, error: err instanceof Error ? err.message : String(err) };
+      }
     }
+
+    const supabase = this.supabaseService.getServiceClient();
+    return discoverExternalFields(supabase, body);
   }
 
   async runScheduled() {

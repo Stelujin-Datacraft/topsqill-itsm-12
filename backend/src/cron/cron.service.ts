@@ -31,6 +31,18 @@ export class CronService {
     }
   }
 
+  @Cron(CronExpression.EVERY_MINUTE)
+  async resumeWaitingWorkflows() {
+    if (!(await this.cronLock.tryAcquire('workflow-resume'))) return;
+    try {
+      await this.workflowsService.resumeWaiting();
+    } catch (err) {
+      this.logger.error('Resume waiting workflows error', err);
+    } finally {
+      await this.cronLock.release('workflow-resume');
+    }
+  }
+
   @Cron(CronExpression.EVERY_5_MINUTES)
   async runScheduledDataFeeds() {
     if (!(await this.cronLock.tryAcquire('data-feeds'))) return;

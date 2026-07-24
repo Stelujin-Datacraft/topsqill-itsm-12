@@ -84,4 +84,49 @@ export class EmailService {
       return false;
     }
   }
+
+  async sendTemplateEmail(body: Record<string, unknown>) {
+    const supabase = this.supabaseService.getServiceClient();
+    const { templateId, data, recipients, organizationId } = body as {
+      templateId: string;
+      data: Record<string, unknown>;
+      recipients: string[];
+      organizationId?: string;
+    };
+
+    const { data: template, error } = await supabase
+      .from('email_templates')
+      .select('*')
+      .eq('id', templateId)
+      .single();
+
+    if (error || !template) {
+      return { success: false, error: 'Template not found' };
+    }
+
+    let subject = template.subject || 'Notification';
+    let bodyHtml = template.body_html || template.body || '';
+    let bodyText = template.body_text || template.body || '';
+
+    for (const [key, value] of Object.entries(data || {})) {
+      const placeholder = new RegExp(`\\{\\{${key}\\}\\}`, 'g');
+      subject = subject.replace(placeholder, String(value));
+      bodyHtml = bodyHtml.replace(placeholder, String(value));
+      bodyText = bodyText.replace(placeholder, String(value));
+    }
+
+    const results: { recipient: string; sent: boolean }[] = [];
+    for (const recipient of recipients || []) {
+      const sent = await this.sendEmail({
+        to: recipient,
+        subject,
+        text: bodyText,
+        html: bodyHtml,
+        organizationId,
+      });
+      results.push({ recipient, sent });
+    }
+
+    return { success: true, results };
+  }
 }

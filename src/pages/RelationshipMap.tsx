@@ -159,19 +159,25 @@ async function buildDownstreamTree(
 }
 
 /* ===================== FIND UPSTREAM PARENTS (OPTIMIZED) ===================== */
-const upstreamCrFieldsCache: Array<{ id: string; form_id: string; targetFormId: string }> | null = null;
+let upstreamCrFieldsCache: Array<{ id: string; form_id: string; targetFormId: string }> | null = null;
 
 async function getAllCrossRefFields(): Promise<Array<{ id: string; form_id: string; targetFormId: string }>> {
+  if (upstreamCrFieldsCache) {
+    return upstreamCrFieldsCache;
+  }
+
   const { data: allCrFields } = await supabase
     .from('form_fields')
     .select('id, form_id, custom_config')
     .eq('field_type', 'cross-reference');
 
-  return (allCrFields || []).map(f => {
+  upstreamCrFieldsCache = (allCrFields || []).map(f => {
     let config: any = f.custom_config;
     if (typeof config === 'string') { try { config = JSON.parse(config); } catch { config = {}; } }
     return { id: f.id, form_id: f.form_id as string, targetFormId: config?.targetFormId || '' };
   }).filter(f => f.targetFormId);
+
+  return upstreamCrFieldsCache;
 }
 
 async function findUpstreamParents(
