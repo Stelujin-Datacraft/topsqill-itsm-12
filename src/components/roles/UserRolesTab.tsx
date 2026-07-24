@@ -12,7 +12,7 @@ import { useOrganizationUsers } from '@/hooks/useOrganizationUsers';
 import { useRoles } from '@/hooks/useRoles';
 import { useUserRoleAssignments } from '@/hooks/useUserRoleAssignments';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 import { toast } from '@/hooks/use-toast';
 
 export function UserRolesTab() {

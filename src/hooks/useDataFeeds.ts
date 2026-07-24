@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 import { DataFeed, DataFeedRun, DataFeedFormData, MatchingRule, FieldMapping, SourceFilter, CrossRefMatchRule } from '@/types/dataFeed';
 import { useToast } from '@/hooks/use-toast';
 

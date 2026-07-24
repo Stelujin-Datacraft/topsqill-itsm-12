@@ -13,7 +13,7 @@ import { schemaCache, FormDefinition, FieldDefinition, SystemColumnDefinition } 
 import { SavedQueriesSection } from './SavedQueriesSection';
 import { useSavedQueries } from '@/hooks/useSavedQueries';
 import { SavedQuery } from '@/types/queries';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 
 interface FormsSidebarProps {
   onInsertText: (text: string) => void;

@@ -13,7 +13,7 @@
 // import { useToast } from '@/hooks/use-toast';
 // import * as XLSX from 'xlsx';
 // import Papa from 'papaparse';
-// import { supabase } from '@/integrations/supabase/client';
+// import { backend as supabase } from '@/services/api';
 // import { Loader2, AlertCircle } from 'lucide-react';
 // import { Alert, AlertDescription } from '@/components/ui/alert';
 
@@ -469,7 +469,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import * as XLSX from 'xlsx';
 import Papa from 'papaparse';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 import { Loader2, AlertCircle, MapPin, CheckCircle2, FileText } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';

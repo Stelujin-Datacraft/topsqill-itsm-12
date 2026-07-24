@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
 import { Activity, TrendingUp, TrendingDown, AlertTriangle, Clock, Zap } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { format, subDays, subHours, startOfDay, startOfHour } from 'date-fns';
 

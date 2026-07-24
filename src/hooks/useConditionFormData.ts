@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 import { FormOption, FormFieldOption } from '@/types/conditions';
 import { useProject } from '@/contexts/ProjectContext';
 import { STATIC_LAYOUT_FIELD_TYPES, WORKFLOW_VALUE_FIELD_EXCLUSIONS } from '@/utils/workflowFieldFiltering';

@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { useITAssets } from '@/hooks/useITAssets';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 import { toast } from '@/hooks/use-toast';
 import { format, differenceInDays, addDays } from 'date-fns';
 import { ShieldCheck, Key, AlertTriangle, Clock, Plus, Edit, Trash2, Search, Calendar } from 'lucide-react';

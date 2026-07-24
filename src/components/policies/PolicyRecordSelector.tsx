@@ -1,6 +1,6 @@
 import React from "react";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { backend as supabase } from '@/services/api';
 import { Label } from "@/components/ui/label";
 import { CheckCircle, Tag, Eye } from "lucide-react";
 import { Badge } from "@/components/ui/badge";

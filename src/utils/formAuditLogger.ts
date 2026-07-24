@@ -1,4 +1,4 @@
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 import type { Json } from '@/integrations/supabase/types';
 
 // Independent form audit event types - NOT linked to main audit_logs

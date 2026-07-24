@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 import { ReportEditor } from '@/components/reports/ReportEditor';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 
 const ReportEditorPage = () => {
   const { id } = useParams<{ id: string }>();

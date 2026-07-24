@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { CheckCircle, XCircle, Clock } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 
 interface ApprovalFieldProps {
   field: FormField;

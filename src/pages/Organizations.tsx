@@ -7,7 +7,7 @@ import { useOrganization } from '@/contexts/OrganizationContext';
 import { Building2, Edit, Globe, Mail, Calendar } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { OrganizationDialog } from '@/components/OrganizationDialog';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 import { format } from 'date-fns';
 
 const Organizations = () => {

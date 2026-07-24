@@ -18,7 +18,7 @@ import { useProject } from '@/contexts/ProjectContext';
 import { usePerformanceAuditLog } from '@/hooks/usePerformanceAuditLog';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 import { formatDistanceToNow } from 'date-fns';
 import { getHealthColorClass } from '@/components/performance/utils/severityUtils';
 import { type PerformanceAlert, type PerformancePrediction, type PerformanceThreshold, type AIAnalysis } from '@/hooks/usePerformanceMonitoring';

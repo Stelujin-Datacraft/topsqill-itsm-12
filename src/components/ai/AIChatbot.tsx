@@ -8,7 +8,7 @@ import { useForm } from '@/contexts/FormContext';
 import { useProject } from '@/contexts/ProjectContext';
 import { cn } from '@/lib/utils';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 import ReactMarkdown from 'react-markdown';
  import { toast } from 'sonner';
  import { Badge } from '@/components/ui/badge';

@@ -7,7 +7,7 @@ import { LifecycleHistoryDialog } from './LifecycleHistoryDialog';
 import { useLifecycleHistory } from '@/hooks/useLifecycleHistory';
 import { useSLANotification } from '@/hooks/useSLANotification';
 import { useSLATracking } from '@/hooks/useSLATracking';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 import { useToast } from '@/hooks/use-toast';
 import {
   Tooltip,

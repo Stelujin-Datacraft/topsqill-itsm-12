@@ -12,7 +12,7 @@ import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Plus, Trash2, ArrowRight, Clock, Calendar, RefreshCw, AlertCircle, Filter, Link2, GitBranch, Sparkles } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { ExpressionEvaluator } from '@/utils/expressionEvaluator';

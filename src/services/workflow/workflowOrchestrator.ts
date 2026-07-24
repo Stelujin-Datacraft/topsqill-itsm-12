@@ -1,5 +1,5 @@
 
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 import { parseNodeConfig } from './utils';
 import { NodeExecutors } from './nodeExecutors';
 import { WorkflowExecutionContext } from './types';

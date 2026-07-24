@@ -1,4 +1,4 @@
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 
 /**
  * Notify admins when a workflow fails. Fire-and-forget — failures here

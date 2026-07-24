@@ -10,7 +10,7 @@ import {
   DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
 import { Play, Loader2, GitBranch, ChevronDown, CheckCircle, XCircle } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 import { toast } from '@/hooks/use-toast';
 import { WorkflowExecutionService } from '@/services/workflow/workflowTrigger';
 import { useAuth } from '@/contexts/AuthContext';

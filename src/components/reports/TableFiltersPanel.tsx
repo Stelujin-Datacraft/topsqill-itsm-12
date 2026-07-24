@@ -15,7 +15,7 @@ import { SaveFilterDialog } from './SaveFilterDialog';
 import { useSavedFilters } from '@/hooks/useSavedFilters';
 import { useToast } from '@/hooks/use-toast';
 import { useUsersAndGroups } from '@/hooks/useUsersAndGroups';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 
 export interface FilterCondition {
   id: string;

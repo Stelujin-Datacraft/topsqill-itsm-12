@@ -1,33 +1,25 @@
 /**
- * Unified backend client — use this instead of direct Supabase database/edge function calls.
+ * Unified backend client — use this for all database and API operations.
+ * Auth, Realtime, and Storage still use Supabase directly via rawClient.
  */
-export { api, getApiBaseUrl, getPublicApiUrl, getFormApiUrl, request } from './apiClient';
+export { api, getApiBaseUrl, getPublicApiUrl, getFormApiUrl, getPolicyPreviewUrl, request } from './apiClient';
 export { db } from './databaseClient';
 
-import { supabase } from '@/integrations/supabase/client';
+import { rawSupabase } from '@/integrations/supabase/rawClient';
 import { api } from './apiClient';
 import { db } from './databaseClient';
 
-/** Backend client with auth, database, and function invocation */
+/** Backend client: NestJS API for data/functions, Supabase for auth/realtime/storage */
 export const backend = {
-  /** Supabase Auth — still used for login/session management */
-  auth: supabase.auth,
-
-  /** Database operations via NestJS API */
+  auth: rawSupabase.auth,
   from: db.from.bind(db),
   rpc: db.rpc.bind(db),
-
-  /** Edge function replacements via NestJS API */
   functions: {
     invoke: api.invoke.bind(api),
   },
-
-  /** Realtime — still uses Supabase directly */
-  channel: supabase.channel.bind(supabase),
-  removeChannel: supabase.removeChannel.bind(supabase),
-
-  /** Storage — still uses Supabase directly */
-  storage: supabase.storage,
+  channel: rawSupabase.channel.bind(rawSupabase),
+  removeChannel: rawSupabase.removeChannel.bind(rawSupabase),
+  storage: rawSupabase.storage,
 };
 
 export default backend;

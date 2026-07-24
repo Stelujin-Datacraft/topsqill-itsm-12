@@ -1,4 +1,4 @@
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 import { FormRule, FieldOperator } from '@/types/rules';
 import { TriggerService } from './triggerService';
 

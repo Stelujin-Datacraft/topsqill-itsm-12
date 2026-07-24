@@ -30,7 +30,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useRoles } from '@/hooks/useRoles';
 import { EnhancedCondition } from '@/types/conditions';
 import { FormFieldOption } from '@/types/conditions';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 import { logFormAuditEvent } from '@/utils/formAuditLogger';
 import { useAuth } from '@/contexts/AuthContext';
 

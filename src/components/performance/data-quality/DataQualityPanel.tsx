@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 import { useProject } from '@/contexts/ProjectContext';
 import { useQuery } from '@tanstack/react-query';
 import { ShieldCheck, AlertCircle, CheckCircle2, XCircle, Loader2, Database, FileText } from 'lucide-react';

@@ -7,7 +7,7 @@
    DropdownMenuTrigger,
  } from '@/components/ui/dropdown-menu';
  import { Download, FileText, FileSpreadsheet, ChevronDown } from 'lucide-react';
- import { supabase } from '@/integrations/supabase/client';
+ import { backend as supabase } from '@/services/api';
  import { format } from 'date-fns';
  import { toast } from 'sonner';
  import jsPDF from 'jspdf';

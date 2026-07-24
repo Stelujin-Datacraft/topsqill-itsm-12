@@ -43,7 +43,7 @@ import {
 } from '@/components/ui/dialog';
 import { useReports } from '@/hooks/useReports';
 import { useFormSubmissionData } from '@/hooks/useFormSubmissionData';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 import { FormDataCell } from './FormDataCell';
 import { rowPassesSearch, extractComparableValue } from '@/utils/filterUtils';
 

@@ -1,4 +1,4 @@
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 import { replaceFieldReferencesInExpression, extractFieldIdsFromExpression } from './fieldReferenceParser';
 
 export interface CalculationContext {

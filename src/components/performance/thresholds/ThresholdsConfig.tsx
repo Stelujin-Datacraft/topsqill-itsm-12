@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { type PerformanceThreshold } from '@/hooks/usePerformanceMonitoring';
 import { getSeverityColorClass } from '@/components/performance/utils/severityUtils';
 import { useProject } from '@/contexts/ProjectContext';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 import { useQuery } from '@tanstack/react-query';
 import { UseMutationResult } from '@tanstack/react-query';
 import { Plus, Trash2, Loader2, Settings2, Users } from 'lucide-react';

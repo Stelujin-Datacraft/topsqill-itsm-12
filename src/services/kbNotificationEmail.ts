@@ -1,4 +1,4 @@
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 
 interface SendKBNotificationEmailParams {
   type: 'approval_request' | 'review_request' | 'approval_response' | 'review_response';

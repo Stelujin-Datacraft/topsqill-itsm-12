@@ -6,7 +6,7 @@
  import { ScrollArea } from '@/components/ui/scroll-area';
  import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
  import { Loader2, AlertTriangle, Clock, TrendingUp, RefreshCw, Brain, ChevronRight } from 'lucide-react';
- import { supabase } from '@/integrations/supabase/client';
+ import { backend as supabase } from '@/services/api';
  import { useNavigate } from 'react-router-dom';
  import ReactMarkdown from 'react-markdown';
  

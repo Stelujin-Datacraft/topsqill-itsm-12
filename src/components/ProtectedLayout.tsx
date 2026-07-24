@@ -9,7 +9,7 @@ import { useProject } from '@/contexts/ProjectContext';
 import { usePermissionRealtimeSync } from '@/hooks/usePermissionRealtimeSync';
 import { useUnifiedAccessControl } from '@/hooks/useUnifiedAccessControl';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 import { RouteLoader } from '@/components/RouteLoader';
 
 // Context to signal that we're inside ProtectedLayout

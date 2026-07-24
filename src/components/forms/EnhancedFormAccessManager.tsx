@@ -8,7 +8,7 @@ import { Shield, Eye, Edit, Plus, Trash2, Users, AlertCircle } from 'lucide-reac
 import { SimpleLoadingSpinner } from '@/components/SimpleLoadingSpinner';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useProject } from '@/contexts/ProjectContext';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 
 interface EnhancedFormAccessManagerProps {
   formId: string;

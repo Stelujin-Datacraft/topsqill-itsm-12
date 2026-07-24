@@ -58,7 +58,7 @@ import {
 import { MetricsSelector } from './MetricsSelector';
 import { DimensionsSelector } from './DimensionsSelector';
 import { FormField } from '@/types/form';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 import { AIChartSuggester } from '@/components/ai/AIChartSuggester';
 
 interface ComponentConfigDialogProps {

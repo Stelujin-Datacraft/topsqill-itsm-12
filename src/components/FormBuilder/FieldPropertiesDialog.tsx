@@ -14,7 +14,7 @@ import { FormField } from '@/types/form';
 import { RecordFieldConfigPanel } from '../form-fields/RecordFieldConfigPanel';
 import { useFormAccess } from './FieldPropertiesDialog/hooks/useFormAccess';
 import { useFieldData } from './FieldPropertiesDialog/hooks/useFieldData';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 import { toast } from '@/hooks/use-toast';
 import { COUNTRIES } from '@/utils/filterUtils';
 // Import field-specific configuration panels

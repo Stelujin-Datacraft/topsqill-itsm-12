@@ -13,7 +13,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { AlertCircle, LogIn, ArrowLeft, Home, HelpCircle, Info } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 import { FormLoadingView } from '@/components/FormLoadingView';
 
 

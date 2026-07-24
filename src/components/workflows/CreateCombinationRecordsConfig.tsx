@@ -5,7 +5,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { FormSelector } from './FormSelector';
 import { FormFieldSelector } from './FormFieldSelector';
 import { FieldMappingConfig } from './FieldMappingConfig';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 import { CreateCombinationRecordsConfig as ConfigType, TargetLinkFieldConfig, FieldMapping } from '@/types/workflowConfig';
 import { Trash2, Plus, Link } from 'lucide-react';
 import { Button } from '@/components/ui/button';

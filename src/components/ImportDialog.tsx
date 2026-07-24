@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Upload, Download, AlertCircle, CheckCircle2, FileText, MapPin } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 import { getFieldType } from '@/data/fieldTypeMapping';

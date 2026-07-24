@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { backend as supabase } from '@/services/api';
 import { getApiBaseUrl } from "@/services/api/apiClient";
 import { Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";

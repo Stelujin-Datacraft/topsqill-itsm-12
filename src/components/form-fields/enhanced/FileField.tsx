@@ -4,7 +4,7 @@ import { FormField } from '@/types/form';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Upload, File as FileIcon, X, AlertCircle, Loader2 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 import { toast } from '@/hooks/use-toast';
 
 interface FileMetadata {

@@ -10,7 +10,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Switch } from '@/components/ui/switch';
 import { Link2, Calculator, Hash, Info, ChevronDown, ChevronUp, BarChart3, ArrowRight, CheckCircle2, Tag, GitCompare, Layers, MousePointerClick } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 import { useFormsData } from '@/hooks/useFormsData';
 import { METRIC_FIELD_TYPES, DIMENSION_FIELD_TYPES } from '@/utils/chartConfig';
 

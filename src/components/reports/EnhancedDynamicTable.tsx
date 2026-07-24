@@ -9,7 +9,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Search, ArrowUp, ArrowDown, Eye, Database, X, Filter, Plus, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 import { useReports } from '@/hooks/useReports';
 import { useTableData } from '@/hooks/useTableData';
 import { FormDataCell } from './FormDataCell';

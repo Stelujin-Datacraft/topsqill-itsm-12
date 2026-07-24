@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import html2canvas from 'html2canvas';
 import PizZip from 'pizzip';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Edit, Trash2, Save, Send, Archive, History, CheckCircle, Clock, FileText, Download, Plus, AlertOctagon, CalendarClock, Shield, BookOpen, Upload, Loader2, FileDown, Users, Eye, EyeOff, RotateCcw, MessageSquare, GripVertical } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd';
@@ -471,12 +471,13 @@ const PolicyDetail = () => {
     setIsUploadingAttachment(true);
     try {
       const filePath = `policies/${policy.id}/${Date.now()}_${file.name}`;
-      const { error: uploadError } = await (await import('@/integrations/supabase/client')).supabase.storage
+      const { backend } = await import('@/services/api');
+      const { error: uploadError } = await backend.storage
         .from('policy-attachments')
         .upload(filePath, file);
       if (uploadError) throw uploadError;
 
-      const { data: urlData } = (await import('@/integrations/supabase/client')).supabase.storage
+      const { data: urlData } = backend.storage
         .from('policy-attachments')
         .getPublicUrl(filePath);
 
@@ -1899,8 +1900,7 @@ const PolicyDetail = () => {
                   <FileDown className="h-4 w-4 mr-2 text-module-forms" /> Download PDF
                 </DropdownMenuItem>
               {/* <DropdownMenuItem onClick={() => {
-                const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-                const previewUrl = `${supabaseUrl}/functions/v1/policy-preview?id=${policy.id}`;
+                const previewUrl = `${(await import('@/services/api')).getPolicyPreviewUrl(policy.id)}`;
                 // Try edge function first — if it returns JSON (no file), fall back to client-side
                 fetch(previewUrl).then(async (res) => {
                   const contentType = res.headers.get('content-type') || '';

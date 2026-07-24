@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 import { useAuth } from './AuthContext';
 import { useImpersonation } from './ImpersonationContext';
 import { Project, ProjectPermission } from '@/types/project';

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { FormViewLayoutRenderer } from '@/components/FormViewLayoutRenderer';
 import { Form } from '@/types/form';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
 import { useFormLoader } from '@/hooks/useFormLoader';

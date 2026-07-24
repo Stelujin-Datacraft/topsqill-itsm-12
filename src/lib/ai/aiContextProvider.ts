@@ -11,7 +11,7 @@
  */
 
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 import { useContext, useEffect, useState } from 'react';
 import { generateSchemaPromptContext, AI_SCHEMA_CONTEXT } from './systemSchema';
 

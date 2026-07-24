@@ -13,7 +13,7 @@ import { useCrossReferenceSync } from '@/hooks/useCrossReferenceSync';
 import { useUnifiedAccessControl } from '@/hooks/useUnifiedAccessControl';
 import { useProject } from '@/contexts/ProjectContext';
 import { useFormAccess } from '@/components/FormBuilder/FieldPropertiesDialog/hooks/useFormAccess';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 
 interface CrossReferenceFieldProps {
   field: FormField;

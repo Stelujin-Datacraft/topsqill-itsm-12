@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useProject } from '@/contexts/ProjectContext';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 import { useQuery } from '@tanstack/react-query';
 import { Loader2, Shield, AlertTriangle, CheckCircle2, XCircle, TrendingUp, BarChart3, ShieldAlert, Settings } from 'lucide-react';
 

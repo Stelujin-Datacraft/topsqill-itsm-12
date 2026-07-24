@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Trash2, Plus, ArrowDown, ArrowRight, CheckSquare, Square } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 import { FormField } from '@/types/form';
 import { ScrollArea } from '@/components/ui/scroll-area';
 

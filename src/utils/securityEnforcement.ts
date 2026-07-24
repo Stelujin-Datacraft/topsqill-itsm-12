@@ -1,6 +1,6 @@
 // Security enforcement utilities
 
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 
 export interface SecurityCheckResult {
   allowed: boolean;

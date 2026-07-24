@@ -6,7 +6,7 @@
  import { Switch } from '@/components/ui/switch';
  import { Badge } from '@/components/ui/badge';
  import { Calendar, Plus, Trash2, RefreshCw } from 'lucide-react';
- import { supabase } from '@/integrations/supabase/client';
+ import { backend as supabase } from '@/services/api';
  import { useAuth } from '@/contexts/AuthContext';
  import { useToast } from '@/hooks/use-toast';
  import { format } from 'date-fns';

@@ -32,7 +32,7 @@ import { ActionNode } from './nodes/ActionNode';
 import { NodePalette } from './NodePalette';
 import { NodeConfigPanel } from './NodeConfigPanel';
 import { useFormFields } from '@/hooks/useConditionFormData';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 
 const nodeTypes: NodeTypes = {
   'start': StartNode,

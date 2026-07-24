@@ -1,4 +1,4 @@
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 import { toast } from '@/hooks/use-toast';
 import { ActionExecutors } from './workflow/actionExecutors';
 import { RecordActionExecutors } from './workflow/recordActionExecutors';

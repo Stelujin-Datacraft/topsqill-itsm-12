@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { UserPlus } from 'lucide-react';
 import { useOrganizationUsers } from '@/hooks/useOrganizationUsers';
 import { useProject } from '@/contexts/ProjectContext';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 import { toast } from '@/hooks/use-toast';
 
 interface UserInviteToFormProps {

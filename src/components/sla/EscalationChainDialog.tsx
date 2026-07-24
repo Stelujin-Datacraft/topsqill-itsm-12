@@ -15,7 +15,7 @@
  import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
  import { Card, CardContent } from '@/components/ui/card';
  import { Plus, Trash2, User, Users, Bell, Mail, ArrowRight } from 'lucide-react';
- import { supabase } from '@/integrations/supabase/client';
+ import { backend as supabase } from '@/services/api';
  import { useAuth } from '@/contexts/AuthContext';
  import { useToast } from '@/hooks/use-toast';
  import { EscalationChain, EscalationLevel } from '@/hooks/useSLAManagement';

@@ -31,7 +31,7 @@ import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { FormInput, FileSpreadsheet, Sheet, Globe, Database, Upload, Link, RefreshCw, Eye, EyeOff, Loader2, CheckCircle2, AlertCircle, FolderOpen, Server, Cloud, Webhook, Table2, Copy } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 import { useToast } from '@/hooks/use-toast';
 
 interface ExternalSourceConfigProps {

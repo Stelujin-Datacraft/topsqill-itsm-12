@@ -10,7 +10,7 @@ import { ChevronDown, ChevronRight, GitBranch, MessageSquare, Trash2, Plus, Aler
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface SelectFieldConfigProps {
