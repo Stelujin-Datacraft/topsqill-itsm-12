@@ -29,7 +29,7 @@ export class WorkflowExecutorService {
   ) {
     this.supabaseUrl = this.configService.getOrThrow<string>('SUPABASE_URL');
     this.serviceKey = this.configService.getOrThrow<string>('SUPABASE_SERVICE_ROLE_KEY');
-    this.executorMode = this.configService.get<string>('WORKFLOW_EXECUTOR_MODE', 'nestjs');
+    this.executorMode = 'nestjs';
   }
 
   async runExecution(

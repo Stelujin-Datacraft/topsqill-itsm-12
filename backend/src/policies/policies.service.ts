@@ -1,60 +1,15 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { SupabaseService } from '../supabase/supabase.service';
+import { Injectable } from '@nestjs/common';
+import { EngineHostService } from '../engines/engine-host.service';
 
 @Injectable()
 export class PoliciesService {
-  constructor(private readonly supabaseService: SupabaseService) {}
+  constructor(private readonly engineHost: EngineHostService) {}
 
   async getPreview(policyId: string) {
-    const supabase = this.supabaseService.getServiceClient();
-
-    const { data: policy } = await supabase
-      .from('policies')
-      .select('*, policy_versions(*)')
-      .eq('id', policyId)
-      .single();
-
-    if (!policy) throw new NotFoundException('Policy not found');
-
-    const latestVersion = policy.policy_versions?.sort(
-      (a: { version_number: number }, b: { version_number: number }) => b.version_number - a.version_number,
-    )?.[0];
-
-    return {
-      policy,
-      version: latestVersion,
-      previewUrl: latestVersion?.document_url || null,
-    };
+    return this.engineHost.policyPreview({ policyId, id: policyId });
   }
 
   async sendReviewReminders() {
-    const supabase = this.supabaseService.getServiceClient();
-    const now = new Date();
-    const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-
-    const { data: policies } = await supabase
-      .from('policies')
-      .select('id, title, owner_id')
-      .lte('next_review_date', weekFromNow.toISOString())
-      .eq('status', 'published')
-      .limit(200);
-
-    const notifications = (policies || [])
-      .filter((policy) => policy.owner_id)
-      .map((policy) => ({
-        user_id: policy.owner_id,
-        type: 'policy_review_due',
-        title: 'Policy Review Due',
-        message: `Policy "${policy.title}" is due for review.`,
-        data: { policy_id: policy.id },
-      }));
-
-    if (notifications.length) {
-      await supabase.from('notifications').insert(notifications);
-    }
-
-    const reminded = notifications.map((n) => (n.data as { policy_id: string }).policy_id);
-
-    return { success: true, reminded: reminded.length };
+    return this.engineHost.policyReviewReminders({});
   }
 }

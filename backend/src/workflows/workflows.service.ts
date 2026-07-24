@@ -5,6 +5,7 @@ import { runWithConcurrency } from '../common/utils/concurrency.util';
 import { SupabaseService } from '../supabase/supabase.service';
 import { WorkflowExecutorService } from './workflow-executor.service';
 import { WorkflowQueueService, QueueJob } from '../queue/workflow-queue.service';
+import { EngineHostService } from '../engines/engine-host.service';
 
 interface QueueItem {
   id: string;
@@ -26,6 +27,7 @@ export class WorkflowsService {
     private readonly workflowExecutor: WorkflowExecutorService,
     @Inject(forwardRef(() => WorkflowQueueService))
     private readonly workflowQueueService: WorkflowQueueService,
+    private readonly engineHost: EngineHostService,
   ) {
     this.queueBatchSize = Number(this.configService.get('WORKFLOW_QUEUE_BATCH_SIZE', 20));
     this.queueConcurrency = Number(this.configService.get('WORKFLOW_QUEUE_CONCURRENCY', 10));
@@ -282,44 +284,6 @@ export class WorkflowsService {
   }
 
   async notifyFailure(body: { entity_type: string; entity_id: string; error: string; context?: unknown }) {
-    const supabase = this.supabaseService.getServiceClient();
-    const { entity_type, entity_id, error } = body;
-
-    if (!entity_type || !entity_id || !['workflow', 'data_feed'].includes(entity_type)) {
-      return { error: 'Invalid entity_type or entity_id' };
-    }
-
-    const table = entity_type === 'workflow' ? 'workflows' : 'data_feeds';
-    const { data: entity } = await supabase
-      .from(table)
-      .select('id, name, notify_on_failure, organization_id, created_by')
-      .eq('id', entity_id)
-      .maybeSingle();
-
-    if (!entity || entity.notify_on_failure === false) {
-      return { skipped: entity ? 'notifications_disabled' : 'entity_not_found' };
-    }
-
-    const errorText = typeof error === 'string' ? error : JSON.stringify(error);
-    const errorHash = createHash('sha256').update(errorText.slice(0, 500)).digest('hex').slice(0, 32);
-
-    const { data: existing } = await supabase
-      .from('failure_notifications')
-      .select('occurrence_count')
-      .eq('entity_type', entity_type)
-      .eq('entity_id', entity_id)
-      .eq('error_hash', errorHash)
-      .maybeSingle();
-
-    await supabase.from('failure_notifications').upsert({
-      entity_type,
-      entity_id,
-      error_hash: errorHash,
-      error_message: errorText.slice(0, 1000),
-      last_notified_at: new Date().toISOString(),
-      occurrence_count: (existing?.occurrence_count ?? 0) + 1,
-    }, { onConflict: 'entity_type,entity_id,error_hash' });
-
-    return { success: true, notified: true };
+    return this.engineHost.notifyFailure(body);
   }
 }

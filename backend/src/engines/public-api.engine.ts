@@ -1,0 +1,2467 @@
+// @ts-nocheck
+import { Hono } from 'hono';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import type { EngineContext } from './shared/engine-context';
+
+export function createPublicApiApp(supabase: SupabaseClient, _ctx: EngineContext) {
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-api-key, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+};
+
+const app = new Hono().basePath('/public-api');
+
+// Supabase client with service role for API operations
+function getServiceClient() { return supabase; }
+
+// Hash function for API key validation
+async function hashApiKey(key: string): Promise<string> {
+  const { createHash } = await import('crypto');
+  return createHash('sha256').update(key).digest('hex');
+}
+
+// Middleware: Validate API Key
+async function validateApiKey(c: any, next: () => Promise<void>) {
+  const startTime = Date.now();
+  const apiKey = c.req.header('x-api-key');
+  const endpoint = c.req.path;
+  const method = c.req.method;
+  const ip = c.req.header('x-forwarded-for') || c.req.header('cf-connecting-ip') || 'unknown';
+  const userAgent = c.req.header('user-agent') || 'unknown';
+
+  if (!apiKey) {
+    return c.json({ error: 'API key required', code: 'MISSING_API_KEY' }, 401);
+  }
+
+  const keyHash = await hashApiKey(apiKey);
+  const supabase = getServiceClient();
+
+  // Validate the API key
+  const { data: keyData, error: keyError } = await supabase
+    .rpc('validate_api_key', { key_hash_param: keyHash });
+
+  if (keyError || !keyData || keyData.length === 0) {
+    // Log failed attempt
+    await supabase.rpc('log_api_request', {
+      p_api_key_id: null,
+      p_organization_id: '00000000-0000-0000-0000-000000000000',
+      p_endpoint: endpoint,
+      p_method: method,
+      p_request_body: null,
+      p_response_status: 401,
+      p_response_time_ms: Date.now() - startTime,
+      p_ip_address: ip,
+      p_user_agent: userAgent,
+      p_error_message: 'Invalid or expired API key'
+    });
+    return c.json({ error: 'Invalid or expired API key', code: 'INVALID_API_KEY' }, 401);
+  }
+
+  const keyInfo = keyData[0];
+
+  // Check IP whitelist
+  if (keyInfo.allowed_ips && keyInfo.allowed_ips.length > 0) {
+    if (!keyInfo.allowed_ips.includes(ip)) {
+      await supabase.rpc('log_api_request', {
+        p_api_key_id: keyInfo.api_key_id,
+        p_organization_id: keyInfo.organization_id,
+        p_endpoint: endpoint,
+        p_method: method,
+        p_request_body: null,
+        p_response_status: 403,
+        p_response_time_ms: Date.now() - startTime,
+        p_ip_address: ip,
+        p_user_agent: userAgent,
+        p_error_message: 'IP not whitelisted'
+      });
+      return c.json({ error: 'IP not allowed', code: 'IP_NOT_ALLOWED' }, 403);
+    }
+  }
+
+  // Store key info in context for route handlers
+  c.set('apiKeyInfo', keyInfo);
+  c.set('startTime', startTime);
+  c.set('ip', ip);
+  c.set('userAgent', userAgent);
+
+  await next();
+}
+
+// Middleware: Log successful request
+async function logRequest(c: any, status: number, error?: string) {
+  const keyInfo = c.get('apiKeyInfo');
+  const startTime = c.get('startTime');
+  const ip = c.get('ip');
+  const userAgent = c.get('userAgent');
+
+  if (!keyInfo) return;
+
+  const supabase = getServiceClient();
+  let requestBody = null;
+  try {
+    if (['POST', 'PUT', 'PATCH'].includes(c.req.method)) {
+      requestBody = await c.req.json().catch(() => null);
+    }
+  } catch {
+    // Ignore body parsing errors
+  }
+
+  await supabase.rpc('log_api_request', {
+    p_api_key_id: keyInfo.api_key_id,
+    p_organization_id: keyInfo.organization_id,
+    p_endpoint: c.req.path,
+    p_method: c.req.method,
+    p_request_body: requestBody,
+    p_response_status: status,
+    p_response_time_ms: Date.now() - startTime,
+    p_ip_address: ip,
+    p_user_agent: userAgent,
+    p_error_message: error || null
+  });
+}
+
+// Permission check helper
+function hasPermission(keyInfo: any, resource: string, action: string): boolean {
+  const permissions = keyInfo.permissions || {};
+  const resourcePerms = permissions[resource];
+  if (!resourcePerms) return false;
+  if (Array.isArray(resourcePerms)) return resourcePerms.includes(action);
+  return resourcePerms[action] === true;
+}
+
+function hasUsersReadAccess(keyInfo: any): boolean {
+  if (hasPermission(keyInfo, 'users', 'read')) return true;
+
+  const permissions = keyInfo?.permissions || {};
+  const hasLegacyAdminAccess = ['forms', 'submissions', 'workflows', 'reports'].every((resource) => {
+    const resourcePerms = permissions[resource];
+    return Array.isArray(resourcePerms) && resourcePerms.includes('read');
+  });
+
+  return hasLegacyAdminAccess;
+}
+
+// CORS preflight
+app.options('*', (c) => new Response(null, { headers: corsHeaders }));
+
+// Health check (no auth required)
+app.get('/health', (c) => {
+  return c.json({ status: 'ok', timestamp: new Date().toISOString() }, 200, corsHeaders);
+});
+
+// Documentation endpoint (no auth required)
+app.get('/docs', (c) => {
+  const docs = {
+    name: 'TopSqill BPM Public API',
+    version: '1.0.0',
+    description: 'External API for integrating with forms, submissions, workflows, and reports',
+    authentication: {
+      type: 'API Key',
+      header: 'x-api-key',
+      description: 'Include your API key in the x-api-key header'
+    },
+    endpoints: {
+      forms: {
+        'GET /forms': 'List all accessible forms',
+        'GET /forms/:id': 'Get form by ID (UUID) or reference_id',
+        'GET /forms/:id/fields': 'Get form fields',
+        'GET /forms/:id/records': 'Get all records/submissions for a form (query: limit, offset)',
+        'GET /forms/:id/records/:recordId': 'Get a specific record from a form',
+        'POST /forms': 'Create new form',
+        'PUT /forms/:id': 'Update form',
+        'DELETE /forms/:id': 'Delete form'
+      },
+      submissions: {
+        'GET /submissions': 'List all submissions (query: form_id or form_ref_id to filter, limit, offset)',
+        'GET /submissions/:id': 'Get submission by ID (UUID) or submission_ref_id',
+        'POST /submissions': 'Create new submission (body: form_id or form_ref_id, submission_data)',
+        'PUT /submissions/:id': 'Update submission',
+        'DELETE /submissions/:id': 'Delete submission',
+        'POST /submissions/bulk': 'Bulk create submissions (body: submissions[], form_id, use_labels)',
+        'PUT /submissions/bulk': 'Bulk update submissions (body: updates[], use_labels, merge)',
+        'DELETE /submissions/bulk': 'Bulk delete submissions (body: ids[] or submission_ref_ids[])'
+      },
+      workflows: {
+        'GET /workflows': 'List workflows',
+        'GET /workflows/:id': 'Get workflow by ID or reference_id',
+        'POST /workflows': 'Create new workflow',
+        'POST /workflows/:id/trigger': 'Trigger workflow for submission',
+        'PUT /workflows/:id': 'Update workflow',
+        'DELETE /workflows/:id': 'Delete workflow'
+      },
+      reports: {
+        'GET /reports': 'List reports',
+        'GET /reports/:id': 'Get report by ID or reference_id',
+        'GET /reports/:id/data': 'Get report data',
+        'POST /reports': 'Create new report',
+        'PUT /reports/:id': 'Update report',
+        'DELETE /reports/:id': 'Delete report'
+      },
+      users: {
+        'GET /users': 'List users in your organization (admin-only). Query: search, email, role, status, group_id, project_id, limit, offset',
+        'GET /users/:id': 'Get a single user with full profile, roles, groups, projects, permissions and recent activity (admin-only)',
+        'GET /me': 'Get the API key owner profile (id, email, role, organization_id, first_name, last_name, organization)'
+      }
+    },
+    queryParameters: {
+      'form_id': 'UUID of the form (for /submissions endpoint)',
+      'form_ref_id': 'Reference ID of the form (alternative to form_id)',
+      'limit': 'Number of records to return (default: 100, max: 1000)',
+      'offset': 'Number of records to skip for pagination (default: 0)'
+    },
+    permissions: {
+      forms: ['read', 'create', 'update', 'delete'],
+      submissions: ['read', 'create', 'update', 'delete'],
+      workflows: ['read', 'create', 'update', 'delete', 'trigger'],
+      reports: ['read', 'create', 'update', 'delete'],
+      users: ['read']
+    },
+    rateLimit: 'Configurable per API key (default: 60 requests/minute)',
+    examples: {
+      'Get form records': 'GET /forms/{form_id}/records',
+      'Get specific record': 'GET /forms/{form_id}/records/{record_id}',
+      'Filter submissions by form': 'GET /submissions?form_id={uuid}',
+      'Filter submissions by form reference': 'GET /submissions?form_ref_id={reference_id}'
+    }
+  };
+  return c.json(docs, 200, corsHeaders);
+});
+
+// =============================================
+// FORMS ENDPOINTS
+// =============================================
+
+app.get('/forms', validateApiKey, async (c) => {
+  const keyInfo = c.get('apiKeyInfo');
+  
+  if (!hasPermission(keyInfo, 'forms', 'read')) {
+    await logRequest(c, 403, 'Permission denied: forms.read');
+    return c.json({ error: 'Permission denied', code: 'PERMISSION_DENIED' }, 403, corsHeaders);
+  }
+
+  const supabase = getServiceClient();
+  
+  let query = supabase
+    .from('forms')
+    .select('id, name, description, reference_id, status, created_at, updated_at')
+    .eq('organization_id', keyInfo.organization_id);
+
+  if (keyInfo.project_id) {
+    query = query.eq('project_id', keyInfo.project_id);
+  }
+
+  const { data, error } = await query.order('created_at', { ascending: false });
+
+  if (error) {
+    await logRequest(c, 500, error.message);
+    return c.json({ error: 'Failed to fetch forms', details: error.message }, 500, corsHeaders);
+  }
+
+  await logRequest(c, 200);
+  return c.json({ data, count: data?.length || 0 }, 200, corsHeaders);
+});
+
+app.get('/forms/:id', validateApiKey, async (c) => {
+  const keyInfo = c.get('apiKeyInfo');
+  const formId = c.req.param('id');
+
+  if (!hasPermission(keyInfo, 'forms', 'read')) {
+    await logRequest(c, 403, 'Permission denied: forms.read');
+    return c.json({ error: 'Permission denied' }, 403, corsHeaders);
+  }
+
+  const supabase = getServiceClient();
+
+  // Try UUID first, then reference_id
+  let query = supabase
+    .from('forms')
+    .select('id, name, description, reference_id, status, created_at, updated_at, layout, pages')
+    .eq('organization_id', keyInfo.organization_id);
+
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(formId);
+  
+  if (isUuid) {
+    query = query.eq('id', formId);
+  } else {
+    query = query.eq('reference_id', formId);
+  }
+
+  const { data, error } = await query.single();
+
+  if (error || !data) {
+    await logRequest(c, 404, 'Form not found');
+    return c.json({ error: 'Form not found' }, 404, corsHeaders);
+  }
+
+  await logRequest(c, 200);
+  return c.json({ data }, 200, corsHeaders);
+});
+
+app.get('/forms/:id/fields', validateApiKey, async (c) => {
+  const keyInfo = c.get('apiKeyInfo');
+  const formId = c.req.param('id');
+
+  if (!hasPermission(keyInfo, 'forms', 'read')) {
+    await logRequest(c, 403, 'Permission denied: forms.read');
+    return c.json({ error: 'Permission denied' }, 403, corsHeaders);
+  }
+
+  const supabase = getServiceClient();
+
+  // Resolve form ID
+  let actualFormId = formId;
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(formId);
+  
+  if (!isUuid) {
+    const { data: form } = await supabase
+      .from('forms')
+      .select('id')
+      .eq('reference_id', formId)
+      .eq('organization_id', keyInfo.organization_id)
+      .single();
+    
+    if (!form) {
+      await logRequest(c, 404, 'Form not found');
+      return c.json({ error: 'Form not found' }, 404, corsHeaders);
+    }
+    actualFormId = form.id;
+  }
+
+  const { data, error } = await supabase
+    .from('form_fields')
+    .select('id, label, field_type, required, placeholder, options, field_order')
+    .eq('form_id', actualFormId)
+    .order('field_order', { ascending: true });
+
+  if (error) {
+    await logRequest(c, 500, error.message);
+    return c.json({ error: 'Failed to fetch fields' }, 500, corsHeaders);
+  }
+
+  await logRequest(c, 200);
+  return c.json({ data, count: data?.length || 0 }, 200, corsHeaders);
+});
+
+// Create new form
+app.post('/forms', validateApiKey, async (c) => {
+  const keyInfo = c.get('apiKeyInfo');
+
+  if (!hasPermission(keyInfo, 'forms', 'create')) {
+    await logRequest(c, 403, 'Permission denied: forms.create');
+    return c.json({ error: 'Permission denied' }, 403, corsHeaders);
+  }
+
+  let body: any;
+  try {
+    body = await c.req.json();
+  } catch {
+    await logRequest(c, 400, 'Invalid JSON body');
+    return c.json({ error: 'Invalid JSON body' }, 400, corsHeaders);
+  }
+
+  const { name, description, project_id, status = 'draft' } = body;
+
+  if (!name) {
+    await logRequest(c, 400, 'name is required');
+    return c.json({ error: 'name is required' }, 400, corsHeaders);
+  }
+
+  if (!project_id && !keyInfo.project_id) {
+    await logRequest(c, 400, 'project_id is required');
+    return c.json({ error: 'project_id is required' }, 400, corsHeaders);
+  }
+
+  const supabase = getServiceClient();
+
+  const { data, error } = await supabase
+    .from('forms')
+    .insert({
+      name,
+      description,
+      project_id: project_id || keyInfo.project_id,
+      organization_id: keyInfo.organization_id,
+      status,
+      created_by: keyInfo.api_key_id
+    })
+    .select('id, name, reference_id, status, created_at')
+    .single();
+
+  if (error) {
+    await logRequest(c, 500, error.message);
+    return c.json({ error: 'Failed to create form', details: error.message }, 500, corsHeaders);
+  }
+
+  await logRequest(c, 201);
+  return c.json({ data, message: 'Form created successfully' }, 201, corsHeaders);
+});
+
+// Update form
+app.put('/forms/:id', validateApiKey, async (c) => {
+  const keyInfo = c.get('apiKeyInfo');
+  const formId = c.req.param('id');
+
+  if (!hasPermission(keyInfo, 'forms', 'update')) {
+    await logRequest(c, 403, 'Permission denied: forms.update');
+    return c.json({ error: 'Permission denied' }, 403, corsHeaders);
+  }
+
+  let body: any;
+  try {
+    body = await c.req.json();
+  } catch {
+    await logRequest(c, 400, 'Invalid JSON body');
+    return c.json({ error: 'Invalid JSON body' }, 400, corsHeaders);
+  }
+
+  const { name, description, status } = body;
+
+  const supabase = getServiceClient();
+
+  // Find the form
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(formId);
+  
+  let findQuery = supabase
+    .from('forms')
+    .select('id')
+    .eq('organization_id', keyInfo.organization_id);
+
+  if (isUuid) {
+    findQuery = findQuery.eq('id', formId);
+  } else {
+    findQuery = findQuery.eq('reference_id', formId);
+  }
+
+  const { data: existing } = await findQuery.single();
+
+  if (!existing) {
+    await logRequest(c, 404, 'Form not found');
+    return c.json({ error: 'Form not found' }, 404, corsHeaders);
+  }
+
+  const updateData: any = {};
+  if (name !== undefined) updateData.name = name;
+  if (description !== undefined) updateData.description = description;
+  if (status !== undefined) updateData.status = status;
+
+  const { data, error } = await supabase
+    .from('forms')
+    .update(updateData)
+    .eq('id', existing.id)
+    .select('id, name, reference_id, status, updated_at')
+    .single();
+
+  if (error) {
+    await logRequest(c, 500, error.message);
+    return c.json({ error: 'Failed to update form' }, 500, corsHeaders);
+  }
+
+  await logRequest(c, 200);
+  return c.json({ data, message: 'Form updated successfully' }, 200, corsHeaders);
+});
+
+// Delete form
+app.delete('/forms/:id', validateApiKey, async (c) => {
+  const keyInfo = c.get('apiKeyInfo');
+  const formId = c.req.param('id');
+
+  if (!hasPermission(keyInfo, 'forms', 'delete')) {
+    await logRequest(c, 403, 'Permission denied: forms.delete');
+    return c.json({ error: 'Permission denied' }, 403, corsHeaders);
+  }
+
+  const supabase = getServiceClient();
+
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(formId);
+
+  let findQuery = supabase
+    .from('forms')
+    .select('id')
+    .eq('organization_id', keyInfo.organization_id);
+
+  if (isUuid) {
+    findQuery = findQuery.eq('id', formId);
+  } else {
+    findQuery = findQuery.eq('reference_id', formId);
+  }
+
+  const { data: existing } = await findQuery.single();
+
+  if (!existing) {
+    await logRequest(c, 404, 'Form not found');
+    return c.json({ error: 'Form not found' }, 404, corsHeaders);
+  }
+
+  const { error } = await supabase
+    .from('forms')
+    .delete()
+    .eq('id', existing.id);
+
+  if (error) {
+    await logRequest(c, 500, error.message);
+    return c.json({ error: 'Failed to delete form' }, 500, corsHeaders);
+  }
+
+  await logRequest(c, 200);
+  return c.json({ message: 'Form deleted successfully' }, 200, corsHeaders);
+});
+
+// Get all records for a specific form
+app.get('/forms/:id/records', validateApiKey, async (c) => {
+  const keyInfo = c.get('apiKeyInfo');
+  const formId = c.req.param('id');
+  const limit = Math.min(parseInt(c.req.query('limit') || '100'), 1000);
+  const offset = parseInt(c.req.query('offset') || '0');
+
+  if (!hasPermission(keyInfo, 'submissions', 'read')) {
+    await logRequest(c, 403, 'Permission denied: submissions.read');
+    return c.json({ error: 'Permission denied' }, 403, corsHeaders);
+  }
+
+  const supabase = getServiceClient();
+
+  // Resolve form ID (UUID or reference_id)
+  let actualFormId = formId;
+  let formData: any = null;
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(formId);
+  
+  if (isUuid) {
+    const { data: form } = await supabase
+      .from('forms')
+      .select('id, name, reference_id')
+      .eq('id', formId)
+      .eq('organization_id', keyInfo.organization_id)
+      .maybeSingle();
+    
+    if (!form) {
+      await logRequest(c, 404, 'Form not found');
+      return c.json({ error: 'Form not found or not accessible' }, 404, corsHeaders);
+    }
+    actualFormId = form.id;
+    formData = form;
+  } else {
+    const { data: form } = await supabase
+      .from('forms')
+      .select('id, name, reference_id')
+      .eq('reference_id', formId)
+      .eq('organization_id', keyInfo.organization_id)
+      .maybeSingle();
+    
+    if (!form) {
+      await logRequest(c, 404, 'Form not found');
+      return c.json({ error: 'Form not found or not accessible' }, 404, corsHeaders);
+    }
+    actualFormId = form.id;
+    formData = form;
+  }
+
+  // Fetch records for this form
+  const { data, error, count } = await supabase
+    .from('form_submissions')
+    .select('id, submission_ref_id, submission_data, submitted_at, submitted_by, approval_status, approval_notes', { count: 'exact' })
+    .eq('form_id', actualFormId)
+    .order('submitted_at', { ascending: false })
+    .range(offset, offset + limit - 1);
+
+  if (error) {
+    await logRequest(c, 500, error.message);
+    return c.json({ error: 'Failed to fetch records', details: error.message }, 500, corsHeaders);
+  }
+
+  await logRequest(c, 200);
+  return c.json({ 
+    form: {
+      id: formData.id,
+      name: formData.name,
+      reference_id: formData.reference_id
+    },
+    data,
+    count: data?.length || 0,
+    total: count || 0,
+    limit, 
+    offset
+  }, 200, corsHeaders);
+});
+
+// Get a specific record from a form
+app.get('/forms/:id/records/:recordId', validateApiKey, async (c) => {
+  const keyInfo = c.get('apiKeyInfo');
+  const formId = c.req.param('id');
+  const recordId = c.req.param('recordId');
+
+  if (!hasPermission(keyInfo, 'submissions', 'read')) {
+    await logRequest(c, 403, 'Permission denied: submissions.read');
+    return c.json({ error: 'Permission denied' }, 403, corsHeaders);
+  }
+
+  const supabase = getServiceClient();
+
+  // Resolve form ID
+  let actualFormId = formId;
+  let formData: any = null;
+  const isFormUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(formId);
+  
+  if (isFormUuid) {
+    const { data: form } = await supabase
+      .from('forms')
+      .select('id, name, reference_id')
+      .eq('id', formId)
+      .eq('organization_id', keyInfo.organization_id)
+      .maybeSingle();
+    
+    if (!form) {
+      await logRequest(c, 404, 'Form not found');
+      return c.json({ error: 'Form not found or not accessible' }, 404, corsHeaders);
+    }
+    actualFormId = form.id;
+    formData = form;
+  } else {
+    const { data: form } = await supabase
+      .from('forms')
+      .select('id, name, reference_id')
+      .eq('reference_id', formId)
+      .eq('organization_id', keyInfo.organization_id)
+      .maybeSingle();
+    
+    if (!form) {
+      await logRequest(c, 404, 'Form not found');
+      return c.json({ error: 'Form not found or not accessible' }, 404, corsHeaders);
+    }
+    actualFormId = form.id;
+    formData = form;
+  }
+
+  // Resolve record ID (UUID or submission_ref_id)
+  const isRecordUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(recordId);
+  
+  let query = supabase
+    .from('form_submissions')
+    .select('id, submission_ref_id, submission_data, submitted_at, submitted_by, approval_status, approval_notes')
+    .eq('form_id', actualFormId);
+
+  if (isRecordUuid) {
+    query = query.eq('id', recordId);
+  } else {
+    query = query.eq('submission_ref_id', recordId);
+  }
+
+  const { data, error } = await query.maybeSingle();
+
+  if (error) {
+    await logRequest(c, 500, error.message);
+    return c.json({ error: 'Failed to fetch record', details: error.message }, 500, corsHeaders);
+  }
+
+  if (!data) {
+    await logRequest(c, 404, 'Record not found');
+    return c.json({ error: 'Record not found in this form' }, 404, corsHeaders);
+  }
+
+  await logRequest(c, 200);
+  return c.json({ 
+    form: {
+      id: formData.id,
+      name: formData.name,
+      reference_id: formData.reference_id
+    },
+    data
+  }, 200, corsHeaders);
+});
+
+// =============================================
+// SUBMISSIONS ENDPOINTS
+// =============================================
+
+app.get('/submissions', validateApiKey, async (c) => {
+  const keyInfo = c.get('apiKeyInfo');
+  
+  if (!hasPermission(keyInfo, 'submissions', 'read')) {
+    await logRequest(c, 403, 'Permission denied: submissions.read');
+    return c.json({ error: 'Permission denied' }, 403, corsHeaders);
+  }
+
+  const formId = c.req.query('form_id');
+  const formRefId = c.req.query('form_ref_id');
+  const limit = Math.min(parseInt(c.req.query('limit') || '100'), 1000);
+  const offset = parseInt(c.req.query('offset') || '0');
+
+  const supabase = getServiceClient();
+
+  // Resolve form ID - support both UUID and reference_id
+  let actualFormId: string | null = null;
+  
+  if (formId) {
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(formId);
+    
+    if (isUuid) {
+      // Verify the form belongs to this organization
+      const { data: form } = await supabase
+        .from('forms')
+        .select('id')
+        .eq('id', formId)
+        .eq('organization_id', keyInfo.organization_id)
+        .maybeSingle();
+      
+      if (form) {
+        actualFormId = form.id;
+      } else {
+        await logRequest(c, 404, 'Form not found');
+        return c.json({ error: 'Form not found or not accessible' }, 404, corsHeaders);
+      }
+    } else {
+      // Treat as reference_id
+      const { data: form } = await supabase
+        .from('forms')
+        .select('id')
+        .eq('reference_id', formId)
+        .eq('organization_id', keyInfo.organization_id)
+        .maybeSingle();
+      
+      if (form) {
+        actualFormId = form.id;
+      } else {
+        await logRequest(c, 404, 'Form not found');
+        return c.json({ error: 'Form not found or not accessible' }, 404, corsHeaders);
+      }
+    }
+  } else if (formRefId) {
+    const { data: form } = await supabase
+      .from('forms')
+      .select('id')
+      .eq('reference_id', formRefId)
+      .eq('organization_id', keyInfo.organization_id)
+      .maybeSingle();
+    
+    if (form) {
+      actualFormId = form.id;
+    } else {
+      await logRequest(c, 404, 'Form not found');
+      return c.json({ error: 'Form not found or not accessible' }, 404, corsHeaders);
+    }
+  }
+
+  // Build the query
+  let query = supabase
+    .from('form_submissions')
+    .select(`
+      id, 
+      form_id,
+      submission_ref_id,
+      submission_data,
+      submitted_at,
+      submitted_by,
+      approval_status,
+      forms!inner(organization_id, project_id, name, reference_id)
+    `)
+    .eq('forms.organization_id', keyInfo.organization_id);
+
+  if (keyInfo.project_id) {
+    query = query.eq('forms.project_id', keyInfo.project_id);
+  }
+
+  // Filter by form if specified
+  if (actualFormId) {
+    query = query.eq('form_id', actualFormId);
+  }
+
+  const { data, error } = await query
+    .order('submitted_at', { ascending: false })
+    .range(offset, offset + limit - 1);
+
+  if (error) {
+    await logRequest(c, 500, error.message);
+    return c.json({ error: 'Failed to fetch submissions', details: error.message }, 500, corsHeaders);
+  }
+
+  // Clean up response with form info
+  const cleanData = data?.map(s => ({
+    id: s.id,
+    form_id: s.form_id,
+    form_name: (s as any).forms?.name,
+    form_reference_id: (s as any).forms?.reference_id,
+    submission_ref_id: s.submission_ref_id,
+    submission_data: s.submission_data,
+    submitted_at: s.submitted_at,
+    submitted_by: s.submitted_by,
+    approval_status: s.approval_status
+  }));
+
+  await logRequest(c, 200);
+  return c.json({ 
+    data: cleanData, 
+    count: cleanData?.length || 0, 
+    limit, 
+    offset,
+    form_id: actualFormId || undefined
+  }, 200, corsHeaders);
+});
+
+app.get('/submissions/:id', validateApiKey, async (c) => {
+  const keyInfo = c.get('apiKeyInfo');
+  const submissionId = c.req.param('id');
+
+  if (!hasPermission(keyInfo, 'submissions', 'read')) {
+    await logRequest(c, 403, 'Permission denied: submissions.read');
+    return c.json({ error: 'Permission denied' }, 403, corsHeaders);
+  }
+
+  const supabase = getServiceClient();
+
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(submissionId);
+
+  let query = supabase
+    .from('form_submissions')
+    .select(`
+      id, 
+      form_id,
+      submission_ref_id,
+      submission_data,
+      submitted_at,
+      submitted_by,
+      approval_status,
+      approval_notes,
+      forms!inner(organization_id, name, reference_id)
+    `)
+    .eq('forms.organization_id', keyInfo.organization_id);
+
+  if (isUuid) {
+    query = query.eq('id', submissionId);
+  } else {
+    query = query.eq('submission_ref_id', submissionId);
+  }
+
+  const { data, error } = await query.single();
+
+  if (error || !data) {
+    await logRequest(c, 404, 'Submission not found');
+    return c.json({ error: 'Submission not found' }, 404, corsHeaders);
+  }
+
+  await logRequest(c, 200);
+  return c.json({ 
+    data: {
+      id: data.id,
+      form_id: data.form_id,
+      form_name: (data as any).forms?.name,
+      form_reference_id: (data as any).forms?.reference_id,
+      submission_ref_id: data.submission_ref_id,
+      submission_data: data.submission_data,
+      submitted_at: data.submitted_at,
+      submitted_by: data.submitted_by,
+      approval_status: data.approval_status,
+      approval_notes: data.approval_notes
+    }
+  }, 200, corsHeaders);
+});
+
+app.post('/submissions', validateApiKey, async (c) => {
+  const keyInfo = c.get('apiKeyInfo');
+
+  if (!hasPermission(keyInfo, 'submissions', 'create')) {
+    await logRequest(c, 403, 'Permission denied: submissions.create');
+    return c.json({ error: 'Permission denied' }, 403, corsHeaders);
+  }
+
+  let body: any;
+  try {
+    body = await c.req.json();
+  } catch {
+    await logRequest(c, 400, 'Invalid JSON body');
+    return c.json({ error: 'Invalid JSON body' }, 400, corsHeaders);
+  }
+
+  const { form_id, form_ref_id, submission_data, use_labels } = body;
+
+  if (!form_id && !form_ref_id) {
+    await logRequest(c, 400, 'form_id or form_ref_id required');
+    return c.json({ error: 'form_id or form_ref_id is required' }, 400, corsHeaders);
+  }
+
+  if (!submission_data || typeof submission_data !== 'object') {
+    await logRequest(c, 400, 'submission_data required');
+    return c.json({ error: 'submission_data is required and must be an object' }, 400, corsHeaders);
+  }
+
+  const supabase = getServiceClient();
+
+  // Resolve form ID
+  let actualFormId = form_id;
+  if (form_ref_id && !form_id) {
+    const { data: form } = await supabase
+      .from('forms')
+      .select('id')
+      .eq('reference_id', form_ref_id)
+      .eq('organization_id', keyInfo.organization_id)
+      .single();
+    
+    if (!form) {
+      await logRequest(c, 404, 'Form not found');
+      return c.json({ error: 'Form not found' }, 404, corsHeaders);
+    }
+    actualFormId = form.id;
+  }
+
+  // If using labels, convert to field IDs
+  let finalSubmissionData = submission_data;
+  if (use_labels) {
+    const { data: fields } = await supabase
+      .from('form_fields')
+      .select('id, label')
+      .eq('form_id', actualFormId);
+
+    if (fields) {
+      const labelToId = new Map(fields.map(f => [f.label.toLowerCase(), f.id]));
+      finalSubmissionData = {};
+      for (const [key, value] of Object.entries(submission_data)) {
+        const fieldId = labelToId.get(key.toLowerCase()) || key;
+        finalSubmissionData[fieldId] = value;
+      }
+    }
+  }
+
+  const { data, error } = await supabase
+    .from('form_submissions')
+    .insert({
+      form_id: actualFormId,
+      submission_data: finalSubmissionData,
+      submitted_by: null // API submissions don't have a user
+    })
+    .select('id, submission_ref_id, submitted_at')
+    .single();
+
+  if (error) {
+    await logRequest(c, 500, error.message);
+    return c.json({ error: 'Failed to create submission', details: error.message }, 500, corsHeaders);
+  }
+
+  await logRequest(c, 201);
+  return c.json({ 
+    data,
+    message: 'Submission created successfully'
+  }, 201, corsHeaders);
+});
+
+app.put('/submissions/:id', validateApiKey, async (c) => {
+  const keyInfo = c.get('apiKeyInfo');
+  const submissionId = c.req.param('id');
+
+  if (!hasPermission(keyInfo, 'submissions', 'update')) {
+    await logRequest(c, 403, 'Permission denied: submissions.update');
+    return c.json({ error: 'Permission denied' }, 403, corsHeaders);
+  }
+
+  let body: any;
+  try {
+    body = await c.req.json();
+  } catch {
+    await logRequest(c, 400, 'Invalid JSON body');
+    return c.json({ error: 'Invalid JSON body' }, 400, corsHeaders);
+  }
+
+  const { submission_data, use_labels, merge } = body;
+
+  const supabase = getServiceClient();
+
+  // Find the submission
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(submissionId);
+  
+  let findQuery = supabase
+    .from('form_submissions')
+    .select('id, form_id, submission_data, forms!inner(organization_id)')
+    .eq('forms.organization_id', keyInfo.organization_id);
+
+  if (isUuid) {
+    findQuery = findQuery.eq('id', submissionId);
+  } else {
+    findQuery = findQuery.eq('submission_ref_id', submissionId);
+  }
+
+  const { data: existing, error: findError } = await findQuery.single();
+
+  if (findError || !existing) {
+    await logRequest(c, 404, 'Submission not found');
+    return c.json({ error: 'Submission not found' }, 404, corsHeaders);
+  }
+
+  // Convert labels to IDs if needed
+  let finalSubmissionData = submission_data;
+  if (use_labels && submission_data) {
+    const { data: fields } = await supabase
+      .from('form_fields')
+      .select('id, label')
+      .eq('form_id', existing.form_id);
+
+    if (fields) {
+      const labelToId = new Map(fields.map(f => [f.label.toLowerCase(), f.id]));
+      finalSubmissionData = {};
+      for (const [key, value] of Object.entries(submission_data)) {
+        const fieldId = labelToId.get(key.toLowerCase()) || key;
+        finalSubmissionData[fieldId] = value;
+      }
+    }
+  }
+
+  // Merge or replace data
+  const newData = merge !== false
+    ? { ...(existing.submission_data as object), ...finalSubmissionData }
+    : finalSubmissionData;
+
+  const { data, error } = await supabase
+    .from('form_submissions')
+    .update({ submission_data: newData })
+    .eq('id', existing.id)
+    .select('id, submission_ref_id, submitted_at')
+    .single();
+
+  if (error) {
+    await logRequest(c, 500, error.message);
+    return c.json({ error: 'Failed to update submission' }, 500, corsHeaders);
+  }
+
+  await logRequest(c, 200);
+  return c.json({ data, message: 'Submission updated successfully' }, 200, corsHeaders);
+});
+
+app.delete('/submissions/:id', validateApiKey, async (c) => {
+  const keyInfo = c.get('apiKeyInfo');
+  const submissionId = c.req.param('id');
+
+  if (!hasPermission(keyInfo, 'submissions', 'delete')) {
+    await logRequest(c, 403, 'Permission denied: submissions.delete');
+    return c.json({ error: 'Permission denied' }, 403, corsHeaders);
+  }
+
+  const supabase = getServiceClient();
+
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(submissionId);
+
+  // Find the submission first
+  let findQuery = supabase
+    .from('form_submissions')
+    .select('id, forms!inner(organization_id)')
+    .eq('forms.organization_id', keyInfo.organization_id);
+
+  if (isUuid) {
+    findQuery = findQuery.eq('id', submissionId);
+  } else {
+    findQuery = findQuery.eq('submission_ref_id', submissionId);
+  }
+
+  const { data: existing } = await findQuery.single();
+
+  if (!existing) {
+    await logRequest(c, 404, 'Submission not found');
+    return c.json({ error: 'Submission not found' }, 404, corsHeaders);
+  }
+
+  const { error } = await supabase
+    .from('form_submissions')
+    .delete()
+    .eq('id', existing.id);
+
+  if (error) {
+    await logRequest(c, 500, error.message);
+    return c.json({ error: 'Failed to delete submission' }, 500, corsHeaders);
+  }
+
+  await logRequest(c, 200);
+  return c.json({ message: 'Submission deleted successfully' }, 200, corsHeaders);
+});
+
+// =============================================
+// BULK SUBMISSIONS ENDPOINTS
+// =============================================
+
+// Bulk create submissions
+app.post('/submissions/bulk', validateApiKey, async (c) => {
+  const keyInfo = c.get('apiKeyInfo');
+
+  if (!hasPermission(keyInfo, 'submissions', 'create')) {
+    await logRequest(c, 403, 'Permission denied: submissions.create');
+    return c.json({ error: 'Permission denied' }, 403, corsHeaders);
+  }
+
+  let body: any;
+  try {
+    body = await c.req.json();
+  } catch {
+    await logRequest(c, 400, 'Invalid JSON body');
+    return c.json({ error: 'Invalid JSON body' }, 400, corsHeaders);
+  }
+
+  const { submissions, form_id, form_ref_id, use_labels } = body;
+
+  if (!submissions || !Array.isArray(submissions) || submissions.length === 0) {
+    await logRequest(c, 400, 'submissions array is required');
+    return c.json({ error: 'submissions array is required and must not be empty' }, 400, corsHeaders);
+  }
+
+  if (!form_id && !form_ref_id) {
+    await logRequest(c, 400, 'form_id or form_ref_id required');
+    return c.json({ error: 'form_id or form_ref_id is required' }, 400, corsHeaders);
+  }
+
+  if (submissions.length > 100) {
+    await logRequest(c, 400, 'Maximum 100 submissions per request');
+    return c.json({ error: 'Maximum 100 submissions per bulk request' }, 400, corsHeaders);
+  }
+
+  const supabase = getServiceClient();
+
+  // Resolve form ID
+  let actualFormId = form_id;
+  if (form_ref_id && !form_id) {
+    const { data: form } = await supabase
+      .from('forms')
+      .select('id')
+      .eq('reference_id', form_ref_id)
+      .eq('organization_id', keyInfo.organization_id)
+      .single();
+    
+    if (!form) {
+      await logRequest(c, 404, 'Form not found');
+      return c.json({ error: 'Form not found' }, 404, corsHeaders);
+    }
+    actualFormId = form.id;
+  } else {
+    // Verify form exists and belongs to org
+    const { data: form } = await supabase
+      .from('forms')
+      .select('id')
+      .eq('id', form_id)
+      .eq('organization_id', keyInfo.organization_id)
+      .single();
+    
+    if (!form) {
+      await logRequest(c, 404, 'Form not found');
+      return c.json({ error: 'Form not found' }, 404, corsHeaders);
+    }
+  }
+
+  // Get fields for label mapping if needed
+  let labelToId: Map<string, string> | null = null;
+  if (use_labels) {
+    const { data: fields } = await supabase
+      .from('form_fields')
+      .select('id, label')
+      .eq('form_id', actualFormId);
+
+    if (fields) {
+      labelToId = new Map(fields.map(f => [f.label.toLowerCase(), f.id]));
+    }
+  }
+
+  // Process submissions
+  const insertData = submissions.map((sub: any) => {
+    let submissionData = sub.submission_data || sub;
+    
+    // Convert labels to IDs if needed
+    if (labelToId && typeof submissionData === 'object') {
+      const converted: Record<string, any> = {};
+      for (const [key, value] of Object.entries(submissionData)) {
+        const fieldId = labelToId.get(key.toLowerCase()) || key;
+        converted[fieldId] = value;
+      }
+      submissionData = converted;
+    }
+
+    return {
+      form_id: actualFormId,
+      submission_data: submissionData,
+      submitted_by: null
+    };
+  });
+
+  const { data, error } = await supabase
+    .from('form_submissions')
+    .insert(insertData)
+    .select('id, submission_ref_id, submitted_at');
+
+  if (error) {
+    await logRequest(c, 500, error.message);
+    return c.json({ error: 'Failed to create submissions', details: error.message }, 500, corsHeaders);
+  }
+
+  await logRequest(c, 201);
+  return c.json({ 
+    data,
+    created: data?.length || 0,
+    message: `Successfully created ${data?.length || 0} submissions`
+  }, 201, corsHeaders);
+});
+
+// Bulk update submissions
+app.put('/submissions/bulk', validateApiKey, async (c) => {
+  const keyInfo = c.get('apiKeyInfo');
+
+  if (!hasPermission(keyInfo, 'submissions', 'update')) {
+    await logRequest(c, 403, 'Permission denied: submissions.update');
+    return c.json({ error: 'Permission denied' }, 403, corsHeaders);
+  }
+
+  let body: any;
+  try {
+    body = await c.req.json();
+  } catch {
+    await logRequest(c, 400, 'Invalid JSON body');
+    return c.json({ error: 'Invalid JSON body' }, 400, corsHeaders);
+  }
+
+  const { updates, use_labels, merge = true } = body;
+
+  if (!updates || !Array.isArray(updates) || updates.length === 0) {
+    await logRequest(c, 400, 'updates array is required');
+    return c.json({ error: 'updates array is required and must not be empty' }, 400, corsHeaders);
+  }
+
+  if (updates.length > 100) {
+    await logRequest(c, 400, 'Maximum 100 updates per request');
+    return c.json({ error: 'Maximum 100 updates per bulk request' }, 400, corsHeaders);
+  }
+
+  const supabase = getServiceClient();
+  const results: { id: string; success: boolean; error?: string }[] = [];
+  let successCount = 0;
+  let failedCount = 0;
+
+  for (const update of updates) {
+    const { id: submissionId, submission_ref_id, submission_data } = update;
+    
+    const lookupId = submissionId || submission_ref_id;
+    if (!lookupId) {
+      results.push({ id: 'unknown', success: false, error: 'id or submission_ref_id required' });
+      failedCount++;
+      continue;
+    }
+
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(lookupId);
+
+    // Find the submission
+    let findQuery = supabase
+      .from('form_submissions')
+      .select('id, form_id, submission_data, forms!inner(organization_id)')
+      .eq('forms.organization_id', keyInfo.organization_id);
+
+    if (isUuid) {
+      findQuery = findQuery.eq('id', lookupId);
+    } else {
+      findQuery = findQuery.eq('submission_ref_id', lookupId);
+    }
+
+    const { data: existing, error: findError } = await findQuery.single();
+
+    if (findError || !existing) {
+      results.push({ id: lookupId, success: false, error: 'Submission not found' });
+      failedCount++;
+      continue;
+    }
+
+    // Convert labels to IDs if needed
+    let finalData = submission_data;
+    if (use_labels && submission_data) {
+      const { data: fields } = await supabase
+        .from('form_fields')
+        .select('id, label')
+        .eq('form_id', existing.form_id);
+
+      if (fields) {
+        const labelToId = new Map(fields.map(f => [f.label.toLowerCase(), f.id]));
+        finalData = {};
+        for (const [key, value] of Object.entries(submission_data)) {
+          const fieldId = labelToId.get(key.toLowerCase()) || key;
+          finalData[fieldId] = value;
+        }
+      }
+    }
+
+    // Merge or replace data
+    const newData = merge
+      ? { ...(existing.submission_data as object), ...finalData }
+      : finalData;
+
+    const { error: updateError } = await supabase
+      .from('form_submissions')
+      .update({ submission_data: newData })
+      .eq('id', existing.id);
+
+    if (updateError) {
+      results.push({ id: lookupId, success: false, error: updateError.message });
+      failedCount++;
+    } else {
+      results.push({ id: existing.id, success: true });
+      successCount++;
+    }
+  }
+
+  await logRequest(c, 200);
+  return c.json({ 
+    results,
+    updated: successCount,
+    failed: failedCount,
+    message: `Updated ${successCount} submissions, ${failedCount} failed`
+  }, 200, corsHeaders);
+});
+
+// Bulk delete submissions
+app.delete('/submissions/bulk', validateApiKey, async (c) => {
+  const keyInfo = c.get('apiKeyInfo');
+
+  if (!hasPermission(keyInfo, 'submissions', 'delete')) {
+    await logRequest(c, 403, 'Permission denied: submissions.delete');
+    return c.json({ error: 'Permission denied' }, 403, corsHeaders);
+  }
+
+  let body: any;
+  try {
+    body = await c.req.json();
+  } catch {
+    await logRequest(c, 400, 'Invalid JSON body');
+    return c.json({ error: 'Invalid JSON body' }, 400, corsHeaders);
+  }
+
+  const { ids, submission_ref_ids } = body;
+
+  const allIds = [...(ids || []), ...(submission_ref_ids || [])];
+  
+  if (allIds.length === 0) {
+    await logRequest(c, 400, 'ids or submission_ref_ids required');
+    return c.json({ error: 'ids or submission_ref_ids array is required' }, 400, corsHeaders);
+  }
+
+  if (allIds.length > 100) {
+    await logRequest(c, 400, 'Maximum 100 deletions per request');
+    return c.json({ error: 'Maximum 100 deletions per bulk request' }, 400, corsHeaders);
+  }
+
+  const supabase = getServiceClient();
+  const results: { id: string; success: boolean; error?: string }[] = [];
+  let successCount = 0;
+  let failedCount = 0;
+
+  for (const lookupId of allIds) {
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(lookupId);
+
+    // Find the submission first
+    let findQuery = supabase
+      .from('form_submissions')
+      .select('id, forms!inner(organization_id)')
+      .eq('forms.organization_id', keyInfo.organization_id);
+
+    if (isUuid) {
+      findQuery = findQuery.eq('id', lookupId);
+    } else {
+      findQuery = findQuery.eq('submission_ref_id', lookupId);
+    }
+
+    const { data: existing, error: findError } = await findQuery.single();
+
+    if (findError || !existing) {
+      results.push({ id: lookupId, success: false, error: 'Submission not found' });
+      failedCount++;
+      continue;
+    }
+
+    const { error: deleteError } = await supabase
+      .from('form_submissions')
+      .delete()
+      .eq('id', existing.id);
+
+    if (deleteError) {
+      results.push({ id: lookupId, success: false, error: deleteError.message });
+      failedCount++;
+    } else {
+      results.push({ id: existing.id, success: true });
+      successCount++;
+    }
+  }
+
+  await logRequest(c, 200);
+  return c.json({ 
+    results,
+    deleted: successCount,
+    failed: failedCount,
+    message: `Deleted ${successCount} submissions, ${failedCount} failed`
+  }, 200, corsHeaders);
+});
+
+// =============================================
+// WORKFLOWS ENDPOINTS
+// =============================================
+
+app.get('/workflows', validateApiKey, async (c) => {
+  const keyInfo = c.get('apiKeyInfo');
+
+  if (!hasPermission(keyInfo, 'workflows', 'read')) {
+    await logRequest(c, 403, 'Permission denied: workflows.read');
+    return c.json({ error: 'Permission denied' }, 403, corsHeaders);
+  }
+
+  const supabase = getServiceClient();
+
+  let query = supabase
+    .from('workflows')
+    .select('id, name, description, reference_id, status, created_at')
+    .eq('organization_id', keyInfo.organization_id);
+
+  if (keyInfo.project_id) {
+    query = query.eq('project_id', keyInfo.project_id);
+  }
+
+  const { data, error } = await query.order('created_at', { ascending: false });
+
+  if (error) {
+    await logRequest(c, 500, error.message);
+    return c.json({ error: 'Failed to fetch workflows' }, 500, corsHeaders);
+  }
+
+  await logRequest(c, 200);
+  return c.json({ data, count: data?.length || 0 }, 200, corsHeaders);
+});
+
+app.post('/workflows/:id/trigger', validateApiKey, async (c) => {
+  const keyInfo = c.get('apiKeyInfo');
+  const workflowId = c.req.param('id');
+
+  if (!hasPermission(keyInfo, 'workflows', 'trigger')) {
+    await logRequest(c, 403, 'Permission denied: workflows.trigger');
+    return c.json({ error: 'Permission denied' }, 403, corsHeaders);
+  }
+
+  let body: any;
+  try {
+    body = await c.req.json();
+  } catch {
+    body = {};
+  }
+
+  const { submission_id, submission_ref_id } = body;
+
+  if (!submission_id && !submission_ref_id) {
+    await logRequest(c, 400, 'submission_id or submission_ref_id required');
+    return c.json({ error: 'submission_id or submission_ref_id is required' }, 400, corsHeaders);
+  }
+
+  const supabase = getServiceClient();
+
+  // Resolve submission ID
+  let actualSubmissionId = submission_id;
+  if (submission_ref_id && !submission_id) {
+    const { data: sub } = await supabase
+      .from('form_submissions')
+      .select('id')
+      .eq('submission_ref_id', submission_ref_id)
+      .single();
+    
+    if (sub) actualSubmissionId = sub.id;
+  }
+
+  if (!actualSubmissionId) {
+    await logRequest(c, 404, 'Submission not found');
+    return c.json({ error: 'Submission not found' }, 404, corsHeaders);
+  }
+
+  // Verify workflow exists and belongs to org
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(workflowId);
+  
+  let workflowQuery = supabase
+    .from('workflows')
+    .select('id, name')
+    .eq('organization_id', keyInfo.organization_id)
+    .eq('status', 'active');
+
+  if (isUuid) {
+    workflowQuery = workflowQuery.eq('id', workflowId);
+  } else {
+    workflowQuery = workflowQuery.eq('reference_id', workflowId);
+  }
+
+  const { data: workflow } = await workflowQuery.single();
+
+  if (!workflow) {
+    await logRequest(c, 404, 'Workflow not found');
+    return c.json({ error: 'Workflow not found or inactive' }, 404, corsHeaders);
+  }
+
+  // Get submission data for trigger data
+  const { data: submissionData } = await supabase
+    .from('form_submissions')
+    .select('submission_data, submitted_by')
+    .eq('id', actualSubmissionId)
+    .single();
+
+  const triggerData = {
+    triggered_via: 'api',
+    api_key_id: keyInfo.api_key_id,
+    submissionId: actualSubmissionId,
+    submissionData: submissionData?.submission_data || {},
+    timestamp: new Date().toISOString()
+  };
+
+  // Use the queue system for reliable, server-side execution
+  try {
+    const enqueueResponse = await fetch(`${supabaseUrl}/functions/v1/enqueue-workflow`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${supabaseServiceKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        workflow_id: workflow.id,
+        submission_id: actualSubmissionId,
+        trigger_data: triggerData,
+        trigger_source: 'api',
+        trigger_ref: `api-${workflow.id}-${actualSubmissionId}-${Date.now()}`,
+        priority: 3, // Higher priority for API-triggered workflows
+        organization_id: keyInfo.organization_id
+      })
+    });
+
+    const enqueueResult = await enqueueResponse.json();
+    console.log('Workflow enqueue result:', enqueueResult);
+
+    if (!enqueueResult.success) {
+      await logRequest(c, 500, enqueueResult.error || 'Failed to queue workflow');
+      return c.json({ error: enqueueResult.error || 'Failed to queue workflow' }, 500, corsHeaders);
+    }
+
+    await logRequest(c, 202);
+    return c.json({ 
+      data: {
+        queue_id: enqueueResult.queue_id,
+        workflow_id: workflow.id,
+        workflow_name: workflow.name,
+        submission_id: actualSubmissionId,
+        status: 'queued',
+        deduplicated: enqueueResult.deduplicated || false
+      },
+      message: enqueueResult.deduplicated 
+        ? `Workflow "${workflow.name}" already queued for this submission`
+        : `Workflow "${workflow.name}" queued successfully`
+    }, 202, corsHeaders);
+  } catch (enqueueError) {
+    console.error('Error calling enqueue-workflow:', enqueueError);
+    await logRequest(c, 500, 'Failed to queue workflow');
+    return c.json({ error: 'Failed to queue workflow' }, 500, corsHeaders);
+  }
+});
+
+// Get single workflow
+app.get('/workflows/:id', validateApiKey, async (c) => {
+  const keyInfo = c.get('apiKeyInfo');
+  const workflowId = c.req.param('id');
+
+  if (!hasPermission(keyInfo, 'workflows', 'read')) {
+    await logRequest(c, 403, 'Permission denied: workflows.read');
+    return c.json({ error: 'Permission denied' }, 403, corsHeaders);
+  }
+
+  const supabase = getServiceClient();
+
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(workflowId);
+
+  let query = supabase
+    .from('workflows')
+    .select('id, name, description, reference_id, status, created_at, updated_at')
+    .eq('organization_id', keyInfo.organization_id);
+
+  if (isUuid) {
+    query = query.eq('id', workflowId);
+  } else {
+    query = query.eq('reference_id', workflowId);
+  }
+
+  const { data, error } = await query.single();
+
+  if (error || !data) {
+    await logRequest(c, 404, 'Workflow not found');
+    return c.json({ error: 'Workflow not found' }, 404, corsHeaders);
+  }
+
+  await logRequest(c, 200);
+  return c.json({ data }, 200, corsHeaders);
+});
+
+// Create workflow
+app.post('/workflows', validateApiKey, async (c) => {
+  const keyInfo = c.get('apiKeyInfo');
+
+  if (!hasPermission(keyInfo, 'workflows', 'create')) {
+    await logRequest(c, 403, 'Permission denied: workflows.create');
+    return c.json({ error: 'Permission denied' }, 403, corsHeaders);
+  }
+
+  let body: any;
+  try {
+    body = await c.req.json();
+  } catch {
+    await logRequest(c, 400, 'Invalid JSON body');
+    return c.json({ error: 'Invalid JSON body' }, 400, corsHeaders);
+  }
+
+  const { name, description, project_id, status = 'draft' } = body;
+
+  if (!name) {
+    await logRequest(c, 400, 'name is required');
+    return c.json({ error: 'name is required' }, 400, corsHeaders);
+  }
+
+  if (!project_id && !keyInfo.project_id) {
+    await logRequest(c, 400, 'project_id is required');
+    return c.json({ error: 'project_id is required' }, 400, corsHeaders);
+  }
+
+  const supabase = getServiceClient();
+
+  const { data, error } = await supabase
+    .from('workflows')
+    .insert({
+      name,
+      description,
+      project_id: project_id || keyInfo.project_id,
+      organization_id: keyInfo.organization_id,
+      status,
+      created_by: keyInfo.api_key_id
+    })
+    .select('id, name, reference_id, status, created_at')
+    .single();
+
+  if (error) {
+    await logRequest(c, 500, error.message);
+    return c.json({ error: 'Failed to create workflow', details: error.message }, 500, corsHeaders);
+  }
+
+  await logRequest(c, 201);
+  return c.json({ data, message: 'Workflow created successfully' }, 201, corsHeaders);
+});
+
+// Update workflow
+app.put('/workflows/:id', validateApiKey, async (c) => {
+  const keyInfo = c.get('apiKeyInfo');
+  const workflowId = c.req.param('id');
+
+  if (!hasPermission(keyInfo, 'workflows', 'update')) {
+    await logRequest(c, 403, 'Permission denied: workflows.update');
+    return c.json({ error: 'Permission denied' }, 403, corsHeaders);
+  }
+
+  let body: any;
+  try {
+    body = await c.req.json();
+  } catch {
+    await logRequest(c, 400, 'Invalid JSON body');
+    return c.json({ error: 'Invalid JSON body' }, 400, corsHeaders);
+  }
+
+  const { name, description, status } = body;
+
+  const supabase = getServiceClient();
+
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(workflowId);
+
+  let findQuery = supabase
+    .from('workflows')
+    .select('id')
+    .eq('organization_id', keyInfo.organization_id);
+
+  if (isUuid) {
+    findQuery = findQuery.eq('id', workflowId);
+  } else {
+    findQuery = findQuery.eq('reference_id', workflowId);
+  }
+
+  const { data: existing } = await findQuery.single();
+
+  if (!existing) {
+    await logRequest(c, 404, 'Workflow not found');
+    return c.json({ error: 'Workflow not found' }, 404, corsHeaders);
+  }
+
+  const updateData: any = {};
+  if (name !== undefined) updateData.name = name;
+  if (description !== undefined) updateData.description = description;
+  if (status !== undefined) updateData.status = status;
+
+  const { data, error } = await supabase
+    .from('workflows')
+    .update(updateData)
+    .eq('id', existing.id)
+    .select('id, name, reference_id, status, updated_at')
+    .single();
+
+  if (error) {
+    await logRequest(c, 500, error.message);
+    return c.json({ error: 'Failed to update workflow' }, 500, corsHeaders);
+  }
+
+  await logRequest(c, 200);
+  return c.json({ data, message: 'Workflow updated successfully' }, 200, corsHeaders);
+});
+
+// Delete workflow
+app.delete('/workflows/:id', validateApiKey, async (c) => {
+  const keyInfo = c.get('apiKeyInfo');
+  const workflowId = c.req.param('id');
+
+  if (!hasPermission(keyInfo, 'workflows', 'delete')) {
+    await logRequest(c, 403, 'Permission denied: workflows.delete');
+    return c.json({ error: 'Permission denied' }, 403, corsHeaders);
+  }
+
+  const supabase = getServiceClient();
+
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(workflowId);
+
+  let findQuery = supabase
+    .from('workflows')
+    .select('id')
+    .eq('organization_id', keyInfo.organization_id);
+
+  if (isUuid) {
+    findQuery = findQuery.eq('id', workflowId);
+  } else {
+    findQuery = findQuery.eq('reference_id', workflowId);
+  }
+
+  const { data: existing } = await findQuery.single();
+
+  if (!existing) {
+    await logRequest(c, 404, 'Workflow not found');
+    return c.json({ error: 'Workflow not found' }, 404, corsHeaders);
+  }
+
+  const { error } = await supabase
+    .from('workflows')
+    .delete()
+    .eq('id', existing.id);
+
+  if (error) {
+    await logRequest(c, 500, error.message);
+    return c.json({ error: 'Failed to delete workflow' }, 500, corsHeaders);
+  }
+
+  await logRequest(c, 200);
+  return c.json({ message: 'Workflow deleted successfully' }, 200, corsHeaders);
+});
+
+// =============================================
+// REPORTS ENDPOINTS
+// =============================================
+
+app.get('/reports', validateApiKey, async (c) => {
+  const keyInfo = c.get('apiKeyInfo');
+
+  if (!hasPermission(keyInfo, 'reports', 'read')) {
+    await logRequest(c, 403, 'Permission denied: reports.read');
+    return c.json({ error: 'Permission denied' }, 403, corsHeaders);
+  }
+
+  const supabase = getServiceClient();
+
+  let query = supabase
+    .from('reports')
+    .select('id, name, description, reference_id, created_at')
+    .eq('organization_id', keyInfo.organization_id);
+
+  if (keyInfo.project_id) {
+    query = query.eq('project_id', keyInfo.project_id);
+  }
+
+  const { data, error } = await query.order('created_at', { ascending: false });
+
+  if (error) {
+    await logRequest(c, 500, error.message);
+    return c.json({ error: 'Failed to fetch reports' }, 500, corsHeaders);
+  }
+
+  await logRequest(c, 200);
+  return c.json({ data, count: data?.length || 0 }, 200, corsHeaders);
+});
+
+// Get single report
+app.get('/reports/:id', validateApiKey, async (c) => {
+  const keyInfo = c.get('apiKeyInfo');
+  const reportId = c.req.param('id');
+
+  if (!hasPermission(keyInfo, 'reports', 'read')) {
+    await logRequest(c, 403, 'Permission denied: reports.read');
+    return c.json({ error: 'Permission denied' }, 403, corsHeaders);
+  }
+
+  const supabase = getServiceClient();
+
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(reportId);
+
+  let query = supabase
+    .from('reports')
+    .select('id, name, description, reference_id, dashboard_id, is_public, created_at, updated_at')
+    .eq('organization_id', keyInfo.organization_id);
+
+  if (isUuid) {
+    query = query.eq('id', reportId);
+  } else {
+    query = query.eq('reference_id', reportId);
+  }
+
+  const { data, error } = await query.single();
+
+  if (error || !data) {
+    await logRequest(c, 404, 'Report not found');
+    return c.json({ error: 'Report not found' }, 404, corsHeaders);
+  }
+
+  await logRequest(c, 200);
+  return c.json({ data }, 200, corsHeaders);
+});
+
+// Create report
+app.post('/reports', validateApiKey, async (c) => {
+  const keyInfo = c.get('apiKeyInfo');
+
+  if (!hasPermission(keyInfo, 'reports', 'create')) {
+    await logRequest(c, 403, 'Permission denied: reports.create');
+    return c.json({ error: 'Permission denied' }, 403, corsHeaders);
+  }
+
+  let body: any;
+  try {
+    body = await c.req.json();
+  } catch {
+    await logRequest(c, 400, 'Invalid JSON body');
+    return c.json({ error: 'Invalid JSON body' }, 400, corsHeaders);
+  }
+
+  const { name, description, project_id, dashboard_id, is_public = false } = body;
+
+  if (!name) {
+    await logRequest(c, 400, 'name is required');
+    return c.json({ error: 'name is required' }, 400, corsHeaders);
+  }
+
+  if (!project_id && !keyInfo.project_id) {
+    await logRequest(c, 400, 'project_id is required');
+    return c.json({ error: 'project_id is required' }, 400, corsHeaders);
+  }
+
+  const supabase = getServiceClient();
+
+  // Get a valid user_id from the organization for created_by (required FK)
+  const { data: orgUser } = await supabase
+    .from('user_profiles')
+    .select('id')
+    .eq('organization_id', keyInfo.organization_id)
+    .eq('role', 'admin')
+    .limit(1)
+    .single();
+
+  if (!orgUser) {
+    await logRequest(c, 500, 'No admin user found for organization');
+    return c.json({ error: 'No admin user found for organization' }, 500, corsHeaders);
+  }
+
+  const { data, error } = await supabase
+    .from('reports')
+    .insert({
+      name,
+      description,
+      project_id: project_id || keyInfo.project_id,
+      organization_id: keyInfo.organization_id,
+      dashboard_id,
+      is_public,
+      created_by: orgUser.id  // Use valid user_profiles.id instead of api_key_id
+    })
+    .select('id, name, reference_id, created_at')
+    .single();
+
+  if (error) {
+    await logRequest(c, 500, error.message);
+    return c.json({ error: 'Failed to create report', details: error.message }, 500, corsHeaders);
+  }
+
+  await logRequest(c, 201);
+  return c.json({ data, message: 'Report created successfully' }, 201, corsHeaders);
+});
+
+// Update report
+app.put('/reports/:id', validateApiKey, async (c) => {
+  const keyInfo = c.get('apiKeyInfo');
+  const reportId = c.req.param('id');
+
+  if (!hasPermission(keyInfo, 'reports', 'update')) {
+    await logRequest(c, 403, 'Permission denied: reports.update');
+    return c.json({ error: 'Permission denied' }, 403, corsHeaders);
+  }
+
+  let body: any;
+  try {
+    body = await c.req.json();
+  } catch {
+    await logRequest(c, 400, 'Invalid JSON body');
+    return c.json({ error: 'Invalid JSON body' }, 400, corsHeaders);
+  }
+
+  const { name, description, is_public } = body;
+
+  const supabase = getServiceClient();
+
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(reportId);
+
+  let findQuery = supabase
+    .from('reports')
+    .select('id')
+    .eq('organization_id', keyInfo.organization_id);
+
+  if (isUuid) {
+    findQuery = findQuery.eq('id', reportId);
+  } else {
+    findQuery = findQuery.eq('reference_id', reportId);
+  }
+
+  const { data: existing } = await findQuery.single();
+
+  if (!existing) {
+    await logRequest(c, 404, 'Report not found');
+    return c.json({ error: 'Report not found' }, 404, corsHeaders);
+  }
+
+  const updateData: any = {};
+  if (name !== undefined) updateData.name = name;
+  if (description !== undefined) updateData.description = description;
+  if (is_public !== undefined) updateData.is_public = is_public;
+
+  const { data, error } = await supabase
+    .from('reports')
+    .update(updateData)
+    .eq('id', existing.id)
+    .select('id, name, reference_id, updated_at')
+    .single();
+
+  if (error) {
+    await logRequest(c, 500, error.message);
+    return c.json({ error: 'Failed to update report' }, 500, corsHeaders);
+  }
+
+  await logRequest(c, 200);
+  return c.json({ data, message: 'Report updated successfully' }, 200, corsHeaders);
+});
+
+// Delete report
+app.delete('/reports/:id', validateApiKey, async (c) => {
+  const keyInfo = c.get('apiKeyInfo');
+  const reportId = c.req.param('id');
+
+  if (!hasPermission(keyInfo, 'reports', 'delete')) {
+    await logRequest(c, 403, 'Permission denied: reports.delete');
+    return c.json({ error: 'Permission denied' }, 403, corsHeaders);
+  }
+
+  const supabase = getServiceClient();
+
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(reportId);
+
+  let findQuery = supabase
+    .from('reports')
+    .select('id')
+    .eq('organization_id', keyInfo.organization_id);
+
+  if (isUuid) {
+    findQuery = findQuery.eq('id', reportId);
+  } else {
+    findQuery = findQuery.eq('reference_id', reportId);
+  }
+
+  const { data: existing } = await findQuery.single();
+
+  if (!existing) {
+    await logRequest(c, 404, 'Report not found');
+    return c.json({ error: 'Report not found' }, 404, corsHeaders);
+  }
+
+  const { error } = await supabase
+    .from('reports')
+    .delete()
+    .eq('id', existing.id);
+
+  if (error) {
+    await logRequest(c, 500, error.message);
+    return c.json({ error: 'Failed to delete report' }, 500, corsHeaders);
+  }
+
+  await logRequest(c, 200);
+  return c.json({ message: 'Report deleted successfully' }, 200, corsHeaders);
+});
+
+// =============================================
+// USERS ENDPOINTS (admin-only)
+// =============================================
+
+// Build a complete user payload: profile + roles + groups + projects + permissions + recent activity
+async function buildFullUserPayload(supabase: any, userId: string, organizationId: string) {
+  // 1. Profile
+  const { data: profile, error: profileErr } = await supabase
+    .from('user_profiles')
+    .select('id, email, first_name, last_name, role, status, mobile, nationality, gender, timezone, organization_id, created_at, updated_at')
+    .eq('id', userId)
+    .eq('organization_id', organizationId)
+    .maybeSingle();
+
+  if (profileErr) throw profileErr;
+  if (!profile) return null;
+
+  // 2. Organization
+  const { data: organization } = await supabase
+    .from('organizations')
+    .select('id, name, domain, status')
+    .eq('id', profile.organization_id)
+    .maybeSingle();
+
+  // 3. Roles (via user_role_assignments -> roles)
+  const { data: roleRows } = await supabase
+    .from('user_role_assignments')
+    .select('assigned_at, assigned_by, role:roles(id, name, description, top_level_access, organization_id)')
+    .eq('user_id', userId);
+
+  const roles = (roleRows || [])
+    .filter((r: any) => r.role && r.role.organization_id === organizationId)
+    .map((r: any) => ({
+      id: r.role.id,
+      name: r.role.name,
+      description: r.role.description,
+      top_level_access: r.role.top_level_access,
+      assigned_at: r.assigned_at,
+      assigned_by: r.assigned_by,
+    }));
+
+  // 4. Groups (group_memberships where member_type='user')
+  const { data: groupRows } = await supabase
+    .from('group_memberships')
+    .select('added_at, added_by, group:groups(id, name, organization_id, role_id)')
+    .eq('member_id', userId)
+    .eq('member_type', 'user');
+
+  const groups = (groupRows || [])
+    .filter((g: any) => g.group && g.group.organization_id === organizationId)
+    .map((g: any) => ({
+      id: g.group.id,
+      name: g.group.name,
+      role_id: g.group.role_id,
+      added_at: g.added_at,
+      added_by: g.added_by,
+    }));
+
+  // 5. Projects (project_users -> projects)
+  const { data: projectRows } = await supabase
+    .from('project_users')
+    .select('role, assigned_at, assigned_by, project:projects(id, name, description, status, organization_id)')
+    .eq('user_id', userId);
+
+  const projects = (projectRows || [])
+    .filter((p: any) => p.project && p.project.organization_id === organizationId)
+    .map((p: any) => ({
+      id: p.project.id,
+      name: p.project.name,
+      description: p.project.description,
+      status: p.project.status,
+      project_role: p.role,
+      assigned_at: p.assigned_at,
+      assigned_by: p.assigned_by,
+    }));
+
+  // 6. Effective permissions (best-effort via RPC if it exists)
+  let effective_permissions: any = null;
+  try {
+    const { data: permData } = await supabase.rpc('get_user_effective_permissions', {
+      user_id_param: userId,
+    });
+    effective_permissions = permData ?? null;
+  } catch (_) {
+    effective_permissions = null;
+  }
+
+  // 7. Recent activity (last 20 audit log entries)
+  const { data: activity } = await supabase
+    .from('audit_logs')
+    .select('id, event_type, event_category, description, ip_address, created_at')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(20);
+
+  // Strip sensitive fields from profile before returning
+  const { ...safeProfile } = profile;
+
+  return {
+    ...safeProfile,
+    organization,
+    roles,
+    groups,
+    projects,
+    effective_permissions,
+    recent_activity: activity || [],
+  };
+}
+
+// GET /me — returns the profile of the API key owner (no admin permission required)
+app.get('/me', validateApiKey, async (c) => {
+  const keyInfo = c.get('apiKeyInfo');
+  const supabase = getServiceClient();
+
+  try {
+    const { data: keyRow, error: keyErr } = await supabase
+      .from('api_keys')
+      .select('id, name, created_by, organization_id, project_id, permissions, rate_limit_per_minute, last_used_at, expires_at')
+      .eq('id', keyInfo.api_key_id)
+      .maybeSingle();
+
+    if (keyErr || !keyRow) {
+      await logRequest(c, 500, keyErr?.message || 'API key not found');
+      return c.json({ error: 'Failed to load API key', details: keyErr?.message }, 500, corsHeaders);
+    }
+
+    let profile: any = null;
+    if (keyRow.created_by) {
+      const { data: p } = await supabase
+        .from('user_profiles')
+        .select('id, email, first_name, last_name, role, mobile, organization_id')
+        .eq('id', keyRow.created_by)
+        .maybeSingle();
+      profile = p;
+    }
+
+    const userId = profile?.id ?? null;
+    const orgId = keyRow.organization_id;
+
+    // Assigned project names (via project_users -> projects)
+    let projectNames: string[] = [];
+    if (userId) {
+      const { data: projectRows } = await supabase
+        .from('project_users')
+        .select('project:projects(name, organization_id)')
+        .eq('user_id', userId);
+      projectNames = (projectRows || [])
+        .filter((p: any) => p.project && p.project.organization_id === orgId)
+        .map((p: any) => p.project.name)
+        .filter(Boolean);
+    }
+
+    // Assigned role names (via user_role_assignments -> roles)
+    let roleNames: string[] = [];
+    if (userId) {
+      const { data: roleRows } = await supabase
+        .from('user_role_assignments')
+        .select('role:roles(name, organization_id)')
+        .eq('user_id', userId);
+      roleNames = (roleRows || [])
+        .filter((r: any) => r.role && r.role.organization_id === orgId)
+        .map((r: any) => r.role.name)
+        .filter(Boolean);
+    }
+
+    // Assigned group names (via group_memberships -> groups)
+    let groupNames: string[] = [];
+    if (userId) {
+      const { data: groupRows } = await supabase
+        .from('group_memberships')
+        .select('group:groups(name, organization_id)')
+        .eq('member_id', userId)
+        .eq('member_type', 'user');
+      groupNames = (groupRows || [])
+        .filter((g: any) => g.group && g.group.organization_id === orgId)
+        .map((g: any) => g.group.name)
+        .filter(Boolean);
+    }
+
+    // Assigned security template name (via user_security_parameters -> security_templates)
+    let templateNames: string[] = [];
+    if (userId) {
+      const { data: usp } = await supabase
+        .from('user_security_parameters')
+        .select('security_template:security_templates(name)')
+        .eq('user_id', userId)
+        .eq('organization_id', orgId);
+      templateNames = (usp || [])
+        .map((u: any) => u.security_template?.name)
+        .filter(Boolean);
+    }
+
+    // Flatten to a single tabular row (like a SQL SELECT result)
+    const row = {
+      user_id: userId,
+      email: profile?.email ?? null,
+      first_name: profile?.first_name ?? null,
+      last_name: profile?.last_name ?? null,
+      role: profile?.role ?? null,
+      mobile: profile?.mobile ?? null,
+      project_assigned_name: projectNames.join(', '),
+      role_assigned_name: roleNames.join(', '),
+      group_assigned_name: groupNames.join(', '),
+      template_assigned_name: templateNames.join(', '),
+    };
+
+    const url = new URL(c.req.url);
+    const format = (url.searchParams.get('format') || 'json').toLowerCase();
+    const columns = Object.keys(row);
+
+    await logRequest(c, 200);
+
+    if (format === 'csv') {
+      const esc = (v: any) => {
+        if (v === null || v === undefined) return '';
+        const s = typeof v === 'object' ? JSON.stringify(v) : String(v);
+        return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+      };
+      const csv = `${columns.join(',')}\n${columns.map((k) => esc((row as any)[k])).join(',')}\n`;
+      return new Response(csv, {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'text/csv; charset=utf-8' },
+      });
+    }
+
+    // SQL-like result set: array of rows where each row is { column_name: value }
+    return c.json({
+      data: [row],
+      row_count: 1,
+      columns,
+    }, 200, corsHeaders);
+  } catch (err: any) {
+    await logRequest(c, 500, err?.message || 'Internal error');
+    return c.json({ error: 'Failed to fetch current user', details: err?.message }, 500, corsHeaders);
+  }
+});
+
+// GET /users — search/filter list
+app.get('/users', validateApiKey, async (c) => {
+  const keyInfo = c.get('apiKeyInfo');
+
+  if (!hasUsersReadAccess(keyInfo)) {
+    await logRequest(c, 403, 'Permission denied: users.read');
+    return c.json({ error: 'Permission denied. This endpoint requires users.read (admin) permission.', code: 'PERMISSION_DENIED' }, 403, corsHeaders);
+  }
+
+  const supabase = getServiceClient();
+
+  const url = new URL(c.req.url);
+  const search = url.searchParams.get('search')?.trim();
+  const email = url.searchParams.get('email')?.trim();
+  const role = url.searchParams.get('role')?.trim();
+  const status = url.searchParams.get('status')?.trim();
+  const groupId = url.searchParams.get('group_id')?.trim();
+  const projectId = url.searchParams.get('project_id')?.trim();
+  const limit = Math.min(parseInt(url.searchParams.get('limit') || '50', 10) || 50, 200);
+  const offset = parseInt(url.searchParams.get('offset') || '0', 10) || 0;
+  const fullParam = (url.searchParams.get('full') || 'false').toLowerCase();
+  const wantFull = fullParam === 'true' || fullParam === '1';
+
+  // Optional filter narrowing by group/project membership
+  let memberIds: string[] | null = null;
+  if (groupId) {
+    const { data: gm } = await supabase
+      .from('group_memberships')
+      .select('member_id')
+      .eq('group_id', groupId)
+      .eq('member_type', 'user');
+    memberIds = (gm || []).map((r: any) => r.member_id);
+    if (memberIds.length === 0) {
+      await logRequest(c, 200);
+      return c.json({ data: [], count: 0, total: 0, limit, offset }, 200, corsHeaders);
+    }
+  }
+  if (projectId) {
+    const { data: pu } = await supabase
+      .from('project_users')
+      .select('user_id')
+      .eq('project_id', projectId);
+    const ids = (pu || []).map((r: any) => r.user_id);
+    memberIds = memberIds ? memberIds.filter((id) => ids.includes(id)) : ids;
+    if (memberIds.length === 0) {
+      await logRequest(c, 200);
+      return c.json({ data: [], count: 0, total: 0, limit, offset }, 200, corsHeaders);
+    }
+  }
+
+  let query = supabase
+    .from('user_profiles')
+    .select('id, email, first_name, last_name, role, mobile, organization_id, created_at', { count: 'exact' })
+    .eq('organization_id', keyInfo.organization_id);
+
+  if (email) query = query.ilike('email', email);
+  if (role) query = query.eq('role', role);
+  if (status) query = query.eq('status', status);
+  if (search) {
+    const s = `%${search}%`;
+    query = query.or(`email.ilike.${s},first_name.ilike.${s},last_name.ilike.${s}`);
+  }
+  if (memberIds) query = query.in('id', memberIds);
+
+  query = query.order('created_at', { ascending: false }).range(offset, offset + limit - 1);
+
+  const { data, error, count } = await query;
+  if (error) {
+    await logRequest(c, 500, error.message);
+    return c.json({ error: 'Failed to fetch users', details: error.message }, 500, corsHeaders);
+  }
+
+  const users = data || [];
+  const orgId = keyInfo.organization_id;
+
+  // If caller asked for the legacy nested full payload, keep that behavior
+  if (wantFull && users.length > 0) {
+    const full = (await Promise.all(
+      users.map((u: any) => buildFullUserPayload(supabase, u.id, orgId))
+    )).filter(Boolean);
+    await logRequest(c, 200);
+    return c.json({ data: full, count: full.length, total: count ?? full.length, limit, offset }, 200, corsHeaders);
+  }
+
+  // Default: SQL-style flat row per user with project/role/group/template names
+  const userIds = users.map((u: any) => u.id);
+
+  const accProjects = new Map<string, string[]>();
+  const accRoles = new Map<string, string[]>();
+  const accGroups = new Map<string, string[]>();
+  const accTemplates = new Map<string, string[]>();
+
+  if (userIds.length > 0) {
+    const [{ data: projectRows }, { data: roleRows }, { data: groupRows }, { data: uspRows }] = await Promise.all([
+      supabase
+        .from('project_users')
+        .select('user_id, project:projects(name, organization_id)')
+        .in('user_id', userIds),
+      supabase
+        .from('user_role_assignments')
+        .select('user_id, role:roles(name, organization_id)')
+        .in('user_id', userIds),
+      supabase
+        .from('group_memberships')
+        .select('member_id, group:groups(name, organization_id)')
+        .in('member_id', userIds)
+        .eq('member_type', 'user'),
+      supabase
+        .from('user_security_parameters')
+        .select('user_id, security_template:security_templates(name)')
+        .in('user_id', userIds)
+        .eq('organization_id', orgId),
+    ]);
+
+    for (const r of projectRows || []) {
+      if (r.project && r.project.organization_id === orgId && r.project.name) {
+        const arr = accProjects.get(r.user_id) || [];
+        arr.push(r.project.name);
+        accProjects.set(r.user_id, arr);
+      }
+    }
+    for (const r of roleRows || []) {
+      if (r.role && r.role.organization_id === orgId && r.role.name) {
+        const arr = accRoles.get(r.user_id) || [];
+        arr.push(r.role.name);
+        accRoles.set(r.user_id, arr);
+      }
+    }
+    for (const r of groupRows || []) {
+      if (r.group && r.group.organization_id === orgId && r.group.name) {
+        const arr = accGroups.get(r.member_id) || [];
+        arr.push(r.group.name);
+        accGroups.set(r.member_id, arr);
+      }
+    }
+    for (const r of uspRows || []) {
+      const name = r.security_template?.name;
+      if (name) {
+        const arr = accTemplates.get(r.user_id) || [];
+        arr.push(name);
+        accTemplates.set(r.user_id, arr);
+      }
+    }
+  }
+
+  const rows = users.map((u: any) => ({
+    user_id: u.id,
+    email: u.email,
+    first_name: u.first_name,
+    last_name: u.last_name,
+    role: u.role,
+    mobile: u.mobile,
+    project_assigned_name: (accProjects.get(u.id) || []).join(', '),
+    role_assigned_name: (accRoles.get(u.id) || []).join(', '),
+    group_assigned_name: (accGroups.get(u.id) || []).join(', '),
+    template_assigned_name: (accTemplates.get(u.id) || []).join(', '),
+  }));
+
+  const columns = rows[0] ? Object.keys(rows[0]) : [
+    'user_id','email','first_name','last_name','role','mobile',
+    'project_assigned_name','role_assigned_name','group_assigned_name','template_assigned_name'
+  ];
+
+  const format = (url.searchParams.get('format') || 'json').toLowerCase();
+  await logRequest(c, 200);
+
+  if (format === 'csv') {
+    const esc = (v: any) => {
+      if (v === null || v === undefined) return '';
+      const s = typeof v === 'object' ? JSON.stringify(v) : String(v);
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const lines = [columns.join(',')];
+    for (const r of rows) lines.push(columns.map((k) => esc((r as any)[k])).join(','));
+    return new Response(lines.join('\n') + '\n', {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'text/csv; charset=utf-8' },
+    });
+  }
+
+  return c.json({
+    data: rows,
+    row_count: rows.length,
+    total: count ?? rows.length,
+    limit,
+    offset,
+    columns,
+  }, 200, corsHeaders);
+});
+
+// GET /users/:id — full profile + roles + groups + projects + permissions + activity
+app.get('/users/:id', validateApiKey, async (c) => {
+  const keyInfo = c.get('apiKeyInfo');
+
+  if (!hasUsersReadAccess(keyInfo)) {
+    await logRequest(c, 403, 'Permission denied: users.read');
+    return c.json({ error: 'Permission denied. This endpoint requires users.read (admin) permission.', code: 'PERMISSION_DENIED' }, 403, corsHeaders);
+  }
+
+  const supabase = getServiceClient();
+  const idOrEmail = c.req.param('id');
+
+  // Allow lookup by UUID or email
+  let userId = idOrEmail;
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrEmail);
+  if (!isUuid) {
+    const { data: byEmail } = await supabase
+      .from('user_profiles')
+      .select('id')
+      .eq('email', idOrEmail)
+      .eq('organization_id', keyInfo.organization_id)
+      .maybeSingle();
+    if (!byEmail) {
+      await logRequest(c, 404, 'User not found');
+      return c.json({ error: 'User not found' }, 404, corsHeaders);
+    }
+    userId = byEmail.id;
+  }
+
+  try {
+    const payload = await buildFullUserPayload(supabase, userId, keyInfo.organization_id);
+    if (!payload) {
+      await logRequest(c, 404, 'User not found');
+      return c.json({ error: 'User not found in your organization' }, 404, corsHeaders);
+    }
+    await logRequest(c, 200);
+    return c.json({ data: payload }, 200, corsHeaders);
+  } catch (err: any) {
+    await logRequest(c, 500, err?.message || 'Internal error');
+    return c.json({ error: 'Failed to fetch user', details: err?.message }, 500, corsHeaders);
+  }
+});
+
+// Main handler
+
+  return app;
+}
