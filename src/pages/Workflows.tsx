@@ -99,16 +99,20 @@ const Workflows = () => {
        </TabsList>
  
        <TabsContent value="workflows">
-         <WorkflowsList
+         <div className="smart-panel rounded-lg border border-border bg-card shadow-sm p-4 sm:p-6">
+           <WorkflowsList
            workflows={visibleWorkflows}
            onView={handleViewWorkflow}
            onEdit={handleEditWorkflow}
            onDelete={handleDeleteWorkflow}
          />
+         </div>
        </TabsContent>
  
        <TabsContent value="queue">
-         <WorkflowQueueMonitor />
+         <div className="smart-panel rounded-lg border border-border bg-card shadow-sm p-4 sm:p-6">
+           <WorkflowQueueMonitor />
+         </div>
        </TabsContent>
      </Tabs>
    </DashboardLayout>

@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import DashboardLayout from '@/components/DashboardLayout';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { SmartPanel, SmartPanelFooter } from '@/components/ui/smart-panel';
+import { InitialsAvatar } from '@/components/ui/initials-avatar';
+import { StatusBadge } from '@/components/ui/status-badge';
+import { AppIcon } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -442,17 +444,23 @@ const Users = () => {
           </TabsList>
 
           <TabsContent value="users" className="space-y-6">
-        <Card className="border-border/40 shadow-sm">
-          <CardContent className="p-0">
-            {/* Search */}
-            <div className="p-4 border-b border-border/40 bg-muted/30">
+        <SmartPanel
+          title={t('users.tabUsers')}
+          description={t('users.description')}
+          footer={
+            <SmartPanelFooter
+              left={<span>{filteredUsers.length} {t('users.totalMembers').toLowerCase()}</span>}
+            />
+          }
+        >
+            <div className="p-4 border-b border-border/60 bg-muted/30">
               <div className="relative max-w-sm">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <AppIcon icon={Search} size="md" className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   placeholder={t('users.searchMembers')}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9 bg-background border-border/60 focus-visible:ring-primary/20"
+                  className="pl-9 bg-background border-border focus-visible:ring-primary/20"
                 />
               </div>
             </div>
@@ -470,20 +478,22 @@ const Users = () => {
                 filteredUsers.map((user) => (
                   <div key={user.id} className="p-4 space-y-3">
                     <div className="flex items-start gap-3">
-                      <Avatar className="h-10 w-10 border-2 border-border/40 shadow-sm shrink-0">
-                        <AvatarFallback className="bg-gradient-to-br from-primary/10 to-primary/5 text-sm font-semibold text-primary">
-                          {getInitials(user.first_name, user.last_name, user.email)}
-                        </AvatarFallback>
-                      </Avatar>
+                      <InitialsAvatar
+                        firstName={user.first_name}
+                        lastName={user.last_name}
+                        email={user.email}
+                        size="lg"
+                      />
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-sm truncate">
                           {user.first_name && user.last_name ? `${user.first_name} ${user.last_name}` : user.email.split('@')[0]}
                         </p>
                         <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                         <div className="flex items-center gap-2 mt-2 flex-wrap">
-                          <Badge variant="outline" className={`text-xs font-medium capitalize px-2 py-0 ${getStatusBadge(user.status)}`}>
-                            {t(`users.statuses.${user.status}`, user.status)}
-                          </Badge>
+                          <StatusBadge
+                            status={user.status as 'active' | 'pending' | 'inactive'}
+                            label={t(`users.statuses.${user.status}`, user.status)}
+                          />
                           <span className="text-xs text-muted-foreground">
                             {t('users.joined')} {new Date(user.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                           </span>
@@ -545,11 +555,12 @@ const Users = () => {
                       <TableRow key={user.id} className="border-border/40 hover:bg-muted/30 transition-colors">
                         <TableCell className="py-4">
                           <div className="flex items-center gap-3">
-                            <Avatar className="h-10 w-10 border-2 border-border/40 shadow-sm">
-                              <AvatarFallback className="bg-gradient-to-br from-primary/10 to-primary/5 text-sm font-semibold text-primary">
-                                {getInitials(user.first_name, user.last_name, user.email)}
-                              </AvatarFallback>
-                            </Avatar>
+                            <InitialsAvatar
+                              firstName={user.first_name}
+                              lastName={user.last_name}
+                              email={user.email}
+                              size="lg"
+                            />
                             <div>
                               <p className="font-medium text-sm">
                                 {user.first_name && user.last_name 
@@ -653,12 +664,10 @@ const Users = () => {
                           })()}
                         </TableCell>
                         <TableCell>
-                          <Badge 
-                            variant="outline" 
-                            className={`text-xs font-medium capitalize px-2.5 py-0.5 ${getStatusBadge(user.status)}`}
-                          >
-                            {t(`users.statuses.${user.status}`, user.status)}
-                          </Badge>
+                          <StatusBadge
+                            status={user.status as 'active' | 'pending' | 'inactive'}
+                            label={t(`users.statuses.${user.status}`, user.status)}
+                          />
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
                           {new Date(user.created_at).toLocaleDateString('en-US', { 
@@ -720,8 +729,7 @@ const Users = () => {
                 </TableBody>
               </Table>
             </div>
-          </CardContent>
-        </Card>
+        </SmartPanel>
           </TabsContent>
 
           {effectiveRole === 'admin' && (

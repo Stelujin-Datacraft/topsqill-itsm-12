@@ -70,10 +70,10 @@ const Reports = () => {
       description={t('reports.description')}
       actions={
         <>
-          <Button variant="outline" size="sm" onClick={() => navigate('/data-table-builder')} className="whitespace-nowrap">
+          <Button variant="toolbar" size="sm" onClick={() => navigate('/data-table-builder')} className="whitespace-nowrap">
             {t('reports.dataTableReports')}
           </Button>
-          <Button variant="outline" size="sm" onClick={() => navigate('/analytics-dashboard')} className="whitespace-nowrap">
+          <Button variant="toolbar" size="sm" onClick={() => navigate('/analytics-dashboard')} className="whitespace-nowrap">
             {t('reports.formAnalysis')}
           </Button>
           {(() => {
@@ -90,12 +90,14 @@ const Reports = () => {
         </>
       }
     >
+      <div className="smart-panel rounded-lg border border-border bg-card shadow-sm p-4 sm:p-6">
       <DashboardsList
          dashboards={visibleDashboards}
         onView={handleViewDashboard}
         onDelete={handleDeleteDashboard}
         onCreate={handleCreateDashboard}
       />
+      </div>
     </DashboardLayout>
   );
 };
