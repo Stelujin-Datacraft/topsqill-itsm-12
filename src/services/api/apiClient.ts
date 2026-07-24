@@ -55,22 +55,44 @@ async function request<T = unknown>(
   }
 
   try {
+    const controller = new AbortController();
+    const timeoutMs = 60000;
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       ...options,
       headers,
+      signal: controller.signal,
     });
 
-    const data = await response.json();
+    clearTimeout(timer);
+
+    let data: T;
+    const contentType = response.headers.get('content-type') || '';
+    try {
+      if (contentType.includes('application/json')) {
+        data = await response.json();
+      } else {
+        const text = await response.text();
+        data = (text ? JSON.parse(text) : {}) as T;
+      }
+    } catch {
+      return { data: null, error: { message: `Invalid response from server (${response.status})` } };
+    }
 
     if (!response.ok) {
+      const errBody = data as { message?: string; error?: string };
       return {
         data: null,
-        error: { message: data.message || data.error || `Request failed (${response.status})` },
+        error: { message: errBody.message || errBody.error || `Request failed (${response.status})` },
       };
     }
 
     return { data, error: null };
   } catch (err) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      return { data: null, error: { message: 'Request timed out' } };
+    }
     return {
       data: null,
       error: { message: err instanceof Error ? err.message : 'Network error' },

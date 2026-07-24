@@ -548,6 +548,9 @@ export class RecordActionExecutors {
       // Determine initial status
       const initialStatus = config.initialStatus || 'pending';
 
+      const creatorId = await getWorkflowCreatorId(context.workflowId);
+      const changedBy = formatWorkflowChangedBy(creatorId);
+
       for (let i = 0; i < recordCount; i++) {
         // Build submission data from field values
         const submissionData: Record<string, any> = {};
@@ -647,9 +650,6 @@ export class RecordActionExecutors {
           
           // Log record creation to history
           try {
-            const creatorId = await getWorkflowCreatorId(context.workflowId);
-            const changedBy = formatWorkflowChangedBy(creatorId);
-            
             // Build field labels from fieldValues config and fieldMappings
             const fieldLabels: Record<string, string> = {};
             for (const fv of fieldValues) {
@@ -1211,20 +1211,24 @@ export class RecordActionExecutors {
       const updatedRecordsList: Array<{ id: string; submission_ref_id: string }> = [];
       const errors: string[] = [];
 
-      for (const linkedRec of recordsToUpdate) {
-        // First find the submission by ref ID - use the form_id from the cross-reference value
-        const targetFormId = linkedRec.formId;
-        console.log(`🔍 Looking for submission ${linkedRec.refId} in form ${targetFormId}`);
-        
-        const { data: linkedSubmission, error: findError } = await supabase
-          .from('form_submissions')
-          .select('id, submission_ref_id, submission_data, form_id')
-          .eq('submission_ref_id', linkedRec.refId)
-          .eq('form_id', targetFormId)
-          .single();
+      const refIds = [...new Set(recordsToUpdate.map((r) => r.refId))];
+      const formIds = [...new Set(recordsToUpdate.map((r) => r.formId))];
 
-        if (findError || !linkedSubmission) {
-          console.error(`⚠️ Could not find linked submission with ref ${linkedRec.refId} in form ${targetFormId}:`, findError);
+      const { data: linkedSubmissions } = await supabase
+        .from('form_submissions')
+        .select('id, submission_ref_id, submission_data, form_id')
+        .in('submission_ref_id', refIds)
+        .in('form_id', formIds);
+
+      const submissionMap = new Map(
+        (linkedSubmissions || []).map((s) => [`${s.form_id}:${s.submission_ref_id}`, s]),
+      );
+
+      for (const linkedRec of recordsToUpdate) {
+        const targetFormId = linkedRec.formId;
+        const linkedSubmission = submissionMap.get(`${targetFormId}:${linkedRec.refId}`);
+
+        if (!linkedSubmission) {
           errors.push(`Submission ${linkedRec.refId} not found in form ${targetFormId}`);
           continue;
         }

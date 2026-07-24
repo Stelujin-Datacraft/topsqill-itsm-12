@@ -20,7 +20,12 @@ export class FormApiService {
 
   async getFormFields(formId: string) {
     const supabase = this.supabaseService.getServiceClient();
-    const { data } = await supabase.from('form_fields').select('*').eq('form_id', formId).order('display_order');
+    const { data } = await supabase
+      .from('form_fields')
+      .select('*')
+      .eq('form_id', formId)
+      .order('display_order')
+      .limit(500);
     return { data };
   }
 
@@ -34,11 +39,13 @@ export class FormApiService {
 
   async listRecords(formId: string, limit = 50, offset = 0) {
     const supabase = this.supabaseService.getServiceClient();
+    const safeLimit = Math.min(1000, Math.max(1, limit));
+    const safeOffset = Math.max(0, offset);
     const { data, count } = await supabase
       .from('form_submissions')
       .select('*', { count: 'exact' })
       .eq('form_id', formId)
-      .range(offset, offset + limit - 1);
+      .range(safeOffset, safeOffset + safeLimit - 1);
     return { data, count };
   }
 

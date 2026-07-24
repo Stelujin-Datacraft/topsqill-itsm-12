@@ -1,8 +1,18 @@
 
 import { backend as supabase } from '@/services/api';
+import type { WorkflowGraph } from './types';
 
 export class NodeConnections {
-  static async getNextNodes(workflowId: string, currentNodeId: string, condition?: string): Promise<string[]> {
+  static async getNextNodes(
+    workflowId: string,
+    currentNodeId: string,
+    condition?: string,
+    graph?: WorkflowGraph,
+  ): Promise<string[]> {
+    if (graph) {
+      return graph.getNextNodes(currentNodeId, condition);
+    }
+
     try {
       const { data: connections, error } = await supabase
         .from('workflow_connections')
@@ -14,41 +24,30 @@ export class NodeConnections {
         return [];
       }
 
-      // If no condition specified, return ALL connections for normal flow
       if (!condition) {
-        return connections?.map(conn => conn.target_node_id) || [];
+        return connections?.map((conn) => conn.target_node_id) || [];
       }
 
-      // Enhanced filtering for conditional connections only when condition is specified
-      const filteredConnections = connections?.filter(conn => {
-        // Match by source handle (React Flow handle system)
-        if (conn.source_handle === condition) {
-          return true;
-        }
-        
-        // Match by condition type (legacy system)
-        if (conn.condition_type === condition) {
-          return true;
-        }
-        
-        // Default path handling
+      const filteredConnections = connections?.filter((conn) => {
+        if (conn.source_handle === condition) return true;
+        if (conn.condition_type === condition) return true;
         if (condition === 'default' && (!conn.condition_type || conn.condition_type === 'default')) {
           return true;
         }
-        
         return false;
       }) || [];
 
-      return filteredConnections.map(conn => conn.target_node_id);
+      return filteredConnections.map((conn) => conn.target_node_id);
     } catch {
       return [];
     }
   }
 
-  /**
-   * Get all connections from a node with their conditions
-   */
-  static async getNodeConnections(workflowId: string, nodeId: string) {
+  static async getNodeConnections(workflowId: string, nodeId: string, graph?: WorkflowGraph) {
+    if (graph) {
+      return graph.getConnections(nodeId);
+    }
+
     try {
       const { data: connections, error } = await supabase
         .from('workflow_connections')

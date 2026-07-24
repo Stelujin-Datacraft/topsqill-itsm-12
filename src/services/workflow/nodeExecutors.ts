@@ -14,7 +14,7 @@ export class NodeExecutors {
     console.log('🚀 Executing start node - workflow triggered successfully');
     
     // Find next nodes connected from this start node using normal flow (no condition)
-    const nextNodes = await NodeConnections.getNextNodes(context.workflowId, nodeData.id);
+    const nextNodes = await NodeConnections.getNextNodes(context.workflowId, nodeData.id, undefined, context.graph);
     
     console.log(`➡️ Found ${nextNodes.length} next nodes from start node:`, nextNodes);
     
@@ -99,7 +99,7 @@ export class NodeExecutors {
       console.log('📊 ACTION EXECUTION RESULT:', actionResult);
 
       // Get next nodes using normal flow (no condition for action nodes)
-      const nextNodes = await NodeConnections.getNextNodes(context.workflowId, nodeData.id);
+      const nextNodes = await NodeConnections.getNextNodes(context.workflowId, nodeData.id, undefined, context.graph);
       
       console.log(`🔍 Looking for next nodes from action node ${nodeData.id}, found:`, nextNodes);
       
@@ -112,7 +112,7 @@ export class NodeExecutors {
     } catch (error) {
       console.error('❌ Action node execution failed:', error);
       // Even on error, get next nodes to continue flow
-      const nextNodes = await NodeConnections.getNextNodes(context.workflowId, nodeData.id);
+      const nextNodes = await NodeConnections.getNextNodes(context.workflowId, nodeData.id, undefined, context.graph);
       
       return {
         success: false,
@@ -143,7 +143,7 @@ export class NodeExecutors {
       console.log('📊 APPROVAL EXECUTION RESULT:', approvalResult);
 
       // Get next nodes using normal flow (no condition for approval nodes)
-      const nextNodes = await NodeConnections.getNextNodes(context.workflowId, nodeData.id);
+      const nextNodes = await NodeConnections.getNextNodes(context.workflowId, nodeData.id, undefined, context.graph);
       
       return {
         success: approvalResult.success,
@@ -156,7 +156,7 @@ export class NodeExecutors {
       };
     } catch (error) {
       console.error('❌ Approval node execution failed:', error);
-      const nextNodes = await NodeConnections.getNextNodes(context.workflowId, nodeData.id);
+      const nextNodes = await NodeConnections.getNextNodes(context.workflowId, nodeData.id, undefined, context.graph);
       
       return {
         success: false,
@@ -169,7 +169,7 @@ export class NodeExecutors {
   static async executeFormAssignmentNode(nodeData: any, config: any, context: WorkflowExecutionContext): Promise<NodeExecutionResult> {
     console.log('📋 Executing form assignment node with config:', config);
     
-    const nextNodes = await NodeConnections.getNextNodes(context.workflowId, nodeData.id);
+    const nextNodes = await NodeConnections.getNextNodes(context.workflowId, nodeData.id, undefined, context.graph);
     
     return {
       success: true,
@@ -181,7 +181,7 @@ export class NodeExecutors {
   static async executeNotificationNode(nodeData: any, config: any, context: WorkflowExecutionContext): Promise<NodeExecutionResult> {
     console.log('🔔 Executing notification node with config:', config);
     
-    const nextNodes = await NodeConnections.getNextNodes(context.workflowId, nodeData.id);
+    const nextNodes = await NodeConnections.getNextNodes(context.workflowId, nodeData.id, undefined, context.graph);
     
     return {
       success: true,
@@ -406,8 +406,9 @@ export class NodeExecutors {
       
       try {
         const branches = await BranchDiscovery.getConditionalBranches(
-          context.workflowId, 
-          nodeData.id
+          context.workflowId,
+          nodeData.id,
+          context.graph,
         );
         trueBranchNodes = branches.trueBranchNodes;
         falseBranchNodes = branches.falseBranchNodes;
@@ -421,11 +422,11 @@ export class NodeExecutors {
 
       if (conditionResult) {
         // Condition is true - execute true branch, ignore false branch
-        nextNodeIds = await NodeConnections.getNextNodes(context.workflowId, nodeData.id, 'true');
+        nextNodeIds = await NodeConnections.getNextNodes(context.workflowId, nodeData.id, 'true', context.graph);
         ignoredNodeIds = falseBranchNodes;
       } else {
         // Condition is false - execute false branch, ignore true branch
-        nextNodeIds = await NodeConnections.getNextNodes(context.workflowId, nodeData.id, 'false');
+        nextNodeIds = await NodeConnections.getNextNodes(context.workflowId, nodeData.id, 'false', context.graph);
         ignoredNodeIds = trueBranchNodes;
       }
 
@@ -510,7 +511,7 @@ export class NodeExecutors {
       
       if (!scheduledResumeAt) {
         console.log('⚠️ No valid wait configuration or date in past, continuing immediately');
-        const nextNodes = await NodeConnections.getNextNodes(context.workflowId, nodeData.id);
+        const nextNodes = await NodeConnections.getNextNodes(context.workflowId, nodeData.id, undefined, context.graph);
         return {
           success: true,
           output: { 

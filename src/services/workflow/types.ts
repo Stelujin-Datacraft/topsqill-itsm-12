@@ -1,4 +1,8 @@
 
+import type { WorkflowGraph } from './workflowGraph';
+
+export type { WorkflowGraph };
+
 export interface WorkflowExecutionContext {
   executionId: string;
   workflowId: string;
@@ -6,6 +10,7 @@ export interface WorkflowExecutionContext {
   submissionId?: string;
   submitterId?: string;
   formOwnerId?: string | null;
+  graph?: WorkflowGraph;
 }
 
 export interface NodeExecutionResult {
