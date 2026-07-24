@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { SupabaseAuthGuard } from './common/guards/supabase-auth.guard';
 import { SupabaseModule } from './supabase/supabase.module';
 import { DatabaseModule } from './database/database.module';
@@ -21,11 +22,16 @@ import { PoliciesModule } from './policies/policies.module';
 import { PublicApiModule } from './public-api/public-api.module';
 import { FormApiModule } from './form-api/form-api.module';
 import { CronModule } from './cron/cron.module';
+import { QueueModule } from './queue/queue.module';
 import { HealthController } from './health.controller';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    ThrottlerModule.forRoot([{
+      ttl: 60000,
+      limit: 300,
+    }]),
     ScheduleModule.forRoot(),
     SupabaseModule,
     DatabaseModule,
@@ -45,9 +51,14 @@ import { HealthController } from './health.controller';
     PublicApiModule,
     FormApiModule,
     CronModule,
+    QueueModule,
   ],
   controllers: [HealthController],
   providers: [
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
     {
       provide: APP_GUARD,
       useClass: SupabaseAuthGuard,

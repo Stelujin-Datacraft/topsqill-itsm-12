@@ -86,6 +86,17 @@ All 36 Supabase Edge Functions have been migrated to NestJS modules:
 | test-smtp-connection, send-template-email, send-delegation-email, send-kb-notification-email | EmailModule |
 | ldap-authenticate, idp-oauth-callback, ldap-test-connection, ldap-sync | LdapModule |
 | enqueue-workflow, execute-workflow, process-workflow-queue, resume-waiting-workflows, notify-failure | WorkflowsModule |
+
+## Scalability configuration
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `WORKFLOW_EXECUTOR_MODE` | `edge` | `edge` invokes Supabase `execute-workflow` function for full workflow logic |
+| `WORKFLOW_QUEUE_BATCH_SIZE` | `20` | Jobs claimed per queue run |
+| `WORKFLOW_QUEUE_CONCURRENCY` | `10` | Parallel workers per batch |
+| `REDIS_URL` | _(unset)_ | Optional Redis + BullMQ for distributed queue across pods |
+
+Apply DB migration `20260724120000_scalability_indexes_and_queue_rpc.sql` for atomic queue claiming and combination-key RPC.
 | execute-data-feed, discover-external-fields, run-scheduled-data-feeds | DataFeedsModule |
 | ai-assistant, ai-copilot-action | AiModule |
 | predict-sla-breach, process-sla-escalations | SlaModule |

@@ -2,8 +2,8 @@
  * Unified backend client — use this for all database and API operations.
  * Auth, Realtime, and Storage still use Supabase directly via rawClient.
  */
-export { api, getApiBaseUrl, getPublicApiUrl, getFormApiUrl, getPolicyPreviewUrl, request } from './apiClient';
-export { db } from './databaseClient';
+export { api, getApiBaseUrl, getPublicApiUrl, getFormApiUrl, getPolicyPreviewUrl, request, clearAuthTokenCache } from './apiClient';
+export { db, paginatedRange } from './databaseClient';
 
 import { rawSupabase } from '@/integrations/supabase/rawClient';
 import { api } from './apiClient';

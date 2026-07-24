@@ -9,43 +9,41 @@ const QUEUE_FUNCTION_URL = `${getApiBaseUrl()}/workflows/enqueue`;
 
 export class WorkflowTrigger {
   static async findMatchingWorkflows(formId: string, submissionData: any) {
-    // Find all active workflows that have start nodes triggered by this form
     const { data: workflows, error: workflowError } = await supabase
       .from('workflows')
       .select('id, name')
       .eq('status', 'active');
 
-    if (workflowError) {
+    if (workflowError || !workflows?.length) {
       return [];
     }
 
-    if (!workflows || workflows.length === 0) {
+    const workflowIds = workflows.map((w) => w.id);
+    const { data: startNodes, error: nodesError } = await supabase
+      .from('workflow_nodes')
+      .select('*')
+      .in('workflow_id', workflowIds)
+      .eq('node_type', 'start');
+
+    if (nodesError || !startNodes?.length) {
       return [];
+    }
+
+    const nodesByWorkflow = new Map<string, typeof startNodes>();
+    for (const node of startNodes) {
+      const list = nodesByWorkflow.get(node.workflow_id) || [];
+      list.push(node);
+      nodesByWorkflow.set(node.workflow_id, list);
     }
 
     const triggeredWorkflows = [];
 
-    // Check each workflow for matching start nodes
     for (const workflow of workflows) {
-      const { data: nodes, error: nodesError } = await supabase
-        .from('workflow_nodes')
-        .select('*')
-        .eq('workflow_id', workflow.id)
-        .eq('node_type', 'start');
-
-      if (nodesError) {
-        continue;
-      }
-
-      // Check if any start node is triggered by this form submission
-      const matchingNode = nodes?.find(node => {
+      const nodes = nodesByWorkflow.get(workflow.id) || [];
+      const matchingNode = nodes.find((node) => {
         const config = parseNodeConfig(node.config);
-        
-        // Default triggerType to 'form_submission' if not set
         const triggerType = config.triggerType || 'form_submission';
-        
-        // Check for both 'form_submission' and 'form_completion' trigger types
-        return (triggerType === 'form_submission' || triggerType === 'form_completion') 
+        return (triggerType === 'form_submission' || triggerType === 'form_completion')
           && config.triggerFormId === formId;
       });
 
@@ -53,7 +51,7 @@ export class WorkflowTrigger {
         triggeredWorkflows.push({
           workflow,
           matchingNode,
-          matchingConfig: parseNodeConfig(matchingNode.config)
+          matchingConfig: parseNodeConfig(matchingNode.config),
         });
       }
     }
@@ -161,14 +159,11 @@ export class WorkflowExecutionService {
     }
 
     const executionResults = [];
+    const formOwnerId = await WorkflowTrigger.resolveFormOwner(formId);
 
     // Execute each matching workflow
     for (const { workflow, matchingNode } of matchingWorkflows) {
       try {
-        // Resolve form owner
-        const formOwnerId = await WorkflowTrigger.resolveFormOwner(formId);
-        
-        // Create enhanced trigger data with all necessary information
         const triggerData = {
           formId,
           submissionData,
