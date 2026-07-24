@@ -4,7 +4,7 @@
  import { Textarea } from '@/components/ui/textarea';
  import { Label } from '@/components/ui/label';
  import { Sparkles, Loader2, Clock, AlertTriangle } from 'lucide-react';
- import { supabase } from '@/integrations/supabase/client';
+ import { backend as supabase } from '@/services/api';
  import { useToast } from '@/hooks/use-toast';
  import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
  import { Badge } from '@/components/ui/badge';

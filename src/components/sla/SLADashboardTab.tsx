@@ -4,7 +4,7 @@
  import { Button } from '@/components/ui/button';
  import { Progress } from '@/components/ui/progress';
  import { Clock, AlertTriangle, CheckCircle, XCircle, RefreshCw, ExternalLink } from 'lucide-react';
- import { supabase } from '@/integrations/supabase/client';
+ import { backend as supabase } from '@/services/api';
  import { useAuth } from '@/contexts/AuthContext';
  import { formatDistanceToNow } from 'date-fns';
  

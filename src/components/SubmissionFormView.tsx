@@ -17,7 +17,7 @@ import { useLifecycleHistory } from '@/hooks/useLifecycleHistory';
 import { SubmissionCommentBox } from './SubmissionCommentBox';
 import { ManualWorkflowTrigger } from './ManualWorkflowTrigger';
 import { Form, FormField } from '@/types/form';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 import { toast } from '@/hooks/use-toast';
 import { WorkflowExecutionService } from '@/services/workflowExecution';
 import { FormRuleWorkflowTrigger } from '@/services/formRuleWorkflowTrigger';

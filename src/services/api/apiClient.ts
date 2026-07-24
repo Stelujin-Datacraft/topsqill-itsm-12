@@ -6,8 +6,8 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
 
 async function getAuthToken(): Promise<string | null> {
   try {
-    const { supabase } = await import('@/integrations/supabase/client');
-    const { data: { session } } = await supabase.auth.getSession();
+    const { rawSupabase } = await import('@/integrations/supabase/rawClient');
+    const { data: { session } } = await rawSupabase.auth.getSession();
     return session?.access_token || null;
   } catch {
     return null;
@@ -117,6 +117,10 @@ export function getPublicApiUrl(): string {
 
 export function getFormApiUrl(): string {
   return `${API_BASE_URL}/form-api`;
+}
+
+export function getPolicyPreviewUrl(policyId: string): string {
+  return `${API_BASE_URL}/policies/preview?id=${policyId}`;
 }
 
 export { request };

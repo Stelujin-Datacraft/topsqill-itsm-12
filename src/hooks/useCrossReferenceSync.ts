@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { FormField, Form } from '@/types/form';
 import { useFormsData } from './useFormsData';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 
 export interface CrossReferenceSyncOptions {
   parentFormId: string;

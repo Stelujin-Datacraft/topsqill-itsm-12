@@ -19,7 +19,7 @@ import { ScrollText, Upload, FileText, X, Loader2, History, Download, Trash2, Wa
 import { toast } from 'sonner';
 import { generatePolicyDocument, generatePolicyFromTemplate } from '@/utils/policyDocumentGenerator';
 import { generateFromSmartTemplate, getAvailableTags } from '@/utils/smartTemplateGenerator';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 import { format } from 'date-fns';
 
 interface PolicyField {

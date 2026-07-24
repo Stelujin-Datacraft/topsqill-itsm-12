@@ -1,4 +1,4 @@
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 import { WorkflowExecutionService } from './workflowTrigger';
 
 export class WorkflowResumer {

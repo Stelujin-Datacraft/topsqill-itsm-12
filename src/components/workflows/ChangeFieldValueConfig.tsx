@@ -10,7 +10,7 @@ import { DynamicFieldSelector } from './DynamicFieldSelector';
 import { DynamicValueInput } from './conditions/DynamicValueInput';
 import { FormFieldOption } from '@/types/conditions';
 import { FieldValueUpdate } from '@/types/workflowConfig';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 
 interface ChangeFieldValueConfigProps {
   config: any;

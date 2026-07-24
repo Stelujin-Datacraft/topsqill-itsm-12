@@ -28,7 +28,7 @@ import {
 import { format } from 'date-fns';
 import DashboardLayout from '@/components/DashboardLayout';
 import { useUnifiedAccessControl } from '@/hooks/useUnifiedAccessControl';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 import { toast } from 'sonner';
 
 interface ProjectUser {

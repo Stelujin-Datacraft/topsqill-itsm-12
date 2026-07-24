@@ -1,5 +1,5 @@
 import { useMemo, useEffect, useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 import { Form, FormField } from '@/types/form';
 
 interface SubmissionAccessData {

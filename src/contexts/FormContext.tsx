@@ -1,7 +1,7 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { Form } from '@/types/form';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 import { useProject } from './ProjectContext';
 import { logFormAuditEvent } from '@/utils/formAuditLogger';
 

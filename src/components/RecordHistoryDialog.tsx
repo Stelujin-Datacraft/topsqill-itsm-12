@@ -9,7 +9,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 import { fetchRecordHistory } from '@/utils/recordHistoryLogger';
 import { History, ArrowRight, User, Clock, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';

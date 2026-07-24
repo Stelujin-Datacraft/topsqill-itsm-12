@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 import { evaluateFilterCondition, extractComparableValue } from '@/utils/filterUtils';
 
 interface SubmissionRow {

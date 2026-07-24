@@ -9,7 +9,7 @@ import { FormSubmissionSuccess } from '@/components/FormSubmissionSuccess';
 import { useFormLoader } from '@/hooks/useFormLoader';
 import { useFormSubmissionHandler } from '@/hooks/useFormSubmissionHandler';
 import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 
 const FormSubmission = () => {
   const { id } = useParams();

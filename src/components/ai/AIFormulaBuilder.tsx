@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Sparkles, Loader2, Copy, Check, Code, Database, AlertTriangle } from 'lucide-react';
 import { useFormAI } from '@/hooks/useFormAI';
 import { useForm } from '@/contexts/FormContext';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 import { toast } from 'sonner';
 import {
   Dialog,

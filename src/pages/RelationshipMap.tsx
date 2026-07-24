@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { Loader2, GitBranch, ExternalLink, Download, Image, FileImage } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 import { useForm } from '@/contexts/FormContext';
 import { useProject } from '@/contexts/ProjectContext';
 import { exportAsPng, exportAsSvg } from '@/utils/diagramExport';

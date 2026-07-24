@@ -8,7 +8,7 @@ import { useForm } from '@/contexts/FormContext';
 import { useProject } from '@/contexts/ProjectContext';
 import { cn } from '@/lib/utils';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 import ReactMarkdown from 'react-markdown';
  import { toast } from 'sonner';
  import { Badge } from '@/components/ui/badge';
@@ -118,49 +118,52 @@ export function AIChatbot() {
       if (!currentProject?.id) return;
 
       try {
-        const session = (await supabase.auth.getSession()).data.session;
-        const headers = {
-          'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY,
-          'Authorization': `Bearer ${session?.access_token}`
-        };
-
-        // Load all data in parallel
-        const [workflowResponse, reportResponse, formsResponse] = await Promise.all([
-          fetch(
-            `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/workflows?project_id=eq.${currentProject.id}&status=eq.active&select=id,name,description&order=name`,
-            { headers }
-          ),
-          fetch(
-            `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/reports?project_id=eq.${currentProject.id}&select=id,name,description&order=name`,
-            { headers }
-          ),
-          fetch(
-            `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/forms?project_id=eq.${currentProject.id}&select=id,name,description,form_fields(id,label,field_type,options,required)&order=name`,
-            { headers }
-          )
+        // Load all data in parallel via backend-proxied supabase client
+        const [workflowResult, reportResult, formsResult] = await Promise.all([
+          supabase
+            .from('workflows')
+            .select('id, name, description')
+            .eq('project_id', currentProject.id)
+            .eq('status', 'active')
+            .order('name'),
+          supabase
+            .from('reports')
+            .select('id, name, description')
+            .eq('project_id', currentProject.id)
+            .order('name'),
+          supabase
+            .from('forms')
+            .select('id, name, description, form_fields(id, label, field_type, options, required)')
+            .eq('project_id', currentProject.id)
+            .order('name'),
         ]);
-        
-        if (workflowResponse.ok) {
-          const workflowData = await workflowResponse.json();
-          setWorkflows(workflowData.map((w: any) => ({ 
-            id: w.id, 
-            name: w.name, 
-            description: w.description || undefined 
+
+        if (!workflowResult.error && workflowResult.data) {
+          const workflowData = workflowResult.data as Array<{ id: string; name: string; description?: string }>;
+          setWorkflows(workflowData.map((w) => ({
+            id: w.id,
+            name: w.name,
+            description: w.description || undefined,
           })));
         }
 
-        if (reportResponse.ok) {
-          const reportData = await reportResponse.json();
-          setReports(reportData.map((r: any) => ({ 
-            id: r.id, 
-            name: r.name, 
-            description: r.description || undefined 
+        if (!reportResult.error && reportResult.data) {
+          const reportData = reportResult.data as Array<{ id: string; name: string; description?: string }>;
+          setReports(reportData.map((r) => ({
+            id: r.id,
+            name: r.name,
+            description: r.description || undefined,
           })));
         }
 
-        if (formsResponse.ok) {
-          const formsData = await formsResponse.json();
-          setFormsWithFields(formsData.map((f: any) => ({
+        if (!formsResult.error && formsResult.data) {
+          const formsData = formsResult.data as Array<{
+            id: string;
+            name: string;
+            description?: string;
+            form_fields?: Array<{ id: string; label: string; field_type: string; options?: unknown; required?: boolean }>;
+          }>;
+          setFormsWithFields(formsData.map((f) => ({
             id: f.id,
             name: f.name,
             description: f.description || undefined,

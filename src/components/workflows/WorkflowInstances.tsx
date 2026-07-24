@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Eye, Clock, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 import { ExecutionNodeAccordion } from './ExecutionNodeAccordion';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 import { useToast } from '@/hooks/use-toast';
 
 interface WorkflowExecution {

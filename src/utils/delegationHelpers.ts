@@ -1,4 +1,4 @@
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 
 /**
  * Returns active delegate user IDs for a given delegator, optionally filtered by scope.

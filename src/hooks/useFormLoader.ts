@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 import { Form, FormField, FormPage, FieldRule, FormRule } from '@/types/form';
 
 export function useFormLoader(formId: string | undefined) {

@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Search, Filter, Download, RefreshCw, Calendar as CalendarIcon, X, ChevronLeft, ChevronRight, Eye } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { format, subDays } from 'date-fns';
 import { toast } from '@/hooks/use-toast';

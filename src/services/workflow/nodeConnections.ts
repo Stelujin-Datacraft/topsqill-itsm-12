@@ -1,5 +1,5 @@
 
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 
 export class NodeConnections {
   static async getNextNodes(workflowId: string, currentNodeId: string, condition?: string): Promise<string[]> {

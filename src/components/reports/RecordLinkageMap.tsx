@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, ExternalLink, GitBranch, Download, Image, FileImage } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 import { useNavigate } from 'react-router-dom';
 import { exportAsPng, exportAsSvg } from '@/utils/diagramExport';
 import { useToast } from '@/hooks/use-toast';

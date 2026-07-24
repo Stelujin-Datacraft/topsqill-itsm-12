@@ -1,5 +1,5 @@
  import { QueryClient } from '@tanstack/react-query';
- import { supabase } from '@/integrations/supabase/client';
+ import { backend as supabase } from '@/services/api';
  
  /**
  * Prefetches user permissions into React Query cache immediately after login.

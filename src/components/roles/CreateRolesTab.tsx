@@ -22,7 +22,7 @@ import { useReports } from '@/hooks/useReports';
 import { usePolicies } from '@/hooks/usePolicies';
 import { useDashboards } from '@/hooks/useDashboards';
 import { toast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 
 interface ResourcePermissions {
   [key: string]: string[];

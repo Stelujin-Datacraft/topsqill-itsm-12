@@ -7,7 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { useToast } from '@/hooks/use-toast';
 import { useUnifiedAccessControl } from '@/hooks/useUnifiedAccessControl';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 import { ReportCard } from './ReportCard';
 
 export interface ReportsListProps {

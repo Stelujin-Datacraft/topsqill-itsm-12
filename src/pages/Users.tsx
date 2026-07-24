@@ -14,7 +14,7 @@ import { GroupRolesTab } from '@/components/roles/GroupRolesTab';
 import { CreateRolesTab } from '@/components/roles/CreateRolesTab';
 import { useRoles } from '@/hooks/useRoles';
 import { useUserRoleAssignments } from '@/hooks/useUserRoleAssignments';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 import {
   AlertDialog,
   AlertDialogAction,

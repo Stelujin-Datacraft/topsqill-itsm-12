@@ -1,4 +1,4 @@
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 import { NodeExecutionContext } from '../nodeActions';
 import { ActionExecutionResult } from './actionExecutors';
 import { logRecordFieldChanges, detectRecordChanges } from '@/utils/recordHistoryLogger';

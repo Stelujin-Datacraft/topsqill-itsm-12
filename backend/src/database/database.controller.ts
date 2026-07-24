@@ -5,7 +5,7 @@ import {
   Headers,
   UseGuards,
 } from '@nestjs/common';
-import { DatabaseService, DatabaseQueryDto, DatabaseInsertDto, DatabaseUpdateDto, DatabaseDeleteDto, DatabaseRpcDto } from './database.service';
+import { DatabaseService, DatabaseQueryDto, DatabaseInsertDto, DatabaseUpsertDto, DatabaseUpdateDto, DatabaseDeleteDto, DatabaseRpcDto } from './database.service';
 import { SupabaseAuthGuard } from '../common/guards/supabase-auth.guard';
 
 @Controller('database')
@@ -27,6 +27,14 @@ export class DatabaseController {
     @Headers('authorization') authHeader: string,
   ) {
     return this.databaseService.insert(dto, authHeader);
+  }
+
+  @Post('upsert')
+  upsert(
+    @Body() dto: DatabaseUpsertDto,
+    @Headers('authorization') authHeader: string,
+  ) {
+    return this.databaseService.upsert(dto, authHeader);
   }
 
   @Post('update')

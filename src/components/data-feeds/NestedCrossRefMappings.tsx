@@ -7,7 +7,7 @@ import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Plus, Trash2, ChevronDown, ChevronRight, ArrowRight, Link2, Unlink, Settings2, Layers, GitBranch } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 import { v4 as uuidv4 } from 'uuid';
 
 interface FieldOption {

@@ -1,4 +1,4 @@
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 import { FormField } from '@/types/form';
 import { toast } from '@/hooks/use-toast';
 import { logFormAuditEvent } from '@/utils/formAuditLogger';

@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 import { useProject } from '@/contexts/ProjectContext';
 import { toast } from '@/hooks/use-toast';
 

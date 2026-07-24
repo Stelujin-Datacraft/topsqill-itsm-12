@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { format } from 'date-fns';
 import { Plus, Trash2, UserCheck, Calendar, Shield, AlertTriangle, Check, ChevronsUpDown, X, Power, Pencil, Activity, ArrowRight } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { useForm as useFormCtx } from '@/contexts/FormContext';
 import { useProject } from '@/contexts/ProjectContext';

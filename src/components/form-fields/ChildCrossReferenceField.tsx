@@ -12,7 +12,7 @@ import { useChildCrossReferenceAutoSelection } from '@/hooks/useChildCrossRefere
 import { useUnifiedAccessControl } from '@/hooks/useUnifiedAccessControl';
 import { useProject } from '@/contexts/ProjectContext';
 import { useFormAccess } from '@/components/FormBuilder/FieldPropertiesDialog/hooks/useFormAccess';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 interface ChildCrossReferenceFieldProps {
   field: FormField;
   value?: any;

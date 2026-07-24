@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ArrowLeft, Plus, FileText, Eye, Edit, Trash2, Calendar, Copy, Star } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { CreateReportDialog } from '@/components/reports/CreateReportDialog';
 import { ShareLinkButton } from '@/components/shared/ShareLinkButton';

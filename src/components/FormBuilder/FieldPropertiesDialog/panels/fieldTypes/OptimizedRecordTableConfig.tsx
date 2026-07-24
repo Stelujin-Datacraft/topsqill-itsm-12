@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Plus, X, Loader2, Link2, Filter, AlertCircle, CheckCircle, Info } from 'lucide-react';
 import { FieldConfiguration } from '../../hooks/useFieldConfiguration';
 import { useFormAccess } from '../../hooks/useFormAccess';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 import { EmbeddedChartConfigPanel } from './EmbeddedChartConfig';
 import { EmbeddedChartConfig } from '@/types/reports';
 import { useCurrentFormFields } from '@/hooks/useCurrentFormFields';

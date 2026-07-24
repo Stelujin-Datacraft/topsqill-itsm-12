@@ -10,7 +10,7 @@ import { UseMutationResult, useQuery, useQueryClient } from '@tanstack/react-que
 import { useToast } from '@/hooks/use-toast';
 import { usePerformanceAuditLog } from '@/hooks/usePerformanceAuditLog';
 import { formatDistanceToNow } from 'date-fns';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 import { useProject } from '@/contexts/ProjectContext';
 import { useAuth } from '@/contexts/AuthContext';
 

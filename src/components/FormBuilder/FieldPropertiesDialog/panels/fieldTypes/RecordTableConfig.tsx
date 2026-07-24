@@ -35,7 +35,7 @@ export function RecordTableConfig({ config, onUpdate, errors, fieldType }: Recor
       }
       
       try {
-        const { supabase } = await import('@/integrations/supabase/client');
+        const { backend: supabase } = await import('@/services/api');
         const { data } = await supabase
           .from('form_fields')
           .select('id, label, field_type')

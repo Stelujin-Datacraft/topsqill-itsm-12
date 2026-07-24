@@ -12,7 +12,7 @@ import { useSecurityTemplates } from '@/hooks/useSecurityTemplates';
 import { useAllSecurityParameters } from '@/hooks/useSecurityParameters';
 import { useGroups } from '@/hooks/useGroups';
 import { useOrganization } from '@/contexts/OrganizationContext';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 import { toast } from '@/hooks/use-toast';
 
 export function AssignSecurityTemplatesTab() {

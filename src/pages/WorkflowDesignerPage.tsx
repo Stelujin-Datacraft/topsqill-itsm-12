@@ -16,7 +16,7 @@ import { Save, ArrowLeft, Activity, Play, Loader2, Sparkles, Settings } from 'lu
 import { WorkflowNode, WorkflowConnection } from '@/types/workflow';
 import { useToast } from '@/hooks/use-toast';
 import { AIWorkflowSuggester } from '@/components/ai/AIWorkflowSuggester';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 
 const WorkflowDesignerPage = () => {
   const { id } = useParams<{ id: string }>();

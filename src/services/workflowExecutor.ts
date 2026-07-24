@@ -1,5 +1,5 @@
 
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 import { NodeActions, NodeExecutionContext, NodeExecutionResult } from './nodeActions';
 import { notifyWorkflowFailure } from './workflow/notifyFailure';
 

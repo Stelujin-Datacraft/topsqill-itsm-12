@@ -16,7 +16,7 @@
    Inbox,
    Activity
  } from 'lucide-react';
- import { supabase } from '@/integrations/supabase/client';
+ import { backend as supabase } from '@/services/api';
  import { useToast } from '@/hooks/use-toast';
  import { useProject } from '@/contexts/ProjectContext';
  

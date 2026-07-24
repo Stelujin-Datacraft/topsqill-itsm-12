@@ -14,7 +14,7 @@ import { OptimizedFilterControls } from './components/OptimizedFilterControls';
 import { SortControls, getSortIcon } from './components/SortControls';
 import { useOptimizedFormSubmissionData } from '@/hooks/useOptimizedFormSubmissionData';
 import { useUsersAndGroups } from '@/hooks/useUsersAndGroups';
-import { supabase } from '@/integrations/supabase/client';
+import { backend as supabase } from '@/services/api';
 interface FilterCondition {
   id: string;
   field: string;
