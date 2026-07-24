@@ -10,7 +10,9 @@ import { Separator } from '@/components/ui/separator';
 import { ArrowLeft, Copy, Key, Shield, FileText, GitBranch, BarChart3, ChevronRight, Layers, AlertTriangle, Clock, BookOpen, Zap } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
-const BASE_URL = 'https://fnmkczsvwpzpxyklztkt.supabase.co/functions/v1/public-api';
+import { getPublicApiUrl } from '@/services/api/apiClient';
+
+const BASE_URL = getPublicApiUrl();
 
 interface Endpoint {
   method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';

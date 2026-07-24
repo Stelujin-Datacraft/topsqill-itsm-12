@@ -10,7 +10,9 @@ import { Download, Copy, Terminal, CheckCircle, XCircle, Clock, RefreshCw, Wifi,
 import { toast } from '@/hooks/use-toast';
 import { format, formatDistanceToNow } from 'date-fns';
 
-const SUPABASE_URL = "https://fnmkczsvwpzpxyklztkt.supabase.co";
+import { getApiBaseUrl } from '@/services/api/apiClient';
+
+const API_BASE = getApiBaseUrl();
 
 export function AgentManagement() {
   const { agents, loadAgents } = useITAssets();
@@ -21,7 +23,7 @@ export function AgentManagement() {
   const hasOrgId = Boolean(userProfile?.organization_id);
   const orgId = userProfile?.organization_id || '';
 
-  const API_URL = `${SUPABASE_URL}/functions/v1/asset-agent-report`;
+  const API_URL = `${API_BASE}/itam/agent-report`;
 
   const windowsQuickTest = `$API_URL = "${API_URL}"
 $ORG_ID = "${orgId}"
@@ -93,7 +95,7 @@ echo "Done! Refresh the Agents page to see your device."`;
   const windowsScript = `# TopSqill IT Asset Agent - Windows PowerShell
 # Run as Administrator — auto-installs a Scheduled Task to report every 6 hours
 
-$API_URL = "${SUPABASE_URL}/functions/v1/asset-agent-report"
+$API_URL = "${API_BASE}/itam/agent-report"
 $ORG_ID = "${orgId}"
 $AGENT_KEY = "$env:COMPUTERNAME-$(Get-WmiObject Win32_BIOS | Select-Object -ExpandProperty SerialNumber)"
 $SCRIPT_DIR = "$env:ProgramData\\TopSqill"
@@ -214,7 +216,7 @@ Write-Host "Agent report completed successfully!" -ForegroundColor Green`;
 # Run with: bash topsqill-agent.sh
 # Auto-installs a cron job to report every 6 hours
 
-API_URL="${SUPABASE_URL}/functions/v1/asset-agent-report"
+API_URL="${API_BASE}/itam/agent-report"
 ORG_ID="${orgId}"
 HOSTNAME_VAL=\$(hostname)
 INSTALL_DIR="/usr/local/bin"
@@ -411,7 +413,7 @@ echo "Agent report completed successfully!"`;
 # Deploy via: User Config > Policies > Windows Settings > Scripts > Logon
 # Checks if already reported today to avoid duplicate calls.
 
-$API_URL = "${SUPABASE_URL}/functions/v1/asset-agent-report"
+$API_URL = "${API_BASE}/itam/agent-report"
 $ORG_ID = "${orgId}"
 $AGENT_KEY = "$env:COMPUTERNAME-$(Get-WmiObject Win32_BIOS | Select-Object -ExpandProperty SerialNumber)"
 $MARKER = "$env:ProgramData\\TopSqill\\last-report.txt"
@@ -455,7 +457,7 @@ Set-Content -Path $MARKER -Value (Get-Date -Format "yyyy-MM-dd")`;
 # macOS: sudo defaults write com.apple.loginwindow LoginHook /usr/local/bin/topsqill-login.sh
 # Linux: cp topsqill-login.sh /etc/profile.d/
 
-API_URL="${SUPABASE_URL}/functions/v1/asset-agent-report"
+API_URL="${API_BASE}/itam/agent-report"
 ORG_ID="${orgId}"
 HOSTNAME_VAL=\$(hostname)
 MARKER="/tmp/.topsqill-reported-\$(date +%Y%m%d)"

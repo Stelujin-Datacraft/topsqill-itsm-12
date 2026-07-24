@@ -1,20 +1,19 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { getApiBaseUrl } from "@/services/api/apiClient";
 import { Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 /**
  * OIDC callback page. Exchanges the authorization code at the
- * `idp-oauth-callback` edge function, then signs the user in via the
+ * NestJS LDAP OAuth callback endpoint, then signs the user in via the
  * returned magic-link token.
  */
 export default function AuthCallback() {
   const navigate = useNavigate();
   const [status, setStatus] = useState<"working" | "error">("working");
   const [message, setMessage] = useState("Finalizing sign-in…");
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
   useEffect(() => {
     (async () => {
@@ -47,14 +46,12 @@ export default function AuthCallback() {
         // Use a direct fetch instead of supabase.functions.invoke so the
         // browser never re-attaches a stale auth session token to this public
         // callback exchange request.
-        const response = await fetch(`${supabaseUrl}/functions/v1/idp-oauth-callback`, {
+        const response = await fetch(`${getApiBaseUrl()}/ldap/oauth-callback`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            apikey: supabaseAnonKey,
-            Authorization: `Bearer ${supabaseAnonKey}`,
           },
-          body: JSON.stringify({ code, state }),
+          body: JSON.stringify({ code, state, redirectUri: window.location.origin + '/auth/callback' }),
         });
 
         const raw = await response.text();

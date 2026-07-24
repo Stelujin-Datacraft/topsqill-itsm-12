@@ -9,7 +9,9 @@ import { DocsSidebar } from '@/components/docs/DocsSidebar';
 import { ApiEndpoint, ApiEndpointProps, ErrorResponse } from '@/components/docs/ApiEndpoint';
 import { CodeBlock } from '@/components/docs/CodeBlock';
 
-const BASE_URL = 'https://fnmkczsvwpzpxyklztkt.supabase.co/functions/v1/form-api';
+import { getFormApiUrl } from '@/services/api/apiClient';
+
+const BASE_URL = getFormApiUrl();
 
 // Sidebar navigation structure
 const sidebarSections = [

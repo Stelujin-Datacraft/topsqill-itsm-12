@@ -20,6 +20,7 @@ import { toast } from '@/hooks/use-toast';
 import { format, formatDistanceToNow } from 'date-fns';
 import { ApiAnalyticsDashboard } from './ApiAnalyticsDashboard';
 import { ApiRequestLogs } from './ApiRequestLogs';
+import { getPublicApiUrl } from '@/services/api/apiClient';
 
 const PERMISSION_OPTIONS = {
   forms: ['read', 'create', 'update', 'delete'],
@@ -234,7 +235,7 @@ export function ApiKeyManagement({ showCreateDialog: externalShowCreate, onCreat
     return <Badge variant="default" className="bg-green-600">Active</Badge>;
   };
 
-  const apiBaseUrl = `https://fnmkczsvwpzpxyklztkt.supabase.co/functions/v1/public-api`;
+  const apiBaseUrl = getPublicApiUrl();
 
   return (
     <div className="space-y-6">
