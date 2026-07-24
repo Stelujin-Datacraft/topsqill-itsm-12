@@ -39,7 +39,7 @@ const Index = () => {
         <AnnouncementBanner />
         
         {/* Navigation */}
-        <nav className="border-b bg-background/90 backdrop-blur-md sticky top-0 z-50">
+        <nav className="border-b border-border/60 bg-background/85 backdrop-blur-xl sticky top-0 z-50 shadow-xs">
           <div className="container mx-auto px-4 py-3 sm:py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex items-center space-x-3">
               <img 
@@ -79,12 +79,12 @@ const Index = () => {
         <main>
           <section className="container mx-auto px-4 py-16 sm:py-24 text-center">
             <div className="flex flex-wrap justify-center gap-2 mb-8">
-              <Badge variant="secondary" className="bg-emerald-50 text-emerald-800 border-emerald-200">
-                <CheckCircle className="w-3 h-3 me-1" />
+              <Badge variant="secondary" className="bg-success/10 text-success border-success/20">
+                <CheckCircle className="icon-sm me-1" />
                 {t('landing.soc2')}
               </Badge>
-              <Badge variant="secondary" className="bg-sky-50 text-sky-800 border-sky-200">
-                <Star className="w-3 h-3 me-1" />
+              <Badge variant="secondary" className="bg-info/10 text-info border-info/20">
+                <Star className="icon-sm me-1" />
                 {t('landing.rating')}
               </Badge>
               <Badge variant="secondary" className="bg-violet-50 text-violet-800 border-violet-200">

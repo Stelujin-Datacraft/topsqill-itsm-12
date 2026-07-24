@@ -30,6 +30,7 @@ const Dashboard = () => {
       title: t('dashboard.forms'),
       description: t('dashboard.formsDesc'),
       icon: FileText,
+      iconColor: 'text-module-forms',
       onClick: () => navigate('/forms'),
       disabled: !currentProject,
     },
@@ -37,6 +38,7 @@ const Dashboard = () => {
       title: t('dashboard.workflow'),
       description: t('dashboard.workflowDesc'),
       icon: Workflow,
+      iconColor: 'text-module-workflows',
       onClick: () => navigate('/workflows'),
       disabled: !currentProject,
     },
@@ -44,6 +46,7 @@ const Dashboard = () => {
       title: t('dashboard.reports'),
       description: t('dashboard.reportsDesc'),
       icon: BarChart3,
+      iconColor: 'text-module-reports',
       onClick: () => navigate('/reports'),
       disabled: !currentProject,
     },
@@ -51,6 +54,7 @@ const Dashboard = () => {
       title: t('dashboard.users'),
       description: t('dashboard.usersDesc'),
       icon: Users,
+      iconColor: 'text-module-access',
       onClick: () => navigate('/users'),
       disabled: false,
     },
@@ -83,14 +87,16 @@ const Dashboard = () => {
                   <Button
                     key={index}
                     variant="outline"
-                    className="h-auto p-4 flex flex-col items-start space-y-2 bg-primary-light border-primary/20 hover:bg-primary/10"
+                    className="h-auto p-4 flex flex-col items-start gap-3 rounded-xl border-border/70 bg-card hover:bg-muted/40 hover:shadow-sm"
                     onClick={action.onClick}
                     disabled={action.disabled}
                   >
-                    <action.icon className="h-6 w-6 text-module-access" />
-                    <div className="text-left">
-                      <div className="text-xl">{action.title}</div>
-                      <div className="text-xs text-muted-foreground">
+                    <div className="icon-box-md">
+                      <action.icon className={action.iconColor} />
+                    </div>
+                    <div className="text-left space-y-1">
+                      <div className="text-sm font-semibold">{action.title}</div>
+                      <div className="text-xs text-muted-foreground leading-relaxed">
                         {action.description}
                       </div>
                     </div>
