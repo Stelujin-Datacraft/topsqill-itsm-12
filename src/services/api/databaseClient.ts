@@ -1,139 +1,242 @@
 /**
  * Database API client — routes table operations through the NestJS backend
  * instead of direct PostgREST calls from the browser.
+ *
+ * Mirrors the Supabase query builder API so existing hooks work unchanged.
  */
 
 import { request } from './apiClient';
 
-export interface QueryFilter {
-  column: string;
-  operator: 'eq' | 'neq' | 'gt' | 'gte' | 'lt' | 'lte' | 'like' | 'ilike' | 'in' | 'is' | 'contains' | 'containedBy';
-  value: unknown;
+export type FilterClause =
+  | { kind: 'filter'; column: string; operator: string; value: unknown }
+  | { kind: 'not'; column: string; operator: string; value: unknown }
+  | { kind: 'or'; expression: string };
+
+export interface SelectOptions {
+  count?: 'exact' | 'planned' | 'estimated';
+  head?: boolean;
 }
 
-class QueryBuilder {
-  private table: string;
-  private selectCols = '*';
-  private filters: QueryFilter[] = [];
-  private orderBy: { column: string; ascending?: boolean }[] = [];
-  private limitCount?: number;
-  private offsetCount?: number;
-  private singleResult = false;
-  private maybeSingleResult = false;
+export interface UpsertOptions {
+  onConflict?: string;
+  ignoreDuplicates?: boolean;
+}
 
-  constructor(table: string) {
-    this.table = table;
-  }
+type QueryResult = { data: unknown; error: { message: string } | null; count?: number | null };
 
-  select(columns = '*') {
-    this.selectCols = columns;
+/** Shared filter methods for query/update/delete builders */
+class FilterMixin {
+  protected filters: FilterClause[] = [];
+
+  eq(column: string, value: unknown) { this.filters.push({ kind: 'filter', column, operator: 'eq', value }); return this; }
+  neq(column: string, value: unknown) { this.filters.push({ kind: 'filter', column, operator: 'neq', value }); return this; }
+  gt(column: string, value: unknown) { this.filters.push({ kind: 'filter', column, operator: 'gt', value }); return this; }
+  gte(column: string, value: unknown) { this.filters.push({ kind: 'filter', column, operator: 'gte', value }); return this; }
+  lt(column: string, value: unknown) { this.filters.push({ kind: 'filter', column, operator: 'lt', value }); return this; }
+  lte(column: string, value: unknown) { this.filters.push({ kind: 'filter', column, operator: 'lte', value }); return this; }
+  like(column: string, value: unknown) { this.filters.push({ kind: 'filter', column, operator: 'like', value }); return this; }
+  ilike(column: string, value: unknown) { this.filters.push({ kind: 'filter', column, operator: 'ilike', value }); return this; }
+  in(column: string, value: unknown) { this.filters.push({ kind: 'filter', column, operator: 'in', value }); return this; }
+  is(column: string, value: unknown) { this.filters.push({ kind: 'filter', column, operator: 'is', value }); return this; }
+  contains(column: string, value: unknown) { this.filters.push({ kind: 'filter', column, operator: 'contains', value }); return this; }
+  containedBy(column: string, value: unknown) { this.filters.push({ kind: 'filter', column, operator: 'containedBy', value }); return this; }
+  cs(column: string, value: unknown) { this.filters.push({ kind: 'filter', column, operator: 'cs', value }); return this; }
+  cd(column: string, value: unknown) { this.filters.push({ kind: 'filter', column, operator: 'cd', value }); return this; }
+  ov(column: string, value: unknown) { this.filters.push({ kind: 'filter', column, operator: 'ov', value }); return this; }
+
+  not(column: string, operator: string, value: unknown) {
+    this.filters.push({ kind: 'not', column, operator, value });
     return this;
   }
 
-  eq(column: string, value: unknown) { this.filters.push({ column, operator: 'eq', value }); return this; }
-  neq(column: string, value: unknown) { this.filters.push({ column, operator: 'neq', value }); return this; }
-  gt(column: string, value: unknown) { this.filters.push({ column, operator: 'gt', value }); return this; }
-  gte(column: string, value: unknown) { this.filters.push({ column, operator: 'gte', value }); return this; }
-  lt(column: string, value: unknown) { this.filters.push({ column, operator: 'lt', value }); return this; }
-  lte(column: string, value: unknown) { this.filters.push({ column, operator: 'lte', value }); return this; }
-  like(column: string, value: unknown) { this.filters.push({ column, operator: 'like', value }); return this; }
-  ilike(column: string, value: unknown) { this.filters.push({ column, operator: 'ilike', value }); return this; }
-  in(column: string, value: unknown) { this.filters.push({ column, operator: 'in', value }); return this; }
-  is(column: string, value: unknown) { this.filters.push({ column, operator: 'is', value }); return this; }
-  contains(column: string, value: unknown) { this.filters.push({ column, operator: 'contains', value }); return this; }
-  containedBy(column: string, value: unknown) { this.filters.push({ column, operator: 'containedBy', value }); return this; }
+  or(expression: string) {
+    this.filters.push({ kind: 'or', expression });
+    return this;
+  }
+}
+
+class QueryBuilder extends FilterMixin {
+  private selectCols = '*';
+  private selectOptions?: SelectOptions;
+  private orderBy: { column: string; ascending?: boolean }[] = [];
+  private limitCount?: number;
+  private rangeFrom?: number;
+  private rangeTo?: number;
+  private singleResult = false;
+  private maybeSingleResult = false;
+
+  constructor(private table: string) {
+    super();
+  }
+
+  select(columns: string = '*', options?: SelectOptions) {
+    this.selectCols = columns;
+    this.selectOptions = options;
+    return this;
+  }
 
   order(column: string, options?: { ascending?: boolean }) {
     this.orderBy.push({ column, ascending: options?.ascending ?? true });
     return this;
   }
 
-  limit(count: number) { this.limitCount = count; return this; }
-  range(from: number, to: number) { this.offsetCount = from; this.limitCount = to - from + 1; return this; }
+  limit(count: number) {
+    this.limitCount = count;
+    return this;
+  }
+
+  range(from: number, to: number) {
+    this.rangeFrom = from;
+    this.rangeTo = to;
+    return this;
+  }
 
   single() { this.singleResult = true; return this; }
   maybeSingle() { this.maybeSingleResult = true; return this; }
 
-  private async execute() {
-    const result = await request('/database/query', {
+  private async execute(): Promise<QueryResult> {
+    const result = await request<QueryResult['data']>('/database/query', {
       method: 'POST',
       body: JSON.stringify({
         table: this.table,
         select: this.selectCols,
+        selectOptions: this.selectOptions,
         filters: this.filters,
         order: this.orderBy,
         limit: this.limitCount,
-        offset: this.offsetCount,
+        rangeFrom: this.rangeFrom,
+        rangeTo: this.rangeTo,
         single: this.singleResult,
         maybeSingle: this.maybeSingleResult,
       }),
     });
-    return result;
+
+    if (result.error) {
+      return { data: null, error: result.error };
+    }
+
+    const payload = result.data as QueryResult;
+    return {
+      data: payload?.data ?? payload,
+      error: null,
+      count: payload?.count ?? undefined,
+    };
   }
 
-  then(resolve: (value: { data: unknown; error: { message: string } | null; count?: number }) => void, reject?: (reason: unknown) => void) {
+  then(
+    resolve: (value: QueryResult) => void,
+    reject?: (reason: unknown) => void,
+  ) {
     return this.execute().then(resolve, reject);
   }
 }
 
 class InsertBuilder {
-  constructor(private table: string, private data: Record<string, unknown> | Record<string, unknown>[]) {}
+  constructor(
+    private table: string,
+    private data: Record<string, unknown> | Record<string, unknown>[],
+  ) {}
 
   select(columns = '*') {
     return request('/database/insert', {
       method: 'POST',
       body: JSON.stringify({ table: this.table, data: this.data, returning: columns }),
-    });
+    }).then(normalizeResult);
   }
 
-  then(resolve: (value: { data: unknown; error: { message: string } | null }) => void, reject?: (reason: unknown) => void) {
+  then(resolve: (value: QueryResult) => void, reject?: (reason: unknown) => void) {
     return this.select().then(resolve, reject);
   }
 }
 
-class UpdateBuilder {
-  private filters: QueryFilter[] = [];
+class UpsertBuilder {
+  constructor(
+    private table: string,
+    private data: Record<string, unknown> | Record<string, unknown>[],
+    private options: UpsertOptions = {},
+  ) {}
 
-  constructor(private table: string, private data: Record<string, unknown>) {}
+  select(columns = '*') {
+    return request('/database/upsert', {
+      method: 'POST',
+      body: JSON.stringify({
+        table: this.table,
+        data: this.data,
+        onConflict: this.options.onConflict,
+        ignoreDuplicates: this.options.ignoreDuplicates,
+        returning: columns,
+      }),
+    }).then(normalizeResult);
+  }
 
-  eq(column: string, value: unknown) { this.filters.push({ column, operator: 'eq', value }); return this; }
+  then(resolve: (value: QueryResult) => void, reject?: (reason: unknown) => void) {
+    return this.select().then(resolve, reject);
+  }
+}
+
+class UpdateBuilder extends FilterMixin {
+  constructor(
+    private table: string,
+    private data: Record<string, unknown>,
+  ) {
+    super();
+  }
 
   select(columns = '*') {
     return request('/database/update', {
       method: 'POST',
-      body: JSON.stringify({ table: this.table, data: this.data, filters: this.filters, returning: columns }),
-    });
+      body: JSON.stringify({
+        table: this.table,
+        data: this.data,
+        filters: this.filters,
+        returning: columns,
+      }),
+    }).then(normalizeResult);
   }
 
-  then(resolve: (value: { data: unknown; error: { message: string } | null }) => void, reject?: (reason: unknown) => void) {
+  then(resolve: (value: QueryResult) => void, reject?: (reason: unknown) => void) {
     return this.select().then(resolve, reject);
   }
 }
 
-class DeleteBuilder {
-  private filters: QueryFilter[] = [];
-
+class DeleteBuilder extends FilterMixin {
   constructor(private table: string) {}
 
-  eq(column: string, value: unknown) { this.filters.push({ column, operator: 'eq', value }); return this; }
+  select(columns = '*') {
+    return request('/database/delete', {
+      method: 'POST',
+      body: JSON.stringify({ table: this.table, filters: this.filters, returning: columns }),
+    }).then(normalizeResult);
+  }
 
-  then(resolve: (value: { data: unknown; error: { message: string } | null }) => void, reject?: (reason: unknown) => void) {
+  then(resolve: (value: QueryResult) => void, reject?: (reason: unknown) => void) {
     return request('/database/delete', {
       method: 'POST',
       body: JSON.stringify({ table: this.table, filters: this.filters }),
-    }).then(resolve, reject);
+    }).then(normalizeResult).then(resolve, reject);
   }
+}
+
+function normalizeResult(result: { data: unknown; error: { message: string } | null }): QueryResult {
+  if (result.error) return { data: null, error: result.error };
+  const payload = result.data as QueryResult;
+  return { data: payload?.data ?? payload, error: null, count: payload?.count };
 }
 
 /** Supabase-compatible database client that routes through NestJS API */
 export const db = {
   from(table: string) {
     return {
-      select: (columns = '*') => new QueryBuilder(table).select(columns),
-      insert: (data: Record<string, unknown> | Record<string, unknown>[]) => new InsertBuilder(table, data),
+      select: (columns?: string, options?: SelectOptions) =>
+        new QueryBuilder(table).select(columns ?? '*', options),
+      insert: (data: Record<string, unknown> | Record<string, unknown>[]) =>
+        new InsertBuilder(table, data),
       update: (data: Record<string, unknown>) => new UpdateBuilder(table, data),
       delete: () => new DeleteBuilder(table),
-      upsert: (data: Record<string, unknown> | Record<string, unknown>[]) => new InsertBuilder(table, data),
+      upsert: (
+        data: Record<string, unknown> | Record<string, unknown>[],
+        options?: UpsertOptions,
+      ) => new UpsertBuilder(table, data, options),
     };
   },
 
@@ -141,6 +244,6 @@ export const db = {
     return request('/database/rpc', {
       method: 'POST',
       body: JSON.stringify({ function: functionName, params }),
-    });
+    }).then(normalizeResult);
   },
 };

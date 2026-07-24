@@ -102,19 +102,15 @@ export function LdapGroupMappings({ configurations, selectedConfigId, onConfigCh
 
   const loadSecurityTemplates = async () => {
     if (!userProfile?.organization_id) return;
-    
+
     try {
-      const result = await fetch(
-        `https://fnmkczsvwpzpxyklztkt.supabase.co/rest/v1/security_templates?organization_id=eq.${userProfile.organization_id}&is_active=eq.true&select=id,name`,
-        {
-          headers: {
-            'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZubWtjenN2d3B6cHh5a2x6dGt0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkyNzU1OTUsImV4cCI6MjA2NDg1MTU5NX0.bSLI8JUAIry3mC6cxBt5sF7r-gyelR63Emdoe7siNjQ',
-            'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
-          }
-        }
-      );
-      const templates = await result.json();
-      if (Array.isArray(templates)) {
+      const { data: templates, error } = await supabase
+        .from('security_templates')
+        .select('id, name')
+        .eq('organization_id', userProfile.organization_id)
+        .eq('is_active', true);
+
+      if (!error && Array.isArray(templates)) {
         setSecurityTemplates(templates);
       }
     } catch (e) {
@@ -124,19 +120,14 @@ export function LdapGroupMappings({ configurations, selectedConfigId, onConfigCh
 
   const loadGroups = async () => {
     if (!userProfile?.organization_id) return;
-    
+
     try {
-      const result = await fetch(
-        `https://fnmkczsvwpzpxyklztkt.supabase.co/rest/v1/groups?organization_id=eq.${userProfile.organization_id}&select=id,name`,
-        {
-          headers: {
-            'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZubWtjenN2d3B6cHh5a2x6dGt0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkyNzU1OTUsImV4cCI6MjA2NDg1MTU5NX0.bSLI8JUAIry3mC6cxBt5sF7r-gyelR63Emdoe7siNjQ',
-            'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
-          }
-        }
-      );
-      const grps = await result.json();
-      if (Array.isArray(grps)) {
+      const { data: grps, error } = await supabase
+        .from('groups')
+        .select('id, name')
+        .eq('organization_id', userProfile.organization_id);
+
+      if (!error && Array.isArray(grps)) {
         setGroups(grps);
       }
     } catch (e) {
