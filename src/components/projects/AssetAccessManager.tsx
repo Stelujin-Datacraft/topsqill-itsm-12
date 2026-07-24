@@ -38,10 +38,10 @@ type PermissionConfig = {
 };
 
 const BASE_PERMISSIONS: PermissionConfig[] = [
-  { key: 'view', label: 'View', icon: Eye, color: 'bg-blue-100 text-blue-800' },
+  { key: 'view', label: 'View', icon: Eye, color: 'bg-info/10 text-info' },
   { key: 'edit', label: 'Edit', icon: Edit, color: 'bg-green-100 text-green-800' },
-  { key: 'delete', label: 'Delete', icon: Trash2, color: 'bg-red-100 text-red-800' },
-  { key: 'share', label: 'Share', icon: Share, color: 'bg-purple-100 text-purple-800' },
+  { key: 'delete', label: 'Delete', icon: Trash2, color: 'bg-destructive/10 text-destructive' },
+  { key: 'share', label: 'Share', icon: Share, color: 'bg-accent/10 text-accent-foreground' },
 ];
 
 const FORM_SPECIFIC_PERMISSIONS: PermissionConfig[] = [
@@ -184,7 +184,7 @@ export function AssetAccessManager({ project, open, onOpenChange, selectedUser }
                 const IconComponent = assetType.icon;
                 return (
                   <TabsTrigger key={assetType.key} value={assetType.key}>
-                    <IconComponent className="h-4 w-4 mr-2" />
+                    <IconComponent className="icon-md mr-2" />
                     {assetType.label}
                   </TabsTrigger>
                 );
@@ -196,7 +196,7 @@ export function AssetAccessManager({ project, open, onOpenChange, selectedUser }
                 <Card>
                   <CardHeader>
                     <CardTitle className="text-lg flex items-center gap-2">
-                      <assetType.icon className="h-5 w-5" />
+                      <assetType.icon className="icon-lg" />
                       {assetType.label} Permissions
                     </CardTitle>
                   </CardHeader>
@@ -225,7 +225,7 @@ export function AssetAccessManager({ project, open, onOpenChange, selectedUser }
                             return (
                               <div key={permission.key} className="flex items-center justify-between p-2 border rounded">
                                 <div className="flex items-center gap-2">
-                                  <IconComponent className="h-4 w-4" />
+                                  <IconComponent className="icon-md" />
                                   <span className="text-sm">{permission.label}</span>
                                 </div>
                                 <Switch

@@ -90,7 +90,7 @@ export function CrossReferenceCell({ submissionRefIds, field }: CrossReferenceCe
   if (loading && shouldFetch) {
     return (
       <Button variant="outline" size="sm" disabled className="cursor-pointer text-left justify-start h-auto py-1 px-2 min-w-[100px]">
-        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+        <Loader2 className="icon-xs mr-1 animate-spin" />
         <span className="text-xs">Loading...</span>
       </Button>
     );
@@ -126,11 +126,11 @@ export function CrossReferenceCell({ submissionRefIds, field }: CrossReferenceCe
               <Button
                 variant="outline"
                 size="icon"
-                className="h-6 w-6 flex-shrink-0 border-border bg-background hover:bg-muted"
+                className="icon-xl flex-shrink-0 border-border bg-background hover:bg-muted"
                 onClick={(e) => e.stopPropagation()}
                 title={expanded ? 'Collapse' : 'Expand linked records'}
               >
-                {expanded ? <Minus className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
+                {expanded ? <Minus className="icon-xs" /> : <Plus className="icon-xs" />}
               </Button>
             </PopoverTrigger>
             <PopoverContent
@@ -158,7 +158,7 @@ export function CrossReferenceCell({ submissionRefIds, field }: CrossReferenceCe
                 className="cursor-pointer hover:bg-accent text-left justify-start h-auto py-1.5 px-2 min-w-0"
                 onClick={() => handleViewRecord(record.id)}
               >
-                <ExternalLink className="h-3 w-3 mr-1.5 text-info flex-shrink-0" />
+                <ExternalLink className="icon-xs mr-1.5 text-info flex-shrink-0" />
                 <div className="flex flex-col items-start gap-0.5 overflow-hidden">
                   <SubmissionRefDisplay
                     submissionRefId={record.submission_ref_id}
@@ -190,7 +190,7 @@ export function CrossReferenceCell({ submissionRefIds, field }: CrossReferenceCe
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-6 w-6 flex-shrink-0 text-accent hover:text-accent/80"
+                className="icon-xl flex-shrink-0 text-accent hover:text-accent/80"
                 onClick={(e) => { e.stopPropagation(); setDrilldownRecord({ id: record.id, refId: record.submission_ref_id }); }}
               >
                 <Layers className="h-3.5 w-3.5" />
@@ -216,11 +216,11 @@ export function CrossReferenceCell({ submissionRefIds, field }: CrossReferenceCe
             <Button
               variant="outline"
               size="icon"
-              className="h-6 w-6 flex-shrink-0 border-border bg-background hover:bg-muted"
+              className="icon-xl flex-shrink-0 border-border bg-background hover:bg-muted"
               onClick={(e) => e.stopPropagation()}
               title={expanded ? 'Collapse' : 'Expand linked records'}
             >
-              {expanded ? <Minus className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
+              {expanded ? <Minus className="icon-xs" /> : <Plus className="icon-xs" />}
             </Button>
           </PopoverTrigger>
           <PopoverContent
@@ -243,9 +243,9 @@ export function CrossReferenceCell({ submissionRefIds, field }: CrossReferenceCe
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" size="sm" className="cursor-pointer hover:bg-accent text-left justify-start h-auto py-1 px-2">
-              <ExternalLink className="h-3 w-3 mr-1 text-info" />
+              <ExternalLink className="icon-xs mr-1 text-info" />
               <span className="text-sm text-primary font-medium">{records.length} linked records</span>
-              <ChevronDown className="h-3 w-3 ml-1 opacity-50" />
+              <ChevronDown className="icon-xs ml-1 opacity-50" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="max-h-[300px] overflow-y-auto min-w-[250px] bg-popover z-50">
@@ -258,7 +258,7 @@ export function CrossReferenceCell({ submissionRefIds, field }: CrossReferenceCe
                   onClick={() => handleViewRecord(record.id)}
                 >
                   <div className="flex items-start gap-2 flex-1 overflow-hidden">
-                    <ExternalLink className="h-3 w-3 mt-0.5 text-info flex-shrink-0" />
+                    <ExternalLink className="icon-xs mt-0.5 text-info flex-shrink-0" />
                     <div className="flex flex-col gap-0.5 overflow-hidden">
                       <SubmissionRefDisplay submissionRefId={record.submission_ref_id} submissionId={record.id} formName={targetFormName || undefined} variant="compact" />
                       {hasDisplayData && (
@@ -269,7 +269,7 @@ export function CrossReferenceCell({ submissionRefIds, field }: CrossReferenceCe
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-6 w-6 flex-shrink-0 text-accent hover:text-accent/80"
+                    className="icon-xl flex-shrink-0 text-accent hover:text-accent/80"
                     onClick={(e) => { e.stopPropagation(); setDrilldownRecord({ id: record.id, refId: record.submission_ref_id }); }}
                   >
                     <Layers className="h-3.5 w-3.5" />

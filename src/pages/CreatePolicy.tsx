@@ -142,11 +142,11 @@ const CreatePolicy = () => {
       actions={
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={() => folderParam ? navigate(`/knowledge-base/${folderParam}`) : navigate('/knowledge-base')}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
+            <ArrowLeft className="icon-md mr-2" />
             Cancel
           </Button>
           <Button onClick={handleSubmit} disabled={!form.name.trim() || createPolicy.isPending}>
-            <Save className="h-4 w-4 mr-2" />
+            <Save className="icon-md mr-2" />
             {createPolicy.isPending ? 'Creating...' : isAudit ? 'Create Audit' : 'Create Doc'}
           </Button>
         </div>

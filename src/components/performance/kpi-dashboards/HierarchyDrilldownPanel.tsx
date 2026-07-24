@@ -162,7 +162,7 @@ export function HierarchyDrilldownPanel({ selectedProject, hierarchy, loading, k
     return (
       <Card>
         <CardContent className="p-6 flex items-center justify-center gap-2 text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" />
+          <Loader2 className="icon-md animate-spin" />
           Loading linked hierarchy...
         </CardContent>
       </Card>
@@ -200,7 +200,7 @@ export function HierarchyDrilldownPanel({ selectedProject, hierarchy, loading, k
               className="h-7 gap-1.5 text-xs"
               onClick={() => handleBreadcrumbClick(-1)}
             >
-              <Home className="h-3 w-3" />
+              <Home className="icon-xs" />
               {projectLabel}
             </Button>
             {breadcrumb.map((item, index) => (
@@ -229,7 +229,7 @@ export function HierarchyDrilldownPanel({ selectedProject, hierarchy, loading, k
 
       {/* Current Level Header */}
       <div className="flex items-center gap-2">
-        <Network className="h-4 w-4 text-module-relationship" />
+        <Network className="icon-md text-module-relationship" />
         <h3 className="text-sm font-semibold text-foreground">
           {LEVEL_LABELS[currentLevel]} Detail
         </h3>

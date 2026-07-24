@@ -164,7 +164,7 @@ export function TechnicalQuestionnaire({ perfProjectId }: Props) {
   const overallGrade = avgScore >= 4.5 ? 'A' : avgScore >= 3.5 ? 'B' : avgScore >= 2.5 ? 'C' : avgScore >= 1.5 ? 'D' : answeredQuestions > 0 ? 'F' : '-';
 
   if (isLoading) {
-    return <div className="flex items-center justify-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+    return <div className="flex items-center justify-center h-64"><Loader2 className="size-8 animate-spin text-primary" /></div>;
   }
 
   return (
@@ -172,7 +172,7 @@ export function TechnicalQuestionnaire({ perfProjectId }: Props) {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-            <ClipboardCheck className="h-5 w-5 text-primary" />
+            <ClipboardCheck className="icon-lg text-primary" />
             Technical & Functional Assessment
           </h2>
           <p className="text-sm text-muted-foreground">
@@ -180,7 +180,7 @@ export function TechnicalQuestionnaire({ perfProjectId }: Props) {
           </p>
         </div>
         <Button onClick={() => saveResponses.mutate()} disabled={saveResponses.isPending || answeredQuestions === 0} className="gap-2">
-          {saveResponses.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+          {saveResponses.isPending ? <Loader2 className="icon-md animate-spin" /> : <Save className="icon-md" />}
           Save Assessment
         </Button>
       </div>
@@ -190,7 +190,7 @@ export function TechnicalQuestionnaire({ perfProjectId }: Props) {
         <Card>
           <CardContent className="pt-5 pb-4 flex flex-col items-center">
             <p className="text-xs text-muted-foreground mb-1">Overall Grade</p>
-            <p className={`text-5xl font-black ${avgScore >= 3.5 ? 'text-green-600' : avgScore >= 2.5 ? 'text-orange-500' : 'text-red-500'}`}>
+            <p className={`text-5xl font-black ${avgScore >= 3.5 ? 'text-green-600' : avgScore >= 2.5 ? 'text-orange-500' : 'text-destructive'}`}>
               {overallGrade}
             </p>
             <p className="text-sm font-medium text-foreground mt-1">{avgScore}/5.0</p>
@@ -261,7 +261,7 @@ export function TechnicalQuestionnaire({ perfProjectId }: Props) {
                 <div key={q.key} className="p-3 rounded-lg border bg-card space-y-2">
                   <div className="flex items-start justify-between gap-3">
                     <p className="text-sm text-foreground flex-1">{q.text}</p>
-                    {score > 0 && <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0 mt-0.5" />}
+                    {score > 0 && <CheckCircle2 className="icon-md text-green-600 shrink-0 mt-0.5" />}
                   </div>
                   <div className="flex items-center gap-1">
                     {[1, 2, 3, 4, 5].map(s => (

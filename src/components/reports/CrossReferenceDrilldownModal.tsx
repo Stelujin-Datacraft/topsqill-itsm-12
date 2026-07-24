@@ -262,7 +262,7 @@ export function CrossReferenceDrilldownModal({
       <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col p-0">
         <DialogHeader className="px-6 pt-6 pb-2">
           <DialogTitle className="flex items-center gap-2">
-            <Layers className="h-5 w-5 text-accent" />
+            <Layers className="icon-lg text-accent" />
             Record Drill-Down
           </DialogTitle>
         </DialogHeader>
@@ -280,7 +280,7 @@ export function CrossReferenceDrilldownModal({
                 >
                   {bc.formName}
                 </Button>
-                <ChevronRight className="h-3 w-3 text-accent/60" />
+                <ChevronRight className="icon-xs text-accent/60" />
               </React.Fragment>
             ))}
             <Badge variant="secondary" className="text-xs font-medium">
@@ -294,7 +294,7 @@ export function CrossReferenceDrilldownModal({
         <ScrollArea className="flex-1 px-6 py-4">
           {loading ? (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <Loader2 className="icon-xl animate-spin text-muted-foreground" />
               <span className="ml-2 text-sm text-muted-foreground">Loading record...</span>
             </div>
           ) : (
@@ -313,7 +313,7 @@ export function CrossReferenceDrilldownModal({
                   className="h-6 px-2 text-xs"
                   onClick={() => navigate(`/submission/${currentSubmissionId}`)}
                 >
-                  <ExternalLink className="h-3 w-3 mr-1 text-info" />
+                  <ExternalLink className="icon-xs mr-1 text-info" />
                   Open
                 </Button>
               </div>
@@ -379,7 +379,7 @@ export function CrossReferenceDrilldownModal({
                                 </span>
                               )}
                             </div>
-                            <ChevronRight className="h-4 w-4 text-accent opacity-0 group-hover:opacity-100 transition-opacity" />
+                            <ChevronRight className="icon-md text-accent opacity-0 group-hover:opacity-100 transition-opacity" />
                           </div>
                         ))}
                         {(!cr.linkedRecords || cr.linkedRecords.length === 0) && (

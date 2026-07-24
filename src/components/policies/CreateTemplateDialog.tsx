@@ -123,10 +123,10 @@ export function CreateTemplateDialog({ open, onOpenChange }: CreateTemplateDialo
                   onClick={() => fileInputRef.current?.click()}
                 >
                   {isUploading ? (
-                    <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
+                    <Loader2 className="size-8 animate-spin text-primary mx-auto" />
                   ) : (
                     <div className="flex flex-col items-center gap-2">
-                      <Upload className="h-8 w-8 text-muted-foreground" />
+                      <Upload className="size-8 text-muted-foreground" />
                       <p className="text-sm font-medium">Upload a .docx file</p>
                       <p className="text-xs text-muted-foreground">Content will be extracted as a reusable template</p>
                     </div>

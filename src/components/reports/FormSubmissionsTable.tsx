@@ -157,11 +157,11 @@ export function FormSubmissionsTable({ config, isEditing, onConfigChange, onEdit
 
   const getSortIcon = (columnKey: string) => {
     if (sortColumn !== columnKey) {
-      return <ArrowUpDown className="h-4 w-4 text-gray-400" />;
+      return <ArrowUpDown className="icon-md text-gray-400" />;
     }
     return sortDirection === 'asc' 
-      ? <ArrowUp className="h-4 w-4 text-violet-600" />
-      : <ArrowDown className="h-4 w-4 text-violet-600" />;
+      ? <ArrowUp className="icon-md text-violet-600" />
+      : <ArrowDown className="icon-md text-violet-600" />;
   };
 
   const getApprovalBadge = (status: string) => {
@@ -169,21 +169,21 @@ export function FormSubmissionsTable({ config, isEditing, onConfigChange, onEdit
       case 'approved':
         return (
           <Badge variant="default" className="bg-green-100 text-green-800 border-green-200">
-            <CheckCircle className="h-3 w-3 mr-1" />
+            <CheckCircle className="icon-xs mr-1" />
             Approved
           </Badge>
         );
       case 'rejected':
         return (
-          <Badge variant="destructive" className="bg-red-100 text-red-800 border-red-200">
-            <XCircle className="h-3 w-3 mr-1" />
+          <Badge variant="destructive" className="bg-destructive/10 text-destructive border-red-200">
+            <XCircle className="icon-xs mr-1" />
             Rejected
           </Badge>
         );
       default:
         return (
           <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 border-yellow-200">
-            <Clock className="h-3 w-3 mr-1" />
+            <Clock className="icon-xs mr-1" />
             Pending
           </Badge>
         );
@@ -397,14 +397,14 @@ export function FormSubmissionsTable({ config, isEditing, onConfigChange, onEdit
           className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10"
           onClick={onEdit}
         >
-          <Edit className="h-4 w-4" />
+          <Edit className="icon-md" />
         </Button>
       )}
       
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold">{config.title || 'Form Submissions'}</h3>
         <Button variant="outline" size="sm" onClick={handleExport}>
-          <Download className="h-4 w-4 mr-2" />
+          <Download className="icon-md mr-2" />
           Export CSV
         </Button>
       </div>
@@ -507,7 +507,7 @@ export function FormSubmissionsTable({ config, isEditing, onConfigChange, onEdit
                 setSelectedSubmission(null);
               }
             }}>
-              <ExternalLink className="h-4 w-4 mr-2" />
+              <ExternalLink className="icon-md mr-2" />
               View Submission
             </Button>
           </DialogFooter>

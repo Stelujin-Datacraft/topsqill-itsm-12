@@ -31,15 +31,15 @@ interface ActivityEvent {
 }
 
 const CATEGORY_ICONS: Record<string, React.ReactNode> = {
-  analysis: <Brain className="h-4 w-4 text-purple-600" />,
-  alerts: <AlertTriangle className="h-4 w-4 text-yellow-600" />,
-  thresholds: <Settings2 className="h-4 w-4 text-blue-600" />,
-  data_sources: <Database className="h-4 w-4 text-cyan-600" />,
-  gis: <MapPin className="h-4 w-4 text-emerald-600" />,
-  questionnaire: <ClipboardCheck className="h-4 w-4 text-orange-600" />,
-  scenarios: <FlaskConical className="h-4 w-4 text-pink-600" />,
-  security: <Shield className="h-4 w-4 text-red-600" />,
-  general: <Clock className="h-4 w-4 text-muted-foreground" />,
+  analysis: <Brain className="icon-md text-accent" />,
+  alerts: <AlertTriangle className="icon-md text-yellow-600" />,
+  thresholds: <Settings2 className="icon-md text-info" />,
+  data_sources: <Database className="icon-md text-cyan-600" />,
+  gis: <MapPin className="icon-md text-success" />,
+  questionnaire: <ClipboardCheck className="icon-md text-orange-600" />,
+  scenarios: <FlaskConical className="icon-md text-pink-600" />,
+  security: <Shield className="icon-md text-destructive" />,
+  general: <Clock className="icon-md text-muted-foreground" />,
 };
 
 const CATEGORY_FILTER_OPTIONS = [
@@ -70,7 +70,7 @@ export function PerformanceActivityLog({ alerts, thresholds, loading, perfProjec
         description: alert.description || undefined,
         severity: alert.severity,
         timestamp: new Date(alert.created_at),
-        icon: <AlertTriangle className="h-4 w-4 text-yellow-600" />,
+        icon: <AlertTriangle className="icon-md text-yellow-600" />,
         source: 'derived',
       });
 
@@ -82,7 +82,7 @@ export function PerformanceActivityLog({ alerts, thresholds, loading, perfProjec
           title: `Alert acknowledged: ${alert.title}`,
           severity: alert.severity,
           timestamp: new Date(alert.created_at),
-          icon: <Bell className="h-4 w-4 text-blue-600" />,
+          icon: <Bell className="icon-md text-info" />,
           source: 'derived',
         });
       }
@@ -94,7 +94,7 @@ export function PerformanceActivityLog({ alerts, thresholds, loading, perfProjec
           title: `Alert resolved: ${alert.title}`,
           severity: alert.severity,
           timestamp: new Date(alert.created_at),
-          icon: <CheckCircle2 className="h-4 w-4 text-emerald-600" />,
+          icon: <CheckCircle2 className="icon-md text-success" />,
           source: 'derived',
         });
       }
@@ -106,7 +106,7 @@ export function PerformanceActivityLog({ alerts, thresholds, loading, perfProjec
           title: `Alert dismissed: ${alert.title}`,
           severity: alert.severity,
           timestamp: new Date(alert.created_at),
-          icon: <EyeOff className="h-4 w-4 text-muted-foreground" />,
+          icon: <EyeOff className="icon-md text-muted-foreground" />,
           source: 'derived',
         });
       }
@@ -122,7 +122,7 @@ export function PerformanceActivityLog({ alerts, thresholds, loading, perfProjec
         description: `${threshold.operator} ${threshold.threshold_value} (${threshold.severity})`,
         severity: threshold.severity,
         timestamp: new Date(),
-        icon: <Plus className="h-4 w-4 text-module-workflows" />,
+        icon: <Plus className="icon-md text-module-workflows" />,
         source: 'derived',
       });
     }
@@ -162,7 +162,7 @@ export function PerformanceActivityLog({ alerts, thresholds, loading, perfProjec
   const isLoading = loading || loadingAudit;
 
   if (isLoading) {
-    return <div className="flex items-center justify-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+    return <div className="flex items-center justify-center h-64"><Loader2 className="size-8 animate-spin text-primary" /></div>;
   }
 
   return (
@@ -200,7 +200,7 @@ export function PerformanceActivityLog({ alerts, thresholds, loading, perfProjec
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="flex items-center gap-2">
-                <Clock className="h-5 w-5 text-module-workflows" />
+                <Clock className="icon-lg text-module-workflows" />
                 Performance Audit Trail
               </CardTitle>
               <CardDescription>

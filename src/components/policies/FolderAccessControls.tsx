@@ -131,7 +131,7 @@ export function FolderAccessControls({ folderId }: FolderAccessControlsProps) {
       <Card>
         <CardHeader>
           <CardTitle className="text-sm flex items-center gap-2">
-            <Shield className="h-4 w-4" /> Grant Access
+            <Shield className="icon-md" /> Grant Access
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -154,7 +154,7 @@ export function FolderAccessControls({ folderId }: FolderAccessControlsProps) {
                     onClick={() => toggleSelection(gId)}
                   >
                     <div className={`w-4 h-4 rounded border flex items-center justify-center ${isSelected ? 'bg-primary border-primary' : 'border-muted-foreground/30'}`}>
-                      {isSelected && <CheckCircle className="h-3 w-3 text-module-knowledge-foreground" />}
+                      {isSelected && <CheckCircle className="icon-xs text-module-knowledge-foreground" />}
                     </div>
                     <Users className="h-3.5 w-3.5 text-muted-foreground" />
                     <span className="text-sm">{g.name}</span>
@@ -177,7 +177,7 @@ export function FolderAccessControls({ folderId }: FolderAccessControlsProps) {
                     onClick={() => toggleSelection(u.id)}
                   >
                     <div className={`w-4 h-4 rounded border flex items-center justify-center ${isSelected ? 'bg-primary border-primary' : 'border-muted-foreground/30'}`}>
-                      {isSelected && <CheckCircle className="h-3 w-3 text-module-knowledge-foreground" />}
+                      {isSelected && <CheckCircle className="icon-xs text-module-knowledge-foreground" />}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-sm truncate">{name}</div>
@@ -210,7 +210,7 @@ export function FolderAccessControls({ folderId }: FolderAccessControlsProps) {
             disabled={selectedIds.length === 0 || addAccess.isPending}
             onClick={() => addAccess.mutate()}
           >
-            <Plus className="h-4 w-4 mr-1" /> Grant Access to {selectedIds.length || ''} Selected
+            <Plus className="icon-md mr-1" /> Grant Access to {selectedIds.length || ''} Selected
           </Button>
         </CardContent>
       </Card>
@@ -218,7 +218,7 @@ export function FolderAccessControls({ folderId }: FolderAccessControlsProps) {
       <Card>
         <CardHeader>
           <CardTitle className="text-sm flex items-center gap-2">
-            <Users className="h-4 w-4" /> Current Access ({accessList.length})
+            <Users className="icon-md" /> Current Access ({accessList.length})
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -232,9 +232,9 @@ export function FolderAccessControls({ folderId }: FolderAccessControlsProps) {
                 <div key={access.id} className="flex items-center justify-between p-2.5 rounded-md border">
                   <div className="flex items-center gap-2">
                     {access.access_type === 'group' ? (
-                      <Users className="h-4 w-4 text-muted-foreground" />
+                      <Users className="icon-md text-muted-foreground" />
                     ) : (
-                      <div className="h-4 w-4 rounded-full bg-primary/20" />
+                      <div className="icon-md rounded-full bg-primary/20" />
                     )}
                     <span className="text-sm font-medium">{getGranteeName(access)}</span>
                     <Badge variant="outline" className="text-[10px] capitalize">{access.access_type}</Badge>

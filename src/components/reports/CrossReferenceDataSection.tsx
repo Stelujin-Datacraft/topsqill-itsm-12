@@ -269,7 +269,7 @@ export function CrossReferenceDataSection({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="flex items-center justify-center w-10 h-10 rounded-full bg-primary/10 text-primary shrink-0">
-              <Link2 className="h-5 w-5" />
+              <Link2 className="icon-lg" />
             </div>
             <div>
               <CardTitle className="text-base flex items-center gap-2">
@@ -290,9 +290,9 @@ export function CrossReferenceDataSection({
               variant="ghost"
               size="sm"
               onClick={() => setIsExpanded(!isExpanded)}
-              className="h-8 w-8 p-0"
+              className="size-8 p-0"
             >
-              {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              {isExpanded ? <ChevronUp className="icon-md" /> : <ChevronDown className="icon-md" />}
             </Button>
           </div>
         </div>
@@ -304,10 +304,10 @@ export function CrossReferenceDataSection({
           <div className="p-4 bg-muted/30 rounded-lg border">
             <div className="flex items-center gap-3 mb-3">
               <div className="flex items-center gap-2">
-                <div className="px-3 py-1.5 bg-blue-100 dark:bg-blue-900/30 rounded-md text-sm font-medium text-blue-700 dark:text-blue-300">
+                <div className="px-3 py-1.5 bg-blue-100 dark:bg-blue-900/30 rounded-md text-sm font-medium text-info dark:text-blue-300">
                   {currentFormName}
                 </div>
-                <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                <ArrowRight className="icon-md text-muted-foreground" />
                 <div className="px-3 py-1.5 bg-green-100 dark:bg-green-900/30 rounded-md text-sm font-medium text-green-700 dark:text-green-300">
                   {targetFormName || 'Linked Form'}
                 </div>
@@ -326,7 +326,7 @@ export function CrossReferenceDataSection({
               <div className={`flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${
                 isStep1Complete ? 'bg-green-500 text-white' : 'bg-primary text-primary-foreground'
               }`}>
-                {isStep1Complete ? <CheckCircle2 className="h-4 w-4" /> : '1'}
+                {isStep1Complete ? <CheckCircle2 className="icon-md" /> : '1'}
               </div>
               <Label className="text-sm font-medium">Which link field connects the forms?</Label>
             </div>
@@ -360,7 +360,7 @@ export function CrossReferenceDataSection({
             {/* Warning if not configured */}
             {crossRefConfig.crossRefFieldId && !crossRefConfig.targetFormId && !targetFormIdFromField && (
               <Alert className="bg-amber-50/50 dark:bg-amber-950/20 border-amber-200/50">
-                <Info className="h-4 w-4 text-amber-600" />
+                <Info className="icon-md text-amber-600" />
                 <AlertDescription className="text-xs">
                   This field doesn't have a linked form configured. Set up the link in Form Builder first.
                 </AlertDescription>
@@ -375,7 +375,7 @@ export function CrossReferenceDataSection({
                 <div className={`flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${
                   isStep2Complete ? 'bg-green-500 text-white' : 'bg-primary text-primary-foreground'
                 }`}>
-                  {isStep2Complete ? <CheckCircle2 className="h-4 w-4" /> : '2'}
+                  {isStep2Complete ? <CheckCircle2 className="icon-md" /> : '2'}
                 </div>
                 <Label className="text-sm font-medium">What do you want to measure?</Label>
               </div>
@@ -392,16 +392,16 @@ export function CrossReferenceDataSection({
                 >
                   <div className="flex items-start gap-3">
                     <div className={`p-2 rounded-lg ${crossRefConfig.mode === 'count' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
-                      <Hash className="h-5 w-5" />
+                      <Hash className="icon-lg" />
                     </div>
                     <div className="flex-1">
                       <div className="font-medium text-sm mb-1">Count Linked Records</div>
                       <p className="text-xs text-muted-foreground mb-2">
                         Count how many <span className="font-medium text-green-600 dark:text-green-400">{targetFormName}</span> records 
-                        are linked to each <span className="font-medium text-blue-600 dark:text-blue-400">{currentFormName}</span> record.
+                        are linked to each <span className="font-medium text-info dark:text-blue-400">{currentFormName}</span> record.
                       </p>
                       <div className="flex items-center gap-2 text-xs bg-muted/50 p-2 rounded">
-                        <BarChart3 className="h-3 w-3 text-muted-foreground" />
+                        <BarChart3 className="icon-xs text-muted-foreground" />
                         <span className="text-muted-foreground">Example:</span>
                         <span>"Customer A has 5 orders, Customer B has 3 orders"</span>
                       </div>
@@ -420,16 +420,16 @@ export function CrossReferenceDataSection({
                 >
                   <div className="flex items-start gap-3">
                     <div className={`p-2 rounded-lg ${crossRefConfig.mode === 'aggregate' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
-                      <Calculator className="h-5 w-5" />
+                      <Calculator className="icon-lg" />
                     </div>
                     <div className="flex-1">
                       <div className="font-medium text-sm mb-1">Calculate Values</div>
                       <p className="text-xs text-muted-foreground mb-2">
                         Sum, average, or calculate a numeric field from <span className="font-medium text-green-600 dark:text-green-400">{targetFormName}</span> records 
-                        for each <span className="font-medium text-blue-600 dark:text-blue-400">{currentFormName}</span> record.
+                        for each <span className="font-medium text-info dark:text-blue-400">{currentFormName}</span> record.
                       </p>
                       <div className="flex items-center gap-2 text-xs bg-muted/50 p-2 rounded">
-                        <BarChart3 className="h-3 w-3 text-muted-foreground" />
+                        <BarChart3 className="icon-xs text-muted-foreground" />
                         <span className="text-muted-foreground">Example:</span>
                         <span>"Customer A total: $1,500, Customer B total: $800"</span>
                       </div>
@@ -448,16 +448,16 @@ export function CrossReferenceDataSection({
                 >
                   <div className="flex items-start gap-3">
                     <div className={`p-2 rounded-lg ${crossRefConfig.mode === 'compare' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
-                      <GitCompare className="h-5 w-5" />
+                      <GitCompare className="icon-lg" />
                     </div>
                     <div className="flex-1">
                       <div className="font-medium text-sm mb-1">Compare Two Fields</div>
                       <p className="text-xs text-muted-foreground mb-2">
                         Compare two numeric fields side-by-side from <span className="font-medium text-green-600 dark:text-green-400">{targetFormName}</span> records 
-                        for each <span className="font-medium text-blue-600 dark:text-blue-400">{currentFormName}</span> record.
+                        for each <span className="font-medium text-info dark:text-blue-400">{currentFormName}</span> record.
                       </p>
                       <div className="flex items-center gap-2 text-xs bg-muted/50 p-2 rounded">
-                        <BarChart3 className="h-3 w-3 text-muted-foreground" />
+                        <BarChart3 className="icon-xs text-muted-foreground" />
                         <span className="text-muted-foreground">Example:</span>
                         <span>"Customer A: Revenue $1500 vs Cost $800"</span>
                       </div>
@@ -475,7 +475,7 @@ export function CrossReferenceDataSection({
                 <div className={`flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${
                   isStep3Complete ? 'bg-green-500 text-white' : 'bg-primary text-primary-foreground'
                 }`}>
-                  {isStep3Complete ? <CheckCircle2 className="h-4 w-4" /> : '3'}
+                  {isStep3Complete ? <CheckCircle2 className="icon-md" /> : '3'}
                 </div>
                 <Label className="text-sm font-medium">Which value to calculate?</Label>
               </div>
@@ -484,7 +484,7 @@ export function CrossReferenceDataSection({
                 <div className="p-4 text-center text-sm text-muted-foreground">Loading fields...</div>
               ) : numericTargetFields.length === 0 ? (
                 <Alert>
-                  <Info className="h-4 w-4" />
+                  <Info className="icon-md" />
                   <AlertDescription className="text-xs">
                     <span className="font-medium">{targetFormName}</span> has no numeric fields. 
                     Use "Count Linked Records" instead, or add numeric fields to that form.
@@ -560,7 +560,7 @@ export function CrossReferenceDataSection({
                 <div className={`flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${
                   isStep3Complete ? 'bg-green-500 text-white' : 'bg-primary text-primary-foreground'
                 }`}>
-                  {isStep3Complete ? <CheckCircle2 className="h-4 w-4" /> : '3'}
+                  {isStep3Complete ? <CheckCircle2 className="icon-md" /> : '3'}
                 </div>
                 <Label className="text-sm font-medium">Select X-axis and Y-axis fields</Label>
               </div>
@@ -569,7 +569,7 @@ export function CrossReferenceDataSection({
                 <div className="p-4 text-center text-sm text-muted-foreground">Loading fields...</div>
               ) : targetFormFields.length < 2 ? (
                 <Alert>
-                  <Info className="h-4 w-4" />
+                  <Info className="icon-md" />
                   <AlertDescription className="text-xs">
                     <span className="font-medium">{targetFormName}</span> needs at least 2 fields to compare. 
                     Add more fields to that form or use a different mode.
@@ -635,7 +635,7 @@ export function CrossReferenceDataSection({
                       X-Axis: "<span className="font-medium">{selectedCompareXField.label}</span>" | 
                       Y-Axis: "<span className="font-medium">{selectedCompareYField.label}</span>" 
                       {!METRIC_FIELD_TYPES.includes(getFieldType(selectedCompareYField)) && (
-                        <span className="text-blue-600 dark:text-blue-400 ml-1">(with legend for text values)</span>
+                        <span className="text-info dark:text-blue-400 ml-1">(with legend for text values)</span>
                       )}
                     </p>
                   )}
@@ -689,7 +689,7 @@ export function CrossReferenceDataSection({
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <div className="flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold bg-muted text-muted-foreground">
-                  <Tag className="h-3 w-3" />
+                  <Tag className="icon-xs" />
                 </div>
                 <Label className="text-sm font-medium">
                   Customize chart labels <span className="text-muted-foreground font-normal">(optional)</span>
@@ -733,7 +733,7 @@ export function CrossReferenceDataSection({
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <div className="flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold bg-muted text-muted-foreground">
-                  <Layers className="h-3 w-3" />
+                  <Layers className="icon-xs" />
                 </div>
                 <Label className="text-sm font-medium">
                   Group chart data <span className="text-muted-foreground font-normal">(optional)</span>
@@ -777,7 +777,7 @@ export function CrossReferenceDataSection({
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <div className="flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold bg-muted text-muted-foreground">
-                  <MousePointerClick className="h-3 w-3" />
+                  <MousePointerClick className="icon-xs" />
                 </div>
                 <Label className="text-sm font-medium">
                   Click-to-drilldown <span className="text-muted-foreground font-normal">(optional)</span>
@@ -819,7 +819,7 @@ export function CrossReferenceDataSection({
                           const field = targetFormFields.find(f => f.id === fieldId);
                           return (
                             <div key={fieldId} className="flex items-center gap-2 p-2 bg-background rounded border">
-                              <span className="w-5 h-5 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center">
+                              <span className="icon-lg rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center">
                                 {index + 1}
                               </span>
                               <span className="flex-1 text-sm">{field?.label || fieldId}</span>
@@ -925,7 +925,7 @@ export function CrossReferenceDataSection({
           {isStep1Complete && isStep3Complete && (
             <div className="p-4 bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-950/30 dark:to-blue-950/30 rounded-lg border border-green-200/50 dark:border-green-800/50">
               <div className="flex items-center gap-2 mb-3">
-                <CheckCircle2 className="h-5 w-5 text-green-600" />
+                <CheckCircle2 className="icon-lg text-green-600" />
                 <span className="font-medium text-sm">Your Chart Configuration</span>
               </div>
               
@@ -933,7 +933,7 @@ export function CrossReferenceDataSection({
                 <div className="flex items-center gap-3">
                   <div className="w-20 text-xs text-muted-foreground">Each bar:</div>
                   <div className="flex-1">
-                    One record from <span className="font-medium text-blue-600 dark:text-blue-400">{currentFormName}</span>
+                    One record from <span className="font-medium text-info dark:text-blue-400">{currentFormName}</span>
                     {selectedSourceLabelField && (
                       <span className="text-muted-foreground"> (labeled by "{selectedSourceLabelField.label}")</span>
                     )}

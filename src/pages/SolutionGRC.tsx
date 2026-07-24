@@ -199,7 +199,7 @@ const SolutionGRC: React.FC = () => {
       {/* Hero */}
       <header className="container mx-auto px-4 py-16 md:py-24 text-center">
         <Badge variant="secondary" className="mb-6 bg-primary/10 text-primary">
-          <Sparkles className="w-3 h-3 mr-1" />
+          <Sparkles className="icon-xs mr-1" />
           Solution Spotlight
         </Badge>
         <h1 className="text-4xl md:text-6xl font-bold mb-6 leading-tight">
@@ -232,7 +232,7 @@ const SolutionGRC: React.FC = () => {
           <CardContent className="p-6 md:p-8">
             <div className="flex items-start gap-4">
               <div className="rounded-full bg-primary/10 p-3 shrink-0">
-                <CheckCircle className="h-6 w-6 text-primary" />
+                <CheckCircle className="icon-xl text-primary" />
               </div>
               <div>
                 <h2 className="text-xl md:text-2xl font-semibold mb-2">
@@ -263,7 +263,7 @@ const SolutionGRC: React.FC = () => {
             ].map(({ icon: Icon, role, use }) => (
               <Card key={role} className="bg-card/60 backdrop-blur">
                 <CardContent className="p-5">
-                  <Icon className="h-6 w-6 text-primary mb-3" />
+                  <Icon className="icon-xl text-primary mb-3" />
                   <h3 className="font-semibold mb-1">{role}</h3>
                   <p className="text-sm text-muted-foreground">{use}</p>
                 </CardContent>
@@ -295,7 +295,7 @@ const SolutionGRC: React.FC = () => {
                           {step.num}
                         </div>
                         <Badge variant="secondary" className="bg-primary/10 text-primary">
-                          <Icon className="w-3 h-3 mr-1" />
+                          <Icon className="icon-xs mr-1" />
                           {step.module}
                         </Badge>
                       </div>
@@ -308,7 +308,7 @@ const SolutionGRC: React.FC = () => {
                       <ul className="space-y-2">
                         {step.bullets.map((b) => (
                           <li key={b} className="flex items-start gap-2 text-sm">
-                            <CheckCircle className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                            <CheckCircle className="icon-md text-primary mt-0.5 shrink-0" />
                             <span>{b}</span>
                           </li>
                         ))}
@@ -323,7 +323,7 @@ const SolutionGRC: React.FC = () => {
                           loading="lazy"
                           width={1536}
                           height={1024}
-                          className="w-full h-auto block transition-transform duration-500 group-hover:scale-[1.02]"
+                          className="w-full h-auto block transition-transform duration-500 group-"
                         />
                         <div className="absolute inset-0 ring-1 ring-inset ring-white/10 pointer-events-none rounded-xl" />
                       </div>
@@ -350,7 +350,7 @@ const SolutionGRC: React.FC = () => {
             ].map(({ icon: Icon, stat, label }) => (
               <Card key={label} className="text-center bg-card/60 backdrop-blur">
                 <CardContent className="p-6">
-                  <Icon className="h-6 w-6 text-primary mx-auto mb-3" />
+                  <Icon className="icon-xl text-primary mx-auto mb-3" />
                   <div className="text-3xl font-bold text-primary mb-1">{stat}</div>
                   <p className="text-sm text-muted-foreground">{label}</p>
                 </CardContent>
@@ -375,7 +375,7 @@ const SolutionGRC: React.FC = () => {
             ].map(({ icon: Icon, title, body }) => (
               <Card key={title} className="bg-card/60 backdrop-blur">
                 <CardContent className="p-6">
-                  <Icon className="h-6 w-6 text-primary mb-3" />
+                  <Icon className="icon-xl text-primary mb-3" />
                   <h3 className="font-semibold mb-2">{title}</h3>
                   <p className="text-sm text-muted-foreground leading-relaxed">{body}</p>
                 </CardContent>
@@ -405,7 +405,7 @@ const SolutionGRC: React.FC = () => {
                   ['Relationship Map', '/relationship-map'],
                 ].map(([label, href]) => (
                   <Link key={label} to={href} className="flex items-center gap-2 rounded-md border border-border bg-background/60 px-3 py-2 text-sm hover:border-primary/40 hover:bg-primary/5 transition-colors">
-                    <CheckCircle className="h-4 w-4 text-primary shrink-0" />
+                    <CheckCircle className="icon-md text-primary shrink-0" />
                     <span className="truncate">{label}</span>
                   </Link>
                 ))}

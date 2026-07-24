@@ -64,21 +64,21 @@ export function EnhancedReportAccessManager({ reportId, reportName }: EnhancedRe
 
   const getPermissionIcon = (permissionId: string) => {
     switch (permissionId) {
-      case 'view': return <Eye className="h-4 w-4" />;
-      case 'create': return <Plus className="h-4 w-4" />;
-      case 'edit': return <Edit className="h-4 w-4" />;
-      case 'delete': return <Trash2 className="h-4 w-4" />;
-      default: return <Shield className="h-4 w-4" />;
+      case 'view': return <Eye className="icon-md" />;
+      case 'create': return <Plus className="icon-md" />;
+      case 'edit': return <Edit className="icon-md" />;
+      case 'delete': return <Trash2 className="icon-md" />;
+      default: return <Shield className="icon-md" />;
     }
   };
 
   const getRoleBadgeColor = (role: string) => {
     switch (role) {
-      case 'admin': return 'bg-red-100 text-red-800';
-      case 'editor': return 'bg-blue-100 text-blue-800';
+      case 'admin': return 'bg-destructive/10 text-destructive';
+      case 'editor': return 'bg-info/10 text-info';
       case 'viewer': return 'bg-green-100 text-green-800';
-      case 'member': return 'bg-gray-100 text-gray-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'member': return 'bg-muted text-muted-foreground';
+      default: return 'bg-muted text-muted-foreground';
     }
   };
 
@@ -97,7 +97,7 @@ export function EnhancedReportAccessManager({ reportId, reportName }: EnhancedRe
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Shield className="h-5 w-5" />
+            <Shield className="icon-lg" />
             Report Access Management
           </CardTitle>
           <p className="text-sm text-muted-foreground">
@@ -106,7 +106,7 @@ export function EnhancedReportAccessManager({ reportId, reportName }: EnhancedRe
         </CardHeader>
         <CardContent className="space-y-6">
           <Alert>
-            <AlertCircle className="h-4 w-4" />
+            <AlertCircle className="icon-md" />
             <AlertDescription>
               Permissions shown here reflect the user's assigned role and cannot be manually edited. 
               View access is granted by default to all project members.
@@ -115,7 +115,7 @@ export function EnhancedReportAccessManager({ reportId, reportName }: EnhancedRe
 
           <div className="space-y-4">
             <h4 className="font-medium flex items-center gap-2">
-              <Users className="h-4 w-4" />
+              <Users className="icon-md" />
               Project Members ({users.length} users)
             </h4>
             
@@ -167,7 +167,7 @@ function ReportUserAccessRow({
       >
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-            <Users className="h-5 w-5 text-blue-600" />
+            <Users className="icon-lg text-info" />
           </div>
           <div>
             <div className="font-medium">

@@ -339,8 +339,8 @@ function MapNodeCard({ node, onNavigate }: { node: TreeNode; onNavigate: (id: st
           {prefix && <span className="text-muted-foreground">{prefix}:</span>}
           {node.submissionRefId}
         </span>
-        <Button variant="ghost" size="icon" className="h-5 w-5 flex-shrink-0" onClick={() => onNavigate(node.id)}>
-          <ExternalLink className="h-3 w-3" />
+        <Button variant="ghost" size="icon" className="icon-lg flex-shrink-0" onClick={() => onNavigate(node.id)}>
+          <ExternalLink className="icon-xs" />
         </Button>
       </div>
       <Badge variant="secondary" className="text-[10px] w-fit">{node.formName}</Badge>
@@ -527,7 +527,7 @@ export default function RelationshipMap() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <SidebarTrigger className="shrink-0" />
-            <GitBranch className="h-5 w-5 sm:h-6 sm:w-6 text-module-workflows shrink-0" />
+            <GitBranch className="icon-lg sm:h-6 sm:w-6 text-module-workflows shrink-0" />
             <div className="min-w-0">
               <h1 className="text-lg sm:text-xl font-bold truncate">Relationship Map</h1>
               <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2">Visualize upstream and downstream record linkages</p>
@@ -538,7 +538,7 @@ export default function RelationshipMap() {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="w-full sm:w-auto shrink-0">
-                  <Download className="h-4 w-4 mr-2" /> Export
+                  <Download className="icon-md mr-2" /> Export
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
@@ -547,14 +547,14 @@ export default function RelationshipMap() {
                   await exportAsPng(treeContainerRef.current, `relationship-map-${selectedSubmissionRefId}`);
                   toast({ title: 'Exported', description: 'Map downloaded as PNG' });
                 }}>
-                  <Image className="h-4 w-4 mr-2" /> Download as PNG
+                  <Image className="icon-md mr-2" /> Download as PNG
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={async () => {
                   if (!treeContainerRef.current) return;
                   await exportAsSvg(treeContainerRef.current, `relationship-map-${selectedSubmissionRefId}`);
                   toast({ title: 'Exported', description: 'Map downloaded as SVG (Visio)' });
                 }}>
-                  <FileImage className="h-4 w-4 mr-2" /> Download as SVG (Visio)
+                  <FileImage className="icon-md mr-2" /> Download as SVG (Visio)
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

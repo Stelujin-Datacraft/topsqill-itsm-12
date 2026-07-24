@@ -36,7 +36,7 @@ export function PolicyFormLink({ formId, onFormIdChange }: PolicyFormLinkProps) 
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2">
-        <Link2 className="h-4 w-4 text-muted-foreground" />
+        <Link2 className="icon-md text-muted-foreground" />
         <Label className="text-sm font-medium">Link to Form (Dynamic Fields)</Label>
       </div>
       <div className="flex items-center gap-2">
@@ -63,10 +63,10 @@ export function PolicyFormLink({ formId, onFormIdChange }: PolicyFormLinkProps) 
             type="button"
             variant="ghost"
             size="icon"
-            className="h-8 w-8 shrink-0"
+            className="size-8 shrink-0"
             onClick={() => onFormIdChange('')}
           >
-            <X className="h-4 w-4" />
+            <X className="icon-md" />
           </Button>
         )}
       </div>

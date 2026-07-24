@@ -235,7 +235,7 @@ export function ProjectLocationMap({ perfProjectId }: Props) {
     : [20, 0];
 
   if (isLoading) {
-    return <div className="flex items-center justify-center h-32"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
+    return <div className="flex items-center justify-center h-32"><Loader2 className="icon-xl animate-spin text-primary" /></div>;
   }
 
   const tile = TILE_LAYERS[tileLayer];
@@ -245,7 +245,7 @@ export function ProjectLocationMap({ perfProjectId }: Props) {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-            <MapPin className="h-5 w-5 text-module-itam" />
+            <MapPin className="icon-lg text-module-itam" />
             GIS & Engineering Intelligence
           </h2>
           <p className="text-sm text-muted-foreground">
@@ -281,7 +281,7 @@ export function ProjectLocationMap({ perfProjectId }: Props) {
                     </div>
                   </div>
                   <Button className="w-full gap-2" onClick={() => saveLocation.mutate()} disabled={saveLocation.isPending}>
-                    {saveLocation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                    {saveLocation.isPending ? <Loader2 className="icon-md animate-spin" /> : <Save className="icon-md" />}
                     Save Location
                   </Button>
                 </div>
@@ -301,7 +301,7 @@ export function ProjectLocationMap({ perfProjectId }: Props) {
           {/* Layer Controls */}
           <div className="flex items-center gap-3 flex-wrap">
             <div className="flex items-center gap-2">
-              <Layers className="h-4 w-4 text-muted-foreground" />
+              <Layers className="icon-md text-muted-foreground" />
               <Select value={tileLayer} onValueChange={(v) => setTileLayer(v as TileLayerType)}>
                 <SelectTrigger className="h-8 w-[130px] text-xs">
                   <SelectValue />
@@ -349,7 +349,7 @@ export function ProjectLocationMap({ perfProjectId }: Props) {
                                 </div>
                                 <div className="flex justify-between">
                                   <span>Critical/High</span>
-                                  <span className="font-medium text-red-600">{loc.criticalAlerts}</span>
+                                  <span className="font-medium text-destructive">{loc.criticalAlerts}</span>
                                 </div>
                                 <div className="flex justify-between">
                                   <span>Active Thresholds</span>
@@ -357,7 +357,7 @@ export function ProjectLocationMap({ perfProjectId }: Props) {
                                 </div>
                                 <div className="flex justify-between">
                                   <span>Health</span>
-                                  <span className={`font-medium ${loc.health === 'healthy' ? 'text-emerald-600' : loc.health === 'critical' ? 'text-red-600' : 'text-yellow-600'}`}>
+                                  <span className={`font-medium ${loc.health === 'healthy' ? 'text-success' : loc.health === 'critical' ? 'text-destructive' : 'text-yellow-600'}`}>
                                     {loc.health.charAt(0).toUpperCase() + loc.health.slice(1)}
                                   </span>
                                 </div>
@@ -428,7 +428,7 @@ export function ProjectLocationMap({ perfProjectId }: Props) {
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2">
-                  <Ruler className="h-4 w-4 text-primary" />
+                  <Ruler className="icon-md text-primary" />
                   Spatial Summary
                 </CardTitle>
                 <CardDescription className="text-xs">Distance and distribution analysis</CardDescription>
@@ -463,7 +463,7 @@ export function ProjectLocationMap({ perfProjectId }: Props) {
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4 text-module-compliance" />
+                  <AlertTriangle className="icon-md text-module-compliance" />
                   Geospatial Risk
                 </CardTitle>
                 <CardDescription className="text-xs">Spatial risk cluster detection</CardDescription>
@@ -471,7 +471,7 @@ export function ProjectLocationMap({ perfProjectId }: Props) {
               <CardContent className="space-y-3">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Healthy Sites</span>
-                  <span className="font-medium text-emerald-600">{projectLocations.filter(p => p.health === 'healthy').length}</span>
+                  <span className="font-medium text-success">{projectLocations.filter(p => p.health === 'healthy').length}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Warning Sites</span>
@@ -479,11 +479,11 @@ export function ProjectLocationMap({ perfProjectId }: Props) {
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Critical Sites</span>
-                  <span className="font-medium text-red-600">{projectLocations.filter(p => p.health === 'critical').length}</span>
+                  <span className="font-medium text-destructive">{projectLocations.filter(p => p.health === 'critical').length}</span>
                 </div>
                 {spatialStats?.clusterRisk && (
                   <div className="p-2.5 rounded-lg bg-red-500/10 border border-red-500/20 text-xs">
-                    <p className="font-medium text-red-600 flex items-center gap-1.5">
+                    <p className="font-medium text-destructive flex items-center gap-1.5">
                       <AlertTriangle className="h-3.5 w-3.5" />
                       Risk Cluster Detected
                     </p>
@@ -494,7 +494,7 @@ export function ProjectLocationMap({ perfProjectId }: Props) {
                 )}
                 {spatialStats && !spatialStats.clusterRisk && (
                   <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-xs">
-                    <p className="font-medium text-emerald-600">No Risk Clusters</p>
+                    <p className="font-medium text-success">No Risk Clusters</p>
                     <p className="text-muted-foreground mt-1">Critical sites are geographically dispersed.</p>
                   </div>
                 )}
@@ -530,7 +530,7 @@ export function ProjectLocationMap({ perfProjectId }: Props) {
                             <td className="py-2 pr-4 font-medium">{loc.name}</td>
                             <td className="py-2 pr-4 text-muted-foreground">{loc.location_name || `${loc.latitude.toFixed(2)}, ${loc.longitude.toFixed(2)}`}</td>
                             <td className="py-2 px-2 text-center">{loc.alertCount}</td>
-                            <td className="py-2 px-2 text-center text-red-600">{loc.criticalAlerts}</td>
+                            <td className="py-2 px-2 text-center text-destructive">{loc.criticalAlerts}</td>
                             <td className="py-2 px-2 text-center">{loc.thresholdCount}</td>
                             <td className="py-2 px-2 text-center">
                               <Badge variant={loc.health === 'healthy' ? 'default' : loc.health === 'critical' ? 'destructive' : 'secondary'} className="text-[10px]">

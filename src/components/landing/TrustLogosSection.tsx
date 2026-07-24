@@ -25,10 +25,10 @@ export default function TrustLogosSection() {
           {companies.map((company, index) => (
             <div
               key={index}
-              className={`group flex items-center gap-3 px-5 py-3 rounded-full ${company.bg} border border-transparent hover:border-current/20 transition-all duration-300 cursor-pointer hover:scale-105`}
+              className={`group flex items-center gap-3 px-5 py-3 rounded-full ${company.bg} border border-transparent hover:border-current/20 transition-all duration-300 cursor-pointer`}
             >
               <div className={`p-2 rounded-full bg-background shadow-sm ${company.color}`}>
-                <company.icon className="h-5 w-5" />
+                <company.icon className="icon-lg" />
               </div>
               <span className={`text-base font-semibold tracking-tight ${company.color}`}>
                 {company.name}

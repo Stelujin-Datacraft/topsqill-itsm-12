@@ -233,7 +233,7 @@ export function PolicyRecordSelector({
         <Card className="border-primary/30">
           <CardHeader className="py-2 px-4">
             <div className="flex items-center gap-2">
-              <Eye className="h-4 w-4 text-module-overview" />
+              <Eye className="icon-md text-module-overview" />
               <CardTitle className="text-sm">Selection Preview</CardTitle>
               <Badge variant="outline" className="text-[10px]">
                 {selectedRecordsData.length} records × {selectedFieldIds.length} fields

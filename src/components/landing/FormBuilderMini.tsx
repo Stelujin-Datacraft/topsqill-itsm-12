@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 
 const fieldTypes = [
-  { type: "text", icon: Type, label: "Text", color: "bg-blue-100 text-blue-700" },
+  { type: "text", icon: Type, label: "Text", color: "bg-info/10 text-info" },
   { type: "email", icon: Mail, label: "Email", color: "bg-green-100 text-green-700" },
   { type: "number", icon: Hash, label: "Number", color: "bg-purple-100 text-purple-700" },
   { type: "date", icon: Calendar, label: "Date", color: "bg-orange-100 text-orange-700" },
@@ -62,7 +62,7 @@ export default function FormBuilderMini() {
   const getFieldIcon = (type: string) => {
     const fieldType = fieldTypes.find(f => f.type === type);
     const Icon = fieldType?.icon || Type;
-    return <Icon className="h-4 w-4" />;
+    return <Icon className="icon-md" />;
   };
 
   return (
@@ -79,7 +79,7 @@ export default function FormBuilderMini() {
               </CardDescription>
             </div>
             <Button className="bg-foreground text-background hover:bg-foreground/90 w-full sm:w-auto shrink-0">
-              <Eye className="h-4 w-4 mr-2" />
+              <Eye className="icon-md mr-2" />
               Preview Form
             </Button>
           </div>
@@ -90,7 +90,7 @@ export default function FormBuilderMini() {
             {/* Field Palette */}
             <div className="border-r bg-muted/20 p-4">
               <div className="flex items-center gap-2 mb-4">
-                <Boxes className="h-5 w-5 text-primary"/>
+                <Boxes className="icon-lg text-primary"/>
                 <span className="font-semibold">Field Palette</span>
               </div>
               <div className="space-y-2">
@@ -101,10 +101,10 @@ export default function FormBuilderMini() {
                       key={fieldType.type}
                       draggable
                       onDragStart={(e) => handleDragStart(e, fieldType)}
-                      className="flex items-center gap-2 p-2 rounded-lg border bg-background cursor-move hover:shadow-md hover:scale-105 transition-all duration-200 group"
+                      className="flex items-center gap-2 p-2 rounded-lg border bg-background cursor-move hover:shadow-md transition-all duration-200 group"
                     >
-                      <div className={`p-1 rounded ${fieldType.color} group-hover:scale-110 transition-transform`}>
-                        <Icon className="h-3 w-3" />
+                      <div className={`p-1 rounded ${fieldType.color} group- transition-transform`}>
+                        <Icon className="icon-xs" />
                       </div>
                       <span className="text-sm font-medium">{fieldType.label}</span>
                     </div>
@@ -112,7 +112,7 @@ export default function FormBuilderMini() {
                 })}
               </div>
               <Button size="sm" variant="outline" className="w-full mt-4">
-                <Plus className="h-3 w-3 mr-1" />
+                <Plus className="icon-xs mr-1" />
                 Custom Field
               </Button>
             </div>
@@ -145,7 +145,7 @@ export default function FormBuilderMini() {
                         <div className="flex items-center gap-2 mb-1">
                           {getFieldIcon(field.type)}
                           <span className="font-medium">{field.label}</span>
-                          {field.required && <span className="text-red-500 text-xs">*</span>}
+                          {field.required && <span className="text-destructive text-xs">*</span>}
                         </div>
                         <Input 
                           placeholder={field.placeholder}
@@ -158,19 +158,19 @@ export default function FormBuilderMini() {
                         </div>
                       </div>
                       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
-                          <Settings className="h-3 w-3" />
+                        <Button size="sm" variant="ghost" className="size-8 p-0">
+                          <Settings className="icon-xs" />
                         </Button>
                         <Button 
                           size="sm" 
                           variant="ghost" 
-                          className="h-8 w-8 p-0 hover:bg-red-100 hover:text-red-600"
+                          className="size-8 p-0 hover:bg-red-100 hover:text-destructive"
                           onClick={(e) => {
                             e.stopPropagation();
                             removeField(field.id);
                           }}
                         >
-                          <Trash2 className="h-3 w-3" />
+                          <Trash2 className="icon-xs" />
                         </Button>
                       </div>
                     </div>
@@ -189,7 +189,7 @@ export default function FormBuilderMini() {
             {/* Properties Panel */}
             <div className="border-l bg-muted/20 p-4">
               <div className="flex items-center gap-2 mb-4">
-                <Settings className="h-5 w-5 text-module-overview"/>
+                <Settings className="icon-lg text-module-overview"/>
                 <span className="font-semibold">Properties</span>
               </div>
               
@@ -231,7 +231,7 @@ export default function FormBuilderMini() {
                 <span>🌐 Multi-language</span>
               </div>
               <Button variant="outline" size="sm" className="w-full sm:w-auto shrink-0">
-                <ArrowUpRight className="h-3 w-3 mr-1" />
+                <ArrowUpRight className="icon-xs mr-1" />
                 Advanced Settings
               </Button>
             </div>

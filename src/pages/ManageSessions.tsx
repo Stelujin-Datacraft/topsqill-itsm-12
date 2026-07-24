@@ -187,10 +187,10 @@ const ManageSessions: React.FC = () => {
 
   const getDeviceIcon = (userAgent: string | null) => {
     const t = getDeviceType(userAgent);
-    if (t === 'mobile') return <Smartphone className="h-5 w-5" />;
-    if (t === 'tablet') return <Tablet className="h-5 w-5" />;
-    if (t === 'desktop') return <Monitor className="h-5 w-5" />;
-    return <Globe className="h-5 w-5" />;
+    if (t === 'mobile') return <Smartphone className="icon-lg" />;
+    if (t === 'tablet') return <Tablet className="icon-lg" />;
+    if (t === 'desktop') return <Monitor className="icon-lg" />;
+    return <Globe className="icon-lg" />;
   };
 
   const getDeviceName = (userAgent: string | null): string => {
@@ -318,7 +318,7 @@ const ManageSessions: React.FC = () => {
     <Card>
       <CardContent className="p-4 flex items-center gap-3">
         <div className={`p-2.5 rounded-lg ${accent}`}>
-          <Icon className="h-5 w-5" />
+          <Icon className="icon-lg" />
         </div>
         <div>
           <div className="text-2xl font-bold leading-tight">{value}</div>
@@ -347,7 +347,7 @@ const ManageSessions: React.FC = () => {
             label="Online Now"
             value={stats.online}
             icon={Wifi}
-            accent="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
+            accent="bg-success/10 text-success dark:bg-emerald-900/30 dark:text-emerald-300"
           />
           <StatCard
             label="Idle"
@@ -361,7 +361,7 @@ const ManageSessions: React.FC = () => {
                 label="Users Logged In"
                 value={stats.uniqueUsers}
                 icon={Users}
-                accent="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
+                accent="bg-info/10 text-info dark:bg-blue-900/30 dark:text-blue-300"
               />
               <StatCard
                 label="Users Online"
@@ -390,7 +390,7 @@ const ManageSessions: React.FC = () => {
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
               <div>
                 <CardTitle className="flex items-center gap-2">
-                  <Monitor className="h-5 w-5" />
+                  <Monitor className="icon-lg" />
                   Active Sessions
                 </CardTitle>
                 <CardDescription>
@@ -427,7 +427,7 @@ const ManageSessions: React.FC = () => {
           <CardContent>
             {loading ? (
               <div className="flex justify-center py-8">
-                <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
+                <RefreshCw className="size-8 animate-spin text-muted-foreground" />
               </div>
             ) : filteredSessions.length === 0 ? (
               <div className="text-center py-12">
@@ -481,7 +481,7 @@ const ManageSessions: React.FC = () => {
                             variant="outline"
                             className={`text-xs ${
                               online
-                                ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                                ? 'bg-success/10 text-success dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
                                 : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border-amber-200 dark:border-amber-800'
                             }`}
                           >
@@ -498,7 +498,7 @@ const ManageSessions: React.FC = () => {
                         </span>
                         {sess.ip_address && (
                           <span className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
-                            <Globe className="h-3 w-3" />
+                            <Globe className="icon-xs" />
                             {sess.ip_address}
                           </span>
                         )}
@@ -545,7 +545,7 @@ const ManageSessions: React.FC = () => {
                           <div>
                             <p className="text-muted-foreground">Last Activity</p>
                             <p className="font-medium flex items-center gap-1">
-                              <Clock className="h-3 w-3" />
+                              <Clock className="icon-xs" />
                               {formatDistanceToNow(new Date(sess.last_activity), {
                                 addSuffix: true,
                               })}
@@ -585,12 +585,12 @@ const ManageSessions: React.FC = () => {
                             >
                               {terminatingId === sess.id ? (
                                 <>
-                                  <RefreshCw className="h-4 w-4 mr-1 animate-spin" />
+                                  <RefreshCw className="icon-md mr-1 animate-spin" />
                                   ...
                                 </>
                               ) : (
                                 <>
-                                  <LogOut className="h-4 w-4 mr-1" />
+                                  <LogOut className="icon-md mr-1" />
                                   Sign Out
                                 </>
                               )}

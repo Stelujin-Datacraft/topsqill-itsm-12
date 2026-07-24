@@ -25,7 +25,7 @@ const initialNodes: Node[] = [
     data: { 
       label: (
         <div className="flex items-center gap-2 p-2">
-          <FileText className="h-4 w-4 text-module-forms" />
+          <FileText className="icon-md text-module-forms" />
           <span>Form Submit</span>
         </div>
       ) 
@@ -38,7 +38,7 @@ const initialNodes: Node[] = [
     data: { 
       label: (
         <div className="flex items-center gap-2 p-2">
-          <Clock className="h-4 w-4 text-blue-600" />
+          <Clock className="icon-md text-info" />
           <span>Manager Review</span>
         </div>
       ) 
@@ -51,7 +51,7 @@ const initialNodes: Node[] = [
     data: { 
       label: (
         <div className="flex items-center gap-2 p-2">
-          <CheckCircle className="h-4 w-4 text-green-600" />
+          <CheckCircle className="icon-md text-green-600" />
           <span>Auto Approve</span>
         </div>
       ) 
@@ -64,7 +64,7 @@ const initialNodes: Node[] = [
     data: { 
       label: (
         <div className="flex items-center gap-2 p-2">
-          <Mail className="h-4 w-4 text-blue-600" />
+          <Mail className="icon-md text-info" />
           <span>Send Email</span>
         </div>
       ) 
@@ -77,7 +77,7 @@ const initialNodes: Node[] = [
     data: { 
       label: (
         <div className="flex items-center gap-2 p-2">
-          <Database className="h-4 w-4 text-purple-600" />
+          <Database className="icon-md text-accent" />
           <span>Update Database</span>
         </div>
       ) 
@@ -90,7 +90,7 @@ const initialNodes: Node[] = [
     data: { 
       label: (
         <div className="flex items-center gap-2 p-2">
-          <MessageSquare className="h-4 w-4 text-orange-600" />
+          <MessageSquare className="icon-md text-orange-600" />
           <span>Slack Notify</span>
         </div>
       ) 
@@ -142,7 +142,7 @@ export default function WorkflowPreview() {
               className="bg-foreground text-background hover:bg-foreground/90 w-full sm:w-auto shrink-0"
               disabled={isPlaying}
             >
-              <Play className="h-4 w-4 mr-2" />
+              <Play className="icon-md mr-2" />
               {isPlaying ? "Playing..." : "Demo Flow"}
             </Button>
           </div>
@@ -185,7 +185,7 @@ export default function WorkflowPreview() {
                 <p className="text-sm text-muted-foreground">Smart routing based on data</p>
               </div>
               <div>
-                <Badge variant="secondary" className="mb-2 bg-blue-100 text-blue-700">Integrations</Badge>
+                <Badge variant="secondary" className="mb-2 bg-info/10 text-info">Integrations</Badge>
                 <p className="text-sm text-muted-foreground">Email, Slack, databases, APIs</p>
               </div>
             </div>

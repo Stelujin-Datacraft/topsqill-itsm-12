@@ -15,7 +15,7 @@ const data = [
 export default function ChartsPreview() {
   return (
     <section aria-labelledby="charts-preview-heading" className="container mx-auto px-4">
-      <Card className="overflow-hidden group hover:shadow-2xl transition-all duration-500 hover:-translate-y-2">
+      <Card className="overflow-hidden group hover:shadow-token-lg transition-all duration-500">
         <CardHeader className="bg-gradient-to-r from-primary/5 to-secondary/5 group-hover:from-blue-50 group-hover:to-purple-50 transition-all duration-500">
           <CardTitle id="charts-preview-heading" className="text-2xl bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent group-hover:from-blue-600 group-hover:to-purple-600 transition-all duration-500">
             Real-time Analytics Dashboard
@@ -94,20 +94,20 @@ export default function ChartsPreview() {
         </CardContent>
         <div className="p-6 bg-muted/30 group-hover:bg-gradient-to-r group-hover:from-blue-50 group-hover:to-purple-50 transition-all duration-500">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-            <div className="group-hover:scale-105 transition-transform duration-300">
-              <Badge variant="secondary" className="mb-2 bg-blue-100 text-blue-700 group-hover:bg-blue-200 group-hover:scale-110 transition-all duration-300">Live Data</Badge>
+            <div className="group- transition-transform duration-300">
+              <Badge variant="secondary" className="mb-2 bg-info/10 text-info group-hover:bg-blue-200 group- transition-all duration-300">Live Data</Badge>
               <p className="text-sm text-muted-foreground">Real-time submission tracking</p>
             </div>
-            <div className="group-hover:scale-105 transition-transform duration-300">
-              <Badge variant="secondary" className="mb-2 bg-purple-100 text-purple-700 group-hover:bg-purple-200 group-hover:scale-110 transition-all duration-300">Insights</Badge>
+            <div className="group- transition-transform duration-300">
+              <Badge variant="secondary" className="mb-2 bg-purple-100 text-purple-700 group-hover:bg-purple-200 group- transition-all duration-300">Insights</Badge>
               <p className="text-sm text-muted-foreground">AI-powered analytics</p>
             </div>
-            <div className="group-hover:scale-105 transition-transform duration-300">
-              <Badge variant="secondary" className="mb-2 bg-emerald-100 text-emerald-700 group-hover:bg-emerald-200 group-hover:scale-110 transition-all duration-300">Conversion</Badge>
+            <div className="group- transition-transform duration-300">
+              <Badge variant="secondary" className="mb-2 bg-success/10 text-success group-hover:bg-emerald-200 group- transition-all duration-300">Conversion</Badge>
               <p className="text-sm text-muted-foreground">Smart optimization tips</p>
             </div>
-            <div className="group-hover:scale-105 transition-transform duration-300">
-              <Badge variant="secondary" className="mb-2 bg-cyan-100 text-cyan-700 group-hover:bg-cyan-200 group-hover:scale-110 transition-all duration-300">Export</Badge>
+            <div className="group- transition-transform duration-300">
+              <Badge variant="secondary" className="mb-2 bg-cyan-100 text-cyan-700 group-hover:bg-cyan-200 group- transition-all duration-300">Export</Badge>
               <p className="text-sm text-muted-foreground">Multiple formats supported</p>
             </div>
           </div>

@@ -76,7 +76,7 @@ export function PolicyDashboard({ policies }: PolicyDashboardProps) {
     { label: 'Overdue Reviews', value: dueForReview, icon: CalendarClock, className: 'text-destructive', show: dueForReview > 0 },
     { label: 'Reviews in 30 Days', value: upcomingReview, icon: CalendarClock, className: 'text-yellow-600', show: upcomingReview > 0 },
     { label: 'Expiring in 30 Days', value: expiringSoon, icon: AlertOctagon, className: 'text-orange-600', show: expiringSoon > 0 },
-    { label: 'Require Acknowledgment', value: requireAck, icon: UserCheck, className: 'text-blue-600', show: requireAck > 0 },
+    { label: 'Require Acknowledgment', value: requireAck, icon: UserCheck, className: 'text-info', show: requireAck > 0 },
   ].filter(a => a.show);
 
   return (
@@ -99,7 +99,7 @@ export function PolicyDashboard({ policies }: PolicyDashboardProps) {
         <Card className="border-yellow-200 dark:border-yellow-800">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-yellow-600" />
+              <AlertTriangle className="icon-md text-yellow-600" />
               Attention Required
             </CardTitle>
           </CardHeader>
@@ -203,7 +203,7 @@ export function PolicyDashboard({ policies }: PolicyDashboardProps) {
         <Card>
           <CardHeader>
             <CardTitle className="text-sm flex items-center gap-2">
-              <Shield className="h-4 w-4" />
+              <Shield className="icon-md" />
               Compliance Coverage
             </CardTitle>
           </CardHeader>

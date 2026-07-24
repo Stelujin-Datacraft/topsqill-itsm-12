@@ -73,7 +73,7 @@ export function HeatmapDataSection({ config, formFields, onConfigChange }: Heatm
   return (
     <div className="space-y-6">
       <Alert className="bg-primary/5 border-primary/20">
-        <Grid3X3 className="h-4 w-4 text-primary" />
+        <Grid3X3 className="icon-md text-primary" />
         <AlertDescription className="text-sm">
           <strong>Heatmap</strong> displays data in a grid where color intensity represents values. Perfect for showing relationships between two categories.
         </AlertDescription>
@@ -108,7 +108,7 @@ export function HeatmapDataSection({ config, formFields, onConfigChange }: Heatm
                 onClick={() => onConfigChange({ dimensions: config.dimensions?.slice(1) || [] })}
                 className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
               >
-                <X className="h-4 w-4" />
+                <X className="icon-md" />
               </Button>
             </div>
           ) : categoryFields.length > 0 ? (
@@ -131,7 +131,7 @@ export function HeatmapDataSection({ config, formFields, onConfigChange }: Heatm
             </Select>
           ) : (
             <Alert>
-              <Info className="h-4 w-4" />
+              <Info className="icon-md" />
               <AlertDescription>No category fields found.</AlertDescription>
             </Alert>
           )}
@@ -170,7 +170,7 @@ export function HeatmapDataSection({ config, formFields, onConfigChange }: Heatm
                 onClick={() => onConfigChange({ dimensions: [config.dimensions?.[0] || ''] })}
                 className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
               >
-                <X className="h-4 w-4" />
+                <X className="icon-md" />
               </Button>
             </div>
           ) : (
@@ -237,7 +237,7 @@ export function HeatmapDataSection({ config, formFields, onConfigChange }: Heatm
                 })}
                 className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
               >
-                <X className="h-4 w-4" />
+                <X className="icon-md" />
               </Button>
             </div>
           ) : numericFields.length > 0 ? (

@@ -64,7 +64,7 @@ export default function ProjectAccessPage() {
           <CardContent className="p-8 text-center">
             <div className="text-muted-foreground mb-4">Project not found</div>
             <Button onClick={() => navigate('/projects')}>
-              <ArrowLeft className="h-4 w-4 mr-2" />
+              <ArrowLeft className="icon-md mr-2" />
               Back to Projects
             </Button>
           </CardContent>
@@ -78,13 +78,13 @@ export default function ProjectAccessPage() {
       <DashboardLayout title="Access Denied">
         <Card>
           <CardContent className="p-8 text-center">
-            <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+            <AlertTriangle className="h-12 w-12 text-destructive mx-auto mb-4" />
             <h3 className="text-lg font-semibold mb-2">Access Denied</h3>
             <p className="text-muted-foreground mb-4">
               You don't have permission to manage access for this project. Only project admins can access this page.
             </p>
             <Button onClick={() => navigate(`/projects/${project.id}/overview`)}>
-              <ArrowLeft className="h-4 w-4 mr-2" />
+              <ArrowLeft className="icon-md mr-2" />
               Back to Project Overview
             </Button>
           </CardContent>
@@ -98,7 +98,7 @@ export default function ProjectAccessPage() {
       title={`Access Management - ${project.name}`}
       actions={
         <Button variant="outline" onClick={() => navigate(`/projects/${project.id}/overview`)}>
-          <ArrowLeft className="h-4 w-4 mr-2" />
+          <ArrowLeft className="icon-md mr-2" />
           Back to Overview
         </Button>
       }

@@ -99,7 +99,7 @@ export function AssetList() {
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg">Asset Inventory</CardTitle>
-            <Button onClick={openAddDialog} size="sm"><Plus className="h-4 w-4 mr-2" />Add Asset</Button>
+            <Button onClick={openAddDialog} size="sm"><Plus className="icon-md mr-2" />Add Asset</Button>
           </div>
         </CardHeader>
         <CardContent>
@@ -162,9 +162,9 @@ export function AssetList() {
                       <TableCell className="text-xs">{format(new Date(asset.created_at), 'MMM d, yyyy')}</TableCell>
                       <TableCell className="text-right" onClick={e => e.stopPropagation()}>
                         <div className="flex justify-end gap-1">
-                          <Button variant="ghost" size="icon" onClick={() => setViewAsset(asset)}><Eye className="h-4 w-4" /></Button>
-                          <Button variant="ghost" size="icon" onClick={() => openEditDialog(asset)}><Edit className="h-4 w-4" /></Button>
-                          <Button variant="ghost" size="icon" onClick={() => deleteAsset(asset.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                          <Button variant="ghost" size="icon" onClick={() => setViewAsset(asset)}><Eye className="icon-md" /></Button>
+                          <Button variant="ghost" size="icon" onClick={() => openEditDialog(asset)}><Edit className="icon-md" /></Button>
+                          <Button variant="ghost" size="icon" onClick={() => deleteAsset(asset.id)}><Trash2 className="icon-md text-destructive" /></Button>
                         </div>
                       </TableCell>
                     </TableRow>

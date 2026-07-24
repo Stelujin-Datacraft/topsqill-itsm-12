@@ -77,11 +77,11 @@ const CreateTemplate = () => {
       actions={
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={() => navigate('/policies')}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
+            <ArrowLeft className="icon-md mr-2" />
             Cancel
           </Button>
           <Button onClick={handleSubmit} disabled={!name.trim() || createTemplate.isPending}>
-            <Save className="h-4 w-4 mr-2" />
+            <Save className="icon-md mr-2" />
             {createTemplate.isPending ? 'Saving...' : 'Save Template'}
           </Button>
         </div>
@@ -147,10 +147,10 @@ const CreateTemplate = () => {
                   onClick={() => fileInputRef.current?.click()}
                 >
                   {isUploading ? (
-                    <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
+                    <Loader2 className="size-8 animate-spin text-primary mx-auto" />
                   ) : (
                     <div className="flex flex-col items-center gap-2">
-                      <Upload className="h-8 w-8 text-muted-foreground" />
+                      <Upload className="size-8 text-muted-foreground" />
                       <p className="text-sm font-medium">Upload a .docx file</p>
                       <p className="text-xs text-muted-foreground">Content will be extracted as a reusable template</p>
                     </div>

@@ -58,13 +58,13 @@ export function GenericFieldSelector({
 
   const getFieldTypeColor = (type: string) => {
     const colors: Record<string, string> = {
-      'text': 'bg-blue-100 text-blue-800',
-      'textarea': 'bg-blue-100 text-blue-800',
+      'text': 'bg-info/10 text-info',
+      'textarea': 'bg-info/10 text-info',
       'number': 'bg-green-100 text-green-800',
-      'currency': 'bg-emerald-100 text-emerald-800',
-      'date': 'bg-purple-100 text-purple-800',
-      'time': 'bg-purple-100 text-purple-800',
-      'datetime': 'bg-purple-100 text-purple-800',
+      'currency': 'bg-success/10 text-success',
+      'date': 'bg-accent/10 text-accent-foreground',
+      'time': 'bg-accent/10 text-accent-foreground',
+      'datetime': 'bg-accent/10 text-accent-foreground',
       'select': 'bg-orange-100 text-orange-800',
       'multi-select': 'bg-orange-100 text-orange-800',
       'radio': 'bg-yellow-100 text-yellow-800',
@@ -72,17 +72,17 @@ export function GenericFieldSelector({
       'toggle-switch': 'bg-pink-100 text-pink-800',
       'rating': 'bg-indigo-100 text-indigo-800',
       'slider': 'bg-cyan-100 text-cyan-800',
-      'email': 'bg-blue-100 text-blue-800',
-      'phone': 'bg-blue-100 text-blue-800',
-      'url': 'bg-blue-100 text-blue-800',
-      'file': 'bg-gray-100 text-gray-800',
-      'image': 'bg-gray-100 text-gray-800',
+      'email': 'bg-info/10 text-info',
+      'phone': 'bg-info/10 text-info',
+      'url': 'bg-info/10 text-info',
+      'file': 'bg-muted text-muted-foreground',
+      'image': 'bg-muted text-muted-foreground',
       'address': 'bg-teal-100 text-teal-800',
-      'color': 'bg-red-100 text-red-800',
-      'signature': 'bg-gray-100 text-gray-800',
+      'color': 'bg-destructive/10 text-destructive',
+      'signature': 'bg-muted text-muted-foreground',
       'tags': 'bg-violet-100 text-violet-800'
     };
-    return colors[type] || 'bg-gray-100 text-gray-800';
+    return colors[type] || 'bg-muted text-muted-foreground';
   };
 
   // Show all form fields without any filtering or validation

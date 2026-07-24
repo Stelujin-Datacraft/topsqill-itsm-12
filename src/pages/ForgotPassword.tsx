@@ -74,7 +74,7 @@ const ForgotPassword = () => {
           <CardHeader className="text-center">
             <div className="flex items-center justify-center mb-4">
               <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
-                <Mail className="w-8 h-8 text-module-email" />
+                <Mail className="size-8 text-module-email" />
               </div>
             </div>
             <CardTitle className="text-2xl">Check your email</CardTitle>
@@ -96,7 +96,7 @@ const ForgotPassword = () => {
               </Button>
               <Link to="/auth" className="w-full">
                 <Button variant="ghost" className="w-full">
-                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  <ArrowLeft className="icon-md mr-2" />
                   Back to login
                 </Button>
               </Link>
@@ -141,7 +141,7 @@ const ForgotPassword = () => {
           </form>
           <div className="mt-6 text-center">
             <Link to="/auth" className="text-sm text-module-relationship hover:underline inline-flex items-center gap-1">
-              <ArrowLeft className="w-4 h-4" />
+              <ArrowLeft className="icon-md" />
               Back to login
             </Link>
           </div>

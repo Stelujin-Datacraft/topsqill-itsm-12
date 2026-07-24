@@ -33,9 +33,9 @@ const RESOURCE_TYPES = [
 ] as const;
 
 const PERMISSION_LEVELS = [
-  { key: 'admin', label: 'Admin', icon: Crown, color: 'bg-red-100 text-red-800' },
-  { key: 'edit', label: 'Edit', icon: Edit, color: 'bg-blue-100 text-blue-800' },
-  { key: 'view', label: 'View', icon: Eye, color: 'bg-gray-100 text-gray-800' },
+  { key: 'admin', label: 'Admin', icon: Crown, color: 'bg-destructive/10 text-destructive' },
+  { key: 'edit', label: 'Edit', icon: Edit, color: 'bg-info/10 text-info' },
+  { key: 'view', label: 'View', icon: Eye, color: 'bg-muted text-muted-foreground' },
 ] as const;
 
 export function ProjectAccessManager({ project, open, onOpenChange, selectedUser }: ProjectAccessManagerProps) {
@@ -74,7 +74,7 @@ export function ProjectAccessManager({ project, open, onOpenChange, selectedUser
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Settings className="h-5 w-5" />
+            <Settings className="icon-lg" />
             Access Management
           </DialogTitle>
           <DialogDescription>
@@ -106,7 +106,7 @@ export function ProjectAccessManager({ project, open, onOpenChange, selectedUser
                 return (
                   <div key={resource.key} className="flex items-center justify-between p-3 border rounded-lg">
                     <div className="flex items-center gap-3">
-                      <IconComponent className="h-4 w-4 text-muted-foreground" />
+                      <IconComponent className="icon-md text-muted-foreground" />
                       <span className="font-medium">{resource.label}</span>
                     </div>
                     
@@ -122,7 +122,7 @@ export function ProjectAccessManager({ project, open, onOpenChange, selectedUser
                         {PERMISSION_LEVELS.map((level) => (
                           <SelectItem key={level.key} value={level.key}>
                             <div className="flex items-center gap-2">
-                              <level.icon className="h-3 w-3" />
+                              <level.icon className="icon-xs" />
                               {level.label}
                             </div>
                           </SelectItem>

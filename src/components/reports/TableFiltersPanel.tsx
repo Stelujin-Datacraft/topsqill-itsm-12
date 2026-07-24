@@ -321,10 +321,10 @@ export function TableFiltersPanel({
                 const displayName = isGroup ? getGroupDisplayName(val) : getUserDisplayName(val);
                 return (
                   <Badge key={i} variant="secondary" className="flex items-center gap-1">
-                    {isGroup ? <Users className="h-3 w-3" /> : <User className="h-3 w-3" />}
+                    {isGroup ? <Users className="icon-xs" /> : <User className="icon-xs" />}
                     {displayName}
                     <button type="button" onClick={() => toggleMultiValue(val)} className="ml-1 hover:text-destructive">
-                      <X className="h-3 w-3" />
+                      <X className="icon-xs" />
                     </button>
                   </Badge>
                 );
@@ -349,7 +349,7 @@ export function TableFiltersPanel({
             {groups.length > 0 && (
               <>
                 <div className="text-xs font-medium text-muted-foreground flex items-center gap-1">
-                  <Users className="h-3 w-3" /> Groups
+                  <Users className="icon-xs" /> Groups
                 </div>
                 {groups.map((group) => (
                   <div key={`group-${group.id}`} className="flex items-center gap-2 pl-2" data-filterable>
@@ -368,7 +368,7 @@ export function TableFiltersPanel({
             {users.length > 0 && (
               <>
                 <div className="text-xs font-medium text-muted-foreground flex items-center gap-1 mt-2">
-                  <User className="h-3 w-3" /> Users
+                  <User className="icon-xs" /> Users
                 </div>
                 {users.map((user) => (
                   <div key={`user-${user.id}`} className="flex items-center gap-2 pl-2" data-filterable>
@@ -410,7 +410,7 @@ export function TableFiltersPanel({
                       <Badge key={i} variant="secondary" className="flex items-center gap-1">
                         {displayLabel}
                         <button type="button" onClick={() => toggleMultiValue(val)} className="ml-1 hover:text-destructive">
-                          <X className="h-3 w-3" />
+                          <X className="icon-xs" />
                         </button>
                       </Badge>
                     );
@@ -832,7 +832,7 @@ export function TableFiltersPanel({
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">
-            <Filter className="h-5 w-5 text-module-forms" />
+            <Filter className="icon-lg text-module-forms" />
             Advanced Filters
             {getTotalConditions() > 0 && (
               <Badge variant="secondary">{getTotalConditions()} conditions</Badge>
@@ -845,7 +845,7 @@ export function TableFiltersPanel({
               variant="outline"
               disabled={filters.length > 0}
             >
-              <Plus className="h-4 w-4 mr-2" />
+              <Plus className="icon-md mr-2" />
               Add Filter Group
             </Button>
             <TooltipProvider>
@@ -858,7 +858,7 @@ export function TableFiltersPanel({
                     disabled={!canSaveFilter}
                     className={canSaveFilter ? "" : "opacity-50"}
                   >
-                    <Save className="h-4 w-4 mr-2" />
+                    <Save className="icon-md mr-2" />
                     Save Filter
                   </Button>
                 </TooltipTrigger>
@@ -891,9 +891,9 @@ export function TableFiltersPanel({
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           {group.isOpen ? (
-                            <ChevronDown className="h-4 w-4" />
+                            <ChevronDown className="icon-md" />
                           ) : (
-                            <ChevronRight className="h-4 w-4" />
+                            <ChevronRight className="icon-md" />
                           )}
                           <span className="font-medium">{group.name}</span>
                           <Badge variant="outline">
@@ -911,7 +911,7 @@ export function TableFiltersPanel({
                             removeFilterGroup(group.id);
                           }}
                         >
-                          <X className="h-4 w-4" />
+                          <X className="icon-md" />
                         </Button>
                       </div>
                     </CardHeader>
@@ -1011,7 +1011,7 @@ export function TableFiltersPanel({
                               onClick={() => removeCondition(group.id, condition.id)}
                               className="mt-1"
                             >
-                              <X className="h-4 w-4" />
+                              <X className="icon-md" />
                             </Button>
                           </div>
                         ))}
@@ -1022,7 +1022,7 @@ export function TableFiltersPanel({
                         size="sm"
                         onClick={() => addCondition(group.id)}
                       >
-                        <Plus className="h-4 w-4 mr-2" />
+                        <Plus className="icon-md mr-2" />
                         Add Condition
                       </Button>
                     </CardContent>

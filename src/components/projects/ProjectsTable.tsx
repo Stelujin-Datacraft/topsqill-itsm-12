@@ -91,9 +91,9 @@ export function ProjectsTable({
 
   const getStatusIcon = (status: string) => {
     return status === 'active' ? (
-      <CheckCircle className="h-4 w-4 text-success" />
+      <CheckCircle className="icon-md text-success" />
     ) : (
-      <AlertCircle className="h-4 w-4 text-warning" />
+      <AlertCircle className="icon-md text-warning" />
     );
   };
 
@@ -190,7 +190,7 @@ export function ProjectsTable({
                     </div>
                     {isCurrent && (
                       <Badge variant="outline" className="shrink-0 text-xs">
-                        <Eye className="h-3 w-3 mr-1" />Current
+                        <Eye className="icon-xs mr-1" />Current
                       </Badge>
                     )}
                   </div>
@@ -201,20 +201,20 @@ export function ProjectsTable({
                     </div>
                     <Badge variant="outline" className="text-xs">{userRole}</Badge>
                     <span className="text-muted-foreground flex items-center gap-1">
-                      <Calendar className="h-3 w-3" />
+                      <Calendar className="icon-xs" />
                       {format(new Date(project.created_at), 'MMM d, yyyy')}
                     </span>
                   </div>
                   {canManage && (
                     <div className="flex items-center gap-1 pt-1 border-t">
                       <Button size="sm" variant="ghost" className="h-8 px-2" onClick={(e) => handleCopyId(e, project.id)} title="Copy ID">
-                        <Copy className="h-4 w-4 text-module-relationship" />
+                        <Copy className="icon-md text-module-relationship" />
                       </Button>
                       <Button size="sm" variant="ghost" className="h-8 px-2" onClick={(e) => handleManageAccess(e, project)} title="Access">
-                        <Shield className="h-4 w-4 text-module-compliance" />
+                        <Shield className="icon-md text-module-compliance" />
                       </Button>
                       <Button size="sm" variant="ghost" className="h-8 px-2 ml-auto" onClick={(e) => handleDeleteProject(e, project)} title="Delete">
-                        <Trash2 className="h-4 w-4 text-module-compliance" />
+                        <Trash2 className="icon-md text-module-compliance" />
                       </Button>
                     </div>
                   )}
@@ -268,7 +268,7 @@ export function ProjectsTable({
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      <User className="h-4 w-4 text-muted-foreground" />
+                      <User className="icon-md text-muted-foreground" />
                       <Badge 
                         variant={userRole.includes('Admin') ? 'default' : 'outline'}
                         className={
@@ -287,7 +287,7 @@ export function ProjectsTable({
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-muted-foreground" />
+                      <Calendar className="icon-md text-muted-foreground" />
                       <span className="text-sm">
                         {format(new Date(project.created_at), 'MMM d, yyyy')}
                       </span>
@@ -296,7 +296,7 @@ export function ProjectsTable({
                   <TableCell>
                     {currentProject?.id === project.id && (
                       <Badge variant="outline">
-                        <Eye className="h-3 w-3 mr-1" />
+                        <Eye className="icon-xs mr-1" />
                         Current
                       </Badge>
                     )}
@@ -311,7 +311,7 @@ export function ProjectsTable({
                             onClick={(e) => handleCopyId(e, project.id)}
                             title="Copy Project ID"
                           >
-                            <Copy className="h-4 w-4 text-module-relationship" />
+                            <Copy className="icon-md text-module-relationship" />
                           </Button>
                           <Button
                             size="sm"
@@ -319,7 +319,7 @@ export function ProjectsTable({
                             onClick={(e) => handleManageAccess(e, project)}
                             title="Manage Access"
                           >
-                            <Shield className="h-4 w-4 text-module-forms" />
+                            <Shield className="icon-md text-module-forms" />
                           </Button>
                           <Button
                             size="sm"
@@ -328,7 +328,7 @@ export function ProjectsTable({
                             title="Delete Project"
                             className="text-primary hover:text-primary"
                           >
-                            <Trash2 className="h-4 w-4 text-module-compliance" />
+                            <Trash2 className="icon-md text-module-compliance" />
                           </Button>
                         </>
                       ) : (

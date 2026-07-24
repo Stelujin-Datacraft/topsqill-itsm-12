@@ -266,9 +266,9 @@ const AnalyticsDashboard = () => {
   const getQualityColor = (quality: string) => {
     switch (quality) {
       case 'excellent': return 'text-green-600';
-      case 'good': return 'text-blue-600';
+      case 'good': return 'text-info';
       case 'fair': return 'text-yellow-600';
-      case 'poor': return 'text-red-600';
+      case 'poor': return 'text-destructive';
       default: return 'text-muted-foreground';
     }
   };
@@ -282,7 +282,7 @@ const AnalyticsDashboard = () => {
 
   const headerActions = (
     <Button variant="outline" onClick={() => navigate('/reports')}>
-      <ArrowLeft className="h-4 w-4 mr-2 text-module-workflows" />
+      <ArrowLeft className="icon-md mr-2 text-module-workflows" />
       Back to Reports
     </Button>
   );
@@ -324,7 +324,7 @@ const AnalyticsDashboard = () => {
                       <p className="text-3xl font-bold">{analytics.totalSubmissions}</p>
                     </div>
                     <div className="p-3 rounded-full bg-blue-50">
-                      <FileText className="h-6 w-6 text-blue-600" />
+                      <FileText className="icon-xl text-info" />
                     </div>
                   </div>
                 </CardContent>
@@ -338,7 +338,7 @@ const AnalyticsDashboard = () => {
                       <p className="text-3xl font-bold">{analytics.averageSubmissionsPerDay}</p>
                     </div>
                     <div className="p-3 rounded-full bg-green-50">
-                      <TrendingUp className="h-6 w-6 text-green-600" />
+                      <TrendingUp className="icon-xl text-green-600" />
                     </div>
                   </div>
                 </CardContent>
@@ -352,7 +352,7 @@ const AnalyticsDashboard = () => {
                       <p className="text-3xl font-bold">{formFields.length}</p>
                     </div>
                     <div className="p-3 rounded-full bg-purple-50">
-                      <BarChart3 className="h-6 w-6 text-purple-600" />
+                      <BarChart3 className="icon-xl text-accent" />
                     </div>
                   </div>
                 </CardContent>
@@ -368,7 +368,7 @@ const AnalyticsDashboard = () => {
                       </p>
                     </div>
                     <div className="p-3 rounded-full bg-orange-50">
-                      <Activity className="h-6 w-6 text-orange-600" />
+                      <Activity className="icon-xl text-orange-600" />
                     </div>
                   </div>
                 </CardContent>
@@ -402,7 +402,7 @@ const AnalyticsDashboard = () => {
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button variant="outline" size="sm">
-                      <BarChart3 className="h-4 w-4 mr-2" />
+                      <BarChart3 className="icon-md mr-2" />
                       Select Fields ({selectedFieldIds.length === 0 ? 'All' : selectedFieldIds.length})
                     </Button>
                   </PopoverTrigger>
@@ -655,7 +655,7 @@ const AnalyticsDashboard = () => {
           <Card>
             <CardContent className="py-12">
               <div className="text-center">
-                <Activity className="h-8 w-8 animate-spin mx-auto mb-4 text-muted-foreground" />
+                <Activity className="size-8 animate-spin mx-auto mb-4 text-muted-foreground" />
                 <p className="text-muted-foreground">Loading analytics...</p>
               </div>
             </CardContent>

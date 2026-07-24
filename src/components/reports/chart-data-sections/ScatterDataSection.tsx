@@ -73,7 +73,7 @@ export function ScatterDataSection({ config, formFields, onConfigChange }: Scatt
   return (
     <div className="space-y-6">
       <Alert className="bg-primary/5 border-primary/20">
-        <ScatterChart className="h-4 w-4 text-primary" />
+        <ScatterChart className="icon-md text-primary" />
         <AlertDescription className="text-sm">
           <strong>Scatter Plot</strong> shows the relationship between two field values. Each point represents a data record.
         </AlertDescription>
@@ -108,7 +108,7 @@ export function ScatterDataSection({ config, formFields, onConfigChange }: Scatt
                 onClick={() => onConfigChange({ metrics: config.metrics?.slice(1) || [] })}
                 className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
               >
-                <X className="h-4 w-4" />
+                <X className="icon-md" />
               </Button>
             </div>
           ) : axisFields.length > 0 ? (
@@ -133,7 +133,7 @@ export function ScatterDataSection({ config, formFields, onConfigChange }: Scatt
             </Select>
           ) : (
             <Alert>
-              <Info className="h-4 w-4" />
+              <Info className="icon-md" />
               <AlertDescription>No suitable fields found for scatter plots.</AlertDescription>
             </Alert>
           )}
@@ -145,7 +145,7 @@ export function ScatterDataSection({ config, formFields, onConfigChange }: Scatt
         <div className="flex justify-center">
           <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted px-3 py-1.5 rounded-full">
             <span className="font-medium">X</span>
-            <ArrowRight className="h-3 w-3" />
+            <ArrowRight className="icon-xs" />
             <span className="font-medium">Y</span>
           </div>
         </div>
@@ -180,7 +180,7 @@ export function ScatterDataSection({ config, formFields, onConfigChange }: Scatt
                 onClick={() => onConfigChange({ metrics: [config.metrics?.[0] || ''] })}
                 className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
               >
-                <X className="h-4 w-4" />
+                <X className="icon-md" />
               </Button>
             </div>
           ) : (
@@ -240,7 +240,7 @@ export function ScatterDataSection({ config, formFields, onConfigChange }: Scatt
                 onClick={() => onConfigChange({ dimensions: [] })}
                 className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
               >
-                <X className="h-4 w-4" />
+                <X className="icon-md" />
               </Button>
             </div>
           ) : categoryFields.length > 0 ? (

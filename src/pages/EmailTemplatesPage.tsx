@@ -353,7 +353,7 @@ export default function EmailTemplatesPage() {
           <CardHeader className="flex flex-row items-center justify-between border-b bg-muted/30">
             <div>
               <CardTitle className="flex items-center gap-2">
-                <Mail className="h-5 w-5" />
+                <Mail className="icon-lg" />
                 {editingTemplate ? 'Edit Email Template' : 'Create New Email Template'}
               </CardTitle>
               <CardDescription>
@@ -361,7 +361,7 @@ export default function EmailTemplatesPage() {
               </CardDescription>
             </div>
             <Button variant="ghost" size="icon" onClick={handleCancel}>
-              <X className="h-5 w-5" />
+              <X className="icon-lg" />
             </Button>
           </CardHeader>
           <CardContent className="p-6">
@@ -390,7 +390,7 @@ export default function EmailTemplatesPage() {
         <div className="flex justify-end gap-2">
           <AIEmailTemplateGenerator onTemplateCreated={loadTemplates} />
           <Button onClick={() => setIsCreating(true)}>
-            <Plus className="h-4 w-4 mr-2" />
+            <Plus className="icon-md mr-2" />
             Create Template
           </Button>
         </div>
@@ -433,7 +433,7 @@ export default function EmailTemplatesPage() {
                     <Dialog>
                       <DialogTrigger asChild>
                         <Button variant="outline" size="sm">
-                          <Eye className="h-4 w-4 mr-1" />
+                          <Eye className="icon-md mr-1" />
                           Preview
                         </Button>
                       </DialogTrigger>
@@ -462,7 +462,7 @@ export default function EmailTemplatesPage() {
                       size="sm"
                       onClick={() => deleteTemplate(template.id)}
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <Trash2 className="icon-md" />
                     </Button>
                   </div>
                 </div>
@@ -730,7 +730,7 @@ function EmailTemplateForm({
                   size="sm"
                   onClick={() => addRecipient(recipientType)}
                 >
-                  <Plus className="h-4 w-4 mr-1" />
+                  <Plus className="icon-md mr-1" />
                   Add
                 </Button>
               </div>
@@ -834,7 +834,7 @@ function EmailTemplateForm({
                     size="sm"
                     onClick={() => removeRecipient(recipientType, index)}
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <Trash2 className="icon-md" />
                   </Button>
                 </div>
               ))}
@@ -904,7 +904,7 @@ function EmailTemplateForm({
                 input.click();
               }}
             >
-              <Plus className="h-4 w-4 mr-1" />
+              <Plus className="icon-md mr-1" />
               Upload Files
             </Button>
             <Button
@@ -919,7 +919,7 @@ function EmailTemplateForm({
                 ]
               })}
             >
-              <Plus className="h-4 w-4 mr-1" />
+              <Plus className="icon-md mr-1" />
               From Form Field
             </Button>
           </div>
@@ -994,7 +994,7 @@ function EmailTemplateForm({
                     setFormData({ ...formData, attachments: newAttachments });
                   }}
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <Trash2 className="icon-md" />
                 </Button>
               </div>
             ))}
@@ -1034,7 +1034,7 @@ function EmailTemplateForm({
               size="sm"
               onClick={() => onShowPreviewChange(!showPreview)}
             >
-              <Eye className="h-4 w-4 mr-1" />
+              <Eye className="icon-md mr-1" />
               {showPreview ? 'Hide' : 'Show'} Preview
             </Button>
           </div>

@@ -73,7 +73,7 @@ function KPIMetricCardImpl({
     <>
       <Card
         className={cn(
-          'group relative transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg',
+          'group relative transition-all duration-200 hover:shadow-token-md',
           isClickable &&
             'cursor-pointer hover:ring-1 hover:ring-primary/30',
           variantStyles[variant],
@@ -111,7 +111,7 @@ function KPIMetricCardImpl({
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Info className="h-3 w-3 text-muted-foreground/60 shrink-0 cursor-help" />
+                        <Info className="icon-xs text-muted-foreground/60 shrink-0 cursor-help" />
                       </TooltipTrigger>
                       <TooltipContent side="top" className="max-w-[250px]">
                         <p className="text-xs font-mono">{formula}</p>
@@ -141,7 +141,7 @@ function KPIMetricCardImpl({
                     trendColor,
                   )}
                 >
-                  <TrendIcon className="h-3 w-3" />
+                  <TrendIcon className="icon-xs" />
                   {trendLabel && <span>{trendLabel}</span>}
                 </div>
               )}
@@ -158,11 +158,11 @@ function KPIMetricCardImpl({
             {Icon && (
               <div
                 className={cn(
-                  'rounded-xl border p-2.5 transition-transform duration-200 group-hover:scale-105',
+                  'rounded-xl border p-2.5 transition-transform duration-200 group-',
                   iconStyles[variant],
                 )}
               >
-                <Icon className="h-4 w-4" />
+                <Icon className="icon-md" />
               </div>
             )}
           </div>

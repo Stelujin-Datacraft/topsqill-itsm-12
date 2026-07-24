@@ -1027,7 +1027,7 @@ export function DynamicTable({
           <CardTitle className="flex items-center justify-between">
             <span>{config.title || 'Dynamic Table'}</span>
             {onEdit && <Button variant="outline" size="sm" onClick={onEdit}>
-                <Settings className="h-4 w-4 mr-2" />
+                <Settings className="icon-md mr-2" />
                 Configure
               </Button>}
           </CardTitle>
@@ -1071,7 +1071,7 @@ export function DynamicTable({
               <div className="flex items-center gap-1.5">
                 {/* Primary Action - Create Record */}
                 <Button variant="default" size="sm" onClick={() => navigate(`/form/${config.formId}`)}>
-                  <FileText className="h-4 w-4 mr-1" />
+                  <FileText className="icon-md mr-1" />
                   Create Record
                 </Button>
 
@@ -1083,7 +1083,7 @@ export function DynamicTable({
                   title={isExpanded ? 'Normal View' : 'Expand View'}
                   className="px-2"
                 >
-                  {isExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+                  {isExpanded ? <Minimize2 className="icon-md" /> : <Maximize2 className="icon-md" />}
                 </Button>
               </div>
             </div>
@@ -1121,7 +1121,7 @@ export function DynamicTable({
                       <Button variant="ghost" size="sm" className="h-7 px-2">
                         <Database className="h-3.5 w-3.5 mr-1 text-module-query" />
                         Manage
-                        <ChevronDown className="h-3 w-3 ml-1" />
+                        <ChevronDown className="icon-xs ml-1" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start" className="w-48 bg-popover">
@@ -1129,22 +1129,22 @@ export function DynamicTable({
                       <DropdownMenuSeparator />
                       <ExportDropdown data={exportData} formId={config.formId} formName={currentForm?.name} asSubMenu />
                       <DropdownMenuItem onClick={() => setShowImportDialog(true)}>
-                        <Upload className="h-4 w-4 mr-2 text-module-forms" />
+                        <Upload className="icon-md mr-2 text-module-forms" />
                         Import Data
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={() => setShowUpdateDialog(true)}>
-                        <RefreshCw className="h-4 w-4 mr-2 text-module-forms  " />
+                        <RefreshCw className="icon-md mr-2 text-module-forms" />
                         Update Records
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={() => setShowPolicyDialog(true)}>
-                        <ScrollText className="h-4 w-4 mr-2 text-module-forms " />
+                        <ScrollText className="icon-md mr-2 text-module-forms " />
                         Create Docs
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={() => setShowLinkageMap(true)}>
-                        <GitBranch className="h-4 w-4 mr-2 text-module-forms" />
+                        <GitBranch className="icon-md mr-2 text-module-forms" />
                         Relationship Map
                       </DropdownMenuItem>
                     </DropdownMenuContent>
@@ -1158,14 +1158,14 @@ export function DynamicTable({
                           <Button variant="ghost" size="sm" className="h-7 px-2">
                             <Zap className="h-3.5 w-3.5 mr-1" />
                             Workflows
-                            <ChevronDown className="h-3 w-3 ml-1" />
+                            <ChevronDown className="icon-xs ml-1" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="start" className="w-56 bg-popover">
                           <DropdownMenuLabel>Workflow Actions</DropdownMenuLabel>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem onClick={handleRunAllWorkflows}>
-                            <PlayCircle className="h-4 w-4 mr-2" />
+                            <PlayCircle className="icon-md mr-2" />
                             Run All Workflows ({filteredAndSortedData.length})
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -1257,7 +1257,7 @@ export function DynamicTable({
               <div className="flex items-center space-x-1 bg-muted/30 rounded-md border px-2 py-1 h-8">
                 <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
                 <span className="text-xs text-muted-foreground">Auto</span>
-                <Button variant="ghost" size="sm" onClick={loadData} className="h-5 w-5 p-0">
+                <Button variant="ghost" size="sm" onClick={loadData} className="icon-lg p-0">
                   <svg className="h-2.5 w-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                   </svg>
@@ -1440,23 +1440,23 @@ export function DynamicTable({
                        
                         <TableCell className="py-2 bg-background">
                            <div className="flex items-center justify-center gap-1">
-                                <Button variant="ghost" size="sm" onClick={() => handleViewSubmission(row.id)} className="h-6 w-6 p-0 hover:bg-blue-500/10" title="View submission">
-                                  <Eye className="h-3 w-3 text-blue-500" />
+                                <Button variant="ghost" size="sm" onClick={() => handleViewSubmission(row.id)} className="icon-xl p-0 hover:bg-blue-500/10" title="View submission">
+                                  <Eye className="icon-xs text-blue-500" />
                                </Button>
                                {canEditSubmission(row.submission_data || {}) && (
                                  <Button variant="ghost" size="sm" onClick={e => {
                                     e.stopPropagation();
                                     handleEditSubmission(row);
-                                   }} className="h-6 w-6 p-0 hover:bg-amber-500/10" title="Edit submission">
-                                     <Edit3 className="h-3 w-3 text-amber-500" />
+                                   }} className="icon-xl p-0 hover:bg-amber-500/10" title="Edit submission">
+                                     <Edit3 className="icon-xs text-amber-500" />
                                   </Button>
                                )}
                               <Button variant="ghost" size="sm" onClick={e => {
                                  e.stopPropagation();
                                  setRecordHistorySubmission({ id: row.id, refId: row.submission_ref_id || row.id.slice(0, 8) });
                                  setShowRecordHistory(true);
-                                }} className="h-6 w-6 p-0 hover:bg-violet-500/10" title="View record history">
-                                  <History className="h-3 w-3 text-violet-500" />
+                                }} className="icon-xl p-0 hover:bg-violet-500/10" title="View record history">
+                                  <History className="icon-xs text-violet-500" />
                               </Button>
                              <ManualWorkflowTrigger
                                formId={config.formId}
@@ -1585,7 +1585,7 @@ export function DynamicTable({
                 setSelectedSubmissionForView(null);
               }
             }}>
-              <ExternalLink className="h-4 w-4 mr-2" />
+              <ExternalLink className="icon-md mr-2" />
               View Submission
             </Button>
           </DialogFooter>

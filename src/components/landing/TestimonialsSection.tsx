@@ -46,7 +46,7 @@ export default function TestimonialsSection() {
     <section className="py-20 bg-gradient-to-br from-background to-muted/30">
       <div className="container mx-auto px-4">
         <div className="text-center mb-16">
-          <Badge variant="secondary" className="mb-4 bg-amber-100 text-amber-800">
+          <Badge variant="secondary" className="mb-4 bg-warning/10 text-warning">
             Customer Stories
           </Badge>
           <h2 className="text-3xl md:text-4xl font-bold mb-4 text-foreground">
@@ -61,14 +61,14 @@ export default function TestimonialsSection() {
           {testimonials.map((testimonial, index) => (
             <Card 
               key={index} 
-              className="group hover:shadow-xl transition-all duration-300 hover:-translate-y-2 border-border/50 bg-background"
+              className="group hover:shadow-token-md transition-all duration-300 border-border/50 bg-background"
             >
               <CardContent className="p-8">
                 <div className="flex items-start gap-4 mb-6">
-                  <Quote className="h-8 w-8 text-primary/30 flex-shrink-0" />
+                  <Quote className="size-8 text-primary/30 flex-shrink-0" />
                   <div className="flex gap-1">
                     {Array.from({ length: testimonial.rating }).map((_, i) => (
-                      <Star key={i} className="h-4 w-4 text-amber-400 fill-amber-400" />
+                      <Star key={i} className="icon-md text-warning fill-warning" />
                     ))}
                   </div>
                 </div>
@@ -88,7 +88,7 @@ export default function TestimonialsSection() {
                       <div className="text-sm text-primary">{testimonial.company}</div>
                     </div>
                   </div>
-                  <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
+                  <Badge variant="outline" className="bg-success/10 text-success border-success/20">
                     {testimonial.metric}
                   </Badge>
                 </div>

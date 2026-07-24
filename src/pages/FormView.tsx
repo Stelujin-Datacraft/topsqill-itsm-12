@@ -79,8 +79,8 @@ const FormView = () => {
 
           <Card>
             <CardContent className="text-center py-12">
-              <AlertCircle className={`h-16 w-16 mx-auto mb-4 ${isAccessDenied ? 'text-orange-500' : 'text-red-500'}`} />
-              <h2 className={`text-2xl font-bold mb-2 ${isAccessDenied ? 'text-orange-600' : 'text-red-600'}`}>
+              <AlertCircle className={`h-16 w-16 mx-auto mb-4 ${isAccessDenied ? 'text-orange-500' : 'text-destructive'}`} />
+              <h2 className={`text-2xl font-bold mb-2 ${isAccessDenied ? 'text-orange-600' : 'text-destructive'}`}>
                 {isAccessDenied ? 'Access Denied' : 'Error Loading Form'}
               </h2>
               <p className="text-muted-foreground mb-6">
@@ -94,14 +94,14 @@ const FormView = () => {
                 {user ? (
                   <Link to="/dashboard" className="block">
                     <Button className="w-full">
-                      <Home className="h-4 w-4 mr-2" />
+                      <Home className="icon-md mr-2" />
                       Go to Dashboard
                     </Button>
                   </Link>
                 ) : (
                   <Link to="/auth" className="block">
                     <Button className="w-full">
-                      <LogIn className="h-4 w-4 mr-2" />
+                      <LogIn className="icon-md mr-2" />
                       Login
                     </Button>
                   </Link>
@@ -109,7 +109,7 @@ const FormView = () => {
                 
                 <Link to="/" className="block">
                   <Button variant="outline" className="w-full">
-                    <ArrowLeft className="h-4 w-4 mr-2" />
+                    <ArrowLeft className="icon-md mr-2" />
                     Go to Homepage
                   </Button>
                 </Link>
@@ -143,8 +143,8 @@ const FormView = () => {
 
           <Card>
             <CardContent className="text-center py-12">
-              <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
-              <h2 className="text-2xl font-bold text-red-600 mb-2">Form Not Found</h2>
+              <AlertCircle className="h-16 w-16 text-destructive mx-auto mb-4" />
+              <h2 className="text-2xl font-bold text-destructive mb-2">Form Not Found</h2>
               <p className="text-muted-foreground mb-6">
                 The form you're looking for doesn't exist or has been removed.
               </p>
@@ -152,14 +152,14 @@ const FormView = () => {
               <div className="space-y-3">
                 <Link to="/" className="block">
                   <Button className="w-full">
-                    <Home className="h-4 w-4 mr-2" />
+                    <Home className="icon-md mr-2" />
                     Go to Homepage
                   </Button>
                 </Link>
                 
                 <Link to="/auth" className="block">
                   <Button variant="outline" className="w-full">
-                    <LogIn className="h-4 w-4 mr-2" />
+                    <LogIn className="icon-md mr-2" />
                     Login to Platform
                   </Button>
                 </Link>
@@ -167,13 +167,13 @@ const FormView = () => {
                 <div className="grid grid-cols-2 gap-2 mt-4">
                   <Link to="/" className="block">
                     <Button variant="ghost" size="sm" className="w-full">
-                      <HelpCircle className="h-4 w-4 mr-1" />
+                      <HelpCircle className="icon-md mr-1" />
                       Help
                     </Button>
                   </Link>
                   <Link to="/" className="block">
                     <Button variant="ghost" size="sm" className="w-full">
-                      <Info className="h-4 w-4 mr-1" />
+                      <Info className="icon-md mr-1" />
                       About
                     </Button>
                   </Link>
@@ -287,8 +287,8 @@ const FormView = () => {
 
           <Card>
             <CardContent className="text-center py-12">
-              <LogIn className="h-16 w-16 text-blue-600 mx-auto mb-4" />
-              <h2 className="text-2xl font-bold text-blue-600 mb-2">Login Required</h2>
+              <LogIn className="h-16 w-16 text-info mx-auto mb-4" />
+              <h2 className="text-2xl font-bold text-info mb-2">Login Required</h2>
               <p className="text-muted-foreground mb-6">
                 You need to login to access this form.
               </p>
@@ -296,14 +296,14 @@ const FormView = () => {
               <div className="space-y-3">
                 <Link to="/auth" className="block">
                   <Button className="w-full">
-                    <LogIn className="h-4 w-4 mr-2" />
+                    <LogIn className="icon-md mr-2" />
                     Login to Continue
                   </Button>
                 </Link>
                 
                 <Link to="/" className="block">
                   <Button variant="outline" className="w-full">
-                    <Home className="h-4 w-4 mr-2" />
+                    <Home className="icon-md mr-2" />
                     Go to Homepage
                   </Button>
                 </Link>
@@ -311,13 +311,13 @@ const FormView = () => {
                 <div className="grid grid-cols-2 gap-2 mt-4">
                   <Link to="/" className="block">
                     <Button variant="ghost" size="sm" className="w-full">
-                      <HelpCircle className="h-4 w-4 mr-1" />
+                      <HelpCircle className="icon-md mr-1" />
                       Help
                     </Button>
                   </Link>
                   <Link to="/" className="block">
                     <Button variant="ghost" size="sm" className="w-full">
-                      <Info className="h-4 w-4 mr-1" />
+                      <Info className="icon-md mr-1" />
                       About
                     </Button>
                   </Link>
@@ -366,14 +366,14 @@ const FormView = () => {
               <div className="space-y-3">
                 <Link to="/dashboard" className="block">
                   <Button className="w-full">
-                    <Home className="h-4 w-4 mr-2" />
+                    <Home className="icon-md mr-2" />
                     Go to Dashboard
                   </Button>
                 </Link>
                 
                 <Link to="/" className="block">
                   <Button variant="outline" className="w-full">
-                    <ArrowLeft className="h-4 w-4 mr-2" />
+                    <ArrowLeft className="icon-md mr-2" />
                     Go to Homepage
                   </Button>
                 </Link>

@@ -31,10 +31,10 @@ export function PolicyReviewFlow({
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'completed': return <CheckCircle className="h-5 w-5 text-emerald-500" />;
-      case 'overdue': return <AlertOctagon className="h-5 w-5 text-destructive" />;
-      case 'in_progress': return <RotateCcw className="h-5 w-5 text-blue-500" />;
-      default: return <Clock className="h-5 w-5 text-amber-500" />;
+      case 'completed': return <CheckCircle className="icon-lg text-emerald-500" />;
+      case 'overdue': return <AlertOctagon className="icon-lg text-destructive" />;
+      case 'in_progress': return <RotateCcw className="icon-lg text-blue-500" />;
+      default: return <Clock className="icon-lg text-amber-500" />;
     }
   };
 
@@ -81,7 +81,7 @@ export function PolicyReviewFlow({
       {/* Summary Header */}
       <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50 border">
         <div className="flex items-center gap-3">
-          <CalendarClock className="h-5 w-5 text-primary" />
+          <CalendarClock className="icon-lg text-primary" />
           <span className="text-sm font-semibold">Review Cycles</span>
         </div>
         <div className="flex items-center gap-3 text-xs text-muted-foreground">

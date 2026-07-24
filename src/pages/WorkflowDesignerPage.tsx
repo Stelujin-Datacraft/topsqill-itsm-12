@@ -649,15 +649,15 @@ const WorkflowDesignerPage = () => {
               disabled={running}
             >
               {running ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                <Loader2 className="icon-md mr-2 animate-spin" />
               ) : (
-                <Play className="h-4 w-4 mr-2" />
+                <Play className="icon-md mr-2" />
               )}
               {running ? 'Running...' : 'Run Workflow'}
             </Button>
           )}
           <Button variant="outline" onClick={handleBackToList}>
-            <ArrowLeft className="h-4 w-4 mr-2 text-module-workflows" />
+            <ArrowLeft className="icon-md mr-2 text-module-workflows" />
             Back to Workflows
           </Button>
         </div>
@@ -672,15 +672,15 @@ const WorkflowDesignerPage = () => {
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
           <TabsList className="grid w-full grid-cols-3 mb-4">
             <TabsTrigger value="designer" className="flex items-center space-x-2">
-              <Save className="h-4 w-4" />
+              <Save className="icon-md" />
               <span>Designer</span>
             </TabsTrigger>
             <TabsTrigger value="instances" className="flex items-center space-x-2">
-              <Activity className="h-4 w-4" />
+              <Activity className="icon-md" />
               <span>Execution History</span>
             </TabsTrigger>
             <TabsTrigger value="settings" className="flex items-center space-x-2">
-              <Settings className="h-4 w-4" />
+              <Settings className="icon-md" />
               <span>Settings</span>
             </TabsTrigger>
           </TabsList>

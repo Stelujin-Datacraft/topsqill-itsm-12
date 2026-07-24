@@ -76,7 +76,7 @@ export function PieDonutDataSection({ config, formFields, onConfigChange, chartT
   return (
     <div className="space-y-6">
       <Alert className="bg-primary/5 border-primary/20">
-        <PieChart className="h-4 w-4 text-module-reports" />
+        <PieChart className="icon-md text-module-reports" />
         <AlertDescription className="text-sm">
           <strong>{chartLabel} Chart</strong> shows parts of a whole. Select a <strong>category</strong> to slice by and a <strong>value</strong> to measure each slice's size.
         </AlertDescription>
@@ -101,7 +101,7 @@ export function PieDonutDataSection({ config, formFields, onConfigChange, chartT
           {selectedDimension ? (
             <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border">
               <div className="flex items-center gap-2">
-                <Tag className="h-4 w-4 text-module-reports" />
+                <Tag className="icon-md text-module-reports" />
                 <span className="font-medium">{getFieldLabel(selectedDimension)}</span>
                 <Badge variant="secondary" className="text-xs">{getFieldTypeLabel(selectedDimension)}</Badge>
               </div>
@@ -111,7 +111,7 @@ export function PieDonutDataSection({ config, formFields, onConfigChange, chartT
                 onClick={() => onConfigChange({ dimensions: [] })}
                 className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
               >
-                <X className="h-4 w-4" />
+                <X className="icon-md" />
               </Button>
             </div>
           ) : categoryFields.length > 0 ? (
@@ -132,7 +132,7 @@ export function PieDonutDataSection({ config, formFields, onConfigChange, chartT
             </Select>
           ) : (
             <Alert>
-              <Info className="h-4 w-4" />
+              <Info className="icon-md" />
               <AlertDescription>No category fields found in this form.</AlertDescription>
             </Alert>
           )}
@@ -162,7 +162,7 @@ export function PieDonutDataSection({ config, formFields, onConfigChange, chartT
             <div className="p-4 bg-muted/50 rounded-lg border space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Calculator className="h-4 w-4 text-primary" />
+                  <Calculator className="icon-md text-primary" />
                   <span className="font-medium">{getFieldLabel(selectedMetric)}</span>
                   <Badge variant="secondary" className="text-xs">{getFieldTypeLabel(selectedMetric)}</Badge>
                 </div>
@@ -176,7 +176,7 @@ export function PieDonutDataSection({ config, formFields, onConfigChange, chartT
                   })}
                   className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
                 >
-                  <X className="h-4 w-4" />
+                  <X className="icon-md" />
                 </Button>
               </div>
               

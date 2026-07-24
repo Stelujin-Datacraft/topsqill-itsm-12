@@ -615,7 +615,7 @@ export function QueryChartComponent({ config }: QueryChartComponentProps) {
           <div className="flex items-center gap-2">
             {lastExecuted && (
               <span className="text-xs text-muted-foreground flex items-center gap-1">
-                <Clock className="h-3 w-3" />
+                <Clock className="icon-xs" />
                 {lastExecuted}
               </span>
             )}
@@ -627,9 +627,9 @@ export function QueryChartComponent({ config }: QueryChartComponentProps) {
               className="h-7 px-2"
             >
               {isExecuting ? (
-                <Loader2 className="h-3 w-3 animate-spin" />
+                <Loader2 className="icon-xs animate-spin" />
               ) : (
-                <RefreshCw className="h-3 w-3" />
+                <RefreshCw className="icon-xs" />
               )}
             </Button>
           </div>
@@ -638,13 +638,13 @@ export function QueryChartComponent({ config }: QueryChartComponentProps) {
       <CardContent className="flex-1 overflow-hidden pb-2">
         {error && (
           <div className="flex items-center gap-2 text-destructive text-sm mb-2">
-            <AlertCircle className="h-4 w-4" />
+            <AlertCircle className="icon-md" />
             {error}
           </div>
         )}
         {isExecuting && !queryResult ? (
           <div className="flex items-center justify-center h-full">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            <Loader2 className="icon-xl animate-spin text-muted-foreground" />
           </div>
         ) : (
           renderChart()

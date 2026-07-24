@@ -146,13 +146,13 @@ export function RoleAssignmentDialog({ open, onOpenChange, perfProjectId }: Prop
               </Select>
             </div>
             <Button onClick={() => assignRole.mutate()} disabled={!selectedUserId || assignRole.isPending}>
-              {assignRole.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Assign'}
+              {assignRole.isPending ? <Loader2 className="icon-md animate-spin" /> : 'Assign'}
             </Button>
           </div>
 
           {/* Current assignments */}
           {isLoading ? (
-            <div className="flex justify-center p-4"><Loader2 className="h-6 w-6 animate-spin" /></div>
+            <div className="flex justify-center p-4"><Loader2 className="icon-xl animate-spin" /></div>
           ) : assignments.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-4">No roles assigned yet. Admins default to Senior Management view.</p>
           ) : (
@@ -171,7 +171,7 @@ export function RoleAssignmentDialog({ open, onOpenChange, perfProjectId }: Prop
                     <TableCell>{ROLE_LABELS[a.role_type as PerformanceRoleType] || a.role_type}</TableCell>
                     <TableCell>
                       <Button variant="ghost" size="icon" onClick={() => removeRole.mutate(a.id)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
+                        <Trash2 className="icon-md text-destructive" />
                       </Button>
                     </TableCell>
                   </TableRow>

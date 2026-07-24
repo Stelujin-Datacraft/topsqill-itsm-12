@@ -15,7 +15,7 @@ export default function AnnouncementBanner() {
       <div className="container mx-auto px-4 py-3 flex items-center justify-between relative z-10">
         <div className="flex items-center gap-3">
           <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
-            <Sparkles className="w-3 h-3 mr-1" />
+            <Sparkles className="icon-xs mr-1" />
             BETA
           </Badge>
           <span className="text-sm md:text-base font-medium">
@@ -30,7 +30,7 @@ export default function AnnouncementBanner() {
           onClick={() => setIsVisible(false)}
           className="text-white hover:bg-white/20 h-8 w-8 p-0"
         >
-          <X className="h-4 w-4" />
+          <X className="icon-md" />
         </Button>
       </div>
     </div>

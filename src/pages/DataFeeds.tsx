@@ -68,11 +68,11 @@ export default function DataFeeds() {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList>
           <TabsTrigger value="feeds" className="flex items-center gap-2">
-            <ArrowRightLeft className="h-4 w-4 text-module-feeds" />
+            <ArrowRightLeft className="icon-md text-module-feeds" />
             Data Feeds
           </TabsTrigger>
           <TabsTrigger value="status" className="flex items-center gap-2">
-            <Activity className="h-4 w-4 text-module-performance" />
+            <Activity className="icon-md text-module-performance" />
             Status Monitor
           </TabsTrigger>
         </TabsList>

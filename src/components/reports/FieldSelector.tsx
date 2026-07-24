@@ -70,7 +70,7 @@ export function FieldSelector({
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger>
-                <Info className="h-4 w-4 text-muted-foreground" />
+                <Info className="icon-md text-muted-foreground" />
               </TooltipTrigger>
               <TooltipContent>
                 <p className="max-w-xs text-sm">{description}</p>
@@ -152,7 +152,7 @@ export function FieldSelector({
                 onClick={() => removeField(index)}
                 className="text-destructive hover:text-destructive"
               >
-                <X className="h-4 w-4" />
+                <X className="icon-md" />
               </Button>
             </div>
           );
@@ -165,7 +165,7 @@ export function FieldSelector({
             onClick={addField}
             className="w-full"
           >
-            <Plus className="h-4 w-4 mr-2" />
+            <Plus className="icon-md mr-2" />
             Add {label.slice(0, -1)}
           </Button>
         )}

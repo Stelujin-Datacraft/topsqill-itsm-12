@@ -27,7 +27,7 @@ export function ChartValueModal({ payload, onClose }: ChartValueInlineProps) {
       <DialogContent className="max-w-3xl w-full">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base">
-            <BarChart3 className="h-4 w-4 text-module-reports" />
+            <BarChart3 className="icon-md text-module-reports" />
             {payload?.chartTitle} — Data Point
           </DialogTitle>
         </DialogHeader>

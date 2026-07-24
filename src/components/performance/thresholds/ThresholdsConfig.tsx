@@ -299,7 +299,7 @@ export function ThresholdsConfig({ perfProjectId, thresholds, loading, createThr
               {formData.send_email && (
                 <div className="space-y-3 p-3 border border-border rounded-lg bg-muted/30">
                   <div className="flex items-center gap-2">
-                    <Users className="h-4 w-4 text-module-access" />
+                    <Users className="icon-md text-module-access" />
                     <Label className="font-medium">Notify Performance Roles</Label>
                   </div>
                   <p className="text-xs text-muted-foreground">
@@ -354,7 +354,7 @@ export function ThresholdsConfig({ perfProjectId, thresholds, loading, createThr
           <Card key={threshold.id}>
             <CardContent className="py-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <Settings2 className="h-5 w-5 text-primary" />
+                <Settings2 className="icon-lg text-primary" />
                 <div>
                   <p className="text-sm font-medium text-foreground">
                     {threshold.form_field_label || threshold.metric_name} {threshold.operator} {Number(threshold.threshold_value).toLocaleString()}
@@ -364,7 +364,7 @@ export function ThresholdsConfig({ perfProjectId, thresholds, loading, createThr
                     {threshold.send_email && <Badge variant="outline" className="text-xs">📧 Email</Badge>}
                     {threshold.notify_role_ids && threshold.notify_role_ids.length > 0 && (
                       <Badge variant="outline" className="text-xs">
-                        <Users className="h-3 w-3 mr-1" />
+                        <Users className="icon-xs mr-1" />
                         {getRoleLabels(threshold.notify_role_ids).join(', ')}
                       </Badge>
                     )}
@@ -385,7 +385,7 @@ export function ThresholdsConfig({ perfProjectId, thresholds, loading, createThr
                 className="text-destructive"
                 onClick={() => deleteThreshold.mutate(threshold.id)}
               >
-                <Trash2 className="h-4 w-4" />
+                <Trash2 className="icon-md" />
               </Button>
             </CardContent>
           </Card>

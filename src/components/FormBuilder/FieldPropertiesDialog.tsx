@@ -979,7 +979,7 @@ const { localConfig: fieldConfig, updateConfig } = useFieldConfiguration(selecte
                                   key={rating}
                                   type="button"
                                   onClick={() => updateField('defaultValue', rating === currentRating ? 0 : rating)}
-                                  className="transition-colors cursor-pointer hover:scale-110"
+                                  className="transition-colors cursor-pointer hover:opacity-80"
                                 >
                                   {getIcon(rating, currentRating >= rating)}
                                 </button>

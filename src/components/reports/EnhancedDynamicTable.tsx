@@ -522,7 +522,7 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">
-            <Database className="h-5 w-5" />
+            <Database className="icon-lg" />
             {config.title || 'Data Table'}
             {config.joinConfig?.enabled && (
               <Badge variant="secondary" className="text-xs">Joined</Badge>
@@ -530,7 +530,7 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
           </CardTitle>
           {onEdit && (
             <Button variant="outline" size="sm" onClick={onEdit}>
-              <Eye className="h-4 w-4 mr-2" />
+              <Eye className="icon-md mr-2" />
               Configure
             </Button>
           )}
@@ -539,7 +539,7 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
         {/* Active Drilldown Filters - Breadcrumb style */}
         {drilldownFilters.length > 0 && (
           <div className="flex items-center gap-2 pt-2 flex-wrap">
-            <Filter className="h-4 w-4 text-muted-forms" />
+            <Filter className="icon-md text-muted-forms" />
             <span className="text-sm text-muted-foreground">Drilldown:</span>
             {drilldownFilters.map((filter, index) => (
               <Badge 
@@ -552,7 +552,7 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
                 }}
               >
                 <span>{filter.label}: {filter.value}</span>
-                <X className="h-3 w-3 ml-1" />
+                <X className="icon-xs ml-1" />
               </Badge>
             ))}
             <Button
@@ -569,7 +569,7 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
         {/* Search Bar */}
         {config.enableSearch && (
           <div className="flex items-center gap-2 pt-2">
-            <Search className="h-4 w-4 text-muted-foreground" />
+            <Search className="icon-md text-muted-foreground" />
             <Input
               placeholder="Search..."
               value={searchTerm}
@@ -589,14 +589,14 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
                 onClick={() => setShowFilterPanel(!showFilterPanel)}
                 className="h-8 gap-1"
               >
-                <Filter className="h-4 w-4 text-module-forms" />
+                <Filter className="icon-md text-module-forms" />
                 Filters
                 {activeFilters.length > 0 && (
                   <Badge variant="secondary" className="ml-1 h-5 px-1.5">
                     {activeFilters.length}
                   </Badge>
                 )}
-                {showFilterPanel ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                {showFilterPanel ? <ChevronUp className="icon-xs" /> : <ChevronDown className="icon-xs" />}
               </Button>
               
               {activeFilters.length > 0 && (
@@ -625,7 +625,7 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
                         onClick={() => removeActiveFilter(index)}
                         className="hover:bg-muted rounded-full"
                       >
-                        <X className="h-3 w-3" />
+                        <X className="icon-xs" />
                       </button>
                     </Badge>
                   );
@@ -685,9 +685,9 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
                         variant="ghost"
                         size="sm"
                         onClick={() => removeActiveFilter(index)}
-                        className="h-8 w-8 p-0"
+                        className="size-8 p-0"
                       >
-                        <X className="h-4 w-4" />
+                        <X className="icon-md" />
                       </Button>
                     </div>
                     
@@ -718,7 +718,7 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
                     onClick={addActiveFilter}
                     className="h-8 gap-1"
                   >
-                    <Plus className="h-4 w-4" />
+                    <Plus className="icon-md" />
                     Add Filter
                   </Button>
                   
@@ -767,7 +767,7 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
                               className={`h-4 w-4 p-0 ${sortConfig?.field === field.id && sortConfig?.direction === 'asc' ? 'text-primary' : ''}`}
                               onClick={() => setSortConfig({ field: field.id, direction: 'asc' })}
                             >
-                              <ArrowUp className="h-3 w-3" />
+                              <ArrowUp className="icon-xs" />
                             </Button>
                             <Button
                               variant="ghost"
@@ -775,7 +775,7 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
                               className={`h-4 w-4 p-0 ${sortConfig?.field === field.id && sortConfig?.direction === 'desc' ? 'text-primary' : ''}`}
                               onClick={() => setSortConfig({ field: field.id, direction: 'desc' })}
                             >
-                              <ArrowDown className="h-3 w-3" />
+                              <ArrowDown className="icon-xs" />
                             </Button>
                           </div>
                         )}
@@ -807,7 +807,7 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
                               className={`h-4 w-4 p-0 ${sortConfig?.field === 'submitted_at' && sortConfig?.direction === 'asc' ? 'text-primary' : ''}`}
                               onClick={() => setSortConfig({ field: 'submitted_at', direction: 'asc' })}
                             >
-                              <ArrowUp className="h-3 w-3" />
+                              <ArrowUp className="icon-xs" />
                             </Button>
                             <Button
                               variant="ghost"
@@ -815,7 +815,7 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
                               className={`h-4 w-4 p-0 ${sortConfig?.field === 'submitted_at' && sortConfig?.direction === 'desc' ? 'text-primary' : ''}`}
                               onClick={() => setSortConfig({ field: 'submitted_at', direction: 'desc' })}
                             >
-                              <ArrowDown className="h-3 w-3" />
+                              <ArrowDown className="icon-xs" />
                             </Button>
                           </div>
                         )}
@@ -1003,7 +1003,7 @@ export function EnhancedDynamicTable({ config, onEdit }: EnhancedDynamicTablePro
                   setSelectedSubmission(null);
                 }
               }}>
-                <ExternalLink className="h-4 w-4 mr-2" />
+                <ExternalLink className="icon-md mr-2" />
                 View Submission
               </Button>
             </DialogFooter>

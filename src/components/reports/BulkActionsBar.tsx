@@ -43,7 +43,7 @@ export function BulkActionsBar({
             onClick={onBulkEdit}
             className="flex items-center gap-2"
           >
-            <Edit3 className="h-4 w-4" />
+            <Edit3 className="icon-md" />
             Bulk Edit
           </Button>
 
@@ -53,7 +53,7 @@ export function BulkActionsBar({
             onClick={onMultiLineEdit}
             className="flex items-center gap-2"
           >
-            <Users className="h-4 w-4" />
+            <Users className="icon-md" />
             Multi-Line Edit
           </Button>
 
@@ -63,7 +63,7 @@ export function BulkActionsBar({
             onClick={onCopyRecords}
             className="flex items-center gap-2"
           >
-            <Copy className="h-4 w-4" />
+            <Copy className="icon-md" />
             Copy Record{selectedCount > 1 ? 's' : ''}
           </Button>
 
@@ -75,7 +75,7 @@ export function BulkActionsBar({
               onClick={onRetriggerSelected}
               className="flex items-center gap-2"
             >
-              <Play className="h-4 w-4" />
+              <Play className="icon-md" />
               Run Workflow ({selectedCount})
             </Button>
           )}
@@ -87,7 +87,7 @@ export function BulkActionsBar({
               onClick={onBulkDelete}
               className="flex items-center gap-2"
             >
-              <Trash2 className="h-4 w-4" />
+              <Trash2 className="icon-md" />
               Bulk Delete
             </Button>
           )}
@@ -98,7 +98,7 @@ export function BulkActionsBar({
             onClick={onClearSelection}
             className="flex items-center gap-1"
           >
-            <X className="h-4 w-4" />
+            <X className="icon-md" />
             Clear
           </Button>
         </div>

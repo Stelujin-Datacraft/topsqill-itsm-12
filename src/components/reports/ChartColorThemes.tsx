@@ -43,7 +43,7 @@ export function ChartColorThemes({ selectedTheme, onThemeChange }: ChartColorThe
               {colorSchemes[theme.name as keyof typeof colorSchemes].slice(0, 4).map((color, index) => (
                 <div
                   key={index}
-                  className="w-4 h-4 rounded-full border border-white/20"
+                  className="icon-md rounded-full border border-white/20"
                   style={{ backgroundColor: color }}
                 />
               ))}

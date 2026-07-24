@@ -29,7 +29,7 @@ const WorkflowAccessManagement = () => {
         <div className="text-center py-12">
           <p className="text-muted-foreground">Workflow not found</p>
           <Button onClick={() => navigate('/workflows')} className="mt-4">
-            <ArrowLeft className="h-4 w-4 mr-2" />
+            <ArrowLeft className="icon-md mr-2" />
             Back to Workflows
           </Button>
         </div>
@@ -39,7 +39,7 @@ const WorkflowAccessManagement = () => {
 
   const headerActions = (
     <Button variant="outline" onClick={() => navigate('/workflows')}>
-      <ArrowLeft className="h-4 w-4 mr-2" />
+      <ArrowLeft className="icon-md mr-2" />
       Back to Workflows
     </Button>
   );

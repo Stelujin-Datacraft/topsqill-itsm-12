@@ -179,24 +179,24 @@ const FormAuditLogs: React.FC = () => {
   }, [user, page, eventFilter, formFilter]);
 
   const getEventIcon = (eventType: string) => {
-    if (eventType.includes('created') || eventType.includes('added')) return <Plus className="h-4 w-4" />;
-    if (eventType.includes('updated') || eventType.includes('changed')) return <Edit className="h-4 w-4" />;
-    if (eventType.includes('deleted')) return <Trash2 className="h-4 w-4" />;
-    if (eventType.includes('duplicated')) return <Copy className="h-4 w-4" />;
-    if (eventType.includes('published')) return <Globe className="h-4 w-4" />;
-    if (eventType.includes('archived')) return <Archive className="h-4 w-4" />;
-    if (eventType.includes('settings')) return <Settings className="h-4 w-4" />;
-    if (eventType.includes('permission') || eventType.includes('access')) return <Users className="h-4 w-4" />;
-    if (eventType.includes('reorder')) return <ArrowUpDown className="h-4 w-4" />;
-    if (eventType.includes('workflow_linked')) return <Link className="h-4 w-4" />;
-    if (eventType.includes('exported')) return <Download className="h-4 w-4" />;
-    return <FileText className="h-4 w-4" />;
+    if (eventType.includes('created') || eventType.includes('added')) return <Plus className="icon-md" />;
+    if (eventType.includes('updated') || eventType.includes('changed')) return <Edit className="icon-md" />;
+    if (eventType.includes('deleted')) return <Trash2 className="icon-md" />;
+    if (eventType.includes('duplicated')) return <Copy className="icon-md" />;
+    if (eventType.includes('published')) return <Globe className="icon-md" />;
+    if (eventType.includes('archived')) return <Archive className="icon-md" />;
+    if (eventType.includes('settings')) return <Settings className="icon-md" />;
+    if (eventType.includes('permission') || eventType.includes('access')) return <Users className="icon-md" />;
+    if (eventType.includes('reorder')) return <ArrowUpDown className="icon-md" />;
+    if (eventType.includes('workflow_linked')) return <Link className="icon-md" />;
+    if (eventType.includes('exported')) return <Download className="icon-md" />;
+    return <FileText className="icon-md" />;
   };
 
   const getEventColor = (eventType: string) => {
-    if (eventType.includes('created') || eventType.includes('added')) return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800';
+    if (eventType.includes('created') || eventType.includes('added')) return 'bg-success/10 text-success dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800';
     if (eventType.includes('deleted')) return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 border-red-200 dark:border-red-800';
-    if (eventType.includes('updated') || eventType.includes('changed')) return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 border-blue-200 dark:border-blue-800';
+    if (eventType.includes('updated') || eventType.includes('changed')) return 'bg-info/10 text-info dark:bg-blue-900/30 dark:text-blue-300 border-blue-200 dark:border-blue-800';
     if (eventType.includes('duplicated')) return 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300 border-violet-200 dark:border-violet-800';
     if (eventType.includes('published')) return 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300 border-cyan-200 dark:border-cyan-800';
     if (eventType.includes('permission') || eventType.includes('access')) return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border-amber-200 dark:border-amber-800';
@@ -320,7 +320,7 @@ const FormAuditLogs: React.FC = () => {
             <div className="flex flex-col sm:flex-row gap-4 justify-between">
               <div>
                 <CardTitle className="flex items-center gap-2">
-                  <ClipboardList className="h-5 w-5" />
+                  <ClipboardList className="icon-lg" />
                   Form Activity History
                 </CardTitle>
                 <CardDescription>
@@ -337,12 +337,12 @@ const FormAuditLogs: React.FC = () => {
                     className="w-48"
                   />
                   <Button variant="outline" size="icon" onClick={handleSearch}>
-                    <Search className="h-4 w-4" />
+                    <Search className="icon-md" />
                   </Button>
                 </div>
                 <Select value={eventFilter} onValueChange={(v) => { setEventFilter(v); setPage(0); }}>
                   <SelectTrigger className="w-44">
-                    <Filter className="h-4 w-4 mr-2" />
+                    <Filter className="icon-md mr-2" />
                     <SelectValue placeholder="Event Type" />
                   </SelectTrigger>
                   <SelectContent>
@@ -353,7 +353,7 @@ const FormAuditLogs: React.FC = () => {
                 </Select>
                 <Select value={formFilter} onValueChange={(v) => { setFormFilter(v); setPage(0); }}>
                   <SelectTrigger className="w-44">
-                    <FileText className="h-4 w-4 mr-2" />
+                    <FileText className="icon-md mr-2" />
                     <SelectValue placeholder="All Forms" />
                   </SelectTrigger>
                   <SelectContent>
@@ -369,7 +369,7 @@ const FormAuditLogs: React.FC = () => {
           <CardContent>
             {loading ? (
               <div className="flex justify-center py-8">
-                <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
+                <RefreshCw className="size-8 animate-spin text-muted-foreground" />
               </div>
             ) : logs.length === 0 ? (
               <div className="text-center py-12">
@@ -411,7 +411,7 @@ const FormAuditLogs: React.FC = () => {
                       {/* User Info */}
                       <div className="col-span-4">
                         <div className="flex items-center gap-2">
-                          <Avatar className="h-6 w-6">
+                          <Avatar className="icon-xl">
                             <AvatarFallback className="text-xs bg-primary/10 text-primary">
                               {getUserInitials(userInfo)}
                             </AvatarFallback>

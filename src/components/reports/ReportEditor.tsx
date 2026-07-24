@@ -608,17 +608,17 @@ export function ReportEditor({
             <Button
               size="sm"
               onClick={handleSaveReportName}
-              className="h-8 w-8 p-0"
+              className="size-8 p-0"
             >
-              <Check className="h-4 w-4" />
+              <Check className="icon-md" />
             </Button>
             <Button
               size="sm"
               variant="outline"
               onClick={handleCancelEditingName}
-              className="h-8 w-8 p-0"
+              className="size-8 p-0"
             >
-              <X className="h-4 w-4" />
+              <X className="icon-md" />
             </Button>
           </>
         ) : (
@@ -628,9 +628,9 @@ export function ReportEditor({
               size="sm"
               variant="ghost"
               onClick={handleStartEditingName}
-              className="h-8 w-8 p-0 hover:bg-muted"
+              className="size-8 p-0 hover:bg-muted"
             >
-              <Edit2 className="h-4 w-4" />
+              <Edit2 className="icon-md" />
             </Button>
           </>
         )}
@@ -640,13 +640,13 @@ export function ReportEditor({
       <div className="flex items-center justify-end gap-2">
           {/* Drag Mode Toggle */}
           <Button variant={isDragEnabled ? "default" : "outline"} size="sm" onClick={toggleDragMode} className="flex items-center gap-2">
-            {isDragEnabled ? <Move className="h-4  " /> : <MousePointer className="h-4 w-4 " />}
+            {isDragEnabled ? <Move className="h-4" /> : <MousePointer className="icon-md " />}
             <span className="hidden sm:inline">{isDragEnabled ? 'Drag' : 'Select'}</span>
           </Button>
 
           {/* AI Report Builder Button */}
           <Button variant="outline" size="sm" onClick={() => setIsAIBuilderOpen(true)} className="gap-2">
-            <Sparkles className="h-4 w-4 text-module-query" />
+            <Sparkles className="icon-md text-module-query" />
             <span className="hidden sm:inline">AI Builder</span>
           </Button>
           
@@ -654,48 +654,48 @@ export function ReportEditor({
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">
-                <Plus className="h-4 w-4 mr-2 text-module-query " />
+                <Plus className="icon-md mr-2 text-module-query " />
                 Add Component
-                <ChevronDown className="h-3 w-3 ml-1" />
+                <ChevronDown className="icon-xs ml-1" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
               <DropdownMenuItem onClick={() => handleAddComponent('chart')}>
-                <BarChart3 className="h-4 w-4 mr-2 text-module-forms" />
+                <BarChart3 className="icon-md mr-2 text-module-forms" />
                 Chart
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => handleAddComponent('query-chart')}>
-                <Database className="h-4 w-4 mr-2 text-module-forms" />
+                <Database className="icon-md mr-2 text-module-forms" />
                 Query Chart
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => handleAddComponent('table')}>
-                <TableIcon className="h-4 w-4 mr-2 text-module-forms" />
+                <TableIcon className="icon-md mr-2 text-module-forms" />
                 Table
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => handleAddComponent('form-submissions')}>
-                <FileText className="h-4 w-4 mr-2 text-module-forms " />
+                <FileText className="icon-md mr-2 text-module-forms " />
                 Form Submissions
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => handleAddComponent('metric-card')}>
-                <Hash className="h-4 w-4 mr-2 text-module-forms" />
+                <Hash className="icon-md mr-2 text-module-forms" />
                 Metric Card
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => handleAddComponent('text')}>
-                <Type className="h-4 w-4 mr-2 text-module-forms" />
+                <Type className="icon-md mr-2 text-module-forms" />
                 Text Block
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => setIsMediaDialogOpen(true)}>
-                <Image className="h-4 w-4 mr-2 text-module-forms  " />
+                <Image className="icon-md mr-2 text-module-forms" />
                 Media
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 
           <Button size="sm" onClick={onSave}>
-            <Save className="h-4 w-4 mr-2" />
+            <Save className="icon-md mr-2" />
             Save
           </Button>
         </div>
@@ -742,7 +742,7 @@ export function ReportEditor({
       {/* Mode Indicator */}
       {!isDragEnabled && <div className="bg-blue-100 dark:bg-blue-900 border border-blue-200 dark:border-blue-800 rounded-lg p-3 mb-4">
           <p className="text-sm text-blue-800 dark:text-blue-200 flex items-center gap-2">
-            <MousePointer className="h-4 w-4" />
+            <MousePointer className="icon-md" />
             <span><strong>Select Mode:</strong> Click on charts to open properties panel. Switch to Drag Mode to rearrange components.</span>
           </p>
         </div>}

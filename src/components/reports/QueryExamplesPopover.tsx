@@ -129,9 +129,9 @@ export function QueryExamplesPopover({ onInsertQuery }: QueryExamplesPopoverProp
                       onClick={() => handleCopy(example.query, index)}
                     >
                       {copiedIndex === index ? (
-                        <Check className="h-3 w-3 text-green-500" />
+                        <Check className="icon-xs text-green-500" />
                       ) : (
-                        <Copy className="h-3 w-3" />
+                        <Copy className="icon-xs" />
                       )}
                     </Button>
                     {onInsertQuery && (

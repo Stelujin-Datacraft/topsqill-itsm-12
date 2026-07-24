@@ -107,7 +107,7 @@ const KnowledgeBase = () => {
         </div>
         {(isAdmin || canCreatePolicies) && (
           <Button onClick={() => setShowCreate(true)} className="gap-2 w-full sm:w-auto shrink-0">
-            <Plus className="h-4 w-4" />
+            <Plus className="icon-md" />
             Create Folder
           </Button>
         )}
@@ -117,7 +117,7 @@ const KnowledgeBase = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => navigate('/compliance')}>
           <CardContent className="p-5 flex items-center gap-4">
-            <div className="p-3 rounded-lg bg-blue-500/10"><Shield className="h-6 w-6 text-blue-600" /></div>
+            <div className="p-3 rounded-lg bg-blue-500/10"><Shield className="icon-xl text-info" /></div>
             <div>
               <h3 className="font-semibold text-foreground">Compliance Frameworks</h3>
               <p className="text-xs text-muted-foreground">SOC 2, ISO 27001, NIST, custom frameworks & controls</p>
@@ -126,7 +126,7 @@ const KnowledgeBase = () => {
         </Card>
         <Card className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => navigate('/audit-programs')}>
           <CardContent className="p-5 flex items-center gap-4">
-            <div className="p-3 rounded-lg bg-orange-500/10"><ClipboardList className="h-6 w-6 text-orange-600" /></div>
+            <div className="p-3 rounded-lg bg-orange-500/10"><ClipboardList className="icon-xl text-orange-600" /></div>
             <div>
               <h3 className="font-semibold text-foreground">Audit Programs</h3>
               <p className="text-xs text-muted-foreground">Plan audits, track findings & remediation tasks</p>
@@ -135,7 +135,7 @@ const KnowledgeBase = () => {
         </Card>
         <Card className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => navigate('/evidence-locker')}>
           <CardContent className="p-5 flex items-center gap-4">
-            <div className="p-3 rounded-lg bg-green-500/10"><FileBox className="h-6 w-6 text-green-600" /></div>
+            <div className="p-3 rounded-lg bg-green-500/10"><FileBox className="icon-xl text-green-600" /></div>
             <div>
               <h3 className="font-semibold text-foreground">Evidence Locker</h3>
               <p className="text-xs text-muted-foreground">Centralized evidence for compliance & audit trails</p>
@@ -169,7 +169,7 @@ const KnowledgeBase = () => {
               >
                 <CardContent className="p-3 flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <FileText className="h-4 w-4 text-muted-foreground" />
+                    <FileText className="icon-md text-muted-foreground" />
                     <div>
                       <div className="flex items-center gap-2">
                         {p.policy_number && <span className="text-xs font-mono text-muted-foreground">{p.policy_number}</span>}
@@ -202,7 +202,7 @@ const KnowledgeBase = () => {
             <p className="text-sm text-muted-foreground mt-1">Create your first Knowledge Base folder to organize docs and audits.</p>
             {isAdmin && (
               <Button onClick={() => setShowCreate(true)} className="mt-4 gap-2">
-                <Plus className="h-4 w-4" /> Create Folder
+                <Plus className="icon-md" /> Create Folder
               </Button>
             )}
           </CardContent>
@@ -221,7 +221,7 @@ const KnowledgeBase = () => {
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
                       <div className="p-2 rounded-lg bg-primary/10">
-                        <FolderOpen className="h-5 w-5 text-module-knowledge" />
+                        <FolderOpen className="icon-lg text-module-knowledge" />
                       </div>
                       <div>
                         <h3 className="font-semibold text-foreground">{folder.name}</h3>
@@ -265,7 +265,7 @@ const KnowledgeBase = () => {
               <CardContent className="p-5">
                 <div className="flex items-center gap-3">
                   <div className="p-2 rounded-lg bg-muted">
-                    <FileText className="h-5 w-5 text-muted-foreground" />
+                    <FileText className="icon-lg text-muted-foreground" />
                   </div>
                   <div>
                     <h3 className="font-semibold text-foreground">Unassigned Items</h3>

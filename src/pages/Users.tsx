@@ -254,7 +254,7 @@ const Users = () => {
 
   const getStatusBadge = (status: string) => {
     const styles: Record<string, string> = {
-      active: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20',
+      active: 'bg-emerald-500/10 text-success border-emerald-500/20',
       pending: 'bg-amber-500/10 text-amber-600 border-amber-500/20',
       inactive: 'bg-destructive/10 text-destructive border-destructive/20',
     };
@@ -264,7 +264,7 @@ const Users = () => {
   const getRoleBadge = (role: string) => {
     const styles: Record<string, string> = {
       admin: 'bg-primary/10 text-primary border-primary/20',
-      moderator: 'bg-blue-500/10 text-blue-600 border-blue-500/20',
+      moderator: 'bg-blue-500/10 text-info border-blue-500/20',
       user: 'bg-muted text-muted-foreground border-border',
     };
     return styles[role] || styles.user;
@@ -308,9 +308,9 @@ const Users = () => {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">
-                <BarChart2 className="h-4 w-4 mr-2 text-module-access" />
+                <BarChart2 className="icon-md mr-2 text-module-access" />
                 {t('common.dataAnalytics')}
-                <ChevronDown className="h-4 w-4 ml-2" />
+                <ChevronDown className="icon-md ml-2" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56 bg-background border border-border shadow-lg z-50">
@@ -320,28 +320,28 @@ const Users = () => {
               <div className="p-2 space-y-1">
                 <div className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-muted/50">
                   <div className="flex items-center gap-2">
-                    <UsersIcon className="h-4 w-4 text-module-access" />
+                    <UsersIcon className="icon-md text-module-access" />
                     <span className="text-sm">{t('users.totalMembers')}</span>
                   </div>
                   <Badge variant="secondary" className="font-semibold">{totalUsers}</Badge>
                 </div>
                 <div className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-muted/50">
                   <div className="flex items-center gap-2">
-                    <UserCheck className="h-4 w-4 text-module-access" />
+                    <UserCheck className="icon-md text-module-access" />
                     <span className="text-sm">{t('users.active')}</span>
                   </div>
                   <Badge variant="secondary" className="font-semibold bg-primary/10 text-primary">{activeUsers}</Badge>
                 </div>
                 <div className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-muted/50">
                   <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-module-access" />
+                    <Clock className="icon-md text-module-access" />
                     <span className="text-sm">{t('users.pending')}</span>
                   </div>
                   <Badge variant="secondary" className="font-semibold">{pendingUsers}</Badge>
                 </div>
                 <div className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-muted/50">
                   <div className="flex items-center gap-2">
-                    <UserMinus className="h-4 w-4 text-destructive" />
+                    <UserMinus className="icon-md text-destructive" />
                     <span className="text-sm">{t('users.inactive')}</span>
                   </div>
                   <Badge variant="secondary" className="font-semibold bg-destructive/10 text-destructive">{inactiveUsers}</Badge>
@@ -349,14 +349,14 @@ const Users = () => {
                 <DropdownMenuSeparator />
                 <div className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-muted/50">
                   <div className="flex items-center gap-2">
-                    <User className="h-4 w-4 text-module-access" />
+                    <User className="icon-md text-module-access" />
                     <span className="text-sm">{t('users.tabUsers')}</span>
                   </div>
                   <Badge variant="secondary" className="font-semibold">{regularUsers}</Badge>
                 </div>
                 <div className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-muted/50">
                   <div className="flex items-center gap-2">
-                    <Shield className="h-4 w-4 text-module-compliance" />
+                    <Shield className="icon-md text-module-compliance" />
                     <span className="text-sm">{t('users.admins')}</span>
                   </div>
                   <Badge variant="secondary" className="font-semibold bg-primary/10 text-primary">{adminUsers}</Badge>
@@ -367,24 +367,24 @@ const Users = () => {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">
-                <Shield className="h-4 w-4 mr-2 text-module-compliance" />
+                <Shield className="icon-md mr-2 text-module-compliance" />
                 {t('users.administration')}
-                <ChevronDown className="h-4 w-4 ml-2" />
+                <ChevronDown className="icon-md ml-2" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-52 bg-background border border-border shadow-lg z-50">
               <DropdownMenuItem onClick={() => navigate('/investigate-access')} className="cursor-pointer">
-                <Eye className="h-4 w-4 mr-2 text-module-access" />
+                <Eye className="icon-md mr-2 text-module-access" />
                 {effectiveRole === 'admin' ? t('users.investigateAccess') : t('users.myAccess')}
               </DropdownMenuItem>
               {effectiveRole === 'admin' && (
                 <>
                   <DropdownMenuItem onClick={() => navigate('/manage-sessions')} className="cursor-pointer">
-                    <Monitor className="h-4 w-4 mr-2 text-module-access" />
+                    <Monitor className="icon-md mr-2 text-module-access" />
                     {t('users.manageSessions')}
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => navigate('/audit-logs')} className="cursor-pointer">
-                    <ClipboardList className="h-4 w-4 mr-2 text-module-access" />
+                    <ClipboardList className="icon-md mr-2 text-module-access" />
                     {t('users.auditLogs')}
                   </DropdownMenuItem>
                 </>
@@ -394,32 +394,32 @@ const Users = () => {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button size="sm">
-                <UserPlus className="h-4 w-4 mr-2" />
+                <UserPlus className="icon-md mr-2" />
                 {t('common.create')}
-                <ChevronDown className="h-4 w-4 ml-2" />
+                <ChevronDown className="icon-md ml-2" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48 bg-background border border-border shadow-lg z-50">
               <DropdownMenuItem onClick={() => setIsCreateOpen(true)} className="cursor-pointer">
-                <UserPlus className="h-4 w-4 mr-2 text-module-forms" />
+                <UserPlus className="icon-md mr-2 text-module-forms" />
                 {t('users.createUser')}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setIsInviteOpen(true)} className="cursor-pointer">
-                <Mail className="h-4 w-4 mr-2 text-module-forms" />
+                <Mail className="icon-md mr-2 text-module-forms" />
                 {t('users.inviteUser')}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => setIsImportOpen(true)} className="cursor-pointer">
-                <Upload className="h-4 w-4 mr-2 text-module-forms" />
+                <Upload className="icon-md mr-2 text-module-forms" />
                 {t('users.importUsers')}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setIsUpdateOpen(true)} className="cursor-pointer">
-                <RefreshCw className="h-4 w-4 mr-2 text-module-forms" />
+                <RefreshCw className="icon-md mr-2 text-module-forms" />
                 {t('users.updateUsers')}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => setIsRequestsOpen(true)} className="cursor-pointer">
-                <Clock className="h-4 w-4 mr-2 text-module-forms" />
+                <Clock className="icon-md mr-2 text-module-forms" />
                 {t('users.pendingRequests')}
                 {requests.length > 0 && (
                   <Badge variant="secondary" className="ml-2 h-5 min-w-5 px-1.5 flex items-center justify-center text-xs bg-primary/10 text-primary border-0">
@@ -499,14 +499,14 @@ const Users = () => {
                         </SelectContent>
                       </Select>
                       <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setSelectedUserForEdit(user); setEditDialogOpen(true); }} title={t('users.editUser')}>
-                          <Pencil className="h-4 w-4 text-module-reports" />
+                        <Button variant="ghost" size="icon" className="size-8" onClick={() => { setSelectedUserForEdit(user); setEditDialogOpen(true); }} title={t('users.editUser')}>
+                          <Pencil className="icon-md text-module-reports" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setSelectedUserForSecurity({ id: user.id, name: user.first_name && user.last_name ? `${user.first_name} ${user.last_name}` : user.email.split('@')[0], email: user.email }); setSecurityDialogOpen(true); }} title={t('users.security')}>
-                          <Shield className="h-4 w-4 text-module-compliance" />
+                        <Button variant="ghost" size="icon" className="size-8" onClick={() => { setSelectedUserForSecurity({ id: user.id, name: user.first_name && user.last_name ? `${user.first_name} ${user.last_name}` : user.email.split('@')[0], email: user.email }); setSecurityDialogOpen(true); }} title={t('users.security')}>
+                          <Shield className="icon-md text-module-compliance" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => confirmDelete(user.id, user.first_name && user.last_name ? `${user.first_name} ${user.last_name}` : user.email)}>
-                          <Trash2 className="h-4 w-4 text-module-compliance" />
+                        <Button variant="ghost" size="icon" className="size-8" onClick={() => confirmDelete(user.id, user.first_name && user.last_name ? `${user.first_name} ${user.last_name}` : user.email)}>
+                          <Trash2 className="icon-md text-module-compliance" />
                         </Button>
                       </div>
                     </div>
@@ -588,9 +588,9 @@ const Users = () => {
                               <Popover>
                                 <PopoverTrigger asChild>
                                   <Button variant="outline" size="sm" className="flex items-center gap-2">
-                                    <Shield className="h-4 w-4 text-module-compliance" />
+                                    <Shield className="icon-md text-module-compliance" />
                                     {t('users.viewRoles', { count: assignedRoles.length })}
-                                    <ChevronDown className="h-4 w-4" />
+                                    <ChevronDown className="icon-md" />
                                   </Button>
                                 </PopoverTrigger>
                                 <PopoverContent align="start" className="w-72 p-2">
@@ -600,7 +600,7 @@ const Users = () => {
                                         key={r.id}
                                         className="flex items-center gap-2 p-2 rounded border bg-background"
                                       >
-                                        <Shield className="h-4 w-4 text-module-compliance shrink-0" />
+                                        <Shield className="icon-md text-module-compliance shrink-0" />
                                         <span className="text-sm font-medium truncate">{r.name}</span>
                                       </div>
                                     ))}
@@ -620,9 +620,9 @@ const Users = () => {
                               <Popover>
                                 <PopoverTrigger asChild>
                                   <Button variant="outline" size="sm" className="flex items-center gap-2">
-                                    <UsersIcon className="h-4 w-4 text-module-access" />
+                                    <UsersIcon className="icon-md text-module-access" />
                                     {t('users.viewGroups', { count: groupNames.length })}
-                                    <ChevronDown className="h-4 w-4" />
+                                    <ChevronDown className="icon-md" />
                                   </Button>
                                 </PopoverTrigger>
                                 <PopoverContent align="start" className="w-72 p-2">
@@ -632,7 +632,7 @@ const Users = () => {
                                         key={i}
                                         className="flex items-center gap-2 p-2 rounded border bg-background"
                                       >
-                                        <UsersIcon className="h-4 w-4 text-module-access shrink-0" />
+                                        <UsersIcon className="icon-md text-module-access shrink-0" />
                                         <span className="text-sm font-medium truncate">{g}</span>
                                       </div>
                                     ))}
@@ -672,19 +672,19 @@ const Users = () => {
                             <Button 
                               variant="ghost" 
                               size="icon" 
-                              className="h-8 w-8"
+                              className="size-8"
                               onClick={() => {
                                 setSelectedUserForEdit(user);
                                 setEditDialogOpen(true);
                               }}
                               title={t('users.editUser')}
                             >
-                              <Pencil className="h-4 w-4 text-module-reports" />
+                              <Pencil className="icon-md text-module-reports" />
                             </Button>
                             <Button 
                               variant="ghost" 
                               size="icon" 
-                              className="h-8 w-8"
+                              className="size-8"
                               onClick={() => {
                                 setSelectedUserForSecurity({
                                   id: user.id,
@@ -697,12 +697,12 @@ const Users = () => {
                               }}
                               title={t('users.securityParameters')}
                             >
-                              <Shield className="h-4 w-4 text-module-forms" />
+                              <Shield className="icon-md text-module-forms" />
                             </Button>
                             <Button 
                               variant="ghost" 
                               size="icon" 
-                              className="h-8 w-8"
+                              className="size-8"
                               onClick={() => confirmDelete(
                                 user.id, 
                                 user.first_name && user.last_name 
@@ -710,7 +710,7 @@ const Users = () => {
                                   : user.email
                               )}
                             >
-                              <Trash2 className="h-4 w-4 text-module-compliance" />
+                              <Trash2 className="icon-md text-module-compliance" />
                             </Button>
                           </div>
                         </TableCell>

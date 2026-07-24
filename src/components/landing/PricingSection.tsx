@@ -85,7 +85,7 @@ export default function PricingSection() {
           {plans.map((plan, index) => (
             <Card 
               key={index} 
-              className={`relative group hover:shadow-xl transition-all duration-300 hover:-translate-y-2 ${
+              className={`relative group hover:shadow-token-md transition-all duration-300 ${
                 plan.popular 
                   ? 'border-primary shadow-lg scale-105 md:scale-110' 
                   : 'border-border/50'
@@ -116,7 +116,7 @@ export default function PricingSection() {
                   {plan.features.map((feature, i) => (
                     <li key={i} className="flex items-center gap-3">
                       <Check className={`h-5 w-5 flex-shrink-0 ${
-                        plan.popular ? 'text-primary' : 'text-emerald-600'
+                        plan.popular ? 'text-primary' : 'text-success'
                       }`} />
                       <span className="text-sm text-foreground">{feature}</span>
                     </li>

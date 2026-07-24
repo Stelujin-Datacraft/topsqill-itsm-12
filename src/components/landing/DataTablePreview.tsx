@@ -78,20 +78,20 @@ const sampleData = [
 
 const getStatusIcon = (status: string) => {
   switch (status) {
-    case "approved": return <CheckCircle className="h-4 w-4 text-emerald-600" />;
-    case "pending": return <Clock className="h-4 w-4 text-amber-600" />;
-    case "review": return <AlertCircle className="h-4 w-4 text-blue-600" />;
-    case "rejected": return <AlertCircle className="h-4 w-4 text-red-600" />;
-    default: return <Clock className="h-4 w-4 text-gray-600" />;
+    case "approved": return <CheckCircle className="icon-md text-success" />;
+    case "pending": return <Clock className="icon-md text-amber-600" />;
+    case "review": return <AlertCircle className="icon-md text-info" />;
+    case "rejected": return <AlertCircle className="icon-md text-destructive" />;
+    default: return <Clock className="icon-md text-gray-600" />;
   }
 };
 
 const getStatusBadge = (status: string) => {
   switch (status) {
-    case "approved": return <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-200">Approved</Badge>;
-    case "pending": return <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-200">Pending</Badge>;
-    case "review": return <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-200">In Review</Badge>;
-    case "rejected": return <Badge className="bg-red-100 text-red-800 hover:bg-red-200">Rejected</Badge>;
+    case "approved": return <Badge className="bg-success/10 text-success hover:bg-emerald-200">Approved</Badge>;
+    case "pending": return <Badge className="bg-warning/10 text-warning hover:bg-amber-200">Pending</Badge>;
+    case "review": return <Badge className="bg-info/10 text-info hover:bg-blue-200">In Review</Badge>;
+    case "rejected": return <Badge className="bg-destructive/10 text-destructive hover:bg-red-200">Rejected</Badge>;
     default: return <Badge variant="secondary">{status}</Badge>;
   }
 };
@@ -100,7 +100,7 @@ const getRatingStars = (rating: number) => {
   return Array.from({ length: 5 }, (_, i) => (
     <Star 
       key={i} 
-      className={`h-3 w-3 ${i < rating ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}`} 
+      className={`h-3 w-3 ${i < rating ? 'text-warning fill-warning' : 'text-muted-foreground/40'}`} 
     />
   ));
 };
@@ -108,7 +108,7 @@ const getRatingStars = (rating: number) => {
 export default function DataTablePreview() {
   return (
     <section aria-labelledby="table-preview-heading" className="container mx-auto px-4">
-      <Card className="overflow-hidden group hover:shadow-2xl transition-all duration-500 hover:-translate-y-2">
+      <Card className="overflow-hidden group hover:shadow-token-lg transition-all duration-500">
         <CardHeader className="bg-gradient-to-r from-emerald-50 to-cyan-50 group-hover:from-emerald-100 group-hover:to-cyan-100 transition-all duration-500">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
@@ -120,28 +120,28 @@ export default function DataTablePreview() {
               </CardDescription>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button variant="outline" size="sm" className="hover:bg-emerald-100 hover:border-emerald-400 hover:text-emerald-700 transition-all duration-300">
-                <Filter className="h-4 w-4 mr-2 text-module-forms" />
+              <Button variant="outline" size="sm" className="hover:bg-emerald-100 hover:border-emerald-400 hover:text-success transition-all duration-300">
+                <Filter className="icon-md mr-2 text-module-forms" />
                 Filter
               </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="hover:bg-emerald-100 hover:border-emerald-400 hover:text-emerald-700 transition-all duration-300">
-                    <Download className="h-4 w-4 mr-2" />
+                  <Button variant="outline" size="sm" className="hover:bg-emerald-100 hover:border-emerald-400 hover:text-success transition-all duration-300">
+                    <Download className="icon-md mr-2" />
                     Export
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem disabled className="opacity-50 cursor-not-allowed">
-                    <FileSpreadsheet className="h-4 w-4 mr-2" />
+                    <FileSpreadsheet className="icon-md mr-2" />
                     Export as Excel
                   </DropdownMenuItem>
                   <DropdownMenuItem disabled className="opacity-50 cursor-not-allowed">
-                    <FileText className="h-4 w-4 mr-2" />
+                    <FileText className="icon-md mr-2" />
                     Export as CSV
                   </DropdownMenuItem>
                   <DropdownMenuItem disabled className="opacity-50 cursor-not-allowed">
-                    <FileCode className="h-4 w-4 mr-2" />
+                    <FileCode className="icon-md mr-2" />
                     Export as XML
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -160,23 +160,23 @@ export default function DataTablePreview() {
                   ID
                 </div>
                 <div className="col-span-3 flex items-center gap-2">
-                  <User className="h-4 w-4 text-emerald-600" />
+                  <User className="icon-md text-success" />
                   User Details
                 </div>
                 <div className="col-span-2 flex items-center gap-2">
-                  <Building className="h-4 w-4 text-blue-600" />
+                  <Building className="icon-md text-info" />
                   Company
                 </div>
                 <div className="col-span-2 flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-purple-600" />
+                  <Calendar className="icon-md text-accent" />
                   Submitted
                 </div>
                 <div className="col-span-2 flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4 text-green-600" />
+                  <CheckCircle className="icon-md text-green-600" />
                   Status
                 </div>
                 <div className="col-span-1 flex items-center gap-2">
-                  <Star className="h-4 w-4 text-yellow-600" />
+                  <Star className="icon-md text-yellow-600" />
                   Rating
                 </div>
                 <div className="col-span-1 text-center">Actions</div>
@@ -195,22 +195,22 @@ export default function DataTablePreview() {
                   >
                     <div className="col-span-1 flex items-center gap-2">
                       <input type="checkbox" className="rounded border-border" />
-                      <span className="font-mono text-xs text-muted-foreground group-hover/row:text-emerald-600 transition-colors">
+                      <span className="font-mono text-xs text-muted-foreground group-hover/row:text-success transition-colors">
                         #{row.id}
                       </span>
                     </div>
                     
                     <div className="col-span-3">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-r from-emerald-400 to-cyan-400 flex items-center justify-center text-white text-sm font-semibold group-hover/row:scale-110 transition-transform duration-300">
+                        <div className="size-8 rounded-full bg-gradient-to-r from-emerald-400 to-cyan-400 flex items-center justify-center text-white text-sm font-semibold transition-transform duration-300">
                           {row.name.split(' ').map(n => n[0]).join('')}
                         </div>
                         <div className="min-w-0 flex-1">
-                          <div className="font-medium text-foreground group-hover/row:text-emerald-700 transition-colors">
+                          <div className="font-medium text-foreground group-hover/row:text-success transition-colors">
                             {row.name}
                           </div>
                           <div className="text-sm text-muted-foreground flex items-center gap-1 group-hover/row:text-cyan-600 transition-colors">
-                            <Mail className="h-3 w-3" />
+                            <Mail className="icon-xs" />
                             {row.email}
                           </div>
                           <div className="text-xs text-muted-foreground">{row.position}</div>
@@ -219,9 +219,9 @@ export default function DataTablePreview() {
                     </div>
                     
                     <div className="col-span-2">
-                      <div className="font-medium group-hover/row:text-blue-700 transition-colors">{row.company}</div>
+                      <div className="font-medium group-hover/row:text-info transition-colors">{row.company}</div>
                       <div className="text-sm text-muted-foreground">{row.department}</div>
-                      <Badge variant="outline" className="mt-1 text-xs group-hover/row:border-blue-300 group-hover/row:text-blue-600 transition-all duration-300">
+                      <Badge variant="outline" className="mt-1 text-xs group-hover/row:border-blue-300 group-hover/row:text-info transition-all duration-300">
                         {row.formType}
                       </Badge>
                     </div>
@@ -237,7 +237,7 @@ export default function DataTablePreview() {
                     </div>
                     
                     <div className="col-span-1 flex items-center">
-                      <div className="flex gap-0.5 group-hover/row:scale-110 transition-transform duration-300">
+                      <div className="flex gap-0.5 transition-transform duration-300">
                         {getRatingStars(row.rating)}
                       </div>
                     </div>
@@ -248,22 +248,22 @@ export default function DataTablePreview() {
                           <Button 
                             variant="ghost" 
                             size="sm" 
-                            className="h-8 w-8 p-0 hover:bg-emerald-100 hover:text-emerald-600"
+                            className="size-8 p-0 hover:bg-emerald-100 hover:text-success"
                           >
-                            <MoreHorizontal className="h-4 w-4" />
+                            <MoreHorizontal className="icon-md" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem className="cursor-pointer">
-                            <Eye className="h-4 w-4 mr-2" />
+                            <Eye className="icon-md mr-2" />
                             View
                           </DropdownMenuItem>
                           <DropdownMenuItem className="cursor-pointer">
-                            <Pencil className="h-4 w-4 mr-2" />
+                            <Pencil className="icon-md mr-2" />
                             Edit
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="cursor-pointer text-red-600 focus:text-red-600">
-                            <Trash2 className="h-4 w-4 mr-2" />
+                          <DropdownMenuItem className="cursor-pointer text-destructive focus:text-destructive">
+                            <Trash2 className="icon-md mr-2" />
                             Delete
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -281,18 +281,18 @@ export default function DataTablePreview() {
               <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
                 <span>Showing 5 of 1,247 submissions</span>
                 <div className="flex items-center gap-2">
-                  <Search className="h-4 w-4" />
+                  <Search className="icon-md" />
                   <span>Real-time search &amp; filter</span>
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
-                <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 group-hover:bg-emerald-200 group-hover:scale-105 transition-all duration-300">
+                <Badge variant="secondary" className="bg-success/10 text-success group-hover:bg-emerald-200 group- transition-all duration-300">
                   📊 SQL Queries
                 </Badge>
-                <Badge variant="secondary" className="bg-cyan-100 text-cyan-700 group-hover:bg-cyan-200 group-hover:scale-105 transition-all duration-300">
+                <Badge variant="secondary" className="bg-cyan-100 text-cyan-700 group-hover:bg-cyan-200 group- transition-all duration-300">
                   📈 Live Updates
                 </Badge>
-                <Badge variant="secondary" className="bg-purple-100 text-purple-700 group-hover:bg-purple-200 group-hover:scale-105 transition-all duration-300">
+                <Badge variant="secondary" className="bg-purple-100 text-purple-700 group-hover:bg-purple-200 group- transition-all duration-300">
                   🔄 Auto-refresh
                 </Badge>
               </div>

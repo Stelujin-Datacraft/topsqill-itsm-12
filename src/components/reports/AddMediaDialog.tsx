@@ -175,19 +175,19 @@ export function AddMediaDialog({ isOpen, onClose, onAdd, reportId }: AddMediaDia
         <Tabs value={mediaType} onValueChange={(v) => setMediaType(v as MediaType)}>
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="image" className="flex items-center gap-1">
-              <Image className="h-3 w-3" />
+              <Image className="icon-xs" />
               Image
             </TabsTrigger>
             <TabsTrigger value="video" className="flex items-center gap-1">
-              <Video className="h-3 w-3" />
+              <Video className="icon-xs" />
               Video
             </TabsTrigger>
             <TabsTrigger value="link" className="flex items-center gap-1">
-              <Link2 className="h-3 w-3" />
+              <Link2 className="icon-xs" />
               Link
             </TabsTrigger>
             <TabsTrigger value="document" className="flex items-center gap-1">
-              <FileText className="h-3 w-3" />
+              <FileText className="icon-xs" />
               Document
             </TabsTrigger>
           </TabsList>
@@ -211,7 +211,7 @@ export function AddMediaDialog({ isOpen, onClose, onAdd, reportId }: AddMediaDia
                     disabled={uploading}
                     className="flex-1"
                   >
-                    <Upload className="h-4 w-4 mr-2" />
+                    <Upload className="icon-md mr-2" />
                     {uploading ? 'Uploading...' : 'Choose File'}
                   </Button>
                 </div>

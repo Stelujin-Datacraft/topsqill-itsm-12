@@ -74,7 +74,7 @@ export default function InvestigateAccess() {
                 disabled={isImpersonating}
                 className="text-amber-600 border-amber-300 hover:bg-amber-50"
               >
-                <Eye className="h-4 w-4 mr-2" />
+                <Eye className="icon-md mr-2" />
                 Impersonate
               </Button>
             )}
@@ -131,27 +131,27 @@ export default function InvestigateAccess() {
           <Tabs defaultValue="permissions" className="space-y-4">
             <TabsList className="grid w-full grid-cols-6">
               <TabsTrigger value="permissions" className="flex items-center gap-2">
-                <Key className="h-4 w-4" />
+                <Key className="icon-md" />
                 <span className="hidden sm:inline">Permissions</span>
               </TabsTrigger>
               <TabsTrigger value="roles" className="flex items-center gap-2">
-                <Shield className="h-4 w-4" />
+                <Shield className="icon-md" />
                 <span className="hidden sm:inline">Roles</span>
               </TabsTrigger>
               <TabsTrigger value="groups" className="flex items-center gap-2">
-                <Users className="h-4 w-4" />
+                <Users className="icon-md" />
                 <span className="hidden sm:inline">Groups</span>
               </TabsTrigger>
               <TabsTrigger value="projects" className="flex items-center gap-2">
-                <FolderKanban className="h-4 w-4" />
+                <FolderKanban className="icon-md" />
                 <span className="hidden sm:inline">Projects</span>
               </TabsTrigger>
               <TabsTrigger value="security" className="flex items-center gap-2">
-                <Lock className="h-4 w-4" />
+                <Lock className="icon-md" />
                 <span className="hidden sm:inline">Security</span>
               </TabsTrigger>
               <TabsTrigger value="sessions" className="flex items-center gap-2">
-                <Monitor className="h-4 w-4" />
+                <Monitor className="icon-md" />
                 <span className="hidden sm:inline">Sessions</span>
               </TabsTrigger>
             </TabsList>

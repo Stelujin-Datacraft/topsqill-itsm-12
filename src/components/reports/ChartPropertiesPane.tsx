@@ -81,13 +81,13 @@ export function ChartPropertiesPane({
   const getComponentIcon = (type: string) => {
     switch (type) {
       case 'chart':
-        return <BarChart3 className="h-4 w-4" />;
+        return <BarChart3 className="icon-md" />;
       case 'table':
-        return <Settings className="h-4 w-4" />;
+        return <Settings className="icon-md" />;
       case 'text':
-        return <Type className="h-4 w-4" />;
+        return <Type className="icon-md" />;
       default:
-        return <Settings className="h-4 w-4" />;
+        return <Settings className="icon-md" />;
     }
   };
 
@@ -111,14 +111,14 @@ export function ChartPropertiesPane({
               }}
               title={isExpanded ? 'Collapse panel' : 'Expand panel'}
             >
-              {isExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+              {isExpanded ? <Minimize2 className="icon-md" /> : <Maximize2 className="icon-md" />}
             </Button>
             <Button
               variant="ghost"
               size="sm"
               onClick={onClose}
             >
-              <X className="h-4 w-4" />
+              <X className="icon-md" />
             </Button>
           </div>
         </div>
@@ -170,7 +170,7 @@ export function ChartPropertiesPane({
                   className="w-full justify-start"
                   onClick={() => onEdit(component)}
                 >
-                  <Edit3 className="h-4 w-4 mr-2" />
+                  <Edit3 className="icon-md mr-2" />
                   Edit Configuration
                 </Button>
                 
@@ -181,7 +181,7 @@ export function ChartPropertiesPane({
                   className="w-full justify-start"
                   onClick={() => onDelete(component.id)}
                 >
-                  <Trash2 className="h-4 w-4 mr-2" />
+                  <Trash2 className="icon-md mr-2" />
                   Delete Component
                 </Button>
               </CardContent>
@@ -200,7 +200,7 @@ export function ChartPropertiesPane({
                   <Card>
                     <CardHeader className="pb-3">
                       <CardTitle className="text-sm font-medium flex items-center gap-2">
-                        <Settings className="h-4 w-4" />
+                        <Settings className="icon-md" />
                         Display Options
                       </CardTitle>
                     </CardHeader>
@@ -278,7 +278,7 @@ export function ChartPropertiesPane({
                   <Card>
                     <CardHeader className="pb-3">
                       <CardTitle className="text-sm font-medium flex items-center gap-2">
-                        <Filter className="h-4 w-4" />
+                        <Filter className="icon-md" />
                         Filters & Aggregation
                       </CardTitle>
                     </CardHeader>
@@ -288,7 +288,7 @@ export function ChartPropertiesPane({
                         className="w-full justify-start"
                         onClick={() => onApplyFilter(component.id)}
                       >
-                        <Filter className="h-4 w-4 mr-2" />
+                        <Filter className="icon-md mr-2" />
                         Configure Filters
                       </Button>
                     </CardContent>
@@ -299,7 +299,7 @@ export function ChartPropertiesPane({
                   <Card>
                     <CardHeader className="pb-3">
                       <CardTitle className="text-sm font-medium flex items-center gap-2">
-                        <Palette className="h-4 w-4" />
+                        <Palette className="icon-md" />
                         Color Themes
                       </CardTitle>
                     </CardHeader>

@@ -68,11 +68,11 @@ function useHealthMetrics(alerts: PerformanceAlert[], predictions: PerformancePr
     const alertWeight = criticalCount * 25 + (totalActive - criticalCount) * 10;
     const alertHealth = Math.max(0, 100 - Math.min(alertWeight, 100));
     const alertLabel = alertHealth >= 80 ? 'Healthy' : alertHealth >= 50 ? 'At Risk' : 'Critical';
-    const alertColor = alertHealth >= 80 ? 'text-emerald-600' : alertHealth >= 50 ? 'text-yellow-600' : 'text-red-600';
+    const alertColor = alertHealth >= 80 ? 'text-success' : alertHealth >= 50 ? 'text-yellow-600' : 'text-destructive';
     const activeThresholds = thresholds.filter(t => t.is_active).length;
     const coverageScore = Math.min(activeThresholds * 20, 100);
     const coverageLabel = coverageScore >= 60 ? 'Good' : coverageScore >= 20 ? 'Partial' : 'None';
-    const coverageColor = coverageScore >= 60 ? 'text-emerald-600' : coverageScore >= 20 ? 'text-yellow-600' : 'text-muted-foreground';
+    const coverageColor = coverageScore >= 60 ? 'text-success' : coverageScore >= 20 ? 'text-yellow-600' : 'text-muted-foreground';
     const timestamps = [
       ...alerts.map(a => new Date(a.created_at).getTime()),
       ...predictions.map(p => new Date(p.created_at).getTime()),
@@ -317,7 +317,7 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
   if (loading || kpiLoading) {
     return (
       <div className="flex items-center justify-center min-h-[300px]">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <Loader2 className="size-8 animate-spin text-primary" />
       </div>
     );
   }
@@ -354,7 +354,7 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                <BarChart3 className="h-5 w-5 text-module-reports" />
+                <BarChart3 className="icon-lg text-module-reports" />
               </div>
               <div>
                 <CardTitle className="text-lg">Performance Dashboard</CardTitle>
@@ -364,7 +364,7 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
             <div className="flex items-center gap-2">
               {aiRunning && (
                 <Badge className="bg-primary/10 text-primary border-primary/20 animate-pulse gap-1.5">
-                  <Loader2 className="h-3 w-3 animate-spin" />
+                  <Loader2 className="icon-xs animate-spin" />
                   AI Analyzing...
                 </Badge>
               )}
@@ -375,7 +375,7 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
               )}
               {isAdmin && (
                 <Button variant="outline" size="sm" onClick={() => setShowRoleAssignment(true)}>
-                  <UserCog className="h-4 w-4 mr-1" />Roles
+                  <UserCog className="icon-md mr-1" />Roles
                 </Button>
               )}
             </div>
@@ -385,7 +385,7 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
           <div className="flex items-end gap-3 flex-wrap">
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
-                <Target className="h-3 w-3" /> Analyze Record
+                <Target className="icon-xs" /> Analyze Record
               </label>
               <Select value={selectedRecordId} onValueChange={handleRecordChange}>
                 <SelectTrigger className="w-[320px] border-primary/30 focus:ring-primary/20">
@@ -403,7 +403,7 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
-                <Zap className="h-3 w-3" /> Dashboard View
+                <Zap className="icon-xs" /> Dashboard View
               </label>
               <Select value={activeRole} onValueChange={(v) => setSelectedRole(v as PerformanceRoleType)}>
                 <SelectTrigger className="w-[200px]">
@@ -439,14 +439,14 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
         <Card className="border-dashed border-2">
           <CardContent className="flex flex-col items-center justify-center py-16">
             <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-              <FileText className="h-8 w-8 text-module-forms" />
+              <FileText className="size-8 text-module-forms" />
             </div>
             <p className="font-semibold text-lg text-foreground">Select a Record to Begin</p>
             <p className="text-sm text-muted-foreground mt-1 max-w-md text-center">
               Choose a submission record from the dropdown above to view KPI calculations, AI-powered analysis, predictions, and recommendations.
             </p>
             <Badge variant="secondary" className="mt-4 gap-1.5">
-              <AlertCircle className="h-3 w-3" />
+              <AlertCircle className="icon-xs" />
               {submissions.length} record{submissions.length !== 1 ? 's' : ''} available
             </Badge>
           </CardContent>
@@ -472,7 +472,7 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
                   )}
                 </div>
                 <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                  <Brain className="h-6 w-6 text-module-workflows" />
+                  <Brain className="icon-xl text-module-workflows" />
                 </div>
               </div>
             </CardContent>
@@ -487,7 +487,7 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
                   <p className="text-[10px] text-muted-foreground mt-1">{health.totalActive} active · {health.criticalCount} critical</p>
                 </div>
                 <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center">
-                  <ShieldAlert className="h-6 w-6 text-muted-foreground" />
+                  <ShieldAlert className="icon-xl text-muted-foreground" />
                 </div>
               </div>
               <p className="text-[9px] text-muted-foreground/50 mt-1">Click to view alerts</p>
@@ -503,7 +503,7 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
                   <p className="text-[10px] text-muted-foreground mt-1">{health.activeThresholds} active rule{health.activeThresholds !== 1 ? 's' : ''}</p>
                 </div>
                 <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center">
-                  <Settings2 className="h-6 w-6 text-muted-foreground" />
+                  <Settings2 className="icon-xl text-muted-foreground" />
                 </div>
               </div>
               <p className="text-[9px] text-muted-foreground/50 mt-1">Click to manage thresholds</p>
@@ -519,7 +519,7 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
                   <p className="text-[10px] text-muted-foreground mt-1">{visiblePredictions.length} prediction{visiblePredictions.length !== 1 ? 's' : ''}</p>
                 </div>
                 <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center">
-                  <Activity className="h-6 w-6 text-muted-foreground" />
+                  <Activity className="icon-xl text-muted-foreground" />
                 </div>
               </div>
             </CardContent>
@@ -545,8 +545,8 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2 text-base">
-                  <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <Brain className="h-4 w-4 text-module-workflows" />
+                  <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <Brain className="icon-md text-module-workflows" />
                   </div>
                   AI Analysis Summary
                 </CardTitle>
@@ -565,7 +565,7 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm flex items-center gap-2">
-                  <TrendingUp className="h-4 w-4 text-primary" />
+                  <TrendingUp className="icon-md text-primary" />
                   Predictions
                   <Badge variant="secondary" className="text-[10px] ml-1">{visiblePredictions.length}</Badge>
                 </CardTitle>
@@ -608,7 +608,7 @@ export function PerformanceDashboard({ perfProjectId, alerts, predictions, thres
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm flex items-center gap-2">
-                  <Lightbulb className="h-4 w-4 text-yellow-500" />
+                  <Lightbulb className="icon-md text-yellow-500" />
                   Recommendations
                   <Badge variant="secondary" className="text-[10px] ml-1">{aiResult.recommendations.length}</Badge>
                 </CardTitle>

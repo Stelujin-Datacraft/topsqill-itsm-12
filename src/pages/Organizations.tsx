@@ -72,7 +72,7 @@ const Organizations = () => {
 
   const actions = (
     <Button onClick={() => setIsEditOpen(true)}>
-      <Edit className="h-4 w-4 mr-2" />
+      <Edit className="icon-md mr-2" />
       Edit Settings
     </Button>
   );
@@ -116,7 +116,7 @@ const Organizations = () => {
               {/* Domain */}
               <div className="flex items-start gap-3">
                 <div className="p-2 rounded-lg bg-muted">
-                  <Globe className="h-5 w-5 text-muted-foreground" />
+                  <Globe className="icon-lg text-muted-foreground" />
                 </div>
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Domain</p>
@@ -127,7 +127,7 @@ const Organizations = () => {
               {/* Admin Email */}
               <div className="flex items-start gap-3">
                 <div className="p-2 rounded-lg bg-muted">
-                  <Mail className="h-5 w-5 text-muted-foreground" />
+                  <Mail className="icon-lg text-muted-foreground" />
                 </div>
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Admin Email</p>
@@ -138,7 +138,7 @@ const Organizations = () => {
               {/* Created Date */}
               <div className="flex items-start gap-3">
                 <div className="p-2 rounded-lg bg-muted">
-                  <Calendar className="h-5 w-5 text-muted-foreground" />
+                  <Calendar className="icon-lg text-muted-foreground" />
                 </div>
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Created</p>

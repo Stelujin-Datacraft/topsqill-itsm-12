@@ -63,7 +63,7 @@ const AuditPage = () => {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={() => navigate('/knowledge-base')}>
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft className="icon-md" />
           </Button>
           <div>
             <h1 className="text-2xl font-bold text-foreground">Audit Programs</h1>
@@ -72,7 +72,7 @@ const AuditPage = () => {
         </div>
         {isAdmin && (
           <Button onClick={() => { resetForm(); setShowCreate(true); }} className="gap-2">
-            <Plus className="h-4 w-4" /> Create Audit
+            <Plus className="icon-md" /> Create Audit
           </Button>
         )}
       </div>
@@ -80,19 +80,19 @@ const AuditPage = () => {
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card><CardContent className="p-4 flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-primary/10"><ClipboardList className="h-5 w-5 text-module-compliance" /></div>
+          <div className="p-2 rounded-lg bg-primary/10"><ClipboardList className="icon-lg text-module-compliance" /></div>
           <div><div className="text-2xl font-bold">{audits.length}</div><div className="text-xs text-muted-foreground">Total Audits</div></div>
         </CardContent></Card>
         <Card><CardContent className="p-4 flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-blue-500/10"><Clock className="h-5 w-5 text-blue-600" /></div>
+          <div className="p-2 rounded-lg bg-blue-500/10"><Clock className="icon-lg text-info" /></div>
           <div><div className="text-2xl font-bold">{audits.filter(a => a.status === 'in_progress').length}</div><div className="text-xs text-muted-foreground">In Progress</div></div>
         </CardContent></Card>
         <Card><CardContent className="p-4 flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-green-500/10"><CheckCircle className="h-5 w-5 text-green-600" /></div>
+          <div className="p-2 rounded-lg bg-green-500/10"><CheckCircle className="icon-lg text-green-600" /></div>
           <div><div className="text-2xl font-bold">{audits.filter(a => a.status === 'completed').length}</div><div className="text-xs text-muted-foreground">Completed</div></div>
         </CardContent></Card>
         <Card><CardContent className="p-4 flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-yellow-500/10"><AlertTriangle className="h-5 w-5 text-yellow-600" /></div>
+          <div className="p-2 rounded-lg bg-yellow-500/10"><AlertTriangle className="icon-lg text-yellow-600" /></div>
           <div><div className="text-2xl font-bold">{audits.filter(a => a.status === 'planned').length}</div><div className="text-xs text-muted-foreground">Planned</div></div>
         </CardContent></Card>
       </div>
@@ -140,7 +140,7 @@ const AuditPage = () => {
                   <div className="text-right text-xs text-muted-foreground ml-4 shrink-0 space-y-0.5">
                     {audit.start_date && <div>Start: {format(new Date(audit.start_date), 'MMM d, yyyy')}</div>}
                     {audit.end_date && <div>End: {format(new Date(audit.end_date), 'MMM d, yyyy')}</div>}
-                    <ChevronRight className="h-4 w-4 ml-auto" />
+                    <ChevronRight className="icon-md ml-auto" />
                   </div>
                 </CardContent>
               </Card>
@@ -240,7 +240,7 @@ const AuditDetail = ({ auditId, onBack }: { auditId: string; onBack: () => void 
     <div className="space-y-6 p-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={onBack}><ArrowLeft className="h-4 w-4" /></Button>
+          <Button variant="ghost" size="icon" onClick={onBack}><ArrowLeft className="icon-md" /></Button>
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-2xl font-bold text-foreground">{audit?.name}</h1>
@@ -258,7 +258,7 @@ const AuditDetail = ({ auditId, onBack }: { auditId: string; onBack: () => void 
           )}
           {isAdmin && (
             <Button onClick={() => { resetForm(); setShowCreate(true); }} className="gap-2">
-              <Plus className="h-4 w-4" /> Add Finding
+              <Plus className="icon-md" /> Add Finding
             </Button>
           )}
         </div>
@@ -275,8 +275,8 @@ const AuditDetail = ({ auditId, onBack }: { auditId: string; onBack: () => void 
       {/* Findings stats */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <Card><CardContent className="p-3 text-center"><div className="text-xl font-bold">{findings.length}</div><div className="text-xs text-muted-foreground">Total</div></CardContent></Card>
-        <Card><CardContent className="p-3 text-center"><div className="text-xl font-bold text-red-600">{findings.filter(f => f.status === 'open').length}</div><div className="text-xs text-muted-foreground">Open</div></CardContent></Card>
-        <Card><CardContent className="p-3 text-center"><div className="text-xl font-bold text-blue-600">{findings.filter(f => f.status === 'in_progress').length}</div><div className="text-xs text-muted-foreground">In Progress</div></CardContent></Card>
+        <Card><CardContent className="p-3 text-center"><div className="text-xl font-bold text-destructive">{findings.filter(f => f.status === 'open').length}</div><div className="text-xs text-muted-foreground">Open</div></CardContent></Card>
+        <Card><CardContent className="p-3 text-center"><div className="text-xl font-bold text-info">{findings.filter(f => f.status === 'in_progress').length}</div><div className="text-xs text-muted-foreground">In Progress</div></CardContent></Card>
         <Card><CardContent className="p-3 text-center"><div className="text-xl font-bold text-green-600">{findings.filter(f => f.status === 'closed').length}</div><div className="text-xs text-muted-foreground">Closed</div></CardContent></Card>
         <Card><CardContent className="p-3 text-center"><div className="text-xl font-bold text-orange-600">{findings.filter(f => f.severity === 'critical' || f.severity === 'high').length}</div><div className="text-xs text-muted-foreground">High/Critical</div></CardContent></Card>
       </div>
@@ -318,7 +318,7 @@ const AuditDetail = ({ auditId, onBack }: { auditId: string; onBack: () => void 
                         <SelectContent>{FINDING_STATUSES.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent>
                       </Select>
                     )}
-                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    <ChevronRight className="icon-md text-muted-foreground" />
                   </div>
                 </CardContent>
               </Card>
@@ -415,7 +415,7 @@ const FindingDetail = ({ findingId, auditId, onBack }: { findingId: string; audi
     <div className="space-y-6 p-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={onBack}><ArrowLeft className="h-4 w-4" /></Button>
+          <Button variant="ghost" size="icon" onClick={onBack}><ArrowLeft className="icon-md" /></Button>
           <div>
             <div className="flex items-center gap-2 flex-wrap">
               {finding.finding_ref && <span className="font-mono text-sm text-muted-foreground">{finding.finding_ref}</span>}
@@ -423,19 +423,19 @@ const FindingDetail = ({ findingId, auditId, onBack }: { findingId: string; audi
               <Badge className={stDef?.color || ''}>{stDef?.label}</Badge>
               <Badge className={sevDef?.color || ''} variant="outline">{sevDef?.label}</Badge>
             </div>
-            {finding.control_id && <span className="text-xs text-muted-foreground flex items-center gap-1 mt-1"><Shield className="h-3 w-3" /> Linked to control</span>}
-            {finding.policy_id && <span className="text-xs text-muted-foreground flex items-center gap-1"><Link2 className="h-3 w-3" /> Linked to policy</span>}
+            {finding.control_id && <span className="text-xs text-muted-foreground flex items-center gap-1 mt-1"><Shield className="icon-xs" /> Linked to control</span>}
+            {finding.policy_id && <span className="text-xs text-muted-foreground flex items-center gap-1"><Link2 className="icon-xs" /> Linked to policy</span>}
           </div>
         </div>
         <div className="flex gap-2">
           {isAdmin && finding.status !== 'closed' && allTasksComplete && (
             <Button variant="outline" className="gap-1" onClick={() => updateFinding.mutate({ id: findingId, status: 'closed', closed_at: new Date().toISOString() })}>
-              <CheckCircle className="h-4 w-4" /> Close Finding
+              <CheckCircle className="icon-md" /> Close Finding
             </Button>
           )}
           {isAdmin && (
             <Button onClick={() => { setForm({ title: '', description: '', priority: 'medium', due_date: '' }); setShowCreate(true); }} className="gap-2">
-              <Plus className="h-4 w-4" /> Add Task
+              <Plus className="icon-md" /> Add Task
             </Button>
           )}
         </div>
@@ -478,7 +478,7 @@ const FindingDetail = ({ findingId, auditId, onBack }: { findingId: string; audi
           ) : tasks.length === 0 ? (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-8 text-center">
-                <CheckCircle className="h-8 w-8 text-muted-foreground mb-2" />
+                <CheckCircle className="size-8 text-muted-foreground mb-2" />
                 <p className="text-sm text-muted-foreground">No remediation tasks yet.</p>
               </CardContent>
             </Card>
@@ -507,7 +507,7 @@ const FindingDetail = ({ findingId, auditId, onBack }: { findingId: string; audi
                             <SelectItem value="overdue">Overdue</SelectItem>
                           </SelectContent>
                         </Select>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => deleteTask.mutate(task.id)}><Trash2 className="h-4 w-4" /></Button>
+                        <Button variant="ghost" size="icon" className="size-8 text-destructive" onClick={() => deleteTask.mutate(task.id)}><Trash2 className="icon-md" /></Button>
                       </div>
                     )}
                   </CardContent>
@@ -526,7 +526,7 @@ const FindingDetail = ({ findingId, auditId, onBack }: { findingId: string; audi
           {evidence.length === 0 ? (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-8 text-center">
-                <FileBox className="h-8 w-8 text-muted-foreground mb-2" />
+                <FileBox className="size-8 text-muted-foreground mb-2" />
                 <p className="text-sm text-muted-foreground">No evidence linked to this finding.</p>
               </CardContent>
             </Card>
@@ -539,7 +539,7 @@ const FindingDetail = ({ findingId, auditId, onBack }: { findingId: string; audi
                   <Card key={item.id}>
                     <CardContent className="p-3 flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <FileBox className="h-4 w-4 text-muted-foreground" />
+                        <FileBox className="icon-md text-muted-foreground" />
                         <div>
                           <span className="text-sm font-medium">{item.name}</span>
                           <div className="flex items-center gap-1 mt-0.5">

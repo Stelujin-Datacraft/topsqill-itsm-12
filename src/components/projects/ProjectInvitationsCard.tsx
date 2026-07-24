@@ -59,7 +59,7 @@ export function ProjectInvitationsCard({
       case 'editor':
         return 'bg-primary/10 text-primary border-primary/20';
       case 'viewer':
-        return 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20';
+        return 'bg-emerald-500/10 text-success dark:text-emerald-400 border-emerald-500/20';
       default:
         return 'bg-muted text-muted-foreground border-border';
     }
@@ -105,7 +105,7 @@ export function ProjectInvitationsCard({
         {showTitle && <Header />}
         <CardContent className="py-8">
           <div className="flex items-center justify-center gap-2 text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" />
+            <Loader2 className="icon-md animate-spin" />
             Loading invitations...
           </div>
         </CardContent>
@@ -120,7 +120,7 @@ export function ProjectInvitationsCard({
         <CardContent className="py-10">
           <div className="flex flex-col items-center justify-center text-center gap-2">
             <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
-              <Inbox className="h-5 w-5 text-muted-foreground" />
+              <Inbox className="icon-lg text-muted-foreground" />
             </div>
             <p className="text-sm font-medium text-foreground">No pending invitations</p>
             <p className="text-xs text-muted-foreground">
@@ -177,7 +177,7 @@ export function ProjectInvitationsCard({
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <div className="flex items-center gap-3 text-xs text-muted-foreground">
                   <span className="flex items-center gap-1">
-                    <Clock className="h-3 w-3" />
+                    <Clock className="icon-xs" />
                     Invited {formatTimeAgo(invitation.invited_at)}
                   </span>
                   <span className="text-border">•</span>

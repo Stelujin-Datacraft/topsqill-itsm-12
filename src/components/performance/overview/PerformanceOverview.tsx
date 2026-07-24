@@ -41,12 +41,12 @@ function useHealthMetrics(alerts: PerformanceAlert[], predictions: PerformancePr
     const alertWeight = criticalCount * 25 + (totalActive - criticalCount) * 10;
     const alertHealth = Math.max(0, 100 - Math.min(alertWeight, 100));
     const alertLabel = alertHealth >= 80 ? 'Healthy' : alertHealth >= 50 ? 'At Risk' : 'Critical';
-    const alertColor = alertHealth >= 80 ? 'text-emerald-600' : alertHealth >= 50 ? 'text-yellow-600' : 'text-red-600';
+    const alertColor = alertHealth >= 80 ? 'text-success' : alertHealth >= 50 ? 'text-yellow-600' : 'text-destructive';
 
     const activeThresholds = thresholds.filter(t => t.is_active).length;
     const coverageScore = Math.min(activeThresholds * 20, 100);
     const coverageLabel = coverageScore >= 60 ? 'Good' : coverageScore >= 20 ? 'Partial' : 'None';
-    const coverageColor = coverageScore >= 60 ? 'text-emerald-600' : coverageScore >= 20 ? 'text-yellow-600' : 'text-muted-foreground';
+    const coverageColor = coverageScore >= 60 ? 'text-success' : coverageScore >= 20 ? 'text-yellow-600' : 'text-muted-foreground';
 
     const timestamps = [
       ...alerts.map(a => new Date(a.created_at).getTime()),
@@ -254,7 +254,7 @@ export function PerformanceOverview({ alerts, predictions, thresholds, loading, 
   const visiblePredictions = aiResult?.predictions?.filter((_, i) => !dismissedPredictions.has(i)) ?? [];
 
   if (loading) {
-    return <div className="flex items-center justify-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+    return <div className="flex items-center justify-center h-64"><Loader2 className="size-8 animate-spin text-primary" /></div>;
   }
 
   return (
@@ -263,7 +263,7 @@ export function PerformanceOverview({ alerts, predictions, thresholds, loading, 
       <Card className="border-primary/20 bg-primary/5">
         <CardContent className="py-4 space-y-4">
           <div className="flex items-center gap-3">
-            <Brain className="h-6 w-6 text-module-workflows" />
+            <Brain className="icon-xl text-module-workflows" />
             <div>
               <p className="font-semibold text-foreground">AI Performance Analysis</p>
               <p className="text-sm text-muted-foreground">
@@ -322,7 +322,7 @@ export function PerformanceOverview({ alerts, predictions, thresholds, loading, 
                   </Badge>
                 )}
               </div>
-              <Brain className="h-8 w-8 text-module-workflows" />
+              <Brain className="size-8 text-module-workflows" />
             </div>
           </CardContent>
         </Card>
@@ -339,7 +339,7 @@ export function PerformanceOverview({ alerts, predictions, thresholds, loading, 
                   {health.totalActive} active ({health.criticalCount} critical)
                 </p>
               </div>
-              <ShieldAlert className="h-8 w-8 text-muted-foreground" />
+              <ShieldAlert className="size-8 text-muted-foreground" />
             </div>
           </CardContent>
         </Card>
@@ -356,7 +356,7 @@ export function PerformanceOverview({ alerts, predictions, thresholds, loading, 
                   {health.activeThresholds} active rule{health.activeThresholds !== 1 ? 's' : ''}
                 </p>
               </div>
-              <Settings2 className="h-8 w-8 text-muted-foreground" />
+              <Settings2 className="size-8 text-muted-foreground" />
             </div>
           </CardContent>
         </Card>
@@ -373,7 +373,7 @@ export function PerformanceOverview({ alerts, predictions, thresholds, loading, 
                   {visiblePredictions.length} prediction{visiblePredictions.length !== 1 ? 's' : ''}
                 </p>
               </div>
-              <Activity className="h-8 w-8 text-muted-foreground" />
+              <Activity className="size-8 text-muted-foreground" />
             </div>
           </CardContent>
         </Card>
@@ -384,7 +384,7 @@ export function PerformanceOverview({ alerts, predictions, thresholds, loading, 
           <Card className="border-primary/30">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Brain className="h-5 w-5 text-module-workflows" />
+                <Brain className="icon-lg text-module-workflows" />
                 AI Analysis Results
               </CardTitle>
               <CardDescription>{aiResult.summary}</CardDescription>
@@ -403,7 +403,7 @@ export function PerformanceOverview({ alerts, predictions, thresholds, loading, 
             <Card>
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
-                  <TrendingUp className="h-4 w-4 text-primary" />
+                  <TrendingUp className="icon-md text-primary" />
                   Predictions ({visiblePredictions.length})
                 </CardTitle>
               </CardHeader>
@@ -439,7 +439,7 @@ export function PerformanceOverview({ alerts, predictions, thresholds, loading, 
             <Card>
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
-                  <Lightbulb className="h-4 w-4 text-yellow-500" />
+                  <Lightbulb className="icon-md text-yellow-500" />
                   Recommendations ({aiResult.recommendations.length})
                 </CardTitle>
               </CardHeader>

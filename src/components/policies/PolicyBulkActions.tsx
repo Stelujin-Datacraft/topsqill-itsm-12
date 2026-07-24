@@ -70,7 +70,7 @@ export function PolicyBulkActions({
         
         <div className="flex items-center gap-1.5 ml-auto">
           {canPublish && (
-            <Button size="sm" variant="outline" onClick={() => setConfirmAction('publish')} className="gap-1.5 text-emerald-600 hover:text-emerald-700">
+            <Button size="sm" variant="outline" onClick={() => setConfirmAction('publish')} className="gap-1.5 text-success hover:text-success">
               <CheckCircle className="h-3.5 w-3.5" /> Publish
             </Button>
           )}

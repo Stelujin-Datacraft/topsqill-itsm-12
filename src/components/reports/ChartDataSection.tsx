@@ -253,7 +253,7 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
     <div className="space-y-6">
       {/* Introduction */}
       <Alert className="bg-primary/5 border-primary/20">
-        <Info className="h-4 w-4 text-module-overview" />
+        <Info className="icon-md text-module-overview" />
         <AlertDescription className="text-sm">
           Configure your chart data in 3 simple steps: choose what to show, select your values, and pick how to group them.
         </AlertDescription>
@@ -292,7 +292,7 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
               <RadioGroupItem value="calculate" id="mode-calculate" className="mt-0.5" />
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
-                  <Calculator className="h-4 w-4 text-primary" />
+                  <Calculator className="icon-md text-primary" />
                   <span className="font-semibold">Calculate Values</span>
                 </div>
                 <p className="text-xs text-muted-foreground leading-relaxed">
@@ -315,7 +315,7 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
               <RadioGroupItem value="compare" id="mode-compare" className="mt-0.5" />
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
-                  <Layers className="h-4 w-4 text-module-reports" />
+                  <Layers className="icon-md text-module-reports" />
                   <span className="font-semibold">Compare Two Fields</span>
                 </div>
                 <p className="text-xs text-muted-foreground leading-relaxed">
@@ -363,7 +363,7 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
               {selectedDimensions[0] ? (
                 <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border">
                   <div className="flex items-center gap-2">
-                    <Tag className="h-4 w-4 text-module-reports" />
+                    <Tag className="icon-md text-module-reports" />
                     <span className="font-medium">{getFieldLabel(selectedDimensions[0])}</span>
                     <Badge variant="secondary" className="text-xs">{getFieldTypeLabel(selectedDimensions[0])}</Badge>
                     <Badge variant="outline" className="text-xs">X-axis</Badge>
@@ -374,7 +374,7 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
                     onClick={() => removeDimension(selectedDimensions[0])}
                     className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
                   >
-                    <X className="h-4 w-4" />
+                    <X className="icon-md" />
                   </Button>
                 </div>
               ) : (
@@ -382,7 +382,7 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
                   <Select onValueChange={addDimension}>
                     <SelectTrigger className="border-dashed border-2">
                       <div className="flex items-center gap-2 text-muted-foreground">
-                        <Plus className="h-4 w-4" />
+                        <Plus className="icon-md" />
                         <span>Select a category field for X-axis...</span>
                       </div>
                     </SelectTrigger>
@@ -399,7 +399,7 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
                   </Select>
                 ) : (
                   <Alert>
-                    <Info className="h-4 w-4" />
+                    <Info className="icon-md" />
                     <AlertDescription>
                       No category fields found. Add fields like select, radio, or text to group your data.
                     </AlertDescription>
@@ -419,7 +419,7 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
                 <div className="p-4 bg-muted/50 rounded-lg border space-y-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <TrendingUp className="h-4 w-4 text-module-performance" />
+                      <TrendingUp className="icon-md text-module-performance" />
                       <span className="font-medium">{getFieldLabel(selectedMetrics[0])}</span>
                       <Badge variant="secondary" className="text-xs">
                         {getFieldTypeLabel(selectedMetrics[0])}
@@ -431,7 +431,7 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
                       onClick={() => removeMetric(selectedMetrics[0])}
                       className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
                     >
-                      <X className="h-4 w-4" />
+                      <X className="icon-md" />
                     </Button>
                   </div>
                   
@@ -460,7 +460,7 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
                     <Select onValueChange={addMetric}>
                       <SelectTrigger className="border-dashed border-2">
                         <div className="flex items-center gap-2 text-muted-foreground">
-                          <Plus className="h-4 w-4" />
+                          <Plus className="icon-md" />
                           <span>Select a numeric field...</span>
                         </div>
                       </SelectTrigger>
@@ -477,7 +477,7 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
                     </Select>
                   ) : (
                     <Alert>
-                      <Info className="h-4 w-4" />
+                      <Info className="icon-md" />
                       <AlertDescription>
                         No numeric fields found in this form. Use <strong>Count Records</strong> mode instead.
                       </AlertDescription>
@@ -497,7 +497,7 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
                 {selectedMetrics[0] ? (
                   <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border">
                     <div className="flex items-center gap-2">
-                      <TrendingUp className="h-4 w-4 text-module-performance" />
+                      <TrendingUp className="icon-md text-module-performance" />
                       <span className="font-medium">{getFieldLabel(selectedMetrics[0])}</span>
                     </div>
                     <Button
@@ -506,14 +506,14 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
                       onClick={() => removeMetric(selectedMetrics[0])}
                       className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
                     >
-                      <X className="h-4 w-4" />
+                      <X className="icon-md" />
                     </Button>
                   </div>
                 ) : (
                   <Select onValueChange={addMetric}>
                     <SelectTrigger className="border-dashed border-2">
                       <div className="flex items-center gap-2 text-muted-foreground">
-                        <Plus className="h-4 w-4" />
+                        <Plus className="icon-md" />
                         <span>Select X-axis field...</span>
                       </div>
                     </SelectTrigger>
@@ -546,7 +546,7 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
                 {selectedMetrics[1] ? (
                   <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border">
                     <div className="flex items-center gap-2">
-                      <TrendingUp className="h-4 w-4 text-secondary-foreground" />
+                      <TrendingUp className="icon-md text-secondary-foreground" />
                       <span className="font-medium">{getFieldLabel(selectedMetrics[1])}</span>
                     </div>
                     <Button
@@ -555,14 +555,14 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
                       onClick={() => removeMetric(selectedMetrics[1])}
                       className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
                     >
-                      <X className="h-4 w-4" />
+                      <X className="icon-md" />
                     </Button>
                   </div>
                 ) : (
                   <Select onValueChange={addMetric} disabled={selectedMetrics.length < 1}>
                     <SelectTrigger className={`border-dashed border-2 ${selectedMetrics.length < 1 ? 'opacity-50' : ''}`}>
                       <div className="flex items-center gap-2 text-muted-foreground">
-                        <Plus className="h-4 w-4" />
+                        <Plus className="icon-md" />
                         <span>{selectedMetrics.length < 1 ? 'Select X-axis field first' : 'Select Y-axis field...'}</span>
                       </div>
                     </SelectTrigger>
@@ -590,7 +590,7 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
                   return (
                     <div className="p-3 bg-primary/5 rounded-lg border border-primary/20 mt-4">
                       <div className="flex items-start gap-2">
-                        <ListOrdered className="h-4 w-4 text-primary mt-0.5" />
+                        <ListOrdered className="icon-md text-primary mt-0.5" />
                         <div className="flex-1">
                           <p className="text-sm font-medium text-foreground">Encoded Legend Mode (Auto)</p>
                           <p className="text-xs text-muted-foreground mt-1">
@@ -636,7 +636,7 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
               {selectedDimensions[1] ? (
                 <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border">
                   <div className="flex items-center gap-2">
-                    <Layers className="h-4 w-4 text-module-reports" />
+                    <Layers className="icon-md text-module-reports" />
                     <span className="font-medium">{getFieldLabel(selectedDimensions[1])}</span>
                     <Badge variant="secondary" className="text-xs">{getFieldTypeLabel(selectedDimensions[1])}</Badge>
                     <Badge variant="outline" className="text-xs">Stack/Color</Badge>
@@ -647,7 +647,7 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
                     onClick={() => removeDimension(selectedDimensions[1])}
                     className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
                   >
-                    <X className="h-4 w-4" />
+                    <X className="icon-md" />
                   </Button>
                 </div>
               ) : selectedDimensions.length >= 1 ? (
@@ -655,7 +655,7 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
                   <Select onValueChange={addDimension}>
                     <SelectTrigger className="border-dashed border-2 border-muted">
                       <div className="flex items-center gap-2 text-muted-foreground">
-                        <Plus className="h-4 w-4" />
+                        <Plus className="icon-md" />
                         <span>Add secondary field for stacking...</span>
                       </div>
                     </SelectTrigger>
@@ -687,7 +687,7 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
                   return (
                     <div className="p-3 bg-primary/5 rounded-lg border border-primary/20">
                       <div className="flex items-start gap-2">
-                        <ListOrdered className="h-4 w-4 text-primary mt-0.5" />
+                        <ListOrdered className="icon-md text-primary mt-0.5" />
                         <div className="flex-1">
                           <p className="text-sm font-medium text-foreground">Encoded Legend Mode (Auto)</p>
                           <p className="text-xs text-muted-foreground mt-1">
@@ -739,9 +739,9 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
                                     {...provided.dragHandleProps}
                                     className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground"
                                   >
-                                    <GripVertical className="h-4 w-4" />
+                                    <GripVertical className="icon-md" />
                                   </div>
-                                  <Tag className="h-4 w-4 text-module-reports" />
+                                  <Tag className="icon-md text-module-reports" />
                                   <span className="font-medium">{getFieldLabel(dimId)}</span>
                                   <Badge variant="secondary" className="text-xs">{getFieldTypeLabel(dimId)}</Badge>
                                   <Badge variant="outline" className="text-xs">{index === 0 ? 'Primary' : 'Secondary'}</Badge>
@@ -752,7 +752,7 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
                                   onClick={() => removeDimension(dimId)}
                                   className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
                                 >
-                                  <X className="h-4 w-4" />
+                                  <X className="icon-md" />
                                 </Button>
                               </div>
                             )}
@@ -772,7 +772,7 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
                     <Select onValueChange={addDimension}>
                       <SelectTrigger className={`border-dashed border-2 ${selectedDimensions.length === 0 ? '' : 'border-muted'}`}>
                         <div className="flex items-center gap-2 text-muted-foreground">
-                          <Plus className="h-4 w-4" />
+                          <Plus className="icon-md" />
                           <span>
                             {selectedDimensions.length === 0 
                               ? 'Select a category field to group data...' 
@@ -794,7 +794,7 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
                     </Select>
                   ) : (
                     <Alert>
-                      <Info className="h-4 w-4" />
+                      <Info className="icon-md" />
                       <AlertDescription>
                         No category fields found. Add fields like select, radio, or text to group your data.
                       </AlertDescription>
@@ -817,9 +817,9 @@ export function ChartDataSection({ config, formFields, onConfigChange }: ChartDa
         <CardContent className="pt-4">
           <div className="flex items-start gap-3">
             {isConfigComplete() ? (
-              <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0 mt-0.5" />
+              <CheckCircle2 className="icon-lg text-green-600 shrink-0 mt-0.5" />
             ) : (
-              <Info className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+              <Info className="icon-lg text-amber-600 shrink-0 mt-0.5" />
             )}
             <div>
               <p className={`text-sm font-medium ${isConfigComplete() ? 'text-green-700 dark:text-green-400' : 'text-amber-700 dark:text-amber-400'}`}>

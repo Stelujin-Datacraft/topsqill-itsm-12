@@ -86,7 +86,7 @@ export function DraggableFieldSelector({
                             {...provided.dragHandleProps}
                             className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground"
                           >
-                            <GripVertical className="h-4 w-4" />
+                            <GripVertical className="icon-md" />
                           </div>
                           <Badge variant="secondary" className="text-xs">
                             {index + 1}
@@ -103,9 +103,9 @@ export function DraggableFieldSelector({
                             variant="ghost"
                             size="sm"
                             onClick={() => onFieldToggle(field.id, false)}
-                            className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+                            className="icon-xl p-0 text-muted-foreground hover:text-destructive"
                           >
-                            <X className="h-3 w-3" />
+                            <X className="icon-xs" />
                           </Button>
                         </div>
                       )}

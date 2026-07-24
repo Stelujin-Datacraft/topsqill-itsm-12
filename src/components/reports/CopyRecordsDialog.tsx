@@ -70,7 +70,7 @@ export function CopyRecordsDialog({ isOpen, onOpenChange, selectedCount, selecte
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Copy className="h-5 w-5" />
+            <Copy className="icon-lg" />
             Copy Records
           </DialogTitle>
         </DialogHeader>

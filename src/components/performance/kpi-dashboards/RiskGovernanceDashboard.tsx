@@ -77,10 +77,10 @@ export function RiskGovernanceDashboard({ kpis, projectList = [], onSelectProjec
                   <TableCell className="font-medium">{p.name}</TableCell>
                   <TableCell><Badge variant="secondary" className="text-[10px]">{p.status}</Badge></TableCell>
                   <TableCell className="text-right">
-                    <span className={p.cpi >= 1 ? 'text-emerald-600 font-semibold' : 'text-destructive font-semibold'}>{p.cpi.toFixed(2)}</span>
+                    <span className={p.cpi >= 1 ? 'text-success font-semibold' : 'text-destructive font-semibold'}>{p.cpi.toFixed(2)}</span>
                   </TableCell>
                   <TableCell className="text-right">
-                    <span className={p.spi >= 1 ? 'text-emerald-600 font-semibold' : 'text-destructive font-semibold'}>{p.spi.toFixed(2)}</span>
+                    <span className={p.spi >= 1 ? 'text-success font-semibold' : 'text-destructive font-semibold'}>{p.spi.toFixed(2)}</span>
                   </TableCell>
                   <TableCell className="text-right">{p.riskScore}</TableCell>
                 </TableRow>

@@ -123,14 +123,14 @@ export function AssetExport() {
       {/* Export Controls */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2"><Download className="h-5 w-5" />Export Asset Report</CardTitle>
+          <CardTitle className="text-lg flex items-center gap-2"><Download className="icon-lg" />Export Asset Report</CardTitle>
           <CardDescription>Select columns, apply filters, and export your asset inventory as CSV or PDF.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Filters */}
           <div className="flex flex-wrap gap-4">
             <div className="flex items-center gap-2">
-              <Filter className="h-4 w-4 text-muted-forms" />
+              <Filter className="icon-md text-muted-forms" />
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger className="w-[150px]"><SelectValue placeholder="Status" /></SelectTrigger>
                 <SelectContent>
@@ -175,10 +175,10 @@ export function AssetExport() {
           {/* Export Buttons */}
           <div className="flex gap-3 pt-2">
             <Button onClick={exportCSV} disabled={filteredAssets.length === 0 || selectedColumns.length === 0}>
-              <FileSpreadsheet className="h-4 w-4 mr-2" />Export as CSV
+              <FileSpreadsheet className="icon-md mr-2" />Export as CSV
             </Button>
             <Button variant="secondary" onClick={exportPDF} disabled={filteredAssets.length === 0 || selectedColumns.length === 0}>
-              <FileText className="h-4 w-4 mr-2" />Export as PDF
+              <FileText className="icon-md mr-2" />Export as PDF
             </Button>
           </div>
         </CardContent>

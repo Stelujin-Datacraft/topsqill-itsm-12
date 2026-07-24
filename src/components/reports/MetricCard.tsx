@@ -228,17 +228,17 @@ export function MetricCard({ config, isEditing, onConfigChange, onEdit }: Metric
   const getIcon = () => {
     switch (config.aggregation) {
       case 'count':
-        return <Users className="h-4 w-4 mr-2" />;
+        return <Users className="icon-md mr-2" />;
       case 'sum':
-        return <DollarSign className="h-4 w-4 mr-2" />;
+        return <DollarSign className="icon-md mr-2" />;
       case 'avg':
-        return <BarChart3 className="h-4 w-4 mr-2" />;
+        return <BarChart3 className="icon-md mr-2" />;
       case 'min':
-        return <TrendingDown className="h-4 w-4 mr-2" />;
+        return <TrendingDown className="icon-md mr-2" />;
       case 'max':
-        return <TrendingUp className="h-4 w-4 mr-2" />;
+        return <TrendingUp className="icon-md mr-2" />;
       default:
-        return <Target className="h-4 w-4 mr-2" />;
+        return <Target className="icon-md mr-2" />;
     }
   };
 
@@ -324,7 +324,7 @@ export function MetricCard({ config, isEditing, onConfigChange, onEdit }: Metric
   }
 
   return (
-    <Card className="bg-white border border-slate-200 shadow-lg hover:shadow-xl transition-shadow relative group">
+    <Card className="bg-white border border-slate-200 shadow-lg hover:shadow-token-md transition-shadow relative group">
       {onEdit && (
         <Button
           size="sm"
@@ -332,7 +332,7 @@ export function MetricCard({ config, isEditing, onConfigChange, onEdit }: Metric
           className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10"
           onClick={onEdit}
         >
-          <Edit className="h-4 w-4" />
+          <Edit className="icon-md" />
         </Button>
       )}
       <CardHeader>
@@ -344,7 +344,7 @@ export function MetricCard({ config, isEditing, onConfigChange, onEdit }: Metric
       <CardContent>
         <div className="text-3xl font-bold text-slate-900">{metricValue.toLocaleString()}</div>
         <div className="text-sm text-slate-500 flex items-center mt-2">
-          <Activity className="h-4 w-4 mr-1" />
+          <Activity className="icon-md mr-1" />
           Real-time
         </div>
       </CardContent>

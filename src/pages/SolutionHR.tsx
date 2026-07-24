@@ -149,7 +149,7 @@ const SolutionHR: React.FC = () => {
       </nav>
 
       <header className="container mx-auto px-4 py-16 md:py-24 text-center">
-        <Badge variant="secondary" className="mb-6 bg-primary/10 text-primary"><Sparkles className="w-3 h-3 mr-1" />Solution Spotlight</Badge>
+        <Badge variant="secondary" className="mb-6 bg-primary/10 text-primary"><Sparkles className="icon-xs mr-1" />Solution Spotlight</Badge>
         <h1 className="text-4xl md:text-6xl font-bold mb-6 leading-tight">
           HR Management,<br />
           <span className="bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">from offer letter to exit interview</span>
@@ -167,7 +167,7 @@ const SolutionHR: React.FC = () => {
         <Card className="max-w-4xl mx-auto border-primary/20 bg-card/60 backdrop-blur">
           <CardContent className="p-6 md:p-8">
             <div className="flex items-start gap-4">
-              <div className="rounded-full bg-primary/10 p-3 shrink-0"><CheckCircle className="h-6 w-6 text-primary" /></div>
+              <div className="rounded-full bg-primary/10 p-3 shrink-0"><CheckCircle className="icon-xl text-primary" /></div>
               <div>
                 <h2 className="text-xl md:text-2xl font-semibold mb-2">The scenario: Ananya joins on Monday</h2>
                 <p className="text-muted-foreground leading-relaxed">
@@ -186,7 +186,7 @@ const SolutionHR: React.FC = () => {
             {personas.map(p => (
               <Card key={p.role} className="border-primary/10">
                 <CardContent className="p-5">
-                  <div className="rounded-lg bg-primary/10 p-2 w-fit mb-3"><p.icon className="h-5 w-5 text-primary" /></div>
+                  <div className="rounded-lg bg-primary/10 p-2 w-fit mb-3"><p.icon className="icon-lg text-primary" /></div>
                   <h3 className="font-semibold mb-1">{p.role}</h3>
                   <p className="text-sm text-muted-foreground">{p.desc}</p>
                 </CardContent>
@@ -223,15 +223,15 @@ const SolutionHR: React.FC = () => {
                     <div className="md:[direction:ltr]">
                       <div className="flex items-center gap-3 mb-4">
                         <div className="md:hidden h-10 w-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm shrink-0">{step.num}</div>
-                        <Badge variant="secondary" className="bg-primary/10 text-primary"><Icon className="w-3 h-3 mr-1" />{step.module}</Badge>
+                        <Badge variant="secondary" className="bg-primary/10 text-primary"><Icon className="icon-xs mr-1" />{step.module}</Badge>
                       </div>
                       <h3 className="text-2xl md:text-3xl font-bold mb-3 leading-tight">{step.title}</h3>
                       <p className="text-muted-foreground leading-relaxed mb-5">{step.description}</p>
-                      <ul className="space-y-2">{step.bullets.map(b => (<li key={b} className="flex items-start gap-2 text-sm"><CheckCircle className="h-4 w-4 text-primary mt-0.5 shrink-0" /><span>{b}</span></li>))}</ul>
+                      <ul className="space-y-2">{step.bullets.map(b => (<li key={b} className="flex items-start gap-2 text-sm"><CheckCircle className="icon-md text-primary mt-0.5 shrink-0" /><span>{b}</span></li>))}</ul>
                     </div>
                     <div className="md:[direction:ltr]">
                       <div className="relative rounded-xl overflow-hidden border border-border shadow-2xl bg-card group">
-                        <img src={step.image} alt={step.alt} loading="lazy" width={1024} height={1024} className="w-full h-auto block transition-transform duration-500 group-hover:scale-[1.02]" />
+                        <img src={step.image} alt={step.alt} loading="lazy" width={1024} height={1024} className="w-full h-auto block transition-transform duration-500 group-" />
                         <div className="absolute inset-0 ring-1 ring-inset ring-white/10 pointer-events-none rounded-xl" />
                       </div>
                     </div>
@@ -250,7 +250,7 @@ const SolutionHR: React.FC = () => {
             {why.map(w => (
               <Card key={w.title} className="border-primary/10">
                 <CardContent className="p-5">
-                  <div className="rounded-lg bg-primary/10 p-2 w-fit mb-3"><w.icon className="h-5 w-5 text-primary" /></div>
+                  <div className="rounded-lg bg-primary/10 p-2 w-fit mb-3"><w.icon className="icon-lg text-primary" /></div>
                   <h3 className="font-semibold mb-1">{w.title}</h3>
                   <p className="text-sm text-muted-foreground">{w.desc}</p>
                 </CardContent>

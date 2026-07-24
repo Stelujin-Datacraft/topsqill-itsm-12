@@ -105,7 +105,7 @@ export function ProjectUsersDialog({ project, open, onOpenChange }: ProjectUsers
               {users.map((user) => (
                 <div key={user.user_id} className="flex items-center justify-between p-3 border rounded-lg">
                   <div className="flex items-center gap-3">
-                    <Avatar className="h-8 w-8">
+                    <Avatar className="size-8">
                       <AvatarFallback className="text-xs">
                         {getInitials(user.first_name, user.last_name, user.email)}
                       </AvatarFallback>
@@ -125,7 +125,7 @@ export function ProjectUsersDialog({ project, open, onOpenChange }: ProjectUsers
                   
                   <div className="flex items-center gap-2">
                     <Badge variant={getRoleBadgeVariant(user.role)}>
-                      {user.role === 'admin' && <Crown className="h-3 w-3 mr-1" />}
+                      {user.role === 'admin' && <Crown className="icon-xs mr-1" />}
                       {user.role}
                     </Badge>
                     
@@ -135,7 +135,7 @@ export function ProjectUsersDialog({ project, open, onOpenChange }: ProjectUsers
                         variant="outline"
                         onClick={() => handleRemoveUser(user.user_id)}
                       >
-                        <UserMinus className="h-3 w-3" />
+                        <UserMinus className="icon-xs" />
                       </Button>
                     )}
                   </div>
@@ -149,7 +149,7 @@ export function ProjectUsersDialog({ project, open, onOpenChange }: ProjectUsers
               Close
             </Button>
             <Button variant="outline">
-              <UserPlus className="h-4 w-4 mr-2" />
+              <UserPlus className="icon-md mr-2" />
               Add User
             </Button>
           </div>

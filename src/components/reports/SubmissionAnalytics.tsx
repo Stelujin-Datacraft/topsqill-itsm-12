@@ -80,7 +80,7 @@ export function SubmissionAnalytics({ data }: SubmissionAnalyticsProps) {
       <Card>
         <CardContent className="p-4">
           <div className="flex items-center space-x-2">
-            <Calendar className="h-4 w-4 text-module-workflows" />
+            <Calendar className="icon-md text-module-workflows" />
             <div>
               <p className="text-sm font-medium text-muted-foreground">Total</p>
               <p className="text-2xl font-bold">{analytics.totalSubmissions}</p>
@@ -92,7 +92,7 @@ export function SubmissionAnalytics({ data }: SubmissionAnalyticsProps) {
       <Card>
         <CardContent className="p-4">
           <div className="flex items-center space-x-2">
-            <Clock className="h-4 w-4 text-success" />
+            <Clock className="icon-md text-success" />
             <div>
               <p className="text-sm font-medium text-muted-foreground">Today</p>
               <p className="text-2xl font-bold text-success">{analytics.todaySubmissions}</p>
@@ -104,7 +104,7 @@ export function SubmissionAnalytics({ data }: SubmissionAnalyticsProps) {
       <Card>
         <CardContent className="p-4">
           <div className="flex items-center space-x-2">
-            <TrendingUp className="h-4 w-4 text-warning" />
+            <TrendingUp className="icon-md text-warning" />
             <div>
               <p className="text-sm font-medium text-muted-foreground">This Week</p>
               <p className="text-2xl font-bold text-warning">{analytics.thisWeekSubmissions}</p>
@@ -116,7 +116,7 @@ export function SubmissionAnalytics({ data }: SubmissionAnalyticsProps) {
       <Card>
         <CardContent className="p-4">
           <div className="flex items-center space-x-2">
-            <TrendingUp className="h-4 w-4 text-info" />
+            <TrendingUp className="icon-md text-info" />
             <div>
               <p className="text-sm font-medium text-muted-foreground">Avg/Day</p>
               <p className="text-2xl font-bold text-info">{analytics.averageSubmissionsPerDay}</p>
@@ -128,7 +128,7 @@ export function SubmissionAnalytics({ data }: SubmissionAnalyticsProps) {
       <Card>
         <CardContent className="p-4">
           <div className="flex items-center space-x-2">
-            <Users className="h-4 w-4 text-accent" />
+            <Users className="icon-md text-accent" />
             <div>
               <p className="text-sm font-medium text-muted-foreground">Submitters</p>
               <p className="text-2xl font-bold text-accent">{analytics.uniqueSubmitters}</p>
@@ -140,7 +140,7 @@ export function SubmissionAnalytics({ data }: SubmissionAnalyticsProps) {
       <Card>
         <CardContent className="p-4">
           <div className="flex items-center space-x-2">
-            <BarChart3 className="h-4 w-4 text-module-reports" />
+            <BarChart3 className="icon-md text-module-reports" />
             <div>
               <p className="text-sm font-medium text-muted-foreground">Completion</p>
               <p className="text-2xl font-bold text-primary">{analytics.completionRate}%</p>

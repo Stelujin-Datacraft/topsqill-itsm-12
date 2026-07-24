@@ -267,7 +267,7 @@ const UserProfile = () => {
     return (
       <DashboardLayout title="Profile">
         <div className="flex items-center justify-center h-[60vh]">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <Loader2 className="size-8 animate-spin text-muted-foreground" />
         </div>
       </DashboardLayout>
     );
@@ -278,7 +278,7 @@ const UserProfile = () => {
   const InfoCard = ({ icon: Icon, label, value, className = "" }: { icon: React.ElementType; label: string; value: string; className?: string }) => (
     <div className={`flex items-start gap-3 p-4 rounded-lg bg-muted/50 ${className}`}>
       <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-        <Icon className="h-5 w-5 text-primary" />
+        <Icon className="icon-lg text-primary" />
       </div>
       <div className="space-y-1 min-w-0">
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{label}</p>
@@ -303,7 +303,7 @@ const UserProfile = () => {
                 <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
                   <h2 className="text-2xl font-bold">{formData.first_name} {formData.last_name}</h2>
                   <Badge variant="secondary" className="w-fit capitalize">
-                    <Shield className="h-3 w-3 mr-1" />
+                    <Shield className="icon-xs mr-1" />
                     {userProfile.role}
                   </Badge>
                   <Badge 
@@ -314,11 +314,11 @@ const UserProfile = () => {
                   </Badge>
                 </div>
                 <p className="text-muted-foreground flex items-center gap-2">
-                  <Mail className="h-4 w-4" />
+                  <Mail className="icon-md" />
                   {formData.email}
                 </p>
                 <p className="text-sm text-muted-foreground flex items-center gap-2">
-                  <Clock className="h-4 w-4" />
+                  <Clock className="icon-md" />
                   Member since {new Date(userProfile.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
                 </p>
               </div>
@@ -339,7 +339,7 @@ const UserProfile = () => {
             <Card>
               <CardHeader className="pb-4">
                 <CardTitle className="text-lg flex items-center gap-2">
-                  <User className="h-5 w-5 text-module-access" />
+                  <User className="icon-lg text-module-access" />
                   Personal Information
                 </CardTitle>
                 <CardDescription>Your basic profile details</CardDescription>
@@ -360,7 +360,7 @@ const UserProfile = () => {
             <Card>
               <CardHeader className="pb-4">
                 <CardTitle className="text-lg flex items-center gap-2">
-                  <Mail className="h-5 w-5 text-module-email" />
+                  <Mail className="icon-lg text-module-email" />
                   Contact Information
                 </CardTitle>
                 <CardDescription>How to reach you</CardDescription>
@@ -375,7 +375,7 @@ const UserProfile = () => {
             <Card className="lg:col-span-2">
               <CardHeader className="pb-4">
                 <CardTitle className="text-lg flex items-center gap-2">
-                  <Globe className="h-5 w-5 text-module-api" />
+                  <Globe className="icon-lg text-module-api" />
                   Preferences
                 </CardTitle>
                 <CardDescription>Your regional and display settings</CardDescription>
@@ -393,7 +393,7 @@ const UserProfile = () => {
               <Card>
                 <CardHeader className="pb-4">
                   <CardTitle className="text-lg flex items-center gap-2">
-                    <User className="h-5 w-5 text-module-access" />
+                    <User className="icon-lg text-module-access" />
                     Personal Information
                   </CardTitle>
                   <CardDescription>Update your basic profile details</CardDescription>
@@ -402,7 +402,7 @@ const UserProfile = () => {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="first_name" className="flex items-center gap-2">
-                        <User className="h-4 w-4 text-muted-foreground" />
+                        <User className="icon-md text-muted-foreground" />
                         First Name
                       </Label>
                       <Input
@@ -414,7 +414,7 @@ const UserProfile = () => {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="last_name" className="flex items-center gap-2">
-                        <User className="h-4 w-4 text-muted-foreground" />
+                        <User className="icon-md text-muted-foreground" />
                         Last Name
                       </Label>
                       <Input
@@ -428,7 +428,7 @@ const UserProfile = () => {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="gender" className="flex items-center gap-2">
-                        <User className="h-4 w-4 text-muted-foreground" />
+                        <User className="icon-md text-muted-foreground" />
                         Gender
                       </Label>
                       <Select
@@ -448,7 +448,7 @@ const UserProfile = () => {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="nationality" className="flex items-center gap-2">
-                        <Globe className="h-4 w-4 text-muted-foreground" />
+                        <Globe className="icon-md text-muted-foreground" />
                         Nationality
                       </Label>
                       <Select
@@ -475,7 +475,7 @@ const UserProfile = () => {
               <Card>
                 <CardHeader className="pb-4">
                   <CardTitle className="text-lg flex items-center gap-2">
-                    <Mail className="h-5 w-5 text-module-email" />
+                    <Mail className="icon-lg text-module-email" />
                     Contact Information
                   </CardTitle>
                   <CardDescription>Update how to reach you</CardDescription>
@@ -483,7 +483,7 @@ const UserProfile = () => {
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="email" className="flex items-center gap-2">
-                      <Mail className="h-4 w-4 text-muted-foreground" />
+                      <Mail className="icon-md text-muted-foreground" />
                       Email Address
                     </Label>
                     <Input
@@ -497,7 +497,7 @@ const UserProfile = () => {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="mobile" className="flex items-center gap-2">
-                      <Phone className="h-4 w-4 text-muted-foreground" />
+                      <Phone className="icon-md text-muted-foreground" />
                       Mobile Number
                     </Label>
                     <Input
@@ -515,7 +515,7 @@ const UserProfile = () => {
               <Card className="lg:col-span-2">
                 <CardHeader className="pb-4">
                   <CardTitle className="text-lg flex items-center gap-2">
-                    <Globe className="h-5 w-5 text-module-api" />
+                    <Globe className="icon-lg text-module-api" />
                     Preferences
                   </CardTitle>
                   <CardDescription>Update your regional and display settings</CardDescription>
@@ -523,7 +523,7 @@ const UserProfile = () => {
                 <CardContent>
                   <div className="space-y-2 max-w-md">
                     <Label htmlFor="timezone" className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-muted-foreground" />
+                      <Calendar className="icon-md text-muted-foreground" />
                       Timezone
                     </Label>
                     <Select

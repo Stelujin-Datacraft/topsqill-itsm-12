@@ -98,7 +98,7 @@ export function ChartExamples({ onSelectExample, formId }: ChartExamplesProps) {
         dimensions: [firstDim.id],
         aggregationEnabled: true,
         metricAggregations: [{ field: firstDim.id, aggregation: 'count' }],
-        icon: <BarChart3 className="h-4 w-4" />
+        icon: <BarChart3 className="icon-md" />
       });
     }
 
@@ -114,7 +114,7 @@ export function ChartExamples({ onSelectExample, formId }: ChartExamplesProps) {
         dimensions: [selectField.id],
         aggregationEnabled: true,
         metricAggregations: [{ field: selectField.id, aggregation: 'count' }],
-        icon: <PieChart className="h-4 w-4" />
+        icon: <PieChart className="icon-md" />
       });
     }
 
@@ -131,7 +131,7 @@ export function ChartExamples({ onSelectExample, formId }: ChartExamplesProps) {
         dimensions: [dimension.id],
         aggregationEnabled: true,
         metricAggregations: [{ field: metric.id, aggregation: 'sum' }],
-        icon: <LineChart className="h-4 w-4" />
+        icon: <LineChart className="icon-md" />
       });
     }
 
@@ -151,7 +151,7 @@ export function ChartExamples({ onSelectExample, formId }: ChartExamplesProps) {
           { field: dim1.id, aggregation: 'count' },
           { field: dim2.id, aggregation: 'count' }
         ],
-        icon: <TrendingUp className="h-4 w-4" />
+        icon: <TrendingUp className="icon-md" />
       });
     }
 
@@ -167,7 +167,7 @@ export function ChartExamples({ onSelectExample, formId }: ChartExamplesProps) {
         dimensions: [dateField.id],
         aggregationEnabled: true,
         metricAggregations: [{ field: dateField.id, aggregation: 'count' }],
-        icon: <LineChart className="h-4 w-4" />
+        icon: <LineChart className="icon-md" />
       });
     }
 
@@ -177,7 +177,7 @@ export function ChartExamples({ onSelectExample, formId }: ChartExamplesProps) {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        <Loader2 className="icon-xl animate-spin text-muted-foreground" />
         <span className="ml-2 text-muted-foreground">Loading form fields...</span>
       </div>
     );
@@ -259,7 +259,7 @@ export function ChartExamples({ onSelectExample, formId }: ChartExamplesProps) {
       </div>
       
       <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
-        <div className="text-sm text-blue-700 dark:text-blue-300">
+        <div className="text-sm text-info dark:text-blue-300">
           <strong>Available Fields:</strong>
           <div className="mt-2 flex flex-wrap gap-2">
             {dimensionFields.length > 0 && (

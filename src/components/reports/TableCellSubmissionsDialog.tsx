@@ -558,14 +558,14 @@ export function TableCellSubmissionsDialog({
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 w-8 p-0"
+            className="size-8 p-0"
             onClick={() => setIsFullScreen(!isFullScreen)}
             title={isFullScreen ? "Exit full screen" : "Expand to full screen"}
           >
             {isFullScreen ? (
-              <Minimize2 className="h-4 w-4" />
+              <Minimize2 className="icon-md" />
             ) : (
-              <Maximize2 className="h-4 w-4" />
+              <Maximize2 className="icon-md" />
             )}
           </Button>
         </DialogHeader>
@@ -608,9 +608,9 @@ export function TableCellSubmissionsDialog({
               className="h-10 w-10"
             >
               {sortDirection === 'asc' ? (
-                <ArrowUp className="h-4 w-4" />
+                <ArrowUp className="icon-md" />
               ) : (
-                <ArrowDown className="h-4 w-4" />
+                <ArrowDown className="icon-md" />
               )}
             </Button>
           </div>
@@ -619,18 +619,18 @@ export function TableCellSubmissionsDialog({
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" className="h-10 px-3">
-                <Download className="h-4 w-4 mr-2" />
+                <Download className="icon-md mr-2" />
                 Export
-                <ChevronDown className="h-4 w-4 ml-1" />
+                <ChevronDown className="icon-md ml-1" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => handleExport('csv')}>
-                <FileText className="h-4 w-4 mr-2" />
+                <FileText className="icon-md mr-2" />
                 Export to CSV
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => handleExport('excel')}>
-                <FileSpreadsheet className="h-4 w-4 mr-2" />
+                <FileSpreadsheet className="icon-md mr-2" />
                 Export to Excel
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -640,7 +640,7 @@ export function TableCellSubmissionsDialog({
         <ScrollArea className={scrollAreaClass}>
           {loading ? (
             <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <Loader2 className="icon-xl animate-spin text-muted-foreground" />
               <span className="ml-2 text-muted-foreground">Loading submissions...</span>
             </div>
           ) : filteredAndSortedSubmissions.length > 0 ? (
@@ -658,13 +658,13 @@ export function TableCellSubmissionsDialog({
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-6 w-6 p-0"
+                            className="icon-xl p-0"
                             onClick={() => toggleExpanded(submission.id)}
                           >
                             {isExpanded ? (
-                              <ChevronDown className="h-4 w-4" />
+                              <ChevronDown className="icon-md" />
                             ) : (
-                              <ChevronRight className="h-4 w-4" />
+                              <ChevronRight className="icon-md" />
                             )}
                           </Button>
                         )}
@@ -680,7 +680,7 @@ export function TableCellSubmissionsDialog({
                         size="sm"
                         onClick={() => handleViewSubmission(submission.id)}
                       >
-                        <ExternalLink className="h-4 w-4 mr-1" />
+                        <ExternalLink className="icon-md mr-1" />
                         View
                       </Button>
                     </div>

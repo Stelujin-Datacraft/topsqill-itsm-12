@@ -230,7 +230,7 @@ export default function ProjectOverview() {
           <CardContent className="p-8 text-center">
             <div className="text-muted-foreground mb-4">Project not found</div>
             <Button onClick={() => navigate('/projects')}>
-              <ArrowLeft className="h-4 w-4 mr-2" />
+              <ArrowLeft className="icon-md mr-2" />
               Back to Projects
             </Button>
           </CardContent>
@@ -249,7 +249,7 @@ export default function ProjectOverview() {
         <div className="flex items-center gap-2">
           {hasAdminAccess && (
             <Button onClick={handleManageAccess}>
-              <Shield className="h-4 w-4 mr-2" />
+              <Shield className="icon-md mr-2" />
               Manage Access
             </Button>
           )}
@@ -259,12 +259,12 @@ export default function ProjectOverview() {
               onClick={handleDeleteProject}
               disabled={deleting}
             >
-              <Trash2 className="h-4 w-4 mr-2" />
+              <Trash2 className="icon-md mr-2" />
               {deleting ? 'Deleting...' : 'Delete Project'}
             </Button>
           )}
           <Button variant="outline" onClick={() => navigate('/projects')}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
+            <ArrowLeft className="icon-md mr-2" />
             Back to Projects
           </Button>
         </div>
@@ -306,14 +306,14 @@ export default function ProjectOverview() {
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Created By</label>
                 <div className="flex items-center gap-2 mt-1">
-                  <User className="h-4 w-4 text-muted-foreground" />
+                  <User className="icon-md text-muted-foreground" />
                   <span className="text-sm">{creatorEmail || project.created_by}</span>
                 </div>
               </div>
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Created Date</label>
                 <div className="flex items-center gap-2 mt-1">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  <Calendar className="icon-md text-muted-foreground" />
                   <span className="text-sm">
                     {format(new Date(project.created_at), 'MMM d, yyyy')}
                   </span>
@@ -322,7 +322,7 @@ export default function ProjectOverview() {
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Team Size</label>
                 <div className="flex items-center gap-2 mt-1">
-                  <Users className="h-4 w-4 text-muted-foreground" />
+                  <Users className="icon-md text-muted-foreground" />
                   <span className="text-sm">{teamMembers.length} members</span>
                 </div>
               </div>
@@ -340,7 +340,7 @@ export default function ProjectOverview() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5" />
+              <Users className="icon-lg" />
               Team Members
             </CardTitle>
           </CardHeader>
@@ -350,7 +350,7 @@ export default function ProjectOverview() {
                 {teamMembers.map((member) => (
                   <div key={member.id} className="flex items-center justify-between p-3 border rounded-lg">
                     <div className="flex items-center gap-3">
-                      <Avatar className="h-8 w-8">
+                      <Avatar className="size-8">
                         <AvatarFallback>
                           {getInitials(member.first_name, member.last_name, member.email)}
                         </AvatarFallback>
@@ -402,7 +402,7 @@ export default function ProjectOverview() {
                           <p className="text-3xl font-bold">{projectAssets.forms.length}</p>
                         </div>
                         <div className="h-12 w-12 rounded-lg bg-green-500/10 flex items-center justify-center">
-                          <FileText className="h-6 w-6 text-green-600" />
+                          <FileText className="icon-xl text-green-600" />
                         </div>
                       </div>
                       <div className="flex items-center justify-end mt-2 text-xs text-muted-foreground">
@@ -422,7 +422,7 @@ export default function ProjectOverview() {
                           <p className="text-3xl font-bold">{projectAssets.workflows.length}</p>
                         </div>
                         <div className="h-12 w-12 rounded-lg bg-purple-500/10 flex items-center justify-center">
-                          <Workflow className="h-6 w-6 text-purple-600" />
+                          <Workflow className="icon-xl text-accent" />
                         </div>
                       </div>
                       <div className="flex items-center justify-end mt-2 text-xs text-muted-foreground">
@@ -442,7 +442,7 @@ export default function ProjectOverview() {
                           <p className="text-3xl font-bold">{projectAssets.reports.length}</p>
                         </div>
                         <div className="h-12 w-12 rounded-lg bg-orange-500/10 flex items-center justify-center">
-                          <BarChart3 className="h-6 w-6 text-orange-600" />
+                          <BarChart3 className="icon-xl text-orange-600" />
                         </div>
                       </div>
                       <div className="flex items-center justify-end mt-2 text-xs text-muted-foreground">
@@ -458,16 +458,16 @@ export default function ProjectOverview() {
                   <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
                     <div className="flex items-center justify-between">
                       <h3 className="font-semibold flex items-center gap-2">
-                        <FileText className="h-4 w-4 text-green-600" />
+                        <FileText className="icon-md text-green-600" />
                         Forms ({projectAssets.forms.length})
                       </h3>
                       <div className="flex items-center gap-2">
                         <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); navigate('/forms'); }}>
                           View All
-                          <ExternalLink className="h-3 w-3 ml-1" />
+                          <ExternalLink className="icon-xs ml-1" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSelectedAssetType(null)}>
-                          <X className="h-4 w-4" />
+                        <Button variant="ghost" size="icon" className="size-8" onClick={() => setSelectedAssetType(null)}>
+                          <X className="icon-md" />
                         </Button>
                       </div>
                     </div>
@@ -480,7 +480,7 @@ export default function ProjectOverview() {
                             onClick={() => navigate(`/form/${form.id}`)}
                           >
                             <div className="flex items-center gap-3">
-                              <FileText className="h-4 w-4 text-muted-foreground" />
+                              <FileText className="icon-md text-muted-foreground" />
                               <div>
                                 <p className="font-medium text-sm">{form.name}</p>
                                 {form.reference_id && (
@@ -492,8 +492,8 @@ export default function ProjectOverview() {
                               <Badge 
                                 variant="outline" 
                                 className={`text-xs capitalize ${
-                                  form.status === 'active' ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' :
-                                  form.status === 'published' ? 'bg-blue-500/10 text-blue-600 border-blue-500/20' :
+                                  form.status === 'active' ? 'bg-emerald-500/10 text-success border-emerald-500/20' :
+                                  form.status === 'published' ? 'bg-blue-500/10 text-info border-blue-500/20' :
                                   'bg-muted text-muted-foreground'
                                 }`}
                               >
@@ -508,10 +508,10 @@ export default function ProjectOverview() {
                       </div>
                     ) : (
                       <div className="text-center py-8 text-muted-foreground border rounded-lg">
-                        <FileText className="h-8 w-8 mx-auto mb-2 text-muted-foreground/50" />
+                        <FileText className="size-8 mx-auto mb-2 text-muted-foreground/50" />
                         <p>No forms in this project yet.</p>
                         <Button variant="outline" size="sm" className="mt-3" onClick={() => navigate('/forms')}>
-                          <Plus className="h-4 w-4 mr-1" />
+                          <Plus className="icon-md mr-1" />
                           Create Form
                         </Button>
                       </div>
@@ -524,16 +524,16 @@ export default function ProjectOverview() {
                   <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
                     <div className="flex items-center justify-between">
                       <h3 className="font-semibold flex items-center gap-2">
-                        <Workflow className="h-4 w-4 text-purple-600" />
+                        <Workflow className="icon-md text-accent" />
                         Workflows ({projectAssets.workflows.length})
                       </h3>
                       <div className="flex items-center gap-2">
                         <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); navigate('/workflows'); }}>
                           View All
-                          <ExternalLink className="h-3 w-3 ml-1" />
+                          <ExternalLink className="icon-xs ml-1" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSelectedAssetType(null)}>
-                          <X className="h-4 w-4" />
+                        <Button variant="ghost" size="icon" className="size-8" onClick={() => setSelectedAssetType(null)}>
+                          <X className="icon-md" />
                         </Button>
                       </div>
                     </div>
@@ -546,7 +546,7 @@ export default function ProjectOverview() {
                             onClick={() => navigate(`/workflow-view/${workflow.id}`)}
                           >
                             <div className="flex items-center gap-3">
-                              <Workflow className="h-4 w-4 text-muted-foreground" />
+                              <Workflow className="icon-md text-muted-foreground" />
                               <div>
                                 <p className="font-medium text-sm">{workflow.name}</p>
                                 {workflow.reference_id && (
@@ -558,8 +558,8 @@ export default function ProjectOverview() {
                               <Badge 
                                 variant="outline" 
                                 className={`text-xs capitalize ${
-                                  workflow.status === 'active' ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' :
-                                  workflow.status === 'published' ? 'bg-blue-500/10 text-blue-600 border-blue-500/20' :
+                                  workflow.status === 'active' ? 'bg-emerald-500/10 text-success border-emerald-500/20' :
+                                  workflow.status === 'published' ? 'bg-blue-500/10 text-info border-blue-500/20' :
                                   'bg-muted text-muted-foreground'
                                 }`}
                               >
@@ -574,10 +574,10 @@ export default function ProjectOverview() {
                       </div>
                     ) : (
                       <div className="text-center py-8 text-muted-foreground border rounded-lg">
-                        <Workflow className="h-8 w-8 mx-auto mb-2 text-muted-foreground/50" />
+                        <Workflow className="size-8 mx-auto mb-2 text-muted-foreground/50" />
                         <p>No workflows in this project yet.</p>
                         <Button variant="outline" size="sm" className="mt-3" onClick={() => navigate('/workflows')}>
-                          <Plus className="h-4 w-4 mr-1" />
+                          <Plus className="icon-md mr-1" />
                           Create Workflow
                         </Button>
                       </div>
@@ -590,16 +590,16 @@ export default function ProjectOverview() {
                   <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
                     <div className="flex items-center justify-between">
                       <h3 className="font-semibold flex items-center gap-2">
-                        <BarChart3 className="h-4 w-4 text-orange-600" />
+                        <BarChart3 className="icon-md text-orange-600" />
                         Reports ({projectAssets.reports.length})
                       </h3>
                       <div className="flex items-center gap-2">
                         <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); navigate('/reports'); }}>
                           View All
-                          <ExternalLink className="h-3 w-3 ml-1" />
+                          <ExternalLink className="icon-xs ml-1" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSelectedAssetType(null)}>
-                          <X className="h-4 w-4" />
+                        <Button variant="ghost" size="icon" className="size-8" onClick={() => setSelectedAssetType(null)}>
+                          <X className="icon-md" />
                         </Button>
                       </div>
                     </div>
@@ -612,7 +612,7 @@ export default function ProjectOverview() {
                             onClick={() => navigate(`/report-view/${report.id}`)}
                           >
                             <div className="flex items-center gap-3">
-                              <BarChart3 className="h-4 w-4 text-muted-foreground" />
+                              <BarChart3 className="icon-md text-muted-foreground" />
                               <div>
                                 <p className="font-medium text-sm">{report.name}</p>
                                 {report.reference_id && (
@@ -628,10 +628,10 @@ export default function ProjectOverview() {
                       </div>
                     ) : (
                       <div className="text-center py-8 text-muted-foreground border rounded-lg">
-                        <BarChart3 className="h-8 w-8 mx-auto mb-2 text-muted-foreground/50" />
+                        <BarChart3 className="size-8 mx-auto mb-2 text-muted-foreground/50" />
                         <p>No reports in this project yet.</p>
                         <Button variant="outline" size="sm" className="mt-3" onClick={() => navigate('/reports')}>
-                          <Plus className="h-4 w-4 mr-1" />
+                          <Plus className="icon-md mr-1" />
                           Create Report
                         </Button>
                       </div>

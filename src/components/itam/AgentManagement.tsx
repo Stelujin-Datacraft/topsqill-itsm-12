@@ -530,7 +530,7 @@ touch "\$MARKER"`;
   const getAgentStatusIcon = (agent: any) => {
     const isOnline = agent.status === 'online' && agent.last_heartbeat &&
       new Date(agent.last_heartbeat) > new Date(Date.now() - 5 * 60 * 1000);
-    return isOnline ? <Wifi className="h-4 w-4 text-green-500" /> : <WifiOff className="h-4 w-4 text-red-500" />;
+    return isOnline ? <Wifi className="icon-md text-green-500" /> : <WifiOff className="icon-md text-destructive" />;
   };
 
   return (
@@ -538,7 +538,7 @@ touch "\$MARKER"`;
       {/* Agent Script Download */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2"><Terminal className="h-5 w-5" />Agent Installation</CardTitle>
+          <CardTitle className="text-lg flex items-center gap-2"><Terminal className="icon-lg" />Agent Installation</CardTitle>
           <CardDescription>
             Download and run the agent script on each device to automatically collect hardware &amp; software inventory. The script auto-installs a scheduled task to report every 6 hours.
           </CardDescription>
@@ -560,10 +560,10 @@ touch "\$MARKER"`;
             <TabsContent value="windows" className="space-y-4">
               <div className="flex gap-2">
                 <Button size="sm" disabled={!hasOrgId} onClick={() => downloadScript(windowsScript, 'topsqill-agent.ps1')}>
-                  <Download className="h-4 w-4 mr-2" />Download topsqill-agent.ps1
+                  <Download className="icon-md mr-2" />Download topsqill-agent.ps1
                 </Button>
                 <Button variant="outline" size="sm" disabled={!hasOrgId} onClick={() => copyScript(windowsScript)}>
-                  <Copy className="h-4 w-4 mr-2" />Copy Script
+                  <Copy className="icon-md mr-2" />Copy Script
                 </Button>
               </div>
 
@@ -607,7 +607,7 @@ touch "\$MARKER"`;
             <TabsContent value="linux" className="space-y-4">
               <div className="flex gap-2">
                 <Button size="sm" disabled={!hasOrgId} onClick={() => downloadScript(linuxScript, 'topsqill-agent.sh')}>
-                  <Download className="h-4 w-4 mr-2" />Download topsqill-agent.sh
+                  <Download className="icon-md mr-2" />Download topsqill-agent.sh
                 </Button>
               </div>
 
@@ -664,7 +664,7 @@ touch "\$MARKER"`;
       {/* Quick Test */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2"><CheckCircle className="h-5 w-5" />Quick Test (Copy & Paste)</CardTitle>
+          <CardTitle className="text-lg flex items-center gap-2"><CheckCircle className="icon-lg" />Quick Test (Copy & Paste)</CardTitle>
           <CardDescription>
             Don't want to download a file? Copy the command for your OS and paste it directly into your terminal.
           </CardDescription>
@@ -699,7 +699,7 @@ touch "\$MARKER"`;
                 </div>
 
                 <Button size="sm" onClick={() => { navigator.clipboard.writeText(windowsQuickTest); toast({ title: 'Copied!', description: 'Paste into PowerShell (Admin) and press Enter.' }); }}>
-                  <Copy className="h-4 w-4 mr-2" />Copy Test Command
+                  <Copy className="icon-md mr-2" />Copy Test Command
                 </Button>
               </TabsContent>
 
@@ -721,7 +721,7 @@ touch "\$MARKER"`;
                 </div>
 
                 <Button size="sm" onClick={() => { navigator.clipboard.writeText(macLinuxQuickTest); toast({ title: 'Copied!', description: 'Paste into Terminal and press Enter.' }); }}>
-                  <Copy className="h-4 w-4 mr-2" />Copy Test Command
+                  <Copy className="icon-md mr-2" />Copy Test Command
                 </Button>
               </TabsContent>
             </Tabs>
@@ -732,7 +732,7 @@ touch "\$MARKER"`;
       {/* Login Script Auto-Install */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2"><LogIn className="h-5 w-5" />Login Script (Auto-Install on Sign-In)</CardTitle>
+          <CardTitle className="text-lg flex items-center gap-2"><LogIn className="icon-lg" />Login Script (Auto-Install on Sign-In)</CardTitle>
           <CardDescription>
             Deploy this script via Group Policy (Windows) or Login Hook (macOS) / profile.d (Linux) so every user's device is automatically registered on first sign-in.
           </CardDescription>
@@ -763,10 +763,10 @@ touch "\$MARKER"`;
 
                 <div className="flex gap-2">
                   <Button size="sm" disabled={!hasOrgId} onClick={() => downloadScript(windowsLoginScript, 'topsqill-login.ps1')}>
-                    <Download className="h-4 w-4 mr-2" />Download topsqill-login.ps1
+                    <Download className="icon-md mr-2" />Download topsqill-login.ps1
                   </Button>
                   <Button variant="outline" size="sm" disabled={!hasOrgId} onClick={() => copyScript(windowsLoginScript)}>
-                    <Copy className="h-4 w-4 mr-2" />Copy Script
+                    <Copy className="icon-md mr-2" />Copy Script
                   </Button>
                 </div>
 
@@ -799,10 +799,10 @@ touch "\$MARKER"`;
 
                 <div className="flex gap-2">
                   <Button size="sm" disabled={!hasOrgId} onClick={() => downloadScript(loginScriptUnix, 'topsqill-login.sh')}>
-                    <Download className="h-4 w-4 mr-2" />Download topsqill-login.sh
+                    <Download className="icon-md mr-2" />Download topsqill-login.sh
                   </Button>
                   <Button variant="outline" size="sm" disabled={!hasOrgId} onClick={() => copyScript(loginScriptUnix)}>
-                    <Copy className="h-4 w-4 mr-2" />Copy Script
+                    <Copy className="icon-md mr-2" />Copy Script
                   </Button>
                 </div>
 
@@ -821,7 +821,7 @@ touch "\$MARKER"`;
       {/* Self-Registering One-Liner */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2"><Zap className="h-5 w-5" />Self-Registering Agent (One-Liner)</CardTitle>
+          <CardTitle className="text-lg flex items-center gap-2"><Zap className="icon-lg" />Self-Registering Agent (One-Liner)</CardTitle>
           <CardDescription>
             A single command to paste into OS imaging, provisioning tools (e.g. Ansible, Terraform, cloud-init), or MDM bootstrap scripts.
           </CardDescription>
@@ -851,7 +851,7 @@ touch "\$MARKER"`;
                   <pre className="text-xs font-mono whitespace-pre-wrap">{windowsOneLiner}</pre>
                 </div>
                 <Button size="sm" onClick={() => { navigator.clipboard.writeText(windowsOneLiner); toast({ title: 'Copied!', description: 'Paste into your provisioning workflow.' }); }}>
-                  <Copy className="h-4 w-4 mr-2" />Copy One-Liner
+                  <Copy className="icon-md mr-2" />Copy One-Liner
                 </Button>
               </TabsContent>
 
@@ -869,7 +869,7 @@ touch "\$MARKER"`;
                   <pre className="text-xs font-mono whitespace-pre-wrap">{unixOneLiner}</pre>
                 </div>
                 <Button size="sm" onClick={() => { navigator.clipboard.writeText(unixOneLiner); toast({ title: 'Copied!', description: 'Paste into your provisioning workflow.' }); }}>
-                  <Copy className="h-4 w-4 mr-2" />Copy One-Liner
+                  <Copy className="icon-md mr-2" />Copy One-Liner
                 </Button>
               </TabsContent>
             </Tabs>
@@ -882,7 +882,7 @@ touch "\$MARKER"`;
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg">Registered Agents ({agents.length})</CardTitle>
-            <Button variant="outline" size="sm" onClick={loadAgents}><RefreshCw className="h-4 w-4 mr-2" />Refresh</Button>
+            <Button variant="outline" size="sm" onClick={loadAgents}><RefreshCw className="icon-md mr-2" />Refresh</Button>
           </div>
         </CardHeader>
         <CardContent>

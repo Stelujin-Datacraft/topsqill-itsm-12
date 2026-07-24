@@ -358,7 +358,7 @@ const COUNTRIES = [
         <HoverCardContent className="w-72 p-3" align="start">
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-              <MapPin className="h-4 w-4 text-module-relationship" />
+              <MapPin className="icon-md text-module-relationship" />
               <span>Address Details</span>
             </div>
             <div className="space-y-1.5 text-sm">
@@ -384,7 +384,7 @@ const COUNTRIES = [
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 text-xs text-primary hover:underline mt-2"
               >
-                <LinkIcon className="h-3 w-3" />
+                <LinkIcon className="icon-xs" />
                 View on Google Maps
               </a>
             )}
@@ -473,7 +473,7 @@ const COUNTRIES = [
       const date = new Date(value);
       return (
         <div className="flex items-center space-x-1">
-          <Calendar className="h-3 w-3 text-muted-foreground" />
+          <Calendar className="icon-xs text-muted-foreground" />
           <span className="text-sm">
             {fieldType === 'datetime' 
               ? date.toLocaleString()
@@ -491,7 +491,7 @@ const COUNTRIES = [
   if (fieldType === 'time' && value) {
     return (
       <div className="flex items-center space-x-1">
-        <Clock className="h-3 w-3 text-muted-foreground" />
+        <Clock className="icon-xs text-muted-foreground" />
         <span className="text-sm">{value}</span>
       </div>
     );
@@ -535,7 +535,7 @@ if (fieldType === 'currency' && (value || value === 0)) {
     
     return (
       <div className="flex items-center space-x-1">
-        <DollarSign className="h-3 w-3 text-success" />
+        <DollarSign className="icon-xs text-success" />
         <span className="text-sm font-medium">
           {new Intl.NumberFormat('en-US', {
             style: 'currency',
@@ -550,7 +550,7 @@ if (fieldType === 'currency' && (value || value === 0)) {
   if (fieldType === 'currency' && typeof value === 'number') {
     return (
       <div className="flex items-center space-x-1">
-        <DollarSign className="h-3 w-3 text-success" />
+        <DollarSign className="icon-xs text-success" />
         <span className="text-sm font-medium">
           {new Intl.NumberFormat('en-US', {
             style: 'currency',
@@ -628,7 +628,7 @@ if (['select', 'radio'].includes(fieldType)) {
           <img
             src={selectedOption.image}
             alt={selectedOption.label || 'Option image'}
-            className="w-5 h-5 object-cover rounded border border-border"
+            className="icon-lg object-cover rounded border border-border"
             onError={(e) => (e.currentTarget.style.display = 'none')}
           />
         )}
@@ -639,7 +639,7 @@ if (['select', 'radio'].includes(fieldType)) {
         {/* Color fallback */}
         {!selectedOption.image && !selectedOption.label && selectedOption.color && (
           <div
-            className="w-3 h-3 rounded-full border border-gray-300 flex-shrink-0"
+            className="icon-xs rounded-full border border-gray-300 flex-shrink-0"
             style={{ backgroundColor: selectedOption.color }}
           />
         )}
@@ -702,7 +702,7 @@ if (fieldType === 'checkbox') {
                   <img
                     src={selectedOption.image}
                     alt={displayValue || 'Option image'}
-                    className="w-5 h-5 object-cover rounded border border-border"
+                    className="icon-lg object-cover rounded border border-border"
                     onError={(e) => (e.currentTarget.style.display = 'none')}
                   />
                 )}
@@ -742,7 +742,7 @@ if (fieldType === 'checkbox') {
         onClick={() => window.open(value, '_blank')}
         title={value}
       >
-        <LinkIcon className="h-3 w-3 mr-1" />
+        <LinkIcon className="icon-xs mr-1" />
         <span className="text-xs">Open</span>
       </Badge>
     );
@@ -753,7 +753,7 @@ if (fieldType === 'checkbox') {
     return (
       <Badge
         variant="outline"
-        className="cursor-pointer hover:opacity-90 border-blue-200 text-blue-700 bg-blue-50 hover:bg-blue-100"
+        className="cursor-pointer hover:opacity-90 border-blue-200 text-info bg-blue-50 hover:bg-blue-100"
         onClick={() => (window.location.href = `mailto:${value}`)}
         title={`Email ${value}`}
       >
@@ -822,7 +822,7 @@ if (fieldType === 'country' && value) {
   //         onClick={() => window.open(value, '_blank')}
   //         className="h-8"
   //       >
-  //         <Eye className="h-3 w-3 mr-1" />
+  //         <Eye className="icon-xs mr-1" />
   //         View
   //       </Button>
   //     );
@@ -941,7 +941,7 @@ if (['file', 'image'].includes(fieldType) && value) {
               className="h-7 px-2 text-xs"
               title="Preview file"
             >
-              <Eye className="h-3 w-3" />
+              <Eye className="icon-xs" />
             </Button>
             <Button
               variant="outline"
@@ -1032,7 +1032,7 @@ if (['file', 'image'].includes(fieldType) && !value) {
           <Badge 
             key={`${item.type}-${item.id}-${index}`} 
             variant={item.type === 'user' ? 'outline' : 'secondary'}
-            className={`text-xs max-w-full truncate ${item.type === 'user' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}`}
+            className={`text-xs max-w-full truncate ${item.type === 'user' ? 'bg-info/10 text-info' : 'bg-green-100 text-green-800'}`}
             title={item.display}
           >
             {item.display}
@@ -1080,7 +1080,7 @@ if (fieldType === "user-picker") {
         <Badge
           key={`${item.type}-${item.id}-${index}`}
           variant="outline"
-          className="bg-blue-100 text-blue-800 text-xs max-w-full truncate"
+          className="bg-info/10 text-info text-xs max-w-full truncate"
           title={item.display}
         >
           {item.display}

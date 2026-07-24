@@ -108,10 +108,10 @@ export function DataQualityPanel({ perfProjectId, selectedRecordId }: Props) {
   const totalFields = qualityScores.length;
   const completenessPercent = totalFields > 0 ? Math.round((filledCount / totalFields) * 100) : 0;
   const overallGrade = completenessPercent >= 90 ? 'A' : completenessPercent >= 75 ? 'B' : completenessPercent >= 60 ? 'C' : completenessPercent >= 40 ? 'D' : 'F';
-  const gradeColor = completenessPercent >= 90 ? 'text-green-600' : completenessPercent >= 75 ? 'text-primary' : completenessPercent >= 60 ? 'text-orange-500' : 'text-red-500';
+  const gradeColor = completenessPercent >= 90 ? 'text-green-600' : completenessPercent >= 75 ? 'text-primary' : completenessPercent >= 60 ? 'text-orange-500' : 'text-destructive';
 
   if (isLoading) {
-    return <div className="flex items-center justify-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+    return <div className="flex items-center justify-center h-64"><Loader2 className="size-8 animate-spin text-primary" /></div>;
   }
 
   if (!formId) {
@@ -153,7 +153,7 @@ export function DataQualityPanel({ perfProjectId, selectedRecordId }: Props) {
     <div className="space-y-6">
       <div>
         <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-          <ShieldCheck className="h-5 w-5 text-module-compliance" />
+          <ShieldCheck className="icon-lg text-module-compliance" />
           Data Quality — Selected Record
         </h2>
         <p className="text-sm text-muted-foreground">
@@ -201,9 +201,9 @@ export function DataQualityPanel({ perfProjectId, selectedRecordId }: Props) {
             <div key={q.fieldId} className="flex items-center justify-between p-3 rounded-lg border bg-card">
               <div className="flex items-center gap-2">
                 {q.hasValue ? (
-                  <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
+                  <CheckCircle2 className="icon-md text-green-600 shrink-0" />
                 ) : (
-                  <XCircle className="h-4 w-4 text-red-500 shrink-0" />
+                  <XCircle className="icon-md text-destructive shrink-0" />
                 )}
                 <span className="text-sm font-medium">{q.label}</span>
                 <Badge variant="outline" className="text-[10px]">{q.isNumeric ? 'Numeric' : 'Category'}</Badge>

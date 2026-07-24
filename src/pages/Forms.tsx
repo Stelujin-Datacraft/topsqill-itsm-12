@@ -236,7 +236,7 @@ const Forms = () => {
       {canReadForms && (
         <FormSubmissionsDialog>
           <Button variant="outline" size="sm">
-            <BarChart3 className="h-4 w-4 me-2 text-module-forms" />
+            <BarChart3 className="icon-md me-2 text-module-forms" />
             {t('forms.viewDataTables')}
           </Button>
         </FormSubmissionsDialog>
@@ -253,24 +253,24 @@ const Forms = () => {
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="outline" size="sm">
-            <MoreVertical className="h-4 w-4" />
+            <MoreVertical className="icon-md" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           {canCreateForm && !permissionLoading && (
             <ExcelFormImporter onImport={handleAIFormApply}>
               <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                <FileSpreadsheet className="h-4 w-4 me-2 text-module-reports" />
+                <FileSpreadsheet className="icon-md me-2 text-module-reports" />
                 {t('forms.importFromExcel')}
               </DropdownMenuItem>
             </ExcelFormImporter>
           )}
           <DropdownMenuItem onClick={() => navigate('/form-audit-logs')}>
-            <History className="h-4 w-4 me-2 text-module-reports" />
+            <History className="icon-md me-2 text-module-reports" />
             {t('forms.formHistory')}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => navigate('/sla-management')} disabled={!currentProject}>
-            <Timer className="h-4 w-4 me-2 text-module-reports" />
+            <Timer className="icon-md me-2 text-module-reports" />
             {t('forms.slaManagement')}
           </DropdownMenuItem>
         </DropdownMenuContent>

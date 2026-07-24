@@ -134,7 +134,7 @@ const [showCreateDialog, setShowCreateDialog] = useState(false);
           <Card className="max-w-md border-destructive/50">
             <CardHeader className="text-center">
               <div className="mx-auto mb-4 p-4 rounded-full bg-destructive/10 w-fit">
-                <Shield className="h-8 w-8 text-destructive" />
+                <Shield className="size-8 text-destructive" />
               </div>
               <CardTitle className="text-destructive">Access Denied</CardTitle>
               <CardDescription>
@@ -143,7 +143,7 @@ const [showCreateDialog, setShowCreateDialog] = useState(false);
             </CardHeader>
             <CardContent className="flex justify-center">
               <Button onClick={() => navigate('/dashboard')} variant="outline">
-                <ArrowLeft className="h-4 w-4 mr-2" />
+                <ArrowLeft className="icon-md mr-2" />
                 Back to Dashboard
               </Button>
             </CardContent>
@@ -315,19 +315,19 @@ const [showCreateDialog, setShowCreateDialog] = useState(false);
     <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
       <TabsList className="grid w-full grid-cols-4 mb-6 h-auto">
         <TabsTrigger value="connection" className="gap-1 sm:gap-2 text-xs sm:text-sm px-2">
-          <Network className="h-4 w-4 shrink-0" />
+          <Network className="icon-md shrink-0" />
           <span>Connection</span>
         </TabsTrigger>
         <TabsTrigger value="search" className="gap-1 sm:gap-2 text-xs sm:text-sm px-2" disabled={isOidcProvider(formData.provider_type)}>
-          <Users className="h-4 w-4 shrink-0" />
+          <Users className="icon-md shrink-0" />
           <span>Search</span>
         </TabsTrigger>
         <TabsTrigger value="attributes" className="gap-1 sm:gap-2 text-xs sm:text-sm px-2" disabled={isOidcProvider(formData.provider_type)}>
-          <Key className="h-4 w-4 shrink-0" />
+          <Key className="icon-md shrink-0" />
           <span>Attributes</span>
         </TabsTrigger>
         <TabsTrigger value="behavior" className="gap-1 sm:gap-2 text-xs sm:text-sm px-2">
-          <Zap className="h-4 w-4 shrink-0" />
+          <Zap className="icon-md shrink-0" />
           <span>Behavior</span>
         </TabsTrigger>
       </TabsList>
@@ -524,7 +524,7 @@ const [showCreateDialog, setShowCreateDialog] = useState(false);
             <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">
               <div className="space-y-0.5">
                 <Label className="flex items-center gap-2">
-                  <Lock className="h-4 w-4 text-green-600" />
+                  <Lock className="icon-md text-green-600" />
                   Use SSL/TLS
                 </Label>
                 <p className="text-xs text-muted-foreground">Encrypt connection (recommended)</p>
@@ -549,7 +549,7 @@ const [showCreateDialog, setShowCreateDialog] = useState(false);
             <div className="flex items-center justify-between p-3 rounded-lg border border-yellow-200 bg-yellow-50/50 dark:border-yellow-900 dark:bg-yellow-900/20">
               <div className="space-y-0.5">
                 <Label className="flex items-center gap-2">
-                  <AlertCircle className="h-4 w-4 text-yellow-600" />
+                  <AlertCircle className="icon-md text-yellow-600" />
                   Allow Self-Signed Certificates
                 </Label>
                 <p className="text-xs text-muted-foreground">Not recommended for production</p>
@@ -658,7 +658,7 @@ const [showCreateDialog, setShowCreateDialog] = useState(false);
           <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">
             <div className="space-y-0.5">
               <Label className="flex items-center gap-2">
-                <UserCheck className="h-4 w-4 text-primary" />
+                <UserCheck className="icon-md text-primary" />
                 Auto-Provision Users
               </Label>
               <p className="text-xs text-muted-foreground">
@@ -704,7 +704,7 @@ const [showCreateDialog, setShowCreateDialog] = useState(false);
           <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">
             <div className="space-y-0.5">
               <Label className="flex items-center gap-2">
-                <RefreshCw className="h-4 w-4 text-module-feeds" />
+                <RefreshCw className="icon-md text-module-feeds" />
                 Enable Directory Sync
               </Label>
               <p className="text-xs text-muted-foreground">
@@ -745,7 +745,7 @@ const [showCreateDialog, setShowCreateDialog] = useState(false);
       setFormData(prev => ({ ...prev, name: getDefaultConfigName() }));
       setShowCreateDialog(true);
     }}>
-      <Plus className="h-4 w-4 mr-2" />
+      <Plus className="icon-md mr-2" />
       Add Configuration
     </Button>
   );
@@ -782,7 +782,7 @@ const [showCreateDialog, setShowCreateDialog] = useState(false);
                 <div className="grid sm:grid-cols-3 gap-6 mb-8 w-full">
                   <div className="flex flex-col items-center gap-3 p-6 rounded-xl bg-muted/50 border">
                     <div className="p-3 rounded-full bg-green-100 dark:bg-green-900/30">
-                      <UserCheck className="h-6 w-6 text-green-600" />
+                      <UserCheck className="icon-xl text-green-600" />
                     </div>
                     <div className="text-center">
                       <p className="font-semibold">Single Sign-On</p>
@@ -791,7 +791,7 @@ const [showCreateDialog, setShowCreateDialog] = useState(false);
                   </div>
                   <div className="flex flex-col items-center gap-3 p-6 rounded-xl bg-muted/50 border">
                     <div className="p-3 rounded-full bg-blue-100 dark:bg-blue-900/30">
-                      <RefreshCw className="h-6 w-6 text-blue-600" />
+                      <RefreshCw className="icon-xl text-info" />
                     </div>
                     <div className="text-center">
                       <p className="font-semibold">Auto Sync</p>
@@ -800,7 +800,7 @@ const [showCreateDialog, setShowCreateDialog] = useState(false);
                   </div>
                   <div className="flex flex-col items-center gap-3 p-6 rounded-xl bg-muted/50 border">
                     <div className="p-3 rounded-full bg-purple-100 dark:bg-purple-900/30">
-                      <Shield className="h-6 w-6 text-purple-600" />
+                      <Shield className="icon-xl text-accent" />
                     </div>
                     <div className="text-center">
                       <p className="font-semibold">Group Mapping</p>
@@ -813,7 +813,7 @@ const [showCreateDialog, setShowCreateDialog] = useState(false);
                   setFormData(prev => ({ ...prev, name: getDefaultConfigName() }));
                   setShowCreateDialog(true);
                 }}>
-                  <Plus className="h-5 w-5" />
+                  <Plus className="icon-lg" />
                   Add LDAP Configuration
                 </Button>
               </div>
@@ -831,7 +831,7 @@ const [showCreateDialog, setShowCreateDialog] = useState(false);
                       <p className="text-3xl font-bold">{configurations.length}</p>
                     </div>
                     <div className="p-3 rounded-full bg-primary/10">
-                      <Server className="h-6 w-6 text-module-itam" />
+                      <Server className="icon-xl text-module-itam" />
                     </div>
                   </div>
                 </CardContent>
@@ -867,7 +867,7 @@ const [showCreateDialog, setShowCreateDialog] = useState(false);
                       </p>
                     </div>
                     <div className={`p-3 rounded-full ${hasFailedSync ? 'bg-destructive/10' : 'bg-blue-100 dark:bg-blue-900/30'}`}>
-                      <RefreshCw className={`h-6 w-6 ${hasFailedSync ? 'text-destructive' : 'text-blue-600'}`} />
+                      <RefreshCw className={`h-6 w-6 ${hasFailedSync ? 'text-destructive' : 'text-info'}`} />
                     </div>
                   </div>
                 </CardContent>
@@ -885,7 +885,7 @@ const [showCreateDialog, setShowCreateDialog] = useState(false);
                       </p>
                     </div>
                     <div className="p-3 rounded-full bg-muted">
-                      <Clock className="h-6 w-6 text-muted-foreground" />
+                      <Clock className="icon-xl text-muted-foreground" />
                     </div>
                   </div>
                 </CardContent>
@@ -944,12 +944,12 @@ const [showCreateDialog, setShowCreateDialog] = useState(false);
                       <div className="flex items-center gap-1.5">
                         {config.use_ssl ? (
                           <>
-                            <Check className="h-4 w-4 text-green-500" />
+                            <Check className="icon-md text-green-500" />
                             <span className="text-sm text-green-600 font-medium">Enabled</span>
                           </>
                         ) : (
                           <>
-                            <X className="h-4 w-4 text-yellow-500" />
+                            <X className="icon-md text-yellow-500" />
                             <span className="text-sm text-yellow-600 font-medium">Disabled</span>
                           </>
                         )}
@@ -960,12 +960,12 @@ const [showCreateDialog, setShowCreateDialog] = useState(false);
                       <div className="flex items-center gap-1.5">
                         {config.auto_provision_users ? (
                           <>
-                            <Check className="h-4 w-4 text-green-500" />
+                            <Check className="icon-md text-green-500" />
                             <span className="text-sm">Yes</span>
                           </>
                         ) : (
                           <>
-                            <X className="h-4 w-4 text-muted-foreground" />
+                            <X className="icon-md text-muted-foreground" />
                             <span className="text-sm">No</span>
                           </>
                         )}
@@ -984,7 +984,7 @@ const [showCreateDialog, setShowCreateDialog] = useState(false);
                   {/* Error Alert */}
                   {config.last_sync_status === 'failed' && config.last_sync_error && (
                     <div className="mb-4 p-4 rounded-lg bg-destructive/10 border border-destructive/20 flex items-start gap-3">
-                      <AlertCircle className="h-5 w-5 text-destructive mt-0.5 flex-shrink-0" />
+                      <AlertCircle className="icon-lg text-destructive mt-0.5 flex-shrink-0" />
                       <div>
                         <p className="font-medium text-destructive text-sm">Last sync failed</p>
                         <p className="text-sm text-destructive/80 mt-1">{config.last_sync_error}</p>
@@ -1002,9 +1002,9 @@ const [showCreateDialog, setShowCreateDialog] = useState(false);
                       className="gap-2"
                     >
                       {isTesting ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <Loader2 className="icon-md animate-spin" />
                       ) : (
-                        <Check className="h-4 w-4" />
+                        <Check className="icon-md" />
                       )}
                       Test Connection
                     </Button>
@@ -1014,7 +1014,7 @@ const [showCreateDialog, setShowCreateDialog] = useState(false);
                       onClick={() => triggerSync(config.id)}
                       className="gap-2"
                     >
-                      <RefreshCw className="h-4 w-4" />
+                      <RefreshCw className="icon-md" />
                       Sync Now
                     </Button>
                     <Button
@@ -1023,7 +1023,7 @@ const [showCreateDialog, setShowCreateDialog] = useState(false);
                       onClick={() => handleViewSyncLogs(config.id)}
                       className="gap-2"
                     >
-                      <History className="h-4 w-4" />
+                      <History className="icon-md" />
                       Sync History
                     </Button>
                     <Button
@@ -1032,7 +1032,7 @@ const [showCreateDialog, setShowCreateDialog] = useState(false);
                       onClick={() => openEditDialog(config)}
                       className="gap-2"
                     >
-                      <Settings className="h-4 w-4" />
+                      <Settings className="icon-md" />
                       Settings
                     </Button>
                     <Button
@@ -1041,7 +1041,7 @@ const [showCreateDialog, setShowCreateDialog] = useState(false);
                       className="gap-2 text-destructive hover:text-destructive hover:bg-destructive/10"
                       onClick={() => setDeleteConfirmId(config.id)}
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <Trash2 className="icon-md" />
                       Delete
                     </Button>
                   </div>
@@ -1097,7 +1097,7 @@ const [showCreateDialog, setShowCreateDialog] = useState(false);
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
-              <Trash2 className="h-5 w-5 text-destructive" />
+              <Trash2 className="icon-lg text-destructive" />
               Delete LDAP Configuration?
             </AlertDialogTitle>
             <AlertDialogDescription>

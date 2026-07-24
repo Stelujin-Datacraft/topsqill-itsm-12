@@ -66,11 +66,11 @@ export function FormFieldSelector({
 
   const getFieldTypeColor = (type: string) => {
     const colors: Record<string, string> = {
-      'text': 'bg-blue-100 text-blue-800',
+      'text': 'bg-info/10 text-info',
       'number': 'bg-green-100 text-green-800',
-      'currency': 'bg-emerald-100 text-emerald-800',
-      'date': 'bg-purple-100 text-purple-800',
-      'datetime': 'bg-purple-100 text-purple-800',
+      'currency': 'bg-success/10 text-success',
+      'date': 'bg-accent/10 text-accent-foreground',
+      'datetime': 'bg-accent/10 text-accent-foreground',
       'select': 'bg-orange-100 text-orange-800',
       'multi-select': 'bg-orange-100 text-orange-800',
       'radio': 'bg-yellow-100 text-yellow-800',
@@ -78,7 +78,7 @@ export function FormFieldSelector({
       'rating': 'bg-indigo-100 text-indigo-800',
       'slider': 'bg-cyan-100 text-cyan-800'
     };
-    return colors[type] || 'bg-gray-100 text-gray-800';
+    return colors[type] || 'bg-muted text-muted-foreground';
   };
 
   if (fieldsToShow.length === 0) {

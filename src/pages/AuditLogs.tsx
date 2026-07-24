@@ -123,14 +123,14 @@ const AuditLogs: React.FC = () => {
   }, [user, page, categoryFilter]);
 
   const getEventIcon = (eventType: string) => {
-    if (eventType.includes('login')) return <LogIn className="h-4 w-4 text-module-knowledge" />;
-    if (eventType.includes('logout')) return <LogOut className="h-4 w-4 text-module-workflows" />;
-    if (eventType.includes('password')) return <Key className="h-4 w-4 text-module-api" />;
-    if (eventType.includes('mfa') || eventType.includes('security')) return <Shield className="h-4 w-4 text-module-compliance" />;
-    if (eventType.includes('user')) return <User className="h-4 w-4 text-module-access" />;
-    if (eventType.includes('setting')) return <Settings className="h-4 w-4 text-module-overview" />;
-    if (eventType.includes('session')) return <AlertTriangle className="h-4 w-4 text-module-performance" />;
-    return <FileText className="h-4 w-4 text-module-forms" />;
+    if (eventType.includes('login')) return <LogIn className="icon-md text-module-knowledge" />;
+    if (eventType.includes('logout')) return <LogOut className="icon-md text-module-workflows" />;
+    if (eventType.includes('password')) return <Key className="icon-md text-module-api" />;
+    if (eventType.includes('mfa') || eventType.includes('security')) return <Shield className="icon-md text-module-compliance" />;
+    if (eventType.includes('user')) return <User className="icon-md text-module-access" />;
+    if (eventType.includes('setting')) return <Settings className="icon-md text-module-overview" />;
+    if (eventType.includes('session')) return <AlertTriangle className="icon-md text-module-performance" />;
+    return <FileText className="icon-md text-module-forms" />;
   };
 
   const getCategoryColor = (category: string) => {
@@ -142,7 +142,7 @@ const AuditLogs: React.FC = () => {
       case 'user_management':
         return 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300 border-violet-200 dark:border-violet-800';
       case 'data_access':
-        return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800';
+        return 'bg-success/10 text-success dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800';
       default:
         return 'bg-muted text-muted-foreground border-border';
     }
@@ -202,7 +202,7 @@ const AuditLogs: React.FC = () => {
             <div className="flex flex-col sm:flex-row gap-4 justify-between">
               <div>
                 <CardTitle className="flex items-center gap-2">
-                  <ClipboardList className="h-5 w-5 text-module-reports" />
+                  <ClipboardList className="icon-lg text-module-reports" />
                   Activity History
                 </CardTitle>
                 <CardDescription>
@@ -219,12 +219,12 @@ const AuditLogs: React.FC = () => {
                     className="w-48"
                   />
                   <Button variant="outline" size="icon" onClick={handleSearch}>
-                    <Search className="h-4 w-4 text-module-query" />
+                    <Search className="icon-md text-module-query" />
                   </Button>
                 </div>
                 <Select value={categoryFilter} onValueChange={(v) => { setCategoryFilter(v); setPage(0); }}>
                   <SelectTrigger className="w-44">
-                    <Filter className="h-4 w-4 mr-2 text-module-query" />
+                    <Filter className="icon-md mr-2 text-module-query" />
                     <SelectValue placeholder="Category" />
                   </SelectTrigger>
                   <SelectContent>
@@ -239,7 +239,7 @@ const AuditLogs: React.FC = () => {
           <CardContent>
             {loading ? (
               <div className="flex justify-center py-8">
-                <RefreshCw className="h-8 w-8 animate-spin text-module-feeds" />
+                <RefreshCw className="size-8 animate-spin text-module-feeds" />
               </div>
             ) : logs.length === 0 ? (
               <div className="text-center py-12">
@@ -281,7 +281,7 @@ const AuditLogs: React.FC = () => {
                     {/* User Info */}
                     <div className="col-span-4">
                       <div className="flex items-center gap-2">
-                        <Avatar className="h-6 w-6">
+                        <Avatar className="icon-xl">
                           <AvatarFallback className="text-xs bg-primary/10 text-primary">
                             {getUserInitials(userInfo)}
                           </AvatarFallback>

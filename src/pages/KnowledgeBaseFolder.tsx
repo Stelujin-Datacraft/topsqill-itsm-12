@@ -123,11 +123,11 @@ const KnowledgeBaseFolder = () => {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={() => navigate('/knowledge-base')}>
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft className="icon-md" />
           </Button>
           <div>
             <div className="flex items-center gap-2">
-              <FolderOpen className="h-5 w-5 text-module-knowledge" />
+              <FolderOpen className="icon-lg text-module-knowledge" />
               <h1 className="text-2xl font-bold text-foreground">{folderName}</h1>
             </div>
             {folder?.description && (
@@ -138,11 +138,11 @@ const KnowledgeBaseFolder = () => {
         {isAdmin && (
           <div className="flex items-center gap-2">
             <Button variant="outline" onClick={() => navigate('/policies/create-template')} className="gap-2">
-              <LayoutTemplate className="h-4 w-4 text-module-workflows" />
+              <LayoutTemplate className="icon-md text-module-workflows" />
               Create Template
             </Button>
             <Button onClick={() => navigate(`/policies/create?folder=${folderId}&type=policy`)} className="gap-2">
-              <FileText className="h-4 w-4" />
+              <FileText className="icon-md" />
               Create Doc
             </Button>
           </div>
@@ -152,15 +152,15 @@ const KnowledgeBaseFolder = () => {
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="list" className="gap-2">
-            <FileText className="h-4 w-4" />
+            <FileText className="icon-md" />
             Items
           </TabsTrigger>
           <TabsTrigger value="templates" className="gap-2">
-            <LayoutTemplate className="h-4 w-4" />
+            <LayoutTemplate className="icon-md" />
             Templates
           </TabsTrigger>
           <TabsTrigger value="dashboard" className="gap-2">
-            <BarChart3 className="h-4 w-4" />
+            <BarChart3 className="icon-md" />
             Dashboard
           </TabsTrigger>
           {/* Access Controls moved to Roles and Access page */}
@@ -232,7 +232,7 @@ const KnowledgeBaseFolder = () => {
                 {isAdmin && !isUnassigned && (
                   <div className="flex gap-2 mt-4">
                     <Button onClick={() => navigate(`/policies/create?folder=${folderId}&type=policy`)} className="gap-2">
-                      <FileText className="h-4 w-4" /> Create Doc
+                      <FileText className="icon-md" /> Create Doc
                     </Button>
                   </div>
                 )}
@@ -262,7 +262,7 @@ const KnowledgeBaseFolder = () => {
                           <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1 flex-wrap">
                             <Badge variant={itemType === 'audit' ? 'default' : 'secondary'} className="text-xs">
-                              {itemType === 'audit' ? <Shield className="h-3 w-3 mr-1" /> : <FileText className="h-3 w-3 mr-1" />}
+                              {itemType === 'audit' ? <Shield className="icon-xs mr-1" /> : <FileText className="icon-xs mr-1" />}
                               {itemType === 'audit' ? 'Audit' : 'Doc'}
                             </Badge>
                             {policy.policy_number && (
@@ -274,7 +274,7 @@ const KnowledgeBaseFolder = () => {
                             {getPriorityBadge(policy.priority || 'medium')}
                             {isOverdueReview && (
                               <Badge variant="destructive" className="gap-1 text-xs">
-                                <CalendarClock className="h-3 w-3" /> Review Overdue
+                                <CalendarClock className="icon-xs" /> Review Overdue
                               </Badge>
                             )}
                           </div>
@@ -293,7 +293,7 @@ const KnowledgeBaseFolder = () => {
   handleViewPolicy(policy);
 }}
                           >
-                            <Eye className="h-3 w-3" /> View
+                            <Eye className="icon-xs" /> View
                           </Button>
                           <div className="text-right text-xs text-muted-foreground space-y-0.5">
                             <div>v{policy.current_version}</div>
@@ -329,7 +329,7 @@ const KnowledgeBaseFolder = () => {
     <div className="flex-1 px-6 pb-6">
       {previewLoading ? (
         <div className="flex items-center justify-center h-full gap-2">
-          <Loader2 className="h-5 w-5 animate-spin text-module-knowledge" />
+          <Loader2 className="icon-lg animate-spin text-module-knowledge" />
           <span className="text-sm text-muted-foreground">Generating preview...</span>
         </div>
       ) : previewIframeUrl ? (
@@ -366,7 +366,7 @@ const KnowledgeBaseFolder = () => {
                 <h3 className="text-lg font-medium">No templates yet</h3>
                 <p className="text-sm text-muted-foreground mt-1">Create your first doc template.</p>
                 <Button onClick={() => navigate('/policies/create-template')} className="mt-4 gap-2">
-                  <Plus className="h-4 w-4" /> Create Template
+                  <Plus className="icon-md" /> Create Template
                 </Button>
               </CardContent>
             </Card>
@@ -386,9 +386,9 @@ const KnowledgeBaseFolder = () => {
                       )}
                     </div>
                     <div className="flex items-center gap-1 ml-4">
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setViewTemplate(t)}><Eye className="h-4 w-4" /></Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditTemplate(t); setEditName(t.name); setEditDescription(t.description || ''); setEditCategory(t.category); setEditContentHtml(t.content_structure?.html || ''); }} disabled={t.is_system_template}><Edit className="h-4 w-4" /></Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => setDeleteConfirmId(t.id)} disabled={t.is_system_template}><Trash2 className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="icon" className="size-8" onClick={() => setViewTemplate(t)}><Eye className="icon-md" /></Button>
+                      <Button variant="ghost" size="icon" className="size-8" onClick={() => { setEditTemplate(t); setEditName(t.name); setEditDescription(t.description || ''); setEditCategory(t.category); setEditContentHtml(t.content_structure?.html || ''); }} disabled={t.is_system_template}><Edit className="icon-md" /></Button>
+                      <Button variant="ghost" size="icon" className="size-8 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => setDeleteConfirmId(t.id)} disabled={t.is_system_template}><Trash2 className="icon-md" /></Button>
                     </div>
                   </CardContent>
                 </Card>

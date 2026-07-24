@@ -75,7 +75,7 @@ export function UserInvitationSection({ projectId, onInvitationSent }: UserInvit
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <UserPlus className="h-5 w-5" />
+            <UserPlus className="icon-lg" />
             Add User to Project
           </CardTitle>
         </CardHeader>
@@ -102,7 +102,7 @@ export function UserInvitationSection({ projectId, onInvitationSent }: UserInvit
                       className="p-3 hover:bg-muted cursor-pointer flex items-center gap-3"
                       onClick={() => handleSuggestionSelect(user.email)}
                     >
-                      <Avatar className="h-8 w-8">
+                      <Avatar className="size-8">
                         <AvatarFallback>
                           {user.first_name?.[0] || user.email[0]}
                         </AvatarFallback>
@@ -123,7 +123,7 @@ export function UserInvitationSection({ projectId, onInvitationSent }: UserInvit
             </div>
             
             <Button onClick={handleInvite} disabled={!email.trim()}>
-              <Mail className="h-4 w-4 mr-2" />
+              <Mail className="icon-md mr-2" />
               Add User
             </Button>
           </div>
@@ -149,7 +149,7 @@ export function UserInvitationSection({ projectId, onInvitationSent }: UserInvit
               {pendingInvitations.map((invitation) => (
                 <div key={invitation.id} className="flex items-center justify-between p-3 border rounded-lg">
                   <div className="flex items-center gap-3">
-                    <Avatar className="h-8 w-8">
+                    <Avatar className="size-8">
                       <AvatarFallback>{invitation.email[0].toUpperCase()}</AvatarFallback>
                     </Avatar>
                     <div>
@@ -165,7 +165,7 @@ export function UserInvitationSection({ projectId, onInvitationSent }: UserInvit
                       variant="ghost"
                       onClick={() => cancelInvitation(invitation.id)}
                     >
-                      <X className="h-4 w-4" />
+                      <X className="icon-md" />
                     </Button>
                   </div>
                 </div>

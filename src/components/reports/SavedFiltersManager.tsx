@@ -63,14 +63,14 @@ export function SavedFiltersManager({
       <Popover open={isOpen} onOpenChange={setIsOpen}>
         <PopoverTrigger asChild>
           <Button variant="outline" size="sm">
-            <BookmarkPlus className="h-4 w-4 mr-2 text-module-forms" />
+            <BookmarkPlus className="icon-md mr-2 text-module-forms" />
             Saved Filters
             {savedFilters.length > 0 && (
               <Badge variant="secondary" className="ml-2">
                 {savedFilters.length}
               </Badge>
             )}
-            <ChevronDown className="h-4 w-4 ml-2" />
+            <ChevronDown className="icon-md ml-2" />
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-96 p-0" align="end">
@@ -91,7 +91,7 @@ export function SavedFiltersManager({
                 </div>
               ) : savedFilters.length === 0 ? (
                 <div className="text-center py-6 text-muted-foreground">
-                  <BookmarkPlus className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <BookmarkPlus className="size-8 mx-auto mb-2 opacity-50" />
                   <p className="text-sm">No saved filters</p>
                   <p className="text-xs">Create filters and save them for quick access</p>
                 </div>
@@ -116,7 +116,7 @@ export function SavedFiltersManager({
                             </Badge>
                           </div>
                           <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
-                            <Clock className="h-3 w-3" />
+                            <Clock className="icon-xs" />
                             {formatDate(filter.created_at)}
                           </div>
                         </div>
@@ -128,7 +128,7 @@ export function SavedFiltersManager({
                           onClick={() => handleApplyFilter(filter)}
                           className="flex-1"
                         >
-                          <Play className="h-3 w-3 mr-1" />
+                          <Play className="icon-xs mr-1" />
                           Apply
                         </Button>
                         <Button
@@ -136,7 +136,7 @@ export function SavedFiltersManager({
                           variant="outline"
                           onClick={() => handleDeleteClick(filter)}
                         >
-                          <Trash2 className="h-3 w-3" />
+                          <Trash2 className="icon-xs" />
                         </Button>
                       </div>
                     </div>

@@ -120,11 +120,11 @@ function useHealthMetrics(alerts: PerformanceAlert[], predictions: PerformancePr
     const alertWeight = criticalCount * 25 + (totalActive - criticalCount) * 10;
     const alertHealth = Math.max(0, 100 - Math.min(alertWeight, 100));
     const alertLabel = alertHealth >= 80 ? 'Healthy' : alertHealth >= 50 ? 'At Risk' : 'Critical';
-    const alertColor = alertHealth >= 80 ? 'text-emerald-600' : alertHealth >= 50 ? 'text-yellow-600' : 'text-red-600';
+    const alertColor = alertHealth >= 80 ? 'text-success' : alertHealth >= 50 ? 'text-yellow-600' : 'text-destructive';
     const activeThresholds = thresholds.filter(t => t.is_active).length;
     const coverageScore = Math.min(activeThresholds * 20, 100);
     const coverageLabel = coverageScore >= 60 ? 'Good' : coverageScore >= 20 ? 'Partial' : 'None';
-    const coverageColor = coverageScore >= 60 ? 'text-emerald-600' : coverageScore >= 20 ? 'text-yellow-600' : 'text-muted-foreground';
+    const coverageColor = coverageScore >= 60 ? 'text-success' : coverageScore >= 20 ? 'text-yellow-600' : 'text-muted-foreground';
     const timestamps = [
       ...alerts.map(a => new Date(a.created_at).getTime()),
       ...predictions.map(p => new Date(p.created_at).getTime()),
@@ -336,7 +336,7 @@ export function KPIDashboardTab({ perfProjectId, alerts = [], predictions = [], 
   if (loading || dsLoading) {
     return (
       <div className="flex items-center justify-center min-h-[300px]">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <Loader2 className="size-8 animate-spin text-primary" />
       </div>
     );
   }
@@ -381,7 +381,7 @@ export function KPIDashboardTab({ perfProjectId, alerts = [], predictions = [], 
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                <BarChart3 className="h-5 w-5 text-module-reports" />
+                <BarChart3 className="icon-lg text-module-reports" />
               </div>
               <div>
                 <CardTitle className="text-lg">KPI Dashboard</CardTitle>
@@ -393,12 +393,12 @@ export function KPIDashboardTab({ perfProjectId, alerts = [], predictions = [], 
             <div className="flex items-center gap-2">
               {aiRunning && (
                 <Badge className="bg-primary/10 text-primary border-primary/20 animate-pulse gap-1.5">
-                  <Loader2 className="h-3 w-3 animate-spin" />AI Analyzing...
+                  <Loader2 className="icon-xs animate-spin" />AI Analyzing...
                 </Badge>
               )}
               {isAdmin && (
                 <Button variant="outline" size="sm" onClick={() => setShowRoleAssignment(true)}>
-                  <UserCog className="h-4 w-4 mr-1" />Roles
+                  <UserCog className="icon-md mr-1" />Roles
                 </Button>
               )}
             </div>
@@ -409,7 +409,7 @@ export function KPIDashboardTab({ perfProjectId, alerts = [], predictions = [], 
             {/* Role Selector */}
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
-                <Zap className="h-3 w-3" /> Dashboard View
+                <Zap className="icon-xs" /> Dashboard View
               </label>
               <Select value={selectedRole} onValueChange={(v) => setSelectedRole(v as RoleType)}>
                 <SelectTrigger className="w-[220px]">
@@ -430,7 +430,7 @@ export function KPIDashboardTab({ perfProjectId, alerts = [], predictions = [], 
             {/* Record Selector */}
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
-                <Target className="h-3 w-3" /> Select Project
+                <Target className="icon-xs" /> Select Project
               </label>
               <Select value={selectedRecordId} onValueChange={handleRecordChange}>
                 <SelectTrigger className="w-[320px] border-primary/30 focus:ring-primary/20">
@@ -464,7 +464,7 @@ export function KPIDashboardTab({ perfProjectId, alerts = [], predictions = [], 
               </Badge>
               {hierarchyLoading && (
                 <Badge variant="secondary" className="text-xs gap-1">
-                  <Loader2 className="h-3 w-3 animate-spin" />Loading linked records...
+                  <Loader2 className="icon-xs animate-spin" />Loading linked records...
                 </Badge>
               )}
               {hierarchy && !hierarchyLoading && (
@@ -490,7 +490,7 @@ export function KPIDashboardTab({ perfProjectId, alerts = [], predictions = [], 
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <Info className="h-3 w-3 text-muted-foreground/60 shrink-0 cursor-help" />
+                          <Info className="icon-xs text-muted-foreground/60 shrink-0 cursor-help" />
                         </TooltipTrigger>
                         <TooltipContent side="top" className="max-w-[280px] z-[9999]">
                           <p className="text-xs font-mono">Weighted: CPI(20%) + SPI(20%) + Delay_Ratio(25%) + Budget_Overrun(15%) + Pred_Delay(10%) + Pred_Overrun(10%)</p>
@@ -501,12 +501,12 @@ export function KPIDashboardTab({ perfProjectId, alerts = [], predictions = [], 
                   <p className="text-3xl font-bold text-foreground mt-1">
                     {formulaRisk.riskScore}
                   </p>
-                  <Badge className={`mt-1.5 text-[10px] ${formulaRisk.healthStatus === 'Healthy' ? 'bg-emerald-100 text-emerald-700' : formulaRisk.healthStatus === 'At Risk' ? 'bg-yellow-100 text-yellow-700' : formulaRisk.healthStatus === 'Warning' ? 'bg-orange-100 text-orange-700' : 'bg-red-100 text-red-700'}`}>
+                  <Badge className={`mt-1.5 text-[10px] ${formulaRisk.healthStatus === 'Healthy' ? 'bg-success/10 text-success' : formulaRisk.healthStatus === 'At Risk' ? 'bg-yellow-100 text-yellow-700' : formulaRisk.healthStatus === 'Warning' ? 'bg-orange-100 text-orange-700' : 'bg-red-100 text-red-700'}`}>
                     {formulaRisk.healthStatus.toUpperCase()}
                   </Badge>
                 </div>
                 <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                  <ShieldAlert className="h-6 w-6 text-primary" />
+                  <ShieldAlert className="icon-xl text-primary" />
                 </div>
               </div>
               <p className="text-[9px] text-muted-foreground mt-2">Based on CPI, SPI, delays & budget</p>
@@ -522,7 +522,7 @@ export function KPIDashboardTab({ perfProjectId, alerts = [], predictions = [], 
                   <p className="text-[10px] text-muted-foreground mt-1">{health.totalActive} active · {health.criticalCount} critical</p>
                 </div>
                 <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center">
-                  <ShieldAlert className="h-6 w-6 text-muted-foreground" />
+                  <ShieldAlert className="icon-xl text-muted-foreground" />
                 </div>
               </div>
               <p className="text-[9px] text-muted-foreground/50 mt-1">Click to view alerts</p>
@@ -538,7 +538,7 @@ export function KPIDashboardTab({ perfProjectId, alerts = [], predictions = [], 
                   <p className="text-[10px] text-muted-foreground mt-1">{health.activeThresholds} active rule{health.activeThresholds !== 1 ? 's' : ''}</p>
                 </div>
                 <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center">
-                  <Settings2 className="h-6 w-6 text-muted-foreground" />
+                  <Settings2 className="icon-xl text-muted-foreground" />
                 </div>
               </div>
               <p className="text-[9px] text-muted-foreground/50 mt-1">Click to manage thresholds</p>
@@ -554,7 +554,7 @@ export function KPIDashboardTab({ perfProjectId, alerts = [], predictions = [], 
                   <p className="text-[10px] text-muted-foreground mt-1">{visiblePredictions.length} prediction{visiblePredictions.length !== 1 ? 's' : ''}</p>
                 </div>
                 <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center">
-                  <Activity className="h-6 w-6 text-muted-foreground" />
+                  <Activity className="icon-xl text-muted-foreground" />
                 </div>
               </div>
             </CardContent>
@@ -604,8 +604,8 @@ export function KPIDashboardTab({ perfProjectId, alerts = [], predictions = [], 
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2 text-base">
-                  <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <Brain className="h-4 w-4 text-module-workflows" />
+                  <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <Brain className="icon-md text-module-workflows" />
                   </div>
                   AI Analysis Summary
                 </CardTitle>
@@ -624,7 +624,7 @@ export function KPIDashboardTab({ perfProjectId, alerts = [], predictions = [], 
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm flex items-center gap-2">
-                  <TrendingUp className="h-4 w-4 text-primary" />
+                  <TrendingUp className="icon-md text-primary" />
                   Predictions
                   <Badge variant="secondary" className="text-[10px] ml-1">{visiblePredictions.length}</Badge>
                 </CardTitle>
@@ -667,7 +667,7 @@ export function KPIDashboardTab({ perfProjectId, alerts = [], predictions = [], 
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm flex items-center gap-2">
-                  <Lightbulb className="h-4 w-4 text-primary" />
+                  <Lightbulb className="icon-md text-primary" />
                   Recommendations
                   <Badge variant="secondary" className="text-[10px] ml-1">{aiResult.recommendations.length}</Badge>
                 </CardTitle>

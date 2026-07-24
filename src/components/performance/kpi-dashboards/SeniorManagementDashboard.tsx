@@ -147,12 +147,12 @@ export function SeniorManagementDashboard({ kpis, onSelectProject }: Props) {
                         <TableCell className="text-right">₹{(p.actualCost ?? 0).toLocaleString('en-IN')}</TableCell>
                       )}
                       <TableCell className="text-right">
-                        <span className={p.cpi >= 1 ? 'text-emerald-600 font-semibold' : 'text-destructive font-semibold'}>
+                        <span className={p.cpi >= 1 ? 'text-success font-semibold' : 'text-destructive font-semibold'}>
                           {(p.cpi ?? 0).toFixed(2)}
                         </span>
                       </TableCell>
                       <TableCell className="text-right">
-                        <span className={p.spi >= 1 ? 'text-emerald-600 font-semibold' : 'text-destructive font-semibold'}>
+                        <span className={p.spi >= 1 ? 'text-success font-semibold' : 'text-destructive font-semibold'}>
                           {(p.spi ?? 0).toFixed(2)}
                         </span>
                       </TableCell>
@@ -213,10 +213,10 @@ export function SeniorManagementDashboard({ kpis, onSelectProject }: Props) {
                     <TableCell className="text-right">₹{(p.plannedBudget ?? 0).toLocaleString('en-IN')}</TableCell>
                     <TableCell className="text-right">₹{(p.actualCost ?? 0).toLocaleString('en-IN')}</TableCell>
                     <TableCell className="text-right">
-                      <span className={p.cpi >= 1 ? 'text-emerald-600' : 'text-destructive'}>{(p.cpi ?? 0).toFixed(2)}</span>
+                      <span className={p.cpi >= 1 ? 'text-success' : 'text-destructive'}>{(p.cpi ?? 0).toFixed(2)}</span>
                     </TableCell>
                     <TableCell className="text-right">
-                      <span className={p.spi >= 1 ? 'text-emerald-600' : 'text-destructive'}>{(p.spi ?? 0).toFixed(2)}</span>
+                      <span className={p.spi >= 1 ? 'text-success' : 'text-destructive'}>{(p.spi ?? 0).toFixed(2)}</span>
                     </TableCell>
                   </TableRow>
                 ))}

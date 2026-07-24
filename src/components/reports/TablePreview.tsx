@@ -131,7 +131,7 @@ export function TablePreview({ formId, selectedColumns, filters = [], pageSize =
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        <Loader2 className="icon-xl animate-spin text-muted-foreground" />
         <span className="ml-2 text-sm text-muted-foreground">Loading preview...</span>
       </div>
     );

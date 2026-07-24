@@ -79,7 +79,7 @@ export function SoftwareInventory() {
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg flex items-center gap-2">
-              <Package className="h-5 w-5" />
+              <Package className="icon-lg" />
               Software Inventory ({software.length} unique)
             </CardTitle>
           </div>
