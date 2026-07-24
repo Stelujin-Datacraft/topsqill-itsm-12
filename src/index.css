@@ -6,45 +6,46 @@
 
 @layer base {
   :root {
-    --background: 210 25% 97%;
-    --primary-light: 217 65% 94%;
-    --foreground: 215 28% 11%;
+    --background: 210 20% 98%;
+    --primary-light: 168 45% 94%;
+    --foreground: 215 25% 12%;
 
     --card: 0 0% 100%;
-    --card-foreground: 215 28% 11%;
+    --card-foreground: 215 25% 12%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 215 28% 11%;
+    --popover-foreground: 215 25% 12%;
 
-    --primary: 217 72% 32%;
-    --primary-foreground: 210 40% 98%;
+    /* Teal / seafoam primary — Smart Data Table reference */
+    --primary: 168 55% 36%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 22% 92%;
-    --secondary-foreground: 215 28% 11%;
+    --secondary: 210 18% 95%;
+    --secondary-foreground: 215 25% 12%;
 
-    --muted: 210 18% 94%;
-    --muted-foreground: 215 14% 42%;
+    --muted: 210 16% 96%;
+    --muted-foreground: 215 14% 46%;
 
-    --accent: 37 92% 50%;
-    --accent-foreground: 37 92% 14%;
+    --accent: 174 58% 42%;
+    --accent-foreground: 0 0% 100%;
 
     --destructive: 0 72% 51%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 0 0% 100%;
 
-    --success: 152 60% 36%;
+    --success: 152 58% 38%;
     --success-foreground: 152 60% 98%;
 
-    --warning: 38 92% 50%;
-    --warning-foreground: 38 92% 14%;
+    --warning: 32 95% 44%;
+    --warning-foreground: 32 95% 14%;
 
     --info: 199 89% 42%;
-    --info-foreground: 210 40% 98%;
+    --info-foreground: 0 0% 100%;
 
-    --border: 214 22% 86%;
-    --input: 214 22% 86%;
-    --ring: 217 72% 32%;
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 168 55% 36%;
 
-    --radius: 0.625rem;
+    --radius: 0.5rem;
 
     --shadow-xs: 0 1px 2px 0 hsl(215 28% 11% / 0.04);
     --shadow-sm: 0 1px 3px 0 hsl(215 28% 11% / 0.06), 0 1px 2px -1px hsl(215 28% 11% / 0.06);
@@ -52,14 +53,14 @@
     --shadow-lg: 0 10px 15px -3px hsl(215 28% 11% / 0.08), 0 4px 6px -4px hsl(215 28% 11% / 0.05);
     --shadow-xl: 0 20px 25px -5px hsl(215 28% 11% / 0.08), 0 8px 10px -6px hsl(215 28% 11% / 0.04);
 
-    --sidebar-background: 217 68% 18%;
-    --sidebar-foreground: 210 20% 92%;
-    --sidebar-primary: 217 72% 42%;
+    --sidebar-background: 168 45% 18%;
+    --sidebar-foreground: 168 20% 92%;
+    --sidebar-primary: 168 55% 42%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 217 55% 24%;
-    --sidebar-accent-foreground: 210 20% 95%;
-    --sidebar-border: 217 45% 26%;
-    --sidebar-ring: 217 91% 59%;
+    --sidebar-accent: 168 40% 24%;
+    --sidebar-accent-foreground: 168 15% 95%;
+    --sidebar-border: 168 35% 26%;
+    --sidebar-ring: 168 55% 50%;
 
     /* Module accent colors */
     --module-forms: 217 91% 58%;
@@ -195,7 +196,7 @@
 
 @layer components {
   .page-header-title {
-    @apply text-xl sm:text-2xl font-semibold tracking-tight text-foreground;
+    @apply text-xl sm:text-2xl font-semibold tracking-tight text-primary;
     letter-spacing: -0.03em;
   }
 
@@ -241,6 +242,40 @@
 
   .icon-box-lg {
     @apply inline-flex items-center justify-center rounded-lg bg-muted/60 text-foreground size-12 [&_svg]:size-6;
+  }
+
+  /* Smart Data Table / panel — reference layout */
+  .smart-panel {
+    @apply rounded-lg border border-border bg-card shadow-sm;
+  }
+
+  .smart-panel-header {
+    @apply bg-gradient-to-r from-primary/5 via-background to-info/5 px-5 py-4 sm:px-6;
+  }
+
+  .smart-panel-title {
+    @apply font-semibold tracking-tight text-primary;
+    letter-spacing: -0.02em;
+  }
+
+  .smart-panel-footer {
+    @apply bg-muted/40 px-4 py-3 sm:px-5;
+  }
+
+  .smart-table-head {
+    @apply bg-muted/50 text-xs font-semibold uppercase tracking-wide text-muted-foreground;
+  }
+
+  .smart-table-row {
+    @apply border-b border-border/60 transition-colors hover:bg-primary/[0.03];
+  }
+
+  .smart-table-cell {
+    @apply px-4 py-4 align-middle text-sm;
+  }
+
+  .pill-badge {
+    @apply inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium;
   }
 }
 

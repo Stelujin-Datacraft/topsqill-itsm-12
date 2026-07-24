@@ -280,7 +280,9 @@ const Forms = () => {
 
   return (
     <DashboardLayout title={t('forms.title')} description={t('forms.description')} actions={actions}>
-      <FormsList />
+      <div className="smart-panel rounded-lg border border-border bg-card shadow-sm p-4 sm:p-6">
+        <FormsList />
+      </div>
     </DashboardLayout>
   );
 };
