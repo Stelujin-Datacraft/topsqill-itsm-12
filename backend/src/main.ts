@@ -1,14 +1,19 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { json, urlencoded } from 'express';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { bodyParser: false });
 
   const configService = app.get(ConfigService);
   const port = configService.get<number>('PORT', 3001);
   const corsOrigin = configService.get<string>('CORS_ORIGIN', 'http://localhost:8080');
+  const bodyLimit = configService.get<string>('REQUEST_BODY_LIMIT', '2mb');
+
+  app.use(json({ limit: bodyLimit }));
+  app.use(urlencoded({ extended: true, limit: bodyLimit }));
 
   app.enableCors({
     origin: [corsOrigin, 'http://localhost:8080', 'http://localhost:5173'],
@@ -32,6 +37,8 @@ async function bootstrap() {
       forbidNonWhitelisted: false,
     }),
   );
+
+  app.enableShutdownHooks();
 
   await app.listen(port);
   console.log(`NestJS API running on http://localhost:${port}/api`);

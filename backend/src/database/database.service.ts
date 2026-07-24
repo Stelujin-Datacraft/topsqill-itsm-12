@@ -1,5 +1,11 @@
 import { Injectable, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
+import {
+  DEFAULT_QUERY_LIMIT,
+  MAX_BATCH_INSERT_SIZE,
+  MAX_QUERY_LIMIT,
+  RPC_NAME_PATTERN,
+} from '../common/constants/database.constants';
 
 export type FilterClause =
   | { kind: 'filter'; column: string; operator: string; value: unknown }
@@ -106,15 +112,81 @@ export class DatabaseService {
     }
   }
 
+  private validateRpcName(functionName: string) {
+    if (!functionName || !RPC_NAME_PATTERN.test(functionName)) {
+      throw new BadRequestException('Invalid RPC function name');
+    }
+  }
+
+  private requireFilters(filters: FilterClause[] | undefined, operation: string) {
+    if (!filters?.length) {
+      throw new BadRequestException(`Filters are required for ${operation} operations`);
+    }
+  }
+
+  private resolvePagination(dto: DatabaseQueryDto): {
+    rangeFrom?: number;
+    rangeTo?: number;
+    limit: number;
+  } {
+    if (dto.single || dto.maybeSingle) {
+      return { limit: 1 };
+    }
+
+    if (dto.rangeFrom !== undefined && dto.rangeTo !== undefined) {
+      const size = dto.rangeTo - dto.rangeFrom + 1;
+      if (size > MAX_QUERY_LIMIT) {
+        throw new BadRequestException(`Range size exceeds maximum of ${MAX_QUERY_LIMIT}`);
+      }
+      if (dto.rangeFrom < 0 || dto.rangeTo < dto.rangeFrom) {
+        throw new BadRequestException('Invalid range');
+      }
+      return { rangeFrom: dto.rangeFrom, rangeTo: dto.rangeTo, limit: size };
+    }
+
+    const limit = dto.limit ?? DEFAULT_QUERY_LIMIT;
+    if (limit > MAX_QUERY_LIMIT) {
+      throw new BadRequestException(`Limit exceeds maximum of ${MAX_QUERY_LIMIT}`);
+    }
+    if (limit < 1) {
+      throw new BadRequestException('Limit must be at least 1');
+    }
+
+    return { limit };
+  }
+
   private getClient(authHeader?: string) {
     return authHeader
       ? this.supabaseService.getClientForUser(authHeader)
       : this.supabaseService.getServiceClient();
   }
 
+  private async chunkInsert(
+    client: ReturnType<SupabaseService['getServiceClient']>,
+    table: string,
+    rows: Record<string, unknown>[],
+    select: string,
+  ) {
+    const results: unknown[] = [];
+
+    for (let i = 0; i < rows.length; i += MAX_BATCH_INSERT_SIZE) {
+      const chunk = rows.slice(i, i + MAX_BATCH_INSERT_SIZE);
+      const { data, error } = await client.from(table).insert(chunk).select(select);
+      if (error) throw new BadRequestException(error.message);
+      if (Array.isArray(data)) {
+        results.push(...data);
+      } else if (data) {
+        results.push(data);
+      }
+    }
+
+    return results;
+  }
+
   async query(dto: DatabaseQueryDto, authHeader?: string) {
     this.validateTable(dto.table);
     const client = this.getClient(authHeader);
+    const pagination = this.resolvePagination(dto);
 
     const selectOpts = dto.selectOptions;
     const hasSelectOptions = selectOpts && (selectOpts.count || selectOpts.head);
@@ -136,10 +208,10 @@ export class DatabaseService {
       }
     }
 
-    if (dto.rangeFrom !== undefined && dto.rangeTo !== undefined) {
-      query = query.range(dto.rangeFrom, dto.rangeTo);
-    } else if (dto.limit) {
-      query = query.limit(dto.limit);
+    if (pagination.rangeFrom !== undefined && pagination.rangeTo !== undefined) {
+      query = query.range(pagination.rangeFrom, pagination.rangeTo);
+    } else {
+      query = query.limit(pagination.limit);
     }
 
     if (dto.single) {
@@ -163,6 +235,13 @@ export class DatabaseService {
     this.validateTable(dto.table);
     const client = this.getClient(authHeader);
     const select = dto.returning || '*';
+    const rows = Array.isArray(dto.data) ? dto.data : [dto.data];
+
+    if (rows.length > MAX_BATCH_INSERT_SIZE) {
+      const data = await this.chunkInsert(client, dto.table, rows, select);
+      return { data, error: null };
+    }
+
     const { data, error } = await client.from(dto.table).insert(dto.data).select(select);
     if (error) throw new BadRequestException(error.message);
     return { data, error: null };
@@ -172,10 +251,23 @@ export class DatabaseService {
     this.validateTable(dto.table);
     const client = this.getClient(authHeader);
     const select = dto.returning || '*';
+    const rows = Array.isArray(dto.data) ? dto.data : [dto.data];
 
     const options: { onConflict?: string; ignoreDuplicates?: boolean } = {};
     if (dto.onConflict) options.onConflict = dto.onConflict;
     if (dto.ignoreDuplicates !== undefined) options.ignoreDuplicates = dto.ignoreDuplicates;
+
+    if (rows.length > MAX_BATCH_INSERT_SIZE) {
+      const results: unknown[] = [];
+      for (let i = 0; i < rows.length; i += MAX_BATCH_INSERT_SIZE) {
+        const chunk = rows.slice(i, i + MAX_BATCH_INSERT_SIZE);
+        const { data, error } = await client.from(dto.table).upsert(chunk, options).select(select);
+        if (error) throw new BadRequestException(error.message);
+        if (Array.isArray(data)) results.push(...data);
+        else if (data) results.push(data);
+      }
+      return { data: results, error: null };
+    }
 
     const { data, error } = await client
       .from(dto.table)
@@ -188,6 +280,7 @@ export class DatabaseService {
 
   async update(dto: DatabaseUpdateDto, authHeader?: string) {
     this.validateTable(dto.table);
+    this.requireFilters(dto.filters, 'update');
     const client = this.getClient(authHeader);
 
     let query = client.from(dto.table).update(dto.data);
@@ -201,6 +294,7 @@ export class DatabaseService {
 
   async delete(dto: DatabaseDeleteDto, authHeader?: string) {
     this.validateTable(dto.table);
+    this.requireFilters(dto.filters, 'delete');
     const client = this.getClient(authHeader);
 
     let query = client.from(dto.table).delete();
@@ -218,6 +312,7 @@ export class DatabaseService {
   }
 
   async rpc(dto: DatabaseRpcDto, authHeader?: string) {
+    this.validateRpcName(dto.function);
     const client = this.getClient(authHeader);
     const { data, error } = await client.rpc(dto.function, dto.params || {});
     if (error) throw new BadRequestException(error.message);

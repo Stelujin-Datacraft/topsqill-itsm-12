@@ -15,10 +15,16 @@ export class WorkflowsController {
 
   @Public()
   @Post('execute')
-  execute(@Body() body: { workflowId: string; executionId?: string; submissionId?: string; triggerData?: unknown }) {
+  execute(@Body() body: {
+    workflowId: string;
+    queueId?: string;
+    executionId?: string;
+    submissionId?: string;
+    triggerData?: unknown;
+  }) {
     return this.workflowsService.executeWorkflow(
       body.workflowId,
-      body.executionId,
+      body.queueId ?? body.executionId,
       body.submissionId,
       body.triggerData,
     );
