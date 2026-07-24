@@ -1,10 +1,11 @@
 
 import { supabase } from '@/integrations/supabase/client';
+import { getApiBaseUrl } from '@/services/api/apiClient';
 import { parseNodeConfig } from './utils';
 
 // Queue configuration
 const QUEUE_ENABLED = true; // Feature flag for easy rollback
-const QUEUE_FUNCTION_URL = 'https://fnmkczsvwpzpxyklztkt.supabase.co/functions/v1/enqueue-workflow';
+const QUEUE_FUNCTION_URL = `${getApiBaseUrl()}/workflows/enqueue`;
 
 export class WorkflowTrigger {
   static async findMatchingWorkflows(formId: string, submissionData: any) {
