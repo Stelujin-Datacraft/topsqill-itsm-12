@@ -5,5 +5,6 @@ import { SlaController } from './sla.controller';
 @Module({
   providers: [SlaService],
   controllers: [SlaController],
+  exports: [SlaService],
 })
 export class SlaModule {}
