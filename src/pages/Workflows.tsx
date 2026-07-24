@@ -1,4 +1,5 @@
  import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import DashboardLayout from '@/components/DashboardLayout';
 import { WorkflowsList } from '@/components/workflows/WorkflowsList';
 import { CreateWorkflowDialog } from '@/components/workflows/CreateWorkflowDialog';
@@ -15,6 +16,7 @@ import NoProjectSelected from '@/components/NoProjectSelected';
  import { ListTree, Inbox } from 'lucide-react';
 
 const Workflows = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { workflows, deleteWorkflow } = useWorkflowData();
   const { hasPermission, checkPermissionWithAlert, getVisibleResources, loading: permissionLoading } = useUnifiedAccessControl();
@@ -26,14 +28,14 @@ const Workflows = () => {
 
   const handleWorkflowCreated = (workflowId: string) => {
     toast({
-      title: "Success",
-      description: "Workflow created successfully",
+      title: t('common.success'),
+      description: t('workflows.createdSuccess'),
     });
   };
 
   if (!currentProject) {
     return (
-      <DashboardLayout title="Workflows">
+      <DashboardLayout title={t('workflows.title')}>
         <NoProjectSelected />
       </DashboardLayout>
     );
@@ -44,11 +46,11 @@ const Workflows = () => {
   
   if (!permissionLoading && !canReadWorkflows) {
     return (
-      <DashboardLayout title="Workflows">
+      <DashboardLayout title={t('workflows.title')}>
         <div className="text-center py-12">
-          <h3 className="text-lg font-semibold mb-2">Access Denied</h3>
+          <h3 className="text-lg font-semibold mb-2">{t('common.accessDenied')}</h3>
           <p className="text-muted-foreground">
-            You don't have permission to view workflows in this project.
+            {t('workflows.accessDeniedDesc')}
           </p>
         </div>
       </DashboardLayout>
@@ -80,19 +82,19 @@ const Workflows = () => {
 
  return (
    <DashboardLayout 
-     title="Workflows"
-     description="Design and manage automated workflows and business processes"
+     title={t('workflows.title')}
+     description={t('workflows.description')}
      actions={activeTab === 'workflows' && isAdmin ? <CreateWorkflowDialog onWorkflowCreated={handleWorkflowCreated} /> : undefined}
    >
      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
        <TabsList>
           <TabsTrigger value="workflows" className="flex items-center gap-2">
             <ListTree className="h-4 w-4 text-module-workflows" />
-            Workflows
+            {t('workflows.tabWorkflows')}
           </TabsTrigger>
           <TabsTrigger value="queue" className="flex items-center gap-2">
             <Inbox className="h-4 w-4 text-module-workflows" />
-            Queue Monitor
+            {t('workflows.tabQueue')}
           </TabsTrigger>
        </TabsList>
  

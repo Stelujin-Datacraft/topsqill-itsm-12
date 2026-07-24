@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import DashboardLayout from '@/components/DashboardLayout';
 import { DashboardsList } from '@/components/dashboards/DashboardsList';
 import { useDashboards } from '@/hooks/useDashboards';
@@ -12,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 
 const Reports = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { dashboards, loading, migrateOrphanReports, refetchDashboards } = useDashboards();
   const { hasPermission, checkPermissionWithAlert, getButtonState, getVisibleResources, loading: permissionLoading } = useUnifiedAccessControl();
@@ -26,7 +28,7 @@ const Reports = () => {
 
   if (!currentProject) {
     return (
-      <DashboardLayout title="Dashboards">
+      <DashboardLayout title={t('reports.title')}>
         <NoProjectSelected />
       </DashboardLayout>
     );
@@ -37,11 +39,11 @@ const Reports = () => {
 
   if (!permissionLoading && !canReadReports && !canCreateReports) {
     return (
-      <DashboardLayout title="Dashboards">
+      <DashboardLayout title={t('reports.title')}>
         <div className="text-center py-12">
-          <h3 className="text-lg font-semibold mb-2">Access Denied</h3>
+          <h3 className="text-lg font-semibold mb-2">{t('common.accessDenied')}</h3>
           <p className="text-muted-foreground">
-            You don't have permission to view dashboards in this project.
+            {t('reports.accessDeniedDesc')}
           </p>
         </div>
       </DashboardLayout>
@@ -64,23 +66,23 @@ const Reports = () => {
 
   return (
     <DashboardLayout 
-      title="Dashboards"
-      description="Create and manage analytics dashboards with reports and visualizations"
+      title={t('reports.title')}
+      description={t('reports.description')}
       actions={
         <>
           <Button variant="outline" size="sm" onClick={() => navigate('/data-table-builder')} className="whitespace-nowrap">
-            Data Table Reports
+            {t('reports.dataTableReports')}
           </Button>
           <Button variant="outline" size="sm" onClick={() => navigate('/analytics-dashboard')} className="whitespace-nowrap">
-            Form Analysis
+            {t('reports.formAnalysis')}
           </Button>
           {(() => {
             const s = getButtonState('dashboards', 'create');
             return (
               <CreateDashboardDialog>
                 <Button size="sm" disabled={s.disabled} title={s.tooltip || undefined} className="whitespace-nowrap">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create Dashboard
+                  <Plus className="h-4 w-4 me-2" />
+                  {t('reports.createDashboard')}
                 </Button>
               </CreateDashboardDialog>
             );

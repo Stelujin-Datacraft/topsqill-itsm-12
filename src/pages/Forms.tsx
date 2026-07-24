@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { backend as supabase } from '@/services/api';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/DashboardLayout';
@@ -22,6 +23,7 @@ import { ExcelFormImporter } from '@/components/ExcelFormImporter';
 import { useFormsData } from '@/hooks/useFormsData';
 
 const Forms = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { userProfile } = useAuth();
   const { createForm, addField } = useFormsData();
@@ -30,7 +32,7 @@ const Forms = () => {
 
   if (!currentProject) {
     return (
-      <DashboardLayout title="Forms">
+      <DashboardLayout title={t('forms.title')}>
         <NoProjectSelected />
       </DashboardLayout>
     );
@@ -41,11 +43,11 @@ const Forms = () => {
   
   if (!permissionLoading && !canReadForms) {
     return (
-      <DashboardLayout title="Forms">
+      <DashboardLayout title={t('forms.title')}>
         <div className="text-center py-12">
-          <h3 className="text-lg font-semibold mb-2">Access Denied</h3>
+          <h3 className="text-lg font-semibold mb-2">{t('common.accessDenied')}</h3>
           <p className="text-muted-foreground">
-            You don't have permission to view forms in this project.
+            {t('forms.accessDeniedDesc')}
           </p>
         </div>
       </DashboardLayout>
@@ -234,15 +236,15 @@ const Forms = () => {
       {canReadForms && (
         <FormSubmissionsDialog>
           <Button variant="outline" size="sm">
-            <BarChart3 className="h-4 w-4 mr-2 text-module-forms" />
-            View Data Tables
+            <BarChart3 className="h-4 w-4 me-2 text-module-forms" />
+            {t('forms.viewDataTables')}
           </Button>
         </FormSubmissionsDialog>
       )}
       {canCreateForm && !permissionLoading && (
         <AIFormGenerator
           onApply={handleAIFormApply}
-          buttonLabel="Generate with AI"
+          buttonLabel={t('forms.generateWithAi')}
           buttonVariant="outline"
           buttonSize="default"
         />
@@ -258,18 +260,18 @@ const Forms = () => {
           {canCreateForm && !permissionLoading && (
             <ExcelFormImporter onImport={handleAIFormApply}>
               <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                <FileSpreadsheet className="h-4 w-4 mr-2 text-module-reports" />
-                Import from Excel
+                <FileSpreadsheet className="h-4 w-4 me-2 text-module-reports" />
+                {t('forms.importFromExcel')}
               </DropdownMenuItem>
             </ExcelFormImporter>
           )}
           <DropdownMenuItem onClick={() => navigate('/form-audit-logs')}>
-            <History className="h-4 w-4 mr-2 text-module-reports" />
-            Form History
+            <History className="h-4 w-4 me-2 text-module-reports" />
+            {t('forms.formHistory')}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => navigate('/sla-management')} disabled={!currentProject}>
-            <Timer className="h-4 w-4 mr-2 text-module-reports" />
-            SLA Management
+            <Timer className="h-4 w-4 me-2 text-module-reports" />
+            {t('forms.slaManagement')}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -277,7 +279,7 @@ const Forms = () => {
   );
 
   return (
-    <DashboardLayout title="Forms" description="Create and manage forms for data collection and submissions" actions={actions}>
+    <DashboardLayout title={t('forms.title')} description={t('forms.description')} actions={actions}>
       <FormsList />
     </DashboardLayout>
   );
