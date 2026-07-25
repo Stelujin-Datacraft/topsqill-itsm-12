@@ -71,8 +71,17 @@ const Workflows = () => {
     if (checkPermissionWithAlert('workflows', 'delete', workflowId)) {
       try {
         await deleteWorkflow(workflowId);
+        toast({
+          title: t('common.success'),
+          description: t('workflows.deletedSuccess', { defaultValue: 'Workflow deleted successfully' }),
+        });
       } catch (error) {
         console.error('Error deleting workflow:', error);
+        toast({
+          title: t('common.error', { defaultValue: 'Error' }),
+          description: t('workflows.deleteFailed', { defaultValue: 'Failed to delete workflow' }),
+          variant: 'destructive',
+        });
       }
     }
   };

@@ -202,6 +202,7 @@ export function useFormMutations() {
         description: "Failed to delete the form. Please try again.",
         variant: "destructive",
       });
+      throw error;
     }
   };
 

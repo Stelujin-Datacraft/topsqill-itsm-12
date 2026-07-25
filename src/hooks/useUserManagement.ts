@@ -535,6 +535,16 @@ export const useUserManagement = () => {
         return;
       }
 
+      if (data && typeof data === 'object' && 'success' in data && !data.success) {
+        const errMsg = (data as { error?: string }).error || 'Failed to delete user.';
+        toast({
+          title: "Error",
+          description: errMsg,
+          variant: "destructive",
+        });
+        return;
+      }
+
       console.log('User deleted successfully:', data);
 
       toast({

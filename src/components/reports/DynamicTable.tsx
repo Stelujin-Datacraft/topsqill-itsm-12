@@ -610,20 +610,13 @@ export function DynamicTable({
     navigate(`/submission/${submissionId}`);
   };
   const handleDeleteSubmission = async (submissionId: string) => {
-    try {
-      const {
-        error
-      } = await supabase.from('form_submissions').delete().eq('id', submissionId);
-      if (error) {
-        console.error('Error deleting submission:', error);
-        return;
-      }
-
-      // Reload data after deletion
-      loadData();
-    } catch (error) {
+    const { error } = await supabase.from('form_submissions').delete().eq('id', submissionId);
+    if (error) {
       console.error('Error deleting submission:', error);
+      throw new Error(error.message || 'Failed to delete submission');
     }
+
+    loadData();
   };
   const handleEditSubmission = (submission: any) => {
     setEditingSubmission(submission);
