@@ -1,72 +1,95 @@
 // @ts-nocheck
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { EngineContext } from './shared/engine-context';
-import { SMTPClient } from './shared/smtp-client';
-
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
-
-
 
 export async function deleteUser(
   supabase: SupabaseClient,
   body: Record<string, unknown>,
   ctx: EngineContext,
 ): Promise<Record<string, unknown>> {
-
-  
-
   try {
-    const { userId } = body
+    const { userId } = body;
 
-    if (!userId) {
-      throw new Error('User ID is required')
+    if (!userId || typeof userId !== 'string') {
+      throw new Error('User ID is required');
     }
 
-    const supabaseUrl = ctx.getEnv('SUPABASE_URL')
-    const supabaseServiceKey = ctx.getEnv('SUPABASE_SERVICE_ROLE_KEY')
-
-    if (!supabaseUrl || !supabaseServiceKey) {
-      throw new Error('Missing Supabase configuration')
+    const authHeader = ctx.getHeader('Authorization');
+    if (!authHeader) {
+      throw new Error('Authorization required');
     }
 
-    const supabaseAdmin = supabase;
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user: callingUser }, error: authError } = await supabase.auth.getUser(token);
 
-    // Delete user profile and security parameters in parallel, then delete auth user
-    const [profileResult, securityResult] = await Promise.all([
-      supabaseAdmin.from('user_profiles').delete().eq('id', userId),
-      supabaseAdmin.from('user_security_parameters').delete().eq('user_id', userId)
-    ])
-
-    if (profileResult.error) {
-      console.error('Error deleting profile:', profileResult.error)
-    }
-    if (securityResult.error) {
-      console.error('Error deleting security params:', securityResult.error)
+    if (authError || !callingUser) {
+      throw new Error('Invalid authentication');
     }
 
-    // Delete from auth
-    const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(userId)
-
-    if (authError) {
-      throw new Error(`Failed to delete user: ${authError.message}`)
+    if (callingUser.id === userId) {
+      throw new Error('You cannot delete your own account');
     }
 
-    return new Response(
-      JSON.stringify({ success: true, message: 'User deleted successfully' }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-    )
+    const { data: callerProfile, error: callerProfileError } = await supabase
+      .from('user_profiles')
+      .select('role, organization_id')
+      .eq('id', callingUser.id)
+      .single();
 
+    if (callerProfileError || !callerProfile || callerProfile.role !== 'admin') {
+      throw new Error('Only administrators can delete users');
+    }
+
+    const { data: targetProfile, error: targetProfileError } = await supabase
+      .from('user_profiles')
+      .select('id, organization_id, email')
+      .eq('id', userId)
+      .single();
+
+    if (targetProfileError || !targetProfile) {
+      throw new Error('User not found');
+    }
+
+    if (targetProfile.organization_id !== callerProfile.organization_id) {
+      throw new Error('You can only delete users in your organization');
+    }
+
+    // Remove dependent rows that may block profile/auth deletion
+    const cleanupTables = [
+      { table: 'user_role_assignments', column: 'user_id' },
+      { table: 'project_users', column: 'user_id' },
+      { table: 'user_organizations', column: 'user_id' },
+      { table: 'user_security_parameters', column: 'user_id' },
+      { table: 'notifications', column: 'user_id' },
+      { table: 'saved_queries', column: 'user_id' },
+    ] as const;
+
+    for (const { table, column } of cleanupTables) {
+      const { error } = await supabase.from(table).delete().eq(column, userId);
+      if (error) {
+        console.error(`Error deleting from ${table}:`, error);
+      }
+    }
+
+    const { error: profileDeleteError } = await supabase
+      .from('user_profiles')
+      .delete()
+      .eq('id', userId);
+
+    if (profileDeleteError) {
+      throw new Error(`Failed to delete user profile: ${profileDeleteError.message}`);
+    }
+
+    const { error: authDeleteError } = await supabase.auth.admin.deleteUser(userId);
+
+    if (authDeleteError) {
+      throw new Error(`Failed to delete user: ${authDeleteError.message}`);
+    }
+
+    return { success: true, message: 'User deleted successfully' };
   } catch (error) {
-    console.error('Error:', error)
-    return new Response(
-      JSON.stringify({ error: error.message || 'Internal server error', success: false }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-    )
+    console.error('delete-user error:', error);
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    return { success: false, error: message };
   }
 }

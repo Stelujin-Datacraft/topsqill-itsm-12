@@ -52,10 +52,13 @@ export function useFormsData() {
   };
 
   const deleteForm = async (id: string) => {
-    // Find the current form to get its name for audit logging
     const currentForm = forms.find(f => f.id === id);
-    await deleteFormMutation(id, userProfile, currentForm?.name);
-    setForms(prev => prev.filter(form => form.id !== id));
+    try {
+      await deleteFormMutation(id, userProfile, currentForm?.name);
+      setForms(prev => prev.filter(form => form.id !== id));
+    } catch {
+      // Error toast is shown in useFormMutations
+    }
   };
 
   const addField = async (formId: string, fieldData: Omit<FormField, 'id'> & { id?: string }) => {
