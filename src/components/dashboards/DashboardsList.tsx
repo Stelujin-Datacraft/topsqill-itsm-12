@@ -44,19 +44,19 @@ export function DashboardsList({
   };
 
   const handleEditClick = (dashboard: DashboardWithReports) => {
-    if (!checkPermissionWithAlert('reports', 'update')) {
+    if (!checkPermissionWithAlert('dashboards', 'update')) {
       return;
     }
     setEditingDashboard(dashboard);
   };
 
   const handleSetDefault = (dashboard: DashboardWithReports) => {
-    if (!checkPermissionWithAlert('reports', 'update')) return;
+    if (!checkPermissionWithAlert('dashboards', 'update')) return;
     setDefaultDashboard(dashboard);
   };
 
   const handleDeleteClick = async (dashboard: DashboardWithReports) => {
-    if (!checkPermissionWithAlert('reports', 'delete')) {
+    if (!checkPermissionWithAlert('dashboards', 'delete')) {
       return;
     }
     
@@ -142,8 +142,8 @@ export function DashboardsList({
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {dashboards.map(dashboard => {
-            const editButtonState = getButtonState('reports', 'update');
-            const deleteButtonState = getButtonState('reports', 'delete');
+            const editButtonState = getButtonState('dashboards', 'update');
+            const deleteButtonState = getButtonState('dashboards', 'delete');
             const reportCount = dashboard.reports?.length || 0;
             const isDefault = (dashboard as any).is_default;
             
