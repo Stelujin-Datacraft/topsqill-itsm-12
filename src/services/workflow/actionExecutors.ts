@@ -250,7 +250,7 @@ export class ActionExecutors {
       
       let email = context.triggerData?.userEmail || 
                  context.triggerData?.email ||
-                 context.triggerData?.submissionData?.email;
+                 (context.triggerData?.submissionData as any)?.email;
 
       // If no email found but we have submitter ID, look up user profile
       if (!email && context.submitterId) {
@@ -824,7 +824,7 @@ export class ActionExecutors {
           }
 
           console.log('✅ Email sent successfully:', emailResult);
-          emailsSent = emailResult?.sentCount || recipientEmails.length;
+          emailsSent = (emailResult as any)?.sentCount || recipientEmails.length;
         } catch (emailSendError) {
           console.error('❌ Email notification sending failed:', emailSendError);
           throw emailSendError;
@@ -1035,7 +1035,7 @@ export class ActionExecutors {
   private static async getFormSubmitterInfo(context: NodeExecutionContext): Promise<{ userId: string | null; email: string } | null> {
     let email = context.triggerData?.userEmail || 
                 context.triggerData?.email ||
-                context.triggerData?.submissionData?.email;
+                (context.triggerData?.submissionData as any)?.email;
 
     // If no email found but we have submitter ID, look up user profile
     if (!email && context.submitterId) {
