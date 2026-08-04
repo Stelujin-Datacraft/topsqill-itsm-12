@@ -59,7 +59,7 @@ const Reports = () => {
   };
 
   const handleCreateDashboard = () => {
-    return checkPermissionWithAlert('reports', 'create');
+    return checkPermissionWithAlert('dashboards', 'create');
   };
 
   const visibleDashboards = getVisibleResources('dashboards', dashboards);

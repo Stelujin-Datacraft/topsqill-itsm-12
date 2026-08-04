@@ -47,7 +47,7 @@ export function useDashboards() {
         description: dashboardData.description,
         project_id: currentProject.id,
         organization_id: userProfile.organization_id,
-        created_by: userProfile.id,
+        created_by: String(userProfile.id),
       })
       .select()
       .single();
@@ -182,7 +182,7 @@ export function useDashboards() {
             description: 'Auto-created dashboard for migrated reports',
             project_id: currentProject.id,
             organization_id: userProfile.organization_id,
-            created_by: userProfile.id,
+            created_by: String(userProfile.id),
           })
           .select()
           .single();

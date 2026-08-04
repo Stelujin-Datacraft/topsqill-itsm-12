@@ -70,11 +70,11 @@ export function CreateReportDialog({ children, dashboardId }: CreateReportDialog
         // Navigate to the report editor with the actual report ID
         navigate(`/report-editor/${newReport.id}`);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating report:', error);
       toast({
         title: "Error",
-        description: "Failed to create report. Please try again.",
+        description: error?.message || "Failed to create report. Please try again.",
         variant: "destructive",
       });
     } finally {
