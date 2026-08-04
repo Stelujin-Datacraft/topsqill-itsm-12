@@ -20,7 +20,7 @@ export class ActionExecutors {
       submitterId: context.submitterId
     });
 
-    const config = context.config;
+    const config = context.config as any;
     const actionDetails = {
       actionType: 'assign_form',
       targetFormId: config.targetFormId,
@@ -437,7 +437,7 @@ export class ActionExecutors {
     });
     
     try {
-      const config = context.config;
+      const config = context.config as any;
       
       // Enhanced approvalAction detection with fallbacks
       let approvalAction = config.approvalAction;
@@ -566,7 +566,7 @@ export class ActionExecutors {
     console.log('✅ EXECUTING APPROVE FORM ACTION');
     
     try {
-      const config = context.config;
+      const config = context.config as any;
       const { data, error } = await workflowDb()
         .from('forms')
         .update({ status: 'approved' })
@@ -606,7 +606,7 @@ export class ActionExecutors {
     console.log('📋 Update config:', JSON.stringify(context.config, null, 2));
     
     try {
-      const config = context.config;
+      const config = context.config as any;
       
       if (!config.targetFormId) {
         throw new Error('Target form ID is required for lifecycle status update');
@@ -672,7 +672,7 @@ export class ActionExecutors {
     console.log('📋 Full context received:', JSON.stringify(context, null, 2));
     
     try {
-      const config = context.config;
+      const config = context.config as any;
       console.log('🔧 Raw config:', JSON.stringify(config, null, 2));
       
       // Handle different possible config structures
