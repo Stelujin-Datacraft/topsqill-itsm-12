@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { backend as supabase } from '@/services/api';
 import { useProject } from '@/contexts/ProjectContext';
+import { useAuth } from '@/contexts/AuthContext';
 
 export type ActivityType =
   | 'form_created'
@@ -42,23 +43,35 @@ const rangeToSince = (range: ActivityRange): string | null => {
   return new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
 };
 
+/** Match legacy rows where actor id was stored as UUID text or email. */
+const actorOrFilter = (column: string, userId: string, email?: string | null) => {
+  if (email && email !== userId) {
+    return `${column}.eq.${userId},${column}.eq.${email}`;
+  }
+  return `${column}.eq.${userId}`;
+};
+
 export function useRecentActivity(initialRange: ActivityRange = '7d') {
   const [activities, setActivities] = useState<RecentActivity[]>([]);
   const [loading, setLoading] = useState(true);
   const [range, setRange] = useState<ActivityRange>(initialRange);
   const { currentProject } = useProject();
+  const { userProfile } = useAuth();
 
-  const loadRecentActivities = async () => {
-    if (!currentProject?.id) {
+  const loadRecentActivities = useCallback(async () => {
+    if (!currentProject?.id || !userProfile?.id) {
       setActivities([]);
       setLoading(false);
       return;
     }
 
+    const userId = userProfile.id;
+    const userEmail = userProfile.email;
+
     try {
       setLoading(true);
       const collected: RecentActivity[] = [];
-      const userIds = new Set<string>();
+      const userIds = new Set<string>([userId]);
 
       const since = rangeToSince(range);
 
@@ -66,30 +79,35 @@ export function useRecentActivity(initialRange: ActivityRange = '7d') {
           .from('forms')
           .select('id, name, created_at, created_by')
           .eq('project_id', currentProject.id)
+          .or(actorOrFilter('created_by', userId, userEmail))
           .order('created_at', { ascending: false })
           .limit(50);
       const submissionsQ = supabase
           .from('form_submissions')
           .select('id, submitted_at, submitted_by, approval_status, submission_ref_id, form_id, forms!inner(id, name, project_id)')
           .eq('forms.project_id', currentProject.id)
+          .or(actorOrFilter('submitted_by', userId, userEmail))
           .order('submitted_at', { ascending: false })
           .limit(50);
       const wfExecQ = supabase
           .from('workflow_executions')
           .select('id, status, started_at, completed_at, error_message, submitter_id, workflow_id, workflows!inner(id, name, project_id)')
           .eq('workflows.project_id', currentProject.id)
+          .eq('submitter_id', userId)
           .order('started_at', { ascending: false })
           .limit(50);
       const workflowsQ = supabase
           .from('workflows')
           .select('id, name, created_at, created_by')
           .eq('project_id', currentProject.id)
+          .eq('created_by', userId)
           .order('created_at', { ascending: false })
           .limit(50);
       const reportsQ = supabase
           .from('reports')
           .select('id, name, created_at, created_by')
           .eq('project_id', currentProject.id)
+          .eq('created_by', userId)
           .order('created_at', { ascending: false })
           .limit(50);
 
@@ -225,11 +243,11 @@ export function useRecentActivity(initialRange: ActivityRange = '7d') {
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentProject?.id, range, userProfile?.id, userProfile?.email]);
 
   useEffect(() => {
     loadRecentActivities();
-  }, [currentProject?.id, range]);
+  }, [loadRecentActivities]);
 
   return {
     activities,
