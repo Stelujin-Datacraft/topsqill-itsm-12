@@ -6,6 +6,7 @@
  */
 
 import { request } from './apiClient';
+import { rawSupabase } from '@/integrations/supabase/rawClient';
 
 export type FilterClause =
   | { kind: 'filter'; column: string; operator: string; value: unknown }
@@ -23,6 +24,56 @@ export interface UpsertOptions {
 }
 
 type QueryResult = { data: unknown; error: { message: string } | null; count?: number | null };
+
+/**
+ * Direct-Supabase fallback.
+ * The NestJS API (VITE_API_URL, e.g. http://localhost:3001/api) is not reachable from
+ * every environment (published app, preview, machines without the backend running).
+ * When a call fails with a network error we permanently switch to talking to
+ * Supabase/PostgREST directly so the app keeps working instead of showing
+ * "Connection Issue / Failed to fetch".
+ */
+let backendUnavailable = false;
+
+function isNetworkError(error: { message: string } | null): boolean {
+  if (!error) return false;
+  const m = error.message.toLowerCase();
+  return (
+    m.includes('failed to fetch') ||
+    m.includes('network error') ||
+    m.includes('load failed') ||
+    m.includes('request timed out') ||
+    m.includes('networkerror')
+  );
+}
+
+/** Runs an API call, falling back to direct Supabase on network failure. */
+async function withFallback(
+  viaApi: () => Promise<QueryResult>,
+  viaSupabase: () => Promise<QueryResult>,
+): Promise<QueryResult> {
+  if (backendUnavailable) return viaSupabase();
+  const result = await viaApi();
+  if (isNetworkError(result.error)) {
+    backendUnavailable = true;
+    return viaSupabase();
+  }
+  return result;
+}
+
+/** Applies collected filter clauses onto a raw Supabase query builder. */
+function applyFilters(query: any, filters: FilterClause[]) {
+  for (const f of filters) {
+    if (f.kind === 'or') {
+      query = query.or(f.expression);
+    } else if (f.kind === 'not') {
+      query = query.not(f.column, f.operator, f.value as never);
+    } else {
+      query = (query as Record<string, (c: string, v: unknown) => unknown>)[f.operator](f.column, f.value);
+    }
+  }
+  return query;
+}
 
 /** Shared filter methods for query/update/delete builders */
 class FilterMixin {
