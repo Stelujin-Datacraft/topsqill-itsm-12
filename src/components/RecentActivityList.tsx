@@ -85,7 +85,7 @@ export function RecentActivityList() {
   return (
     <Card className="flex flex-col">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-        <CardTitle>Recent Activity</CardTitle>
+        <CardTitle>Your Recent Activity</CardTitle>
         <div className="flex items-center gap-2">
         <ToggleGroup
           type="single"
@@ -119,8 +119,8 @@ export function RecentActivityList() {
         ) : activities.length === 0 ? (
           <div className="text-center text-muted-foreground py-8">
             <Clock className="h-8 w-8 mx-auto mb-2 opacity-50" />
-            <p>No recent activity to display</p>
-            <p className="text-sm">Activity will appear here as you use the platform</p>
+            <p>No recent activity from you</p>
+            <p className="text-sm">Actions you take in this project will appear here</p>
           </div>
         ) : (
           <ScrollArea className="h-[420px] pr-3">
@@ -146,10 +146,7 @@ export function RecentActivityList() {
                     <p className="text-sm text-muted-foreground break-words">
                       {activity.description}
                     </p>
-                    <div className="flex items-center justify-between mt-1 gap-2">
-                      <p className="text-xs text-muted-foreground truncate">
-                        by {activity.owner_name || 'System'}
-                      </p>
+                    <div className="flex items-center justify-end mt-1 gap-2">
                       <p className="text-xs text-muted-foreground whitespace-nowrap">
                         {formatTimeAgo(activity.created_at)}
                       </p>
