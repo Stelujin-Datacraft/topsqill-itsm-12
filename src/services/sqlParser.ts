@@ -2582,7 +2582,7 @@ async function executeInsertQuery(sql: string, loopContext?: LoopContext): Promi
     }
 
     // Create field mapping (support both labels and IDs)
-    const fieldMap = new Map(formFields.map(f => [f.label.toLowerCase(), f.id]));
+    const fieldMap = new Map<string, string>(formFields.map(f => [String(f.label).toLowerCase(), String(f.id)]));
     const fieldIdSet = new Set(formFields.map(f => f.id));
     
     // Helper function to resolve field ID from name, ID, or FIELD() syntax
