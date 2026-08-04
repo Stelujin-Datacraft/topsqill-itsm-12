@@ -146,6 +146,10 @@ class QueryBuilder extends FilterMixin {
   maybeSingle() { this.maybeSingleResult = true; return this; }
 
   private async execute(): Promise<QueryResult> {
+    return withFallback(() => this.executeViaApi(), () => this.executeViaSupabase());
+  }
+
+  private async executeViaApi(): Promise<QueryResult> {
     const result = await request<QueryResult['data']>('/database/query', {
       method: 'POST',
       body: JSON.stringify({
@@ -174,6 +178,23 @@ class QueryBuilder extends FilterMixin {
     };
   }
 
+  private async executeViaSupabase(): Promise<QueryResult> {
+    let query: any = (rawSupabase as any).from(this.table).select(this.selectCols, this.selectOptions);
+    query = applyFilters(query, this.filters);
+    for (const o of this.orderBy) {
+      query = query.order(o.column, { ascending: o.ascending ?? true });
+    }
+    if (this.limitCount !== undefined) query = query.limit(this.limitCount);
+    if (this.rangeFrom !== undefined && this.rangeTo !== undefined) {
+      query = query.range(this.rangeFrom, this.rangeTo);
+    }
+    if (this.singleResult) query = query.single();
+    else if (this.maybeSingleResult) query = query.maybeSingle();
+
+    const { data, error, count } = await query;
+    return { data: data ?? null, error: error ? { message: error.message } : null, count: count ?? undefined };
+  }
+
   then(
     resolve: (value: QueryResult) => void,
     reject?: (reason: unknown) => void,
@@ -189,10 +210,20 @@ class InsertBuilder {
   ) {}
 
   select(columns = '*') {
-    return request('/database/insert', {
-      method: 'POST',
-      body: JSON.stringify({ table: this.table, data: this.data, returning: columns }),
-    }).then(normalizeResult);
+    return withFallback(
+      () =>
+        request('/database/insert', {
+          method: 'POST',
+          body: JSON.stringify({ table: this.table, data: this.data, returning: columns }),
+        }).then(normalizeResult),
+      async () => {
+        const { data, error } = await (rawSupabase as any)
+          .from(this.table)
+          .insert(this.data as never)
+          .select(columns);
+        return { data: data ?? null, error: error ? { message: error.message } : null };
+      },
+    );
   }
 
   then(resolve: (value: QueryResult) => void, reject?: (reason: unknown) => void) {
@@ -208,16 +239,29 @@ class UpsertBuilder {
   ) {}
 
   select(columns = '*') {
-    return request('/database/upsert', {
-      method: 'POST',
-      body: JSON.stringify({
-        table: this.table,
-        data: this.data,
-        onConflict: this.options.onConflict,
-        ignoreDuplicates: this.options.ignoreDuplicates,
-        returning: columns,
-      }),
-    }).then(normalizeResult);
+    return withFallback(
+      () =>
+        request('/database/upsert', {
+          method: 'POST',
+          body: JSON.stringify({
+            table: this.table,
+            data: this.data,
+            onConflict: this.options.onConflict,
+            ignoreDuplicates: this.options.ignoreDuplicates,
+            returning: columns,
+          }),
+        }).then(normalizeResult),
+      async () => {
+        const { data, error } = await (rawSupabase as any)
+          .from(this.table)
+          .upsert(this.data as never, {
+            onConflict: this.options.onConflict,
+            ignoreDuplicates: this.options.ignoreDuplicates,
+          })
+          .select(columns);
+        return { data: data ?? null, error: error ? { message: error.message } : null };
+      },
+    );
   }
 
   then(resolve: (value: QueryResult) => void, reject?: (reason: unknown) => void) {
@@ -234,15 +278,24 @@ class UpdateBuilder extends FilterMixin {
   }
 
   select(columns = '*') {
-    return request('/database/update', {
-      method: 'POST',
-      body: JSON.stringify({
-        table: this.table,
-        data: this.data,
-        filters: this.filters,
-        returning: columns,
-      }),
-    }).then(normalizeResult);
+    return withFallback(
+      () =>
+        request('/database/update', {
+          method: 'POST',
+          body: JSON.stringify({
+            table: this.table,
+            data: this.data,
+            filters: this.filters,
+            returning: columns,
+          }),
+        }).then(normalizeResult),
+      async () => {
+        let query: any = (rawSupabase as any).from(this.table).update(this.data as never);
+        query = applyFilters(query, this.filters);
+        const { data, error } = await query.select(columns);
+        return { data: data ?? null, error: error ? { message: error.message } : null };
+      },
+    );
   }
 
   then(resolve: (value: QueryResult) => void, reject?: (reason: unknown) => void) {
@@ -251,13 +304,24 @@ class UpdateBuilder extends FilterMixin {
 }
 
 class DeleteBuilder extends FilterMixin {
-  constructor(private table: string) {}
+  constructor(private table: string) {
+    super();
+  }
 
   select(columns = '*') {
-    return request('/database/delete', {
-      method: 'POST',
-      body: JSON.stringify({ table: this.table, filters: this.filters, returning: columns }),
-    }).then(normalizeResult);
+    return withFallback(
+      () =>
+        request('/database/delete', {
+          method: 'POST',
+          body: JSON.stringify({ table: this.table, filters: this.filters, returning: columns }),
+        }).then(normalizeResult),
+      async () => {
+        let query: any = (rawSupabase as any).from(this.table).delete();
+        query = applyFilters(query, this.filters);
+        const { data, error } = await query.select(columns);
+        return { data: data ?? null, error: error ? { message: error.message } : null };
+      },
+    );
   }
 
   then(resolve: (value: QueryResult) => void, reject?: (reason: unknown) => void) {
@@ -296,9 +360,16 @@ export const db = {
   },
 
   rpc(functionName: string, params?: Record<string, unknown>) {
-    return request('/database/rpc', {
-      method: 'POST',
-      body: JSON.stringify({ function: functionName, params }),
-    }).then(normalizeResult);
+    return withFallback(
+      () =>
+        request('/database/rpc', {
+          method: 'POST',
+          body: JSON.stringify({ function: functionName, params }),
+        }).then(normalizeResult),
+      async () => {
+        const { data, error } = await (rawSupabase as any).rpc(functionName, params);
+        return { data: data ?? null, error: error ? { message: error.message } : null };
+      },
+    );
   },
 };
