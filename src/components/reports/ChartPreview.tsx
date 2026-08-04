@@ -246,7 +246,7 @@ export function ChartPreview({
 
       // Build a lookup map: submission_ref_id -> target submissions
       const targetByRefId = new Map<string, any[]>();
-      targetSubmissions.forEach(sub => {
+      targetSubmissions.forEach((sub: any) => {
         const refId = sub.submission_ref_id;
         if (refId) {
           if (!targetByRefId.has(refId)) {

@@ -20,7 +20,7 @@ export class ActionExecutors {
       submitterId: context.submitterId
     });
 
-    const config = context.config;
+    const config = context.config as any;
     const actionDetails = {
       actionType: 'assign_form',
       targetFormId: config.targetFormId,
@@ -250,7 +250,7 @@ export class ActionExecutors {
       
       let email = context.triggerData?.userEmail || 
                  context.triggerData?.email ||
-                 context.triggerData?.submissionData?.email;
+                 (context.triggerData?.submissionData as any)?.email;
 
       // If no email found but we have submitter ID, look up user profile
       if (!email && context.submitterId) {
@@ -437,7 +437,7 @@ export class ActionExecutors {
     });
     
     try {
-      const config = context.config;
+      const config = context.config as any;
       
       // Enhanced approvalAction detection with fallbacks
       let approvalAction = config.approvalAction;
@@ -566,7 +566,7 @@ export class ActionExecutors {
     console.log('✅ EXECUTING APPROVE FORM ACTION');
     
     try {
-      const config = context.config;
+      const config = context.config as any;
       const { data, error } = await workflowDb()
         .from('forms')
         .update({ status: 'approved' })
@@ -606,7 +606,7 @@ export class ActionExecutors {
     console.log('📋 Update config:', JSON.stringify(context.config, null, 2));
     
     try {
-      const config = context.config;
+      const config = context.config as any;
       
       if (!config.targetFormId) {
         throw new Error('Target form ID is required for lifecycle status update');
@@ -672,7 +672,7 @@ export class ActionExecutors {
     console.log('📋 Full context received:', JSON.stringify(context, null, 2));
     
     try {
-      const config = context.config;
+      const config = context.config as any;
       console.log('🔧 Raw config:', JSON.stringify(config, null, 2));
       
       // Handle different possible config structures
@@ -824,7 +824,7 @@ export class ActionExecutors {
           }
 
           console.log('✅ Email sent successfully:', emailResult);
-          emailsSent = emailResult?.sentCount || recipientEmails.length;
+          emailsSent = (emailResult as any)?.sentCount || recipientEmails.length;
         } catch (emailSendError) {
           console.error('❌ Email notification sending failed:', emailSendError);
           throw emailSendError;
@@ -1035,7 +1035,7 @@ export class ActionExecutors {
   private static async getFormSubmitterInfo(context: NodeExecutionContext): Promise<{ userId: string | null; email: string } | null> {
     let email = context.triggerData?.userEmail || 
                 context.triggerData?.email ||
-                context.triggerData?.submissionData?.email;
+                (context.triggerData?.submissionData as any)?.email;
 
     // If no email found but we have submitter ID, look up user profile
     if (!email && context.submitterId) {
