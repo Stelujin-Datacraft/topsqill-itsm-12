@@ -7,11 +7,11 @@ import { FileText, Workflow, BarChart3, BookOpen, ArrowUp, Lock } from 'lucide-r
 
 type AssetType = 'form' | 'workflow' | 'report' | 'doc';
 
-const ASSETS: { id: AssetType; label: string; icon: React.ElementType; route: string; color: string; placeholder: string }[] = [
-  { id: 'form', label: 'Form', icon: FileText, route: '/form-builder', color: 'text-module-forms', placeholder: 'Create an employee onboarding form with manager approval…' },
-  { id: 'workflow', label: 'Workflow', icon: Workflow, route: '/workflows', color: 'text-module-workflows', placeholder: 'Route high severity incidents to L2 and email the owner…' },
-  { id: 'report', label: 'Report', icon: BarChart3, route: '/reports', color: 'text-module-reports', placeholder: 'Show open vulnerabilities by business unit as a bar chart…' },
-  { id: 'doc', label: 'Knowledge Doc', icon: BookOpen, route: '/knowledge-base', color: 'text-module-knowledge', placeholder: 'Draft an access control policy with review cycle…' },
+const ASSETS: { id: AssetType; label: string; icon: React.ElementType; color: string; placeholder: string; intent: string }[] = [
+  { id: 'form', label: 'Form', icon: FileText, color: 'text-module-forms', placeholder: 'Create an employee onboarding form with manager approval…', intent: 'Create a form' },
+  { id: 'workflow', label: 'Workflow', icon: Workflow, color: 'text-module-workflows', placeholder: 'Route high severity incidents to L2 and email the owner…', intent: 'Create a workflow' },
+  { id: 'report', label: 'Report', icon: BarChart3, color: 'text-module-reports', placeholder: 'Show open vulnerabilities by business unit as a bar chart…', intent: 'Create a report' },
+  { id: 'doc', label: 'Knowledge Doc', icon: BookOpen, color: 'text-module-knowledge', placeholder: 'Draft an access control policy with review cycle…', intent: 'Create a knowledge doc' },
 ];
 
 export default function HeroPromptPanel() {
@@ -23,18 +23,25 @@ export default function HeroPromptPanel() {
   const active = ASSETS.find((a) => a.id === type)!;
 
   const handleSubmit = () => {
-    const params = new URLSearchParams({ ai: prompt.trim(), type });
-    const target = `${active.route}?${params.toString()}`;
+    const text = prompt.trim();
+    if (!text) return;
+    const fullPrompt = `${active.intent}: ${text}`;
+
     if (user) {
-      navigate(target);
-    } else {
-      try {
-        sessionStorage.setItem('pendingHeroPrompt', JSON.stringify({ prompt: prompt.trim(), type }));
-      } catch {
-        /* storage unavailable */
-      }
-      navigate(`/auth?redirect=${encodeURIComponent(target)}`);
+      navigate('/dashboard');
+      // Hand the prompt to the AI Copilot so it actually builds it
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('topsqill:copilot-prompt', { detail: { prompt: fullPrompt } }));
+      }, 200);
+      return;
     }
+
+    try {
+      sessionStorage.setItem('pendingHeroPrompt', JSON.stringify({ prompt: fullPrompt, type }));
+    } catch {
+      /* storage unavailable */
+    }
+    navigate(`/auth?returnTo=${encodeURIComponent('/dashboard')}`);
   };
 
   return (
@@ -98,8 +105,8 @@ export default function HeroPromptPanel() {
       </div>
       <p className="text-xs text-muted-foreground text-center mt-3">
         {user
-          ? 'Describe what you need — TopSqill builds it and takes you straight to it.'
-          : 'Describe what you need — sign in and TopSqill takes you straight to it.'}
+          ? 'Describe what you need — the AI Copilot builds it for you right away.'
+          : 'Describe what you need — sign in and the AI Copilot builds it right away.'}
       </p>
     </div>
   );
