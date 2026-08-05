@@ -57,11 +57,11 @@ export function CreateDashboardDialog({ children }: CreateDashboardDialogProps) 
       
       // Navigate to the dashboard view
       navigate(`/dashboard-view/${dashboard.id}`);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating dashboard:', error);
       toast({
         title: "Error",
-        description: "Failed to create dashboard",
+        description: error?.message || "Failed to create dashboard",
         variant: "destructive"
       });
     } finally {
