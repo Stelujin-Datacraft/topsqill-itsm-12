@@ -146,6 +146,45 @@ export function useCopilotEngine() {
     loadData();
   }, [activeProject?.id]);
 
+  const FORM_ACTIONS = ['create_form', 'create_form_with_workflow', 'create_form_with_sla', 'create_form_with_email_template'];
+
+  /**
+   * The chat model often returns a thin field list. For any form-creating action we
+   * regenerate a complete schema with the dedicated form-generation model (same one
+   * used by the Form Builder's "Generate Form with AI") so the created form is fully
+   * built out: field types, options, placeholders, tooltips and pages.
+   */
+  const enrichFormParams = useCallback(async (action: string, params: Record<string, any>, userPrompt: string) => {
+    if (!FORM_ACTIONS.includes(action)) return params;
+
+    let fields = params.fields;
+    if (typeof fields === 'string') {
+      try { fields = JSON.parse(fields); } catch { fields = []; }
+    }
+    const currentCount = Array.isArray(fields) ? fields.length : 0;
+
+    try {
+      const generated = await generateForm(userPrompt);
+      const genFields = Array.isArray(generated?.fields) ? generated!.fields : [];
+      if (genFields.length > currentCount) {
+        const next: Record<string, any> = { ...params, fields: genFields };
+        if (action === 'create_form') {
+          if (Array.isArray(generated?.pages) && generated!.pages.length > 0) next.pages = generated!.pages;
+          if (!next.name && generated?.name) next.name = generated.name;
+          if (!next.description && generated?.description) next.description = generated.description;
+        } else {
+          if (!next.formName && generated?.name) next.formName = generated.name;
+          if (!next.formDescription && generated?.description) next.formDescription = generated.description;
+        }
+        return next;
+      }
+    } catch (e) {
+      console.error('Form schema enrichment failed, using original fields:', e);
+    }
+
+    return { ...params, fields: Array.isArray(fields) ? fields : [] };
+  }, [generateForm]);
+
   const buildNavMessage = (result: any): string | null => {
     if (!result) return null;
     if (result.formId && result.workflowId) {
@@ -211,7 +250,8 @@ export function useCopilotEngine() {
       setMessages((prev) => [...prev, assistantMessage]);
 
       try {
-        const actionResult = await executeCopilotAction(toolCall.action, toolCall.params);
+        const params = await enrichFormParams(toolCall.action, toolCall.params || {}, trimmed);
+        const actionResult = await executeCopilotAction(toolCall.action, params);
         setMessages((prev) => prev.map((m) => m.id === assistantMessage.id
           ? { ...m, action: { type: toolCall.action, status: 'success' as const, result: actionResult } }
           : m));
@@ -255,7 +295,7 @@ export function useCopilotEngine() {
         timestamp: new Date(),
       }]);
     }
-  }, [chatbotAssist, copilotEnabled, executeCopilotAction, formsWithFields, isLoading, location.pathname, messages, reports, workflows]);
+  }, [chatbotAssist, copilotEnabled, enrichFormParams, executeCopilotAction, formsWithFields, isLoading, location.pathname, messages, reports, workflows]);
 
   const clearChat = useCallback(() => setMessages([welcomeMessage()]), []);
 
