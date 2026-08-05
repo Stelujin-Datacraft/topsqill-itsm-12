@@ -64,7 +64,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       {
         title: "AI Builder",
         url: "/build",
-        icon: Sparkles,
+        icon: Wand2,
         iconColor: "text-primary",
       },
       {
