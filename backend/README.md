@@ -18,9 +18,10 @@ React SPA  →  NestJS API (port 3001)  →  PostgreSQL (via Supabase)
 # Install dependencies
 cd backend && npm install
 
-# Configure environment
+# Configure the server-only credential
 cp .env.example .env
-# Edit .env with your Supabase credentials
+# Edit backend/.env and set SUPABASE_SERVICE_ROLE_KEY. The Supabase URL and
+# anon key are loaded automatically from either backend/.env or the root .env.
 
 # Development
 npm run start:dev
@@ -39,6 +40,10 @@ npm run build && npm run start:prod
 | `SUPABASE_ANON_KEY` | Supabase anon key (for JWT validation) |
 | `SUPABASE_SERVICE_ROLE_KEY` | Service role key (for privileged DB ops) |
 | `LOVABLE_API_KEY` | Optional AI API key |
+
+Environment loading is independent of the command's working directory, so
+both `cd backend && npm run start:dev` and
+`npm --prefix backend run start:dev` use the same configuration.
 
 ## API Endpoints
 

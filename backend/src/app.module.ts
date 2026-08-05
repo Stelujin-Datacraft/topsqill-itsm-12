@@ -25,10 +25,32 @@ import { EnginesModule } from './engines/engines.module';
 import { CronModule } from './cron/cron.module';
 import { QueueModule } from './queue/queue.module';
 import { HealthController } from './health.controller';
+import { resolve } from 'path';
+
+const envFilePath = [
+  // Support `npm --prefix backend run start:dev` from the repository root.
+  resolve(process.cwd(), 'backend/.env'),
+  resolve(process.cwd(), '.env'),
+  // Support commands executed from inside backend/ and compiled dist/ builds.
+  resolve(__dirname, '../.env'),
+  resolve(__dirname, '../../.env'),
+];
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath,
+      load: [() => ({
+        // The repository-level Vite variables are valid public Supabase
+        // configuration and provide stable aliases for the backend.
+        SUPABASE_URL: process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL,
+        SUPABASE_ANON_KEY:
+          process.env.SUPABASE_ANON_KEY ||
+          process.env.SUPABASE_PUBLISHABLE_KEY ||
+          process.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+      })],
+    }),
     ThrottlerModule.forRoot([{
       ttl: 60000,
       limit: 300,
