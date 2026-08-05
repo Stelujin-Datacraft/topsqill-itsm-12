@@ -100,6 +100,39 @@ async function request<T = unknown>(
   }
 }
 
+/** Errors that mean the NestJS backend is unreachable, not a real API failure. */
+function isNetworkFailure(message?: string | null): boolean {
+  if (!message) return false;
+  const m = message.toLowerCase();
+  return (
+    m.includes('failed to fetch') ||
+    m.includes('network error') ||
+    m.includes('load failed') ||
+    m.includes('networkerror') ||
+    m.includes('econnrefused') ||
+    m.includes('unknown function') ||
+    m.includes('request failed (404)') ||
+    m.includes('request failed (502)') ||
+    m.includes('request failed (503)') ||
+    m.includes('request failed (504)')
+  );
+}
+
+/** Fallback: call the Supabase Edge Function directly. */
+async function invokeEdgeFunction<T>(
+  functionName: string,
+  body?: Record<string, unknown>,
+): Promise<ApiResponse<T>> {
+  try {
+    const { rawSupabase } = await import('@/integrations/supabase/rawClient');
+    const { data, error } = await rawSupabase.functions.invoke(functionName, { body });
+    if (error) return { data: null, error: { message: error.message || 'Edge function failed' } };
+    return { data: data as T, error: null };
+  } catch (err) {
+    return { data: null, error: { message: err instanceof Error ? err.message : 'Edge function failed' } };
+  }
+}
+
 /** Drop-in replacement for supabase.functions.invoke */
 export const api = {
   invoke: async <T = unknown>(functionName: string, options?: { body?: Record<string, unknown> }): Promise<ApiResponse<T>> => {
@@ -137,13 +170,19 @@ export const api = {
 
     const route = routeMap[functionName];
     if (!route) {
-      return { data: null, error: { message: `Unknown function: ${functionName}` } };
+      return invokeEdgeFunction<T>(functionName, options?.body);
     }
 
-    return request<T>(route.path, {
+    const result = await request<T>(route.path, {
       method: route.method || 'POST',
       body: options?.body ? JSON.stringify(options.body) : undefined,
     }, route.auth !== false);
+
+    if (result.error && isNetworkFailure(result.error.message)) {
+      return invokeEdgeFunction<T>(functionName, options?.body);
+    }
+
+    return result;
   },
 };
 
