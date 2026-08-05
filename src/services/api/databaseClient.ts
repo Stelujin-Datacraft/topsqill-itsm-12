@@ -210,6 +210,65 @@ class InsertBuilder {
   ) {}
 
   select(columns = '*') {
+    return new ReturningResult(() =>
+      withFallback(
+        () =>
+          request('/database/insert', {
+            method: 'POST',
+            body: JSON.stringify({ table: this.table, data: this.data, returning: columns }),
+          }).then(normalizeResult),
+        async () => {
+          const { data, error } = await (rawSupabase as any)
+            .from(this.table)
+            .insert(this.data as never)
+            .select(columns);
+          return { data: data ?? null, error: error ? { message: error.message } : null };
+        },
+      ),
+    );
+  }
+
+  then(resolve: (value: QueryResult) => void, reject?: (reason: unknown) => void) {
+    return this.select().then(resolve, reject);
+  }
+}
+
+/** Wraps a returning-clause result so `.single()` / `.maybeSingle()` can be chained. */
+class ReturningResult {
+  private mode: 'many' | 'single' | 'maybeSingle' = 'many';
+
+  constructor(private run: () => Promise<QueryResult>) {}
+
+  single() { this.mode = 'single'; return this; }
+  maybeSingle() { this.mode = 'maybeSingle'; return this; }
+
+  private async execute(): Promise<QueryResult> {
+    const result = await this.run();
+    if (result.error || this.mode === 'many') return result;
+    const rows = Array.isArray(result.data) ? result.data : result.data ? [result.data] : [];
+    if (rows.length === 0) {
+      if (this.mode === 'maybeSingle') return { ...result, data: null };
+      return { data: null, error: { message: 'No rows returned' } };
+    }
+    return { ...result, data: rows[0] };
+  }
+
+  then(resolve: (value: QueryResult) => void, reject?: (reason: unknown) => void) {
+    return this.execute().then(resolve, reject);
+  }
+
+  catch(reject: (reason: unknown) => void) {
+    return this.execute().catch(reject);
+  }
+}
+
+class LegacyInsertBuilder {
+  constructor(
+    private table: string,
+    private data: Record<string, unknown> | Record<string, unknown>[],
+  ) {}
+
+  select(columns = '*') {
     return withFallback(
       () =>
         request('/database/insert', {
@@ -239,7 +298,7 @@ class UpsertBuilder {
   ) {}
 
   select(columns = '*') {
-    return withFallback(
+    return new ReturningResult(() => withFallback(
       () =>
         request('/database/upsert', {
           method: 'POST',
@@ -261,7 +320,7 @@ class UpsertBuilder {
           .select(columns);
         return { data: data ?? null, error: error ? { message: error.message } : null };
       },
-    );
+    ));
   }
 
   then(resolve: (value: QueryResult) => void, reject?: (reason: unknown) => void) {
@@ -278,7 +337,7 @@ class UpdateBuilder extends FilterMixin {
   }
 
   select(columns = '*') {
-    return withFallback(
+    return new ReturningResult(() => withFallback(
       () =>
         request('/database/update', {
           method: 'POST',
@@ -295,7 +354,7 @@ class UpdateBuilder extends FilterMixin {
         const { data, error } = await query.select(columns);
         return { data: data ?? null, error: error ? { message: error.message } : null };
       },
-    );
+    ));
   }
 
   then(resolve: (value: QueryResult) => void, reject?: (reason: unknown) => void) {
@@ -309,7 +368,7 @@ class DeleteBuilder extends FilterMixin {
   }
 
   select(columns = '*') {
-    return withFallback(
+    return new ReturningResult(() => withFallback(
       () =>
         request('/database/delete', {
           method: 'POST',
@@ -321,7 +380,7 @@ class DeleteBuilder extends FilterMixin {
         const { data, error } = await query.select(columns);
         return { data: data ?? null, error: error ? { message: error.message } : null };
       },
-    );
+    ));
   }
 
   then(resolve: (value: QueryResult) => void, reject?: (reason: unknown) => void) {
