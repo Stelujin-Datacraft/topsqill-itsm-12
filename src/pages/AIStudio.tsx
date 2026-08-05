@@ -22,7 +22,7 @@ const SUGGESTIONS = [
 
 export default function AIStudio() {
   const navigate = useNavigate();
-    const { messages, isLoading, activeProject, sendPrompt, clearChat, hasConversation, copilotEnabled, setCopilotEnabled } = useCopilotEngine();
+  const { messages, isLoading, activeProject, sendPrompt, clearChat, hasConversation, copilotEnabled, setCopilotEnabled } = useCopilotEngine();
   const [input, setInput] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
