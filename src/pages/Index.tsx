@@ -10,8 +10,8 @@ import {
   Database, Brain, Sparkles, TrendingUp, Globe, CheckCircle,
   LineChart, Table, GitBranch, Code, Star, Award
 } from 'lucide-react';
-import AnnouncementBanner from '@/components/landing/AnnouncementBanner';
 import ChartsPreview from '@/components/landing/ChartsPreview';
+import HeroPromptPanel from '@/components/landing/HeroPromptPanel';
 import SQLDemo from '@/components/landing/SQLDemo';
 import FormBuilderMini from '@/components/landing/FormBuilderMini';
 import WorkflowPreview from '@/components/landing/WorkflowPreview';
@@ -21,7 +21,6 @@ import FAQSection from '@/components/landing/FAQSection';
 import AnnouncementHistory from '@/components/landing/AnnouncementHistory';
 import DataTablePreview from '@/components/landing/DataTablePreview';
 import TestimonialsSection from '@/components/landing/TestimonialsSection';
-import PricingSection from '@/components/landing/PricingSection';
 import IntegrationsSection from '@/components/landing/IntegrationsSection';
 import { AppIcon } from '@/components/icons';
 import TrustLogosSection from '@/components/landing/TrustLogosSection';
@@ -36,9 +35,6 @@ const Index = () => {
 
   return (
       <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
-        {/* Beta Status Banner */}
-        <AnnouncementBanner />
-        
         {/* Navigation */}
         <nav className="border-b border-border/60 bg-background/85 backdrop-blur-xl sticky top-0 z-50 shadow-xs">
           <div className="container mx-auto px-4 py-3 sm:py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -56,7 +52,6 @@ const Index = () => {
               <a href="#features" className="text-muted-foreground hover:text-foreground transition-colors">{t('nav.features')}</a>
               <a href="#showcase" className="text-muted-foreground hover:text-foreground transition-colors">{t('nav.showcase')}</a>
               <Link to="/solutions" className="text-muted-foreground hover:text-foreground transition-colors">{t('nav.solutions')}</Link>
-              <a href="#pricing" className="text-muted-foreground hover:text-foreground transition-colors">{t('nav.pricing')}</a>
               <a href="#roadmap" className="text-muted-foreground hover:text-foreground transition-colors">{t('nav.roadmap')}</a>
               <a href="#investors" className="text-muted-foreground hover:text-foreground transition-colors">{t('nav.investors')}</a>
               <a href="#faq" className="text-muted-foreground hover:text-foreground transition-colors">{t('nav.faq')}</a>
@@ -103,18 +98,7 @@ const Index = () => {
               {t('landing.heroDescription')}
             </p>
             
-            <div className="flex flex-col sm:flex-row gap-3 justify-center mb-12">
-              <Link to="/auth">
-                <Button size="lg" className="w-full sm:w-auto min-w-[220px]">
-                  {t('landing.startTrialCta')}
-                  <ArrowRight className="ms-2 h-5 w-5" />
-                </Button>
-              </Link>
-              <Button variant="outline" size="lg" className="w-full sm:w-auto min-w-[220px]">
-                <Globe className="me-2 h-5 w-5" />
-                {t('landing.watchDemo')}
-              </Button>
-            </div>
+            <HeroPromptPanel />
 
             <div className="flex flex-wrap justify-center gap-8 text-sm text-muted-foreground">
               <div className="flex items-center gap-2">
@@ -255,9 +239,6 @@ const Index = () => {
 
           {/* Testimonials */}
           <TestimonialsSection />
-
-          {/* Pricing */}
-          <PricingSection />
 
           {/* Future Roadmap */}
           <section id="roadmap">
