@@ -7,7 +7,6 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { useCopilotEngine } from '@/hooks/useCopilotEngine';
-import { useProject } from '@/contexts/ProjectContext';
 import {
   ArrowUp, Loader2, FileText, Workflow, BarChart3, BookOpen,
   Zap, CheckCircle2, AlertTriangle, Sparkle, RotateCcw,
