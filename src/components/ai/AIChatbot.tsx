@@ -222,13 +222,14 @@ export function AIChatbot() {
     }]);
   };
 
-  const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
+  const handleSend = async (overrideText?: string) => {
+    const text = (overrideText ?? input).trim();
+    if (!text || isLoading) return;
 
     const userMessage: Message = {
       id: `user-${Date.now()}`,
       role: 'user',
-      content: input.trim(),
+      content: text,
       timestamp: new Date()
     };
 
@@ -653,7 +654,7 @@ export function AIChatbot() {
                 className="flex-1"
               />
               <Button
-                onClick={handleSend}
+                onClick={() => handleSend()}
                 disabled={isLoading || !input.trim()}
                 size="icon"
               >
