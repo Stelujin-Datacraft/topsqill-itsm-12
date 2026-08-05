@@ -266,6 +266,7 @@ export function useCopilotEngine() {
   return {
     messages,
     isLoading,
+    activeProject,
     copilotEnabled,
     setCopilotEnabled,
     sendPrompt,
