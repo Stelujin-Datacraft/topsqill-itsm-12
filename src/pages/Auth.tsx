@@ -49,7 +49,7 @@ const Auth = () => {
   // Redirect authenticated users
   useEffect(() => {
     if (user && !isLoading) {
-      const destination = returnTo || '/dashboard';
+      const destination = returnTo || '/build';
       navigate(destination, { replace: true });
     }
   }, [user, isLoading, navigate, returnTo]);
@@ -267,7 +267,7 @@ const Auth = () => {
         title: "Welcome back!",
         description: "You have been successfully signed in.",
       });
-      const redirectPath = returnTo || '/dashboard';
+      const redirectPath = returnTo || '/build';
       navigate(redirectPath, { replace: true });
     }
   };
@@ -278,7 +278,7 @@ const Auth = () => {
       title: "Welcome back!",
       description: "You have been successfully signed in.",
     });
-    const redirectPath = returnTo || '/dashboard';
+    const redirectPath = returnTo || '/build';
     navigate(redirectPath, { replace: true });
   };
 
@@ -400,7 +400,7 @@ const Auth = () => {
                   organizationDomain={ldapDomain}
                   loginHint={signInData.email}
                   onSuccess={(user) => {
-                    const redirectPath = returnTo || '/dashboard';
+                    const redirectPath = returnTo || '/build';
                     navigate(redirectPath, { replace: true });
                   }}
                   onFallbackToLocal={() => setShowLdapLogin(false)}
