@@ -62,6 +62,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         iconColor: "text-module-projects",
       },
       {
+        title: "AI Builder",
+        url: "/build",
+        icon: Sparkles,
+        iconColor: "text-primary",
+      },
+      {
         title: t('nav.accessControl'),
         url: "/users",
         icon: User2,
