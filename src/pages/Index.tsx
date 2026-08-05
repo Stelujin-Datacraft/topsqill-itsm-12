@@ -314,7 +314,6 @@ const Index = () => {
                 <h3 className="font-semibold mb-4">Product</h3>
                 <ul className="space-y-2 text-muted-foreground">
                   <li><a href="#" className="hover:text-primary">Features</a></li>
-                  <li><a href="#" className="hover:text-primary">Pricing</a></li>
                   <li><a href="#" className="hover:text-primary">Security</a></li>
                   <li><a href="#" className="hover:text-primary">Integrations</a></li>
                 </ul>
