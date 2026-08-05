@@ -55,6 +55,7 @@ import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import Dashboard from "./pages/Dashboard";
+const AIStudio = lazyWithRetry(() => import("./pages/AIStudio"));
 import QueryPage from "./pages/QueryPage";
 import Forms from "./pages/Forms";
 import Workflows from "./pages/Workflows";
@@ -230,6 +231,11 @@ const App = () => (
                       <Route element={<ProtectedLayout />}>
                         {/* Dashboard */}
                         <Route path="/dashboard" element={<Dashboard />} />
+                        <Route path="/build" element={
+                          <Suspense fallback={<RouteLoader />}>
+                            <AIStudio />
+                          </Suspense>
+                        } />
                         <Route path="/query" element={<QueryPage />} />
                         
                         {/* Forms */}
