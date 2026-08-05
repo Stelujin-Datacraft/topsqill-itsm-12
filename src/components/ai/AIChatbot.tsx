@@ -223,23 +223,30 @@ export function AIChatbot() {
       setTimeout(() => sendRef.current(prompt), 300);
     };
 
-    try {
-      const stored = sessionStorage.getItem('pendingHeroPrompt');
-      if (stored) {
+    const consumeStored = () => {
+      try {
+        const stored = sessionStorage.getItem('pendingHeroPrompt');
+        if (!stored) return;
         sessionStorage.removeItem('pendingHeroPrompt');
         const parsed = JSON.parse(stored) as { prompt?: string };
         if (parsed?.prompt) run(parsed.prompt);
+      } catch {
+        /* storage unavailable */
       }
-    } catch {
-      /* storage unavailable */
-    }
+    };
+    consumeStored();
+    // Re-check after auth redirects (component stays mounted across SPA navigation)
+    const interval = window.setInterval(consumeStored, 1000);
 
     const onExternalPrompt = (e: Event) => {
       const detail = (e as CustomEvent<{ prompt?: string }>).detail;
       if (detail?.prompt) run(detail.prompt);
     };
     window.addEventListener('topsqill:copilot-prompt', onExternalPrompt);
-    return () => window.removeEventListener('topsqill:copilot-prompt', onExternalPrompt);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener('topsqill:copilot-prompt', onExternalPrompt);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
