@@ -210,6 +210,39 @@ export function AIChatbot() {
     }
   }, [isOpen, isMinimized]);
 
+  // Keep a stable ref to the latest send handler for external triggers
+  const sendRef = useRef<(text: string) => void>(() => {});
+  sendRef.current = (text: string) => { void handleSend(text); };
+
+  // Pick up prompts handed over from the landing page hero panel
+  useEffect(() => {
+    const run = (prompt: string) => {
+      if (!prompt.trim()) return;
+      setIsOpen(true);
+      setIsMinimized(false);
+      setTimeout(() => sendRef.current(prompt), 300);
+    };
+
+    try {
+      const stored = sessionStorage.getItem('pendingHeroPrompt');
+      if (stored) {
+        sessionStorage.removeItem('pendingHeroPrompt');
+        const parsed = JSON.parse(stored) as { prompt?: string };
+        if (parsed?.prompt) run(parsed.prompt);
+      }
+    } catch {
+      /* storage unavailable */
+    }
+
+    const onExternalPrompt = (e: Event) => {
+      const detail = (e as CustomEvent<{ prompt?: string }>).detail;
+      if (detail?.prompt) run(detail.prompt);
+    };
+    window.addEventListener('topsqill:copilot-prompt', onExternalPrompt);
+    return () => window.removeEventListener('topsqill:copilot-prompt', onExternalPrompt);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Handle navigation links in messages
   const handleNavigationClick = (path: string) => {
     navigate(path);
