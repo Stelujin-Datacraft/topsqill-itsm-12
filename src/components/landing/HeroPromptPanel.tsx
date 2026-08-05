@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { FileText, Workflow, BarChart3, BookOpen, ArrowUp } from 'lucide-react';
+import { FileText, Workflow, BarChart3, BookOpen, ArrowUp, Lock } from 'lucide-react';
 
 type AssetType = 'form' | 'workflow' | 'report' | 'doc';
 
@@ -28,6 +28,11 @@ export default function HeroPromptPanel() {
     if (user) {
       navigate(target);
     } else {
+      try {
+        sessionStorage.setItem('pendingHeroPrompt', JSON.stringify({ prompt: prompt.trim(), type }));
+      } catch {
+        /* storage unavailable */
+      }
       navigate(`/auth?redirect=${encodeURIComponent(target)}`);
     }
   };
@@ -66,13 +71,35 @@ export default function HeroPromptPanel() {
               </button>
             ))}
           </div>
-          <Button size="icon" onClick={handleSubmit} disabled={!prompt.trim()} aria-label="Build it">
-            <ArrowUp className="h-4 w-4" />
-          </Button>
+          {user ? (
+            <Button size="icon" onClick={handleSubmit} disabled={!prompt.trim()} aria-label="Build it">
+              <ArrowUp className="h-4 w-4" />
+            </Button>
+          ) : (
+            <Button onClick={handleSubmit} disabled={!prompt.trim()} className="shrink-0 gap-2">
+              <Lock className="h-3.5 w-3.5" />
+              Sign in to build
+            </Button>
+          )}
         </div>
+        {!user && prompt.trim() && (
+          <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-border/60 bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+            <Lock className="h-3.5 w-3.5 shrink-0" />
+            <span>You'll need an account to build this. We'll keep your prompt and continue right after sign in.</span>
+            <button
+              type="button"
+              onClick={() => navigate('/auth?mode=signup')}
+              className="font-medium text-primary underline underline-offset-2"
+            >
+              Create a free account
+            </button>
+          </div>
+        )}
       </div>
       <p className="text-xs text-muted-foreground text-center mt-3">
-        Describe what you need — TopSqill builds it and takes you straight to it.
+        {user
+          ? 'Describe what you need — TopSqill builds it and takes you straight to it.'
+          : 'Describe what you need — sign in and TopSqill takes you straight to it.'}
       </p>
     </div>
   );
