@@ -60,35 +60,44 @@ export function useCopilotEngine() {
   const [formsWithFields, setFormsWithFields] = useState<FormWithFields[]>([]);
   const [copilotEnabled, setCopilotEnabled] = useState(true);
   const { chatbotAssist, isLoading } = useFormAI();
-  const { currentProject } = useProject();
+  const { currentProject, projects } = useProject();
   const location = useLocation();
+
+  // Fall back to the user's first (default) project so building works even when
+  // no project has been explicitly selected yet (e.g. straight after login).
+  const activeProject = currentProject || projects[0] || null;
 
   const executeCopilotAction = useCallback(async (action: string, params: Record<string, any>) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Not authenticated');
+
+    if (!activeProject?.id) {
+      throw new Error('No project available. Create a project first, then try again.');
+    }
 
     const { data, error } = await supabase.functions.invoke('ai-copilot-action', {
       body: {
         action,
         params,
         userId: user.id,
-        projectId: currentProject?.id,
-        organizationId: currentProject?.organization_id,
+        projectId: activeProject.id,
+        organizationId: activeProject.organization_id,
       },
     });
 
     if (error) throw error;
     return data;
-  }, [currentProject?.id, currentProject?.organization_id]);
+  }, [activeProject?.id, activeProject?.organization_id]);
 
   useEffect(() => {
     const loadData = async () => {
-      if (!currentProject?.id) return;
+      const projectId = activeProject?.id;
+      if (!projectId) return;
       try {
         const [workflowResult, reportResult, formsResult] = await Promise.all([
-          supabase.from('workflows').select('id, name, description').eq('project_id', currentProject.id).eq('status', 'active').order('name'),
-          supabase.from('reports').select('id, name, description').eq('project_id', currentProject.id).order('name'),
-          supabase.from('forms').select('id, name, description, form_fields(id, label, field_type, options, required)').eq('project_id', currentProject.id).order('name'),
+          supabase.from('workflows').select('id, name, description').eq('project_id', projectId).eq('status', 'active').order('name'),
+          supabase.from('reports').select('id, name, description').eq('project_id', projectId).order('name'),
+          supabase.from('forms').select('id, name, description, form_fields(id, label, field_type, options, required)').eq('project_id', projectId).order('name'),
         ]);
 
         if (!workflowResult.error && workflowResult.data) {
@@ -135,7 +144,7 @@ export function useCopilotEngine() {
     };
 
     loadData();
-  }, [currentProject?.id]);
+  }, [activeProject?.id]);
 
   const buildNavMessage = (result: any): string | null => {
     if (!result) return null;
@@ -183,7 +192,7 @@ export function useCopilotEngine() {
       setMessages((prev) => [...prev, {
         id: `error-${Date.now()}`,
         role: 'assistant',
-        content: "I'm sorry, I encountered an error. Please try again.",
+        content: "⚠️ I couldn't reach the AI service just now. Please check your connection and try again.",
         timestamp: new Date(),
       }]);
       return;
@@ -257,6 +266,7 @@ export function useCopilotEngine() {
   return {
     messages,
     isLoading,
+    activeProject,
     copilotEnabled,
     setCopilotEnabled,
     sendPrompt,

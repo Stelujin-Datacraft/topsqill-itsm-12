@@ -7,7 +7,6 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { useCopilotEngine } from '@/hooks/useCopilotEngine';
-import { useProject } from '@/contexts/ProjectContext';
 import {
   ArrowUp, Loader2, FileText, Workflow, BarChart3, BookOpen,
   Zap, CheckCircle2, AlertTriangle, Sparkle, RotateCcw,
@@ -22,8 +21,7 @@ const SUGGESTIONS = [
 
 export default function AIStudio() {
   const navigate = useNavigate();
-  const { currentProject } = useProject();
-  const { messages, isLoading, sendPrompt, clearChat, hasConversation, copilotEnabled, setCopilotEnabled } = useCopilotEngine();
+  const { messages, isLoading, activeProject, sendPrompt, clearChat, hasConversation, copilotEnabled, setCopilotEnabled } = useCopilotEngine();
   const [input, setInput] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -108,7 +106,7 @@ export default function AIStudio() {
             <Zap className={cn('h-3.5 w-3.5', copilotEnabled && 'text-primary')} />
             {copilotEnabled ? 'Build mode' : 'Chat only'}
           </button>
-          {currentProject?.name && <span className="hidden sm:inline truncate max-w-[220px]">in {currentProject.name}</span>}
+          {activeProject?.name && <span className="hidden sm:inline truncate max-w-[220px]">in {activeProject.name}</span>}
         </div>
         <Button size="icon" onClick={() => submit()} disabled={isLoading || !input.trim()} aria-label="Send">
           {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowUp className="h-4 w-4" />}
@@ -135,7 +133,7 @@ export default function AIStudio() {
 
       {!hasConversation ? (
         <div className="flex-1 overflow-y-auto">
-          <div className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6 sm:py-16">
+          <div className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6 sm:py-16">
             <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-center">
               What do you want to build today?
             </h2>
@@ -161,11 +159,11 @@ export default function AIStudio() {
       ) : (
         <>
           <ScrollArea className="flex-1 min-h-0" ref={scrollRef}>
-            <div className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6 space-y-6">
+            <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 space-y-6">
               {messages.filter((m) => m.id !== 'welcome').map((message) => (
                 <div key={message.id} className={cn('flex', message.role === 'user' ? 'justify-end' : 'justify-start')}>
                   {message.role === 'user' ? (
-                    <div className="max-w-[85%] rounded-2xl bg-primary px-4 py-2.5 text-sm text-primary-foreground whitespace-pre-wrap">
+                    <div className="max-w-[75%] rounded-2xl bg-primary px-4 py-2.5 text-sm text-primary-foreground whitespace-pre-wrap">
                       {message.content}
                     </div>
                   ) : (
@@ -205,7 +203,7 @@ export default function AIStudio() {
             </div>
           </ScrollArea>
           <div className="border-t bg-background/80 backdrop-blur">
-            <div className="mx-auto w-full max-w-3xl px-4 py-3 sm:px-6">{composer}</div>
+            <div className="mx-auto w-full max-w-5xl px-4 py-3 sm:px-6">{composer}</div>
           </div>
         </>
       )}
