@@ -2,199 +2,22 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
- import { MessageCircle, X, Send, Loader2, Sparkles, Minimize2, Maximize2, Navigation, FileText, GitBranch, BarChart3, Layout, Mail, Settings, Database, Zap, CheckCircle, AlertTriangle } from 'lucide-react';
-import { useFormAI } from '@/hooks/useFormAI';
-import { useForm } from '@/contexts/FormContext';
-import { useProject } from '@/contexts/ProjectContext';
+import { MessageCircle, X, Send, Loader2, Minimize2, Maximize2, FileText, GitBranch, BarChart3, Database, Zap, Maximize } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { backend as supabase } from '@/services/api';
+import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
- import { toast } from 'sonner';
- import { Badge } from '@/components/ui/badge';
-
-interface Message {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  timestamp: Date;
-   action?: {
-     type: string;
-     status: 'pending' | 'executing' | 'success' | 'error';
-     result?: any;
-   };
-}
-
-interface WorkflowInfo {
-  id: string;
-  name: string;
-  description?: string;
-}
-
-interface ReportInfo {
-  id: string;
-  name: string;
-  description?: string;
-}
-
-interface FormWithFields {
-  id: string;
-  name: string;
-  description?: string;
-  fields: Array<{
-    id: string;
-    label: string;
-    type: string;
-    options?: Array<{ id: string; value: string; label: string }>;
-    required: boolean;
-  }>;
-}
+import { Badge } from '@/components/ui/badge';
+import { useCopilotEngine } from '@/hooks/useCopilotEngine';
 
 export function AIChatbot() {
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: 'welcome',
-      role: 'assistant',
-       content: `Hi! 👋 I'm your **AI Copilot** for TopSqill BPM.
-
- 🚀 **Execute Actions**
- Create forms, trigger workflows, check SLA risks
-
- 🧭 **Navigate**
- Take you anywhere in the system
- 
- 💡 **Assist**
- Explain features and guide you through tasks
-
- **Try saying:**
- • "Create a feedback form with name and email"
- • "What are my SLA risks right now?"
- • "Take me to workflows"`,
-      timestamp: new Date()
-    }
-  ]);
   const [input, setInput] = useState('');
-  const [workflows, setWorkflows] = useState<WorkflowInfo[]>([]);
-  const [reports, setReports] = useState<ReportInfo[]>([]);
-  const [formsWithFields, setFormsWithFields] = useState<FormWithFields[]>([]);
-   const [copilotEnabled, setCopilotEnabled] = useState(true);
-  const { chatbotAssist, isLoading } = useFormAI();
-  const { forms } = useForm();
-  const { currentProject } = useProject();
-  const location = useLocation();
   const navigate = useNavigate();
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-   // Execute copilot action
-   const executeCopilotAction = async (action: string, params: Record<string, any>) => {
-     try {
-       const { data: { user } } = await supabase.auth.getUser();
-       if (!user) throw new Error('Not authenticated');
- 
-       const { data, error } = await supabase.functions.invoke('ai-copilot-action', {
-         body: {
-           action,
-           params,
-           userId: user.id,
-           projectId: currentProject?.id,
-           organizationId: currentProject?.organization_id
-         }
-       });
- 
-       if (error) throw error;
-       return data;
-     } catch (err) {
-       console.error('Copilot action error:', err);
-       throw err;
-     }
-   };
-
-  // Load workflows, reports, and form fields when project changes
-  useEffect(() => {
-    const loadData = async () => {
-      if (!currentProject?.id) return;
-
-      try {
-        // Load all data in parallel via backend-proxied supabase client
-        const [workflowResult, reportResult, formsResult] = await Promise.all([
-          supabase
-            .from('workflows')
-            .select('id, name, description')
-            .eq('project_id', currentProject.id)
-            .eq('status', 'active')
-            .order('name'),
-          supabase
-            .from('reports')
-            .select('id, name, description')
-            .eq('project_id', currentProject.id)
-            .order('name'),
-          supabase
-            .from('forms')
-            .select('id, name, description, form_fields(id, label, field_type, options, required)')
-            .eq('project_id', currentProject.id)
-            .order('name'),
-        ]);
-
-        if (!workflowResult.error && workflowResult.data) {
-          const workflowData = workflowResult.data as Array<{ id: string; name: string; description?: string }>;
-          setWorkflows(workflowData.map((w) => ({
-            id: w.id,
-            name: w.name,
-            description: w.description || undefined,
-          })));
-        }
-
-        if (!reportResult.error && reportResult.data) {
-          const reportData = reportResult.data as Array<{ id: string; name: string; description?: string }>;
-          setReports(reportData.map((r) => ({
-            id: r.id,
-            name: r.name,
-            description: r.description || undefined,
-          })));
-        }
-
-        if (!formsResult.error && formsResult.data) {
-          const formsData = formsResult.data as Array<{
-            id: string;
-            name: string;
-            description?: string;
-            form_fields?: Array<{ id: string; label: string; field_type: string; options?: unknown; required?: boolean }>;
-          }>;
-          setFormsWithFields(formsData.map((f) => ({
-            id: f.id,
-            name: f.name,
-            description: f.description || undefined,
-            fields: (f.form_fields || []).map((field: any) => {
-              let parsedOptions: any[] = [];
-              if (field.options) {
-                try {
-                  parsedOptions = typeof field.options === 'string' ? JSON.parse(field.options) : field.options;
-                } catch { parsedOptions = []; }
-              }
-              return {
-                id: field.id,
-                label: field.label,
-                type: field.field_type,
-                options: Array.isArray(parsedOptions) ? parsedOptions.map((o: any, idx: number) => ({
-                  id: o.id || `opt-${idx}`,
-                  value: o.value || o.label || '',
-                  label: o.label || o.value || ''
-                })) : [],
-                required: field.required || false
-              };
-            })
-          })));
-        }
-      } catch (error) {
-        console.error('Error loading AI context data:', error);
-      }
-    };
-
-    loadData();
-  }, [currentProject?.id]);
+  const { messages, isLoading, sendPrompt, clearChat, copilotEnabled, setCopilotEnabled, appendMessage } = useCopilotEngine();
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -210,230 +33,36 @@ export function AIChatbot() {
     }
   }, [isOpen, isMinimized]);
 
-  // Keep a stable ref to the latest send handler for external triggers
-  const sendRef = useRef<(text: string) => void>(() => {});
-  sendRef.current = (text: string) => { void handleSend(text); };
-
-  // Pick up prompts handed over from the landing page hero panel
+  // Allow other surfaces to hand a prompt to the copilot
+  const sendRef = useRef(sendPrompt);
+  sendRef.current = sendPrompt;
   useEffect(() => {
-    const run = (prompt: string) => {
-      if (!prompt.trim()) return;
-      setIsOpen(true);
-      setIsMinimized(false);
-      setTimeout(() => sendRef.current(prompt), 300);
-    };
-
-    const consumeStored = () => {
-      try {
-        const stored = sessionStorage.getItem('pendingHeroPrompt');
-        if (!stored) return;
-        sessionStorage.removeItem('pendingHeroPrompt');
-        const parsed = JSON.parse(stored) as { prompt?: string };
-        if (parsed?.prompt) run(parsed.prompt);
-      } catch {
-        /* storage unavailable */
-      }
-    };
-    consumeStored();
-    // Re-check after auth redirects (component stays mounted across SPA navigation)
-    const interval = window.setInterval(consumeStored, 1000);
-
     const onExternalPrompt = (e: Event) => {
       const detail = (e as CustomEvent<{ prompt?: string }>).detail;
-      if (detail?.prompt) run(detail.prompt);
+      if (!detail?.prompt?.trim()) return;
+      setIsOpen(true);
+      setIsMinimized(false);
+      setTimeout(() => sendRef.current(detail.prompt as string), 300);
     };
     window.addEventListener('topsqill:copilot-prompt', onExternalPrompt);
-    return () => {
-      window.clearInterval(interval);
-      window.removeEventListener('topsqill:copilot-prompt', onExternalPrompt);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => window.removeEventListener('topsqill:copilot-prompt', onExternalPrompt);
   }, []);
 
-  // Handle navigation links in messages
   const handleNavigationClick = (path: string) => {
     navigate(path);
-    // Show a brief confirmation
-    setMessages(prev => [...prev, {
+    appendMessage({
       id: `nav-${Date.now()}`,
       role: 'assistant',
       content: `✓ Navigating to ${path}...`,
-      timestamp: new Date()
-    }]);
+      timestamp: new Date(),
+    });
   };
 
-  const handleSend = async (overrideText?: string) => {
-    const text = (overrideText ?? input).trim();
+  const handleSend = () => {
+    const text = input.trim();
     if (!text || isLoading) return;
-
-    const userMessage: Message = {
-      id: `user-${Date.now()}`,
-      role: 'user',
-      content: text,
-      timestamp: new Date()
-    };
-
-    setMessages(prev => [...prev, userMessage]);
     setInput('');
-
-    // Build chat history for context
-    const chatHistory = messages
-      .filter(m => m.id !== 'welcome')
-      .map(m => ({ role: m.role, content: m.content }));
-
-    const result = await chatbotAssist(
-      userMessage.content,
-      chatHistory,
-      {
-        availableForms: formsWithFields,
-        availableWorkflows: workflows,
-        availableReports: reports,
-        currentRoute: location.pathname
-      }
-    );
-
-    if (result) {
-       const messageContent = result.message;
-       const toolCall = result.toolCall;
-       
-       // Check if AI returned a structured tool call
-       if (toolCall && copilotEnabled) {
-         const assistantMessage: Message = {
-           id: `assistant-${Date.now()}`,
-           role: 'assistant',
-           content: messageContent || `Executing **${toolCall.action.replace(/_/g, ' ')}**...`,
-           timestamp: new Date(),
-           action: {
-             type: toolCall.action,
-             status: 'executing'
-           }
-         };
-         setMessages(prev => [...prev, assistantMessage]);
-         
-         // Execute the action
-         try {
-           const actionResult = await executeCopilotAction(toolCall.action, toolCall.params);
-           
-           // Update message with success
-           setMessages(prev => prev.map(m => 
-             m.id === assistantMessage.id 
-               ? { ...m, action: { type: toolCall.action, status: 'success', result: actionResult } }
-               : m
-           ));
-           
-           // Add result message
-           const resultMessage: Message = {
-             id: `result-${Date.now()}`,
-             role: 'assistant',
-             content: `✅ **Action completed!** ${actionResult.message || 'Done'}`,
-             timestamp: new Date()
-           };
-           setMessages(prev => [...prev, resultMessage]);
-           
-           toast.success('Action completed', { description: actionResult.message });
-           
-           // If action created something, offer to navigate
-           if (actionResult.result?.formId && actionResult.result?.workflowId) {
-             const navMessage: Message = {
-               id: `nav-offer-${Date.now()}`,
-               role: 'assistant',
-               content: `🎉 **Created both!**\n\n• [Open the form](/form-edit/${actionResult.result.formId})\n• [Open the workflow](/workflow-builder/${actionResult.result.workflowId})`,
-               timestamp: new Date()
-             };
-             setMessages(prev => [...prev, navMessage]);
-           } else if (actionResult.result?.formId && actionResult.result?.slaTemplateId) {
-             const navMessage: Message = {
-               id: `nav-offer-${Date.now()}`,
-               role: 'assistant',
-               content: `🎉 **Form with SLA tracking created!**\n\n• [Open the form](/form-edit/${actionResult.result.formId})\n• [View SLA Management](/sla-management)`,
-               timestamp: new Date()
-             };
-             setMessages(prev => [...prev, navMessage]);
-           } else if (actionResult.result?.formId && actionResult.result?.emailTemplateId) {
-             const navMessage: Message = {
-               id: `nav-offer-${Date.now()}`,
-               role: 'assistant',
-               content: `🎉 **Form with email notifications created!**\n\n• [Open the form](/form-edit/${actionResult.result.formId})\n• [View Email Templates](/email-templates)`,
-               timestamp: new Date()
-             };
-             setMessages(prev => [...prev, navMessage]);
-           } else if (actionResult.result?.formId) {
-             const navMessage: Message = {
-               id: `nav-offer-${Date.now()}`,
-               role: 'assistant',
-               content: `Would you like to [open the form](/form-edit/${actionResult.result.formId})?`,
-               timestamp: new Date()
-             };
-             setMessages(prev => [...prev, navMessage]);
-           } else if (actionResult.result?.workflowId && actionResult.result?.nodeId) {
-             const navMessage: Message = {
-               id: `nav-offer-${Date.now()}`,
-               role: 'assistant',
-               content: `✅ **Email action added!**\n\n• [Open the workflow](/workflow-builder/${actionResult.result.workflowId})`,
-               timestamp: new Date()
-             };
-             setMessages(prev => [...prev, navMessage]);
-           } else if (actionResult.result?.workflowId) {
-             const navMessage: Message = {
-               id: `nav-offer-${Date.now()}`,
-               role: 'assistant',
-               content: `Would you like to [open the workflow](/workflow-builder/${actionResult.result.workflowId})?`,
-               timestamp: new Date()
-             };
-             setMessages(prev => [...prev, navMessage]);
-           } else if (actionResult.result?.dashboardId) {
-             const navMessage: Message = {
-               id: `nav-offer-${Date.now()}`,
-               role: 'assistant',
-               content: `Would you like to [open the dashboard](/dashboard-view/${actionResult.result.dashboardId})?`,
-               timestamp: new Date()
-             };
-             setMessages(prev => [...prev, navMessage]);
-           } else if (actionResult.result?.slaTemplateId) {
-             const navMessage: Message = {
-               id: `nav-offer-${Date.now()}`,
-               role: 'assistant',
-               content: `✅ **SLA tracking configured!**\n\n• [View SLA Management](/sla-management)`,
-               timestamp: new Date()
-             };
-             setMessages(prev => [...prev, navMessage]);
-           }
-           
-         } catch (err) {
-           setMessages(prev => prev.map(m => 
-             m.id === assistantMessage.id 
-               ? { ...m, action: { type: toolCall.action, status: 'error' } }
-               : m
-           ));
-           
-           const errorMessage: Message = {
-             id: `error-${Date.now()}`,
-             role: 'assistant',
-             content: `❌ **Action failed:** ${err instanceof Error ? err.message : 'Unknown error'}`,
-             timestamp: new Date()
-           };
-           setMessages(prev => [...prev, errorMessage]);
-           
-           toast.error('Action failed', { description: err instanceof Error ? err.message : 'Unknown error' });
-         }
-       } else {
-         const assistantMessage: Message = {
-           id: `assistant-${Date.now()}`,
-           role: 'assistant',
-           content: messageContent,
-           timestamp: new Date()
-         };
-         setMessages(prev => [...prev, assistantMessage]);
-       }
-    } else {
-      const errorMessage: Message = {
-        id: `error-${Date.now()}`,
-        role: 'assistant',
-        content: "I'm sorry, I encountered an error. Please try again.",
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, errorMessage]);
-    }
+    void sendPrompt(text);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -443,32 +72,6 @@ export function AIChatbot() {
     }
   };
 
-  const clearChat = () => {
-    setMessages([
-      {
-        id: 'welcome',
-        role: 'assistant',
-         content: `Hi! 👋 I'm your **AI Copilot** for TopSqill BPM.
-
- 🚀 **Execute Actions**
- Create forms, trigger workflows, check SLA risks
-
- 🧭 **Navigate**
- Take you anywhere in the system
- 
- 💡 **Assist**
- Explain features and guide you through tasks
-
- **Try saying:**
- • "Create a feedback form with name and email"
- • "What are my SLA risks right now?"
- • "Take me to workflows"`,
-        timestamp: new Date()
-      }
-    ]);
-  };
-
-  // Custom link renderer that handles navigation
   const LinkRenderer = ({ href, children }: { href?: string; children?: React.ReactNode }) => {
     if (href && href.startsWith('/')) {
       return (
@@ -483,7 +86,6 @@ export function AIChatbot() {
     return <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary underline">{children}</a>;
   };
 
-  // Floating button when closed
   if (!isOpen) {
     return (
       <Button
@@ -506,42 +108,35 @@ export function AIChatbot() {
       {/* Header */}
       <div className="flex items-center justify-between p-3 border-b bg-muted/50 rounded-t-lg">
         <div className="flex items-center gap-2">
-           <Zap className="h-5 w-5 text-module-workflows" />
-           <span className="font-semibold text-sm">AI Copilot</span>
-           {copilotEnabled && (
-             <Badge variant="secondary" className="text-xs h-5 px-1.5">
-               Actions On
-             </Badge>
-           )}
+          <Zap className="h-5 w-5 text-module-workflows" />
+          <span className="font-semibold text-sm">AI Copilot</span>
+          {copilotEnabled && (
+            <Badge variant="secondary" className="text-xs h-5 px-1.5">Actions On</Badge>
+          )}
         </div>
         <div className="flex items-center gap-1">
-           <Button
-             variant={copilotEnabled ? "default" : "ghost"}
-             size="icon"
-             className="h-7 w-7"
-             onClick={() => setCopilotEnabled(!copilotEnabled)}
-             title={copilotEnabled ? "Disable action execution" : "Enable action execution"}
-           >
-             <Zap className={cn("h-4 w-4", copilotEnabled && "text-primary-foreground")} />
-           </Button>
           <Button
             variant="ghost"
             size="icon"
             className="h-7 w-7"
-            onClick={() => setIsMinimized(!isMinimized)}
+            onClick={() => { setIsOpen(false); navigate('/build'); }}
+            title="Open full AI Builder"
           >
-            {isMinimized ? (
-              <Maximize2 className="h-4 w-4" />
-            ) : (
-              <Minimize2 className="h-4 w-4" />
-            )}
+            <Maximize className="h-4 w-4" />
           </Button>
           <Button
-            variant="ghost"
+            variant={copilotEnabled ? "default" : "ghost"}
             size="icon"
             className="h-7 w-7"
-            onClick={() => setIsOpen(false)}
+            onClick={() => setCopilotEnabled(!copilotEnabled)}
+            title={copilotEnabled ? "Disable action execution" : "Enable action execution"}
           >
+            <Zap className={cn("h-4 w-4", copilotEnabled && "text-primary-foreground")} />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setIsMinimized(!isMinimized)}>
+            {isMinimized ? <Maximize2 className="h-4 w-4" /> : <Minimize2 className="h-4 w-4" />}
+          </Button>
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setIsOpen(false)}>
             <X className="h-4 w-4" />
           </Button>
         </div>
@@ -555,17 +150,12 @@ export function AIChatbot() {
               {messages.map((message) => (
                 <div
                   key={message.id}
-                  className={cn(
-                    "flex",
-                    message.role === 'user' ? "justify-end" : "justify-start"
-                  )}
+                  className={cn("flex", message.role === 'user' ? "justify-end" : "justify-start")}
                 >
                   <div
                     className={cn(
                       "max-w-[85%] rounded-lg px-3 py-2 text-sm",
-                      message.role === 'user'
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted"
+                      message.role === 'user' ? "bg-primary text-primary-foreground" : "bg-muted"
                     )}
                   >
                     {message.role === 'assistant' ? (
@@ -604,41 +194,17 @@ export function AIChatbot() {
           <div className="px-3 py-2 border-t bg-muted/30">
             <div className="text-xs text-muted-foreground mb-2">Quick Navigate:</div>
             <div className="flex gap-1 flex-wrap">
-              <Button
-                variant="outline"
-                size="sm"
-                className="text-xs h-7 gap-1"
-                onClick={() => navigate('/forms')}
-              >
-                <FileText className="h-3 w-3" />
-                Forms
+              <Button variant="outline" size="sm" className="text-xs h-7 gap-1" onClick={() => navigate('/forms')}>
+                <FileText className="h-3 w-3" />Forms
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="text-xs h-7 gap-1"
-                onClick={() => navigate('/workflows')}
-              >
-                <GitBranch className="h-3 w-3" />
-                Workflows
+              <Button variant="outline" size="sm" className="text-xs h-7 gap-1" onClick={() => navigate('/workflows')}>
+                <GitBranch className="h-3 w-3" />Workflows
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="text-xs h-7 gap-1"
-                onClick={() => navigate('/reports')}
-              >
-                <BarChart3 className="h-3 w-3" />
-                Reports
+              <Button variant="outline" size="sm" className="text-xs h-7 gap-1" onClick={() => navigate('/reports')}>
+                <BarChart3 className="h-3 w-3" />Reports
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="text-xs h-7 gap-1"
-                onClick={() => navigate('/query')}
-              >
-                <Database className="h-3 w-3" />
-                Query
+              <Button variant="outline" size="sm" className="text-xs h-7 gap-1" onClick={() => navigate('/query')}>
+                <Database className="h-3 w-3" />Query
               </Button>
             </div>
           </div>
@@ -646,36 +212,16 @@ export function AIChatbot() {
           {/* Quick Actions */}
           <div className="px-3 py-2 border-t">
             <div className="flex gap-1 flex-wrap">
-              <Button
-                variant="outline"
-                size="sm"
-                className="text-xs h-7"
-                onClick={() => setInput("How do I create a new form?")}
-              >
+              <Button variant="outline" size="sm" className="text-xs h-7" onClick={() => setInput("How do I create a new form?")}>
                 Create form
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="text-xs h-7"
-                onClick={() => setInput("What forms are available?")}
-              >
+              <Button variant="outline" size="sm" className="text-xs h-7" onClick={() => setInput("What forms are available?")}>
                 List forms
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="text-xs h-7"
-                onClick={() => setInput("How do I set up a workflow?")}
-              >
+              <Button variant="outline" size="sm" className="text-xs h-7" onClick={() => setInput("How do I set up a workflow?")}>
                 Workflows
               </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-xs h-7 text-muted-foreground"
-                onClick={clearChat}
-              >
+              <Button variant="ghost" size="sm" className="text-xs h-7 text-muted-foreground" onClick={clearChat}>
                 Clear
               </Button>
             </div>
@@ -693,16 +239,8 @@ export function AIChatbot() {
                 disabled={isLoading}
                 className="flex-1"
               />
-              <Button
-                onClick={() => handleSend()}
-                disabled={isLoading || !input.trim()}
-                size="icon"
-              >
-                {isLoading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Send className="h-4 w-4" />
-                )}
+              <Button onClick={handleSend} disabled={isLoading || !input.trim()} size="icon">
+                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
               </Button>
             </div>
           </div>
