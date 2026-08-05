@@ -1,6 +1,6 @@
 
 import * as React from "react"
-import { LayoutDashboard, FolderKanban, GalleryVerticalEnd, Calendar, User2, GitBranch, BarChart3, Database, RefreshCw, Map, ScrollText, HardDrive, Mail, ServerCog, Key, UserCheck } from "lucide-react"
+import { LayoutDashboard, FolderKanban, GalleryVerticalEnd, Calendar, User2, GitBranch, BarChart3, Database, RefreshCw, Map, ScrollText, HardDrive, Mail, ServerCog, Key, UserCheck, Wand2 } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { NavMain } from "@/components/nav-main"
 import { NavProjects } from "@/components/nav-projects"
