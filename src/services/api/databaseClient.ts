@@ -262,34 +262,6 @@ class ReturningResult {
   }
 }
 
-class LegacyInsertBuilder {
-  constructor(
-    private table: string,
-    private data: Record<string, unknown> | Record<string, unknown>[],
-  ) {}
-
-  select(columns = '*') {
-    return withFallback(
-      () =>
-        request('/database/insert', {
-          method: 'POST',
-          body: JSON.stringify({ table: this.table, data: this.data, returning: columns }),
-        }).then(normalizeResult),
-      async () => {
-        const { data, error } = await (rawSupabase as any)
-          .from(this.table)
-          .insert(this.data as never)
-          .select(columns);
-        return { data: data ?? null, error: error ? { message: error.message } : null };
-      },
-    );
-  }
-
-  then(resolve: (value: QueryResult) => void, reject?: (reason: unknown) => void) {
-    return this.select().then(resolve, reject);
-  }
-}
-
 class UpsertBuilder {
   constructor(
     private table: string,
