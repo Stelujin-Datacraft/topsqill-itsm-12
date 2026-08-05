@@ -210,6 +210,46 @@ export function AIChatbot() {
     }
   }, [isOpen, isMinimized]);
 
+  // Keep a stable ref to the latest send handler for external triggers
+  const sendRef = useRef<(text: string) => void>(() => {});
+  sendRef.current = (text: string) => { void handleSend(text); };
+
+  // Pick up prompts handed over from the landing page hero panel
+  useEffect(() => {
+    const run = (prompt: string) => {
+      if (!prompt.trim()) return;
+      setIsOpen(true);
+      setIsMinimized(false);
+      setTimeout(() => sendRef.current(prompt), 300);
+    };
+
+    const consumeStored = () => {
+      try {
+        const stored = sessionStorage.getItem('pendingHeroPrompt');
+        if (!stored) return;
+        sessionStorage.removeItem('pendingHeroPrompt');
+        const parsed = JSON.parse(stored) as { prompt?: string };
+        if (parsed?.prompt) run(parsed.prompt);
+      } catch {
+        /* storage unavailable */
+      }
+    };
+    consumeStored();
+    // Re-check after auth redirects (component stays mounted across SPA navigation)
+    const interval = window.setInterval(consumeStored, 1000);
+
+    const onExternalPrompt = (e: Event) => {
+      const detail = (e as CustomEvent<{ prompt?: string }>).detail;
+      if (detail?.prompt) run(detail.prompt);
+    };
+    window.addEventListener('topsqill:copilot-prompt', onExternalPrompt);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener('topsqill:copilot-prompt', onExternalPrompt);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Handle navigation links in messages
   const handleNavigationClick = (path: string) => {
     navigate(path);
@@ -222,13 +262,14 @@ export function AIChatbot() {
     }]);
   };
 
-  const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
+  const handleSend = async (overrideText?: string) => {
+    const text = (overrideText ?? input).trim();
+    if (!text || isLoading) return;
 
     const userMessage: Message = {
       id: `user-${Date.now()}`,
       role: 'user',
-      content: input.trim(),
+      content: text,
       timestamp: new Date()
     };
 
@@ -653,7 +694,7 @@ export function AIChatbot() {
                 className="flex-1"
               />
               <Button
-                onClick={handleSend}
+                onClick={() => handleSend()}
                 disabled={isLoading || !input.trim()}
                 size="icon"
               >
