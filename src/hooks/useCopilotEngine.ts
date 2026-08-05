@@ -59,7 +59,7 @@ export function useCopilotEngine() {
   const [reports, setReports] = useState<ReportInfo[]>([]);
   const [formsWithFields, setFormsWithFields] = useState<FormWithFields[]>([]);
   const [copilotEnabled, setCopilotEnabled] = useState(true);
-  const { chatbotAssist, isLoading } = useFormAI();
+  const { chatbotAssist, generateForm, isLoading } = useFormAI();
   const { currentProject, projects } = useProject();
   const location = useLocation();
 
