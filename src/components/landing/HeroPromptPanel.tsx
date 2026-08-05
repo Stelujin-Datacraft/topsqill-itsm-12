@@ -27,21 +27,19 @@ export default function HeroPromptPanel() {
     if (!text) return;
     const fullPrompt = `${active.intent}: ${text}`;
 
-    if (user) {
-      navigate('/dashboard');
-      // Hand the prompt to the AI Copilot so it actually builds it
-      setTimeout(() => {
-        window.dispatchEvent(new CustomEvent('topsqill:copilot-prompt', { detail: { prompt: fullPrompt } }));
-      }, 200);
-      return;
-    }
-
     try {
       sessionStorage.setItem('pendingHeroPrompt', JSON.stringify({ prompt: fullPrompt, type }));
     } catch {
       /* storage unavailable */
     }
-    navigate(`/auth?returnTo=${encodeURIComponent('/dashboard')}`);
+
+    if (user) {
+      // Full-page AI Builder picks up the prompt and creates the asset
+      navigate('/build');
+      return;
+    }
+
+    navigate(`/auth?returnTo=${encodeURIComponent('/build')}`);
   };
 
   return (
