@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { useCopilotEngine } from '@/hooks/useCopilotEngine';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   ArrowUp, Loader2, FileText, Workflow, BarChart3, BookOpen,
   Zap, CheckCircle2, AlertTriangle, Sparkle, RotateCcw,
@@ -21,8 +22,12 @@ const SUGGESTIONS = [
 
 export default function AIStudio() {
   const navigate = useNavigate();
-  const { messages, isLoading, activeProject, sendPrompt, clearChat, hasConversation, copilotEnabled, setCopilotEnabled } = useCopilotEngine();
+  const {
+    messages, isLoading, activeProject, projects, setCurrentProject, availableForms,
+    sendPrompt, clearChat, hasConversation, copilotEnabled, setCopilotEnabled, resolveFormChoice,
+  } = useCopilotEngine();
   const [input, setInput] = useState('');
+  const [selectedFormId, setSelectedFormId] = useState<string>('');
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const sendRef = useRef(sendPrompt);
@@ -61,7 +66,7 @@ export default function AIStudio() {
     const value = (text ?? input).trim();
     if (!value || isLoading) return;
     setInput('');
-    void sendPrompt(value);
+    void sendPrompt(value, selectedFormId ? { formId: selectedFormId } : undefined);
   };
 
   const LinkRenderer = ({ href, children }: { href?: string; children?: React.ReactNode }) => {
@@ -77,6 +82,38 @@ export default function AIStudio() {
 
   const composer = (
     <div className="rounded-2xl border border-border/70 bg-card shadow-token-md p-3">
+      <div className="flex flex-wrap items-center gap-2 pb-2">
+        <Select
+          value={activeProject?.id ?? ''}
+          onValueChange={(id) => {
+            const next = projects.find((p) => p.id === id) || null;
+            setCurrentProject(next);
+            setSelectedFormId('');
+          }}
+        >
+          <SelectTrigger className="h-8 w-[190px] text-xs">
+            <SelectValue placeholder="Select project" />
+          </SelectTrigger>
+          <SelectContent>
+            {projects.map((p) => (
+              <SelectItem key={p.id} value={p.id} className="text-xs">{p.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {needsForm && availableForms.length > 0 && (
+          <Select value={selectedFormId || 'none'} onValueChange={(v) => setSelectedFormId(v === 'none' ? '' : v)}>
+            <SelectTrigger className="h-8 w-[210px] text-xs">
+              <SelectValue placeholder="Source form (optional)" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none" className="text-xs">Let AI decide</SelectItem>
+              {availableForms.map((f) => (
+                <SelectItem key={f.id} value={f.id} className="text-xs">{f.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+      </div>
       <Textarea
         ref={textareaRef}
         value={input}
