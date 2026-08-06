@@ -82,17 +82,6 @@ export default function AIStudio() {
 
   const needsForm = /workflow|report|dashboard|sla|notification|email/i.test(input);
 
-  const UnusedLinkRenderer = ({ href, children }: { href?: string; children?: React.ReactNode }) => {
-    if (href?.startsWith('/')) {
-      return (
-        <button onClick={() => navigate(href)} className="text-primary underline underline-offset-2 font-medium">
-          {children}
-        </button>
-      );
-    }
-    return <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary underline">{children}</a>;
-  };
-
   const composer = (
     <div className="rounded-2xl border border-border/70 bg-card shadow-token-md p-3">
       <div className="flex flex-wrap items-center gap-2 pb-2">
