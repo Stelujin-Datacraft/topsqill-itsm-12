@@ -296,7 +296,7 @@ export function useCopilotEngine() {
     setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, resolved: true } : m)));
     if (!pending || pending.messageId !== messageId) return;
     setPendingAction(null);
-    const key = FORM_REQUIRED_ACTIONS[pending.action] || 'formId';
+    const key = getFormParamKey(pending.action) || 'formId';
     void runToolCall(pending.action, { ...pending.params, [key]: formId }, pending.prompt);
   }, [pendingAction, runToolCall]);
 
@@ -342,7 +342,7 @@ export function useCopilotEngine() {
 
     if (toolCall && copilotEnabled) {
       const params: Record<string, any> = { ...(toolCall.params || {}) };
-      const formKey = FORM_REQUIRED_ACTIONS[toolCall.action];
+      const formKey = getFormParamKey(toolCall.action);
 
       if (formKey && !params[formKey]) {
         // 1) explicit selection from the UI
@@ -356,13 +356,23 @@ export function useCopilotEngine() {
         }
       }
 
-      if (formKey && !params[formKey] && formsWithFields.length > 0) {
+      if (formKey && !params[formKey] && formsWithFields.length === 0) {
+        setMessages((prev) => [...prev, {
+          id: `need-form-${Date.now()}`,
+          role: 'assistant',
+          content: `⚠️ **A form is required first.**\n\nA **${toolCall.action.replace(/_/g, ' ')}** reads from form data, but **${activeProject?.name || 'this project'}** has no forms yet.\n\nAsk me to create the form first (e.g. *"Create a form for …"*), then I can build this on top of it.`,
+          timestamp: new Date(),
+        }]);
+        return;
+      }
+
+      if (formKey && !params[formKey]) {
         const clarifyId = `clarify-${Date.now()}`;
         setPendingAction({ action: toolCall.action, params, prompt: trimmed, messageId: clarifyId });
         setMessages((prev) => [...prev, {
           id: clarifyId,
           role: 'assistant',
-          content: `Which form should this **${toolCall.action.replace(/_/g, ' ')}** use?`,
+          content: `Which form should this **${toolCall.action.replace(/_/g, ' ')}** use? Pick the source form to continue.`,
           timestamp: new Date(),
           choices: formsWithFields.slice(0, 12).map((f) => ({ label: f.name, value: f.id })),
         }]);
