@@ -229,6 +229,20 @@ export default function AIStudio() {
                           {message.content}
                         </ReactMarkdown>
                       </div>
+                      {message.choices && !message.resolved && (
+                        <div className="flex flex-wrap gap-2 pt-1">
+                          {message.choices.map((choice) => (
+                            <button
+                              key={choice.value}
+                              type="button"
+                              onClick={() => resolveFormChoice(message.id, choice.value)}
+                              className="rounded-full border border-border/70 bg-card px-3 py-1 text-xs transition-colors hover:bg-muted/60"
+                            >
+                              {choice.label}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
