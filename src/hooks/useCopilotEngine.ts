@@ -388,7 +388,7 @@ export function useCopilotEngine() {
         timestamp: new Date(),
       }]);
     }
-  }, [chatbotAssist, copilotEnabled, formsWithFields, isLoading, location.pathname, messages, reports, runToolCall, workflows]);
+  }, [activeProject?.name, chatbotAssist, copilotEnabled, formsWithFields, isLoading, location.pathname, messages, reports, runToolCall, workflows]);
 
   const clearChat = useCallback(() => setMessages([welcomeMessage()]), []);
 
