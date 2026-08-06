@@ -80,7 +80,9 @@ export default function AIStudio() {
     return <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary underline">{children}</a>;
   };
 
-  const needsForm = /workflow|report|dashboard|sla|notification|email/i.test(input);
+  const needsForm = /workflow|report|dashboard|sla|notification|email|knowledge|doc|polic/i.test(input);
+  const formMissing = needsForm && availableForms.length === 0;
+  const formRequired = needsForm && availableForms.length > 0 && !selectedFormId;
 
   const composer = (
     <div className="rounded-2xl border border-border/70 bg-card shadow-token-md p-3">
@@ -103,17 +105,21 @@ export default function AIStudio() {
           </SelectContent>
         </Select>
         {needsForm && availableForms.length > 0 && (
-          <Select value={selectedFormId || 'none'} onValueChange={(v) => setSelectedFormId(v === 'none' ? '' : v)}>
-            <SelectTrigger className="h-8 w-[210px] text-xs">
-              <SelectValue placeholder="Source form (optional)" />
+          <Select value={selectedFormId} onValueChange={(v) => setSelectedFormId(v)}>
+            <SelectTrigger className={cn('h-8 w-[210px] text-xs', formRequired && 'border-destructive text-destructive')}>
+              <SelectValue placeholder="Select source form (required)" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="none" className="text-xs">Let AI decide</SelectItem>
               {availableForms.map((f) => (
                 <SelectItem key={f.id} value={f.id} className="text-xs">{f.name}</SelectItem>
               ))}
             </SelectContent>
           </Select>
+        )}
+        {formMissing && (
+          <span className="text-xs text-destructive">
+            No forms in this project yet — create a form first.
+          </span>
         )}
       </div>
       <Textarea
@@ -147,7 +153,13 @@ export default function AIStudio() {
           </button>
           {activeProject?.name && <span className="hidden sm:inline truncate max-w-[220px]">in {activeProject.name}</span>}
         </div>
-        <Button size="icon" onClick={() => submit()} disabled={isLoading || !input.trim()} aria-label="Send">
+        <Button
+          size="icon"
+          onClick={() => submit()}
+          disabled={isLoading || !input.trim() || formRequired || formMissing}
+          aria-label="Send"
+          title={formRequired ? 'Select the source form first' : formMissing ? 'Create a form in this project first' : undefined}
+        >
           {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowUp className="h-4 w-4" />}
         </Button>
       </div>
