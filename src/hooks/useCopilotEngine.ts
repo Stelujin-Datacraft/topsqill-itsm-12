@@ -15,6 +15,9 @@ export interface CopilotMessage {
     status: 'pending' | 'executing' | 'success' | 'error';
     result?: any;
   };
+  /** Clarification chips the user can click (e.g. "which form?") */
+  choices?: Array<{ label: string; value: string }>;
+  resolved?: boolean;
 }
 
 interface WorkflowInfo { id: string; name: string; description?: string }
@@ -60,8 +63,9 @@ export function useCopilotEngine() {
   const [formsWithFields, setFormsWithFields] = useState<FormWithFields[]>([]);
   const [copilotEnabled, setCopilotEnabled] = useState(true);
   const { chatbotAssist, generateForm, isLoading } = useFormAI();
-  const { currentProject, projects } = useProject();
+  const { currentProject, projects, setCurrentProject } = useProject();
   const location = useLocation();
+  const [pendingAction, setPendingAction] = useState<{ action: string; params: Record<string, any>; prompt: string; messageId: string } | null>(null);
 
   // Fall back to the user's first (default) project so building works even when
   // no project has been explicitly selected yet (e.g. straight after login).
@@ -204,7 +208,75 @@ export function useCopilotEngine() {
     return null;
   };
 
-  const sendPrompt = useCallback(async (text: string) => {
+  /** Actions that need an existing form; maps action -> the param carrying the form id */
+  const FORM_REQUIRED_ACTIONS: Record<string, string> = {
+    create_workflow: 'triggerFormId',
+    link_form_to_workflow: 'formId',
+    link_form_to_sla: 'formId',
+    create_dashboard: 'formId',
+  };
+
+  const runToolCall = useCallback(async (action: string, rawParams: Record<string, any>, prompt: string, headline?: string) => {
+    const assistantMessage: CopilotMessage = {
+      id: `assistant-${Date.now()}`,
+      role: 'assistant',
+      content: headline || `Executing **${action.replace(/_/g, ' ')}**...`,
+      timestamp: new Date(),
+      action: { type: action, status: 'executing' },
+    };
+    setMessages((prev) => [...prev, assistantMessage]);
+
+    try {
+      const params = await enrichFormParams(action, rawParams, prompt);
+      const actionResult = await executeCopilotAction(action, params);
+      setMessages((prev) => prev.map((m) => m.id === assistantMessage.id
+        ? { ...m, action: { type: action, status: 'success' as const, result: actionResult } }
+        : m));
+
+      setMessages((prev) => [...prev, {
+        id: `result-${Date.now()}`,
+        role: 'assistant',
+        content: `✅ **Action completed!** ${actionResult?.message || 'Done'}`,
+        timestamp: new Date(),
+      }]);
+
+      toast.success('Action completed', { description: actionResult?.message });
+
+      const nav = buildNavMessage(actionResult?.result);
+      if (nav) {
+        setMessages((prev) => [...prev, {
+          id: `nav-offer-${Date.now()}`,
+          role: 'assistant',
+          content: nav,
+          timestamp: new Date(),
+        }]);
+      }
+    } catch (err) {
+      setMessages((prev) => prev.map((m) => m.id === assistantMessage.id
+        ? { ...m, action: { type: action, status: 'error' as const } }
+        : m));
+      const detail = err instanceof Error ? err.message : 'Unknown error';
+      setMessages((prev) => [...prev, {
+        id: `error-${Date.now()}`,
+        role: 'assistant',
+        content: `❌ **Action failed:** ${detail}`,
+        timestamp: new Date(),
+      }]);
+      toast.error('Action failed', { description: detail });
+    }
+  }, [enrichFormParams, executeCopilotAction]);
+
+  /** Answer an in-chat "which form?" clarification */
+  const resolveFormChoice = useCallback((messageId: string, formId: string) => {
+    const pending = pendingAction;
+    setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, resolved: true } : m)));
+    if (!pending || pending.messageId !== messageId) return;
+    setPendingAction(null);
+    const key = FORM_REQUIRED_ACTIONS[pending.action] || 'formId';
+    void runToolCall(pending.action, { ...pending.params, [key]: formId }, pending.prompt);
+  }, [pendingAction, runToolCall]);
+
+  const sendPrompt = useCallback(async (text: string, options?: { formId?: string }) => {
     const trimmed = text.trim();
     if (!trimmed || isLoading) return;
 
@@ -220,7 +292,12 @@ export function useCopilotEngine() {
       .filter((m) => m.id !== 'welcome')
       .map((m) => ({ role: m.role, content: m.content }));
 
-    const result = await chatbotAssist(trimmed, chatHistory, {
+    const selectedForm = options?.formId ? formsWithFields.find((f) => f.id === options.formId) : undefined;
+    const promptForModel = selectedForm
+      ? `${trimmed}\n\n(Use the existing form "${selectedForm.name}" (id: ${selectedForm.id}) as the source/trigger form.)`
+      : trimmed;
+
+    const result = await chatbotAssist(promptForModel, chatHistory, {
       availableForms: formsWithFields,
       availableWorkflows: workflows,
       availableReports: reports,
@@ -240,53 +317,35 @@ export function useCopilotEngine() {
     const { message: messageContent, toolCall } = result;
 
     if (toolCall && copilotEnabled) {
-      const assistantMessage: CopilotMessage = {
-        id: `assistant-${Date.now()}`,
-        role: 'assistant',
-        content: messageContent || `Executing **${toolCall.action.replace(/_/g, ' ')}**...`,
-        timestamp: new Date(),
-        action: { type: toolCall.action, status: 'executing' },
-      };
-      setMessages((prev) => [...prev, assistantMessage]);
+      const params: Record<string, any> = { ...(toolCall.params || {}) };
+      const formKey = FORM_REQUIRED_ACTIONS[toolCall.action];
 
-      try {
-        const params = await enrichFormParams(toolCall.action, toolCall.params || {}, trimmed);
-        const actionResult = await executeCopilotAction(toolCall.action, params);
-        setMessages((prev) => prev.map((m) => m.id === assistantMessage.id
-          ? { ...m, action: { type: toolCall.action, status: 'success' as const, result: actionResult } }
-          : m));
-
-        setMessages((prev) => [...prev, {
-          id: `result-${Date.now()}`,
-          role: 'assistant',
-          content: `✅ **Action completed!** ${actionResult?.message || 'Done'}`,
-          timestamp: new Date(),
-        }]);
-
-        toast.success('Action completed', { description: actionResult?.message });
-
-        const nav = buildNavMessage(actionResult?.result);
-        if (nav) {
-          setMessages((prev) => [...prev, {
-            id: `nav-offer-${Date.now()}`,
-            role: 'assistant',
-            content: nav,
-            timestamp: new Date(),
-          }]);
+      if (formKey && !params[formKey]) {
+        // 1) explicit selection from the UI
+        if (options?.formId) {
+          params[formKey] = options.formId;
+        } else {
+          // 2) try to auto-resolve a form named in the prompt
+          const lower = trimmed.toLowerCase();
+          const match = formsWithFields.find((f) => f.name && lower.includes(f.name.toLowerCase()));
+          if (match) params[formKey] = match.id;
         }
-      } catch (err) {
-        setMessages((prev) => prev.map((m) => m.id === assistantMessage.id
-          ? { ...m, action: { type: toolCall.action, status: 'error' as const } }
-          : m));
-        const detail = err instanceof Error ? err.message : 'Unknown error';
-        setMessages((prev) => [...prev, {
-          id: `error-${Date.now()}`,
-          role: 'assistant',
-          content: `❌ **Action failed:** ${detail}`,
-          timestamp: new Date(),
-        }]);
-        toast.error('Action failed', { description: detail });
       }
+
+      if (formKey && !params[formKey] && formsWithFields.length > 0) {
+        const clarifyId = `clarify-${Date.now()}`;
+        setPendingAction({ action: toolCall.action, params, prompt: trimmed, messageId: clarifyId });
+        setMessages((prev) => [...prev, {
+          id: clarifyId,
+          role: 'assistant',
+          content: `Which form should this **${toolCall.action.replace(/_/g, ' ')}** use?`,
+          timestamp: new Date(),
+          choices: formsWithFields.slice(0, 12).map((f) => ({ label: f.name, value: f.id })),
+        }]);
+        return;
+      }
+
+      await runToolCall(toolCall.action, params, trimmed, messageContent);
     } else {
       setMessages((prev) => [...prev, {
         id: `assistant-${Date.now()}`,
@@ -295,7 +354,7 @@ export function useCopilotEngine() {
         timestamp: new Date(),
       }]);
     }
-  }, [chatbotAssist, copilotEnabled, enrichFormParams, executeCopilotAction, formsWithFields, isLoading, location.pathname, messages, reports, workflows]);
+  }, [chatbotAssist, copilotEnabled, formsWithFields, isLoading, location.pathname, messages, reports, runToolCall, workflows]);
 
   const clearChat = useCallback(() => setMessages([welcomeMessage()]), []);
 
@@ -307,11 +366,15 @@ export function useCopilotEngine() {
     messages,
     isLoading,
     activeProject,
+    projects,
+    setCurrentProject,
+    availableForms: formsWithFields,
     copilotEnabled,
     setCopilotEnabled,
     sendPrompt,
     clearChat,
     appendMessage,
+    resolveFormChoice,
     hasConversation: messages.some((m) => m.id !== 'welcome'),
   };
 }
