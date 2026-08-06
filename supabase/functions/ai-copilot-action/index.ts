@@ -196,6 +196,86 @@
          message = `Created dashboard "${name}"!`;
          break;
        }
+
+       case 'create_report': {
+         let { name, description, formId, chartConfig } = params;
+
+         if (typeof chartConfig === 'string') {
+           try { chartConfig = JSON.parse(chartConfig); } catch { chartConfig = null; }
+         }
+
+         let dashboardId: string | null = null;
+         const { data: existingDashboard } = await supabase
+           .from('dashboards')
+           .select('id')
+           .eq('project_id', projectId)
+           .eq('name', 'AI Builder Dashboard')
+           .maybeSingle();
+
+         if (existingDashboard?.id) {
+           dashboardId = existingDashboard.id;
+         } else {
+           const { data: newDashboard, error: newDashboardError } = await supabase
+             .from('dashboards')
+             .insert({
+               name: 'AI Builder Dashboard',
+               description: 'Reports created by AI Copilot',
+               project_id: projectId,
+               created_by: userId,
+               organization_id: organizationId,
+               layout: { widgets: [] },
+             })
+             .select()
+             .single();
+
+           if (newDashboardError) throw newDashboardError;
+           dashboardId = newDashboard.id;
+         }
+
+         const { data: report, error: reportError } = await supabase
+           .from('reports')
+           .insert({
+             name: name || 'New Report',
+             description: description || '',
+             project_id: projectId,
+             created_by: userId,
+             organization_id: organizationId,
+             dashboard_id: dashboardId,
+             is_public: true,
+           })
+           .select()
+           .single();
+
+         if (reportError) throw reportError;
+
+         if (chartConfig && formId) {
+           const isCompare = chartConfig.compareMode === true;
+           const finalConfig = {
+             ...chartConfig,
+             formId,
+             compareMode: isCompare,
+             aggregationEnabled: !isCompare && (chartConfig.aggregationEnabled !== false),
+             dimensions: isCompare ? [] : (chartConfig.dimensions || []),
+             metricAggregations: isCompare ? [] : (chartConfig.metricAggregations || []),
+             drilldownEnabled: chartConfig.drilldownConfig?.enabled || false,
+             drilldownLevels: chartConfig.drilldownConfig?.levels || [],
+           };
+           delete finalConfig.reasoning;
+
+           await supabase.from('report_components').insert({
+             report_id: report.id,
+             type: 'chart',
+             config: finalConfig,
+             layout: { x: 0, y: 0, w: 12, h: 8 },
+           });
+         }
+
+         result = { reportId: report.id, dashboardId, formId };
+         message = chartConfig
+           ? `Created report "${report.name}" with a chart!`
+           : `Created report "${report.name}"! Add a chart in the report editor.`;
+         break;
+       }
  
        case 'create_workflow': {
          let { name, description, triggerFormId, nodes: nodeDefinitions } = params;

@@ -350,7 +350,6 @@ export function useFormAI() {
     });
   }, [callAI]);
 
-  // NEW: Form Generation from natural language
   const generateForm = useCallback(async (
     userInput: string,
     options?: {
@@ -364,6 +363,20 @@ export function useFormAI() {
       industry: options?.industry
     });
   }, [callAI]);
+
+  const generateReportComponent = useCallback(async (
+    userInput: string,
+    options: {
+      formId: string;
+      formName: string;
+      fields: Array<{ id: string; label: string; type: string }>;
+    },
+  ) => callAI('generate-report-component', {
+    userInput,
+    selectedFormId: options.formId,
+    selectedFormName: options.formName,
+    availableFields: options.fields,
+  }), [callAI]);
 
   // NEW: Workflow Suggestions
   const suggestWorkflow = useCallback(async (
@@ -492,6 +505,7 @@ export function useFormAI() {
     generateFormula,
     // New AI capabilities
     generateForm,
+    generateReportComponent,
     suggestWorkflow,
     suggestFieldMappings,
     suggestCharts,
