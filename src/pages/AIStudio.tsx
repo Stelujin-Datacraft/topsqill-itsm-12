@@ -65,6 +65,8 @@ export default function AIStudio() {
   const submit = (text?: string) => {
     const value = (text ?? input).trim();
     if (!value || isLoading) return;
+    const dependsOnForm = /workflow|report|dashboard|sla|notification|email|knowledge|doc|polic/i.test(value);
+    if (dependsOnForm && availableForms.length > 0 && !selectedFormId && !text) return;
     setInput('');
     void sendPrompt(value, selectedFormId ? { formId: selectedFormId } : undefined);
   };
