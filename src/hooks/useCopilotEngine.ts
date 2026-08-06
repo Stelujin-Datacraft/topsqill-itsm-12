@@ -18,6 +18,7 @@ import {
   normalizeToolCalls,
   type CopilotToolCall,
 } from '@/lib/copilotUtils';
+import { createFormFromAiGeneration, type AiGeneratedFormSchema } from '@/lib/createFormFromAiGeneration';
 
 export interface CopilotMessage {
   id: string;
@@ -380,6 +381,40 @@ export function useCopilotEngine() {
     return params;
   }, [formsWithFields, generateReportComponent]);
 
+  /** Same path as Forms → Generate with AI (frontend API, not copilot edge action). */
+  const createClientFormFromPrompt = useCallback(async (
+    userPrompt: string,
+    seed?: { name?: string; description?: string },
+  ) => {
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser?.id) throw new Error('Not authenticated');
+    if (!activeProject?.id || !activeProject.organization_id) {
+      throw new Error('No project available. Create a project first, then try again.');
+    }
+    if (!hasPermission('forms', 'create')) {
+      throw new Error("You don't have permission to create forms in this project.");
+    }
+
+    const generated = await generateForm(userPrompt);
+    if (!generated?.fields?.length) {
+      throw new Error('AI could not generate form fields. Describe the fields you need and try again.');
+    }
+
+    const schema: AiGeneratedFormSchema = {
+      name: seed?.name || generated.name || 'New Form',
+      description: seed?.description || generated.description || '',
+      fields: generated.fields,
+      pages: generated.pages,
+      suggestedLayout: generated.suggestedLayout,
+    };
+
+    return createFormFromAiGeneration(schema, {
+      projectId: activeProject.id,
+      organizationId: activeProject.organization_id,
+      userId: authUser.id,
+    });
+  }, [activeProject?.id, activeProject?.organization_id, generateForm, hasPermission]);
+
   const enrichActionParams = useCallback(async (
     action: string,
     params: Record<string, any>,
@@ -429,13 +464,56 @@ export function useCopilotEngine() {
     setMessages((prev) => [...prev, assistantMessage]);
 
     try {
-      const params = await enrichActionParams(
-        action,
-        rawParams,
-        prompt,
-        formIdForEnrichment || rawParams.triggerFormId || rawParams.formId,
-      );
-      const actionResult = await executeCopilotAction(action, params);
+      let actionResult: { message?: string; result?: Record<string, unknown> };
+
+      if (action === 'create_form') {
+        const created = await createClientFormFromPrompt(prompt, {
+          name: rawParams.name,
+          description: rawParams.description,
+        });
+        actionResult = {
+          message: `Created form "${created.formName}" with ${created.pageCount} page(s) and ${created.fieldCount} field(s)!`,
+          result: {
+            formId: created.formId,
+            formName: created.formName,
+            pageCount: created.pageCount,
+            fieldCount: created.fieldCount,
+          },
+        };
+      } else if (action === 'create_form_with_workflow') {
+        const created = await createClientFormFromPrompt(prompt, {
+          name: rawParams.formName || rawParams.name,
+          description: rawParams.formDescription || rawParams.description,
+        });
+        const workflowParams = await enrichWorkflowParams(
+          'create_workflow',
+          {
+            name: rawParams.workflowName || `${created.formName} Workflow`,
+            description: rawParams.workflowDescription || `Workflow for ${created.formName}`,
+            nodes: rawParams.workflowNodes,
+            triggerFormId: created.formId,
+          },
+          prompt,
+          created.formId,
+        );
+        const wfResult = await executeCopilotAction('create_workflow', workflowParams);
+        actionResult = {
+          message: `Created form "${created.formName}" and workflow!`,
+          result: {
+            formId: created.formId,
+            formName: created.formName,
+            workflowId: (wfResult as { result?: { workflowId?: string } })?.result?.workflowId,
+          },
+        };
+      } else {
+        const params = await enrichActionParams(
+          action,
+          rawParams,
+          prompt,
+          formIdForEnrichment || rawParams.triggerFormId || rawParams.formId,
+        );
+        actionResult = await executeCopilotAction(action, params);
+      }
       setMessages((prev) => prev.map((m) => m.id === assistantMessage.id
         ? { ...m, action: { type: action, status: 'success' as const, result: actionResult } }
         : m));
@@ -476,7 +554,7 @@ export function useCopilotEngine() {
       toast.error('Action failed', { description: detail });
       throw err;
     }
-  }, [enrichActionParams, executeCopilotAction, loadContext]);
+  }, [createClientFormFromPrompt, enrichActionParams, enrichWorkflowParams, executeCopilotAction, loadContext]);
 
   const resolveFormParams = useCallback((
     action: string,
