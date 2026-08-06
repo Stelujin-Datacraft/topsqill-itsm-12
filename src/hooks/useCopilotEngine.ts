@@ -214,6 +214,30 @@ export function useCopilotEngine() {
     link_form_to_workflow: 'formId',
     link_form_to_sla: 'formId',
     create_dashboard: 'formId',
+    create_report: 'formId',
+    create_report_in_project: 'formId',
+    create_dashboard_in_project: 'formId',
+    create_workflow_in_project: 'triggerFormId',
+    create_knowledge_document: 'formId',
+    create_policy: 'formId',
+    create_policy_in_project: 'formId',
+    create_email_template: 'formId',
+    create_sla: 'formId',
+    create_sla_template: 'formId',
+    add_workflow_email_action: 'formId',
+  };
+
+  /**
+   * Anything that reads from or is triggered by form data needs a source form.
+   * Falls back to a name heuristic so new server-side action names stay covered.
+   */
+  const getFormParamKey = (action: string): string | null => {
+    if (FORM_ACTIONS.includes(action)) return null; // pure form creation only needs a project
+    if (FORM_REQUIRED_ACTIONS[action]) return FORM_REQUIRED_ACTIONS[action];
+    if (/workflow|report|dashboard|sla|email_template|policy|knowledge|doc/i.test(action)) {
+      return /workflow/i.test(action) ? 'triggerFormId' : 'formId';
+    }
+    return null;
   };
 
   const runToolCall = useCallback(async (action: string, rawParams: Record<string, any>, prompt: string, headline?: string) => {
