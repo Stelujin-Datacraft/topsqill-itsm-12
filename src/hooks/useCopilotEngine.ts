@@ -214,6 +214,30 @@ export function useCopilotEngine() {
     link_form_to_workflow: 'formId',
     link_form_to_sla: 'formId',
     create_dashboard: 'formId',
+    create_report: 'formId',
+    create_report_in_project: 'formId',
+    create_dashboard_in_project: 'formId',
+    create_workflow_in_project: 'triggerFormId',
+    create_knowledge_document: 'formId',
+    create_policy: 'formId',
+    create_policy_in_project: 'formId',
+    create_email_template: 'formId',
+    create_sla: 'formId',
+    create_sla_template: 'formId',
+    add_workflow_email_action: 'formId',
+  };
+
+  /**
+   * Anything that reads from or is triggered by form data needs a source form.
+   * Falls back to a name heuristic so new server-side action names stay covered.
+   */
+  const getFormParamKey = (action: string): string | null => {
+    if (FORM_ACTIONS.includes(action)) return null; // pure form creation only needs a project
+    if (FORM_REQUIRED_ACTIONS[action]) return FORM_REQUIRED_ACTIONS[action];
+    if (/workflow|report|dashboard|sla|email_template|policy|knowledge|doc/i.test(action)) {
+      return /workflow/i.test(action) ? 'triggerFormId' : 'formId';
+    }
+    return null;
   };
 
   const runToolCall = useCallback(async (action: string, rawParams: Record<string, any>, prompt: string, headline?: string) => {
@@ -272,7 +296,7 @@ export function useCopilotEngine() {
     setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, resolved: true } : m)));
     if (!pending || pending.messageId !== messageId) return;
     setPendingAction(null);
-    const key = FORM_REQUIRED_ACTIONS[pending.action] || 'formId';
+    const key = getFormParamKey(pending.action) || 'formId';
     void runToolCall(pending.action, { ...pending.params, [key]: formId }, pending.prompt);
   }, [pendingAction, runToolCall]);
 
@@ -318,7 +342,7 @@ export function useCopilotEngine() {
 
     if (toolCall && copilotEnabled) {
       const params: Record<string, any> = { ...(toolCall.params || {}) };
-      const formKey = FORM_REQUIRED_ACTIONS[toolCall.action];
+      const formKey = getFormParamKey(toolCall.action);
 
       if (formKey && !params[formKey]) {
         // 1) explicit selection from the UI
@@ -332,13 +356,23 @@ export function useCopilotEngine() {
         }
       }
 
-      if (formKey && !params[formKey] && formsWithFields.length > 0) {
+      if (formKey && !params[formKey] && formsWithFields.length === 0) {
+        setMessages((prev) => [...prev, {
+          id: `need-form-${Date.now()}`,
+          role: 'assistant',
+          content: `⚠️ **A form is required first.**\n\nA **${toolCall.action.replace(/_/g, ' ')}** reads from form data, but **${activeProject?.name || 'this project'}** has no forms yet.\n\nAsk me to create the form first (e.g. *"Create a form for …"*), then I can build this on top of it.`,
+          timestamp: new Date(),
+        }]);
+        return;
+      }
+
+      if (formKey && !params[formKey]) {
         const clarifyId = `clarify-${Date.now()}`;
         setPendingAction({ action: toolCall.action, params, prompt: trimmed, messageId: clarifyId });
         setMessages((prev) => [...prev, {
           id: clarifyId,
           role: 'assistant',
-          content: `Which form should this **${toolCall.action.replace(/_/g, ' ')}** use?`,
+          content: `Which form should this **${toolCall.action.replace(/_/g, ' ')}** use? Pick the source form to continue.`,
           timestamp: new Date(),
           choices: formsWithFields.slice(0, 12).map((f) => ({ label: f.name, value: f.id })),
         }]);
@@ -354,7 +388,7 @@ export function useCopilotEngine() {
         timestamp: new Date(),
       }]);
     }
-  }, [chatbotAssist, copilotEnabled, formsWithFields, isLoading, location.pathname, messages, reports, runToolCall, workflows]);
+  }, [activeProject?.name, chatbotAssist, copilotEnabled, formsWithFields, isLoading, location.pathname, messages, reports, runToolCall, workflows]);
 
   const clearChat = useCallback(() => setMessages([welcomeMessage()]), []);
 
