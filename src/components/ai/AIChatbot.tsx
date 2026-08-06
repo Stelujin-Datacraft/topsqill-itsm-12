@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import { Badge } from '@/components/ui/badge';
 import { useCopilotEngine } from '@/hooks/useCopilotEngine';
+import { CopilotFormPicker } from '@/components/ai/CopilotFormPicker';
 
 export function AIChatbot() {
   const [isOpen, setIsOpen] = useState(false);
@@ -17,7 +18,7 @@ export function AIChatbot() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const { messages, isLoading, sendPrompt, clearChat, copilotEnabled, setCopilotEnabled, appendMessage } = useCopilotEngine();
+  const { messages, isLoading, sendPrompt, clearChat, copilotEnabled, setCopilotEnabled, appendMessage, resolveFormChoice, availableForms } = useCopilotEngine();
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -159,20 +160,43 @@ export function AIChatbot() {
                     )}
                   >
                     {message.role === 'assistant' ? (
-                      <div className="prose prose-sm dark:prose-invert max-w-none">
-                        <ReactMarkdown
-                          components={{
-                            p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
-                            ul: ({ children }) => <ul className="list-disc list-inside mb-2">{children}</ul>,
-                            ol: ({ children }) => <ol className="list-decimal list-inside mb-2">{children}</ol>,
-                            li: ({ children }) => <li className="mb-1">{children}</li>,
-                            strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
-                            code: ({ children }) => <code className="bg-muted-foreground/20 px-1 rounded text-xs">{children}</code>,
-                            a: LinkRenderer,
-                          }}
-                        >
-                          {message.content}
-                        </ReactMarkdown>
+                      <div className="space-y-2">
+                        <div className="prose prose-sm dark:prose-invert max-w-none">
+                          <ReactMarkdown
+                            components={{
+                              p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                              ul: ({ children }) => <ul className="list-disc list-inside mb-2">{children}</ul>,
+                              ol: ({ children }) => <ol className="list-decimal list-inside mb-2">{children}</ol>,
+                              li: ({ children }) => <li className="mb-1">{children}</li>,
+                              strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+                              code: ({ children }) => <code className="bg-muted-foreground/20 px-1 rounded text-xs">{children}</code>,
+                              a: LinkRenderer,
+                            }}
+                          >
+                            {message.content}
+                          </ReactMarkdown>
+                        </div>
+                        {message.formPicker && !message.resolved && (
+                          <CopilotFormPicker
+                            forms={availableForms}
+                            onSelect={(formId) => resolveFormChoice(message.id, formId)}
+                            placeholder="Search and select a form…"
+                          />
+                        )}
+                        {message.choices && !message.resolved && !message.formPicker && (
+                          <div className="flex flex-wrap gap-1.5">
+                            {message.choices.map((choice) => (
+                              <button
+                                key={choice.value}
+                                type="button"
+                                onClick={() => resolveFormChoice(message.id, choice.value)}
+                                className="rounded-full border border-border/70 bg-background px-2.5 py-0.5 text-xs hover:bg-muted/60"
+                              >
+                                {choice.label}
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     ) : (
                       message.content

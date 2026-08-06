@@ -722,29 +722,26 @@ ${JSON.stringify(context.availableReports || [], null, 2)}
         const copilotChoice = copilotData.choices[0];
         const copilotMessage = copilotChoice?.message;
 
-        // Check if the AI wants to call a tool
+        // Check if the AI wants to call a tool (return all tool calls, not just the first)
         if (copilotMessage?.tool_calls && copilotMessage.tool_calls.length > 0) {
-          const toolCall = copilotMessage.tool_calls[0];
-          const functionName = toolCall.function?.name;
-          let functionArgs: any = {};
-          
-          try {
-            functionArgs = JSON.parse(toolCall.function?.arguments || '{}');
-          } catch (e) {
-            console.error('Failed to parse tool call arguments:', e);
-          }
+          const parsedToolCalls = copilotMessage.tool_calls.map((toolCall: any) => {
+            const functionName = toolCall.function?.name;
+            let functionArgs: any = {};
+            try {
+              functionArgs = JSON.parse(toolCall.function?.arguments || '{}');
+            } catch (e) {
+              console.error('Failed to parse tool call arguments:', e);
+            }
+            console.log(`AI tool call: ${functionName}`, functionArgs);
+            return { action: functionName, params: functionArgs };
+          });
 
-          console.log(`AI tool call: ${functionName}`, functionArgs);
-
-          // Return both the text content and the structured action
           return new Response(JSON.stringify({ 
             success: true, 
             result: { 
               message: copilotMessage.content || `I'll execute that for you now...`,
-              toolCall: {
-                action: functionName,
-                params: functionArgs
-              }
+              toolCall: parsedToolCalls[0],
+              toolCalls: parsedToolCalls,
             } 
           }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },

@@ -46,6 +46,10 @@ interface AIChatbotResult {
     action: string;
     params: Record<string, any>;
   };
+  toolCalls?: Array<{
+    action: string;
+    params: Record<string, any>;
+  }>;
 }
 
 interface AIFormulaResult {
@@ -191,18 +195,37 @@ export function useFormAI() {
       });
 
       if (fnError) {
-        throw new Error(fnError.message);
+        const msg = fnError.message || 'AI request failed';
+        if (/rate limit|429/i.test(msg)) {
+          throw new Error('AI rate limit exceeded. Please wait a moment and try again.');
+        }
+        if (/credits|402/i.test(msg)) {
+          throw new Error('AI credits exhausted. Please add credits to your workspace.');
+        }
+        throw new Error(msg);
+      }
+
+      if (!data) {
+        throw new Error('Empty response from AI service');
       }
 
       if (!data.success) {
-        throw new Error(data.error || 'AI request failed');
+        const serverError = data.error || 'AI request failed';
+        if (/rate limit/i.test(serverError)) {
+          throw new Error('AI rate limit exceeded. Please wait a moment and try again.');
+        }
+        if (/credits exhausted/i.test(serverError)) {
+          throw new Error('AI credits exhausted. Please add credits to your workspace.');
+        }
+        throw new Error(serverError);
       }
 
       return data.result;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'AI request failed';
       setError(message);
-      toast.error('AI Error', { description: message });
+      const isRateOrCredits = /rate limit|credits exhausted/i.test(message);
+      toast.error(isRateOrCredits ? 'AI temporarily unavailable' : 'AI Error', { description: message });
       return null;
     } finally {
       setIsLoading(false);

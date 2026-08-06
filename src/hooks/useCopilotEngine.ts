@@ -1,9 +1,21 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useFormAI } from '@/hooks/useFormAI';
 import { useProject } from '@/contexts/ProjectContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useLocation } from 'react-router-dom';
 import { backend as supabase } from '@/services/api';
+import { useUnifiedAccessControl } from '@/hooks/useUnifiedAccessControl';
 import { toast } from 'sonner';
+import {
+  ACTION_PERMISSIONS,
+  CONTEXT_REFRESH_ACTIONS,
+  FORM_CREATE_ACTIONS,
+  SUPPORTED_COPILOT_ACTIONS,
+  getChatStorageKey,
+  getFormParamKey,
+  normalizeToolCalls,
+  type CopilotToolCall,
+} from '@/lib/copilotUtils';
 
 export interface CopilotMessage {
   id: string;
@@ -17,6 +29,8 @@ export interface CopilotMessage {
   };
   /** Clarification chips the user can click (e.g. "which form?") */
   choices?: Array<{ label: string; value: string }>;
+  /** When true, render a searchable form picker instead of chip list */
+  formPicker?: boolean;
   resolved?: boolean;
 }
 
@@ -52,6 +66,28 @@ const welcomeMessage = (): CopilotMessage => ({
   timestamp: new Date(),
 });
 
+function serializeMessages(messages: CopilotMessage[]): string {
+  return JSON.stringify(
+    messages.map((m) => ({
+      ...m,
+      timestamp: m.timestamp.toISOString(),
+    })),
+  );
+}
+
+function deserializeMessages(raw: string): CopilotMessage[] | null {
+  try {
+    const parsed = JSON.parse(raw) as Array<Omit<CopilotMessage, 'timestamp'> & { timestamp: string }>;
+    if (!Array.isArray(parsed)) return null;
+    return parsed.map((m) => ({
+      ...m,
+      timestamp: new Date(m.timestamp),
+    }));
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Shared brain for the AI Copilot. Used by both the floating chatbot and the
  * full-page AI Studio so both surfaces create assets in exactly the same way.
@@ -64,102 +100,142 @@ export function useCopilotEngine() {
   const [copilotEnabled, setCopilotEnabled] = useState(true);
   const { chatbotAssist, generateForm, isLoading } = useFormAI();
   const { currentProject, projects, setCurrentProject } = useProject();
+  const { user } = useAuth();
   const location = useLocation();
+  const { hasPermission } = useUnifiedAccessControl();
   const [pendingAction, setPendingAction] = useState<{ action: string; params: Record<string, any>; prompt: string; messageId: string } | null>(null);
+  const chatHydratedRef = useRef(false);
 
-  // Fall back to the user's first (default) project so building works even when
-  // no project has been explicitly selected yet (e.g. straight after login).
   const activeProject = currentProject || projects[0] || null;
 
+  const loadContext = useCallback(async () => {
+    const projectId = activeProject?.id;
+    if (!projectId) return;
+    try {
+      const [workflowResult, reportResult, formsResult] = await Promise.all([
+        supabase.from('workflows').select('id, name, description').eq('project_id', projectId).eq('status', 'active').order('name'),
+        supabase.from('reports').select('id, name, description').eq('project_id', projectId).order('name'),
+        supabase.from('forms').select('id, name, description, form_fields(id, label, field_type, options, required)').eq('project_id', projectId).order('name'),
+      ]);
+
+      if (!workflowResult.error && workflowResult.data) {
+        const workflowData = workflowResult.data as Array<{ id: string; name: string; description?: string }>;
+        setWorkflows(workflowData.map((w) => ({ id: w.id, name: w.name, description: w.description || undefined })));
+      }
+
+      if (!reportResult.error && reportResult.data) {
+        const reportData = reportResult.data as Array<{ id: string; name: string; description?: string }>;
+        setReports(reportData.map((r) => ({ id: r.id, name: r.name, description: r.description || undefined })));
+      }
+
+      if (!formsResult.error && formsResult.data) {
+        const formsData = formsResult.data as Array<{
+          id: string; name: string; description?: string;
+          form_fields?: Array<{ id: string; label: string; field_type: string; options?: unknown; required?: boolean }>;
+        }>;
+        setFormsWithFields(formsData.map((f) => ({
+          id: f.id,
+          name: f.name,
+          description: f.description || undefined,
+          fields: (f.form_fields || []).map((field: any) => {
+            let parsedOptions: any[] = [];
+            if (field.options) {
+              try { parsedOptions = typeof field.options === 'string' ? JSON.parse(field.options) : field.options; } catch { parsedOptions = []; }
+            }
+            return {
+              id: field.id,
+              label: field.label,
+              type: field.field_type,
+              options: Array.isArray(parsedOptions) ? parsedOptions.map((o: any, idx: number) => ({
+                id: o.id || `opt-${idx}`,
+                value: o.value || o.label || '',
+                label: o.label || o.value || '',
+              })) : [],
+              required: field.required || false,
+            };
+          }),
+        })));
+      }
+    } catch (error) {
+      console.error('Error loading AI context data:', error);
+    }
+  }, [activeProject?.id]);
+
+  useEffect(() => {
+    void loadContext();
+  }, [loadContext]);
+
+  // Restore chat history per user + project
+  useEffect(() => {
+    chatHydratedRef.current = false;
+    if (!user?.id || !activeProject?.id) {
+      setMessages([welcomeMessage()]);
+      return;
+    }
+    try {
+      const stored = localStorage.getItem(getChatStorageKey(user.id, activeProject.id));
+      if (stored) {
+        const restored = deserializeMessages(stored);
+        if (restored && restored.length > 0) {
+          setMessages(restored);
+          chatHydratedRef.current = true;
+          return;
+        }
+      }
+    } catch {
+      /* storage unavailable */
+    }
+    setMessages([welcomeMessage()]);
+    chatHydratedRef.current = true;
+  }, [user?.id, activeProject?.id]);
+
+  // Persist chat history
+  useEffect(() => {
+    if (!chatHydratedRef.current || !user?.id || !activeProject?.id) return;
+    if (messages.length <= 1 && messages[0]?.id === 'welcome') return;
+    try {
+      localStorage.setItem(getChatStorageKey(user.id, activeProject.id), serializeMessages(messages));
+    } catch {
+      /* storage full or unavailable */
+    }
+  }, [messages, user?.id, activeProject?.id]);
+
   const executeCopilotAction = useCallback(async (action: string, params: Record<string, any>) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated');
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser) throw new Error('Not authenticated');
 
     if (!activeProject?.id) {
       throw new Error('No project available. Create a project first, then try again.');
+    }
+
+    if (!SUPPORTED_COPILOT_ACTIONS.has(action)) {
+      throw new Error(`Unsupported action "${action}". Try rephrasing or use the builder UI.`);
+    }
+
+    const perm = ACTION_PERMISSIONS[action];
+    if (perm && !hasPermission(perm.entity, perm.action)) {
+      throw new Error(`You don't have permission to ${perm.action} ${perm.entity} in this project.`);
     }
 
     const { data, error } = await supabase.functions.invoke('ai-copilot-action', {
       body: {
         action,
         params,
-        userId: user.id,
+        userId: authUser.id,
         projectId: activeProject.id,
         organizationId: activeProject.organization_id,
       },
     });
 
     if (error) throw error;
+    if (data && typeof data === 'object' && 'success' in data && data.success === false) {
+      throw new Error((data as { error?: string }).error || 'Action failed');
+    }
     return data;
-  }, [activeProject?.id, activeProject?.organization_id]);
+  }, [activeProject?.id, activeProject?.organization_id, hasPermission]);
 
-  useEffect(() => {
-    const loadData = async () => {
-      const projectId = activeProject?.id;
-      if (!projectId) return;
-      try {
-        const [workflowResult, reportResult, formsResult] = await Promise.all([
-          supabase.from('workflows').select('id, name, description').eq('project_id', projectId).eq('status', 'active').order('name'),
-          supabase.from('reports').select('id, name, description').eq('project_id', projectId).order('name'),
-          supabase.from('forms').select('id, name, description, form_fields(id, label, field_type, options, required)').eq('project_id', projectId).order('name'),
-        ]);
-
-        if (!workflowResult.error && workflowResult.data) {
-          const workflowData = workflowResult.data as Array<{ id: string; name: string; description?: string }>;
-          setWorkflows(workflowData.map((w) => ({ id: w.id, name: w.name, description: w.description || undefined })));
-        }
-
-        if (!reportResult.error && reportResult.data) {
-          const reportData = reportResult.data as Array<{ id: string; name: string; description?: string }>;
-          setReports(reportData.map((r) => ({ id: r.id, name: r.name, description: r.description || undefined })));
-        }
-
-        if (!formsResult.error && formsResult.data) {
-          const formsData = formsResult.data as Array<{
-            id: string; name: string; description?: string;
-            form_fields?: Array<{ id: string; label: string; field_type: string; options?: unknown; required?: boolean }>;
-          }>;
-          setFormsWithFields(formsData.map((f) => ({
-            id: f.id,
-            name: f.name,
-            description: f.description || undefined,
-            fields: (f.form_fields || []).map((field: any) => {
-              let parsedOptions: any[] = [];
-              if (field.options) {
-                try { parsedOptions = typeof field.options === 'string' ? JSON.parse(field.options) : field.options; } catch { parsedOptions = []; }
-              }
-              return {
-                id: field.id,
-                label: field.label,
-                type: field.field_type,
-                options: Array.isArray(parsedOptions) ? parsedOptions.map((o: any, idx: number) => ({
-                  id: o.id || `opt-${idx}`,
-                  value: o.value || o.label || '',
-                  label: o.label || o.value || '',
-                })) : [],
-                required: field.required || false,
-              };
-            }),
-          })));
-        }
-      } catch (error) {
-        console.error('Error loading AI context data:', error);
-      }
-    };
-
-    loadData();
-  }, [activeProject?.id]);
-
-  const FORM_ACTIONS = ['create_form', 'create_form_with_workflow', 'create_form_with_sla', 'create_form_with_email_template'];
-
-  /**
-   * The chat model often returns a thin field list. For any form-creating action we
-   * regenerate a complete schema with the dedicated form-generation model (same one
-   * used by the Form Builder's "Generate Form with AI") so the created form is fully
-   * built out: field types, options, placeholders, tooltips and pages.
-   */
   const enrichFormParams = useCallback(async (action: string, params: Record<string, any>, userPrompt: string) => {
-    if (!FORM_ACTIONS.includes(action)) return params;
+    if (!FORM_CREATE_ACTIONS.has(action)) return params;
 
     let fields = params.fields;
     if (typeof fields === 'string') {
@@ -183,6 +259,10 @@ export function useCopilotEngine() {
         return next;
       }
     } catch (e) {
+      const msg = e instanceof Error ? e.message : '';
+      if (/rate limit|credits exhausted|429|402/i.test(msg)) {
+        throw e;
+      }
       console.error('Form schema enrichment failed, using original fields:', e);
     }
 
@@ -208,41 +288,14 @@ export function useCopilotEngine() {
     return null;
   };
 
-  /** Actions that need an existing form; maps action -> the param carrying the form id */
-  const FORM_REQUIRED_ACTIONS: Record<string, string> = {
-    create_workflow: 'triggerFormId',
-    link_form_to_workflow: 'formId',
-    link_form_to_sla: 'formId',
-    create_dashboard: 'formId',
-    create_report: 'formId',
-    create_report_in_project: 'formId',
-    create_dashboard_in_project: 'formId',
-    create_workflow_in_project: 'triggerFormId',
-    create_knowledge_document: 'formId',
-    create_policy: 'formId',
-    create_policy_in_project: 'formId',
-    create_email_template: 'formId',
-    create_sla: 'formId',
-    create_sla_template: 'formId',
-    add_workflow_email_action: 'formId',
-  };
-
-  /**
-   * Anything that reads from or is triggered by form data needs a source form.
-   * Falls back to a name heuristic so new server-side action names stay covered.
-   */
-  const getFormParamKey = (action: string): string | null => {
-    if (FORM_ACTIONS.includes(action)) return null; // pure form creation only needs a project
-    if (FORM_REQUIRED_ACTIONS[action]) return FORM_REQUIRED_ACTIONS[action];
-    if (/workflow|report|dashboard|sla|email_template|policy|knowledge|doc/i.test(action)) {
-      return /workflow/i.test(action) ? 'triggerFormId' : 'formId';
-    }
-    return null;
-  };
-
-  const runToolCall = useCallback(async (action: string, rawParams: Record<string, any>, prompt: string, headline?: string) => {
+  const runToolCall = useCallback(async (
+    action: string,
+    rawParams: Record<string, any>,
+    prompt: string,
+    headline?: string,
+  ) => {
     const assistantMessage: CopilotMessage = {
-      id: `assistant-${Date.now()}`,
+      id: `assistant-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       role: 'assistant',
       content: headline || `Executing **${action.replace(/_/g, ' ')}**...`,
       timestamp: new Date(),
@@ -266,6 +319,10 @@ export function useCopilotEngine() {
 
       toast.success('Action completed', { description: actionResult?.message });
 
+      if (CONTEXT_REFRESH_ACTIONS.has(action)) {
+        await loadContext();
+      }
+
       const nav = buildNavMessage(actionResult?.result);
       if (nav) {
         setMessages((prev) => [...prev, {
@@ -287,10 +344,85 @@ export function useCopilotEngine() {
         timestamp: new Date(),
       }]);
       toast.error('Action failed', { description: detail });
+      throw err;
     }
-  }, [enrichFormParams, executeCopilotAction]);
+  }, [enrichFormParams, executeCopilotAction, loadContext]);
 
-  /** Answer an in-chat "which form?" clarification */
+  const resolveFormParams = useCallback((
+    action: string,
+    params: Record<string, any>,
+    trimmed: string,
+    formIdOverride?: string,
+  ): Record<string, any> | 'needs-clarification' | 'no-forms' => {
+    const formKey = getFormParamKey(action);
+    if (!formKey) return params;
+
+    if (!params[formKey]) {
+      if (formIdOverride) {
+        params[formKey] = formIdOverride;
+      } else {
+        const lower = trimmed.toLowerCase();
+        const match = formsWithFields.find((f) => f.name && lower.includes(f.name.toLowerCase()));
+        if (match) params[formKey] = match.id;
+      }
+    }
+
+    if (!params[formKey] && formsWithFields.length === 0) return 'no-forms';
+    if (!params[formKey]) return 'needs-clarification';
+    return params;
+  }, [formsWithFields]);
+
+  const processToolCalls = useCallback(async (
+    toolCalls: CopilotToolCall[],
+    trimmed: string,
+    messageContent: string,
+    formIdOverride?: string,
+  ) => {
+    const normalized = normalizeToolCalls(toolCalls, trimmed);
+    if (normalized.length === 0) {
+      setMessages((prev) => [...prev, {
+        id: `unsupported-${Date.now()}`,
+        role: 'assistant',
+        content: "⚠️ I understood your request but couldn't map it to a supported build action. Try being more specific, or use **AI Builder** suggestions.",
+        timestamp: new Date(),
+      }]);
+      return;
+    }
+
+    for (let i = 0; i < normalized.length; i++) {
+      const { action, params: rawParams } = normalized[i];
+      const params: Record<string, any> = { ...(rawParams || {}) };
+      const resolved = resolveFormParams(action, params, trimmed, formIdOverride);
+
+      if (resolved === 'no-forms') {
+        setMessages((prev) => [...prev, {
+          id: `need-form-${Date.now()}`,
+          role: 'assistant',
+          content: `⚠️ **A form is required first.**\n\nA **${action.replace(/_/g, ' ')}** reads from form data, but **${activeProject?.name || 'this project'}** has no forms yet.\n\nAsk me to create the form first (e.g. *"Create a form for …"*), then I can build this on top of it.`,
+          timestamp: new Date(),
+        }]);
+        return;
+      }
+
+      if (resolved === 'needs-clarification') {
+        const clarifyId = `clarify-${Date.now()}`;
+        setPendingAction({ action, params, prompt: trimmed, messageId: clarifyId });
+        setMessages((prev) => [...prev, {
+          id: clarifyId,
+          role: 'assistant',
+          content: `Which form should this **${action.replace(/_/g, ' ')}** use? Pick the source form to continue.`,
+          timestamp: new Date(),
+          formPicker: true,
+          choices: formsWithFields.map((f) => ({ label: f.name, value: f.id })),
+        }]);
+        return;
+      }
+
+      const headline = i === 0 ? messageContent : `Continuing with **${action.replace(/_/g, ' ')}**…`;
+      await runToolCall(action, resolved, trimmed, headline);
+    }
+  }, [activeProject?.name, formsWithFields, resolveFormParams, runToolCall]);
+
   const resolveFormChoice = useCallback((messageId: string, formId: string) => {
     const pending = pendingAction;
     setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, resolved: true } : m)));
@@ -338,48 +470,15 @@ export function useCopilotEngine() {
       return;
     }
 
-    const { message: messageContent, toolCall } = result;
+    const { message: messageContent, toolCall, toolCalls } = result;
 
-    if (toolCall && copilotEnabled) {
-      const params: Record<string, any> = { ...(toolCall.params || {}) };
-      const formKey = getFormParamKey(toolCall.action);
-
-      if (formKey && !params[formKey]) {
-        // 1) explicit selection from the UI
-        if (options?.formId) {
-          params[formKey] = options.formId;
-        } else {
-          // 2) try to auto-resolve a form named in the prompt
-          const lower = trimmed.toLowerCase();
-          const match = formsWithFields.find((f) => f.name && lower.includes(f.name.toLowerCase()));
-          if (match) params[formKey] = match.id;
-        }
-      }
-
-      if (formKey && !params[formKey] && formsWithFields.length === 0) {
-        setMessages((prev) => [...prev, {
-          id: `need-form-${Date.now()}`,
-          role: 'assistant',
-          content: `⚠️ **A form is required first.**\n\nA **${toolCall.action.replace(/_/g, ' ')}** reads from form data, but **${activeProject?.name || 'this project'}** has no forms yet.\n\nAsk me to create the form first (e.g. *"Create a form for …"*), then I can build this on top of it.`,
-          timestamp: new Date(),
-        }]);
-        return;
-      }
-
-      if (formKey && !params[formKey]) {
-        const clarifyId = `clarify-${Date.now()}`;
-        setPendingAction({ action: toolCall.action, params, prompt: trimmed, messageId: clarifyId });
-        setMessages((prev) => [...prev, {
-          id: clarifyId,
-          role: 'assistant',
-          content: `Which form should this **${toolCall.action.replace(/_/g, ' ')}** use? Pick the source form to continue.`,
-          timestamp: new Date(),
-          choices: formsWithFields.slice(0, 12).map((f) => ({ label: f.name, value: f.id })),
-        }]);
-        return;
-      }
-
-      await runToolCall(toolCall.action, params, trimmed, messageContent);
+    if (copilotEnabled && (toolCalls?.length || toolCall)) {
+      const calls: CopilotToolCall[] = toolCalls?.length
+        ? toolCalls
+        : toolCall
+          ? [{ action: toolCall.action, params: toolCall.params }]
+          : [];
+      await processToolCalls(calls, trimmed, messageContent, options?.formId);
     } else {
       setMessages((prev) => [...prev, {
         id: `assistant-${Date.now()}`,
@@ -388,9 +487,18 @@ export function useCopilotEngine() {
         timestamp: new Date(),
       }]);
     }
-  }, [activeProject?.name, chatbotAssist, copilotEnabled, formsWithFields, isLoading, location.pathname, messages, reports, runToolCall, workflows]);
+  }, [chatbotAssist, copilotEnabled, formsWithFields, isLoading, location.pathname, messages, processToolCalls, reports, workflows]);
 
-  const clearChat = useCallback(() => setMessages([welcomeMessage()]), []);
+  const clearChat = useCallback(() => {
+    setMessages([welcomeMessage()]);
+    if (user?.id && activeProject?.id) {
+      try {
+        localStorage.removeItem(getChatStorageKey(user.id, activeProject.id));
+      } catch {
+        /* ignore */
+      }
+    }
+  }, [user?.id, activeProject?.id]);
 
   const appendMessage = useCallback((message: CopilotMessage) => {
     setMessages((prev) => [...prev, message]);
@@ -409,6 +517,7 @@ export function useCopilotEngine() {
     clearChat,
     appendMessage,
     resolveFormChoice,
+    reloadContext: loadContext,
     hasConversation: messages.some((m) => m.id !== 'welcome'),
   };
 }
