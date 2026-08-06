@@ -8,6 +8,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { useCopilotEngine } from '@/hooks/useCopilotEngine';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { CopilotFormPicker } from '@/components/ai/CopilotFormPicker';
+import { promptNeedsExistingForm } from '@/lib/copilotUtils';
 import {
   ArrowUp, Loader2, FileText, Workflow, BarChart3, BookOpen,
   Zap, CheckCircle2, AlertTriangle, Sparkle, RotateCcw,
@@ -65,7 +67,7 @@ export default function AIStudio() {
   const submit = (text?: string) => {
     const value = (text ?? input).trim();
     if (!value || isLoading) return;
-    const dependsOnForm = /workflow|report|dashboard|sla|notification|email|knowledge|doc|polic/i.test(value);
+    const dependsOnForm = promptNeedsExistingForm(value);
     if (dependsOnForm && availableForms.length > 0 && !selectedFormId && !text) return;
     setInput('');
     void sendPrompt(value, selectedFormId ? { formId: selectedFormId } : undefined);
@@ -82,7 +84,7 @@ export default function AIStudio() {
     return <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary underline">{children}</a>;
   };
 
-  const needsForm = /workflow|report|dashboard|sla|notification|email|knowledge|doc|polic/i.test(input);
+  const needsForm = promptNeedsExistingForm(input);
   const formMissing = needsForm && availableForms.length === 0;
   const formRequired = needsForm && availableForms.length > 0 && !selectedFormId;
 
@@ -107,16 +109,13 @@ export default function AIStudio() {
           </SelectContent>
         </Select>
         {needsForm && availableForms.length > 0 && (
-          <Select value={selectedFormId} onValueChange={(v) => setSelectedFormId(v)}>
-            <SelectTrigger className={cn('h-8 w-[210px] text-xs', formRequired && 'border-destructive text-destructive')}>
-              <SelectValue placeholder="Select source form (required)" />
-            </SelectTrigger>
-            <SelectContent>
-              {availableForms.map((f) => (
-                <SelectItem key={f.id} value={f.id} className="text-xs">{f.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <CopilotFormPicker
+            forms={availableForms}
+            onSelect={setSelectedFormId}
+            selectedId={selectedFormId || undefined}
+            placeholder="Select source form (required)"
+            className={cn('w-[210px]', formRequired && 'border-destructive text-destructive')}
+          />
         )}
         {formMissing && (
           <span className="text-xs text-destructive">
@@ -243,7 +242,13 @@ export default function AIStudio() {
                           {message.content}
                         </ReactMarkdown>
                       </div>
-                      {message.choices && !message.resolved && (
+                      {message.formPicker && !message.resolved ? (
+                        <CopilotFormPicker
+                          forms={availableForms}
+                          onSelect={(formId) => resolveFormChoice(message.id, formId)}
+                          placeholder="Search and select a form…"
+                        />
+                      ) : message.choices && !message.resolved ? (
                         <div className="flex flex-wrap gap-2 pt-1">
                           {message.choices.map((choice) => (
                             <button
@@ -256,7 +261,7 @@ export default function AIStudio() {
                             </button>
                           ))}
                         </div>
-                      )}
+                      ) : null}
                     </div>
                   )}
                 </div>
