@@ -15,6 +15,9 @@ export interface CopilotMessage {
     status: 'pending' | 'executing' | 'success' | 'error';
     result?: any;
   };
+  /** Clarification chips the user can click (e.g. "which form?") */
+  choices?: Array<{ label: string; value: string }>;
+  resolved?: boolean;
 }
 
 interface WorkflowInfo { id: string; name: string; description?: string }
@@ -60,8 +63,9 @@ export function useCopilotEngine() {
   const [formsWithFields, setFormsWithFields] = useState<FormWithFields[]>([]);
   const [copilotEnabled, setCopilotEnabled] = useState(true);
   const { chatbotAssist, generateForm, isLoading } = useFormAI();
-  const { currentProject, projects } = useProject();
+  const { currentProject, projects, setCurrentProject } = useProject();
   const location = useLocation();
+  const [pendingAction, setPendingAction] = useState<{ action: string; params: Record<string, any>; prompt: string; messageId: string } | null>(null);
 
   // Fall back to the user's first (default) project so building works even when
   // no project has been explicitly selected yet (e.g. straight after login).
