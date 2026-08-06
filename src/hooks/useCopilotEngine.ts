@@ -229,8 +229,13 @@ export function useCopilotEngine() {
       },
     });
 
-    if (error) throw error;
-    if (data && typeof data === 'object' && 'success' in data && data.success === false) {
+    if (error) {
+      throw new Error(error.message || 'Action failed');
+    }
+    if (!data) {
+      throw new Error('Empty response from server');
+    }
+    if (typeof data === 'object' && 'success' in data && (data as { success?: boolean }).success === false) {
       throw new Error((data as { error?: string }).error || 'Action failed');
     }
     return data;
@@ -243,22 +248,26 @@ export function useCopilotEngine() {
     if (typeof fields === 'string') {
       try { fields = JSON.parse(fields); } catch { fields = []; }
     }
-    const currentCount = Array.isArray(fields) ? fields.length : 0;
+    const currentFields = Array.isArray(fields) ? fields : [];
+    const fieldsLookComplete = currentFields.length >= 2
+      && currentFields.every((f) => f?.label && f?.type);
 
     try {
-      const generated = await generateForm(userPrompt);
-      const genFields = Array.isArray(generated?.fields) ? generated!.fields : [];
-      if (genFields.length > currentCount) {
-        const next: Record<string, any> = { ...params, fields: genFields };
-        if (action === 'create_form') {
-          if (Array.isArray(generated?.pages) && generated!.pages.length > 0) next.pages = generated!.pages;
-          if (!next.name && generated?.name) next.name = generated.name;
-          if (!next.description && generated?.description) next.description = generated.description;
-        } else {
-          if (!next.formName && generated?.name) next.formName = generated.name;
-          if (!next.formDescription && generated?.description) next.formDescription = generated.description;
+      if (action === 'create_form' || !fieldsLookComplete) {
+        const generated = await generateForm(userPrompt);
+        const genFields = Array.isArray(generated?.fields) ? generated!.fields : [];
+        if (genFields.length > 0) {
+          const next: Record<string, any> = { ...params, fields: genFields };
+          if (action === 'create_form') {
+            if (Array.isArray(generated?.pages) && generated!.pages.length > 0) next.pages = generated!.pages;
+            if (!next.name && generated?.name) next.name = generated.name;
+            if (!next.description && generated?.description) next.description = generated.description;
+          } else {
+            if (!next.formName && generated?.name) next.formName = generated.name;
+            if (!next.formDescription && generated?.description) next.formDescription = generated.description;
+          }
+          return next;
         }
-        return next;
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : '';
@@ -268,7 +277,7 @@ export function useCopilotEngine() {
       console.error('Form schema enrichment failed, using original fields:', e);
     }
 
-    return { ...params, fields: Array.isArray(fields) ? fields : [] };
+    return { ...params, fields: currentFields };
   }, [generateForm]);
 
   const enrichWorkflowParams = useCallback(async (
@@ -386,17 +395,17 @@ export function useCopilotEngine() {
   const buildNavMessage = (result: any): string | null => {
     if (!result) return null;
     if (result.formId && result.workflowId) {
-      return `🎉 **Created both!**\n\n• [Open the form](/form-edit/${result.formId})\n• [Open the workflow](/workflow-builder/${result.workflowId})`;
+      return `🎉 **Created both!**\n\n• [Open the form](/form-builder/${result.formId})\n• [Open the workflow](/workflow-designer/${result.workflowId})`;
     }
     if (result.formId && result.slaTemplateId) {
-      return `🎉 **Form with SLA tracking created!**\n\n• [Open the form](/form-edit/${result.formId})\n• [View SLA Management](/sla-management)`;
+      return `🎉 **Form with SLA tracking created!**\n\n• [Open the form](/form-builder/${result.formId})\n• [View SLA Management](/sla-management)`;
     }
     if (result.formId && result.emailTemplateId) {
-      return `🎉 **Form with email notifications created!**\n\n• [Open the form](/form-edit/${result.formId})\n• [View Email Templates](/email-templates)`;
+      return `🎉 **Form with email notifications created!**\n\n• [Open the form](/form-builder/${result.formId})\n• [View Email Templates](/email-templates)`;
     }
-    if (result.formId) return `Would you like to [open the form](/form-edit/${result.formId})?`;
-    if (result.workflowId && result.nodeId) return `✅ **Email action added!**\n\n• [Open the workflow](/workflow-builder/${result.workflowId})`;
-    if (result.workflowId) return `Would you like to [open the workflow](/workflow-builder/${result.workflowId})?`;
+    if (result.formId) return `Would you like to [open the form](/form-builder/${result.formId})?`;
+    if (result.workflowId && result.nodeId) return `✅ **Email action added!**\n\n• [Open the workflow](/workflow-designer/${result.workflowId})`;
+    if (result.workflowId) return `Would you like to [open the workflow](/workflow-designer/${result.workflowId})?`;
     if (result.dashboardId) return `Would you like to [open the dashboard](/dashboard-view/${result.dashboardId})?`;
     if (result.reportId) return `Would you like to [open the report](/report-editor/${result.reportId})?`;
     if (result.slaTemplateId) return `✅ **SLA tracking configured!**\n\n• [View SLA Management](/sla-management)`;
@@ -457,7 +466,7 @@ export function useCopilotEngine() {
       setMessages((prev) => prev.map((m) => m.id === assistantMessage.id
         ? { ...m, action: { type: action, status: 'error' as const } }
         : m));
-      const detail = err instanceof Error ? err.message : 'Unknown error';
+      const detail = err instanceof Error ? err.message : (err && typeof err === 'object' && 'message' in err ? String((err as { message: unknown }).message) : 'Unknown error');
       setMessages((prev) => [...prev, {
         id: `error-${Date.now()}`,
         role: 'assistant',

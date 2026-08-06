@@ -447,7 +447,7 @@ ${JSON.stringify(context.availableReports || [], null, 2)}
                     }
                   }
                 },
-                required: ["name", "description"]
+                required: ["name", "description", "triggerFormId"]
               }
             }
           },

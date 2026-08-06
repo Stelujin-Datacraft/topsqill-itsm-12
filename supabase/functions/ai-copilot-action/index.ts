@@ -1,5 +1,6 @@
  import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
  import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+ import { getActionErrorMessage, insertAiGeneratedFormFields } from "../_shared/copilot-helpers.ts";
  
  const corsHeaders = {
    'Access-Control-Allow-Origin': '*',
@@ -34,48 +35,7 @@
      switch (action) {
        case 'create_form': {
          let { name, description, fields, pages } = params;
-         
-         // Parse fields if it's a string (from AI response)
-         if (typeof fields === 'string') {
-           try {
-             fields = JSON.parse(fields);
-           } catch (e) {
-             console.error('Failed to parse fields JSON:', e);
-             throw new Error('Invalid fields format');
-           }
-         }
-         
-         // Parse pages if string
-         if (typeof pages === 'string') {
-           try { pages = JSON.parse(pages); } catch { pages = null; }
-         }
-         
-         // Ensure fields is an array
-         if (!Array.isArray(fields)) {
-           fields = [];
-         }
-         
-         // Build pages metadata
-         const formPages = Array.isArray(pages) && pages.length > 0
-           ? pages.map((p: any, idx: number) => ({
-               id: `page-${idx + 1}`,
-               name: p.name || `Page ${idx + 1}`,
-               order: idx,
-               fields: []
-             }))
-           : [{ id: 'default', name: 'Page 1', order: 0, fields: [] }];
 
-         // Build field-to-page mapping
-         const fieldPageMap: Record<number, string> = {};
-         if (Array.isArray(pages) && pages.length > 0) {
-           pages.forEach((p: any, pageIdx: number) => {
-             (p.fieldIndexes || []).forEach((fieldIdx: number) => {
-               fieldPageMap[fieldIdx] = `page-${pageIdx + 1}`;
-             });
-           });
-         }
-         
-         // Create form
          const { data: form, error: formError } = await supabase
            .from('forms')
            .insert({
@@ -85,32 +45,22 @@
              created_by: userId,
              status: 'draft',
              organization_id: organizationId,
-             pages: formPages
+             pages: [{ id: 'default', name: 'Page 1', order: 0, fields: [] }],
            })
            .select()
            .single();
- 
-         if (formError) throw formError;
- 
-         // Create fields with page assignment
-         if (fields && fields.length > 0) {
-           const formFields = fields.map((f: any, idx: number) => ({
-             form_id: form.id,
-             field_type: f.type || 'text',
-             label: f.label,
-             placeholder: f.placeholder,
-             required: f.required || false,
-             field_order: idx + 1,
-             options: f.options ? JSON.stringify(f.options) : null,
-             tooltip: f.tooltip,
-             page_id: fieldPageMap[idx] || formPages[0]?.id || 'default'
-           }));
- 
-           await supabase.from('form_fields').insert(formFields);
-         }
- 
-         result = { formId: form.id, formName: form.name, pageCount: formPages.length };
-         message = `Created form "${name}" with ${formPages.length} page(s) successfully!`;
+
+         if (formError) throw new Error(getActionErrorMessage(formError));
+
+         const { fieldCount, pageCount } = await insertAiGeneratedFormFields(
+           supabase,
+           form.id,
+           fields,
+           pages,
+         );
+
+         result = { formId: form.id, formName: form.name, pageCount, fieldCount };
+         message = `Created form "${name}" with ${pageCount} page(s) and ${fieldCount} field(s)!`;
          break;
        }
  
@@ -246,7 +196,7 @@
            .select()
            .single();
 
-         if (reportError) throw reportError;
+         if (reportError) throw new Error(getActionErrorMessage(reportError));
 
          if (chartConfig && formId) {
            const isCompare = chartConfig.compareMode === true;
@@ -262,12 +212,15 @@
            };
            delete finalConfig.reasoning;
 
-           await supabase.from('report_components').insert({
+           const { error: componentError } = await supabase.from('report_components').insert({
              report_id: report.id,
              type: 'chart',
              config: finalConfig,
              layout: { x: 0, y: 0, w: 12, h: 8 },
            });
+           if (componentError) {
+             throw new Error(`Failed to create report chart: ${componentError.message}`);
+           }
          }
 
          result = { reportId: report.id, dashboardId, formId };
@@ -421,17 +374,7 @@
          
          // 2. Create form fields
          if (fields.length > 0) {
-           const formFields = fields.map((f: any, idx: number) => ({
-             form_id: form.id,
-             field_type: f.type || 'text',
-             label: f.label,
-             placeholder: f.placeholder,
-             required: f.required || false,
-             field_order: idx + 1,
-             options: f.options ? JSON.stringify(f.options) : null,
-             tooltip: f.tooltip
-           }));
-           await supabase.from('form_fields').insert(formFields);
+           await insertAiGeneratedFormFields(supabase, form.id, fields, params.pages);
          }
          
          // 3. Create the workflow
@@ -1425,7 +1368,7 @@
      console.error('AI Copilot action error:', error);
      return new Response(JSON.stringify({
        success: false,
-       error: error instanceof Error ? error.message : 'Unknown error'
+       error: getActionErrorMessage(error)
      }), {
        status: 500,
        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
