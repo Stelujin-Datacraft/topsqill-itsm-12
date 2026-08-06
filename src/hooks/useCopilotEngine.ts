@@ -10,6 +10,8 @@ import {
   ACTION_PERMISSIONS,
   CONTEXT_REFRESH_ACTIONS,
   FORM_CREATE_ACTIONS,
+  WORKFLOW_CREATE_ACTIONS,
+  mapSuggestedWorkflowNodes,
   SUPPORTED_COPILOT_ACTIONS,
   getChatStorageKey,
   getFormParamKey,
@@ -98,7 +100,7 @@ export function useCopilotEngine() {
   const [reports, setReports] = useState<ReportInfo[]>([]);
   const [formsWithFields, setFormsWithFields] = useState<FormWithFields[]>([]);
   const [copilotEnabled, setCopilotEnabled] = useState(true);
-  const { chatbotAssist, generateForm, isLoading } = useFormAI();
+  const { chatbotAssist, generateForm, suggestWorkflow, generateReportComponent, isLoading } = useFormAI();
   const { currentProject, projects, setCurrentProject } = useProject();
   const { user } = useAuth();
   const location = useLocation();
@@ -269,6 +271,118 @@ export function useCopilotEngine() {
     return { ...params, fields: Array.isArray(fields) ? fields : [] };
   }, [generateForm]);
 
+  const enrichWorkflowParams = useCallback(async (
+    action: string,
+    params: Record<string, any>,
+    userPrompt: string,
+    triggerFormId?: string,
+  ) => {
+    if (!WORKFLOW_CREATE_ACTIONS.has(action)) return params;
+
+    const nodesKey = action === 'create_form_with_workflow' ? 'workflowNodes' : 'nodes';
+    let nodes = params[nodesKey];
+    if (typeof nodes === 'string') {
+      try { nodes = JSON.parse(nodes); } catch { nodes = []; }
+    }
+    const nodeCount = Array.isArray(nodes) ? nodes.length : 0;
+    if (nodeCount >= 2) return params;
+
+    const resolvedFormId = triggerFormId || params.triggerFormId || params.formId;
+    const triggerForm = resolvedFormId
+      ? formsWithFields.find((f) => f.id === resolvedFormId)
+      : undefined;
+
+    const syntheticTrigger = action === 'create_form_with_workflow' && !triggerForm
+      ? {
+          id: 'pending',
+          name: params.formName || params.name || 'New Form',
+          fields: (Array.isArray(params.fields) ? params.fields : []).map((f: any, idx: number) => ({
+            id: f.id || `field_${idx}`,
+            label: f.label,
+            type: f.type || 'text',
+            options: f.options,
+          })),
+        }
+      : triggerForm
+        ? { id: triggerForm.id, name: triggerForm.name, fields: triggerForm.fields }
+        : undefined;
+
+    try {
+      const suggested = await suggestWorkflow(userPrompt, {
+        triggerForm: syntheticTrigger,
+      });
+      if (suggested?.nodes?.length) {
+        const mappedNodes = mapSuggestedWorkflowNodes(suggested.nodes);
+        return {
+          ...params,
+          [nodesKey]: mappedNodes,
+          name: params.name || suggested.name,
+          description: params.description || suggested.description,
+          workflowName: params.workflowName || suggested.name,
+          workflowDescription: params.workflowDescription || suggested.description,
+          triggerFormId: params.triggerFormId || resolvedFormId,
+        };
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : '';
+      if (/rate limit|credits exhausted|429|402/i.test(msg)) throw e;
+      console.error('Workflow enrichment failed, using original nodes:', e);
+    }
+
+    return params;
+  }, [formsWithFields, suggestWorkflow]);
+
+  const enrichReportParams = useCallback(async (
+    action: string,
+    params: Record<string, any>,
+    userPrompt: string,
+    formId?: string,
+  ) => {
+    if (action !== 'create_report') return params;
+    if (params.chartConfig) return params;
+
+    const resolvedFormId = formId || params.formId;
+    if (!resolvedFormId) return params;
+
+    const form = formsWithFields.find((f) => f.id === resolvedFormId);
+    if (!form) return params;
+
+    try {
+      const chartConfig = await generateReportComponent(userPrompt, {
+        formId: form.id,
+        formName: form.name,
+        fields: form.fields.map((f) => ({ id: f.id, label: f.label, type: f.type })),
+      });
+      if (chartConfig) {
+        return {
+          ...params,
+          formId: resolvedFormId,
+          name: params.name || chartConfig.title,
+          description: params.description || chartConfig.description,
+          chartConfig,
+        };
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : '';
+      if (/rate limit|credits exhausted|429|402/i.test(msg)) throw e;
+      console.error('Report enrichment failed:', e);
+    }
+
+    return params;
+  }, [formsWithFields, generateReportComponent]);
+
+  const enrichActionParams = useCallback(async (
+    action: string,
+    params: Record<string, any>,
+    userPrompt: string,
+    formId?: string,
+  ) => {
+    let next = await enrichFormParams(action, params, userPrompt);
+    next = await enrichWorkflowParams(action, next, userPrompt, formId || next.triggerFormId || next.formId);
+    next = await enrichReportParams(action, next, userPrompt, formId || next.formId || next.triggerFormId);
+    return next;
+  }, [enrichFormParams, enrichReportParams, enrichWorkflowParams]);
+
   const buildNavMessage = (result: any): string | null => {
     if (!result) return null;
     if (result.formId && result.workflowId) {
@@ -284,6 +398,7 @@ export function useCopilotEngine() {
     if (result.workflowId && result.nodeId) return `✅ **Email action added!**\n\n• [Open the workflow](/workflow-builder/${result.workflowId})`;
     if (result.workflowId) return `Would you like to [open the workflow](/workflow-builder/${result.workflowId})?`;
     if (result.dashboardId) return `Would you like to [open the dashboard](/dashboard-view/${result.dashboardId})?`;
+    if (result.reportId) return `Would you like to [open the report](/report-editor/${result.reportId})?`;
     if (result.slaTemplateId) return `✅ **SLA tracking configured!**\n\n• [View SLA Management](/sla-management)`;
     return null;
   };
@@ -293,6 +408,7 @@ export function useCopilotEngine() {
     rawParams: Record<string, any>,
     prompt: string,
     headline?: string,
+    formIdForEnrichment?: string,
   ) => {
     const assistantMessage: CopilotMessage = {
       id: `assistant-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -304,7 +420,12 @@ export function useCopilotEngine() {
     setMessages((prev) => [...prev, assistantMessage]);
 
     try {
-      const params = await enrichFormParams(action, rawParams, prompt);
+      const params = await enrichActionParams(
+        action,
+        rawParams,
+        prompt,
+        formIdForEnrichment || rawParams.triggerFormId || rawParams.formId,
+      );
       const actionResult = await executeCopilotAction(action, params);
       setMessages((prev) => prev.map((m) => m.id === assistantMessage.id
         ? { ...m, action: { type: action, status: 'success' as const, result: actionResult } }
@@ -346,7 +467,7 @@ export function useCopilotEngine() {
       toast.error('Action failed', { description: detail });
       throw err;
     }
-  }, [enrichFormParams, executeCopilotAction, loadContext]);
+  }, [enrichActionParams, executeCopilotAction, loadContext]);
 
   const resolveFormParams = useCallback((
     action: string,
@@ -357,6 +478,11 @@ export function useCopilotEngine() {
     const formKey = getFormParamKey(action);
     if (!formKey) return params;
 
+    // AI often sends formId instead of triggerFormId for workflows
+    if (formKey === 'triggerFormId' && !params.triggerFormId && params.formId) {
+      params.triggerFormId = params.formId;
+    }
+
     if (!params[formKey]) {
       if (formIdOverride) {
         params[formKey] = formIdOverride;
@@ -365,6 +491,12 @@ export function useCopilotEngine() {
         const match = formsWithFields.find((f) => f.name && lower.includes(f.name.toLowerCase()));
         if (match) params[formKey] = match.id;
       }
+    }
+
+    // Reject hallucinated form ids from the model
+    const formId = params[formKey];
+    if (formId && !formsWithFields.some((f) => f.id === formId)) {
+      delete params[formKey];
     }
 
     if (!params[formKey] && formsWithFields.length === 0) return 'no-forms';
@@ -419,7 +551,8 @@ export function useCopilotEngine() {
       }
 
       const headline = i === 0 ? messageContent : `Continuing with **${action.replace(/_/g, ' ')}**…`;
-      await runToolCall(action, resolved, trimmed, headline);
+      const formIdForEnrichment = resolved.triggerFormId || resolved.formId;
+      await runToolCall(action, resolved, trimmed, headline, formIdForEnrichment);
     }
   }, [activeProject?.name, formsWithFields, resolveFormParams, runToolCall]);
 
@@ -429,7 +562,12 @@ export function useCopilotEngine() {
     if (!pending || pending.messageId !== messageId) return;
     setPendingAction(null);
     const key = getFormParamKey(pending.action) || 'formId';
-    void runToolCall(pending.action, { ...pending.params, [key]: formId }, pending.prompt);
+    void runToolCall(
+      pending.action,
+      { ...pending.params, [key]: formId },
+      pending.prompt,
+      formId,
+    );
   }, [pendingAction, runToolCall]);
 
   const sendPrompt = useCallback(async (text: string, options?: { formId?: string }) => {

@@ -434,13 +434,13 @@ ${JSON.stringify(context.availableReports || [], null, 2)}
             type: "function",
             function: {
               name: "create_workflow",
-              description: "Create a new workflow with nodes. Reference actual form IDs and field labels from context.",
+              description: "Create a workflow with nodes triggered by a form submission. You MUST provide triggerFormId from available forms and include at least start, action/condition, and end nodes.",
               parameters: {
                 type: "object",
                 properties: {
                   name: { type: "string" },
                   description: { type: "string" },
-                  triggerFormId: { type: "string", description: "ID of the form that triggers this workflow" },
+                  triggerFormId: { type: "string", description: "REQUIRED: ID of the form that triggers this workflow (from available forms)" },
                   nodes: {
                     type: "array",
                     items: {
@@ -456,7 +456,7 @@ ${JSON.stringify(context.availableReports || [], null, 2)}
                     }
                   }
                 },
-                required: ["name", "description"]
+                required: ["name", "description", "triggerFormId"]
               }
             }
           },
@@ -513,7 +513,7 @@ ${JSON.stringify(context.availableReports || [], null, 2)}
             type: "function",
             function: {
               name: "create_dashboard",
-              description: "Create a new dashboard",
+              description: "Create a new empty dashboard shell (no charts). Use only when the user explicitly asks for a dashboard, not a report/chart.",
               parameters: {
                 type: "object",
                 properties: {
@@ -521,6 +521,22 @@ ${JSON.stringify(context.availableReports || [], null, 2)}
                   description: { type: "string" }
                 },
                 required: ["name"]
+              }
+            }
+          },
+          {
+            type: "function",
+            function: {
+              name: "create_report",
+              description: "Create a report with a chart from form submission data. Requires a source form id and chart intent.",
+              parameters: {
+                type: "object",
+                properties: {
+                  name: { type: "string" },
+                  description: { type: "string" },
+                  formId: { type: "string", description: "Source form id from available forms context" }
+                },
+                required: ["name", "formId"]
               }
             }
           },

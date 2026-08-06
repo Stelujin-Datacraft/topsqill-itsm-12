@@ -68,7 +68,7 @@ export default function AIStudio() {
     const value = (text ?? input).trim();
     if (!value || isLoading) return;
     const dependsOnForm = promptNeedsExistingForm(value);
-    if (dependsOnForm && availableForms.length > 0 && !selectedFormId && !text) return;
+    if (dependsOnForm && availableForms.length > 0 && !selectedFormId) return;
     setInput('');
     void sendPrompt(value, selectedFormId ? { formId: selectedFormId } : undefined);
   };
