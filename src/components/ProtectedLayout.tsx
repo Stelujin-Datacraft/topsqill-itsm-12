@@ -281,6 +281,33 @@ const ProtectedLayout: React.FC = () => {
 
   // Authenticated - render layout with sidebar
   // LayoutContext.Provider tells DashboardLayout it's already inside a layout
+  // New user (organization has no forms yet): hide the whole app shell and keep
+  // them in the AI builder until their first form exists.
+  if (isNewUser) {
+    const onboardingAllowed =
+      location.pathname === '/build' ||
+      location.pathname.startsWith('/forms') ||
+      location.pathname.startsWith('/form-builder') ||
+      location.pathname.startsWith('/form-edit') ||
+      location.pathname.startsWith('/form/');
+
+    if (!onboardingAllowed) {
+      return <Navigate to="/build" replace />;
+    }
+
+    return (
+      <LayoutContext.Provider value={true}>
+        <div className={`h-screen flex w-full ${isImpersonating || isActingOnBehalf ? 'pt-12' : ''}`}>
+          <main className="flex-1 flex flex-col overflow-hidden min-h-0">
+            <Suspense fallback={<ContentLoader />}>
+              <Outlet />
+            </Suspense>
+          </main>
+        </div>
+      </LayoutContext.Provider>
+    );
+  }
+
   return (
     <LayoutContext.Provider value={true}>
       <SidebarProvider>
