@@ -70,6 +70,7 @@ const ForgotPassword = lazyWithRetry(() => import("./pages/ForgotPassword"));
 const AcceptInvitation = lazyWithRetry(() => import("./pages/AcceptInvitation"));
 const AuthCallback = lazyWithRetry(() => import("./pages/AuthCallback"));
 const Solutions = lazyWithRetry(() => import("./pages/Solutions"));
+const Contact = lazyWithRetry(() => import("./pages/Contact"));
 
 // Forms feature
 const FormBuilder = lazyWithRetry(() => import("./pages/FormBuilder"));
@@ -197,6 +198,11 @@ const App = () => (
                       <Route path="/solutions" element={
                         <Suspense fallback={<RouteLoader />}>
                           <Solutions />
+                        </Suspense>
+                      } />
+                      <Route path="/contact" element={
+                        <Suspense fallback={<RouteLoader />}>
+                          <Contact />
                         </Suspense>
                       } />
                       {/* Legacy direct links redirect into the tabbed Solutions page */}
