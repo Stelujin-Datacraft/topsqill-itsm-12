@@ -55,17 +55,12 @@ const Index = () => {
               <a href="#roadmap" className="text-muted-foreground hover:text-foreground transition-colors">{t('nav.roadmap')}</a>
               <a href="#investors" className="text-muted-foreground hover:text-foreground transition-colors">{t('nav.investors')}</a>
               <a href="#faq" className="text-muted-foreground hover:text-foreground transition-colors">{t('nav.faq')}</a>
+              <Link to="/contact" className="text-muted-foreground hover:text-foreground transition-colors">Contact</Link>
             </div>
             <div className="flex items-center gap-2 sm:gap-3">
               <LanguageSwitcher variant="ghost" />
               <Link to="/auth" className="flex-1 sm:flex-initial">
                 <Button variant="outline" size="sm" className="w-full sm:w-auto">{t('nav.signIn')}</Button>
-              </Link>
-              <Link to="/auth" className="flex-1 sm:flex-initial">
-                <Button size="sm" className="w-full sm:w-auto">
-                  {t('nav.startTrial')}
-                  <ArrowRight className="ms-2 h-4 w-4" />
-                </Button>
               </Link>
             </div>
           </div>
@@ -74,21 +69,6 @@ const Index = () => {
         {/* Hero Section */}
         <main>
           <section className="container mx-auto px-4 py-16 sm:py-24 text-center">
-            <div className="flex flex-wrap justify-center gap-2 mb-8">
-              <Badge variant="secondary" className="bg-success/10 text-success border-success/20">
-                <CheckCircle className="icon-sm me-1" />
-                {t('landing.soc2')}
-              </Badge>
-              <Badge variant="secondary" className="bg-info/10 text-info border-info/20">
-                <Star className="icon-sm me-1" />
-                {t('landing.rating')}
-              </Badge>
-              <Badge variant="secondary" className="bg-accent/10 text-accent-foreground border-accent/20">
-                <Award className="icon-xs me-1" />
-                {t('landing.enterpriseReady')}
-              </Badge>
-            </div>
-            
             <h1 className="text-4xl md:text-6xl lg:text-7xl font-semibold mb-6 text-foreground leading-[1.1] tracking-tight">
               {t('landing.heroTitle')}<br />
               <span className="text-3xl md:text-4xl lg:text-5xl text-muted-foreground font-medium">{t('landing.heroSubtitle')}</span>
