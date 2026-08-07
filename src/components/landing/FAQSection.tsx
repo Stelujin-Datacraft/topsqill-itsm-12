@@ -76,28 +76,14 @@ export default function FAQSection() {
 
         <div className="text-center mt-12">
           <p className="text-muted-foreground mb-4">
-            Still have questions? We're here to help.
+            Still have questions? We&apos;re here to help.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <a 
-              href="mailto:support@topsqill.com" 
-              className="text-primary hover:underline font-medium"
-            >
-              Contact Support
-            </a>
-            <a 
-              href="/docs" 
-              className="text-primary hover:underline font-medium"
-            >
-              View Documentation
-            </a>
-            <a 
-              href="/demo" 
-              className="text-primary hover:underline font-medium"
-            >
-              Book a Demo
-            </a>
-          </div>
+          <a
+            href="mailto:support@topsqill.com"
+            className="inline-flex items-center text-primary hover:underline font-medium"
+          >
+            Contact Support
+          </a>
         </div>
       </div>
     </section>

@@ -257,5 +257,76 @@
     "templatesDescription": "Créez et gérez des modèles d'e-mail",
     "noTemplates": "Aucun modèle d'e-mail créé",
     "manageTemplates": "Gérer les modèles"
+  },
+  "solutionsPage": {
+    "metaTitle": "Solutions | TopSqill",
+    "metaDescription": "Découvrez les solutions TopSqill : onboarding, GRC, ITSM, gestion des fournisseurs, sécurité de l'information et RH — le tout sur une plateforme connectée.",
+    "badge": "Solutions",
+    "heading": "Une plateforme.",
+    "headingHighlight": "Chaque solution métier.",
+    "subheading": "Choisissez une solution ci-dessous pour la voir de bout en bout sur TopSqill.",
+    "backHome": "Retour à l'accueil",
+    "startTrial": "Essai gratuit",
+    "tryScenario": "Essayez ce scénario gratuitement pendant 30 jours",
+    "ctaTitle": "Ce n'est qu'une solution. Construisez la vôtre en quelques jours.",
+    "ctaBody": "Tout ce qui commence par un formulaire et se termine par un rapport peut fonctionner sur TopSqill.",
+    "startTrialCta": "Démarrer l'essai gratuit de 30 jours",
+    "explorePlatform": "Explorer la plateforme",
+    "items": {
+      "onboarding": {
+        "label": "Onboarding employé",
+        "titleMain": "Onboarding employé,",
+        "titleHighlight": "de bout en bout sur une plateforme",
+        "tagline": "Suivez un nouvel employé de la soumission du formulaire au premier jour — formulaires, workflows, ITAM, e-mail, base de connaissances, flux de données et rapports réunis.",
+        "scenarioTitle": "Le scénario : Sarah rejoint en tant qu'ingénieure logiciel",
+        "scenarioBody": "Les RH soumettent le formulaire d'onboarding de Sarah. En quelques minutes, l'IT a une demande d'ordinateur, son manager reçoit un e-mail et le tableau de bord reflète la nouvelle recrue.",
+        "chips": ["Formulaires", "Référence croisée", "Workflows", "ITAM", "E-mail", "Base de connaissances", "Flux de données", "Rapports"]
+      },
+      "grc": {
+        "label": "GRC",
+        "titleMain": "Gouvernance, risque et conformité,",
+        "titleHighlight": "sur une plateforme connectée",
+        "tagline": "Suivez une politique du brouillon à l'audit : politiques, cadres, risques, contrôles, workflows, preuves, constats et tableaux de bord.",
+        "scenarioTitle": "Le scénario : Préparer ISO 27001 en 90 jours",
+        "scenarioBody": "Le responsable conformité rédige une politique de sécurité, la mappe aux contrôles ISO 27001, enregistre les risques et suit les constats d'audit.",
+        "chips": ["Politiques", "Cadres", "Registre des risques", "Contrôles", "Workflows", "Preuves", "Constats", "Tableaux de bord"]
+      },
+      "itsm": {
+        "label": "ITSM",
+        "titleMain": "Gestion des services IT,",
+        "titleHighlight": "du ticket à la résolution",
+        "tagline": "Remplacez l'empilement d'outils helpdesk, CMDB et scripts de reporting par une plateforme connectée.",
+        "scenarioTitle": "Le scénario : Priya ne peut pas se connecter au VPN",
+        "scenarioBody": "Priya soumet « VPN ne se connecte pas ». TopSqill suggère des articles KB, puis un workflow classe l'incident et démarre un SLA de 4 heures.",
+        "chips": ["Incident", "Demande de service", "SLA", "ITAM", "Base de connaissances", "Workflows", "Rapports"]
+      },
+      "vendor": {
+        "label": "Fournisseurs",
+        "titleMain": "Gestion des fournisseurs et contrats,",
+        "titleHighlight": "intégrés, audités et renouvelés",
+        "tagline": "Une plateforme pour l'onboarding fournisseur, les contrats, les risques, les renouvellements et les dépenses.",
+        "scenarioTitle": "Le scénario : Intégrer un nouveau fournisseur SaaS",
+        "scenarioBody": "Les achats soumettent « Acme Analytics » avec un MSA et un rapport SOC 2. Un workflow ouvre des revues parallèles Legal, Sécurité et Finance.",
+        "chips": ["Onboarding fournisseur", "Contrats", "Risque", "Renouvellements", "Dépenses", "Flux de données", "Rapports"]
+      },
+      "security": {
+        "label": "Sécurité",
+        "titleMain": "Sécurité de l'information,",
+        "titleHighlight": "du premier signalement au post-mortem",
+        "tagline": "Remplacez boîtes mail, feuilles de calcul et fils de discussion par une plateforme d'opérations de sécurité connectée.",
+        "scenarioTitle": "Le scénario : Phishing suspecté en finance",
+        "scenarioBody": "Rahul transmet un e-mail suspect via « Signaler un phishing ». TopSqill ouvre un incident P2 et démarre un SLA d'une heure.",
+        "chips": ["Réponse aux incidents", "Vulnérabilités", "Runbooks", "SLA", "Preuves", "Workflows", "Rapports CISO"]
+      },
+      "hr": {
+        "label": "RH",
+        "titleMain": "Gestion RH,",
+        "titleHighlight": "de la lettre d'offre à l'entretien de départ",
+        "tagline": "Remplacez feuilles d'onboarding, suivi des congés et boîtes RH par une plateforme connectée pour tout le cycle de vie employé.",
+        "scenarioTitle": "Le scénario : Ananya arrive lundi",
+        "scenarioBody": "Les RH remplissent le formulaire mercredi. Un workflow provisionne l'IT, la paie, les locaux et les politiques avant le premier jour.",
+        "chips": ["Onboarding", "Congés", "Performance", "Helpdesk", "Politiques", "Workflows", "Départ"]
+      }
+    }
   }
 }

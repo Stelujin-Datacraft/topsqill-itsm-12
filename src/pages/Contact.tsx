@@ -72,8 +72,20 @@ export default function Contact() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <MapPin className="h-5 w-5 text-primary" />
-              Working with us
+              Office address
             </CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm text-muted-foreground">
+            <p className="font-medium text-foreground">
+              B-439, Bhutani Technopark, Sector 127
+            </p>
+            <p>Noida — 201313, India</p>
+          </CardContent>
+        </Card>
+
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle>Working with us</CardTitle>
           </CardHeader>
           <CardContent className="text-sm text-muted-foreground space-y-2">
             <p>Sales and demos: mention your team size and the process you want to automate.</p>

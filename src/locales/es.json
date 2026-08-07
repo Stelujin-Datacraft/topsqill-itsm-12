@@ -257,5 +257,76 @@
     "templatesDescription": "Cree y gestione plantillas de correo",
     "noTemplates": "No se han creado plantillas de correo",
     "manageTemplates": "Gestionar plantillas"
+  },
+  "solutionsPage": {
+    "metaTitle": "Soluciones | TopSqill",
+    "metaDescription": "Explore las soluciones TopSqill: incorporación de empleados, GRC, ITSM, gestión de proveedores, seguridad de la información y RR. HH. — todo en una plataforma conectada.",
+    "badge": "Soluciones",
+    "heading": "Una plataforma.",
+    "headingHighlight": "Cada solución empresarial.",
+    "subheading": "Elija una solución a continuación para verla de extremo a extremo en TopSqill.",
+    "backHome": "Volver al inicio",
+    "startTrial": "Prueba gratuita",
+    "tryScenario": "Pruebe este escenario gratis durante 30 días",
+    "ctaTitle": "Esta es solo una solución. Construya la suya en días.",
+    "ctaBody": "Todo lo que comienza con un formulario y termina con un informe puede ejecutarse en TopSqill.",
+    "startTrialCta": "Iniciar prueba gratuita de 30 días",
+    "explorePlatform": "Explorar la plataforma",
+    "items": {
+      "onboarding": {
+        "label": "Incorporación de empleados",
+        "titleMain": "Incorporación de empleados,",
+        "titleHighlight": "de extremo a extremo en una plataforma",
+        "tagline": "Siga a un nuevo empleado desde el envío del formulario hasta el primer día: formularios, flujos de trabajo, ITAM, correo, base de conocimiento, fuentes de datos e informes trabajando juntos sin código adicional.",
+        "scenarioTitle": "El escenario: Sarah se une como ingeniera de software",
+        "scenarioBody": "RR. HH. envía el formulario de incorporación de Sarah. En minutos, TI tiene una solicitud de portátil en cola, su manager recibe un correo, se asigna la carpeta correcta de la base de conocimiento, el HRMS está sincronizado y el panel de liderazgo refleja la nueva contratación.",
+        "chips": ["Formularios", "Referencia cruzada", "Flujos de trabajo", "ITAM", "Correo", "Base de conocimiento", "Fuentes de datos", "Informes"]
+      },
+      "grc": {
+        "label": "GRC",
+        "titleMain": "Gobernanza, riesgo y cumplimiento,",
+        "titleHighlight": "en una plataforma conectada",
+        "tagline": "Siga una política desde el borrador hasta la auditoría: políticas, marcos, riesgo, controles, flujos de trabajo, evidencia, hallazgos y paneles con trazabilidad completa.",
+        "scenarioTitle": "El escenario: Preparar ISO 27001 en 90 días",
+        "scenarioBody": "El responsable de cumplimiento redacta una política de seguridad de la información, la asigna a controles ISO 27001, registra riesgos relacionados, la envía a aprobación, adjunta evidencia y hace seguimiento de hallazgos.",
+        "chips": ["Políticas", "Marcos", "Registro de riesgos", "Controles", "Flujos de trabajo", "Evidencia", "Hallazgos", "Paneles"]
+      },
+      "itsm": {
+        "label": "ITSM",
+        "titleMain": "Gestión de servicios de TI,",
+        "titleHighlight": "del ticket a la resolución",
+        "tagline": "Reemplace el conjunto de herramientas de mesa de ayuda, CMDB, wiki y scripts de informes con una plataforma conectada: del incidente al MTTR en días, no trimestres.",
+        "scenarioTitle": "El escenario: Priya no puede conectarse a la VPN",
+        "scenarioBody": "Priya envía \"No puedo conectar la VPN\". TopSqill sugiere dos artículos de la base de conocimiento. Un flujo de trabajo lo categoriza como Red/Alta, adjunta su MacBook desde ITAM y activa un SLA de 4 horas.",
+        "chips": ["Incidente", "Solicitud de servicio", "SLA", "ITAM", "Base de conocimiento", "Flujos de trabajo", "Informes"]
+      },
+      "vendor": {
+        "label": "Proveedores",
+        "titleMain": "Gestión de proveedores y contratos,",
+        "titleHighlight": "incorporados, auditados y renovados",
+        "tagline": "Una plataforma para incorporación de proveedores, contratos, riesgo, renovaciones y gasto: compras, legal, finanzas y seguridad en una única fuente de verdad.",
+        "scenarioTitle": "El escenario: Incorporar un nuevo proveedor SaaS",
+        "scenarioBody": "Compras envía \"Acme Analytics\" con un borrador de MSA y un informe SOC 2. Un flujo de trabajo abre revisiones paralelas de Legal, Seguridad y Finanzas.",
+        "chips": ["Incorporación de proveedores", "Contratos", "Riesgo", "Renovaciones", "Gasto", "Fuentes de datos", "Informes"]
+      },
+      "security": {
+        "label": "Seguridad",
+        "titleMain": "Seguridad de la información,",
+        "titleHighlight": "del primer reporte al post-mortem",
+        "tagline": "Reemplace bandejas de entrada, hojas de cálculo y hilos de chat con una plataforma de operaciones de seguridad conectada: detectar, responder, remediar y demostrarlo.",
+        "scenarioTitle": "El escenario: Phishing sospechoso en finanzas",
+        "scenarioBody": "Rahul reenvía un correo sospechoso mediante \"Reportar phishing\". TopSqill abre un incidente P2, adjunta su portátil e inicia un SLA de 1 hora.",
+        "chips": ["Respuesta a incidentes", "Vulnerabilidades", "Runbooks", "SLA", "Evidencia", "Flujos de trabajo", "Informes CISO"]
+      },
+      "hr": {
+        "label": "RR. HH.",
+        "titleMain": "Gestión de RR. HH.,",
+        "titleHighlight": "de la carta de oferta a la entrevista de salida",
+        "tagline": "Reemplace hojas de cálculo de incorporación, seguimiento de permisos y bandejas de RR. HH. con una plataforma conectada para cada etapa del ciclo de vida del empleado.",
+        "scenarioTitle": "El escenario: Ananya se incorpora el lunes",
+        "scenarioBody": "RR. HH. completa el formulario el miércoles. Un flujo de trabajo activa TI, finanzas, instalaciones y políticas de la base de conocimiento antes del primer día.",
+        "chips": ["Incorporación", "Permisos", "Desempeño", "Mesa de ayuda", "Políticas", "Flujos de trabajo", "Salida"]
+      }
+    }
   }
 }
