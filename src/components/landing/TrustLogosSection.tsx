@@ -1,37 +1,60 @@
-import { Building2, Briefcase, Globe, Landmark, Cpu, ShoppingCart } from "lucide-react";
-
-const companies = [
-  { name: "TechCorp", icon: Cpu, color: "text-blue-500", bg: "bg-blue-500/10" },
-  { name: "GlobalBank", icon: Landmark, color: "text-emerald-500", bg: "bg-emerald-500/10" },
-  { name: "RetailMax", icon: ShoppingCart, color: "text-orange-500", bg: "bg-orange-500/10" },
-  { name: "ConsultPro", icon: Briefcase, color: "text-purple-500", bg: "bg-purple-500/10" },
-  { name: "WorldWide Inc", icon: Globe, color: "text-cyan-500", bg: "bg-cyan-500/10" },
-  { name: "Enterprise Co", icon: Building2, color: "text-rose-500", bg: "bg-rose-500/10" }
+const partners = [
+  {
+    name: "Deloitte",
+    mark: "D",
+    accent: "#86BC25",
+    subtitle: "Professional services",
+  },
+  {
+    name: "TCL",
+    mark: "TCL",
+    accent: "#E4002B",
+    subtitle: "Technology",
+  },
+  {
+    name: "Techcoral",
+    mark: "TC",
+    accent: "#0D9488",
+    subtitle: "Digital solutions",
+  },
+  {
+    name: "Inspira",
+    mark: "In",
+    accent: "#4F46E5",
+    subtitle: "Enterprise IT",
+  },
 ];
 
 export default function TrustLogosSection() {
   return (
-    <section className="py-16 border-y border-border/50 bg-muted/5">
+    <section className="py-14 sm:py-16 border-y border-border/50 bg-muted/10">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-center gap-3 mb-10">
-          <div className="h-px w-12 bg-primary/30" />
-          <p className="text-center text-sm uppercase tracking-widest font-semibold text-primary">
+          <div className="h-px w-10 sm:w-16 bg-border" />
+          <p className="text-center text-xs sm:text-sm uppercase tracking-[0.2em] font-semibold text-muted-foreground">
             Trusted by leading organizations worldwide
           </p>
-          <div className="h-px w-12 bg-primary/30" />
+          <div className="h-px w-10 sm:w-16 bg-border" />
         </div>
-        
-        <div className="flex flex-wrap justify-center items-center gap-6 md:gap-10">
-          {companies.map((company, index) => (
+
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 max-w-5xl mx-auto">
+          {partners.map((partner) => (
             <div
-              key={index}
-              className={`group flex items-center gap-3 px-5 py-3 rounded-full ${company.bg} border border-transparent hover:border-current/20 transition-all duration-300 cursor-pointer`}
+              key={partner.name}
+              className="group flex flex-col items-center justify-center rounded-2xl border border-border/60 bg-card/80 px-4 py-6 sm:px-6 sm:py-8 text-center shadow-sm transition-all duration-300 hover:border-primary/30 hover:shadow-md"
             >
-              <div className={`p-2 rounded-full bg-background shadow-sm ${company.color}`}>
-                <company.icon className="icon-lg" />
+              <div
+                className="mb-3 flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-xl text-sm sm:text-base font-bold text-white shadow-sm transition-transform duration-300 group-hover:scale-105"
+                style={{ backgroundColor: partner.accent }}
+                aria-hidden
+              >
+                {partner.mark}
               </div>
-              <span className={`text-base font-semibold tracking-tight ${company.color}`}>
-                {company.name}
+              <span className="text-base sm:text-lg font-semibold tracking-tight text-foreground">
+                {partner.name}
+              </span>
+              <span className="mt-1 text-xs text-muted-foreground hidden sm:block">
+                {partner.subtitle}
               </span>
             </div>
           ))}

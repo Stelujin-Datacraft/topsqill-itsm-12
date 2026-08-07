@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { 
   ArrowRight, Building2, Users, Shield, Zap, BarChart3, Workflow, 
   Database, Brain, Sparkles, TrendingUp, Globe, CheckCircle,
-  LineChart, Table, GitBranch, Code, Star, Award
+  LineChart, Table, GitBranch, Code, Star, Award, MapPin, Mail
 } from 'lucide-react';
 import ChartsPreview from '@/components/landing/ChartsPreview';
 import HeroPromptPanel from '@/components/landing/HeroPromptPanel';
@@ -243,68 +243,67 @@ const Index = () => {
         </main>
 
         {/* Footer */}
-        <footer className="border-t bg-background">
-          <div className="container mx-auto px-4 py-12">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+        <footer className="border-t bg-muted/20">
+          <div className="container mx-auto px-4 py-14">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16">
               <div>
-                <div className="flex items-center space-x-3 mb-4">
-                  <img 
-                    src="/lovable-uploads/7355d9d6-30ec-4b86-9922-9058a15f6cca.png" 
-                    alt="Topsqill Logo" 
-                    className="size-8 object-contain"
+                <div className="flex items-center gap-3 mb-4">
+                  <img
+                    src="/lovable-uploads/7355d9d6-30ec-4b86-9922-9058a15f6cca.png"
+                    alt="TopSqill Logo"
+                    className="size-9 object-contain"
                   />
-                  <span className="text-xl font-bold">TopSqill</span>
+                  <span className="text-xl font-bold tracking-tight">TopSqill</span>
                 </div>
-                <p className="text-muted-foreground mb-4">
+                <p className="text-muted-foreground max-w-md leading-relaxed">
                   Enterprise form platform powering the next generation of business automation.
                 </p>
-                <div className="flex space-x-4">
-                  <a
-                    href="https://www.linkedin.com/company/topsqill-pvt-ltd/posts/?feedView=all"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-muted-foreground hover:text-primary"
-                  >
-                    LinkedIn
-                  </a>
-                  <a href="mailto:contact@topsqill.com" className="text-muted-foreground hover:text-primary">
-                    contact@topsqill.com
-                  </a>
-                </div>
               </div>
-              
-              <div>
-                <h3 className="font-semibold mb-4">Product</h3>
-                <ul className="space-y-2 text-muted-foreground">
-                  <li><a href="#" className="hover:text-primary">Features</a></li>
-                  <li><a href="#" className="hover:text-primary">Security</a></li>
-                  <li><a href="#" className="hover:text-primary">Integrations</a></li>
-                </ul>
-              </div>
-              
-              <div>
-                <h3 className="font-semibold mb-4">Company</h3>
-                <ul className="space-y-2 text-muted-foreground">
-                  <li><a href="#" className="hover:text-primary">About</a></li>
-                  <li><a href="#" className="hover:text-primary">Careers</a></li>
-                  <li><a href="#" className="hover:text-primary">Press</a></li>
-                  <li><Link to="/contact" className="hover:text-primary">Contact</Link></li>
-                </ul>
-              </div>
-              
-              <div>
-                <h3 className="font-semibold mb-4">Resources</h3>
-                <ul className="space-y-2 text-muted-foreground">
-                  <li><Link to="/docs" className="hover:text-module-relationship">Documentation</Link></li>
-                  <li><Link to="/docs" className="hover:text-module-relationship">API Reference</Link></li>
-                  <li><a href="#" className="hover:text-primary">Support</a></li>
-                  <li><a href="#" className="hover:text-primary">Status</a></li>
+
+              <div className="space-y-5">
+                <h3 className="text-sm font-semibold uppercase tracking-wider text-foreground">
+                  Contact
+                </h3>
+                <ul className="space-y-3 text-sm text-muted-foreground">
+                  <li className="flex items-start gap-3">
+                    <MapPin className="h-4 w-4 mt-0.5 shrink-0 text-primary" />
+                    <span>
+                      B-439, Bhutani Technopark, Sector 127<br />
+                      Noida — 201313, India
+                    </span>
+                  </li>
+                  <li className="flex items-center gap-3">
+                    <Mail className="h-4 w-4 shrink-0 text-primary" />
+                    <a href="mailto:contact@topsqill.com" className="hover:text-primary transition-colors">
+                      contact@topsqill.com
+                    </a>
+                  </li>
+                  <li>
+                    <a
+                      href="https://www.linkedin.com/company/topsqill-pvt-ltd/posts/?feedView=all"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hover:text-primary transition-colors"
+                    >
+                      LinkedIn — TopSqill Pvt Ltd
+                    </a>
+                  </li>
+                  <li>
+                    <Link to="/contact" className="text-primary font-medium hover:underline">
+                      Contact page →
+                    </Link>
+                  </li>
                 </ul>
               </div>
             </div>
-            
-            <div className="border-t mt-8 pt-8 text-center text-muted-foreground">
-              <p>&copy; 2025 TopSqill. All rights reserved. | Privacy Policy | Terms of Service</p>
+
+            <div className="border-t border-border/60 mt-10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-muted-foreground">
+              <p>&copy; {new Date().getFullYear()} TopSqill. All rights reserved.</p>
+              <div className="flex items-center gap-4">
+                <a href="#" className="hover:text-primary transition-colors">Privacy Policy</a>
+                <span className="text-border">|</span>
+                <a href="#" className="hover:text-primary transition-colors">Terms of Service</a>
+              </div>
             </div>
           </div>
         </footer>
