@@ -7,11 +7,11 @@ import { FileText, Workflow, BarChart3, BookOpen, ArrowUp, Lock } from 'lucide-r
 
 type AssetType = 'form' | 'workflow' | 'report' | 'doc';
 
-const ASSETS: { id: AssetType; label: string; icon: React.ElementType; color: string; placeholder: string; intent: string }[] = [
+const ASSETS: { id: AssetType; label: string; icon: React.ElementType; color: string; placeholder: string; intent: string; disabled?: boolean }[] = [
   { id: 'form', label: 'Form', icon: FileText, color: 'text-module-forms', placeholder: 'Create an employee onboarding form with manager approval…', intent: 'Create a form' },
-  { id: 'workflow', label: 'Workflow', icon: Workflow, color: 'text-module-workflows', placeholder: 'Route high severity incidents to L2 and email the owner…', intent: 'Create a workflow' },
-  { id: 'report', label: 'Report', icon: BarChart3, color: 'text-module-reports', placeholder: 'Show open vulnerabilities by business unit as a bar chart…', intent: 'Create a report' },
-  { id: 'doc', label: 'Knowledge Doc', icon: BookOpen, color: 'text-module-knowledge', placeholder: 'Draft an access control policy with review cycle…', intent: 'Create a knowledge doc' },
+  { id: 'workflow', label: 'Workflow', icon: Workflow, color: 'text-module-workflows', placeholder: 'Route high severity incidents to L2 and email the owner…', intent: 'Create a workflow', disabled: true },
+  { id: 'report', label: 'Report', icon: BarChart3, color: 'text-module-reports', placeholder: 'Show open vulnerabilities by business unit as a bar chart…', intent: 'Create a report', disabled: true },
+  { id: 'doc', label: 'Knowledge Doc', icon: BookOpen, color: 'text-module-knowledge', placeholder: 'Draft an access control policy with review cycle…', intent: 'Create a knowledge doc', disabled: true },
 ];
 
 export default function HeroPromptPanel() {
@@ -64,9 +64,14 @@ export default function HeroPromptPanel() {
               <button
                 key={a.id}
                 type="button"
-                onClick={() => setType(a.id)}
+                onClick={() => { if (!a.disabled) setType(a.id); }}
+                disabled={a.disabled}
+                aria-disabled={a.disabled}
+                title={a.disabled ? 'Coming soon — available inside the app' : undefined}
                 className={`flex items-center gap-1.5 shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
-                  type === a.id
+                  a.disabled
+                    ? 'border-border/50 text-muted-foreground/60 cursor-not-allowed opacity-60'
+                    : type === a.id
                     ? 'border-primary bg-primary/10 text-foreground'
                     : 'border-border/70 text-muted-foreground hover:bg-muted/50'
                 }`}
