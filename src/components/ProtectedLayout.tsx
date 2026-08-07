@@ -8,6 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useProject } from '@/contexts/ProjectContext';
 import { usePermissionRealtimeSync } from '@/hooks/usePermissionRealtimeSync';
 import { useUnifiedAccessControl } from '@/hooks/useUnifiedAccessControl';
+import { useOnboardingGate } from '@/hooks/useOnboardingGate';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { backend as supabase } from '@/services/api';
 import { RouteLoader } from '@/components/RouteLoader';
@@ -39,6 +40,7 @@ const ProtectedLayout: React.FC = () => {
   const { isImpersonating } = useImpersonation();
   const { isActingOnBehalf } = useDelegation();
   const { hasPermission, loading: permissionLoading } = useUnifiedAccessControl();
+  const { isNewUser } = useOnboardingGate();
   const location = useLocation();
   const navigate = useNavigate();
   const defaultDashboardChecked = useRef(false);
@@ -61,7 +63,7 @@ const ProtectedLayout: React.FC = () => {
 
   // Auto-redirect to default dashboard on initial login (when landing on /dashboard)
   useEffect(() => {
-    if (!user || location.pathname !== '/dashboard') {
+    if (!user || isNewUser || location.pathname !== '/dashboard') {
       defaultDashboardChecked.current = false;
       lastDefaultDashboardProjectId.current = null;
       return;
@@ -163,7 +165,7 @@ const ProtectedLayout: React.FC = () => {
     };
 
     checkDefaultDashboard();
-  }, [currentProject?.id, user, location.pathname, navigate, hasPermission, permissionLoading]);
+  }, [currentProject?.id, user, location.pathname, navigate, hasPermission, permissionLoading, isNewUser]);
 
   // Auth loading state - show full page loader since we don't know if user is authenticated
   if (isLoading && !shouldKeepShellVisible) {
