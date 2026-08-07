@@ -257,5 +257,76 @@
     "templatesDescription": "Create and manage email templates",
     "noTemplates": "No email templates created",
     "manageTemplates": "Manage templates"
+  },
+  "solutionsPage": {
+    "metaTitle": "Solutions | TopSqill",
+    "metaDescription": "Explore TopSqill solutions: Employee Onboarding, GRC, ITSM, Vendor Management, Information Security, and HR — all on one connected platform.",
+    "badge": "Solutions",
+    "heading": "One platform.",
+    "headingHighlight": "Every business solution.",
+    "subheading": "Pick a solution below to see it run end-to-end on TopSqill.",
+    "backHome": "Back to Home",
+    "startTrial": "Start Free Trial",
+    "tryScenario": "Try this scenario free for 30 days",
+    "ctaTitle": "This is just one solution. Build yours in days.",
+    "ctaBody": "Anything that starts with a form and ends with a report can run on TopSqill.",
+    "startTrialCta": "Start Free 30-Day Trial",
+    "explorePlatform": "Explore the Platform",
+    "items": {
+      "onboarding": {
+        "label": "Employee Onboarding",
+        "titleMain": "Employee Onboarding,",
+        "titleHighlight": "end-to-end on one platform",
+        "tagline": "Follow a single new hire from form submission to first day — Forms, Workflows, ITAM, Email, KB, Data Feeds, and Reports working together with zero glue code.",
+        "scenarioTitle": "The scenario: Sarah joins as a Software Engineer",
+        "scenarioBody": "HR submits Sarah's onboarding form. Within minutes, IT has a laptop request in the queue, her manager gets an email, the right KB folder is assigned, HRMS is in sync, and the leadership dashboard reflects the new hire — without anyone touching a spreadsheet.",
+        "chips": ["Forms", "Cross-Reference", "Workflows", "ITAM", "Email", "Knowledge Base", "Data Feeds", "Reports"]
+      },
+      "grc": {
+        "label": "GRC",
+        "titleMain": "Governance, Risk & Compliance,",
+        "titleHighlight": "run on one connected platform",
+        "tagline": "Follow a policy from draft to audit-ready — Policies, Frameworks, Risk, Controls, Workflows, Evidence, Findings, and Dashboards with full traceability.",
+        "scenarioTitle": "The scenario: Getting ISO 27001 ready in 90 days",
+        "scenarioBody": "The compliance lead drafts an Information Security Policy, maps it to ISO 27001 controls, logs related risks, routes it through approval, attaches evidence, tracks findings — and watches the compliance score climb on the executive dashboard.",
+        "chips": ["Policies", "Frameworks", "Risk Register", "Controls", "Workflows", "Evidence", "Findings", "Dashboards"]
+      },
+      "itsm": {
+        "label": "ITSM",
+        "titleMain": "IT Service Management,",
+        "titleHighlight": "from ticket to resolution",
+        "tagline": "Replace the patchwork of help-desk tool, asset CMDB, knowledge wiki, and reporting scripts with one connected platform — incident to MTTR in days, not quarters.",
+        "scenarioTitle": "The scenario: Priya can't connect to VPN",
+        "scenarioBody": "Priya submits \"VPN won't connect\". TopSqill suggests two KB articles. She submits anyway. A workflow categorises it as Network/High, attaches her MacBook from ITAM, pages L1, and starts a 4-hour SLA. L1 resolves it in 22 minutes using the KB article. CSAT goes out automatically.",
+        "chips": ["Incident", "Service Request", "SLA", "ITAM", "Knowledge Base", "Workflows", "Reports"]
+      },
+      "vendor": {
+        "label": "Vendor Mgmt",
+        "titleMain": "Vendor & Contract Management,",
+        "titleHighlight": "onboarded, audited, and renewed",
+        "tagline": "One platform for vendor onboarding, contracts, risk, renewals, and spend — procurement, legal, finance, and security on one source of truth.",
+        "scenarioTitle": "The scenario: Onboarding a new SaaS vendor",
+        "scenarioBody": "Procurement submits \"Acme Analytics\" with a draft MSA and SOC 2 report. A workflow opens Legal, Security and Finance reviews in parallel. Risk scoring tags Acme as Tier-2. Activation files the MSA with 90/60/30-day renewal reminders, ERP sync brings spend nightly, and the CFO dashboard updates live.",
+        "chips": ["Vendor Onboarding", "Contracts", "Risk", "Renewals", "Spend", "Data Feeds", "Reports"]
+      },
+      "security": {
+        "label": "Security",
+        "titleMain": "Information Security,",
+        "titleHighlight": "from first report to post-mortem",
+        "tagline": "Replace the patchwork of inboxes, spreadsheets and chat threads with one connected security operations platform — detect, respond, remediate, and prove it.",
+        "scenarioTitle": "The scenario: Suspected phishing in finance",
+        "scenarioBody": "Rahul forwards a suspicious invoice email via \"Report Phishing\". TopSqill opens a P2 incident, attaches his laptop, starts a 1-hour SLA. SOC analyzes the header, IT disables the URL, Comms drafts a warning. 47 minutes later it's contained, evidence captured, CISO dashboard live.",
+        "chips": ["Incident Response", "Vulnerabilities", "Runbooks", "SLA", "Evidence", "Workflows", "CISO Reports"]
+      },
+      "hr": {
+        "label": "HR",
+        "titleMain": "HR Management,",
+        "titleHighlight": "from offer letter to exit interview",
+        "tagline": "Replace the patchwork of onboarding spreadsheets, leave trackers, review docs and HR inboxes with one connected platform — every stage of the employee lifecycle.",
+        "scenarioTitle": "The scenario: Ananya joins on Monday",
+        "scenarioBody": "HR fills the new-hire form Wednesday. A workflow fires: IT provisions her laptop, Finance opens payroll, Facilities allocates a seat, KB pushes policies for acknowledgement. Day one she logs in, books her first leave, raises a payroll query — handled within SLA.",
+        "chips": ["Onboarding", "Leave", "Performance", "Helpdesk", "Policies", "Workflows", "Exit"]
+      }
+    }
   }
 }

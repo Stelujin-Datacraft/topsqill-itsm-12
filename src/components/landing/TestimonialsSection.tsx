@@ -4,41 +4,45 @@ import { Star, Quote } from "lucide-react";
 
 const testimonials = [
   {
-    quote: "Topsqill transformed our entire data collection process. We went from spending 40 hours/week on manual form processing to fully automated workflows.",
-    author: "Sarah Chen",
-    role: "VP of Operations",
-    company: "TechCorp Industries",
-    avatar: "SC",
+    quote:
+      "Topsqill helped us standardize enterprise workflows across regions. What used to take weeks of manual coordination now runs through governed forms and approvals.",
+    author: "Global Operations Lead",
+    role: "Professional Services",
+    company: "Deloitte",
+    avatar: "D",
     rating: 5,
-    metric: "40 hrs/week saved"
+    metric: "Enterprise rollout",
   },
   {
-    quote: "The SQL query engine is a game-changer. Our analytics team can now pull insights directly from form submissions without waiting for IT.",
-    author: "Michael Rodriguez",
-    role: "Head of Analytics",
-    company: "DataFlow Solutions",
-    avatar: "MR",
+    quote:
+      "We needed a platform that could connect intake, routing, and reporting without custom glue code. Topsqill gave our teams one place to build and scale service workflows.",
+    author: "Digital Transformation Team",
+    role: "Technology",
+    company: "TCL",
+    avatar: "TCL",
     rating: 5,
-    metric: "10x faster insights"
+    metric: "Unified operations",
   },
   {
-    quote: "We evaluated 12 form platforms before choosing Topsqill. The workflow automation and enterprise security features were unmatched.",
-    author: "Emily Watson",
-    role: "CTO",
-    company: "SecureFinance Corp",
-    avatar: "EW",
+    quote:
+      "From client onboarding to internal approvals, Techcoral uses Topsqill to move faster with better visibility. The workflow designer and reporting layer have been especially valuable.",
+    author: "Delivery Leadership",
+    role: "Digital Solutions",
+    company: "Techcoral",
+    avatar: "TC",
     rating: 5,
-    metric: "SOC 2 compliant"
+    metric: "Faster delivery",
   },
   {
-    quote: "Rolling out to 500+ employees was seamless. The role-based permissions and organization management saved us months of custom development.",
-    author: "David Kim",
-    role: "Director of IT",
-    company: "GlobalRetail Inc",
-    avatar: "DK",
+    quote:
+      "Inspira relies on Topsqill for structured enterprise IT processes — secure access, auditable workflows, and dashboards leadership can trust.",
+    author: "Enterprise IT",
+    role: "Managed Services",
+    company: "Inspira",
+    avatar: "In",
     rating: 5,
-    metric: "500+ users onboarded"
-  }
+    metric: "Audit-ready workflows",
+  },
 ];
 
 export default function TestimonialsSection() {
@@ -50,17 +54,17 @@ export default function TestimonialsSection() {
             Customer Stories
           </Badge>
           <h2 className="text-3xl md:text-4xl font-bold mb-4 text-foreground">
-            Trusted by Industry Leaders
+            Trusted by leading organizations worldwide
           </h2>
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-            See how organizations are transforming their operations with Topsqill
+            See how Deloitte, TCL, Techcoral, and Inspira use Topsqill to run critical business processes
           </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {testimonials.map((testimonial, index) => (
-            <Card 
-              key={index} 
+            <Card
+              key={index}
               className="group hover:shadow-token-md transition-all duration-300 border-border/50 bg-background"
             >
               <CardContent className="p-8">
@@ -72,20 +76,20 @@ export default function TestimonialsSection() {
                     ))}
                   </div>
                 </div>
-                
+
                 <p className="text-lg text-foreground mb-6 leading-relaxed">
-                  "{testimonial.quote}"
+                  &ldquo;{testimonial.quote}&rdquo;
                 </p>
-                
+
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-primary-foreground font-semibold">
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-primary-foreground font-semibold text-xs">
                       {testimonial.avatar}
                     </div>
                     <div>
                       <div className="font-semibold text-foreground">{testimonial.author}</div>
                       <div className="text-sm text-muted-foreground">{testimonial.role}</div>
-                      <div className="text-sm text-primary">{testimonial.company}</div>
+                      <div className="text-sm text-primary font-medium">{testimonial.company}</div>
                     </div>
                   </div>
                   <Badge variant="outline" className="bg-success/10 text-success border-success/20">
