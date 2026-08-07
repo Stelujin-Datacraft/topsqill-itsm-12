@@ -240,31 +240,6 @@ const Index = () => {
             <FAQSection />
           </section>
 
-          {/* Final CTA Section */}
-          <section className="py-20 bg-foreground text-background">
-            <div className="container mx-auto px-4 text-center">
-              <h2 className="text-3xl md:text-4xl font-bold mb-4">
-                Ready to transform your forms?
-              </h2>
-              <p className="text-xl mb-8 max-w-2xl mx-auto opacity-90">
-                Join 500+ organizations using Topsqill to automate their business processes
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Link to="/auth">
-                  <Button size="lg" variant="secondary" className="w-full sm:w-auto">
-                    Start Free Trial - No Credit Card
-                    <ArrowRight className="ml-2 h-5 w-5" />
-                  </Button>
-                </Link>
-                <Button size="lg" variant="outline" className="w-full sm:w-auto border-background bg-background text-foreground hover:bg-background/90">
-                  Schedule Enterprise Demo
-                </Button>
-              </div>
-              <div className="mt-8 text-sm opacity-75">
-                30-day free trial • Cancel anytime • Enterprise support included
-              </div>
-            </div>
-          </section>
         </main>
 
         {/* Footer */}
@@ -284,9 +259,17 @@ const Index = () => {
                   Enterprise form platform powering the next generation of business automation.
                 </p>
                 <div className="flex space-x-4">
-                  <a href="#" className="text-muted-foreground hover:text-primary">Twitter</a>
-                  <a href="#" className="text-muted-foreground hover:text-primary">LinkedIn</a>
-                  <a href="#" className="text-muted-foreground hover:text-primary">GitHub</a>
+                  <a
+                    href="https://www.linkedin.com/company/topsqill-pvt-ltd/posts/?feedView=all"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-muted-foreground hover:text-primary"
+                  >
+                    LinkedIn
+                  </a>
+                  <a href="mailto:contact@topsqill.com" className="text-muted-foreground hover:text-primary">
+                    contact@topsqill.com
+                  </a>
                 </div>
               </div>
               
@@ -305,7 +288,7 @@ const Index = () => {
                   <li><a href="#" className="hover:text-primary">About</a></li>
                   <li><a href="#" className="hover:text-primary">Careers</a></li>
                   <li><a href="#" className="hover:text-primary">Press</a></li>
-                  <li><a href="#" className="hover:text-primary">Contact</a></li>
+                  <li><Link to="/contact" className="hover:text-primary">Contact</Link></li>
                 </ul>
               </div>
               
