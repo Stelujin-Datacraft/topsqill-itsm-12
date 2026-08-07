@@ -8,6 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useProject } from '@/contexts/ProjectContext';
 import { usePermissionRealtimeSync } from '@/hooks/usePermissionRealtimeSync';
 import { useUnifiedAccessControl } from '@/hooks/useUnifiedAccessControl';
+import { useOnboardingGate } from '@/hooks/useOnboardingGate';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { backend as supabase } from '@/services/api';
 import { RouteLoader } from '@/components/RouteLoader';
@@ -39,6 +40,7 @@ const ProtectedLayout: React.FC = () => {
   const { isImpersonating } = useImpersonation();
   const { isActingOnBehalf } = useDelegation();
   const { hasPermission, loading: permissionLoading } = useUnifiedAccessControl();
+  const { isNewUser } = useOnboardingGate();
   const location = useLocation();
   const navigate = useNavigate();
   const defaultDashboardChecked = useRef(false);
@@ -61,7 +63,7 @@ const ProtectedLayout: React.FC = () => {
 
   // Auto-redirect to default dashboard on initial login (when landing on /dashboard)
   useEffect(() => {
-    if (!user || location.pathname !== '/dashboard') {
+    if (!user || isNewUser || location.pathname !== '/dashboard') {
       defaultDashboardChecked.current = false;
       lastDefaultDashboardProjectId.current = null;
       return;
@@ -163,7 +165,7 @@ const ProtectedLayout: React.FC = () => {
     };
 
     checkDefaultDashboard();
-  }, [currentProject?.id, user, location.pathname, navigate, hasPermission, permissionLoading]);
+  }, [currentProject?.id, user, location.pathname, navigate, hasPermission, permissionLoading, isNewUser]);
 
   // Auth loading state - show full page loader since we don't know if user is authenticated
   if (isLoading && !shouldKeepShellVisible) {
@@ -279,6 +281,36 @@ const ProtectedLayout: React.FC = () => {
 
   // Authenticated - render layout with sidebar
   // LayoutContext.Provider tells DashboardLayout it's already inside a layout
+  // New user (organization has no forms yet): hide the whole app shell and keep
+  // them in the AI builder until their first form exists.
+  if (isNewUser) {
+    const onboardingAllowed =
+      location.pathname === '/build' ||
+      location.pathname.startsWith('/forms') ||
+      location.pathname.startsWith('/form-builder') ||
+      location.pathname.startsWith('/form-edit') ||
+      location.pathname.startsWith('/form/');
+
+    if (!onboardingAllowed) {
+      return <Navigate to="/build" replace />;
+    }
+
+    return (
+      <LayoutContext.Provider value={true}>
+        <SidebarProvider>
+          {/* Sidebar intentionally not rendered during onboarding */}
+          <div className={`h-screen flex w-full ${isImpersonating || isActingOnBehalf ? 'pt-12' : ''}`}>
+            <main className="flex-1 flex flex-col overflow-hidden min-h-0">
+              <Suspense fallback={<ContentLoader />}>
+                <Outlet />
+              </Suspense>
+            </main>
+          </div>
+        </SidebarProvider>
+      </LayoutContext.Provider>
+    );
+  }
+
   return (
     <LayoutContext.Provider value={true}>
       <SidebarProvider>
