@@ -297,13 +297,16 @@ const ProtectedLayout: React.FC = () => {
 
     return (
       <LayoutContext.Provider value={true}>
-        <div className={`h-screen flex w-full ${isImpersonating || isActingOnBehalf ? 'pt-12' : ''}`}>
-          <main className="flex-1 flex flex-col overflow-hidden min-h-0">
-            <Suspense fallback={<ContentLoader />}>
-              <Outlet />
-            </Suspense>
-          </main>
-        </div>
+        <SidebarProvider>
+          {/* Sidebar intentionally not rendered during onboarding */}
+          <div className={`h-screen flex w-full ${isImpersonating || isActingOnBehalf ? 'pt-12' : ''}`}>
+            <main className="flex-1 flex flex-col overflow-hidden min-h-0">
+              <Suspense fallback={<ContentLoader />}>
+                <Outlet />
+              </Suspense>
+            </main>
+          </div>
+        </SidebarProvider>
       </LayoutContext.Provider>
     );
   }
