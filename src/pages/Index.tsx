@@ -55,17 +55,12 @@ const Index = () => {
               <a href="#roadmap" className="text-muted-foreground hover:text-foreground transition-colors">{t('nav.roadmap')}</a>
               <a href="#investors" className="text-muted-foreground hover:text-foreground transition-colors">{t('nav.investors')}</a>
               <a href="#faq" className="text-muted-foreground hover:text-foreground transition-colors">{t('nav.faq')}</a>
+              <Link to="/contact" className="text-muted-foreground hover:text-foreground transition-colors">Contact</Link>
             </div>
             <div className="flex items-center gap-2 sm:gap-3">
               <LanguageSwitcher variant="ghost" />
               <Link to="/auth" className="flex-1 sm:flex-initial">
                 <Button variant="outline" size="sm" className="w-full sm:w-auto">{t('nav.signIn')}</Button>
-              </Link>
-              <Link to="/auth" className="flex-1 sm:flex-initial">
-                <Button size="sm" className="w-full sm:w-auto">
-                  {t('nav.startTrial')}
-                  <ArrowRight className="ms-2 h-4 w-4" />
-                </Button>
               </Link>
             </div>
           </div>
@@ -74,21 +69,6 @@ const Index = () => {
         {/* Hero Section */}
         <main>
           <section className="container mx-auto px-4 py-16 sm:py-24 text-center">
-            <div className="flex flex-wrap justify-center gap-2 mb-8">
-              <Badge variant="secondary" className="bg-success/10 text-success border-success/20">
-                <CheckCircle className="icon-sm me-1" />
-                {t('landing.soc2')}
-              </Badge>
-              <Badge variant="secondary" className="bg-info/10 text-info border-info/20">
-                <Star className="icon-sm me-1" />
-                {t('landing.rating')}
-              </Badge>
-              <Badge variant="secondary" className="bg-accent/10 text-accent-foreground border-accent/20">
-                <Award className="icon-xs me-1" />
-                {t('landing.enterpriseReady')}
-              </Badge>
-            </div>
-            
             <h1 className="text-4xl md:text-6xl lg:text-7xl font-semibold mb-6 text-foreground leading-[1.1] tracking-tight">
               {t('landing.heroTitle')}<br />
               <span className="text-3xl md:text-4xl lg:text-5xl text-muted-foreground font-medium">{t('landing.heroSubtitle')}</span>
@@ -260,31 +240,6 @@ const Index = () => {
             <FAQSection />
           </section>
 
-          {/* Final CTA Section */}
-          <section className="py-20 bg-foreground text-background">
-            <div className="container mx-auto px-4 text-center">
-              <h2 className="text-3xl md:text-4xl font-bold mb-4">
-                Ready to transform your forms?
-              </h2>
-              <p className="text-xl mb-8 max-w-2xl mx-auto opacity-90">
-                Join 500+ organizations using Topsqill to automate their business processes
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Link to="/auth">
-                  <Button size="lg" variant="secondary" className="w-full sm:w-auto">
-                    Start Free Trial - No Credit Card
-                    <ArrowRight className="ml-2 h-5 w-5" />
-                  </Button>
-                </Link>
-                <Button size="lg" variant="outline" className="w-full sm:w-auto border-background bg-background text-foreground hover:bg-background/90">
-                  Schedule Enterprise Demo
-                </Button>
-              </div>
-              <div className="mt-8 text-sm opacity-75">
-                30-day free trial • Cancel anytime • Enterprise support included
-              </div>
-            </div>
-          </section>
         </main>
 
         {/* Footer */}
@@ -304,9 +259,17 @@ const Index = () => {
                   Enterprise form platform powering the next generation of business automation.
                 </p>
                 <div className="flex space-x-4">
-                  <a href="#" className="text-muted-foreground hover:text-primary">Twitter</a>
-                  <a href="#" className="text-muted-foreground hover:text-primary">LinkedIn</a>
-                  <a href="#" className="text-muted-foreground hover:text-primary">GitHub</a>
+                  <a
+                    href="https://www.linkedin.com/company/topsqill-pvt-ltd/posts/?feedView=all"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-muted-foreground hover:text-primary"
+                  >
+                    LinkedIn
+                  </a>
+                  <a href="mailto:contact@topsqill.com" className="text-muted-foreground hover:text-primary">
+                    contact@topsqill.com
+                  </a>
                 </div>
               </div>
               
@@ -325,7 +288,7 @@ const Index = () => {
                   <li><a href="#" className="hover:text-primary">About</a></li>
                   <li><a href="#" className="hover:text-primary">Careers</a></li>
                   <li><a href="#" className="hover:text-primary">Press</a></li>
-                  <li><a href="#" className="hover:text-primary">Contact</a></li>
+                  <li><Link to="/contact" className="hover:text-primary">Contact</Link></li>
                 </ul>
               </div>
               

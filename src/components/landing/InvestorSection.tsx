@@ -1,7 +1,6 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, Users, DollarSign, Globe, Target, ArrowUpRight } from "lucide-react";
+import { TrendingUp, Users, DollarSign, Globe } from "lucide-react";
 
 export default function InvestorSection() {
   const metrics = [
@@ -9,15 +8,6 @@ export default function InvestorSection() {
     { icon: TrendingUp, label: "Monthly Forms Created", value: "50K+", growth: "+180%" },
     { icon: Globe, label: "Countries Served", value: "25+", growth: "Global" },
     { icon: DollarSign, label: "ARR Growth", value: "$2M+", growth: "+320%" }
-  ];
-
-  const highlights = [
-    "Pre-Series A funding round open",
-    "Validated product-market fit",
-    "Enterprise customers including Fortune 500",
-    "Patent-pending workflow automation",
-    "AI roadmap with clear monetization",
-    "Experienced founding team"
   ];
 
   return (
@@ -40,11 +30,11 @@ export default function InvestorSection() {
           </p>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-12">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
           {metrics.map((metric, index) => (
             <Card key={index} className="text-center bg-card/80 backdrop-blur-sm border-border/50 hover:bg-card hover:shadow-token-md transition-all duration-300 group">
               <CardContent className="pt-6">
-                <metric.icon className="size-8 text-primary mx-auto mb-2 group-hover:text-primary/80 group- transition-all duration-300" />
+                <metric.icon className="size-8 text-primary mx-auto mb-2 group-hover:text-primary/80 transition-all duration-300" />
                 <div className="text-2xl font-bold text-foreground group-hover:text-primary transition-colors duration-300">{metric.value}</div>
                 <div className="text-sm text-muted-foreground">{metric.label}</div>
                 <Badge variant="outline" className="mt-2 text-success border-success/50 bg-success/10 group-hover:bg-success/20 transition-all duration-300">
@@ -53,69 +43,6 @@ export default function InvestorSection() {
               </CardContent>
             </Card>
           ))}
-        </div>
-
-        <div className="grid gap-8 lg:grid-cols-2">
-          <Card className="bg-card/80 backdrop-blur-sm border-border/50 hover:bg-card hover:shadow-token-md transition-all duration-300">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-foreground">
-                <Target className="icon-lg text-module-performance" />
-                Market Opportunity
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <div className="text-2xl font-bold">$15B</div>
-                  <div className="text-sm text-muted-foreground">Total Addressable Market</div>
-                </div>
-                <div>
-                  <div className="text-2xl font-bold">$4B</div>
-                  <div className="text-sm text-muted-foreground">Serviceable Market</div>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <div className="text-sm font-medium">Key Market Trends:</div>
-                <ul className="text-sm text-muted-foreground space-y-1">
-                  <li>• Digital transformation acceleration (+40% YoY)</li>
-                  <li>• No-code/low-code adoption (+85% in enterprise)</li>
-                  <li>• AI integration demand (+150% growth)</li>
-                  <li>• Workflow automation necessity (90% of enterprises)</li>
-                </ul>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-card/80 backdrop-blur-sm border-border/50 hover:bg-card hover:shadow-token-md transition-all duration-300">
-            <CardHeader>
-              <CardTitle>Investment Highlights</CardTitle>
-              <CardDescription>Why leading VCs are choosing Topsqill</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ul className="space-y-3">
-                {highlights.map((highlight, index) => (
-                  <li key={index} className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-primary" />
-                    <span className="text-sm">{highlight}</span>
-                  </li>
-                ))}
-              </ul>
-              <div className="mt-6 flex gap-3">
-                <Button>
-                  View Investor Deck
-                  <ArrowUpRight className="ml-2 h-4 w-4" />
-                </Button>
-                <Button variant="outline">Schedule Meeting</Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="mt-12 text-center">
-          <div className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-foreground text-background font-semibold hover:bg-foreground/90 transition-all duration-300 shadow-lg hover:shadow-token-md">
-            <DollarSign className="icon-lg" />
-            <span className="font-medium">Seeking $8M Series A • Contact: investors@topsqill.com</span>
-          </div>
         </div>
       </div>
     </section>
