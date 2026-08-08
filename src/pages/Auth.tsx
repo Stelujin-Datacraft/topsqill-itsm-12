@@ -16,7 +16,6 @@ import { validatePassword, DEFAULT_PASSWORD_POLICY, PasswordPolicy } from '@/uti
 import { getOrganizationPasswordPolicy } from '@/utils/securityEnforcement';
 import { MfaVerificationDialog } from '@/components/MfaVerificationDialog';
 import { LdapLoginForm } from '@/components/ldap/LdapLoginForm';
-import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { getProviderLabel, isOidcProvider } from '@/lib/idp/providerDefaults';
 
 const Auth = () => {
@@ -372,9 +371,6 @@ const Auth = () => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-secondary/20 p-4">
       <Card className="w-full max-w-2xl enterprise-card shadow-lg">
         <CardHeader className="text-center relative">
-          <div className="absolute end-4 top-4">
-            <LanguageSwitcher variant="ghost" />
-          </div>
           <div className="flex items-center justify-center gap-2 mb-4">
             <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
               <span className="text-primary-foreground font-semibold text-lg">T</span>

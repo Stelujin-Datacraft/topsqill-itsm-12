@@ -21,7 +21,6 @@ import { useProject } from "@/contexts/ProjectContext"
 import { useOrganization } from "@/contexts/OrganizationContext"
 import { NotificationPanel } from "@/components/NotificationPanel"
 import { ThemeSelector } from "@/components/ThemeSelector"
-import { LanguageSwitcher } from "@/components/LanguageSwitcher"
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { t } = useTranslation();
@@ -186,7 +185,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <NavProjects projects={data.projects} />
       </SidebarContent>
       <SidebarFooter>
-        <LanguageSwitcher variant="sidebar" />
         <ThemeSelector />
         <NavUser user={data.user} />
       </SidebarFooter>
