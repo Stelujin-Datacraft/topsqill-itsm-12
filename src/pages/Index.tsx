@@ -24,7 +24,6 @@ import TestimonialsSection from '@/components/landing/TestimonialsSection';
 import IntegrationsSection from '@/components/landing/IntegrationsSection';
 import { AppIcon } from '@/components/icons';
 import TrustLogosSection from '@/components/landing/TrustLogosSection';
-import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 
 const Index = () => {
   const { t } = useTranslation();
@@ -58,7 +57,6 @@ const Index = () => {
               <Link to="/contact" className="text-muted-foreground hover:text-foreground transition-colors">Contact</Link>
             </div>
             <div className="flex items-center gap-2 sm:gap-3">
-              <LanguageSwitcher variant="ghost" />
               <Link to="/auth" className="flex-1 sm:flex-initial">
                 <Button variant="outline" size="sm" className="w-full sm:w-auto">{t('nav.signIn')}</Button>
               </Link>
@@ -299,11 +297,6 @@ const Index = () => {
 
             <div className="border-t border-border/60 mt-10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-muted-foreground">
               <p>&copy; {new Date().getFullYear()} TopSqill. All rights reserved.</p>
-              <div className="flex items-center gap-4">
-                <a href="#" className="hover:text-primary transition-colors">Privacy Policy</a>
-                <span className="text-border">|</span>
-                <a href="#" className="hover:text-primary transition-colors">Terms of Service</a>
-              </div>
             </div>
           </div>
         </footer>
