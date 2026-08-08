@@ -1,28 +1,13 @@
+import deloitteLogo from "@/assets/partners/deloitte.png";
+import tclLogo from "@/assets/partners/tcl.png";
+import techcoralLogo from "@/assets/partners/techcoral.png";
+import inspiraLogo from "@/assets/partners/inspira.png";
+
 const partners = [
-  {
-    name: "Deloitte",
-    mark: "D",
-    accent: "#86BC25",
-    subtitle: "Professional services",
-  },
-  {
-    name: "TCL",
-    mark: "TCL",
-    accent: "#E4002B",
-    subtitle: "Technology",
-  },
-  {
-    name: "Techcoral",
-    mark: "TC",
-    accent: "#0D9488",
-    subtitle: "Digital solutions",
-  },
-  {
-    name: "Inspira",
-    mark: "In",
-    accent: "#4F46E5",
-    subtitle: "Enterprise IT",
-  },
+  { name: "Deloitte", logo: deloitteLogo, subtitle: "Professional services" },
+  { name: "TCL", logo: tclLogo, subtitle: "Technology" },
+  { name: "Techcoral", logo: techcoralLogo, subtitle: "Digital solutions" },
+  { name: "Inspira", logo: inspiraLogo, subtitle: "Enterprise IT" },
 ];
 
 export default function TrustLogosSection() {
@@ -43,12 +28,13 @@ export default function TrustLogosSection() {
               key={partner.name}
               className="group flex flex-col items-center justify-center rounded-2xl border border-border/60 bg-card/80 px-4 py-6 sm:px-6 sm:py-8 text-center shadow-sm transition-all duration-300 hover:border-primary/30 hover:shadow-md"
             >
-              <div
-                className="mb-3 flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-xl text-sm sm:text-base font-bold text-white shadow-sm transition-transform duration-300 group-hover:scale-105"
-                style={{ backgroundColor: partner.accent }}
-                aria-hidden
-              >
-                {partner.mark}
+              <div className="mb-3 flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-xl bg-background shadow-sm transition-transform duration-300 group-hover:scale-105">
+                <img
+                  src={partner.logo}
+                  alt={`${partner.name} logo`}
+                  loading="lazy"
+                  className="h-8 w-8 sm:h-10 sm:w-10 object-contain"
+                />
               </div>
               <span className="text-base sm:text-lg font-semibold tracking-tight text-foreground">
                 {partner.name}

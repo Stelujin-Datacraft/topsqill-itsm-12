@@ -8,7 +8,6 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import {
   ArrowRight, ArrowLeft, CheckCircle, Sparkles,
 } from 'lucide-react';
-import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { useSolutionsContent } from '@/content/solutions/useSolutionsContent';
 import type { SolutionStep } from '@/content/solutions/steps';
 
@@ -105,7 +104,6 @@ const Solutions: React.FC = () => {
             </span>
           </Link>
           <div className="flex items-center gap-2 sm:gap-3">
-            <LanguageSwitcher variant="ghost" />
             <Link to="/" className="flex-1 sm:flex-initial">
               <Button variant="outline" size="sm" className="w-full sm:w-auto">
                 <ArrowLeft className="mr-2 h-4 w-4" />
