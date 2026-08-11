@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { FileText, Workflow, BarChart3, BookOpen, ArrowUp, Lock } from 'lucide-react';
+import { FileText, Workflow, BarChart3, BookOpen, ArrowUp } from 'lucide-react';
 
 type AssetType = 'form' | 'workflow' | 'report' | 'doc';
 
@@ -14,6 +14,12 @@ const ASSETS: { id: AssetType; label: string; icon: React.ElementType; color: st
   { id: 'doc', label: 'Knowledge Doc', icon: BookOpen, color: 'text-module-knowledge', placeholder: 'Draft an access control policy with review cycle…', intent: 'Create a knowledge doc', disabled: true },
 ];
 
+/**
+ * Landing hero builder.
+ * - Signed-in users: submit → AI Builder (/build) with the prompt.
+ * - Guests: no "Sign in to build" CTA — they use Sign In / Sign Up in the nav,
+ *   then create on the AI chat page (the only page for new users).
+ */
 export default function HeroPromptPanel() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -34,11 +40,11 @@ export default function HeroPromptPanel() {
     }
 
     if (user) {
-      // Full-page AI Builder picks up the prompt and creates the asset
       navigate('/build');
       return;
     }
 
+    // Guests use Sign In / Sign Up from the nav; keep the prompt for after auth.
     navigate(`/auth?returnTo=${encodeURIComponent('/build')}`);
   };
 
@@ -81,35 +87,20 @@ export default function HeroPromptPanel() {
               </button>
             ))}
           </div>
-          {user ? (
-            <Button size="icon" onClick={handleSubmit} disabled={!prompt.trim()} aria-label="Build it">
-              <ArrowUp className="h-4 w-4" />
-            </Button>
-          ) : (
-            <Button onClick={handleSubmit} disabled={!prompt.trim()} className="shrink-0 gap-2">
-              <Lock className="h-3.5 w-3.5" />
-              Sign in to build
-            </Button>
-          )}
+          <Button
+            size="icon"
+            onClick={handleSubmit}
+            disabled={!prompt.trim()}
+            aria-label="Build it"
+          >
+            <ArrowUp className="h-4 w-4" />
+          </Button>
         </div>
-        {!user && prompt.trim() && (
-          <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-border/60 bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-            <Lock className="h-3.5 w-3.5 shrink-0" />
-            <span>You'll need an account to build this. We'll keep your prompt and continue right after sign in.</span>
-            <button
-              type="button"
-              onClick={() => navigate('/auth?mode=signup')}
-              className="font-medium text-primary underline underline-offset-2"
-            >
-              Create a free account
-            </button>
-          </div>
-        )}
       </div>
       <p className="text-xs text-muted-foreground text-center mt-3">
         {user
-          ? 'Describe what you need — the AI Copilot builds it for you right away.'
-          : 'Describe what you need — sign in and the AI Copilot builds it right away.'}
+          ? 'Describe what you need — the AI Copilot builds it in your workspace.'
+          : 'Describe what you need, or use Sign In / Sign Up to open the AI Builder and create your first form.'}
       </p>
     </div>
   );
