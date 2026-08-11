@@ -49,7 +49,8 @@
     "faq": "Preguntas frecuentes",
     "signIn": "Iniciar sesión",
     "startTrial": "Prueba gratuita",
-    "signUp": "Registrarse"
+    "signUp": "Registrarse",
+    "logout": "Cerrar sesión"
   },
   "landing": {
     "title": "TopSqill BPM — Plataforma empresarial de formularios",

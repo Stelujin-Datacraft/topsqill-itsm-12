@@ -49,7 +49,8 @@
     "faq": "FAQ",
     "signIn": "Anmelden",
     "startTrial": "Kostenlos testen",
-    "signUp": "Registrieren"
+    "signUp": "Registrieren",
+    "logout": "Abmelden"
   },
   "landing": {
     "title": "TopSqill BPM — Unternehmensformularplattform",

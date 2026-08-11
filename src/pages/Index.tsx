@@ -1,14 +1,21 @@
 
-import React, { useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useEffect, useMemo } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { 
   ArrowRight, Building2, Users, Shield, Zap, BarChart3, Workflow, 
   Database, Brain, Sparkles, TrendingUp, Globe, CheckCircle,
-  LineChart, Table, GitBranch, Code, Star, Award, MapPin, Mail, Linkedin
+  LineChart, Table, GitBranch, Code, Star, Award, MapPin, Mail, Linkedin, LogOut, ChevronDown
 } from 'lucide-react';
 import ChartsPreview from '@/components/landing/ChartsPreview';
 import HeroPromptPanel from '@/components/landing/HeroPromptPanel';
@@ -24,13 +31,26 @@ import TestimonialsSection from '@/components/landing/TestimonialsSection';
 import IntegrationsSection from '@/components/landing/IntegrationsSection';
 import { AppIcon } from '@/components/icons';
 import TrustLogosSection from '@/components/landing/TrustLogosSection';
+import { useAuth } from '@/contexts/AuthContext';
 
 const Index = () => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
+  const { user, userProfile, signOut, isLoading } = useAuth();
+
+  const displayName = useMemo(() => {
+    const fullName = [userProfile?.first_name, userProfile?.last_name].filter(Boolean).join(' ').trim();
+    return fullName || userProfile?.email || user?.email || 'Account';
+  }, [userProfile, user]);
 
   useEffect(() => {
     document.title = t('landing.title');
   }, [t]);
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/', { replace: true });
+  };
 
   return (
       <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
@@ -58,12 +78,35 @@ const Index = () => {
               <Link to="/contact" className="text-muted-foreground hover:text-foreground transition-colors">Contact</Link>
             </div>
             <div className="flex items-center gap-2 sm:gap-3">
-              <Link to="/auth" className="flex-1 sm:flex-initial">
-                <Button variant="outline" size="sm" className="w-full sm:w-auto">{t('nav.signIn')}</Button>
-              </Link>
-              <Link to="/auth?mode=signup" className="flex-1 sm:flex-initial">
-                <Button size="sm" className="w-full sm:w-auto">{t('nav.signUp')}</Button>
-              </Link>
+              {!isLoading && user ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="max-w-[220px] gap-1.5">
+                      <span className="truncate">{displayName}</span>
+                      <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-70" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-52">
+                    <DropdownMenuItem onClick={() => navigate('/build')}>
+                      AI Builder
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => void handleSignOut()} className="text-destructive focus:text-destructive">
+                      <LogOut className="mr-2 h-4 w-4" />
+                      {t('nav.logout')}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                <>
+                  <Link to="/auth" className="flex-1 sm:flex-initial">
+                    <Button variant="outline" size="sm" className="w-full sm:w-auto">{t('nav.signIn')}</Button>
+                  </Link>
+                  <Link to="/auth?mode=signup" className="flex-1 sm:flex-initial">
+                    <Button size="sm" className="w-full sm:w-auto">{t('nav.signUp')}</Button>
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         </nav>
