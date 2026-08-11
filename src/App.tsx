@@ -71,6 +71,7 @@ const AcceptInvitation = lazyWithRetry(() => import("./pages/AcceptInvitation"))
 const AuthCallback = lazyWithRetry(() => import("./pages/AuthCallback"));
 const Solutions = lazyWithRetry(() => import("./pages/Solutions"));
 const Contact = lazyWithRetry(() => import("./pages/Contact"));
+const About = lazyWithRetry(() => import("./pages/About"));
 const Privacy = lazyWithRetry(() => import("./pages/Privacy"));
 const Terms = lazyWithRetry(() => import("./pages/Terms"));
 
@@ -163,7 +164,7 @@ const queryClient = new QueryClient({
 });
 
 // Hide the floating AI chatbot on public marketing pages
-const CHATBOT_HIDDEN_PATHS = ['/', '/contact', '/solutions', '/privacy', '/terms', '/docs'];
+const CHATBOT_HIDDEN_PATHS = ['/', '/about', '/contact', '/solutions', '/privacy', '/terms', '/docs'];
 
 const ChatbotGate = () => {
   const location = useLocation();
@@ -217,6 +218,11 @@ const App = () => (
                       <Route path="/contact" element={
                         <Suspense fallback={<RouteLoader />}>
                           <Contact />
+                        </Suspense>
+                      } />
+                      <Route path="/about" element={
+                        <Suspense fallback={<RouteLoader />}>
+                          <About />
                         </Suspense>
                       } />
                       <Route path="/privacy" element={
