@@ -78,12 +78,12 @@ export default function FAQSection() {
           <p className="text-muted-foreground mb-4">
             Still have questions? We&apos;re here to help.
           </p>
-          <a
-            href="mailto:support@topsqill.com"
+          <Link
+            to="/contact"
             className="inline-flex items-center text-primary hover:underline font-medium"
           >
             Contact Support
-          </a>
+          </Link>
         </div>
       </div>
     </section>
