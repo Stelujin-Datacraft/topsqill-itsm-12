@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { 
   ArrowRight, Building2, Users, Shield, Zap, BarChart3, Workflow, 
   Database, Brain, Sparkles, TrendingUp, Globe, CheckCircle,
-  LineChart, Table, GitBranch, Code, Star, Award, MapPin, Mail
+  LineChart, Table, GitBranch, Code, Star, Award, MapPin, Mail, Linkedin
 } from 'lucide-react';
 import ChartsPreview from '@/components/landing/ChartsPreview';
 import HeroPromptPanel from '@/components/landing/HeroPromptPanel';
@@ -281,9 +281,11 @@ const Index = () => {
                       href="https://www.linkedin.com/company/topsqill-pvt-ltd/posts/?feedView=all"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="hover:text-primary transition-colors"
+                      aria-label="TopSqill on LinkedIn"
+                      title="TopSqill on LinkedIn"
+                      className="inline-flex items-center justify-center size-9 rounded-full border border-border/60 text-primary hover:bg-primary/10 transition-colors"
                     >
-                      LinkedIn — TopSqill Pvt Ltd
+                      <Linkedin className="h-4 w-4" />
                     </a>
                   </li>
                   <li>
@@ -297,6 +299,10 @@ const Index = () => {
 
             <div className="border-t border-border/60 mt-10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-muted-foreground">
               <p>&copy; {new Date().getFullYear()} TopSqill. All rights reserved.</p>
+              <div className="flex items-center gap-6">
+                <Link to="/privacy" className="hover:text-primary transition-colors">Privacy Policy</Link>
+                <Link to="/terms" className="hover:text-primary transition-colors">Terms &amp; Conditions</Link>
+              </div>
             </div>
           </div>
         </footer>

@@ -155,12 +155,6 @@ export default function AnnouncementHistory() {
             ))}
           </div>
 
-          <div className="text-center mt-12">
-            <Button variant="outline" size="lg">
-              View All Updates
-              <ChevronRight className="ml-2 h-4 w-4" />
-            </Button>
-          </div>
         </div>
       </div>
     </section>

@@ -4,7 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { OrganizationProvider } from "@/contexts/OrganizationContext";
 import { ProjectProvider } from "@/contexts/ProjectContext";
@@ -71,6 +71,8 @@ const AcceptInvitation = lazyWithRetry(() => import("./pages/AcceptInvitation"))
 const AuthCallback = lazyWithRetry(() => import("./pages/AuthCallback"));
 const Solutions = lazyWithRetry(() => import("./pages/Solutions"));
 const Contact = lazyWithRetry(() => import("./pages/Contact"));
+const Privacy = lazyWithRetry(() => import("./pages/Privacy"));
+const Terms = lazyWithRetry(() => import("./pages/Terms"));
 
 // Forms feature
 const FormBuilder = lazyWithRetry(() => import("./pages/FormBuilder"));
@@ -160,6 +162,18 @@ const queryClient = new QueryClient({
   },
 });
 
+// Hide the floating AI chatbot on public marketing pages
+const CHATBOT_HIDDEN_PATHS = ['/', '/contact', '/solutions', '/privacy', '/terms', '/docs'];
+
+const ChatbotGate = () => {
+  const location = useLocation();
+  const hidden =
+    CHATBOT_HIDDEN_PATHS.includes(location.pathname) ||
+    location.pathname.startsWith('/solutions');
+  if (hidden) return null;
+  return <AIChatbot />;
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider>
@@ -203,6 +217,16 @@ const App = () => (
                       <Route path="/contact" element={
                         <Suspense fallback={<RouteLoader />}>
                           <Contact />
+                        </Suspense>
+                      } />
+                      <Route path="/privacy" element={
+                        <Suspense fallback={<RouteLoader />}>
+                          <Privacy />
+                        </Suspense>
+                      } />
+                      <Route path="/terms" element={
+                        <Suspense fallback={<RouteLoader />}>
+                          <Terms />
                         </Suspense>
                       } />
                       {/* Legacy direct links redirect into the tabbed Solutions page */}
@@ -314,7 +338,7 @@ const App = () => (
                       {/* Catch-all */}
                       <Route path="*" element={<NotFound />} />
                     </Routes>
-                    <AIChatbot />
+                    <ChatbotGate />
                   </BrowserRouter>
                 </TooltipProvider>
               </WorkflowProvider>
