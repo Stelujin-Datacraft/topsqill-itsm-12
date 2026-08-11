@@ -1,9 +1,18 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { backend as supabase } from '@/services/api';
 
 const storageKeyFor = (userId: string, organizationId: string) =>
   `topsqill-workspace-unlocked:${userId}:${organizationId}`;
+
+function readUnlocked(userId: string, organizationId: string): boolean {
+  try {
+    return localStorage.getItem(storageKeyFor(userId, organizationId)) === '1';
+  } catch {
+    return false;
+  }
+}
 
 function isFormWorkspacePath(pathname: string) {
   return (
@@ -16,8 +25,9 @@ function isFormWorkspacePath(pathname: string) {
 
 /**
  * New-user / onboarding gate:
- * - AI Builder (`/build`) stays chat-only with no left nav
- * - Left nav unlocks only after the user opens a created form (See Form)
+ * - Fresh start (nothing created yet): AI Builder only, no left nav
+ * - After a form is created: unlock via modal CTA ("see more features")
+ * - Existing orgs that already have forms are treated as unlocked
  */
 export function useOnboardingGate() {
   const { user, userProfile } = useAuth();
@@ -26,18 +36,7 @@ export function useOnboardingGate() {
   const userId = user?.id;
 
   const [workspaceUnlocked, setWorkspaceUnlocked] = useState(false);
-
-  useEffect(() => {
-    if (!userId || !organizationId) {
-      setWorkspaceUnlocked(false);
-      return;
-    }
-    try {
-      setWorkspaceUnlocked(localStorage.getItem(storageKeyFor(userId, organizationId)) === '1');
-    } catch {
-      setWorkspaceUnlocked(false);
-    }
-  }, [userId, organizationId]);
+  const [checking, setChecking] = useState(true);
 
   const unlockWorkspace = useCallback(() => {
     if (!userId || !organizationId) return;
@@ -49,22 +48,76 @@ export function useOnboardingGate() {
     setWorkspaceUnlocked(true);
   }, [userId, organizationId]);
 
-  // Opening a form is the unlock moment for the full left nav / modules.
   useEffect(() => {
-    if (!userId || !organizationId) return;
-    if (isFormWorkspacePath(location.pathname)) {
-      unlockWorkspace();
+    if (!userId || !organizationId) {
+      setWorkspaceUnlocked(false);
+      setChecking(false);
+      return;
     }
-  }, [location.pathname, userId, organizationId, unlockWorkspace]);
 
-  const inAiBuilderOnly = !!organizationId && !workspaceUnlocked;
+    let cancelled = false;
+
+    const bootstrap = async () => {
+      if (readUnlocked(userId, organizationId)) {
+        if (!cancelled) {
+          setWorkspaceUnlocked(true);
+          setChecking(false);
+        }
+        return;
+      }
+
+      // Returning users who already have forms should not be stuck in AI Builder-only mode.
+      try {
+        const { count, error } = await supabase
+          .from('forms')
+          .select('id', { count: 'exact', head: true })
+          .eq('organization_id', organizationId);
+
+        if (!cancelled && !error && (count ?? 0) > 0) {
+          try {
+            localStorage.setItem(storageKeyFor(userId, organizationId), '1');
+          } catch {
+            /* ignore */
+          }
+          setWorkspaceUnlocked(true);
+        } else if (!cancelled) {
+          setWorkspaceUnlocked(false);
+        }
+      } catch {
+        if (!cancelled) setWorkspaceUnlocked(false);
+      } finally {
+        if (!cancelled) setChecking(false);
+      }
+    };
+
+    void bootstrap();
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, organizationId]);
+
+  // localStorage is the source of truth across hook instances (layout vs AI Builder).
+  // Re-read when the route changes so unlock + navigate shows the sidebar immediately.
+  const unlocked = useMemo(() => {
+    if (workspaceUnlocked) return true;
+    if (!userId || !organizationId) return false;
+    return readUnlocked(userId, organizationId);
+  }, [workspaceUnlocked, userId, organizationId, location.pathname]);
+
+  useEffect(() => {
+    if (unlocked && !workspaceUnlocked) {
+      setWorkspaceUnlocked(true);
+    }
+  }, [unlocked, workspaceUnlocked]);
+
+  const inAiBuilderOnly = !!organizationId && !unlocked && !checking;
 
   return {
-    checking: false,
-    hasForms: workspaceUnlocked,
-    /** True until the user opens a created form — AI Builder has no left nav. */
+    checking,
+    hasForms: unlocked,
+    /** True until the user unlocks via the form-created modal CTA. */
     isNewUser: inAiBuilderOnly,
-    workspaceUnlocked,
+    workspaceUnlocked: unlocked,
     unlockWorkspace,
     isFormWorkspacePath: isFormWorkspacePath(location.pathname),
   };

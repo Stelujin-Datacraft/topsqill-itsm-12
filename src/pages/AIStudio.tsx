@@ -9,11 +9,23 @@ import { cn } from '@/lib/utils';
 import { useCopilotEngine } from '@/hooks/useCopilotEngine';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CopilotFormPicker } from '@/components/ai/CopilotFormPicker';
-import { promptNeedsExistingForm } from '@/lib/copilotUtils';
+import { FormCreatedDialog } from '@/components/ai/FormCreatedDialog';
+import { FORM_CREATE_ACTIONS, promptNeedsExistingForm } from '@/lib/copilotUtils';
+import { useOnboardingGate } from '@/hooks/useOnboardingGate';
 import {
   ArrowUp, Loader2, FileText, Workflow, BarChart3, BookOpen,
   Zap, CheckCircle2, AlertTriangle, Sparkle, RotateCcw,
 } from 'lucide-react';
+
+function extractCreatedForm(message: {
+  action?: { type: string; status: string; result?: { result?: { formId?: string; formName?: string } } };
+}): { formId: string; formName?: string } | null {
+  if (!message.action || message.action.status !== 'success') return null;
+  if (!FORM_CREATE_ACTIONS.has(message.action.type)) return null;
+  const formId = message.action.result?.result?.formId;
+  if (!formId) return null;
+  return { formId, formName: message.action.result?.result?.formName };
+}
 
 const SUGGESTIONS = [
   { icon: FileText, color: 'text-module-forms', label: 'Form', prompt: 'Create a form: employee onboarding request with employee name, email, department, start date and manager approval' },
@@ -24,17 +36,40 @@ const SUGGESTIONS = [
 
 export default function AIStudio() {
   const navigate = useNavigate();
+  const { workspaceUnlocked, unlockWorkspace } = useOnboardingGate();
   const {
     messages, isLoading, activeProject, projects, setCurrentProject, availableForms,
     sendPrompt, clearChat, hasConversation, copilotEnabled, setCopilotEnabled, resolveFormChoice,
   } = useCopilotEngine();
   const [input, setInput] = useState('');
   const [selectedFormId, setSelectedFormId] = useState<string>('');
+  const [createdFormPrompt, setCreatedFormPrompt] = useState<{ formId: string; formName?: string } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const sendRef = useRef(sendPrompt);
   sendRef.current = sendPrompt;
   const autoRan = useRef(false);
+  const promptedFormIds = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (workspaceUnlocked) {
+      setCreatedFormPrompt(null);
+      return;
+    }
+    for (let i = messages.length - 1; i >= 0; i -= 1) {
+      const created = extractCreatedForm(messages[i]);
+      if (!created || promptedFormIds.current.has(created.formId)) continue;
+      promptedFormIds.current.add(created.formId);
+      setCreatedFormPrompt(created);
+      break;
+    }
+  }, [messages, workspaceUnlocked]);
+
+  const openCreatedForm = (formId: string) => {
+    unlockWorkspace();
+    setCreatedFormPrompt(null);
+    navigate(`/form-builder/${formId}`);
+  };
 
   // Pick up a prompt handed over from the landing page hero panel
   useEffect(() => {
@@ -76,7 +111,20 @@ export default function AIStudio() {
   const LinkRenderer = ({ href, children }: { href?: string; children?: React.ReactNode }) => {
     if (href?.startsWith('/')) {
       return (
-        <button onClick={() => navigate(href)} className="text-primary underline underline-offset-2 font-medium">
+        <button
+          onClick={() => {
+            const formMatch = href.match(/^\/form-builder\/([^/?#]+)/);
+            if (formMatch && !workspaceUnlocked) {
+              openCreatedForm(formMatch[1]);
+              return;
+            }
+            if (!workspaceUnlocked && !href.startsWith('/build')) {
+              unlockWorkspace();
+            }
+            navigate(href);
+          }}
+          className="text-primary underline underline-offset-2 font-medium"
+        >
           {children}
         </button>
       );
@@ -279,6 +327,15 @@ export default function AIStudio() {
           </div>
         </>
       )}
+
+      <FormCreatedDialog
+        open={!!createdFormPrompt && !workspaceUnlocked}
+        formName={createdFormPrompt?.formName}
+        onClose={() => setCreatedFormPrompt(null)}
+        onExplore={() => {
+          if (createdFormPrompt) openCreatedForm(createdFormPrompt.formId);
+        }}
+      />
     </div>
   );
 }

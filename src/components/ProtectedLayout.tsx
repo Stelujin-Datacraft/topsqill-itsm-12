@@ -40,7 +40,7 @@ const ProtectedLayout: React.FC = () => {
   const { isImpersonating } = useImpersonation();
   const { isActingOnBehalf } = useDelegation();
   const { hasPermission, loading: permissionLoading } = useUnifiedAccessControl();
-  const { isNewUser, isFormWorkspacePath } = useOnboardingGate();
+  const { isNewUser, checking: onboardingChecking } = useOnboardingGate();
   const location = useLocation();
   const navigate = useNavigate();
   const defaultDashboardChecked = useRef(false);
@@ -280,17 +280,18 @@ const ProtectedLayout: React.FC = () => {
   }
 
   // Authenticated - render layout with sidebar
-  // Until the user opens a created form, keep them in AI Builder chat only (no left nav).
-  // Clicking "See Form" / opening form routes unlocks the full module sidebar.
-  if (isNewUser) {
-    const onboardingAllowed =
-      location.pathname === '/build' ||
-      location.pathname.startsWith('/forms') ||
-      location.pathname.startsWith('/form-builder') ||
-      location.pathname.startsWith('/form-edit') ||
-      location.pathname.startsWith('/form/');
+  // Fresh start: AI Builder chat only (no left nav) until the user unlocks via the
+  // "form created → see more features" modal CTA.
+  if (onboardingChecking) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <RouteLoader />
+      </div>
+    );
+  }
 
-    if (!onboardingAllowed) {
+  if (isNewUser) {
+    if (location.pathname !== '/build') {
       return <Navigate to="/build" replace />;
     }
 
@@ -298,7 +299,6 @@ const ProtectedLayout: React.FC = () => {
       <LayoutContext.Provider value={true}>
         <SidebarProvider>
           <div className={`h-screen flex w-full ${isImpersonating || isActingOnBehalf ? 'pt-12' : ''}`}>
-            {isFormWorkspacePath && <AppSidebar />}
             <main className="flex-1 flex flex-col overflow-hidden min-h-0">
               <Suspense fallback={<ContentLoader />}>
                 <Outlet />
