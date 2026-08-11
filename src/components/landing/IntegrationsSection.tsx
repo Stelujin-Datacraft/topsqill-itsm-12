@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { 
   MessageSquare, Mail, Database, FileSpreadsheet, 
@@ -67,7 +68,7 @@ export default function IntegrationsSection() {
 
         <div className="text-center mt-10">
           <p className="text-muted-foreground text-sm">
-            Need a custom integration? <span className="text-primary font-medium cursor-pointer hover:underline">Contact us</span>
+            Need a custom integration? <Link to="/contact" className="text-primary font-medium hover:underline">Contact us</Link>
           </p>
         </div>
       </div>
