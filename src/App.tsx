@@ -162,8 +162,19 @@ const queryClient = new QueryClient({
   },
 });
 
+// Hide the floating AI chatbot on public marketing pages
+const CHATBOT_HIDDEN_PATHS = ['/', '/contact', '/solutions', '/privacy', '/terms', '/docs'];
+
+const ChatbotGate = () => {
+  const location = useLocation();
+  const hidden =
+    CHATBOT_HIDDEN_PATHS.includes(location.pathname) ||
+    location.pathname.startsWith('/solutions');
+  if (hidden) return null;
+  return <AIChatbot />;
+};
+
 const App = () => (
-  // eslint-disable-next-line
   <QueryClientProvider client={queryClient}>
     <ThemeProvider>
     <AuthProvider>
