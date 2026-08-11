@@ -28,7 +28,7 @@ const Auth = () => {
   const [searchParams] = useSearchParams();
   const initialMode = searchParams.get('mode') === 'signup' ? 'signup' : 'signin';
   const [activeTab, setActiveTab] = useState(initialMode);
-  const { signIn, registerOrganization, signOut, isLoading, user, pendingMfa, completeMfaVerification } = useAuth();
+  const { signIn, registerOrganization, isLoading, user, pendingMfa, completeMfaVerification } = useAuth();
   const navigate = useNavigate();
   const returnTo = searchParams.get('returnTo');
   const skipAuthRedirectRef = useRef(false);
@@ -321,17 +321,9 @@ const Auth = () => {
       title: 'Account created!',
       description: needsEmailVerification
         ? 'Please verify your email, then sign in. Your organization will be set up automatically.'
-        : 'You can now create a form from the landing page. Sign in when you open the form to use the full workspace.',
+        : 'Welcome! Create your first form in the AI Builder.',
     });
 
-    // Return to landing after signup so the user can create a form from the hero prompt.
-    // Sign out so opening "See Form" / app routes requires a fresh sign-in with full nav.
-    skipAuthRedirectRef.current = true;
-    try {
-      await signOut();
-    } catch {
-      /* ignore */
-    }
     setSignUpData({
       organization_name: '',
       full_name: '',
@@ -339,7 +331,17 @@ const Auth = () => {
       password: '',
       confirm_password: '',
     });
-    navigate('/', { replace: true });
+
+    // Email verification required: stay on auth / go home to sign in later.
+    // Otherwise take new users straight to AI Builder (their only page until a form exists).
+    if (needsEmailVerification) {
+      skipAuthRedirectRef.current = true;
+      setActiveTab('signin');
+      setSignInData({ email: signUpData.email.trim(), password: '' });
+      return;
+    }
+
+    navigate('/build', { replace: true });
   };
 
   return (
