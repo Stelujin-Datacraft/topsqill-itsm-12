@@ -1,37 +1,71 @@
-import { useQuery } from '@tanstack/react-query';
+import { useCallback, useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { backend as supabase } from '@/services/api';
+
+const storageKeyFor = (userId: string, organizationId: string) =>
+  `topsqill-workspace-unlocked:${userId}:${organizationId}`;
+
+function isFormWorkspacePath(pathname: string) {
+  return (
+    pathname.startsWith('/forms') ||
+    pathname.startsWith('/form-builder') ||
+    pathname.startsWith('/form-edit') ||
+    pathname.startsWith('/form/')
+  );
+}
 
 /**
- * New-user gate: until the organization has at least one form,
- * the app shell (sidebar/nav) is hidden and the user stays in the AI builder.
+ * New-user / onboarding gate:
+ * - AI Builder (`/build`) stays chat-only with no left nav
+ * - Left nav unlocks only after the user opens a created form (See Form)
  */
 export function useOnboardingGate() {
   const { user, userProfile } = useAuth();
+  const location = useLocation();
   const organizationId = userProfile?.organization_id;
+  const userId = user?.id;
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['onboarding-has-forms', organizationId],
-    enabled: !!user && !!organizationId,
-    staleTime: 0,
-    refetchOnWindowFocus: true,
-    refetchInterval: (query) => (query.state.data === false ? 8000 : false),
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('forms')
-        .select('id')
-        .eq('organization_id', organizationId)
-        .limit(1);
-      if (error) return true; // fail open — never lock a user out on a fetch error
-      return (data?.length ?? 0) > 0;
-    },
-  });
+  const [workspaceUnlocked, setWorkspaceUnlocked] = useState(false);
 
-  const hasForms = data !== false;
+  useEffect(() => {
+    if (!userId || !organizationId) {
+      setWorkspaceUnlocked(false);
+      return;
+    }
+    try {
+      setWorkspaceUnlocked(localStorage.getItem(storageKeyFor(userId, organizationId)) === '1');
+    } catch {
+      setWorkspaceUnlocked(false);
+    }
+  }, [userId, organizationId]);
+
+  const unlockWorkspace = useCallback(() => {
+    if (!userId || !organizationId) return;
+    try {
+      localStorage.setItem(storageKeyFor(userId, organizationId), '1');
+    } catch {
+      /* ignore */
+    }
+    setWorkspaceUnlocked(true);
+  }, [userId, organizationId]);
+
+  // Opening a form is the unlock moment for the full left nav / modules.
+  useEffect(() => {
+    if (!userId || !organizationId) return;
+    if (isFormWorkspacePath(location.pathname)) {
+      unlockWorkspace();
+    }
+  }, [location.pathname, userId, organizationId, unlockWorkspace]);
+
+  const inAiBuilderOnly = !!organizationId && !workspaceUnlocked;
 
   return {
-    checking: !!organizationId && isLoading && data === undefined,
-    hasForms,
-    isNewUser: !!organizationId && data === false,
+    checking: false,
+    hasForms: workspaceUnlocked,
+    /** True until the user opens a created form — AI Builder has no left nav. */
+    isNewUser: inAiBuilderOnly,
+    workspaceUnlocked,
+    unlockWorkspace,
+    isFormWorkspacePath: isFormWorkspacePath(location.pathname),
   };
 }
