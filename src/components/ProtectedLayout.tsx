@@ -281,8 +281,8 @@ const ProtectedLayout: React.FC = () => {
 
   // Authenticated - render layout with sidebar
   // LayoutContext.Provider tells DashboardLayout it's already inside a layout
-  // New user (organization has no forms yet): hide the whole app shell and keep
-  // them in the AI builder until their first form exists.
+  // New user (organization has no forms yet): keep them in the AI builder for creation,
+  // but once they open a form ("See Form" / form builder / forms list) show the full left nav.
   if (isNewUser) {
     const onboardingAllowed =
       location.pathname === '/build' ||
@@ -295,11 +295,17 @@ const ProtectedLayout: React.FC = () => {
       return <Navigate to="/build" replace />;
     }
 
+    const showFullNav =
+      location.pathname.startsWith('/forms') ||
+      location.pathname.startsWith('/form-builder') ||
+      location.pathname.startsWith('/form-edit') ||
+      location.pathname.startsWith('/form/');
+
     return (
       <LayoutContext.Provider value={true}>
         <SidebarProvider>
-          {/* Sidebar intentionally not rendered during onboarding */}
           <div className={`h-screen flex w-full ${isImpersonating || isActingOnBehalf ? 'pt-12' : ''}`}>
+            {showFullNav && <AppSidebar />}
             <main className="flex-1 flex flex-col overflow-hidden min-h-0">
               <Suspense fallback={<ContentLoader />}>
                 <Outlet />
