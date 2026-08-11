@@ -6,29 +6,45 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { toast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Building2, Mail, UserPlus, Server, Chrome } from 'lucide-react';
+import { Building2, Mail, Server } from 'lucide-react';
 import { PasswordStrengthIndicator } from '@/components/PasswordStrengthIndicator';
 import { validatePassword, DEFAULT_PASSWORD_POLICY, PasswordPolicy } from '@/utils/passwordValidation';
-import { getOrganizationPasswordPolicy } from '@/utils/securityEnforcement';
 import { MfaVerificationDialog } from '@/components/MfaVerificationDialog';
 import { LdapLoginForm } from '@/components/ldap/LdapLoginForm';
 import { getProviderLabel, isOidcProvider } from '@/lib/idp/providerDefaults';
 
+function deriveOrganizationDomain(orgName: string, email: string): string {
+  const fromName = orgName
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  const fromEmail = email.split('@')[1]?.trim().toLowerCase() || '';
+  const base = fromName || fromEmail.split('.')[0] || 'organization';
+  return `${base}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
+function splitFullName(fullName: string): { first_name: string; last_name: string } {
+  const parts = fullName.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return { first_name: '', last_name: '' };
+  if (parts.length === 1) return { first_name: parts[0], last_name: parts[0] };
+  return { first_name: parts[0], last_name: parts.slice(1).join(' ') };
+}
+
 const Auth = () => {
   const { t } = useTranslation();
-  const [activeTab, setActiveTab] = useState('signin');
-  const { signIn, signUp, signInWithGoogle, registerOrganization, requestToJoinOrganization, isLoading, user, pendingMfa, completeMfaVerification } = useAuth();
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const initialMode = searchParams.get('mode') === 'signup' ? 'signup' : 'signin';
+  const [activeTab, setActiveTab] = useState(initialMode);
+  const { signIn, registerOrganization, isLoading, user, pendingMfa, completeMfaVerification } = useAuth();
+  const navigate = useNavigate();
   const returnTo = searchParams.get('returnTo');
 
   // Password policy state
   const [passwordPolicy, setPasswordPolicy] = useState<PasswordPolicy>(DEFAULT_PASSWORD_POLICY);
-  const [policyLoading, setPolicyLoading] = useState(false);
 
   // IdP / LDAP state
   const [showLdapLogin, setShowLdapLogin] = useState(false);
@@ -188,49 +204,21 @@ const Auth = () => {
     password: ''
   });
 
-  // Organization registration form state
-  const [orgRegData, setOrgRegData] = useState({
-    name: '',
-    domain: '',
-    description: '',
-    admin_email: '',
-    admin_password: '',
-    admin_first_name: '',
-    admin_last_name: ''
-  });
-
-  // Join request form state
-  const [joinData, setJoinData] = useState({
-    organization_domain: '',
+  // Sign up form state (creates organization + admin account)
+  const [signUpData, setSignUpData] = useState({
+    organization_name: '',
+    full_name: '',
     email: '',
-    first_name: '',
-    last_name: '',
-    message: ''
+    password: '',
+    confirm_password: '',
   });
 
-  // Load password policy when organization domain changes (for join tab)
-  const loadPolicyFromDomain = async (domain: string) => {
-    if (!domain) return;
-    
-    setPolicyLoading(true);
-    try {
-      const { data: org } = await supabase
-        .from('organizations')
-        .select('id')
-        .eq('domain', domain)
-        .maybeSingle();
-
-      if (org) {
-        const policy = await getOrganizationPasswordPolicy(org.id);
-        if (policy) {
-          setPasswordPolicy(policy);
-        }
-      }
-    } catch (error) {
-      console.error('Error loading password policy:', error);
-    }
-    setPolicyLoading(false);
-  };
+  // Keep tab in sync when landing links use ?mode=signup
+  useEffect(() => {
+    const mode = searchParams.get('mode');
+    if (mode === 'signup') setActiveTab('signup');
+    if (mode === 'signin') setActiveTab('signin');
+  }, [searchParams]);
 
   const handleEmailNext = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -290,81 +278,69 @@ const Auth = () => {
     });
   };
 
-  const handleRegisterOrganization = async (e: React.FormEvent) => {
+  const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Validate password against default policy
-    const validation = validatePassword(orgRegData.admin_password, passwordPolicy);
+
+    if (signUpData.password !== signUpData.confirm_password) {
+      toast({
+        title: 'Passwords do not match',
+        description: 'Please make sure password and confirm password are the same.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const validation = validatePassword(signUpData.password, passwordPolicy);
     if (!validation.isValid) {
       toast({
-        title: "Password does not meet requirements",
+        title: 'Password does not meet requirements',
         description: validation.errors[0],
-        variant: "destructive",
+        variant: 'destructive',
       });
       return;
     }
 
-    const { error } = await registerOrganization(orgRegData);
-    if (error) {
+    const { first_name, last_name } = splitFullName(signUpData.full_name);
+    if (!first_name) {
       toast({
-        title: "Registration failed",
-        description: error.message || "Failed to register organization. Please try again.",
-        variant: "destructive",
-      });
-    } else {
-      toast({
-        title: "Organization registered!",
-        description: "Please check your email to verify your account.",
-      });
-      setActiveTab('signin');
-    }
-  };
-
-  const handleJoinRequest = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // First, find the organization by domain
-    const { data: orgs, error: findError } = await supabase
-      .from('organizations')
-      .select('id, name')
-      .eq('domain', joinData.organization_domain)
-      .single();
-
-    if (findError || !orgs) {
-      toast({
-        title: "Organization not found",
-        description: "No organization found with that domain.",
-        variant: "destructive",
+        title: 'Full name required',
+        description: 'Please enter your full name.',
+        variant: 'destructive',
       });
       return;
     }
 
-    const { error } = await requestToJoinOrganization(orgs.id, {
-      email: joinData.email,
-      first_name: joinData.first_name,
-      last_name: joinData.last_name,
-      message: joinData.message
+    const { error } = await registerOrganization({
+      name: signUpData.organization_name.trim(),
+      domain: deriveOrganizationDomain(signUpData.organization_name, signUpData.email),
+      admin_email: signUpData.email.trim(),
+      admin_password: signUpData.password,
+      admin_first_name: first_name,
+      admin_last_name: last_name,
     });
 
     if (error) {
       toast({
-        title: "Request failed",
-        description: error.message || "Failed to send join request. Please try again.",
-        variant: "destructive",
+        title: 'Sign up failed',
+        description: error.message || 'Failed to create your account. Please try again.',
+        variant: 'destructive',
       });
-    } else {
-      toast({
-        title: "Request sent!",
-        description: `Your request to join ${orgs.name} has been sent to the administrators.`,
-      });
-      setJoinData({
-        organization_domain: '',
-        email: '',
-        first_name: '',
-        last_name: '',
-        message: ''
-      });
+      return;
     }
+
+    toast({
+      title: 'Account created!',
+      description: 'Please check your email to verify your account, then sign in.',
+    });
+    setActiveTab('signin');
+    setSignInData({ email: signUpData.email.trim(), password: '' });
+    setSignUpData({
+      organization_name: '',
+      full_name: '',
+      email: '',
+      password: '',
+      confirm_password: '',
+    });
   };
 
   return (
@@ -377,17 +353,18 @@ const Auth = () => {
             </div>
             <span className="text-2xl font-semibold tracking-tight">{t('common.appName')}</span>
           </div>
-          <CardTitle className="text-2xl font-semibold tracking-tight">{t('auth.signIn')}</CardTitle>
+          <CardTitle className="text-2xl font-semibold tracking-tight">
+            {activeTab === 'signup' ? t('auth.signUp') : t('auth.signIn')}
+          </CardTitle>
           <CardDescription className="leading-relaxed">
-            {t('auth.signInSubtitle')}
+            {activeTab === 'signup' ? t('auth.signUpSubtitle') : t('auth.signInSubtitle')}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-3 h-auto gap-1">
-              <TabsTrigger value="signin" className="text-xs sm:text-sm px-1 sm:px-3 py-2 whitespace-normal sm:whitespace-nowrap leading-tight">{t('auth.signIn')}</TabsTrigger>
-              <TabsTrigger value="register-org" className="text-xs sm:text-sm px-1 sm:px-3 py-2 whitespace-normal sm:whitespace-nowrap leading-tight">{t('auth.registerOrg')}</TabsTrigger>
-              <TabsTrigger value="join-org" className="text-xs sm:text-sm px-1 sm:px-3 py-2 whitespace-normal sm:whitespace-nowrap leading-tight">{t('auth.joinOrg')}</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-2 h-auto gap-1">
+              <TabsTrigger value="signin" className="text-sm px-3 py-2">{t('auth.signIn')}</TabsTrigger>
+              <TabsTrigger value="signup" className="text-sm px-3 py-2">{t('auth.signUp')}</TabsTrigger>
             </TabsList>
 
             <TabsContent value="signin" className="space-y-4">
@@ -534,166 +511,71 @@ const Auth = () => {
               )}
             </TabsContent>
 
-            <TabsContent value="register-org" className="space-y-4">
+            <TabsContent value="signup" className="space-y-4">
               <div className="flex items-center gap-2 mb-4 text-sm text-muted-foreground">
                 <Building2 className="h-4 w-4" />
-                Register your organization and become an administrator
+                {t('auth.signUpIntro')}
               </div>
-              <form onSubmit={handleRegisterOrganization} className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="org-name">Organization Name</Label>
-                    <Input
-                      id="org-name"
-                      placeholder="Acme Corp"
-                      value={orgRegData.name}
-                      onChange={(e) => setOrgRegData({ ...orgRegData, name: e.target.value })}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="org-domain">Domain</Label>
-                    <Input
-                      id="org-domain"
-                      placeholder="acmecorp.com"
-                      value={orgRegData.domain}
-                      onChange={(e) => setOrgRegData({ ...orgRegData, domain: e.target.value })}
-                      required
-                    />
-                  </div>
-                </div>
+              <form onSubmit={handleSignUp} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="org-description">Description (Optional)</Label>
-                  <Textarea
-                    id="org-description"
-                    placeholder="Brief description of your organization"
-                    value={orgRegData.description}
-                    onChange={(e) => setOrgRegData({ ...orgRegData, description: e.target.value })}
-                    rows={3}
+                  <Label htmlFor="signup-org-name">{t('auth.organizationName')}</Label>
+                  <Input
+                    id="signup-org-name"
+                    placeholder="Acme Corp"
+                    value={signUpData.organization_name}
+                    onChange={(e) => setSignUpData({ ...signUpData, organization_name: e.target.value })}
+                    required
                   />
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="admin-first-name">Admin First Name</Label>
-                    <Input
-                      id="admin-first-name"
-                      placeholder="John"
-                      value={orgRegData.admin_first_name}
-                      onChange={(e) => setOrgRegData({ ...orgRegData, admin_first_name: e.target.value })}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="admin-last-name">Admin Last Name</Label>
-                    <Input
-                      id="admin-last-name"
-                      placeholder="Doe"
-                      value={orgRegData.admin_last_name}
-                      onChange={(e) => setOrgRegData({ ...orgRegData, admin_last_name: e.target.value })}
-                      required
-                    />
-                  </div>
+                <div className="space-y-2">
+                  <Label htmlFor="signup-full-name">{t('auth.fullName')}</Label>
+                  <Input
+                    id="signup-full-name"
+                    placeholder="Jane Smith"
+                    value={signUpData.full_name}
+                    onChange={(e) => setSignUpData({ ...signUpData, full_name: e.target.value })}
+                    required
+                  />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="admin-email">{t('auth.adminEmail')}</Label>
+                  <Label htmlFor="signup-email">{t('auth.email')}</Label>
                   <Input
-                    id="admin-email"
+                    id="signup-email"
                     type="email"
-                    placeholder="admin@acmecorp.com"
-                    value={orgRegData.admin_email}
-                    onChange={(e) => setOrgRegData({ ...orgRegData, admin_email: e.target.value })}
+                    placeholder="jane@acmecorp.com"
+                    value={signUpData.email}
+                    onChange={(e) => setSignUpData({ ...signUpData, email: e.target.value })}
                     required
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="admin-password">{t('auth.adminPassword')}</Label>
+                  <Label htmlFor="signup-password">{t('auth.password')}</Label>
                   <Input
-                    id="admin-password"
+                    id="signup-password"
                     type="password"
-                    value={orgRegData.admin_password}
-                    onChange={(e) => setOrgRegData({ ...orgRegData, admin_password: e.target.value })}
+                    value={signUpData.password}
+                    onChange={(e) => setSignUpData({ ...signUpData, password: e.target.value })}
                     required
                   />
-                  {orgRegData.admin_password && (
+                  {signUpData.password && (
                     <PasswordStrengthIndicator
-                      password={orgRegData.admin_password}
+                      password={signUpData.password}
                       policy={passwordPolicy}
                     />
                   )}
                 </div>
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? 'Registering...' : 'Register Organization'}
-                </Button>
-              </form>
-            </TabsContent>
-
-            <TabsContent value="join-org" className="space-y-4">
-              <div className="flex items-center gap-2 mb-4 text-sm text-muted-foreground">
-                <UserPlus className="h-4 w-4" />
-                Request to join an existing organization
-              </div>
-              <form onSubmit={handleJoinRequest} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="join-domain">Organization Domain</Label>
+                  <Label htmlFor="signup-confirm-password">{t('auth.confirmPassword')}</Label>
                   <Input
-                    id="join-domain"
-                    placeholder="acmecorp.com"
-                    value={joinData.organization_domain}
-                    onChange={(e) => {
-                      setJoinData({ ...joinData, organization_domain: e.target.value });
-                      // Load password policy when domain is entered
-                      if (e.target.value.length > 3) {
-                        loadPolicyFromDomain(e.target.value);
-                      }
-                    }}
+                    id="signup-confirm-password"
+                    type="password"
+                    value={signUpData.confirm_password}
+                    onChange={(e) => setSignUpData({ ...signUpData, confirm_password: e.target.value })}
                     required
                   />
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="join-first-name">First Name</Label>
-                    <Input
-                      id="join-first-name"
-                      placeholder="Jane"
-                      value={joinData.first_name}
-                      onChange={(e) => setJoinData({ ...joinData, first_name: e.target.value })}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="join-last-name">Last Name</Label>
-                    <Input
-                      id="join-last-name"
-                      placeholder="Smith"
-                      value={joinData.last_name}
-                      onChange={(e) => setJoinData({ ...joinData, last_name: e.target.value })}
-                      required
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="join-email">{t('auth.email')}</Label>
-                  <Input
-                    id="join-email"
-                    type="email"
-                    placeholder="jane.smith@acmecorp.com"
-                    value={joinData.email}
-                    onChange={(e) => setJoinData({ ...joinData, email: e.target.value })}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="join-message">Message (Optional)</Label>
-                  <Textarea
-                    id="join-message"
-                    placeholder="Tell the administrators why you want to join..."
-                    value={joinData.message}
-                    onChange={(e) => setJoinData({ ...joinData, message: e.target.value })}
-                    rows={3}
-                  />
-                </div>
                 <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? 'Sending Request...' : 'Send Join Request'}
+                  {isLoading ? t('auth.creatingAccount') : t('auth.createAccount')}
                 </Button>
               </form>
             </TabsContent>

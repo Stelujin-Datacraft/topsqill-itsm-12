@@ -48,7 +48,8 @@
     "investors": "Investisseurs",
     "faq": "FAQ",
     "signIn": "Se connecter",
-    "startTrial": "Essai gratuit"
+    "startTrial": "Essai gratuit",
+    "signUp": "S'inscrire"
   },
   "landing": {
     "title": "TopSqill BPM — Plateforme de formulaires d'entreprise",
@@ -69,7 +70,7 @@
   },
   "auth": {
     "signIn": "Se connecter",
-    "signInSubtitle": "Connectez-vous ou enregistrez votre organisation",
+    "signInSubtitle": "Connectez-vous ou créez un nouveau compte",
     "signUp": "S'inscrire",
     "registerOrg": "Enregistrer une organisation",
     "joinOrg": "Rejoindre une organisation",
@@ -81,7 +82,14 @@
     "continue": "Continuer",
     "usePassword": "Utiliser le mot de passe",
     "adminEmail": "E-mail administrateur",
-    "adminPassword": "Mot de passe administrateur"
+    "adminPassword": "Mot de passe administrateur",
+    "signUpSubtitle": "Créez votre organisation et votre compte administrateur",
+    "signUpIntro": "Créez votre organisation et devenez administrateur",
+    "organizationName": "Nom de l'organisation",
+    "fullName": "Nom complet",
+    "confirmPassword": "Confirmer le mot de passe",
+    "createAccount": "Créer un compte",
+    "creatingAccount": "Création du compte…"
   },
   "dashboard": {
     "title": "Vue d'ensemble",
@@ -280,7 +288,16 @@
         "tagline": "Suivez un nouvel employé de la soumission du formulaire au premier jour — formulaires, workflows, ITAM, e-mail, base de connaissances, flux de données et rapports réunis.",
         "scenarioTitle": "Le scénario : Sarah rejoint en tant qu'ingénieure logiciel",
         "scenarioBody": "Les RH soumettent le formulaire d'onboarding de Sarah. En quelques minutes, l'IT a une demande d'ordinateur, son manager reçoit un e-mail et le tableau de bord reflète la nouvelle recrue.",
-        "chips": ["Formulaires", "Référence croisée", "Workflows", "ITAM", "E-mail", "Base de connaissances", "Flux de données", "Rapports"]
+        "chips": [
+          "Formulaires",
+          "Référence croisée",
+          "Workflows",
+          "ITAM",
+          "E-mail",
+          "Base de connaissances",
+          "Flux de données",
+          "Rapports"
+        ]
       },
       "grc": {
         "label": "GRC",
@@ -289,7 +306,16 @@
         "tagline": "Suivez une politique du brouillon à l'audit : politiques, cadres, risques, contrôles, workflows, preuves, constats et tableaux de bord.",
         "scenarioTitle": "Le scénario : Préparer ISO 27001 en 90 jours",
         "scenarioBody": "Le responsable conformité rédige une politique de sécurité, la mappe aux contrôles ISO 27001, enregistre les risques et suit les constats d'audit.",
-        "chips": ["Politiques", "Cadres", "Registre des risques", "Contrôles", "Workflows", "Preuves", "Constats", "Tableaux de bord"]
+        "chips": [
+          "Politiques",
+          "Cadres",
+          "Registre des risques",
+          "Contrôles",
+          "Workflows",
+          "Preuves",
+          "Constats",
+          "Tableaux de bord"
+        ]
       },
       "itsm": {
         "label": "ITSM",
@@ -298,7 +324,15 @@
         "tagline": "Remplacez l'empilement d'outils helpdesk, CMDB et scripts de reporting par une plateforme connectée.",
         "scenarioTitle": "Le scénario : Priya ne peut pas se connecter au VPN",
         "scenarioBody": "Priya soumet « VPN ne se connecte pas ». TopSqill suggère des articles KB, puis un workflow classe l'incident et démarre un SLA de 4 heures.",
-        "chips": ["Incident", "Demande de service", "SLA", "ITAM", "Base de connaissances", "Workflows", "Rapports"]
+        "chips": [
+          "Incident",
+          "Demande de service",
+          "SLA",
+          "ITAM",
+          "Base de connaissances",
+          "Workflows",
+          "Rapports"
+        ]
       },
       "vendor": {
         "label": "Fournisseurs",
@@ -307,7 +341,15 @@
         "tagline": "Une plateforme pour l'onboarding fournisseur, les contrats, les risques, les renouvellements et les dépenses.",
         "scenarioTitle": "Le scénario : Intégrer un nouveau fournisseur SaaS",
         "scenarioBody": "Les achats soumettent « Acme Analytics » avec un MSA et un rapport SOC 2. Un workflow ouvre des revues parallèles Legal, Sécurité et Finance.",
-        "chips": ["Onboarding fournisseur", "Contrats", "Risque", "Renouvellements", "Dépenses", "Flux de données", "Rapports"]
+        "chips": [
+          "Onboarding fournisseur",
+          "Contrats",
+          "Risque",
+          "Renouvellements",
+          "Dépenses",
+          "Flux de données",
+          "Rapports"
+        ]
       },
       "security": {
         "label": "Sécurité",
@@ -316,7 +358,15 @@
         "tagline": "Remplacez boîtes mail, feuilles de calcul et fils de discussion par une plateforme d'opérations de sécurité connectée.",
         "scenarioTitle": "Le scénario : Phishing suspecté en finance",
         "scenarioBody": "Rahul transmet un e-mail suspect via « Signaler un phishing ». TopSqill ouvre un incident P2 et démarre un SLA d'une heure.",
-        "chips": ["Réponse aux incidents", "Vulnérabilités", "Runbooks", "SLA", "Preuves", "Workflows", "Rapports CISO"]
+        "chips": [
+          "Réponse aux incidents",
+          "Vulnérabilités",
+          "Runbooks",
+          "SLA",
+          "Preuves",
+          "Workflows",
+          "Rapports CISO"
+        ]
       },
       "hr": {
         "label": "RH",
@@ -325,7 +375,15 @@
         "tagline": "Remplacez feuilles d'onboarding, suivi des congés et boîtes RH par une plateforme connectée pour tout le cycle de vie employé.",
         "scenarioTitle": "Le scénario : Ananya arrive lundi",
         "scenarioBody": "Les RH remplissent le formulaire mercredi. Un workflow provisionne l'IT, la paie, les locaux et les politiques avant le premier jour.",
-        "chips": ["Onboarding", "Congés", "Performance", "Helpdesk", "Politiques", "Workflows", "Départ"]
+        "chips": [
+          "Onboarding",
+          "Congés",
+          "Performance",
+          "Helpdesk",
+          "Politiques",
+          "Workflows",
+          "Départ"
+        ]
       }
     }
   }

@@ -48,6 +48,7 @@
     "investors": "Investors",
     "faq": "FAQ",
     "signIn": "Sign in",
+    "signUp": "Sign up",
     "startTrial": "Start free trial"
   },
   "landing": {
@@ -69,8 +70,15 @@
   },
   "auth": {
     "signIn": "Sign in",
-    "signInSubtitle": "Sign in to your account or register your organization",
+    "signInSubtitle": "Sign in to your account or create a new one",
     "signUp": "Sign up",
+    "signUpSubtitle": "Create your organization and admin account",
+    "signUpIntro": "Create your organization and become the administrator",
+    "organizationName": "Organization name",
+    "fullName": "Full name",
+    "confirmPassword": "Confirm password",
+    "createAccount": "Create account",
+    "creatingAccount": "Creating account…",
     "registerOrg": "Register organization",
     "joinOrg": "Join organization",
     "email": "Email",

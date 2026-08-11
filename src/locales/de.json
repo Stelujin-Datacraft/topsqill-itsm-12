@@ -48,7 +48,8 @@
     "investors": "Investoren",
     "faq": "FAQ",
     "signIn": "Anmelden",
-    "startTrial": "Kostenlos testen"
+    "startTrial": "Kostenlos testen",
+    "signUp": "Registrieren"
   },
   "landing": {
     "title": "TopSqill BPM — Unternehmensformularplattform",
@@ -69,7 +70,7 @@
   },
   "auth": {
     "signIn": "Anmelden",
-    "signInSubtitle": "Melden Sie sich an oder registrieren Sie Ihre Organisation",
+    "signInSubtitle": "Melden Sie sich an oder erstellen Sie ein neues Konto",
     "signUp": "Registrieren",
     "registerOrg": "Organisation registrieren",
     "joinOrg": "Organisation beitreten",
@@ -81,7 +82,14 @@
     "continue": "Weiter",
     "usePassword": "Passwort verwenden",
     "adminEmail": "Admin-E-Mail",
-    "adminPassword": "Admin-Passwort"
+    "adminPassword": "Admin-Passwort",
+    "signUpSubtitle": "Erstellen Sie Ihre Organisation und Ihr Administratorkonto",
+    "signUpIntro": "Erstellen Sie Ihre Organisation und werden Sie Administrator",
+    "organizationName": "Organisationsname",
+    "fullName": "Vollständiger Name",
+    "confirmPassword": "Passwort bestätigen",
+    "createAccount": "Konto erstellen",
+    "creatingAccount": "Konto wird erstellt…"
   },
   "dashboard": {
     "title": "Übersicht",
@@ -280,7 +288,16 @@
         "tagline": "Verfolgen Sie einen neuen Mitarbeiter vom Formular bis zum ersten Tag — Formulare, Workflows, ITAM, E-Mail, Wissensdatenbank, Datenfeeds und Berichte zusammen.",
         "scenarioTitle": "Das Szenario: Sarah startet als Software Engineer",
         "scenarioBody": "HR reicht Sarahs Onboarding-Formular ein. Innerhalb von Minuten hat die IT eine Laptop-Anfrage, der Manager erhält eine E-Mail und das Dashboard zeigt die neue Einstellung.",
-        "chips": ["Formulare", "Querverweis", "Workflows", "ITAM", "E-Mail", "Wissensdatenbank", "Datenfeeds", "Berichte"]
+        "chips": [
+          "Formulare",
+          "Querverweis",
+          "Workflows",
+          "ITAM",
+          "E-Mail",
+          "Wissensdatenbank",
+          "Datenfeeds",
+          "Berichte"
+        ]
       },
       "grc": {
         "label": "GRC",
@@ -289,7 +306,16 @@
         "tagline": "Verfolgen Sie eine Richtlinie vom Entwurf bis auditbereit — Policies, Frameworks, Risiko, Kontrollen, Workflows, Nachweise und Dashboards.",
         "scenarioTitle": "Das Szenario: ISO 27001 in 90 Tagen vorbereiten",
         "scenarioBody": "Der Compliance-Leiter erstellt eine Informationssicherheitsrichtlinie, ordnet sie ISO-27001-Kontrollen zu und verfolgt Risiken und Feststellungen.",
-        "chips": ["Richtlinien", "Frameworks", "Risikoregister", "Kontrollen", "Workflows", "Nachweise", "Feststellungen", "Dashboards"]
+        "chips": [
+          "Richtlinien",
+          "Frameworks",
+          "Risikoregister",
+          "Kontrollen",
+          "Workflows",
+          "Nachweise",
+          "Feststellungen",
+          "Dashboards"
+        ]
       },
       "itsm": {
         "label": "ITSM",
@@ -298,7 +324,15 @@
         "tagline": "Ersetzen Sie Helpdesk, CMDB, Wiki und Reporting-Skripte durch eine verbundene Plattform.",
         "scenarioTitle": "Das Szenario: Priya kann sich nicht mit dem VPN verbinden",
         "scenarioBody": "Priya meldet „VPN verbindet nicht“. TopSqill schlägt KB-Artikel vor, ein Workflow klassifiziert den Vorfall und startet ein 4-Stunden-SLA.",
-        "chips": ["Vorfall", "Serviceanfrage", "SLA", "ITAM", "Wissensdatenbank", "Workflows", "Berichte"]
+        "chips": [
+          "Vorfall",
+          "Serviceanfrage",
+          "SLA",
+          "ITAM",
+          "Wissensdatenbank",
+          "Workflows",
+          "Berichte"
+        ]
       },
       "vendor": {
         "label": "Lieferanten",
@@ -307,7 +341,15 @@
         "tagline": "Eine Plattform für Lieferanten-Onboarding, Verträge, Risiko, Verlängerungen und Ausgaben.",
         "scenarioTitle": "Das Szenario: Einen neuen SaaS-Anbieter onboarden",
         "scenarioBody": "Einkauf reicht „Acme Analytics“ mit MSA-Entwurf und SOC-2-Bericht ein. Ein Workflow öffnet parallele Reviews durch Legal, Security und Finance.",
-        "chips": ["Lieferanten-Onboarding", "Verträge", "Risiko", "Verlängerungen", "Ausgaben", "Datenfeeds", "Berichte"]
+        "chips": [
+          "Lieferanten-Onboarding",
+          "Verträge",
+          "Risiko",
+          "Verlängerungen",
+          "Ausgaben",
+          "Datenfeeds",
+          "Berichte"
+        ]
       },
       "security": {
         "label": "Sicherheit",
@@ -316,7 +358,15 @@
         "tagline": "Ersetzen Sie Postfächer, Tabellen und Chat-Threads durch eine verbundene Security-Operations-Plattform.",
         "scenarioTitle": "Das Szenario: Verdächtiges Phishing in der Finanzabteilung",
         "scenarioBody": "Rahul leitet eine verdächtige Rechnungs-E-Mail über „Phishing melden“ weiter. TopSqill öffnet einen P2-Vorfall und startet ein 1-Stunden-SLA.",
-        "chips": ["Incident Response", "Schwachstellen", "Runbooks", "SLA", "Nachweise", "Workflows", "CISO-Berichte"]
+        "chips": [
+          "Incident Response",
+          "Schwachstellen",
+          "Runbooks",
+          "SLA",
+          "Nachweise",
+          "Workflows",
+          "CISO-Berichte"
+        ]
       },
       "hr": {
         "label": "HR",
@@ -325,7 +375,15 @@
         "tagline": "Ersetzen Sie Onboarding-Tabellen, Urlaubstracker und HR-Postfächer durch eine verbundene Plattform für den gesamten Employee Lifecycle.",
         "scenarioTitle": "Das Szenario: Ananya startet am Montag",
         "scenarioBody": "HR füllt das Formular am Mittwoch aus. Ein Workflow provisioniert IT, Payroll, Facilities und Richtlinien vor dem ersten Tag.",
-        "chips": ["Onboarding", "Urlaub", "Leistung", "Helpdesk", "Richtlinien", "Workflows", "Austritt"]
+        "chips": [
+          "Onboarding",
+          "Urlaub",
+          "Leistung",
+          "Helpdesk",
+          "Richtlinien",
+          "Workflows",
+          "Austritt"
+        ]
       }
     }
   }

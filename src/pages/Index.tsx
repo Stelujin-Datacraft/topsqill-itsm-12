@@ -61,6 +61,9 @@ const Index = () => {
               <Link to="/auth" className="flex-1 sm:flex-initial">
                 <Button variant="outline" size="sm" className="w-full sm:w-auto">{t('nav.signIn')}</Button>
               </Link>
+              <Link to="/auth?mode=signup" className="flex-1 sm:flex-initial">
+                <Button size="sm" className="w-full sm:w-auto">{t('nav.signUp')}</Button>
+              </Link>
             </div>
           </div>
         </nav>
