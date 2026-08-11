@@ -44,7 +44,7 @@ export default function HeroPromptPanel() {
 
   return (
     <div className="max-w-3xl mx-auto mb-12 text-start">
-      <div className="rounded-2xl border border-border/70 bg-card/80 backdrop-blur-xl shadow-token-md p-3 sm:p-4">
+      <div className="hero-prompt-panel rounded-2xl border border-border bg-background p-3 sm:p-4 shadow-[0_1px_2px_rgba(15,23,42,0.06),0_10px_28px_rgba(15,23,42,0.08)] ring-1 ring-black/5 dark:bg-card dark:ring-white/10">
         <Textarea
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
@@ -56,9 +56,9 @@ export default function HeroPromptPanel() {
           }}
           placeholder={active.placeholder}
           rows={3}
-          className="resize-none border-0 bg-transparent shadow-none focus-visible:ring-0 text-base"
+          className="resize-none border-0 bg-transparent shadow-none focus-visible:ring-0 text-base placeholder:text-muted-foreground/80"
         />
-        <div className="flex items-end justify-between gap-3 pt-2">
+        <div className="flex items-end justify-between gap-3 border-t border-border/70 pt-3 mt-1">
           <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide -mx-1 px-1">
             {ASSETS.map((a) => (
               <button
@@ -73,7 +73,7 @@ export default function HeroPromptPanel() {
                     ? 'border-border/50 text-muted-foreground/60 cursor-not-allowed opacity-60'
                     : type === a.id
                     ? 'border-primary bg-primary/10 text-foreground'
-                    : 'border-border/70 text-muted-foreground hover:bg-muted/50'
+                    : 'border-border bg-muted/40 text-muted-foreground hover:bg-muted/70'
                 }`}
               >
                 <a.icon className={`h-3.5 w-3.5 ${a.color}`} />
