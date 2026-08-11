@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
 import { useFormAI } from '@/hooks/useFormAI';
 import { useProject } from '@/contexts/ProjectContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -97,7 +96,6 @@ function deserializeMessages(raw: string): CopilotMessage[] | null {
  * full-page AI Studio so both surfaces create assets in exactly the same way.
  */
 export function useCopilotEngine() {
-  const queryClient = useQueryClient();
   const [messages, setMessages] = useState<CopilotMessage[]>([welcomeMessage()]);
   const [workflows, setWorkflows] = useState<WorkflowInfo[]>([]);
   const [reports, setReports] = useState<ReportInfo[]>([]);
@@ -414,11 +412,8 @@ export function useCopilotEngine() {
       projectId: activeProject.id,
       organizationId: activeProject.organization_id,
       userId: authUser.id,
-    }).then(async (created) => {
-      await queryClient.invalidateQueries({ queryKey: ['onboarding-has-forms'] });
-      return created;
     });
-  }, [activeProject?.id, activeProject?.organization_id, generateForm, hasPermission, queryClient]);
+  }, [activeProject?.id, activeProject?.organization_id, generateForm, hasPermission]);
 
   const enrichActionParams = useCallback(async (
     action: string,
