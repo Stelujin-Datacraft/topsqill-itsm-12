@@ -54,6 +54,7 @@ const Index = () => {
               <a href="#roadmap" className="text-muted-foreground hover:text-foreground transition-colors">{t('nav.roadmap')}</a>
               <a href="#investors" className="text-muted-foreground hover:text-foreground transition-colors">{t('nav.investors')}</a>
               <a href="#faq" className="text-muted-foreground hover:text-foreground transition-colors">{t('nav.faq')}</a>
+              <Link to="/about" className="text-muted-foreground hover:text-foreground transition-colors">About Us</Link>
               <Link to="/contact" className="text-muted-foreground hover:text-foreground transition-colors">Contact</Link>
             </div>
             <div className="flex items-center gap-2 sm:gap-3">
@@ -253,9 +254,20 @@ const Index = () => {
                   />
                   <span className="text-xl font-bold tracking-tight">TopSqill</span>
                 </div>
-                <p className="text-muted-foreground max-w-md leading-relaxed">
+                <p className="text-muted-foreground max-w-md leading-relaxed mb-4">
                   Enterprise form platform powering the next generation of business automation.
                 </p>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+                  <Link to="/about" className="text-primary font-medium hover:underline">
+                    About Us
+                  </Link>
+                  <Link to="/solutions" className="text-muted-foreground hover:text-primary transition-colors">
+                    Solutions
+                  </Link>
+                  <Link to="/contact" className="text-muted-foreground hover:text-primary transition-colors">
+                    Contact
+                  </Link>
+                </div>
               </div>
 
               <div className="space-y-5">
