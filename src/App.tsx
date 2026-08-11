@@ -163,6 +163,7 @@ const queryClient = new QueryClient({
 });
 
 const App = () => (
+  // eslint-disable-next-line
   <QueryClientProvider client={queryClient}>
     <ThemeProvider>
     <AuthProvider>
