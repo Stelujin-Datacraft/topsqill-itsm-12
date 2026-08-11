@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/contexts/AuthContext';
 import { backend as supabase } from '@/services/api';
@@ -39,9 +39,10 @@ const Auth = () => {
   const [searchParams] = useSearchParams();
   const initialMode = searchParams.get('mode') === 'signup' ? 'signup' : 'signin';
   const [activeTab, setActiveTab] = useState(initialMode);
-  const { signIn, registerOrganization, isLoading, user, pendingMfa, completeMfaVerification } = useAuth();
+  const { signIn, registerOrganization, signOut, isLoading, user, pendingMfa, completeMfaVerification } = useAuth();
   const navigate = useNavigate();
   const returnTo = searchParams.get('returnTo');
+  const skipAuthRedirectRef = useRef(false);
 
   // Password policy state
   const [passwordPolicy, setPasswordPolicy] = useState<PasswordPolicy>(DEFAULT_PASSWORD_POLICY);
@@ -61,9 +62,9 @@ const Auth = () => {
   const [lookupLoading, setLookupLoading] = useState(false);
   const [usePasswordInstead, setUsePasswordInstead] = useState(false);
 
-  // Redirect authenticated users
+  // Redirect authenticated users (unless we just finished signup → landing)
   useEffect(() => {
-    if (user && !isLoading) {
+    if (user && !isLoading && !skipAuthRedirectRef.current) {
       const destination = returnTo || '/build';
       navigate(destination, { replace: true });
     }
@@ -330,10 +331,17 @@ const Auth = () => {
 
     toast({
       title: 'Account created!',
-      description: 'Please check your email to verify your account, then sign in.',
+      description: 'You can now create a form from the landing page. Sign in when you open the form to use the full workspace.',
     });
-    setActiveTab('signin');
-    setSignInData({ email: signUpData.email.trim(), password: '' });
+
+    // Return to landing after signup so the user can create a form from the hero prompt.
+    // Sign out so opening "See Form" / app routes requires a fresh sign-in with full nav.
+    skipAuthRedirectRef.current = true;
+    try {
+      await signOut();
+    } catch {
+      /* ignore */
+    }
     setSignUpData({
       organization_name: '',
       full_name: '',
@@ -341,6 +349,7 @@ const Auth = () => {
       password: '',
       confirm_password: '',
     });
+    navigate('/', { replace: true });
   };
 
   return (

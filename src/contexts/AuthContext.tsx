@@ -482,6 +482,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           event_category: 'authentication',
           description: 'User logged in successfully',
         });
+
+        // If signup finished auth but org bootstrap was deferred (e.g. email confirm),
+        // complete it now from user metadata.
+        const meta = data.user.user_metadata || {};
+        if (meta.organization_name) {
+          const { data: existingProfile } = await supabase
+            .from('user_profiles')
+            .select('organization_id')
+            .eq('id', data.user.id)
+            .maybeSingle();
+          if (!existingProfile?.organization_id) {
+            await supabase.rpc('register_new_organization', {
+              p_name: meta.organization_name,
+              p_domain: meta.organization_domain || null,
+              p_description: meta.organization_description || null,
+              p_admin_first_name: meta.first_name || null,
+              p_admin_last_name: meta.last_name || null,
+            });
+          }
+        }
       }
 
       return { error: null };
@@ -530,10 +550,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     admin_last_name: string 
   }) => {
     try {
-      // 1) Pre-flight: refuse if an auth user with this email already exists.
-      // We can't query auth.users from the client, so attempt signup FIRST and
-      // only create the organization row if signup succeeds. This prevents
-      // orphan organizations when the email is already registered.
+      // 1) Create the auth user first. Prefer a session so the secure RPC can run
+      // under auth.uid(). If email confirmation is required and no session is
+      // returned, ask the user to verify email and sign in.
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: orgData.admin_email,
         password: orgData.admin_password,
@@ -542,7 +561,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           data: {
             first_name: orgData.admin_first_name,
             last_name: orgData.admin_last_name,
-            role: 'admin'
+            role: 'admin',
+            organization_name: orgData.name,
+            organization_domain: orgData.domain,
+            organization_description: orgData.description || null,
           }
         }
       });
@@ -562,39 +584,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { error: authError };
       }
 
-      // 2) Now safe to create the organization row.
-      const { data: org, error: orgError } = await supabase
-        .from('organizations')
-        .insert({
-          name: orgData.name,
-          domain: orgData.domain,
-          description: orgData.description,
-          admin_email: orgData.admin_email,
-          status: 'active'
-        })
-        .select()
-        .single();
-
-      if (orgError) {
-        return { error: orgError };
+      // Ensure we have an authenticated session for the RPC (RLS-safe bootstrap).
+      let session = authData.session;
+      if (!session) {
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+          email: orgData.admin_email,
+          password: orgData.admin_password,
+        });
+        if (signInError || !signInData.session) {
+          return {
+            error: new Error(
+              'Account was created, but email verification is required before setup can finish. Please verify your email, then sign in to complete organization setup.'
+            ),
+          };
+        }
+        session = signInData.session;
       }
 
-      if (authData.user) {
-        const { error: profileError } = await supabase
-          .from('user_profiles')
-          .insert({
-            id: authData.user.id,
-            email: authData.user.email!,
-            first_name: orgData.admin_first_name,
-            last_name: orgData.admin_last_name,
-            organization_id: org.id,
-            role: 'admin',
-            status: 'active'
-          });
+      // 2) Create organization + admin profile + default project via SECURITY DEFINER RPC
+      // (direct inserts fail because organization INSERT RLS was removed).
+      const { data: orgId, error: rpcError } = await supabase.rpc('register_new_organization', {
+        p_name: orgData.name,
+        p_domain: orgData.domain,
+        p_description: orgData.description || null,
+        p_admin_first_name: orgData.admin_first_name,
+        p_admin_last_name: orgData.admin_last_name,
+      });
 
-        if (profileError) {
-          return { error: profileError };
-        }
+      if (rpcError) {
+        return { error: rpcError };
+      }
+
+      if (!orgId) {
+        return { error: new Error('Organization registration did not return an organization id.') };
+      }
+
+      // Refresh local auth profile state when a session is present
+      if (session.user?.id) {
+        await loadUserProfile(session.user.id);
       }
 
       return { error: null };
