@@ -1,6 +1,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { backend as supabase, clearAuthTokenCache } from '@/services/api';
+import { rawSupabase } from '@/integrations/supabase/rawClient';
 import { User, Session } from '@supabase/supabase-js';
 import { useQueryClient } from '@tanstack/react-query';
 import { prefetchDefaultProjectPermissions } from '@/utils/prefetchPermissions';
@@ -55,7 +56,15 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<{ error: any; requiresMfa?: boolean; passwordExpired?: boolean }>;
   signInWithGoogle: () => Promise<{ error: any }>;
   signOut: () => Promise<void>;
-  registerOrganization: (orgData: { name: string; domain: string; description?: string; admin_email: string; admin_password: string; admin_first_name: string; admin_last_name: string }) => Promise<{ error: any }>;
+  registerOrganization: (orgData: {
+    name: string;
+    domain?: string;
+    description?: string;
+    admin_email: string;
+    admin_password: string;
+    admin_first_name: string;
+    admin_last_name: string;
+  }) => Promise<{ error: any; needsEmailVerification?: boolean }>;
   requestToJoinOrganization: (orgId: string, userData: { email: string; first_name: string; last_name: string; message?: string }) => Promise<{ error: any }>;
   completeMfaVerification: () => void;
   clearPasswordExpired: () => void;
@@ -487,19 +496,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // complete it now from user metadata.
         const meta = data.user.user_metadata || {};
         if (meta.organization_name) {
-          const { data: existingProfile } = await supabase
+          const { data: existingProfile } = await rawSupabase
             .from('user_profiles')
             .select('organization_id')
             .eq('id', data.user.id)
             .maybeSingle();
           if (!existingProfile?.organization_id) {
-            await supabase.rpc('register_new_organization', {
+            const { error: rpcError } = await rawSupabase.rpc('register_new_organization', {
               p_name: meta.organization_name,
               p_domain: meta.organization_domain || null,
-              p_description: meta.organization_description || null,
+              p_description: null,
               p_admin_first_name: meta.first_name || null,
               p_admin_last_name: meta.last_name || null,
             });
+            if (rpcError) {
+              try {
+                await bootstrapOrganizationDirect({
+                  userId: data.user.id,
+                  email: data.user.email || '',
+                  name: meta.organization_name,
+                  firstName: meta.first_name || '',
+                  lastName: meta.last_name || '',
+                  preferredDomain: meta.organization_domain,
+                });
+              } catch (e) {
+                console.warn('Deferred organization bootstrap failed:', e);
+              }
+            }
           }
         }
       }
@@ -540,21 +563,138 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const registerOrganization = async (orgData: { 
-    name: string; 
-    domain: string; 
-    description?: string; 
-    admin_email: string; 
-    admin_password: string; 
-    admin_first_name: string; 
-    admin_last_name: string 
+  const buildOrgDomain = (orgName: string, email: string, suffix?: string) => {
+    const emailDomain = email.split('@')[1]?.trim().toLowerCase() || '';
+    const fromName = orgName
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+    const base = fromName || emailDomain.split('.')[0] || 'organization';
+    return suffix ? `${base}-${suffix}` : `${base}-${Math.random().toString(36).slice(2, 8)}`;
+  };
+
+  const bootstrapOrganizationDirect = async (args: {
+    userId: string;
+    email: string;
+    name: string;
+    firstName: string;
+    lastName: string;
+    preferredDomain?: string;
+  }) => {
+    // Domain/description are DB columns — not signup form fields.
+    // Domain is required by schema; description stays null.
+    let lastError: any = null;
+    let org: { id: string } | null = null;
+
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const domain =
+        attempt === 0 && args.preferredDomain
+          ? args.preferredDomain
+          : buildOrgDomain(args.name, args.email);
+
+      const { data, error } = await rawSupabase
+        .from('organizations')
+        .insert({
+          name: args.name,
+          domain,
+          description: null,
+          admin_email: args.email,
+          status: 'active',
+        })
+        .select('id')
+        .single();
+
+      if (!error && data) {
+        org = data;
+        break;
+      }
+
+      lastError = error;
+      // Retry on unique/duplicate domain collisions
+      const msg = String(error?.message || '');
+      if (!/duplicate|unique|already exists/i.test(msg)) {
+        break;
+      }
+    }
+
+    if (!org) {
+      throw lastError || new Error('Failed to create organization');
+    }
+
+    const { error: profileError } = await rawSupabase
+      .from('user_profiles')
+      .upsert(
+        {
+          id: args.userId,
+          email: args.email,
+          first_name: args.firstName,
+          last_name: args.lastName,
+          organization_id: org.id,
+          role: 'admin',
+          status: 'active',
+        },
+        { onConflict: 'id' },
+      );
+
+    if (profileError) {
+      throw profileError;
+    }
+
+    // Membership (best effort — trigger may already create it)
+    await rawSupabase
+      .from('user_organizations')
+      .upsert(
+        {
+          user_id: args.userId,
+          organization_id: org.id,
+          role: 'admin',
+        },
+        { onConflict: 'user_id,organization_id' },
+      );
+
+    // Default project so form creation works immediately
+    const { data: project, error: projectError } = await rawSupabase
+      .from('projects')
+      .insert({
+        name: 'Default Project',
+        description: null,
+        organization_id: org.id,
+        created_by: args.userId,
+        status: 'active',
+      })
+      .select('id')
+      .single();
+
+    if (!projectError && project?.id) {
+      await rawSupabase.from('project_users').insert({
+        project_id: project.id,
+        user_id: args.userId,
+        role: 'admin',
+        assigned_by: args.userId,
+      });
+    }
+
+    return org.id as string;
+  };
+
+  const registerOrganization = async (orgData: {
+    name: string;
+    domain?: string;
+    description?: string;
+    admin_email: string;
+    admin_password: string;
+    admin_first_name: string;
+    admin_last_name: string;
   }) => {
     try {
-      // 1) Create the auth user first. Prefer a session so the secure RPC can run
-      // under auth.uid(). If email confirmation is required and no session is
-      // returned, ask the user to verify email and sign in.
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: orgData.admin_email,
+      const email = orgData.admin_email.trim();
+      const orgName = orgData.name.trim();
+      // Auto domain for DB only — never collected from the signup form.
+      const autoDomain = buildOrgDomain(orgName, email);
+
+      const { data: authData, error: authError } = await rawSupabase.auth.signUp({
+        email,
         password: orgData.admin_password,
         options: {
           emailRedirectTo: `${window.location.origin}/`,
@@ -562,11 +702,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             first_name: orgData.admin_first_name,
             last_name: orgData.admin_last_name,
             role: 'admin',
-            organization_name: orgData.name,
-            organization_domain: orgData.domain,
-            organization_description: orgData.description || null,
-          }
-        }
+            organization_name: orgName,
+            organization_domain: autoDomain,
+          },
+        },
       });
 
       if (authError) {
@@ -577,54 +716,77 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         ) {
           return {
             error: new Error(
-              `An account already exists for ${orgData.admin_email}. Use "Forgot Password" to reset it, or sign in with the existing password — do not re-register.`
+              `An account already exists for ${email}. Use "Forgot Password" to reset it, or sign in with the existing password.`,
             ),
           };
         }
         return { error: authError };
       }
 
-      // Ensure we have an authenticated session for the RPC (RLS-safe bootstrap).
+      if (!authData.user) {
+        return { error: new Error('Sign up did not return a user account.') };
+      }
+
+      // Prefer the signup session; otherwise try password sign-in.
       let session = authData.session;
       if (!session) {
-        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-          email: orgData.admin_email,
+        const { data: signInData, error: signInError } = await rawSupabase.auth.signInWithPassword({
+          email,
           password: orgData.admin_password,
         });
-        if (signInError || !signInData.session) {
-          return {
-            error: new Error(
-              'Account was created, but email verification is required before setup can finish. Please verify your email, then sign in to complete organization setup.'
-            ),
-          };
+        if (!signInError && signInData.session) {
+          session = signInData.session;
         }
-        session = signInData.session;
       }
 
-      // 2) Create organization + admin profile + default project via SECURITY DEFINER RPC
-      // (direct inserts fail because organization INSERT RLS was removed).
-      const { data: orgId, error: rpcError } = await supabase.rpc('register_new_organization', {
-        p_name: orgData.name,
-        p_domain: orgData.domain,
-        p_description: orgData.description || null,
-        p_admin_first_name: orgData.admin_first_name,
-        p_admin_last_name: orgData.admin_last_name,
-      });
-
-      if (rpcError) {
-        return { error: rpcError };
+      // Email confirmation enabled: auth user exists but no session yet.
+      // Treat as success — org bootstrap completes on first verified sign-in.
+      if (!session) {
+        return { error: null, needsEmailVerification: true };
       }
 
-      if (!orgId) {
-        return { error: new Error('Organization registration did not return an organization id.') };
-      }
+      // Keep backend client auth state in sync
+      setSession(session);
+      setUser(session.user);
 
-      // Refresh local auth profile state when a session is present
-      if (session.user?.id) {
+      // 1) Prefer secure RPC (works even with org RLS enabled)
+      const { data: orgIdFromRpc, error: rpcError } = await rawSupabase.rpc(
+        'register_new_organization',
+        {
+          p_name: orgName,
+          p_domain: autoDomain,
+          p_description: null,
+          p_admin_first_name: orgData.admin_first_name,
+          p_admin_last_name: orgData.admin_last_name,
+        },
+      );
+
+      if (!rpcError && orgIdFromRpc) {
         await loadUserProfile(session.user.id);
+        return { error: null };
       }
 
-      return { error: null };
+      // 2) Fallback: direct inserts (works when org RLS is disabled / permissive)
+      try {
+        await bootstrapOrganizationDirect({
+          userId: session.user.id,
+          email,
+          name: orgName,
+          firstName: orgData.admin_first_name,
+          lastName: orgData.admin_last_name,
+          preferredDomain: autoDomain,
+        });
+        await loadUserProfile(session.user.id);
+        return { error: null };
+      } catch (directError: any) {
+        const rpcMsg = rpcError?.message ? `RPC: ${rpcError.message}. ` : '';
+        const directMsg = directError?.message || String(directError);
+        return {
+          error: new Error(
+            `${rpcMsg}Organization setup failed: ${directMsg}`,
+          ),
+        };
+      }
     } catch (error) {
       return { error };
     }

@@ -16,17 +16,6 @@ import { MfaVerificationDialog } from '@/components/MfaVerificationDialog';
 import { LdapLoginForm } from '@/components/ldap/LdapLoginForm';
 import { getProviderLabel, isOidcProvider } from '@/lib/idp/providerDefaults';
 
-function deriveOrganizationDomain(orgName: string, email: string): string {
-  const fromName = orgName
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-  const fromEmail = email.split('@')[1]?.trim().toLowerCase() || '';
-  const base = fromName || fromEmail.split('.')[0] || 'organization';
-  return `${base}-${Math.random().toString(36).slice(2, 7)}`;
-}
-
 function splitFullName(fullName: string): { first_name: string; last_name: string } {
   const parts = fullName.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return { first_name: '', last_name: '' };
@@ -311,9 +300,8 @@ const Auth = () => {
       return;
     }
 
-    const { error } = await registerOrganization({
+    const { error, needsEmailVerification } = await registerOrganization({
       name: signUpData.organization_name.trim(),
-      domain: deriveOrganizationDomain(signUpData.organization_name, signUpData.email),
       admin_email: signUpData.email.trim(),
       admin_password: signUpData.password,
       admin_first_name: first_name,
@@ -331,7 +319,9 @@ const Auth = () => {
 
     toast({
       title: 'Account created!',
-      description: 'You can now create a form from the landing page. Sign in when you open the form to use the full workspace.',
+      description: needsEmailVerification
+        ? 'Please verify your email, then sign in. Your organization will be set up automatically.'
+        : 'You can now create a form from the landing page. Sign in when you open the form to use the full workspace.',
     });
 
     // Return to landing after signup so the user can create a form from the hero prompt.
