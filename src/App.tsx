@@ -71,6 +71,8 @@ const AcceptInvitation = lazyWithRetry(() => import("./pages/AcceptInvitation"))
 const AuthCallback = lazyWithRetry(() => import("./pages/AuthCallback"));
 const Solutions = lazyWithRetry(() => import("./pages/Solutions"));
 const Contact = lazyWithRetry(() => import("./pages/Contact"));
+const Privacy = lazyWithRetry(() => import("./pages/Privacy"));
+const Terms = lazyWithRetry(() => import("./pages/Terms"));
 
 // Forms feature
 const FormBuilder = lazyWithRetry(() => import("./pages/FormBuilder"));
@@ -205,6 +207,16 @@ const App = () => (
                           <Contact />
                         </Suspense>
                       } />
+                      <Route path="/privacy" element={
+                        <Suspense fallback={<RouteLoader />}>
+                          <Privacy />
+                        </Suspense>
+                      } />
+                      <Route path="/terms" element={
+                        <Suspense fallback={<RouteLoader />}>
+                          <Terms />
+                        </Suspense>
+                      } />
                       {/* Legacy direct links redirect into the tabbed Solutions page */}
                       <Route path="/solutions/employee-onboarding" element={<Navigate to="/solutions?tab=onboarding" replace />} />
                       <Route path="/solutions/grc" element={<Navigate to="/solutions?tab=grc" replace />} />
@@ -314,7 +326,7 @@ const App = () => (
                       {/* Catch-all */}
                       <Route path="*" element={<NotFound />} />
                     </Routes>
-                    <AIChatbot />
+                    <ChatbotGate />
                   </BrowserRouter>
                 </TooltipProvider>
               </WorkflowProvider>
