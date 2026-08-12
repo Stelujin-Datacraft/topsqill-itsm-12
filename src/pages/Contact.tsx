@@ -1,8 +1,8 @@
 import { useEffect } from 'react';
-import { Link } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Mail, Linkedin, ArrowLeft, MapPin } from 'lucide-react';
+import { Mail, Linkedin, MapPin } from 'lucide-react';
+import PublicPageLayout from '@/components/layout/PublicPageLayout';
 
 const EMAIL = 'contact@topsqill.com';
 const LINKEDIN = 'https://www.linkedin.com/company/topsqill-pvt-ltd/posts/?feedView=all';
@@ -15,25 +15,14 @@ export default function Contact() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
-      <header className="border-b border-border/60 bg-background/85 backdrop-blur-xl">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
-            <ArrowLeft className="h-4 w-4" />
-            Back to home
-          </Link>
-          <span className="text-lg font-semibold">TopSqill</span>
-        </div>
-      </header>
-
-      <main className="container mx-auto px-4 py-16 max-w-3xl">
-        <h1 className="text-4xl md:text-5xl font-semibold tracking-tight mb-4">Contact us</h1>
-        <p className="text-lg text-muted-foreground mb-10">
-          Questions about the platform, a demo, or enterprise rollout? Reach out and we'll get back to you.
-        </p>
-
+    <PublicPageLayout
+      eyebrow="Get in touch"
+      title="Contact us"
+      description="Questions about the platform, a demo, or an enterprise rollout? Reach out and we'll get back to you."
+      contentClassName="max-w-4xl"
+    >
         <div className="grid gap-6 sm:grid-cols-2">
-          <Card>
+          <Card className="border-border/60 shadow-sm transition-shadow hover:shadow-md">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Mail className="h-5 w-5 text-primary" />
@@ -51,7 +40,7 @@ export default function Contact() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="border-border/60 shadow-sm transition-shadow hover:shadow-md">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Linkedin className="h-5 w-5 text-primary" />
@@ -68,7 +57,7 @@ export default function Contact() {
           </Card>
         </div>
 
-        <Card className="mt-6">
+        <Card className="mt-6 border-border/60 shadow-sm">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <MapPin className="h-5 w-5 text-primary" />
@@ -83,7 +72,7 @@ export default function Contact() {
           </CardContent>
         </Card>
 
-        <Card className="mt-6">
+        <Card className="mt-6 border-border/60 shadow-sm">
           <CardHeader>
             <CardTitle>Working with us</CardTitle>
           </CardHeader>
@@ -93,7 +82,6 @@ export default function Contact() {
             <p>Partnerships: tell us about your product and the integration you have in mind.</p>
           </CardContent>
         </Card>
-      </main>
-    </div>
+    </PublicPageLayout>
   );
 }
