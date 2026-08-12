@@ -55,8 +55,10 @@ const Index = () => {
   return (
       <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
         {/* Navigation */}
-        <nav className="border-b border-border/60 bg-background/85 backdrop-blur-xl sticky top-0 z-50 shadow-xs">
-          <div className="container mx-auto px-4 py-3 sm:py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <nav className="sticky top-0 z-50 border-b border-primary/15 bg-background/80 backdrop-blur-xl shadow-sm">
+          <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'var(--gradient-header)' }} />
+          <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-primary/60 via-accent/40 to-transparent" />
+          <div className="container relative mx-auto px-4 py-3 sm:py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex items-center space-x-3">
               <img 
                 src="/lovable-uploads/7355d9d6-30ec-4b86-9922-9058a15f6cca.png" 
