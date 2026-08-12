@@ -8,12 +8,14 @@ const LINKEDIN = 'https://www.linkedin.com/company/topsqill-pvt-ltd/posts/?feedV
 
 interface PublicPageLayoutProps {
   eyebrow?: string;
-  title: string;
+  title?: string;
   description?: string;
   meta?: string;
   children: ReactNode;
   /** Constrain main content width. Defaults to a readable measure. */
   contentClassName?: string;
+  /** Render children full-bleed without the built-in hero or container. */
+  bare?: boolean;
 }
 
 export default function PublicPageLayout({
@@ -23,6 +25,7 @@ export default function PublicPageLayout({
   meta,
   children,
   contentClassName = 'max-w-3xl',
+  bare = false,
 }: PublicPageLayoutProps) {
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -61,6 +64,7 @@ export default function PublicPageLayout({
       </header>
 
       {/* Page hero */}
+      {!bare && title && (
       <div className="relative border-b border-border/60 bg-gradient-to-b from-primary/[0.06] to-transparent">
         <div className="container mx-auto px-4 py-12 sm:py-16">
           <div className={contentClassName}>
@@ -81,11 +85,16 @@ export default function PublicPageLayout({
           </div>
         </div>
       </div>
+      )}
 
       <main className="flex-1">
-        <div className="container mx-auto px-4 py-12 sm:py-16">
-          <div className={contentClassName}>{children}</div>
-        </div>
+        {bare ? (
+          children
+        ) : (
+          <div className="container mx-auto px-4 py-12 sm:py-16">
+            <div className={contentClassName}>{children}</div>
+          </div>
+        )}
       </main>
 
       {/* Footer */}
