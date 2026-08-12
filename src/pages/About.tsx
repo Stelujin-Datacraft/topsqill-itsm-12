@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import PublicPageLayout from '@/components/layout/PublicPageLayout';
 import { Badge } from '@/components/ui/badge';
 import {
-  ArrowLeft,
   ArrowRight,
   FileText,
   Workflow,
