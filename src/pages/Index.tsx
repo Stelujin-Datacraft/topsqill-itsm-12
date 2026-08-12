@@ -290,8 +290,12 @@ const Index = () => {
         </main>
 
         {/* Footer */}
-        <footer className="border-t bg-muted/20">
-          <div className="container mx-auto px-4 py-14">
+        <footer
+          className="relative text-brand-deep-foreground"
+          style={{ backgroundImage: 'var(--gradient-footer)' }}
+        >
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/70 to-transparent" />
+          <div className="container relative mx-auto px-4 py-14">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16">
               <div>
                 <div className="flex items-center gap-3 mb-4">
@@ -300,39 +304,39 @@ const Index = () => {
                     alt="TopSqill Logo"
                     className="size-9 object-contain"
                   />
-                  <span className="text-xl font-bold tracking-tight">TopSqill</span>
+                  <span className="text-xl font-bold tracking-tight text-brand-deep-foreground">TopSqill</span>
                 </div>
-                <p className="text-muted-foreground max-w-md leading-relaxed mb-4">
+                <p className="text-brand-deep-muted max-w-md leading-relaxed mb-4">
                   Enterprise form platform powering the next generation of business automation.
                 </p>
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-                  <Link to="/about" className="text-primary font-medium hover:underline">
+                  <Link to="/about" className="font-medium text-brand-deep-foreground hover:underline underline-offset-4">
                     About Us
                   </Link>
-                  <Link to="/solutions" className="text-muted-foreground hover:text-primary transition-colors">
+                  <Link to="/solutions" className="text-brand-deep-muted hover:text-brand-deep-foreground transition-colors">
                     Solutions
                   </Link>
-                  <Link to="/contact" className="text-muted-foreground hover:text-primary transition-colors">
+                  <Link to="/contact" className="text-brand-deep-muted hover:text-brand-deep-foreground transition-colors">
                     Contact
                   </Link>
                 </div>
               </div>
 
               <div className="space-y-5">
-                <h3 className="text-sm font-semibold uppercase tracking-wider text-foreground">
+                <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-brand-deep-foreground">
                   Contact
                 </h3>
-                <ul className="space-y-3 text-sm text-muted-foreground">
+                <ul className="space-y-3 text-sm text-brand-deep-muted">
                   <li className="flex items-start gap-3">
-                    <MapPin className="h-4 w-4 mt-0.5 shrink-0 text-primary" />
+                    <MapPin className="h-4 w-4 mt-0.5 shrink-0 text-accent" />
                     <span>
                       B-439, Bhutani Technopark, Sector 127<br />
                       Noida — 201313, India
                     </span>
                   </li>
                   <li className="flex items-center gap-3">
-                    <Mail className="h-4 w-4 shrink-0 text-primary" />
-                    <a href="mailto:contact@topsqill.com" className="hover:text-primary transition-colors">
+                    <Mail className="h-4 w-4 shrink-0 text-accent" />
+                    <a href="mailto:contact@topsqill.com" className="hover:text-brand-deep-foreground transition-colors">
                       contact@topsqill.com
                     </a>
                   </li>
@@ -343,13 +347,13 @@ const Index = () => {
                       rel="noopener noreferrer"
                       aria-label="TopSqill on LinkedIn"
                       title="TopSqill on LinkedIn"
-                      className="inline-flex items-center justify-center size-9 rounded-full border border-border/60 text-primary hover:bg-primary/10 transition-colors"
+                      className="inline-flex items-center justify-center size-9 rounded-full border border-brand-deep-foreground/25 text-brand-deep-foreground hover:bg-brand-deep-foreground/10 transition-colors"
                     >
                       <Linkedin className="h-4 w-4" />
                     </a>
                   </li>
                   <li>
-                    <Link to="/contact" className="text-primary font-medium hover:underline">
+                    <Link to="/contact" className="font-medium text-accent hover:underline underline-offset-4">
                       Contact page →
                     </Link>
                   </li>
@@ -357,11 +361,11 @@ const Index = () => {
               </div>
             </div>
 
-            <div className="border-t border-border/60 mt-10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-muted-foreground">
+            <div className="border-t border-brand-deep-foreground/15 mt-10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-brand-deep-muted">
               <p>&copy; {new Date().getFullYear()} TopSqill. All rights reserved.</p>
               <div className="flex items-center gap-6">
-                <Link to="/privacy" className="hover:text-primary transition-colors">Privacy Policy</Link>
-                <Link to="/terms" className="hover:text-primary transition-colors">Terms &amp; Conditions</Link>
+                <Link to="/privacy" className="hover:text-brand-deep-foreground transition-colors">Privacy Policy</Link>
+                <Link to="/terms" className="hover:text-brand-deep-foreground transition-colors">Terms &amp; Conditions</Link>
               </div>
             </div>
           </div>
