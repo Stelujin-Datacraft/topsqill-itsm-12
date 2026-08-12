@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import PublicPageLayout from '@/components/layout/PublicPageLayout';
 import { Badge } from '@/components/ui/badge';
 import {
   ArrowLeft,
@@ -99,30 +100,7 @@ export default function About() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
-      <header className="border-b border-border/60 bg-background/85 backdrop-blur-xl sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between gap-4">
-          <Link to="/" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
-            <ArrowLeft className="h-4 w-4" />
-            Back to home
-          </Link>
-          <Link to="/" className="flex items-center gap-2">
-            <img
-              src="/lovable-uploads/7355d9d6-30ec-4b86-9922-9058a15f6cca.png"
-              alt="TopSqill"
-              className="w-8 h-8 object-contain"
-            />
-            <span className="text-lg font-semibold tracking-tight">TopSqill</span>
-          </Link>
-          <Link to="/auth">
-            <Button size="sm" variant="outline">
-              Sign in
-            </Button>
-          </Link>
-        </div>
-      </header>
-
-      <main>
+    <PublicPageLayout bare>
         <section className="container mx-auto px-4 pt-16 pb-14 md:pt-20 md:pb-16 text-center">
           <Badge variant="secondary" className="mb-5 bg-primary/10 text-primary">
             About us
@@ -281,7 +259,6 @@ export default function About() {
             </div>
           </div>
         </section>
-      </main>
-    </div>
+    </PublicPageLayout>
   );
 }
