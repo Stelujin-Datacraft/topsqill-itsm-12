@@ -502,7 +502,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             .eq('id', data.user.id)
             .maybeSingle();
           if (!existingProfile?.organization_id) {
-            const { error: rpcError } = await rawSupabase.rpc('register_new_organization', {
+            const { error: rpcError } = await (rawSupabase.rpc as any)('register_new_organization', {
               p_name: meta.organization_name,
               p_domain: meta.organization_domain || null,
               p_description: null,
@@ -750,7 +750,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(session.user);
 
       // 1) Prefer secure RPC (works even with org RLS enabled)
-      const { data: orgIdFromRpc, error: rpcError } = await rawSupabase.rpc(
+      const { data: orgIdFromRpc, error: rpcError } = await (rawSupabase.rpc as any)(
         'register_new_organization',
         {
           p_name: orgName,

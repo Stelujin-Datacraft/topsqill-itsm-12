@@ -95,6 +95,11 @@ export default {
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
 				},
+				brand: {
+					deep: 'hsl(var(--brand-deep))',
+					'deep-foreground': 'hsl(var(--brand-deep-foreground))',
+					'deep-muted': 'hsl(var(--brand-deep-muted))'
+				},
 				module: {
 					forms: 'hsl(var(--module-forms))',
 					reports: 'hsl(var(--module-reports))',

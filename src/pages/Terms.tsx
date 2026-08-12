@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import PublicPageLayout from '@/components/layout/PublicPageLayout';
 
 export default function Terms() {
   useEffect(() => {
@@ -10,24 +10,15 @@ export default function Terms() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b border-border/60 bg-background/85 backdrop-blur-xl">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
-            <ArrowLeft className="h-4 w-4" />
-            Back to home
-          </Link>
-          <span className="text-lg font-semibold">TopSqill</span>
-        </div>
-      </header>
-
-      <main className="container mx-auto px-4 py-14 max-w-3xl">
-        <h1 className="text-4xl font-semibold tracking-tight mb-3">Terms &amp; Conditions</h1>
-        <p className="text-sm text-muted-foreground mb-10">Last updated: {new Date().getFullYear()}</p>
-
-        <div className="space-y-8 text-sm leading-relaxed text-muted-foreground">
-          <section>
-            <h2 className="text-xl font-semibold text-foreground mb-2">1. Agreement</h2>
+    <PublicPageLayout
+      eyebrow="Legal"
+      title={"Terms & Conditions"}
+      description="The terms that govern use of the TopSqill enterprise automation platform."
+      meta={`Last updated: ${new Date().getFullYear()}`}
+    >
+      <div className="space-y-8 text-[15px] leading-relaxed text-muted-foreground">
+          <section className="rounded-xl border border-border/60 bg-card p-6 shadow-xs">
+            <h2 className="text-lg font-semibold text-foreground mb-3">1. Agreement</h2>
             <p>
               These terms govern access to and use of the TopSqill platform operated by TopSqill Pvt Ltd,
               B-439, Bhutani Technopark, Sector 127, Noida — 201313, India. By creating an account or using the
@@ -36,8 +27,8 @@ export default function Terms() {
             </p>
           </section>
 
-          <section>
-            <h2 className="text-xl font-semibold text-foreground mb-2">2. Accounts and organizations</h2>
+          <section className="rounded-xl border border-border/60 bg-card p-6 shadow-xs">
+            <h2 className="text-lg font-semibold text-foreground mb-3">2. Accounts and organizations</h2>
             <p>
               Accounts belong to an organization workspace. Administrators control membership, roles and access
               to forms, workflows, reports and documents. You are responsible for keeping credentials
@@ -46,8 +37,8 @@ export default function Terms() {
             </p>
           </section>
 
-          <section>
-            <h2 className="text-xl font-semibold text-foreground mb-2">3. Acceptable use</h2>
+          <section className="rounded-xl border border-border/60 bg-card p-6 shadow-xs">
+            <h2 className="text-lg font-semibold text-foreground mb-3">3. Acceptable use</h2>
             <ul className="list-disc pl-5 space-y-1">
               <li>Do not upload unlawful, infringing, malicious or harmful content.</li>
               <li>Do not attempt to bypass access controls, tenancy isolation, rate limits or authentication.</li>
@@ -57,8 +48,8 @@ export default function Terms() {
             </ul>
           </section>
 
-          <section>
-            <h2 className="text-xl font-semibold text-foreground mb-2">4. Customer data ownership</h2>
+          <section className="rounded-xl border border-border/60 bg-card p-6 shadow-xs">
+            <h2 className="text-lg font-semibold text-foreground mb-3">4. Customer data ownership</h2>
             <p>
               Your organization retains all rights to the content it submits. You grant us a limited licence to
               host, process and transmit that content solely to operate and support the service. We act as a
@@ -67,8 +58,8 @@ export default function Terms() {
             </p>
           </section>
 
-          <section>
-            <h2 className="text-xl font-semibold text-foreground mb-2">5. AI features</h2>
+          <section className="rounded-xl border border-border/60 bg-card p-6 shadow-xs">
+            <h2 className="text-lg font-semibold text-foreground mb-3">5. AI features</h2>
             <p>
               Optional AI features generate suggestions for forms, workflows, reports and documents. Output may
               be inaccurate or incomplete and must be reviewed by a human before being relied upon for
@@ -76,8 +67,8 @@ export default function Terms() {
             </p>
           </section>
 
-          <section>
-            <h2 className="text-xl font-semibold text-foreground mb-2">6. Service availability and support</h2>
+          <section className="rounded-xl border border-border/60 bg-card p-6 shadow-xs">
+            <h2 className="text-lg font-semibold text-foreground mb-3">6. Service availability and support</h2>
             <p>
               We aim for high availability but the service is provided without an uptime guarantee unless a
               separate service level agreement is in place. Planned maintenance is communicated in advance where
@@ -86,8 +77,8 @@ export default function Terms() {
             </p>
           </section>
 
-          <section>
-            <h2 className="text-xl font-semibold text-foreground mb-2">7. Fees</h2>
+          <section className="rounded-xl border border-border/60 bg-card p-6 shadow-xs">
+            <h2 className="text-lg font-semibold text-foreground mb-3">7. Fees</h2>
             <p>
               Paid plans and enterprise deployments are billed as described in the applicable order form or
               quotation. Unless stated otherwise, fees are exclusive of taxes and are non-refundable for periods
@@ -95,8 +86,8 @@ export default function Terms() {
             </p>
           </section>
 
-          <section>
-            <h2 className="text-xl font-semibold text-foreground mb-2">8. Suspension and termination</h2>
+          <section className="rounded-xl border border-border/60 bg-card p-6 shadow-xs">
+            <h2 className="text-lg font-semibold text-foreground mb-3">8. Suspension and termination</h2>
             <p>
               We may suspend access for security incidents, non-payment or breach of these terms, giving notice
               where reasonably possible. Your organization may stop using the service at any time and request
@@ -104,8 +95,8 @@ export default function Terms() {
             </p>
           </section>
 
-          <section>
-            <h2 className="text-xl font-semibold text-foreground mb-2">9. Warranties and liability</h2>
+          <section className="rounded-xl border border-border/60 bg-card p-6 shadow-xs">
+            <h2 className="text-lg font-semibold text-foreground mb-3">9. Warranties and liability</h2>
             <p>
               Except as expressly stated, the service is provided "as is" without implied warranties. To the
               maximum extent permitted by law, neither party is liable for indirect, incidental or consequential
@@ -114,8 +105,8 @@ export default function Terms() {
             </p>
           </section>
 
-          <section>
-            <h2 className="text-xl font-semibold text-foreground mb-2">10. Governing law</h2>
+          <section className="rounded-xl border border-border/60 bg-card p-6 shadow-xs">
+            <h2 className="text-lg font-semibold text-foreground mb-3">10. Governing law</h2>
             <p>
               These terms are governed by the laws of India, and the courts of Gautam Buddha Nagar, Uttar
               Pradesh have exclusive jurisdiction, without prejudice to any different terms agreed in a signed
@@ -123,15 +114,14 @@ export default function Terms() {
             </p>
           </section>
 
-          <section>
-            <h2 className="text-xl font-semibold text-foreground mb-2">11. Changes</h2>
+          <section className="rounded-xl border border-border/60 bg-card p-6 shadow-xs">
+            <h2 className="text-lg font-semibold text-foreground mb-3">11. Changes</h2>
             <p>
               We may update these terms; material changes will be posted on this page with an updated date.
               Continued use after changes take effect constitutes acceptance.
             </p>
           </section>
-        </div>
-      </main>
-    </div>
+      </div>
+    </PublicPageLayout>
   );
 }
