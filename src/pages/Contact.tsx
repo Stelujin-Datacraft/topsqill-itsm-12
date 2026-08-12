@@ -19,7 +19,7 @@ export default function Contact() {
       eyebrow="Get in touch"
       title="Contact us"
       description="Questions about the platform, a demo, or an enterprise rollout? Reach out and we'll get back to you."
-      contentClassName="max-w-4xl"
+      contentClassName="max-w-4xl mx-auto"
     >
         <div className="grid gap-6 sm:grid-cols-2">
           <Card className="border-border/60 shadow-sm transition-shadow hover:shadow-md">

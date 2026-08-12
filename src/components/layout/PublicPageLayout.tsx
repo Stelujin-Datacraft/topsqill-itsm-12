@@ -24,7 +24,7 @@ export default function PublicPageLayout({
   description,
   meta,
   children,
-  contentClassName = 'max-w-3xl',
+  contentClassName = 'max-w-3xl mx-auto',
   bare = false,
 }: PublicPageLayoutProps) {
   return (
