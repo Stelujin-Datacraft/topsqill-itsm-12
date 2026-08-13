@@ -20,7 +20,7 @@ import {
   type CopilotToolCall,
 } from '@/lib/copilotUtils';
 import { createFormFromAiGeneration, type AiGeneratedFormSchema } from '@/lib/createFormFromAiGeneration';
-import { updateFormFromAiGeneration } from '@/lib/updateFormFromAiGeneration';
+import { loadFormPages, updateFormFromAiGeneration } from '@/lib/updateFormFromAiGeneration';
 
 export interface CopilotMessage {
   id: string;
@@ -448,6 +448,7 @@ export function useCopilotEngine() {
     formId: string,
     userPrompt: string,
     seedFields?: Array<Record<string, any>>,
+    pageHint?: { targetPageName?: string; targetPageIndex?: number },
   ) => {
     if (!hasPermission('forms', 'update', formId) && !hasPermission('forms', 'update')) {
       throw new Error("You don't have permission to update this form.");
@@ -457,6 +458,13 @@ export function useCopilotEngine() {
     const existingSummary = existing?.fields?.length
       ? existing.fields.map((f) => `${f.label} (${f.type})`).join(', ')
       : 'unknown';
+    const pages = await loadFormPages(formId);
+    const pageSummary = pages.length
+      ? pages
+        .sort((a, b) => a.order - b.order)
+        .map((p, idx) => `${idx + 1}. "${p.name}" (${p.fields.length} fields)`)
+        .join('; ')
+      : '1. "Page 1"';
 
     let fields = Array.isArray(seedFields) ? seedFields : [];
     if (fields.length === 0) {
@@ -464,9 +472,11 @@ export function useCopilotEngine() {
         [
           `Update an EXISTING form. Do NOT invent a brand-new form.`,
           `Existing form name: ${existing?.name || 'Form'}`,
+          `Existing pages (use these exact names when placing fields): ${pageSummary}`,
           `Existing fields (keep these; do not recreate them): ${existingSummary}`,
           `User change request: ${userPrompt}`,
           `Return ONLY the new fields that should be ADDED to satisfy the request.`,
+          `If the user names a page (e.g. Profile / 2nd page), the app will place fields on that page.`,
         ].join('\n'),
       );
       fields = Array.isArray(generated?.fields) ? generated.fields : [];
@@ -476,11 +486,19 @@ export function useCopilotEngine() {
       throw new Error('AI could not determine which fields to add. Be more specific about the change.');
     }
 
-    return updateFormFromAiGeneration(formId, {
-      name: existing?.name,
-      description: existing?.description,
-      fields: fields as AiGeneratedFormSchema['fields'],
-    });
+    return updateFormFromAiGeneration(
+      formId,
+      {
+        name: existing?.name,
+        description: existing?.description,
+        fields: fields as AiGeneratedFormSchema['fields'],
+      },
+      {
+        targetPageName: pageHint?.targetPageName,
+        targetPageIndex: pageHint?.targetPageIndex,
+        userPrompt,
+      },
+    );
   }, [formsWithFields, generateForm, hasPermission]);
 
   const enrichActionParams = useCallback(async (
@@ -557,18 +575,27 @@ export function useCopilotEngine() {
         if (!targetFormId) {
           throw new Error('Select which form to update, or create a form first in this chat.');
         }
+        const targetPageIndex = typeof rawParams.targetPageIndex === 'number'
+          ? rawParams.targetPageIndex
+          : (typeof rawParams.pageIndex === 'number' ? rawParams.pageIndex : undefined);
+        const targetPageName = typeof rawParams.targetPageName === 'string'
+          ? rawParams.targetPageName
+          : (typeof rawParams.pageName === 'string' ? rawParams.pageName : undefined);
         const updated = await updateClientFormFromPrompt(
           targetFormId,
           prompt,
           Array.isArray(rawParams.fields) ? rawParams.fields : undefined,
+          { targetPageName, targetPageIndex },
         );
         rememberActiveForm(updated.formId, updated.formName);
+        const pageNote = updated.targetPageName ? ` on page "${updated.targetPageName}"` : '';
         actionResult = {
-          message: `Updated form "${updated.formName}" — added ${updated.addedFieldCount} field(s)${updated.skippedExistingCount ? ` (skipped ${updated.skippedExistingCount} that already existed)` : ''}. Now ${updated.totalFieldCount} field(s) total.`,
+          message: `Updated form "${updated.formName}" — added ${updated.addedFieldCount} field(s)${pageNote}${updated.skippedExistingCount ? ` (skipped ${updated.skippedExistingCount} that already existed)` : ''}. Now ${updated.totalFieldCount} field(s) total.`,
           result: {
             formId: updated.formId,
             formName: updated.formName,
             fieldCount: updated.addedFieldCount,
+            targetPageName: updated.targetPageName,
             updated: true,
           },
         };
