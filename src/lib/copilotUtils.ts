@@ -103,16 +103,37 @@ export function promptUpdatesExistingForm(text: string): boolean {
     return false;
   }
 
-  if (/\b(add|update|change|modify|edit|remove|delete|rename|include|insert|append)\b/.test(t)
-    && /\b(field|fields|column|columns|section|question|questions|input|inputs)\b/.test(t)) {
+  if (/\b(add|update|change|modify|edit|remove|delete|rename|include|insert|append|move|make\s+required|optional)\b/.test(t)
+    && /\b(field|fields|column|columns|section|question|questions|input|inputs|page|pages)\b/.test(t)) {
     return true;
   }
 
   if (/\b(update|modify|edit|change|improve|extend|enhance)\b.+\bforms?\b/.test(t)) return true;
   if (/\b(add|include|append)\b.+\b(to|on|in)\b.+\b(the\s+)?(forms?|it|this|that)\b/.test(t)) return true;
   if (/\b(add|include)\b.+\b(to|on|in)\b.+\b(preview|current form)\b/.test(t)) return true;
+  if (/\b(show|hide)\b.+\b(when|if)\b/.test(t)) return true;
+  if (/\b(1|2|3|one|two|three)[-\s]?columns?\b/.test(t) && /\b(layout|form|page)\b/.test(t)) return true;
 
   return false;
+}
+
+/** Prompt asks for conditional field visibility / rules. */
+export function promptWantsFieldRules(text: string): boolean {
+  const t = text.toLowerCase();
+  return (
+    /\b(show|hide|enable|disable|require)\b.+\b(when|if)\b/.test(t)
+    || /\b(field\s+rules?|conditional\s+(logic|fields?)|visibility\s+rules?)\b/.test(t)
+    || /\bonly\s+show\b/.test(t)
+  );
+}
+
+/** Extract 1–3 column layout intent from natural language. */
+export function inferLayoutColumnsFromPrompt(text: string): 1 | 2 | 3 | undefined {
+  const t = text.toLowerCase();
+  if (/\b(three|3)[-\s]?columns?\b/.test(t) || /\b3\s*col(?:umn)?\b/.test(t)) return 3;
+  if (/\b(two|2)[-\s]?columns?\b/.test(t) || /\b2\s*col(?:umn)?\b/.test(t) || /\bdouble\s+column\b/.test(t)) return 2;
+  if (/\b(one|1|single)[-\s]?columns?\b/.test(t) || /\bsingle\s+column\b/.test(t)) return 1;
+  return undefined;
 }
 
 /** User is asking to create a new form (not attach to or edit an existing one). */

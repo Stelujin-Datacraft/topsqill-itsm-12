@@ -14,7 +14,7 @@ interface FormField {
 }
 
 interface AIRequest {
-   action: 'auto-fill' | 'suggest-routing' | 'analyze-content' | 'generate-summary' | 'natural-language-query' | 'generate-content' | 'chatbot-assist' | 'chatbot-copilot' | 'generate-formula' | 'generate-form' | 'suggest-workflow' | 'suggest-field-mappings' | 'suggest-chart' | 'generate-report-component' | 'generate-sla-template' | 'generate-escalation-chain' | 'suggest-field-rules' | 'suggest-form-rules' | 'generate-email-template';
+   action: 'auto-fill' | 'suggest-routing' | 'analyze-content' | 'generate-summary' | 'natural-language-query' | 'generate-content' | 'chatbot-assist' | 'chatbot-copilot' | 'generate-formula' | 'generate-form' | 'generate-form-update' | 'suggest-workflow' | 'suggest-field-mappings' | 'suggest-chart' | 'generate-report-component' | 'generate-sla-template' | 'generate-escalation-chain' | 'suggest-field-rules' | 'suggest-form-rules' | 'generate-email-template';
   context: {
     formFields?: FormField[];
     currentValues?: Record<string, any>;
@@ -375,9 +375,12 @@ ${JSON.stringify(context.availableReports || [], null, 2)}
 - Be concise and helpful. Use markdown for formatting.
 - If user asks "how" to do something, explain without executing
 - If user says "create/make/set up", execute the action via tools
-- If the user asks to add/change/modify fields on a form already created in this conversation, use update_form (NOT create_form)
+- If the user asks to add/change/modify/rename/remove/move fields on a form already created in this conversation, use update_form (NOT create_form)
 - Prefer the most recently created form in the conversation when updating unless the user names another form
-- When the user specifies a page (by name like "Profile" or by order like "2nd page"), set targetPageName or targetPageIndex on update_form`;
+- When the user specifies a page (by name like "Profile" or by order like "2nd page"), set targetPageName or targetPageIndex on update_form
+- For updates, prefer the operations array with op=add|update|rename|remove|move and full field props (options, required, validation, defaultValue, placeholder, isFullWidth)
+- If the user names a page that may not exist yet, still set pageName / pagesToAdd so the app can create it
+- For layout requests (2-column / 3-column), set layoutColumns on update_form`;
 
         // Define tools for structured output
         const copilotTools = [
@@ -396,11 +399,14 @@ ${JSON.stringify(context.availableReports || [], null, 2)}
                     items: {
                       type: "object",
                       properties: {
-                        type: { type: "string", enum: ["text", "textarea", "number", "email", "phone", "date", "time", "datetime", "select", "multi-select", "radio", "checkbox", "toggle-switch", "file", "image", "signature", "rating", "slider", "header", "description", "horizontal-line", "section-break", "tags", "country", "address", "currency", "url", "color"] },
+                        type: { type: "string", enum: ["text", "textarea", "number", "email", "phone", "date", "time", "datetime", "select", "multi-select", "radio", "checkbox", "toggle-switch", "file", "image", "signature", "rating", "slider", "header", "description", "horizontal-line", "section-break", "tags", "country", "address", "currency", "url", "color", "user-picker", "barcode", "ip-address", "geo-location"] },
                         label: { type: "string" },
                         required: { type: "boolean" },
                         placeholder: { type: "string" },
                         tooltip: { type: "string" },
+                        defaultValue: { type: "string" },
+                        isFullWidth: { type: "boolean" },
+                        validation: { type: "object" },
                         options: { type: "array", items: { type: "object", properties: { value: { type: "string" }, label: { type: "string" } }, required: ["value", "label"] } }
                       },
                       required: ["type", "label", "required"]
@@ -428,33 +434,80 @@ ${JSON.stringify(context.availableReports || [], null, 2)}
             type: "function",
             function: {
               name: "update_form",
-              description: "Update an EXISTING form by adding fields. Use when the user asks to add/change/modify fields on a form already created in this chat or named in context. Never create a duplicate form. If the user names a page (e.g. Profile / 2nd page), set targetPageName or targetPageIndex.",
+              description: "Update an EXISTING form: add/update/rename/remove/move fields, create pages, change layout. Never create a duplicate form. Prefer operations[] with op set. If the user names a page (e.g. Profile / 2nd page), set targetPageName/targetPageIndex or per-field pageName.",
               parameters: {
                 type: "object",
                 properties: {
                   formId: { type: "string", description: "ID of the existing form to update (from available forms or the form created earlier in this chat)" },
-                  targetPageName: { type: "string", description: "Exact page name where fields should be added, e.g. Profile" },
+                  targetPageName: { type: "string", description: "Default page name for adds, e.g. Profile (created if missing)" },
                   targetPageIndex: { type: "integer", description: "1-based page index when user says 2nd page / page 2" },
-                  fields: {
+                  layoutColumns: { type: "integer", enum: [1, 2, 3], description: "Form column layout when user asks for 1/2/3 columns" },
+                  pagesToAdd: {
                     type: "array",
-                    description: "Only the NEW fields to add",
+                    description: "New pages to create by name",
                     items: {
                       type: "object",
                       properties: {
-                        type: { type: "string", enum: ["text", "textarea", "number", "email", "phone", "date", "time", "datetime", "select", "multi-select", "radio", "checkbox", "toggle-switch", "file", "image", "signature", "rating", "slider", "header", "description", "horizontal-line", "section-break", "tags", "country", "address", "currency", "url", "color"] },
-                        label: { type: "string" },
+                        name: { type: "string" },
+                        description: { type: "string" }
+                      },
+                      required: ["name"]
+                    }
+                  },
+                  operations: {
+                    type: "array",
+                    description: "Preferred rich field operations",
+                    items: {
+                      type: "object",
+                      properties: {
+                        op: { type: "string", enum: ["add", "update", "rename", "remove", "move"] },
+                        type: { type: "string", enum: ["text", "textarea", "number", "email", "phone", "date", "time", "datetime", "select", "multi-select", "radio", "checkbox", "toggle-switch", "file", "image", "signature", "rating", "slider", "header", "description", "horizontal-line", "section-break", "tags", "country", "address", "currency", "url", "color", "user-picker", "barcode", "ip-address", "geo-location"] },
+                        label: { type: "string", description: "Field label (new label for add; current or new for update)" },
+                        currentLabel: { type: "string", description: "Existing field label to match for update/rename/remove/move" },
+                        newLabel: { type: "string", description: "New label when renaming" },
                         required: { type: "boolean" },
                         placeholder: { type: "string" },
                         tooltip: { type: "string" },
-                        pageName: { type: "string", description: "Optional page name for this field" },
-                        pageIndex: { type: "integer", description: "Optional 1-based page index for this field" },
+                        defaultValue: { type: "string" },
+                        isFullWidth: { type: "boolean" },
+                        validation: { type: "object" },
+                        pageName: { type: "string" },
+                        pageIndex: { type: "integer" },
+                        targetPageName: { type: "string", description: "Destination page for move" },
+                        targetPageIndex: { type: "integer" },
                         options: { type: "array", items: { type: "object", properties: { value: { type: "string" }, label: { type: "string" } }, required: ["value", "label"] } }
                       },
-                      required: ["type", "label", "required"]
+                      required: ["label"]
+                    }
+                  },
+                  fields: {
+                    type: "array",
+                    description: "Legacy: fields to add/update (prefer operations). Same shape as operations without requiring op.",
+                    items: {
+                      type: "object",
+                      properties: {
+                        op: { type: "string", enum: ["add", "update", "rename", "remove", "move"] },
+                        type: { type: "string", enum: ["text", "textarea", "number", "email", "phone", "date", "time", "datetime", "select", "multi-select", "radio", "checkbox", "toggle-switch", "file", "image", "signature", "rating", "slider", "header", "description", "horizontal-line", "section-break", "tags", "country", "address", "currency", "url", "color", "user-picker", "barcode", "ip-address", "geo-location"] },
+                        label: { type: "string" },
+                        currentLabel: { type: "string" },
+                        newLabel: { type: "string" },
+                        required: { type: "boolean" },
+                        placeholder: { type: "string" },
+                        tooltip: { type: "string" },
+                        defaultValue: { type: "string" },
+                        isFullWidth: { type: "boolean" },
+                        validation: { type: "object" },
+                        pageName: { type: "string", description: "Optional page name for this field (created if missing)" },
+                        pageIndex: { type: "integer", description: "Optional 1-based page index for this field" },
+                        targetPageName: { type: "string" },
+                        targetPageIndex: { type: "integer" },
+                        options: { type: "array", items: { type: "object", properties: { value: { type: "string" }, label: { type: "string" } }, required: ["value", "label"] } }
+                      },
+                      required: ["label"]
                     }
                   }
                 },
-                required: ["formId", "fields"]
+                required: ["formId"]
               }
             }
           },
@@ -1075,7 +1128,90 @@ Remember:
 - Use "horizontal-line" or "section-break" between groups
 - Include realistic options for select/radio fields (4-6 minimum)
 - Set isFullWidth: true for textarea, address, description, header, section-break, horizontal-line
-- Set isFullWidth: false for short fields like text, email, phone, date, select in 2+ column layouts`;
+- Set isFullWidth: false for short fields like text, email, phone, date, select in 2+ column layouts
+- Include defaultValue when a sensible default exists`;
+        break;
+
+      case 'generate-form-update':
+        temperature = 0.3;
+        maxTokens = 4000;
+
+        systemPrompt = `You are an expert form editor. Produce a MINIMAL incremental update plan for an EXISTING form. Do NOT regenerate the whole form.
+
+Supported field ops:
+- add: create a new field (include type, label, required, and rich props)
+- update: change props on an existing field (match with currentLabel or label)
+- rename: change label (currentLabel + newLabel)
+- remove: delete a field (currentLabel or label)
+- move: move a field to another page (currentLabel/label + targetPageName or targetPageIndex)
+
+Rules:
+1. Only include fields that must change to satisfy the user request
+2. Use existing page names exactly when they match; if the user invents a new page name, put it in pagesToAdd and on the field pageName
+3. Prefer diverse real field types (email, phone, date, select, multi-select, radio, checkbox, toggle-switch, currency, rating, signature, file, country, address, tags, user-picker, etc.)
+4. For select/radio/multi-select, always include realistic options
+5. Include validation, placeholder, tooltip, defaultValue, isFullWidth when relevant
+6. Set layoutColumns only when the user asks for column layout (1, 2, or 3)
+7. Set applyFieldRules=true only when the user asks for show/hide/enable/require when/if logic
+8. Never invent unrelated fields
+
+FIELD TYPE REFERENCE (exact values):
+Layout/Display: header, description, section-break, horizontal-line
+Text: text, textarea, email, url, phone, address
+Numbers: number, slider, rating, currency
+Date/Time: date, time, datetime
+Selection: select, multi-select, radio, checkbox, toggle-switch
+Media: file, image, signature
+Special: tags, country, color, barcode, user-picker, ip-address, geo-location`;
+
+        userPrompt = `Create an incremental update plan for this existing form.
+
+Form: ${context.formName || 'Form'}
+Description: ${context.formDescription || 'No description'}
+
+Existing pages:
+${JSON.stringify(context.existingPages || [], null, 2)}
+
+Existing fields:
+${JSON.stringify(context.formFields?.map((f: any) => ({
+  id: f.id,
+  label: f.label,
+  type: f.type,
+  required: f.required,
+  options: f.options,
+})) || [], null, 2)}
+
+User request: "${context.userInput}"
+
+Return JSON with this exact shape:
+{
+  "fields": [
+    {
+      "op": "add|update|rename|remove|move",
+      "type": "select",
+      "label": "Gender",
+      "currentLabel": "optional existing label to match",
+      "newLabel": "optional new label for rename",
+      "required": false,
+      "placeholder": "optional",
+      "tooltip": "optional",
+      "defaultValue": "optional",
+      "isFullWidth": false,
+      "validation": { "minLength": 1 },
+      "options": [{"value": "male", "label": "Male"}, {"value": "female", "label": "Female"}],
+      "pageName": "Profile",
+      "pageIndex": 2,
+      "targetPageName": "for move ops",
+      "targetPageIndex": 2
+    }
+  ],
+  "pagesToAdd": [{ "name": "Profile", "description": "optional" }],
+  "layoutColumns": 2,
+  "applyFieldRules": false,
+  "summary": "Short description of the plan"
+}
+
+Omit pagesToAdd / layoutColumns / applyFieldRules when not needed. Keep fields array focused and small.`;
         break;
 
       // NEW: Workflow Suggestions
