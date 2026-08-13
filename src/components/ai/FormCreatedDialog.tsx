@@ -8,20 +8,20 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { CheckCircle2, Sparkles } from 'lucide-react';
+import { CheckCircle2, FileText } from 'lucide-react';
 
 interface FormCreatedDialogProps {
   open: boolean;
   formName?: string;
   onClose: () => void;
-  onExplore: () => void;
+  onViewForms: () => void;
 }
 
 export function FormCreatedDialog({
   open,
   formName,
   onClose,
-  onExplore,
+  onViewForms,
 }: FormCreatedDialogProps) {
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
@@ -34,17 +34,16 @@ export function FormCreatedDialog({
             {formName ? `"${formName}" is ready` : 'Your form is ready'}
           </DialogTitle>
           <DialogDescription className="text-center">
-            Form created successfully. Open the Form Builder to review fields and layout.
-            Left navigation modules unlock when you continue.
+            Form created successfully. Click View Form to open your forms list and explore more features.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter className="sm:justify-center gap-2">
           <Button variant="outline" onClick={onClose}>
             Keep building
           </Button>
-          <Button onClick={onExplore} className="gap-1.5">
-            <Sparkles className="h-4 w-4" />
-            Open Form Builder
+          <Button onClick={onViewForms} className="gap-1.5">
+            <FileText className="h-4 w-4" />
+            View Form
           </Button>
         </DialogFooter>
       </DialogContent>

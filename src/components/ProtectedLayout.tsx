@@ -281,7 +281,7 @@ const ProtectedLayout: React.FC = () => {
 
   // Authenticated - render layout with sidebar
   // Fresh start: AI Builder chat only (no left nav) until the user unlocks via the
-  // "form created → see more features" modal CTA.
+  // form-created "View Form" CTA (opens /forms list).
   if (onboardingChecking) {
     return (
       <div className="flex min-h-screen items-center justify-center">

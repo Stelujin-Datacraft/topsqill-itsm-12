@@ -430,15 +430,15 @@ export function useCopilotEngine() {
   const buildNavMessage = (result: any): string | null => {
     if (!result) return null;
     if (result.formId && result.workflowId) {
-      return `🎉 **Created both!**\n\n• [See Form](/form-builder/${result.formId})\n• [Open the workflow](/workflow-designer/${result.workflowId})`;
+      return `🎉 **Created both!**\n\n• [View Form](/forms)\n• [Open the workflow](/workflow-designer/${result.workflowId})`;
     }
     if (result.formId && result.slaTemplateId) {
-      return `🎉 **Form with SLA tracking created!**\n\n• [See Form](/form-builder/${result.formId})\n• [View SLA Management](/sla-management)`;
+      return `🎉 **Form with SLA tracking created!**\n\n• [View Form](/forms)\n• [View SLA Management](/sla-management)`;
     }
     if (result.formId && result.emailTemplateId) {
-      return `🎉 **Form with email notifications created!**\n\n• [See Form](/form-builder/${result.formId})\n• [View Email Templates](/email-templates)`;
+      return `🎉 **Form with email notifications created!**\n\n• [View Form](/forms)\n• [View Email Templates](/email-templates)`;
     }
-    if (result.formId) return `Would you like to [See Form](/form-builder/${result.formId})?`;
+    if (result.formId) return `Would you like to [View Form](/forms)?`;
     if (result.workflowId && result.nodeId) return `✅ **Email action added!**\n\n• [Open the workflow](/workflow-designer/${result.workflowId})`;
     if (result.workflowId) return `Would you like to [open the workflow](/workflow-designer/${result.workflowId})?`;
     if (result.dashboardId) return `Would you like to [open the dashboard](/dashboard-view/${result.dashboardId})?`;
