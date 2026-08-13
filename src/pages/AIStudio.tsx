@@ -96,10 +96,10 @@ export default function AIStudio() {
         continue;
       }
       promptedFormIds.current.add(created.formId);
+      // Open live preview beside chat so the user can keep prompting.
       setPreviewFormId(created.formId);
       setPreviewOpen(true);
       setPreviewRefreshKey((k) => k + 1);
-      setCreatedFormPrompt(created);
       break;
     }
   }, [messages, isLoading]);
