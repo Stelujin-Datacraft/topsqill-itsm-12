@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { useCopilotEngine } from '@/hooks/useCopilotEngine';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CopilotFormPicker } from '@/components/ai/CopilotFormPicker';
+import { FormCreatedDialog } from '@/components/ai/FormCreatedDialog';
 import { FORM_CREATE_ACTIONS, promptNeedsExistingForm } from '@/lib/copilotUtils';
 import { useOnboardingGate } from '@/hooks/useOnboardingGate';
 import {
@@ -26,18 +27,13 @@ function extractCreatedForm(message: {
   return { formId, formName: message.action.result?.result?.formName };
 }
 
-/** Prefer Form Builder designer over the fillable form / records ("backend") view. */
-function toFormBuilderPath(href: string): string {
-  const builderMatch = href.match(/^\/form-builder\/([^/?#]+)(.*)$/);
-  if (builderMatch) return `/form-builder/${builderMatch[1]}${builderMatch[2] || ''}`;
-
-  const formViewMatch = href.match(/^\/form\/([^/?#]+)\/?$/);
-  if (formViewMatch) return `/form-builder/${formViewMatch[1]}`;
-
-  const settingsMatch = href.match(/^\/form\/([^/?#]+)\/settings\/?$/);
-  if (settingsMatch) return `/form-builder/${settingsMatch[1]}`;
-
-  return href;
+/** "View Form" / See Form should open the forms list, not a single form backend/builder page. */
+function isViewFormsLink(href: string): boolean {
+  if (href === '/forms' || href.startsWith('/forms?')) return true;
+  if (href.startsWith('/form-builder/')) return true;
+  if (/^\/form\/[^/?#]+\/?$/.test(href)) return true;
+  if (/^\/form\/[^/?#]+\/settings\/?$/.test(href)) return true;
+  return false;
 }
 
 const SUGGESTIONS = [
@@ -56,36 +52,36 @@ export default function AIStudio() {
   } = useCopilotEngine();
   const [input, setInput] = useState('');
   const [selectedFormId, setSelectedFormId] = useState<string>('');
+  const [createdFormPrompt, setCreatedFormPrompt] = useState<{ formId: string; formName?: string } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const sendRef = useRef(sendPrompt);
   sendRef.current = sendPrompt;
   const autoRan = useRef(false);
-  const openedFormIds = useRef<Set<string>>(new Set());
+  const promptedFormIds = useRef<Set<string>>(new Set());
 
-  const openCreatedForm = (formId: string) => {
+  const viewFormsList = () => {
     unlockWorkspace();
-    navigate(`/form-builder/${formId}?tab=builder`);
+    setCreatedFormPrompt(null);
+    navigate('/forms');
   };
 
-  // After a live AI create, open the Form Builder designer (not the fillable / records view).
-  // Skip restored chat history — only react to freshly completed creates.
+  // After a live AI create, offer View Form (forms list). Skip restored chat history.
   useEffect(() => {
     if (isLoading) return;
     for (let i = messages.length - 1; i >= 0; i -= 1) {
       const message = messages[i];
       const created = extractCreatedForm(message);
-      if (!created || openedFormIds.current.has(created.formId)) continue;
+      if (!created || promptedFormIds.current.has(created.formId)) continue;
       const ageMs = Date.now() - new Date(message.timestamp).getTime();
       if (ageMs > 60_000) {
-        openedFormIds.current.add(created.formId);
+        promptedFormIds.current.add(created.formId);
         continue;
       }
-      openedFormIds.current.add(created.formId);
-      openCreatedForm(created.formId);
+      promptedFormIds.current.add(created.formId);
+      setCreatedFormPrompt(created);
       break;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- navigate once per newly created form id
   }, [messages, isLoading]);
 
   // Pick up a prompt handed over from the landing page hero panel
@@ -130,16 +126,14 @@ export default function AIStudio() {
       return (
         <button
           onClick={() => {
-            const target = toFormBuilderPath(href);
-            const formMatch = target.match(/^\/form-builder\/([^/?#]+)/);
-            if (formMatch) {
-              openCreatedForm(formMatch[1]);
+            if (isViewFormsLink(href)) {
+              viewFormsList();
               return;
             }
-            if (!workspaceUnlocked && !target.startsWith('/build')) {
+            if (!workspaceUnlocked && !href.startsWith('/build')) {
               unlockWorkspace();
             }
-            navigate(target);
+            navigate(href);
           }}
           className="text-primary underline underline-offset-2 font-medium"
         >
@@ -345,6 +339,13 @@ export default function AIStudio() {
           </div>
         </>
       )}
+
+      <FormCreatedDialog
+        open={!!createdFormPrompt}
+        formName={createdFormPrompt?.formName}
+        onClose={() => setCreatedFormPrompt(null)}
+        onViewForms={viewFormsList}
+      />
     </div>
   );
 }
