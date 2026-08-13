@@ -3,13 +3,23 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { FormPreview } from '@/components/FormPreview';
 import { useFormLoader } from '@/hooks/useFormLoader';
-import { Eye, Loader2, X, ExternalLink, RefreshCw } from 'lucide-react';
+import {
+  Eye, Loader2, X, ExternalLink, RefreshCw,
+  Maximize2, Minimize2,
+} from 'lucide-react';
+
+export type PreviewSizeMode = 'compact' | 'default' | 'expanded';
 
 interface CopilotFormPreviewPanelProps {
   formId: string;
   onClose: () => void;
   onViewForms: () => void;
   onRefresh?: () => void;
+  sizeMode?: PreviewSizeMode;
+  onExpand?: () => void;
+  onContract?: () => void;
+  /** When true, stretch/contract controls are shown (desktop split view). */
+  showResizeControls?: boolean;
 }
 
 export function CopilotFormPreviewPanel({
@@ -17,8 +27,14 @@ export function CopilotFormPreviewPanel({
   onClose,
   onViewForms,
   onRefresh,
+  sizeMode = 'default',
+  onExpand,
+  onContract,
+  showResizeControls = false,
 }: CopilotFormPreviewPanelProps) {
   const { form, loading, error } = useFormLoader(formId);
+  const canExpand = sizeMode !== 'expanded';
+  const canContract = sizeMode !== 'compact';
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-muted/20">
@@ -38,6 +54,32 @@ export function CopilotFormPreviewPanel({
           </Badge>
         </div>
         <div className="flex shrink-0 items-center gap-1">
+          {showResizeControls && (
+            <>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={onContract}
+                disabled={!canContract || !onContract}
+                title="Contract preview"
+                aria-label="Contract preview"
+              >
+                <Minimize2 className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={onExpand}
+                disabled={!canExpand || !onExpand}
+                title="Expand preview"
+                aria-label="Expand preview"
+              >
+                <Maximize2 className="h-3.5 w-3.5" />
+              </Button>
+            </>
+          )}
           {onRefresh && (
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onRefresh} title="Refresh preview">
               <RefreshCw className="h-3.5 w-3.5" />
@@ -68,7 +110,7 @@ export function CopilotFormPreviewPanel({
         {!loading && form && (
           <div className="space-y-3">
             <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-muted-foreground">
-              Live preview of your form. Submissions are not saved from here.
+              Live preview of your form. Use expand/contract or drag the divider to see fields more clearly.
             </div>
             <FormPreview form={form} showNavigation={false} />
           </div>
