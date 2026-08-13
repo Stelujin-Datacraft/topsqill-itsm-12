@@ -11,7 +11,6 @@ import { useCopilotEngine } from '@/hooks/useCopilotEngine';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CopilotFormPicker } from '@/components/ai/CopilotFormPicker';
 import { CopilotFormPreviewPanel } from '@/components/ai/CopilotFormPreviewPanel';
-import { FormCreatedDialog } from '@/components/ai/FormCreatedDialog';
 import { FORM_CREATE_ACTIONS, promptNeedsExistingForm } from '@/lib/copilotUtils';
 import { useOnboardingGate } from '@/hooks/useOnboardingGate';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -56,7 +55,6 @@ export default function AIStudio() {
   } = useCopilotEngine();
   const [input, setInput] = useState('');
   const [selectedFormId, setSelectedFormId] = useState<string>('');
-  const [createdFormPrompt, setCreatedFormPrompt] = useState<{ formId: string; formName?: string } | null>(null);
   const [previewFormId, setPreviewFormId] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewRefreshKey, setPreviewRefreshKey] = useState(0);
@@ -70,7 +68,6 @@ export default function AIStudio() {
 
   const viewFormsList = () => {
     unlockWorkspace();
-    setCreatedFormPrompt(null);
     navigate('/forms');
   };
 
@@ -78,7 +75,6 @@ export default function AIStudio() {
     setPreviewFormId(formId);
     setPreviewOpen(true);
     setPreviewRefreshKey((k) => k + 1);
-    setCreatedFormPrompt(null);
   };
 
   const closePreview = () => setPreviewOpen(false);
@@ -449,15 +445,6 @@ export default function AIStudio() {
         </SheetContent>
       </Sheet>
 
-      <FormCreatedDialog
-        open={!!createdFormPrompt}
-        formName={createdFormPrompt?.formName}
-        onClose={() => setCreatedFormPrompt(null)}
-        onPreview={() => {
-          if (createdFormPrompt) openPreview(createdFormPrompt.formId);
-        }}
-        onViewForms={viewFormsList}
-      />
     </div>
   );
 }
