@@ -374,7 +374,9 @@ ${JSON.stringify(context.availableReports || [], null, 2)}
 - When linking forms to workflows, use the real form ID from the context
 - Be concise and helpful. Use markdown for formatting.
 - If user asks "how" to do something, explain without executing
-- If user says "create/make/set up", execute the action via tools`;
+- If user says "create/make/set up", execute the action via tools
+- If the user asks to add/change/modify fields on a form already created in this conversation, use update_form (NOT create_form)
+- Prefer the most recently created form in the conversation when updating unless the user names another form`;
 
         // Define tools for structured output
         const copilotTools = [
@@ -382,7 +384,7 @@ ${JSON.stringify(context.availableReports || [], null, 2)}
             type: "function",
             function: {
               name: "create_form",
-              description: "Create a new form with fields. For large forms, organize fields into multiple pages. Use appropriate field types.",
+              description: "Create a brand-new form with fields. Do NOT use this when the user wants to change/add fields on an existing form from the current chat — use update_form instead.",
               parameters: {
                 type: "object",
                 properties: {
@@ -418,6 +420,36 @@ ${JSON.stringify(context.availableReports || [], null, 2)}
                   }
                 },
                 required: ["name", "description", "fields"]
+              }
+            }
+          },
+          {
+            type: "function",
+            function: {
+              name: "update_form",
+              description: "Update an EXISTING form by adding fields. Use when the user asks to add/change/modify fields on a form already created in this chat or named in context. Never create a duplicate form.",
+              parameters: {
+                type: "object",
+                properties: {
+                  formId: { type: "string", description: "ID of the existing form to update (from available forms or the form created earlier in this chat)" },
+                  fields: {
+                    type: "array",
+                    description: "Only the NEW fields to add",
+                    items: {
+                      type: "object",
+                      properties: {
+                        type: { type: "string", enum: ["text", "textarea", "number", "email", "phone", "date", "time", "datetime", "select", "multi-select", "radio", "checkbox", "toggle-switch", "file", "image", "signature", "rating", "slider", "header", "description", "horizontal-line", "section-break", "tags", "country", "address", "currency", "url", "color"] },
+                        label: { type: "string" },
+                        required: { type: "boolean" },
+                        placeholder: { type: "string" },
+                        tooltip: { type: "string" },
+                        options: { type: "array", items: { type: "object", properties: { value: { type: "string" }, label: { type: "string" } }, required: ["value", "label"] } }
+                      },
+                      required: ["type", "label", "required"]
+                    }
+                  }
+                },
+                required: ["formId", "fields"]
               }
             }
           },
