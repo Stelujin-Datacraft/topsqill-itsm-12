@@ -8,12 +8,13 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { CheckCircle2, FileText } from 'lucide-react';
+import { CheckCircle2, Eye, FileText } from 'lucide-react';
 
 interface FormCreatedDialogProps {
   open: boolean;
   formName?: string;
   onClose: () => void;
+  onPreview: () => void;
   onViewForms: () => void;
 }
 
@@ -21,6 +22,7 @@ export function FormCreatedDialog({
   open,
   formName,
   onClose,
+  onPreview,
   onViewForms,
 }: FormCreatedDialogProps) {
   return (
@@ -34,16 +36,20 @@ export function FormCreatedDialog({
             {formName ? `"${formName}" is ready` : 'Your form is ready'}
           </DialogTitle>
           <DialogDescription className="text-center">
-            Form created successfully. Click View Form to open your forms list and explore more features.
+            Preview the form beside the chat, or open your forms list. You can keep chatting either way.
           </DialogDescription>
         </DialogHeader>
-        <DialogFooter className="sm:justify-center gap-2">
+        <DialogFooter className="sm:justify-center gap-2 flex-col sm:flex-row">
           <Button variant="outline" onClick={onClose}>
-            Keep building
+            Keep chatting
           </Button>
-          <Button onClick={onViewForms} className="gap-1.5">
+          <Button variant="outline" onClick={onViewForms} className="gap-1.5">
             <FileText className="h-4 w-4" />
             View Form
+          </Button>
+          <Button onClick={onPreview} className="gap-1.5">
+            <Eye className="h-4 w-4" />
+            Preview
           </Button>
         </DialogFooter>
       </DialogContent>
