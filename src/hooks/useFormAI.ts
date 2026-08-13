@@ -364,6 +364,33 @@ export function useFormAI() {
     });
   }, [callAI]);
 
+  /** Incremental form update plan (add/update/rename/remove/move + pages/layout). */
+  const generateFormUpdate = useCallback(async (
+    userInput: string,
+    options: {
+      formName?: string;
+      formDescription?: string;
+      existingFields: Array<{ id: string; label: string; type: string; required?: boolean; options?: Array<{ value: string; label: string }> }>;
+      existingPages: Array<{ name: string; fieldCount: number; order: number }>;
+      layoutColumns?: number;
+    },
+  ): Promise<{
+    fields?: Array<Record<string, unknown>>;
+    pagesToAdd?: Array<{ name: string; description?: string }>;
+    layoutColumns?: 1 | 2 | 3;
+    applyFieldRules?: boolean;
+    summary?: string;
+  } | null> => {
+    return callAI('generate-form-update', {
+      userInput,
+      formName: options.formName,
+      formDescription: options.formDescription,
+      formFields: options.existingFields,
+      existingPages: options.existingPages,
+      suggestedLayout: options.layoutColumns,
+    });
+  }, [callAI]);
+
   const generateReportComponent = useCallback(async (
     userInput: string,
     options: {
@@ -505,6 +532,7 @@ export function useFormAI() {
     generateFormula,
     // New AI capabilities
     generateForm,
+    generateFormUpdate,
     generateReportComponent,
     suggestWorkflow,
     suggestFieldMappings,

@@ -216,6 +216,7 @@ export function useFormsLoader() {
               errorMessage: field.error_message || '',
               pageId: assignedPageId,
               customConfig: safeParseJson(field.custom_config, {}),
+              isFullWidth: Boolean(safeParseJson(field.custom_config, {})?.isFullWidth),
             };
           }),
           permissions: safeParseJson(form.permissions, { view: ['*'], submit: ['*'], edit: ['admin'] }),

@@ -141,6 +141,7 @@ export function useFormWithFields(formId: string | undefined) {
               tooltip: field.tooltip || '',
               errorMessage: field.error_message || '',
               customConfig: safeParseJson(field.custom_config, {}),
+              isFullWidth: Boolean(safeParseJson(field.custom_config, {})?.isFullWidth),
               pageId: assignedPageId
             };
           })

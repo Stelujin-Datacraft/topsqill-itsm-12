@@ -243,6 +243,7 @@ export function useFormLoader(formId: string | undefined) {
               errorMessage: field.error_message || undefined,
               pageId: fieldPageId,
               customConfig: customConfig,
+              isFullWidth: Boolean(customConfig?.isFullWidth),
             };
           }),
           permissions: safeParseJson(formData.permissions, { view: [], submit: [], edit: [] }),

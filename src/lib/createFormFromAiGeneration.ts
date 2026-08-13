@@ -8,7 +8,9 @@ export interface AiGeneratedFormField {
   tooltip?: string;
   options?: Array<{ label: string; value: string }>;
   validation?: Record<string, unknown>;
+  defaultValue?: string | boolean | string[] | number | null;
   isFullWidth?: boolean;
+  customConfig?: Record<string, unknown>;
 }
 
 export interface AiGeneratedFormSchema {
@@ -56,6 +58,33 @@ export function sanitizeAiFieldType(type: string): string {
   const normalized = (type || 'text').toLowerCase().trim();
   if (VALID_FIELD_TYPES.has(normalized)) return normalized;
   return FIELD_TYPE_ALIASES[normalized] || 'text';
+}
+
+function serializeDefaultValue(value: unknown): string {
+  if (value == null) return '';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'boolean' || typeof value === 'number') return String(value);
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return '';
+  }
+}
+
+function buildFieldCustomConfig(field: AiGeneratedFormField): Record<string, unknown> | null {
+  const merged: Record<string, unknown> = {
+    ...(field.customConfig && typeof field.customConfig === 'object' ? field.customConfig : {}),
+  };
+  if (typeof field.isFullWidth === 'boolean') {
+    merged.isFullWidth = field.isFullWidth;
+  } else if (
+    ['textarea', 'address', 'header', 'description', 'section-break', 'horizontal-line', 'rich-text'].includes(
+      sanitizeAiFieldType(field.type),
+    )
+  ) {
+    merged.isFullWidth = true;
+  }
+  return Object.keys(merged).length > 0 ? merged : null;
 }
 
 /**
@@ -155,6 +184,7 @@ export async function createFormFromAiGeneration(
     }));
 
     const sanitizedType = sanitizeAiFieldType(field.type);
+    const customConfig = buildFieldCustomConfig(field);
 
     const { data: existingFields } = await supabase
       .from('form_fields')
@@ -175,7 +205,7 @@ export async function createFormFromAiGeneration(
         label: field.label,
         placeholder: field.placeholder || '',
         required: field.required || false,
-        default_value: '',
+        default_value: serializeDefaultValue(field.defaultValue),
         options: mappedOptions ? JSON.stringify(mappedOptions) : null,
         validation: field.validation ? JSON.stringify(field.validation) : null,
         permissions: JSON.stringify({ read: ['*'], write: ['*'] }),
@@ -186,7 +216,7 @@ export async function createFormFromAiGeneration(
         tooltip: field.tooltip || '',
         error_message: '',
         field_order: maxOrder,
-        custom_config: null,
+        custom_config: customConfig ? JSON.stringify(customConfig) : null,
       })
       .select('id')
       .single();

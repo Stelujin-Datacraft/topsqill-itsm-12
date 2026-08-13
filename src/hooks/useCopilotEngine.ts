@@ -16,11 +16,20 @@ import {
   getChatStorageKey,
   getFormParamKey,
   normalizeToolCalls,
+  inferLayoutColumnsFromPrompt,
   promptUpdatesExistingForm,
+  promptWantsFieldRules,
   type CopilotToolCall,
 } from '@/lib/copilotUtils';
 import { createFormFromAiGeneration, type AiGeneratedFormSchema } from '@/lib/createFormFromAiGeneration';
-import { loadFormPages, updateFormFromAiGeneration } from '@/lib/updateFormFromAiGeneration';
+import {
+  buildUpdatePlanFromFields,
+  loadFormPages,
+  updateFormFromAiGeneration,
+  type AiFieldOp,
+  type FormUpdatePlan,
+} from '@/lib/updateFormFromAiGeneration';
+import type { FieldRule, FormField } from '@/types/form';
 
 export interface CopilotMessage {
   id: string;
@@ -106,7 +115,15 @@ export function useCopilotEngine() {
   /** Form created/updated in this chat — used as default target for field edits. */
   const [activeFormId, setActiveFormId] = useState<string | null>(null);
   const [activeFormName, setActiveFormName] = useState<string | null>(null);
-  const { chatbotAssist, generateForm, suggestWorkflow, generateReportComponent, isLoading } = useFormAI();
+  const {
+    chatbotAssist,
+    generateForm,
+    generateFormUpdate,
+    suggestWorkflow,
+    generateReportComponent,
+    suggestFieldRules,
+    isLoading,
+  } = useFormAI();
   const { currentProject, projects, setCurrentProject } = useProject();
   const { user } = useAuth();
   const location = useLocation();
@@ -448,58 +465,152 @@ export function useCopilotEngine() {
     formId: string,
     userPrompt: string,
     seedFields?: Array<Record<string, any>>,
-    pageHint?: { targetPageName?: string; targetPageIndex?: number },
+    pageHint?: {
+      targetPageName?: string;
+      targetPageIndex?: number;
+      pagesToAdd?: Array<{ name: string }>;
+      layoutColumns?: 1 | 2 | 3;
+      operations?: Array<Record<string, any>>;
+    },
   ) => {
     if (!hasPermission('forms', 'update', formId) && !hasPermission('forms', 'update')) {
       throw new Error("You don't have permission to update this form.");
     }
 
     const existing = formsWithFields.find((f) => f.id === formId);
-    const existingSummary = existing?.fields?.length
-      ? existing.fields.map((f) => `${f.label} (${f.type})`).join(', ')
-      : 'unknown';
     const pages = await loadFormPages(formId);
-    const pageSummary = pages.length
-      ? pages
-        .sort((a, b) => a.order - b.order)
-        .map((p, idx) => `${idx + 1}. "${p.name}" (${p.fields.length} fields)`)
-        .join('; ')
-      : '1. "Page 1"';
+    const sortedPages = [...pages].sort((a, b) => a.order - b.order);
+    const layoutFromPrompt = pageHint?.layoutColumns || inferLayoutColumnsFromPrompt(userPrompt);
 
-    let fields = Array.isArray(seedFields) ? seedFields : [];
-    if (fields.length === 0) {
-      const generated = await generateForm(
-        [
-          `Update an EXISTING form. Do NOT invent a brand-new form.`,
-          `Existing form name: ${existing?.name || 'Form'}`,
-          `Existing pages (use these exact names when placing fields): ${pageSummary}`,
-          `Existing fields (keep these; do not recreate them): ${existingSummary}`,
-          `User change request: ${userPrompt}`,
-          `Return ONLY the new fields that should be ADDED to satisfy the request.`,
-          `If the user names a page (e.g. Profile / 2nd page), the app will place fields on that page.`,
-        ].join('\n'),
-      );
-      fields = Array.isArray(generated?.fields) ? generated.fields : [];
+    let plan: FormUpdatePlan = {
+      fields: [],
+      pagesToAdd: pageHint?.pagesToAdd,
+      layoutColumns: layoutFromPrompt,
+    };
+
+    const seedOps = Array.isArray(pageHint?.operations) && pageHint!.operations!.length > 0
+      ? pageHint!.operations!
+      : (Array.isArray(seedFields) ? seedFields : []);
+
+    if (seedOps.length > 0) {
+      plan = buildUpdatePlanFromFields(seedOps as AiFieldOp[], {
+        pagesToAdd: pageHint?.pagesToAdd,
+        layoutColumns: layoutFromPrompt,
+      });
+    } else {
+      try {
+        const generated = await generateFormUpdate(userPrompt, {
+          formName: existing?.name,
+          formDescription: existing?.description,
+          existingFields: (existing?.fields || []).map((f) => ({
+            id: f.id,
+            label: f.label,
+            type: f.type,
+            required: f.required,
+            options: f.options?.map((o) => ({ value: o.value, label: o.label })),
+          })),
+          existingPages: sortedPages.map((p) => ({
+            name: p.name,
+            fieldCount: p.fields.length,
+            order: p.order,
+          })),
+        });
+
+        if (generated) {
+          plan = {
+            fields: (Array.isArray(generated.fields) ? generated.fields : []) as AiFieldOp[],
+            pagesToAdd: generated.pagesToAdd || pageHint?.pagesToAdd,
+            layoutColumns: generated.layoutColumns || layoutFromPrompt,
+            applyFieldRules: generated.applyFieldRules,
+          };
+        }
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : '';
+        if (/rate limit|credits exhausted|429|402/i.test(msg)) throw e;
+        console.error('generateFormUpdate failed, falling back to generateForm:', e);
+      }
+
+      // Fallback: add-only generation when dedicated update plan is empty
+      if (!plan.fields?.length && !plan.pagesToAdd?.length && !plan.layoutColumns) {
+        const pageSummary = sortedPages.length
+          ? sortedPages.map((p, idx) => `${idx + 1}. "${p.name}" (${p.fields.length} fields)`).join('; ')
+          : '1. "Page 1"';
+        const existingSummary = existing?.fields?.length
+          ? existing.fields.map((f) => `${f.label} (${f.type})`).join(', ')
+          : 'unknown';
+        const generated = await generateForm(
+          [
+            `Update an EXISTING form. Do NOT invent a brand-new form.`,
+            `Existing form name: ${existing?.name || 'Form'}`,
+            `Existing pages (use these exact names when placing fields; create the page if missing): ${pageSummary}`,
+            `Existing fields: ${existingSummary}`,
+            `User change request: ${userPrompt}`,
+            `Return ONLY fields involved in the change (new fields to add, or fields to change with full props).`,
+            `Include pageName on each field when the user names a page.`,
+            `Include defaultValue, validation, placeholder, options, isFullWidth when relevant.`,
+          ].join('\n'),
+        );
+        plan = buildUpdatePlanFromFields(
+          (Array.isArray(generated?.fields) ? generated!.fields : []) as AiFieldOp[],
+          { layoutColumns: layoutFromPrompt, pagesToAdd: pageHint?.pagesToAdd },
+        );
+      }
     }
 
-    if (!fields.length) {
-      throw new Error('AI could not determine which fields to add. Be more specific about the change.');
+    if (!plan.fields?.length && !plan.pagesToAdd?.length && !plan.layoutColumns) {
+      throw new Error('AI could not determine which form changes to make. Be more specific about fields, pages, or layout.');
+    }
+
+    let fieldRulesToAppend: FieldRule[] | undefined;
+    const wantsRules = plan.applyFieldRules || promptWantsFieldRules(userPrompt);
+    if (wantsRules && existing?.fields?.length) {
+      try {
+        const suggestion = await suggestFieldRules(
+          existing.fields.map((f) => ({
+            id: f.id,
+            type: f.type as FormField['type'],
+            label: f.label,
+            required: f.required,
+            options: f.options,
+          })) as FormField[],
+          userPrompt,
+          { formName: existing.name, formDescription: existing.description },
+        );
+        if (suggestion?.rules?.length) {
+          fieldRulesToAppend = suggestion.rules.map((rule, idx) => ({
+            id: `ai-rule-${Date.now()}-${idx}`,
+            name: rule.name,
+            targetFieldId: rule.targetFieldId,
+            conditions: (rule.conditions || []).map((c, cIdx) => ({
+              id: `ai-cond-${Date.now()}-${idx}-${cIdx}`,
+              fieldId: c.fieldId,
+              operator: (c.operator || '==') as NonNullable<FieldRule['conditions']>[number]['operator'],
+              value: c.value,
+            })),
+            logicExpression: rule.logicExpression || '1',
+            action: rule.action as FieldRule['action'],
+            actionValue: rule.actionValue,
+            isActive: true,
+          }));
+        }
+      } catch (e) {
+        console.error('Field rule suggestion failed during form update:', e);
+      }
     }
 
     return updateFormFromAiGeneration(
       formId,
-      {
-        name: existing?.name,
-        description: existing?.description,
-        fields: fields as AiGeneratedFormSchema['fields'],
-      },
+      plan,
       {
         targetPageName: pageHint?.targetPageName,
         targetPageIndex: pageHint?.targetPageIndex,
         userPrompt,
+        layoutColumns: plan.layoutColumns,
+        pagesToAdd: plan.pagesToAdd,
+        fieldRulesToAppend,
       },
     );
-  }, [formsWithFields, generateForm, hasPermission]);
+  }, [formsWithFields, generateForm, generateFormUpdate, hasPermission, suggestFieldRules]);
 
   const enrichActionParams = useCallback(async (
     action: string,
@@ -581,21 +692,28 @@ export function useCopilotEngine() {
         const targetPageName = typeof rawParams.targetPageName === 'string'
           ? rawParams.targetPageName
           : (typeof rawParams.pageName === 'string' ? rawParams.pageName : undefined);
+        const layoutColumns = [1, 2, 3].includes(Number(rawParams.layoutColumns))
+          ? Number(rawParams.layoutColumns) as 1 | 2 | 3
+          : undefined;
+        const pagesToAdd = Array.isArray(rawParams.pagesToAdd) ? rawParams.pagesToAdd : undefined;
+        const operations = Array.isArray(rawParams.operations) ? rawParams.operations : undefined;
+        const seedFields = Array.isArray(rawParams.fields) ? rawParams.fields : undefined;
         const updated = await updateClientFormFromPrompt(
           targetFormId,
           prompt,
-          Array.isArray(rawParams.fields) ? rawParams.fields : undefined,
-          { targetPageName, targetPageIndex },
+          seedFields,
+          { targetPageName, targetPageIndex, pagesToAdd, layoutColumns, operations },
         );
         rememberActiveForm(updated.formId, updated.formName);
-        const pageNote = updated.targetPageName ? ` on page "${updated.targetPageName}"` : '';
+        const pageNote = updated.targetPageName ? ` (page: "${updated.targetPageName}")` : '';
         actionResult = {
-          message: `Updated form "${updated.formName}" — added ${updated.addedFieldCount} field(s)${pageNote}${updated.skippedExistingCount ? ` (skipped ${updated.skippedExistingCount} that already existed)` : ''}. Now ${updated.totalFieldCount} field(s) total.`,
+          message: `Updated form "${updated.formName}" — ${updated.summary}${pageNote}. Now ${updated.totalFieldCount} field(s) total.`,
           result: {
             formId: updated.formId,
             formName: updated.formName,
-            fieldCount: updated.addedFieldCount,
+            fieldCount: updated.addedFieldCount + updated.updatedFieldCount,
             targetPageName: updated.targetPageName,
+            summary: updated.summary,
             updated: true,
           },
         };
