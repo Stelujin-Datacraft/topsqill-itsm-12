@@ -221,12 +221,7 @@ export function resolveOrCreateTargetPage(
   const nameHint = (hint?.pageName || '').trim();
 
   if (nameHint) {
-    const existing = resolveTargetPage(pages, { pageName: nameHint, pageIndex: hint?.pageIndex, userPrompt: hint?.userPrompt });
-    const matchedByName = labelKey(existing.name) === labelKey(nameHint)
-      || existing.name.trim().toLowerCase().includes(nameHint.toLowerCase())
-      || nameHint.toLowerCase().includes(existing.name.trim().toLowerCase());
-
-    // resolveTargetPage falls back to page 1 — detect true miss by name
+    // resolveTargetPage falls back to page 1 — detect true miss by name first
     const exactOrPartial = pages.find((p) => {
       const n = p.name.trim().toLowerCase();
       const h = nameHint.toLowerCase();
@@ -241,7 +236,7 @@ export function resolveOrCreateTargetPage(
       return { page: resolveTargetPage(pages, hint), created: false };
     }
 
-    if (createIfMissing && nameHint) {
+    if (createIfMissing) {
       const nextOrder = pages.reduce((max, p) => Math.max(max, p.order), -1) + 1;
       const newPage: FormPageInfo = {
         id: `page-${Date.now()}-${nextOrder + 1}`,
@@ -252,8 +247,6 @@ export function resolveOrCreateTargetPage(
       pages.push(newPage);
       return { page: newPage, created: true };
     }
-
-    return { page: matchedByName ? existing : resolveTargetPage(pages, hint), created: false };
   }
 
   return { page: resolveTargetPage(pages, hint), created: false };
