@@ -47,12 +47,13 @@
 
     --radius: 0.5rem;
 
-    /* Brand surfaces for public header/footer */
-    --brand-deep: 168 46% 13%;
-    --brand-deep-foreground: 168 22% 92%;
-    --brand-deep-muted: 168 16% 72%;
-    --gradient-header: linear-gradient(90deg, hsl(168 55% 36% / 0.10) 0%, hsl(174 58% 42% / 0.05) 45%, hsl(210 20% 98% / 0) 100%);
-    --gradient-footer: linear-gradient(180deg, hsl(168 44% 16%) 0%, hsl(170 48% 10%) 100%);
+    /* Brand surfaces for public header/footer — mirror the in-app sidebar so
+       the landing page and the signed-in system share one palette */
+    --brand-deep: 168 45% 18%;
+    --brand-deep-foreground: 168 20% 92%;
+    --brand-deep-muted: 168 16% 74%;
+    --gradient-header: linear-gradient(90deg, hsl(var(--primary) / 0.10) 0%, hsl(var(--accent) / 0.05) 45%, hsl(var(--background) / 0) 100%);
+    --gradient-footer: linear-gradient(180deg, hsl(168 45% 18%) 0%, hsl(168 45% 12%) 100%);
 
     --shadow-xs: 0 1px 2px 0 hsl(215 28% 11% / 0.04);
     --shadow-sm: 0 1px 3px 0 hsl(215 28% 11% / 0.06), 0 1px 2px -1px hsl(215 28% 11% / 0.06);
