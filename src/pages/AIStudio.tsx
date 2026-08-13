@@ -283,13 +283,13 @@ export default function AIStudio() {
               setActiveFormId(formId, form?.name);
             }}
             selectedId={effectiveTargetFormId || undefined}
-            placeholder={isUpdatePrompt || activeFormId ? 'Form to update' : 'Select source form (required)'}
+            placeholder={isUpdatePrompt ? 'Form to update' : 'Source form (required)'}
             className={cn('w-[220px]', formRequired && 'border-destructive text-destructive')}
           />
         )}
         {activeFormLabel && (
           <Badge variant="secondary" className="text-[10px] max-w-[180px] truncate" title={activeFormLabel}>
-            Editing: {activeFormLabel}
+            {isUpdatePrompt ? 'Editing' : 'Using'}: {activeFormLabel}
           </Badge>
         )}
         {formMissing && (
@@ -299,7 +299,7 @@ export default function AIStudio() {
         )}
         {formRequired && (
           <span className="text-xs text-destructive">
-            Select the form to update.
+            Select the source form first.
           </span>
         )}
       </div>
