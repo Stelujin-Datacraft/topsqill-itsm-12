@@ -28,7 +28,7 @@ const Auth = () => {
   const [searchParams] = useSearchParams();
   const initialMode = searchParams.get('mode') === 'signup' ? 'signup' : 'signin';
   const [activeTab, setActiveTab] = useState(initialMode);
-  const { signIn, registerOrganization, isLoading, user, pendingMfa, completeMfaVerification } = useAuth();
+  const { signIn, signInWithGoogle, registerOrganization, isLoading, user, pendingMfa, completeMfaVerification } = useAuth();
   const navigate = useNavigate();
   const returnTo = searchParams.get('returnTo');
   const skipAuthRedirectRef = useRef(false);
@@ -44,6 +44,7 @@ const Auth = () => {
   const [autoRedirectedFor, setAutoRedirectedFor] = useState<string>('');
   const [organizationId, setOrganizationId] = useState<string | null>(null);
   const [oidcLoading, setOidcLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [prefetchedAuthUrl, setPrefetchedAuthUrl] = useState<string | null>(null);
 
   // Two-step email-first sign-in flow
@@ -268,6 +269,34 @@ const Auth = () => {
     });
   };
 
+  const handleGoogleAuth = async () => {
+    setGoogleLoading(true);
+    const { error } = await signInWithGoogle();
+    if (error) {
+      toast({
+        title: 'Google sign-in failed',
+        description: error.message || 'Could not continue with Google. Please try again.',
+        variant: 'destructive',
+      });
+      setGoogleLoading(false);
+    }
+  };
+
+  const GoogleAuthButton = ({ label }: { label: string }) => (
+    <Button
+      type="button"
+      variant="outline"
+      className="w-full gap-2 border-border bg-background hover:bg-muted"
+      disabled={googleLoading || isLoading}
+      onClick={() => void handleGoogleAuth()}
+    >
+      <span className="flex size-5 items-center justify-center rounded-full border border-border text-xs font-bold text-foreground" aria-hidden="true">
+        G
+      </span>
+      {googleLoading ? 'Redirecting to Google…' : label}
+    </Button>
+  );
+
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -369,6 +398,16 @@ const Auth = () => {
             </TabsList>
 
             <TabsContent value="signin" className="space-y-4">
+              {!showLdapLogin && signinStep === 'email' && (
+                <>
+                  <GoogleAuthButton label="Continue with Google" />
+                  <div className="flex items-center gap-3" aria-hidden="true">
+                    <div className="h-px flex-1 bg-border" />
+                    <span className="text-xs uppercase text-muted-foreground">or use work email</span>
+                    <div className="h-px flex-1 bg-border" />
+                  </div>
+                </>
+              )}
               {showLdapLogin ? (
                 <LdapLoginForm
                   organizationDomain={ldapDomain}
@@ -513,6 +552,12 @@ const Auth = () => {
             </TabsContent>
 
             <TabsContent value="signup" className="space-y-4">
+              <GoogleAuthButton label="Sign up with Google" />
+              <div className="flex items-center gap-3" aria-hidden="true">
+                <div className="h-px flex-1 bg-border" />
+                <span className="text-xs uppercase text-muted-foreground">or create with email</span>
+                <div className="h-px flex-1 bg-border" />
+              </div>
               <div className="flex items-center gap-2 mb-4 text-sm text-muted-foreground">
                 <Building2 className="h-4 w-4" />
                 {t('auth.signUpIntro')}
