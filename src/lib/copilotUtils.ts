@@ -8,6 +8,7 @@ export interface CopilotToolCall {
 /** Actions the backend ai-copilot-action engine actually implements. */
 export const SUPPORTED_COPILOT_ACTIONS = new Set([
   'create_form',
+  'update_form',
   'trigger_workflow',
   'create_submission',
   'create_dashboard',
@@ -29,6 +30,7 @@ export const SUPPORTED_COPILOT_ACTIONS = new Set([
 /** Actions that create or mutate workspace assets — refresh context after success. */
 export const CONTEXT_REFRESH_ACTIONS = new Set([
   'create_form',
+  'update_form',
   'create_workflow',
   'create_form_with_workflow',
   'create_form_with_sla',
@@ -54,6 +56,7 @@ export const FORM_CREATE_ACTIONS = new Set([
  * (avoids false positives like create_dashboard or invented action names).
  */
 export const FORM_REQUIRED_ACTIONS: Record<string, string> = {
+  update_form: 'formId',
   create_workflow: 'triggerFormId',
   create_report: 'formId',
   link_form_to_workflow: 'formId',
@@ -69,6 +72,7 @@ export const WORKFLOW_CREATE_ACTIONS = new Set([
 /** Permission gate before executing a copilot action in the UI. */
 export const ACTION_PERMISSIONS: Partial<Record<string, { entity: EntityType; action: ActionType }>> = {
   create_form: { entity: 'forms', action: 'create' },
+  update_form: { entity: 'forms', action: 'update' },
   create_form_with_workflow: { entity: 'forms', action: 'create' },
   create_form_with_sla: { entity: 'forms', action: 'create' },
   create_form_with_email_template: { entity: 'forms', action: 'create' },
@@ -86,10 +90,36 @@ export function getFormParamKey(action: string): string | null {
   return FORM_REQUIRED_ACTIONS[action] ?? null;
 }
 
-/** User is asking to create a new form (not attach to an existing one). */
+/** User wants to change an already-created form (add/change fields), not create a new one. */
+export function promptUpdatesExistingForm(text: string): boolean {
+  const t = text.toLowerCase().trim();
+
+  // Explicit brand-new form request wins over update heuristics.
+  if (/\b(new|another|different|separate|second|fresh)\s+forms?\b/.test(t)) {
+    return false;
+  }
+  if (/\b(create|make|build|generate|design|set up)\s+(a\s+|an\s+|the\s+)?(new\s+)?forms?\b/.test(t)
+    && !/\b(add|update|change|modify|edit|remove|delete|rename)\b/.test(t)) {
+    return false;
+  }
+
+  if (/\b(add|update|change|modify|edit|remove|delete|rename|include|insert|append)\b/.test(t)
+    && /\b(field|fields|column|columns|section|question|questions|input|inputs)\b/.test(t)) {
+    return true;
+  }
+
+  if (/\b(update|modify|edit|change|improve|extend|enhance)\b.+\bforms?\b/.test(t)) return true;
+  if (/\b(add|include|append)\b.+\b(to|on|in)\b.+\b(the\s+)?(forms?|it|this|that)\b/.test(t)) return true;
+  if (/\b(add|include)\b.+\b(to|on|in)\b.+\b(preview|current form)\b/.test(t)) return true;
+
+  return false;
+}
+
+/** User is asking to create a new form (not attach to or edit an existing one). */
 export function promptCreatesNewForm(text: string): boolean {
+  if (promptUpdatesExistingForm(text)) return false;
   const t = text.toLowerCase();
-  const createVerb = /\b(create|make|build|set up|add|design|generate)\b/.test(t);
+  const createVerb = /\b(create|make|build|set up|design|generate)\b/.test(t);
   const mentionsForm = /\bforms?\b/.test(t);
   return createVerb && mentionsForm;
 }
@@ -127,6 +157,10 @@ export function promptNeedsExistingForm(text: string): boolean {
 
   if (promptWantsFormAndWorkflow(text)) return false;
   if (promptCreatesDashboard(text)) return false;
+
+  // Field edits need a target form unless the chat session already has an active one
+  // (caller may auto-supply that). Still treat as needing a form for picker UX.
+  if (promptUpdatesExistingForm(text)) return true;
 
   if (promptCreatesNewForm(text) && !/\b(workflow|automation|sla|email template)\b/.test(t)) {
     return false;
@@ -212,6 +246,18 @@ export function normalizeToolCalls(
         ? { action: 'create_report', params: { ...tc.params } }
         : tc
     ));
+  }
+
+  // Follow-up edits must update the existing form — never spawn a duplicate create_form.
+  if (promptUpdatesExistingForm(userPrompt)) {
+    normalized = normalized.map((tc) => (
+      tc.action === 'create_form'
+        ? { action: 'update_form', params: { ...tc.params } }
+        : tc
+    ));
+    if (!normalized.some((tc) => tc.action === 'update_form')) {
+      normalized = [{ action: 'update_form', params: {} }, ...normalized];
+    }
   }
 
   return normalized;

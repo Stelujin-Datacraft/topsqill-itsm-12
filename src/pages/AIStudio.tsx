@@ -13,7 +13,7 @@ import { useCopilotEngine } from '@/hooks/useCopilotEngine';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CopilotFormPicker } from '@/components/ai/CopilotFormPicker';
 import { CopilotFormPreviewPanel, type PreviewSizeMode } from '@/components/ai/CopilotFormPreviewPanel';
-import { FORM_CREATE_ACTIONS, promptNeedsExistingForm } from '@/lib/copilotUtils';
+import { FORM_CREATE_ACTIONS, promptNeedsExistingForm, promptUpdatesExistingForm } from '@/lib/copilotUtils';
 import { useOnboardingGate } from '@/hooks/useOnboardingGate';
 import { useIsMobile } from '@/hooks/use-mobile';
 import {
@@ -33,7 +33,7 @@ function extractCreatedForm(message: {
   action?: { type: string; status: string; result?: { result?: { formId?: string; formName?: string } } };
 }): { formId: string; formName?: string } | null {
   if (!message.action || message.action.status !== 'success') return null;
-  if (!FORM_CREATE_ACTIONS.has(message.action.type)) return null;
+  if (!FORM_CREATE_ACTIONS.has(message.action.type) && message.action.type !== 'update_form') return null;
   const formId = message.action.result?.result?.formId;
   if (!formId) return null;
   return { formId, formName: message.action.result?.result?.formName };
@@ -61,6 +61,7 @@ export default function AIStudio() {
   const { workspaceUnlocked, unlockWorkspace } = useOnboardingGate();
   const {
     messages, isLoading, activeProject, projects, setCurrentProject, availableForms,
+    activeFormId, activeFormName, setActiveFormId,
     sendPrompt, clearChat, hasConversation, copilotEnabled, setCopilotEnabled, resolveFormChoice,
   } = useCopilotEngine();
   const [input, setInput] = useState('');
@@ -103,17 +104,26 @@ export default function AIStudio() {
     setMobileSheetExpanded(false);
   }, [applyPreviewSize, previewSizeMode]);
 
-  const openPreview = (formId: string) => {
+  const openPreview = (formId: string, formName?: string) => {
     setPreviewFormId(formId);
     setPreviewOpen(true);
     setPreviewSizeMode('default');
     setMobileSheetExpanded(false);
     setPreviewRefreshKey((k) => k + 1);
+    setActiveFormId(formId, formName);
+    if (!selectedFormId) setSelectedFormId(formId);
     // Apply default size after panel mounts
     requestAnimationFrame(() => {
       previewPanelRef.current?.resize(PREVIEW_SIZES.default);
     });
   };
+
+  // Keep composer target form aligned with the chat's active form.
+  useEffect(() => {
+    if (activeFormId && !selectedFormId) {
+      setSelectedFormId(activeFormId);
+    }
+  }, [activeFormId, selectedFormId]);
 
   const closePreview = () => {
     setPreviewOpen(false);
@@ -201,10 +211,14 @@ export default function AIStudio() {
   const submit = (text?: string) => {
     const value = (text ?? input).trim();
     if (!value || isLoading) return;
+    const isUpdate = promptUpdatesExistingForm(value);
     const dependsOnForm = promptNeedsExistingForm(value);
-    if (dependsOnForm && availableForms.length > 0 && !selectedFormId) return;
+    const targetFormId = selectedFormId || activeFormId || previewFormId || '';
+    // For updates, allow send when chat already has an active form even if picker empty.
+    if (dependsOnForm && availableForms.length > 0 && !targetFormId) return;
+    if (isUpdate && !targetFormId && availableForms.length === 0) return;
     setInput('');
-    void sendPrompt(value, selectedFormId ? { formId: selectedFormId } : undefined);
+    void sendPrompt(value, targetFormId ? { formId: targetFormId } : undefined);
   };
 
   const LinkRenderer = ({ href, children }: { href?: string; children?: React.ReactNode }) => {
@@ -231,8 +245,13 @@ export default function AIStudio() {
   };
 
   const needsForm = promptNeedsExistingForm(input);
-  const formMissing = needsForm && availableForms.length === 0;
-  const formRequired = needsForm && availableForms.length > 0 && !selectedFormId;
+  const isUpdatePrompt = promptUpdatesExistingForm(input);
+  const effectiveTargetFormId = selectedFormId || activeFormId || previewFormId || '';
+  const formMissing = needsForm && availableForms.length === 0 && !(isUpdatePrompt && activeFormId);
+  const formRequired = needsForm && availableForms.length > 0 && !effectiveTargetFormId;
+  const activeFormLabel = availableForms.find((f) => f.id === (selectedFormId || activeFormId))?.name
+    || activeFormName
+    || null;
   const showDesktopPreview = previewOpen && !!previewFormId && !isMobile;
 
   const composer = (
@@ -255,18 +274,32 @@ export default function AIStudio() {
             ))}
           </SelectContent>
         </Select>
-        {needsForm && availableForms.length > 0 && (
+        {(needsForm || isUpdatePrompt || !!activeFormId) && availableForms.length > 0 && (
           <CopilotFormPicker
             forms={availableForms}
-            onSelect={setSelectedFormId}
-            selectedId={selectedFormId || undefined}
-            placeholder="Select source form (required)"
-            className={cn('w-[210px]', formRequired && 'border-destructive text-destructive')}
+            onSelect={(formId) => {
+              setSelectedFormId(formId);
+              const form = availableForms.find((f) => f.id === formId);
+              setActiveFormId(formId, form?.name);
+            }}
+            selectedId={effectiveTargetFormId || undefined}
+            placeholder={isUpdatePrompt || activeFormId ? 'Form to update' : 'Select source form (required)'}
+            className={cn('w-[220px]', formRequired && 'border-destructive text-destructive')}
           />
+        )}
+        {activeFormLabel && (
+          <Badge variant="secondary" className="text-[10px] max-w-[180px] truncate" title={activeFormLabel}>
+            Editing: {activeFormLabel}
+          </Badge>
         )}
         {formMissing && (
           <span className="text-xs text-destructive">
             No forms in this project yet — create a form first.
+          </span>
+        )}
+        {formRequired && (
+          <span className="text-xs text-destructive">
+            Select the form to update.
           </span>
         )}
       </div>

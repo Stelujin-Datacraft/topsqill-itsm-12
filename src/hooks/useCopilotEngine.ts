@@ -16,9 +16,11 @@ import {
   getChatStorageKey,
   getFormParamKey,
   normalizeToolCalls,
+  promptUpdatesExistingForm,
   type CopilotToolCall,
 } from '@/lib/copilotUtils';
 import { createFormFromAiGeneration, type AiGeneratedFormSchema } from '@/lib/createFormFromAiGeneration';
+import { updateFormFromAiGeneration } from '@/lib/updateFormFromAiGeneration';
 
 export interface CopilotMessage {
   id: string;
@@ -101,6 +103,9 @@ export function useCopilotEngine() {
   const [reports, setReports] = useState<ReportInfo[]>([]);
   const [formsWithFields, setFormsWithFields] = useState<FormWithFields[]>([]);
   const [copilotEnabled, setCopilotEnabled] = useState(true);
+  /** Form created/updated in this chat — used as default target for field edits. */
+  const [activeFormId, setActiveFormId] = useState<string | null>(null);
+  const [activeFormName, setActiveFormName] = useState<string | null>(null);
   const { chatbotAssist, generateForm, suggestWorkflow, generateReportComponent, isLoading } = useFormAI();
   const { currentProject, projects, setCurrentProject } = useProject();
   const { user } = useAuth();
@@ -108,6 +113,8 @@ export function useCopilotEngine() {
   const { hasPermission } = useUnifiedAccessControl();
   const [pendingAction, setPendingAction] = useState<{ action: string; params: Record<string, any>; prompt: string; messageId: string } | null>(null);
   const chatHydratedRef = useRef(false);
+  const activeFormIdRef = useRef<string | null>(null);
+  activeFormIdRef.current = activeFormId;
 
   const activeProject = currentProject || projects[0] || null;
 
@@ -168,9 +175,12 @@ export function useCopilotEngine() {
     void loadContext();
   }, [loadContext]);
 
-  // Restore chat history per user + project
+  // Restore chat history per user + project, and recover the active form from that chat.
   useEffect(() => {
     chatHydratedRef.current = false;
+    setActiveFormId(null);
+    setActiveFormName(null);
+    activeFormIdRef.current = null;
     if (!user?.id || !activeProject?.id) {
       setMessages([welcomeMessage()]);
       return;
@@ -181,6 +191,18 @@ export function useCopilotEngine() {
         const restored = deserializeMessages(stored);
         if (restored && restored.length > 0) {
           setMessages(restored);
+          for (let i = restored.length - 1; i >= 0; i -= 1) {
+            const action = restored[i].action;
+            if (action?.status !== 'success') continue;
+            const formId = action.result?.result?.formId as string | undefined;
+            const formName = action.result?.result?.formName as string | undefined;
+            if (formId && (FORM_CREATE_ACTIONS.has(action.type) || action.type === 'update_form')) {
+              setActiveFormId(formId);
+              setActiveFormName(formName || null);
+              activeFormIdRef.current = formId;
+              break;
+            }
+          }
           chatHydratedRef.current = true;
           return;
         }
@@ -381,6 +403,12 @@ export function useCopilotEngine() {
     return params;
   }, [formsWithFields, generateReportComponent]);
 
+  const rememberActiveForm = useCallback((formId: string, formName?: string) => {
+    setActiveFormId(formId);
+    setActiveFormName(formName || null);
+    activeFormIdRef.current = formId;
+  }, []);
+
   /** Same path as Forms → Generate with AI (frontend API, not copilot edge action). */
   const createClientFormFromPrompt = useCallback(async (
     userPrompt: string,
@@ -415,6 +443,46 @@ export function useCopilotEngine() {
     });
   }, [activeProject?.id, activeProject?.organization_id, generateForm, hasPermission]);
 
+  /** Update fields on an existing form instead of creating a duplicate. */
+  const updateClientFormFromPrompt = useCallback(async (
+    formId: string,
+    userPrompt: string,
+    seedFields?: Array<Record<string, any>>,
+  ) => {
+    if (!hasPermission('forms', 'update', formId) && !hasPermission('forms', 'update')) {
+      throw new Error("You don't have permission to update this form.");
+    }
+
+    const existing = formsWithFields.find((f) => f.id === formId);
+    const existingSummary = existing?.fields?.length
+      ? existing.fields.map((f) => `${f.label} (${f.type})`).join(', ')
+      : 'unknown';
+
+    let fields = Array.isArray(seedFields) ? seedFields : [];
+    if (fields.length === 0) {
+      const generated = await generateForm(
+        [
+          `Update an EXISTING form. Do NOT invent a brand-new form.`,
+          `Existing form name: ${existing?.name || 'Form'}`,
+          `Existing fields (keep these; do not recreate them): ${existingSummary}`,
+          `User change request: ${userPrompt}`,
+          `Return ONLY the new fields that should be ADDED to satisfy the request.`,
+        ].join('\n'),
+      );
+      fields = Array.isArray(generated?.fields) ? generated.fields : [];
+    }
+
+    if (!fields.length) {
+      throw new Error('AI could not determine which fields to add. Be more specific about the change.');
+    }
+
+    return updateFormFromAiGeneration(formId, {
+      name: existing?.name,
+      description: existing?.description,
+      fields: fields as AiGeneratedFormSchema['fields'],
+    });
+  }, [formsWithFields, generateForm, hasPermission]);
+
   const enrichActionParams = useCallback(async (
     action: string,
     params: Record<string, any>,
@@ -437,6 +505,9 @@ export function useCopilotEngine() {
     }
     if (result.formId && result.emailTemplateId) {
       return `🎉 **Form with email notifications created!**\n\n• [View Form](/forms)\n• [View Email Templates](/email-templates)`;
+    }
+    if (result.formId && result.updated) {
+      return `✅ **Form updated.** Preview refreshes beside chat, or [View Form](/forms) in your list.`;
     }
     if (result.formId) return `Would you like to [View Form](/forms)?`;
     if (result.workflowId && result.nodeId) return `✅ **Email action added!**\n\n• [Open the workflow](/workflow-designer/${result.workflowId})`;
@@ -471,8 +542,9 @@ export function useCopilotEngine() {
           name: rawParams.name,
           description: rawParams.description,
         });
+        rememberActiveForm(created.formId, created.formName);
         actionResult = {
-          message: `Created form "${created.formName}" with ${created.pageCount} page(s) and ${created.fieldCount} field(s)!`,
+          message: `Created form "${created.formName}" with ${created.pageCount} page(s) and ${created.fieldCount} field(s)! Further field changes in this chat will update this form.`,
           result: {
             formId: created.formId,
             formName: created.formName,
@@ -480,11 +552,32 @@ export function useCopilotEngine() {
             fieldCount: created.fieldCount,
           },
         };
+      } else if (action === 'update_form') {
+        const targetFormId = rawParams.formId || formIdForEnrichment || activeFormIdRef.current;
+        if (!targetFormId) {
+          throw new Error('Select which form to update, or create a form first in this chat.');
+        }
+        const updated = await updateClientFormFromPrompt(
+          targetFormId,
+          prompt,
+          Array.isArray(rawParams.fields) ? rawParams.fields : undefined,
+        );
+        rememberActiveForm(updated.formId, updated.formName);
+        actionResult = {
+          message: `Updated form "${updated.formName}" — added ${updated.addedFieldCount} field(s)${updated.skippedExistingCount ? ` (skipped ${updated.skippedExistingCount} that already existed)` : ''}. Now ${updated.totalFieldCount} field(s) total.`,
+          result: {
+            formId: updated.formId,
+            formName: updated.formName,
+            fieldCount: updated.addedFieldCount,
+            updated: true,
+          },
+        };
       } else if (action === 'create_form_with_workflow') {
         const created = await createClientFormFromPrompt(prompt, {
           name: rawParams.formName || rawParams.name,
           description: rawParams.formDescription || rawParams.description,
         });
+        rememberActiveForm(created.formId, created.formName);
         const workflowParams = await enrichWorkflowParams(
           'create_workflow',
           {
@@ -498,7 +591,7 @@ export function useCopilotEngine() {
         );
         const wfResult = await executeCopilotAction('create_workflow', workflowParams);
         actionResult = {
-          message: `Created form "${created.formName}" and workflow!`,
+          message: `Created form "${created.formName}" and workflow! Further field changes in this chat will update this form.`,
           result: {
             formId: created.formId,
             formName: created.formName,
@@ -513,6 +606,10 @@ export function useCopilotEngine() {
           formIdForEnrichment || rawParams.triggerFormId || rawParams.formId,
         );
         actionResult = await executeCopilotAction(action, params);
+        const resultFormId = actionResult?.result?.formId as string | undefined;
+        if (resultFormId && (FORM_CREATE_ACTIONS.has(action) || action === 'update_form')) {
+          rememberActiveForm(resultFormId, actionResult?.result?.formName as string | undefined);
+        }
       }
       setMessages((prev) => prev.map((m) => m.id === assistantMessage.id
         ? { ...m, action: { type: action, status: 'success' as const, result: actionResult } }
@@ -554,7 +651,7 @@ export function useCopilotEngine() {
       toast.error('Action failed', { description: detail });
       throw err;
     }
-  }, [createClientFormFromPrompt, enrichActionParams, enrichWorkflowParams, executeCopilotAction, loadContext]);
+  }, [createClientFormFromPrompt, enrichActionParams, enrichWorkflowParams, executeCopilotAction, loadContext, rememberActiveForm, updateClientFormFromPrompt]);
 
   const resolveFormParams = useCallback((
     action: string,
@@ -573,6 +670,9 @@ export function useCopilotEngine() {
     if (!params[formKey]) {
       if (formIdOverride) {
         params[formKey] = formIdOverride;
+      } else if (action === 'update_form' && activeFormIdRef.current) {
+        // Prefer the form created earlier in this chat session.
+        params[formKey] = activeFormIdRef.current;
       } else {
         const lower = trimmed.toLowerCase();
         const match = formsWithFields.find((f) => f.name && lower.includes(f.name.toLowerCase()));
@@ -580,13 +680,15 @@ export function useCopilotEngine() {
       }
     }
 
-    // Reject hallucinated form ids from the model
+    // Reject hallucinated form ids from the model (allow session active form even if context refresh lags)
     const formId = params[formKey];
-    if (formId && !formsWithFields.some((f) => f.id === formId)) {
+    const knownIds = new Set(formsWithFields.map((f) => f.id));
+    if (activeFormIdRef.current) knownIds.add(activeFormIdRef.current);
+    if (formId && !knownIds.has(formId)) {
       delete params[formKey];
     }
 
-    if (!params[formKey] && formsWithFields.length === 0) return 'no-forms';
+    if (!params[formKey] && formsWithFields.length === 0 && !activeFormIdRef.current) return 'no-forms';
     if (!params[formKey]) return 'needs-clarification';
     return params;
   }, [formsWithFields]);
@@ -626,10 +728,13 @@ export function useCopilotEngine() {
       if (resolved === 'needs-clarification') {
         const clarifyId = `clarify-${Date.now()}`;
         setPendingAction({ action, params, prompt: trimmed, messageId: clarifyId });
+        const updateCopy = action === 'update_form'
+          ? 'Which form should I update? Pick a form to apply your field changes.'
+          : `Which form should this **${action.replace(/_/g, ' ')}** use? Pick the source form to continue.`;
         setMessages((prev) => [...prev, {
           id: clarifyId,
           role: 'assistant',
-          content: `Which form should this **${action.replace(/_/g, ' ')}** use? Pick the source form to continue.`,
+          content: updateCopy,
           timestamp: new Date(),
           formPicker: true,
           choices: formsWithFields.map((f) => ({ label: f.name, value: f.id })),
@@ -649,13 +754,18 @@ export function useCopilotEngine() {
     if (!pending || pending.messageId !== messageId) return;
     setPendingAction(null);
     const key = getFormParamKey(pending.action) || 'formId';
+    const chosen = formsWithFields.find((f) => f.id === formId);
+    if (pending.action === 'update_form' || FORM_CREATE_ACTIONS.has(pending.action)) {
+      rememberActiveForm(formId, chosen?.name);
+    }
     void runToolCall(
       pending.action,
       { ...pending.params, [key]: formId },
       pending.prompt,
+      undefined,
       formId,
     );
-  }, [pendingAction, runToolCall]);
+  }, [formsWithFields, pendingAction, rememberActiveForm, runToolCall]);
 
   const sendPrompt = useCallback(async (text: string, options?: { formId?: string }) => {
     const trimmed = text.trim();
@@ -673,10 +783,20 @@ export function useCopilotEngine() {
       .filter((m) => m.id !== 'welcome')
       .map((m) => ({ role: m.role, content: m.content }));
 
-    const selectedForm = options?.formId ? formsWithFields.find((f) => f.id === options.formId) : undefined;
-    const promptForModel = selectedForm
-      ? `${trimmed}\n\n(Use the existing form "${selectedForm.name}" (id: ${selectedForm.id}) as the source/trigger form.)`
-      : trimmed;
+    const isUpdate = promptUpdatesExistingForm(trimmed);
+    const targetFormId = options?.formId || (isUpdate ? activeFormIdRef.current : undefined) || undefined;
+    const selectedFromList = targetFormId ? formsWithFields.find((f) => f.id === targetFormId) : undefined;
+    const selectedName = selectedFromList?.name
+      || (targetFormId && activeFormIdRef.current === targetFormId ? activeFormName : null);
+
+    let promptForModel = trimmed;
+    if (isUpdate && targetFormId && selectedName) {
+      promptForModel = `${trimmed}\n\n(IMPORTANT: Update the EXISTING form "${selectedName}" (id: ${targetFormId}). Do NOT create a new form. Use the update_form tool / modify that form only.)`;
+    } else if (targetFormId && selectedName && !isUpdate) {
+      promptForModel = `${trimmed}\n\n(Use the existing form "${selectedName}" (id: ${targetFormId}) as the source/trigger form.)`;
+    } else if (isUpdate && !targetFormId) {
+      promptForModel = `${trimmed}\n\n(IMPORTANT: This is an edit to an existing form. Prefer update_form over create_form. Ask which form if unclear.)`;
+    }
 
     const result = await chatbotAssist(promptForModel, chatHistory, {
       availableForms: formsWithFields,
@@ -703,7 +823,27 @@ export function useCopilotEngine() {
         : toolCall
           ? [{ action: toolCall.action, params: toolCall.params }]
           : [];
-      await processToolCalls(calls, trimmed, messageContent, options?.formId);
+      // If the model returned only chat text with no tools but this is clearly an update, force update_form.
+      const effectiveCalls = calls.length > 0
+        ? calls
+        : (isUpdate ? [{ action: 'update_form', params: targetFormId ? { formId: targetFormId } : {} }] : []);
+      if (effectiveCalls.length === 0) {
+        setMessages((prev) => [...prev, {
+          id: `assistant-${Date.now()}`,
+          role: 'assistant',
+          content: messageContent,
+          timestamp: new Date(),
+        }]);
+        return;
+      }
+      await processToolCalls(effectiveCalls, trimmed, messageContent, targetFormId);
+    } else if (copilotEnabled && isUpdate) {
+      await processToolCalls(
+        [{ action: 'update_form', params: targetFormId ? { formId: targetFormId } : {} }],
+        trimmed,
+        messageContent || 'Updating the form…',
+        targetFormId,
+      );
     } else {
       setMessages((prev) => [...prev, {
         id: `assistant-${Date.now()}`,
@@ -712,10 +852,13 @@ export function useCopilotEngine() {
         timestamp: new Date(),
       }]);
     }
-  }, [chatbotAssist, copilotEnabled, formsWithFields, isLoading, location.pathname, messages, processToolCalls, reports, workflows]);
+  }, [activeFormName, chatbotAssist, copilotEnabled, formsWithFields, isLoading, location.pathname, messages, processToolCalls, reports, workflows]);
 
   const clearChat = useCallback(() => {
     setMessages([welcomeMessage()]);
+    setActiveFormId(null);
+    setActiveFormName(null);
+    activeFormIdRef.current = null;
     if (user?.id && activeProject?.id) {
       try {
         localStorage.removeItem(getChatStorageKey(user.id, activeProject.id));
@@ -736,6 +879,9 @@ export function useCopilotEngine() {
     projects,
     setCurrentProject,
     availableForms: formsWithFields,
+    activeFormId,
+    activeFormName,
+    setActiveFormId: rememberActiveForm,
     copilotEnabled,
     setCopilotEnabled,
     sendPrompt,
