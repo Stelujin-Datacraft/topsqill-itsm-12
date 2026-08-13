@@ -63,7 +63,7 @@ const Forms = () => {
         organizationId: userProfile.organization_id,
         userId: userProfile.id,
       });
-      navigate(`/form-builder/${created.formId}`);
+      navigate(`/form-builder/${created.formId}?tab=builder`);
     } catch (error) {
       console.error('Error creating AI-generated form:', error);
     }

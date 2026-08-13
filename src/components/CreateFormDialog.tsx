@@ -43,7 +43,7 @@ export function CreateFormDialog() {
         setOpen(false);
         setName('');
         setDescription('');
-        navigate(`/form-builder/${newForm.id}`);
+        navigate(`/form-builder/${newForm.id}?tab=builder`);
       }
     } catch (error) {
       console.error('Error creating form:', error);
