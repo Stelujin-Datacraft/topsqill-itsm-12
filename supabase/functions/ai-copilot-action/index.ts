@@ -1289,6 +1289,182 @@
           break;
         }
 
+        case 'update_report': {
+          let { reportId, name, description, formId, chartConfig } = params;
+
+          if (typeof chartConfig === 'string') {
+            try { chartConfig = JSON.parse(chartConfig); } catch { chartConfig = null; }
+          }
+
+          if (!reportId) {
+            throw new Error('reportId is required to update a report');
+          }
+
+          const reportUpdates: Record<string, unknown> = {};
+          if (name) reportUpdates.name = name;
+          if (description != null) reportUpdates.description = description;
+
+          if (Object.keys(reportUpdates).length > 0) {
+            const { error: reportUpdateError } = await supabase
+              .from('reports')
+              .update(reportUpdates)
+              .eq('id', reportId)
+              .eq('project_id', projectId);
+            if (reportUpdateError) throw new Error(getActionErrorMessage(reportUpdateError));
+          }
+
+          if (chartConfig && formId) {
+            const isCompare = chartConfig.compareMode === true;
+            const finalConfig = {
+              ...chartConfig,
+              formId,
+              compareMode: isCompare,
+              aggregationEnabled: !isCompare && (chartConfig.aggregationEnabled !== false),
+              dimensions: isCompare ? [] : (chartConfig.dimensions || []),
+              metricAggregations: isCompare ? [] : (chartConfig.metricAggregations || []),
+              drilldownEnabled: chartConfig.drilldownConfig?.enabled || false,
+              drilldownLevels: chartConfig.drilldownConfig?.levels || [],
+            };
+            delete finalConfig.reasoning;
+
+            const { data: existingComponents } = await supabase
+              .from('report_components')
+              .select('id')
+              .eq('report_id', reportId)
+              .eq('type', 'chart')
+              .limit(1);
+
+            if (existingComponents && existingComponents.length > 0) {
+              const { error: componentError } = await supabase
+                .from('report_components')
+                .update({ config: finalConfig })
+                .eq('id', existingComponents[0].id);
+              if (componentError) {
+                throw new Error(`Failed to update report chart: ${componentError.message}`);
+              }
+            } else {
+              const { error: componentError } = await supabase.from('report_components').insert({
+                report_id: reportId,
+                type: 'chart',
+                config: finalConfig,
+                layout: { x: 0, y: 0, w: 12, h: 8 },
+              });
+              if (componentError) {
+                throw new Error(`Failed to create report chart: ${componentError.message}`);
+              }
+            }
+          }
+
+          result = { reportId, formId, updated: true };
+          message = `Updated report${name ? ` "${name}"` : ''}!`;
+          break;
+        }
+
+        case 'update_workflow': {
+          let { workflowId, name, description, triggerFormId, nodes: nodeDefinitions } = params;
+
+          if (typeof nodeDefinitions === 'string') {
+            try { nodeDefinitions = JSON.parse(nodeDefinitions); } catch { nodeDefinitions = []; }
+          }
+
+          if (!workflowId) {
+            throw new Error('workflowId is required to update a workflow');
+          }
+
+          const workflowUpdates: Record<string, unknown> = {};
+          if (name) workflowUpdates.name = name;
+          if (description != null) workflowUpdates.description = description;
+
+          if (Object.keys(workflowUpdates).length > 0) {
+            const { error: wfUpdateError } = await supabase
+              .from('workflows')
+              .update(workflowUpdates)
+              .eq('id', workflowId)
+              .eq('project_id', projectId);
+            if (wfUpdateError) throw wfUpdateError;
+          }
+
+          if (triggerFormId) {
+            const { data: existingTrigger } = await supabase
+              .from('workflow_triggers')
+              .select('id')
+              .eq('target_workflow_id', workflowId)
+              .eq('trigger_type', 'form_submission')
+              .maybeSingle();
+
+            if (existingTrigger?.id) {
+              await supabase
+                .from('workflow_triggers')
+                .update({ source_form_id: triggerFormId, is_active: true })
+                .eq('id', existingTrigger.id);
+            } else {
+              await supabase.from('workflow_triggers').insert({
+                organization_id: organizationId,
+                trigger_id: `trigger_${workflowId}`,
+                target_workflow_id: workflowId,
+                trigger_type: 'form_submission',
+                source_form_id: triggerFormId,
+                is_active: true,
+                created_by: userId,
+              });
+            }
+          }
+
+          if (Array.isArray(nodeDefinitions) && nodeDefinitions.length > 0) {
+            await supabase.from('workflow_connections').delete().eq('workflow_id', workflowId);
+            await supabase.from('workflow_nodes').delete().eq('workflow_id', workflowId);
+
+            const nodeIdMap: Record<string, string> = {};
+            const nodesToInsert = [];
+
+            for (let i = 0; i < nodeDefinitions.length; i++) {
+              const nodeDef = nodeDefinitions[i];
+              const tempId = nodeDef.tempId || `node_${i}`;
+              const nodeId = crypto.randomUUID();
+              nodeIdMap[tempId] = nodeId;
+
+              nodesToInsert.push({
+                id: nodeId,
+                workflow_id: workflowId,
+                node_type: nodeDef.type || 'action',
+                label: nodeDef.label || `Node ${i + 1}`,
+                position_x: nodeDef.positionX || 250,
+                position_y: nodeDef.positionY || 100 + (i * 150),
+                config: nodeDef.config || {},
+              });
+            }
+
+            await supabase.from('workflow_nodes').insert(nodesToInsert);
+
+            const connectionsToInsert = [];
+            for (let i = 0; i < nodeDefinitions.length; i++) {
+              const nodeDef = nodeDefinitions[i];
+              const connections = nodeDef.connections || [];
+              for (const conn of connections) {
+                const sourceId = nodeIdMap[nodeDef.tempId || `node_${i}`];
+                const targetId = nodeIdMap[conn.to];
+                if (sourceId && targetId) {
+                  connectionsToInsert.push({
+                    workflow_id: workflowId,
+                    source_node_id: sourceId,
+                    target_node_id: targetId,
+                    source_handle: conn.sourceHandle || null,
+                    target_handle: conn.targetHandle || null,
+                    condition_type: conn.conditionType || null,
+                  });
+                }
+              }
+            }
+            if (connectionsToInsert.length > 0) {
+              await supabase.from('workflow_connections').insert(connectionsToInsert);
+            }
+          }
+
+          result = { workflowId, triggerFormId, updated: true };
+          message = `Updated workflow${name ? ` "${name}"` : ''}!`;
+          break;
+        }
+
         case 'create_email_template': {
           let { name, description, subject, htmlContent, textContent, recipientType, recipients } = params;
           

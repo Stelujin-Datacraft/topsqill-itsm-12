@@ -380,7 +380,10 @@ ${JSON.stringify(context.availableReports || [], null, 2)}
 - When the user specifies a page (by name like "Profile" or by order like "2nd page"), set targetPageName or targetPageIndex on update_form
 - For updates, prefer the operations array with op=add|update|rename|remove|move and full field props (options, required, validation, defaultValue, placeholder, isFullWidth)
 - If the user names a page that may not exist yet, still set pageName / pagesToAdd so the app can create it
-- For layout requests (2-column / 3-column), set layoutColumns on update_form`;
+- For layout requests (2-column / 3-column), set layoutColumns on update_form
+- If the user asks to create a workflow/report FOR an existing/selected/this form (or the prompt includes an existing form id), use create_workflow / create_report with that form id. Do NOT use create_form or create_form_with_workflow.
+- Reserve create_form_with_workflow ONLY for brand-new form + workflow requests like "create a leave request form with approval workflow"
+- If the user asks to update/change an existing report or workflow, use update_report / update_workflow`;
 
         // Define tools for structured output
         const copilotTools = [
@@ -515,13 +518,13 @@ ${JSON.stringify(context.availableReports || [], null, 2)}
             type: "function",
             function: {
               name: "create_workflow",
-              description: "Create a workflow with nodes triggered by a form submission. You MUST provide triggerFormId from available forms and include at least start, action/condition, and end nodes.",
+              description: "Create a workflow for an EXISTING form. Use when the user selects a form or says create workflow for this/selected/existing form. You MUST set triggerFormId to that form's id. Do NOT create a new form.",
               parameters: {
                 type: "object",
                 properties: {
                   name: { type: "string" },
                   description: { type: "string" },
-                  triggerFormId: { type: "string", description: "REQUIRED: ID of the form that triggers this workflow (from available forms)" },
+                  triggerFormId: { type: "string", description: "REQUIRED: ID of the existing form that triggers this workflow (from available forms or the selected form id in the user message)" },
                   nodes: {
                     type: "array",
                     items: {
@@ -544,8 +547,39 @@ ${JSON.stringify(context.availableReports || [], null, 2)}
           {
             type: "function",
             function: {
+              name: "update_workflow",
+              description: "Update an EXISTING workflow (nodes, name, or trigger form). Use when the user asks to change/modify a workflow already created in this chat.",
+              parameters: {
+                type: "object",
+                properties: {
+                  workflowId: { type: "string", description: "Existing workflow id" },
+                  name: { type: "string" },
+                  description: { type: "string" },
+                  triggerFormId: { type: "string", description: "Form that should trigger this workflow" },
+                  nodes: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        tempId: { type: "string" },
+                        type: { type: "string", enum: ["start", "action", "condition", "wait", "end"] },
+                        label: { type: "string" },
+                        config: { type: "object" },
+                        connections: { type: "array", items: { type: "object", properties: { to: { type: "string" }, sourceHandle: { type: "string" }, conditionType: { type: "string" } }, required: ["to"] } }
+                      },
+                      required: ["tempId", "type", "label", "config"]
+                    }
+                  }
+                },
+                required: ["workflowId"]
+              }
+            }
+          },
+          {
+            type: "function",
+            function: {
               name: "create_form_with_workflow",
-              description: "Create a form AND a linked workflow together. Best for requests like 'create a leave request form with approval workflow'.",
+              description: "Create a BRAND-NEW form AND a linked workflow together. ONLY for requests like 'create a leave request form with approval workflow'. Never use when the user already selected a form or asked for a workflow for an existing form — use create_workflow instead.",
               parameters: {
                 type: "object",
                 properties: {
@@ -609,15 +643,32 @@ ${JSON.stringify(context.availableReports || [], null, 2)}
             type: "function",
             function: {
               name: "create_report",
-              description: "Create a report with a chart from form submission data. Requires a source form id and chart intent.",
+              description: "Create a report/chart from an EXISTING form's submission data. Requires the selected/source form id. Do NOT create a new form.",
               parameters: {
                 type: "object",
                 properties: {
                   name: { type: "string" },
                   description: { type: "string" },
-                  formId: { type: "string", description: "Source form id from available forms context" }
+                  formId: { type: "string", description: "Source form id from available forms or the selected form id in the user message" }
                 },
                 required: ["name", "formId"]
+              }
+            }
+          },
+          {
+            type: "function",
+            function: {
+              name: "update_report",
+              description: "Update an EXISTING report (name/description/chart). Use when the user asks to change a report or chart already created in this chat.",
+              parameters: {
+                type: "object",
+                properties: {
+                  reportId: { type: "string", description: "Existing report id" },
+                  name: { type: "string" },
+                  description: { type: "string" },
+                  formId: { type: "string", description: "Source form id for the chart" }
+                },
+                required: ["reportId", "formId"]
               }
             }
           },
