@@ -1,16 +1,18 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
+import type { ImperativePanelHandle } from 'react-resizable-panels';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { cn } from '@/lib/utils';
 import { useCopilotEngine } from '@/hooks/useCopilotEngine';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CopilotFormPicker } from '@/components/ai/CopilotFormPicker';
-import { CopilotFormPreviewPanel } from '@/components/ai/CopilotFormPreviewPanel';
+import { CopilotFormPreviewPanel, type PreviewSizeMode } from '@/components/ai/CopilotFormPreviewPanel';
 import { FORM_CREATE_ACTIONS, promptNeedsExistingForm } from '@/lib/copilotUtils';
 import { useOnboardingGate } from '@/hooks/useOnboardingGate';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -18,6 +20,14 @@ import {
   ArrowUp, Loader2, FileText, Workflow, BarChart3, BookOpen,
   Zap, CheckCircle2, AlertTriangle, Sparkle, RotateCcw, Eye, EyeOff,
 } from 'lucide-react';
+
+const PREVIEW_SIZES: Record<PreviewSizeMode, number> = {
+  compact: 34,
+  default: 46,
+  expanded: 72,
+};
+
+const PREVIEW_SIZE_ORDER: PreviewSizeMode[] = ['compact', 'default', 'expanded'];
 
 function extractCreatedForm(message: {
   action?: { type: string; status: string; result?: { result?: { formId?: string; formName?: string } } };
@@ -58,8 +68,11 @@ export default function AIStudio() {
   const [previewFormId, setPreviewFormId] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewRefreshKey, setPreviewRefreshKey] = useState(0);
+  const [previewSizeMode, setPreviewSizeMode] = useState<PreviewSizeMode>('default');
+  const [mobileSheetExpanded, setMobileSheetExpanded] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const previewPanelRef = useRef<ImperativePanelHandle>(null);
   const sendRef = useRef(sendPrompt);
   sendRef.current = sendPrompt;
   const autoRan = useRef(false);
@@ -71,13 +84,52 @@ export default function AIStudio() {
     navigate('/forms');
   };
 
+  const applyPreviewSize = useCallback((mode: PreviewSizeMode) => {
+    setPreviewSizeMode(mode);
+    previewPanelRef.current?.resize(PREVIEW_SIZES[mode]);
+  }, []);
+
+  const expandPreview = useCallback(() => {
+    const idx = PREVIEW_SIZE_ORDER.indexOf(previewSizeMode);
+    const next = PREVIEW_SIZE_ORDER[Math.min(idx + 1, PREVIEW_SIZE_ORDER.length - 1)];
+    applyPreviewSize(next);
+    setMobileSheetExpanded(true);
+  }, [applyPreviewSize, previewSizeMode]);
+
+  const contractPreview = useCallback(() => {
+    const idx = PREVIEW_SIZE_ORDER.indexOf(previewSizeMode);
+    const next = PREVIEW_SIZE_ORDER[Math.max(idx - 1, 0)];
+    applyPreviewSize(next);
+    setMobileSheetExpanded(false);
+  }, [applyPreviewSize, previewSizeMode]);
+
   const openPreview = (formId: string) => {
     setPreviewFormId(formId);
     setPreviewOpen(true);
+    setPreviewSizeMode('default');
+    setMobileSheetExpanded(false);
     setPreviewRefreshKey((k) => k + 1);
+    // Apply default size after panel mounts
+    requestAnimationFrame(() => {
+      previewPanelRef.current?.resize(PREVIEW_SIZES.default);
+    });
   };
 
-  const closePreview = () => setPreviewOpen(false);
+  const closePreview = () => {
+    setPreviewOpen(false);
+    setPreviewSizeMode('default');
+    setMobileSheetExpanded(false);
+  };
+
+  const syncSizeModeFromPanel = useCallback((size: number) => {
+    if (Math.abs(size - PREVIEW_SIZES.expanded) <= 6) {
+      setPreviewSizeMode('expanded');
+    } else if (Math.abs(size - PREVIEW_SIZES.compact) <= 6) {
+      setPreviewSizeMode('compact');
+    } else {
+      setPreviewSizeMode('default');
+    }
+  }, []);
 
   // After a live AI create, offer preview + View Form. Skip restored chat history.
   useEffect(() => {
@@ -413,23 +465,44 @@ export default function AIStudio() {
       </div>
 
       <div className="flex min-h-0 flex-1">
-        {chatColumn}
-        {showDesktopPreview && (
-          <div className="hidden w-[46%] min-w-[320px] max-w-[560px] border-l border-border/70 md:block">
-            <CopilotFormPreviewPanel
-              key={`${previewFormId}-${previewRefreshKey}`}
-              formId={previewFormId!}
-              onClose={closePreview}
-              onViewForms={viewFormsList}
-              onRefresh={() => setPreviewRefreshKey((k) => k + 1)}
-            />
-          </div>
+        {showDesktopPreview ? (
+          <ResizablePanelGroup direction="horizontal" className="hidden h-full w-full md:flex">
+            <ResizablePanel defaultSize={100 - PREVIEW_SIZES.default} minSize={22} maxSize={78}>
+              {chatColumn}
+            </ResizablePanel>
+            <ResizableHandle withHandle className="bg-border/80 hover:bg-primary/40 transition-colors" />
+            <ResizablePanel
+              ref={previewPanelRef}
+              defaultSize={PREVIEW_SIZES.default}
+              minSize={28}
+              maxSize={78}
+              onResize={syncSizeModeFromPanel}
+              className="border-l border-border/70"
+            >
+              <CopilotFormPreviewPanel
+                key={`${previewFormId}-${previewRefreshKey}`}
+                formId={previewFormId!}
+                onClose={closePreview}
+                onViewForms={viewFormsList}
+                onRefresh={() => setPreviewRefreshKey((k) => k + 1)}
+                sizeMode={previewSizeMode}
+                onExpand={expandPreview}
+                onContract={contractPreview}
+                showResizeControls
+              />
+            </ResizablePanel>
+          </ResizablePanelGroup>
+        ) : (
+          chatColumn
         )}
       </div>
 
       {/* Mobile: preview as a sheet so chat remains usable underneath */}
       <Sheet open={previewOpen && isMobile && !!previewFormId} onOpenChange={(open) => { if (!open) closePreview(); }}>
-        <SheetContent side="bottom" className="h-[85vh] p-0">
+        <SheetContent
+          side="bottom"
+          className={cn('p-0 transition-[height]', mobileSheetExpanded ? 'h-[94vh]' : 'h-[70vh]')}
+        >
           <SheetHeader className="sr-only">
             <SheetTitle>Form preview</SheetTitle>
           </SheetHeader>
@@ -440,6 +513,10 @@ export default function AIStudio() {
               onClose={closePreview}
               onViewForms={viewFormsList}
               onRefresh={() => setPreviewRefreshKey((k) => k + 1)}
+              sizeMode={mobileSheetExpanded ? 'expanded' : 'compact'}
+              onExpand={expandPreview}
+              onContract={contractPreview}
+              showResizeControls
             />
           )}
         </SheetContent>
