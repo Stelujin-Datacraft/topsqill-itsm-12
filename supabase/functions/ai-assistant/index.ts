@@ -376,7 +376,8 @@ ${JSON.stringify(context.availableReports || [], null, 2)}
 - If user asks "how" to do something, explain without executing
 - If user says "create/make/set up", execute the action via tools
 - If the user asks to add/change/modify fields on a form already created in this conversation, use update_form (NOT create_form)
-- Prefer the most recently created form in the conversation when updating unless the user names another form`;
+- Prefer the most recently created form in the conversation when updating unless the user names another form
+- When the user specifies a page (by name like "Profile" or by order like "2nd page"), set targetPageName or targetPageIndex on update_form`;
 
         // Define tools for structured output
         const copilotTools = [
@@ -427,11 +428,13 @@ ${JSON.stringify(context.availableReports || [], null, 2)}
             type: "function",
             function: {
               name: "update_form",
-              description: "Update an EXISTING form by adding fields. Use when the user asks to add/change/modify fields on a form already created in this chat or named in context. Never create a duplicate form.",
+              description: "Update an EXISTING form by adding fields. Use when the user asks to add/change/modify fields on a form already created in this chat or named in context. Never create a duplicate form. If the user names a page (e.g. Profile / 2nd page), set targetPageName or targetPageIndex.",
               parameters: {
                 type: "object",
                 properties: {
                   formId: { type: "string", description: "ID of the existing form to update (from available forms or the form created earlier in this chat)" },
+                  targetPageName: { type: "string", description: "Exact page name where fields should be added, e.g. Profile" },
+                  targetPageIndex: { type: "integer", description: "1-based page index when user says 2nd page / page 2" },
                   fields: {
                     type: "array",
                     description: "Only the NEW fields to add",
@@ -443,6 +446,8 @@ ${JSON.stringify(context.availableReports || [], null, 2)}
                         required: { type: "boolean" },
                         placeholder: { type: "string" },
                         tooltip: { type: "string" },
+                        pageName: { type: "string", description: "Optional page name for this field" },
+                        pageIndex: { type: "integer", description: "Optional 1-based page index for this field" },
                         options: { type: "array", items: { type: "object", properties: { value: { type: "string" }, label: { type: "string" } }, required: ["value", "label"] } }
                       },
                       required: ["type", "label", "required"]
