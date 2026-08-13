@@ -5,16 +5,18 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 import { useCopilotEngine } from '@/hooks/useCopilotEngine';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CopilotFormPicker } from '@/components/ai/CopilotFormPicker';
-import { FormCreatedDialog } from '@/components/ai/FormCreatedDialog';
+import { CopilotFormPreviewPanel } from '@/components/ai/CopilotFormPreviewPanel';
 import { FORM_CREATE_ACTIONS, promptNeedsExistingForm } from '@/lib/copilotUtils';
 import { useOnboardingGate } from '@/hooks/useOnboardingGate';
+import { useIsMobile } from '@/hooks/use-mobile';
 import {
   ArrowUp, Loader2, FileText, Workflow, BarChart3, BookOpen,
-  Zap, CheckCircle2, AlertTriangle, Sparkle, RotateCcw,
+  Zap, CheckCircle2, AlertTriangle, Sparkle, RotateCcw, Eye, EyeOff,
 } from 'lucide-react';
 
 function extractCreatedForm(message: {
@@ -45,6 +47,7 @@ const SUGGESTIONS = [
 
 export default function AIStudio() {
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const { workspaceUnlocked, unlockWorkspace } = useOnboardingGate();
   const {
     messages, isLoading, activeProject, projects, setCurrentProject, availableForms,
@@ -52,21 +55,31 @@ export default function AIStudio() {
   } = useCopilotEngine();
   const [input, setInput] = useState('');
   const [selectedFormId, setSelectedFormId] = useState<string>('');
-  const [createdFormPrompt, setCreatedFormPrompt] = useState<{ formId: string; formName?: string } | null>(null);
+  const [previewFormId, setPreviewFormId] = useState<string | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewRefreshKey, setPreviewRefreshKey] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const sendRef = useRef(sendPrompt);
   sendRef.current = sendPrompt;
   const autoRan = useRef(false);
   const promptedFormIds = useRef<Set<string>>(new Set());
+  const lastPreviewRefreshMsgId = useRef<string | null>(null);
 
   const viewFormsList = () => {
     unlockWorkspace();
-    setCreatedFormPrompt(null);
     navigate('/forms');
   };
 
-  // After a live AI create, offer View Form (forms list). Skip restored chat history.
+  const openPreview = (formId: string) => {
+    setPreviewFormId(formId);
+    setPreviewOpen(true);
+    setPreviewRefreshKey((k) => k + 1);
+  };
+
+  const closePreview = () => setPreviewOpen(false);
+
+  // After a live AI create, offer preview + View Form. Skip restored chat history.
   useEffect(() => {
     if (isLoading) return;
     for (let i = messages.length - 1; i >= 0; i -= 1) {
@@ -79,10 +92,31 @@ export default function AIStudio() {
         continue;
       }
       promptedFormIds.current.add(created.formId);
-      setCreatedFormPrompt(created);
+      // Open live preview beside chat so the user can keep prompting.
+      setPreviewFormId(created.formId);
+      setPreviewOpen(true);
+      setPreviewRefreshKey((k) => k + 1);
       break;
     }
   }, [messages, isLoading]);
+
+  // Refresh preview when the same form is mutated again by a later successful action.
+  useEffect(() => {
+    if (!previewFormId || !previewOpen || isLoading) return;
+    for (let i = messages.length - 1; i >= 0; i -= 1) {
+      const message = messages[i];
+      if (message.action?.status !== 'success') continue;
+      if (message.id === lastPreviewRefreshMsgId.current) break;
+      const ageMs = Date.now() - new Date(message.timestamp).getTime();
+      if (ageMs > 30_000) break;
+      const resultFormId = message.action.result?.result?.formId as string | undefined;
+      if (resultFormId && resultFormId === previewFormId) {
+        lastPreviewRefreshMsgId.current = message.id;
+        setPreviewRefreshKey((k) => k + 1);
+      }
+      break;
+    }
+  }, [messages, isLoading, previewFormId, previewOpen]);
 
   // Pick up a prompt handed over from the landing page hero panel
   useEffect(() => {
@@ -147,6 +181,7 @@ export default function AIStudio() {
   const needsForm = promptNeedsExistingForm(input);
   const formMissing = needsForm && availableForms.length === 0;
   const formRequired = needsForm && availableForms.length > 0 && !selectedFormId;
+  const showDesktopPreview = previewOpen && !!previewFormId && !isMobile;
 
   const composer = (
     <div className="rounded-2xl border border-border/70 bg-card shadow-token-md p-3">
@@ -227,25 +262,11 @@ export default function AIStudio() {
     </div>
   );
 
-  return (
-    <div className="flex h-full min-h-0 flex-col">
-      <div className="flex items-center justify-between gap-3 border-b px-4 py-3 sm:px-6">
-        <div className="flex items-center gap-2 min-w-0">
-          <Sparkle className="h-5 w-5 text-primary shrink-0" />
-          <h1 className="text-base font-semibold truncate">AI Builder</h1>
-          <Badge variant="secondary" className="hidden sm:inline-flex text-xs">Copilot</Badge>
-        </div>
-        {hasConversation && (
-          <Button variant="ghost" size="sm" onClick={clearChat} className="gap-1.5 text-muted-foreground">
-            <RotateCcw className="h-3.5 w-3.5" />
-            New chat
-          </Button>
-        )}
-      </div>
-
+  const chatColumn = (
+    <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
       {!hasConversation ? (
         <div className="flex-1 overflow-y-auto">
-          <div className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6 sm:py-16">
+          <div className={cn('mx-auto w-full px-4 py-10 sm:px-6 sm:py-16', showDesktopPreview ? 'max-w-3xl' : 'max-w-5xl')}>
             <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-center">
               What do you want to build today?
             </h2>
@@ -271,7 +292,7 @@ export default function AIStudio() {
       ) : (
         <>
           <ScrollArea className="flex-1 min-h-0" ref={scrollRef}>
-            <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 space-y-6">
+            <div className={cn('mx-auto w-full px-4 py-6 sm:px-6 space-y-6', showDesktopPreview ? 'max-w-3xl' : 'max-w-5xl')}>
               {messages.filter((m) => m.id !== 'welcome').map((message) => (
                 <div key={message.id} className={cn('flex', message.role === 'user' ? 'justify-end' : 'justify-start')}>
                   {message.role === 'user' ? (
@@ -302,6 +323,21 @@ export default function AIStudio() {
                           {message.content}
                         </ReactMarkdown>
                       </div>
+                      {(() => {
+                        const created = extractCreatedForm(message);
+                        if (!created) return null;
+                        return (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="gap-1.5"
+                            onClick={() => openPreview(created.formId)}
+                          >
+                            <Eye className="h-3.5 w-3.5" />
+                            Preview form
+                          </Button>
+                        );
+                      })()}
                       {message.formPicker && !message.resolved ? (
                         <CopilotFormPicker
                           forms={availableForms}
@@ -335,17 +371,80 @@ export default function AIStudio() {
             </div>
           </ScrollArea>
           <div className="border-t bg-background/80 backdrop-blur">
-            <div className="mx-auto w-full max-w-5xl px-4 py-3 sm:px-6">{composer}</div>
+            <div className={cn('mx-auto w-full px-4 py-3 sm:px-6', showDesktopPreview ? 'max-w-3xl' : 'max-w-5xl')}>
+              {composer}
+            </div>
           </div>
         </>
       )}
+    </div>
+  );
 
-      <FormCreatedDialog
-        open={!!createdFormPrompt}
-        formName={createdFormPrompt?.formName}
-        onClose={() => setCreatedFormPrompt(null)}
-        onViewForms={viewFormsList}
-      />
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="flex items-center justify-between gap-3 border-b px-4 py-3 sm:px-6">
+        <div className="flex items-center gap-2 min-w-0">
+          <Sparkle className="h-5 w-5 text-primary shrink-0" />
+          <h1 className="text-base font-semibold truncate">AI Builder</h1>
+          <Badge variant="secondary" className="hidden sm:inline-flex text-xs">Copilot</Badge>
+        </div>
+        <div className="flex items-center gap-1.5">
+          {previewFormId && (
+            <Button
+              variant={previewOpen ? 'secondary' : 'outline'}
+              size="sm"
+              className="gap-1.5"
+              onClick={() => {
+                if (previewOpen) closePreview();
+                else openPreview(previewFormId);
+              }}
+            >
+              {previewOpen ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+              {previewOpen ? 'Hide preview' : 'Preview'}
+            </Button>
+          )}
+          {hasConversation && (
+            <Button variant="ghost" size="sm" onClick={clearChat} className="gap-1.5 text-muted-foreground">
+              <RotateCcw className="h-3.5 w-3.5" />
+              New chat
+            </Button>
+          )}
+        </div>
+      </div>
+
+      <div className="flex min-h-0 flex-1">
+        {chatColumn}
+        {showDesktopPreview && (
+          <div className="hidden w-[46%] min-w-[320px] max-w-[560px] border-l border-border/70 md:block">
+            <CopilotFormPreviewPanel
+              key={`${previewFormId}-${previewRefreshKey}`}
+              formId={previewFormId!}
+              onClose={closePreview}
+              onViewForms={viewFormsList}
+              onRefresh={() => setPreviewRefreshKey((k) => k + 1)}
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Mobile: preview as a sheet so chat remains usable underneath */}
+      <Sheet open={previewOpen && isMobile && !!previewFormId} onOpenChange={(open) => { if (!open) closePreview(); }}>
+        <SheetContent side="bottom" className="h-[85vh] p-0">
+          <SheetHeader className="sr-only">
+            <SheetTitle>Form preview</SheetTitle>
+          </SheetHeader>
+          {previewFormId && (
+            <CopilotFormPreviewPanel
+              key={`${previewFormId}-${previewRefreshKey}-mobile`}
+              formId={previewFormId}
+              onClose={closePreview}
+              onViewForms={viewFormsList}
+              onRefresh={() => setPreviewRefreshKey((k) => k + 1)}
+            />
+          )}
+        </SheetContent>
+      </Sheet>
+
     </div>
   );
 }
