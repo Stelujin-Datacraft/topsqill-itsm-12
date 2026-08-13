@@ -34,8 +34,8 @@ export function FormCreatedDialog({
             {formName ? `"${formName}" is ready` : 'Your form is ready'}
           </DialogTitle>
           <DialogDescription className="text-center">
-            Form created successfully. Click below to explore more features — forms, workflows,
-            reports, and the rest of your workspace will appear in the left navigation.
+            Form created successfully. Open the Form Builder to review fields and layout.
+            Left navigation modules unlock when you continue.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter className="sm:justify-center gap-2">
@@ -44,7 +44,7 @@ export function FormCreatedDialog({
           </Button>
           <Button onClick={onExplore} className="gap-1.5">
             <Sparkles className="h-4 w-4" />
-            See more features
+            Open Form Builder
           </Button>
         </DialogFooter>
       </DialogContent>

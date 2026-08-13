@@ -80,7 +80,7 @@ export function useFieldOperations(
 
       if (newForm) {
         setIsCreating(false);
-        navigate(`/form-builder/${newForm.id}`, { replace: true });
+        navigate(`/form-builder/${newForm.id}?tab=builder`, { replace: true });
       }
       setIsSaving(false);
 

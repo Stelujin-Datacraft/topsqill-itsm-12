@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -32,10 +32,18 @@ import { FormSnapshotProvider, useFormSnapshotContext } from './FormBuilder/cont
 import { useCrossReferenceSync } from '@/hooks/useCrossReferenceSync';
 import { Button } from '@/components/ui/button';
 import { WorkingFormProvider } from '@/hooks/useCurrentFormFields';
+const FORM_BUILDER_TABS = new Set(['details', 'builder', 'rules', 'preview', 'access', 'share']);
+
 function FormBuilderContent({
   formId
 }: FormBuilderProps) {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const requestedTab = searchParams.get('tab');
+  const initialTab =
+    requestedTab && FORM_BUILDER_TABS.has(requestedTab)
+      ? (requestedTab === 'share' ? 'access' : requestedTab)
+      : 'builder';
   const {
     createForm,
     updateForm,
@@ -168,7 +176,7 @@ function FormBuilderContent({
     const newForm = await createForm(formData);
     if (newForm) {
       initializeSnapshot(newForm);
-      navigate(`/form-builder/${newForm.id}`, {
+      navigate(`/form-builder/${newForm.id}?tab=builder`, {
         replace: true
       });
     }
@@ -452,7 +460,7 @@ function FormBuilderContent({
       <div className="flex-1 min-h-0 flex flex-col bg-white px-[15px] py-[10px] overflow-hidden">
         {/* Main Content with Tabs at Top */}
         <div className="flex-1 bg-white overflow-hidden min-h-0">
-          <Tabs defaultValue="builder" className="w-full h-full flex flex-col">
+          <Tabs defaultValue={initialTab} className="w-full h-full flex flex-col">
             <div className="bg-white border-b border-gray-200 px-4 flex items-center justify-between gap-2">
               <TabsList className="grid grid-cols-5 max-w-2xl">
                 <TabsTrigger value="details" className="flex items-center gap-2">

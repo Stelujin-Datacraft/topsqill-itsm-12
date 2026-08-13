@@ -144,6 +144,7 @@ export function FormsList() {
 
       if (newForm) {
         toast.success(t('forms.createdSuccess', { name: newForm.name }));
+        navigate(`/form-builder/${newForm.id}?tab=builder`);
       }
     } catch (error) {
       console.error('Error copying form:', error);

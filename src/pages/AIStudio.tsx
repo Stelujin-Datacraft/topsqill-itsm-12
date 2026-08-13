@@ -9,7 +9,6 @@ import { cn } from '@/lib/utils';
 import { useCopilotEngine } from '@/hooks/useCopilotEngine';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CopilotFormPicker } from '@/components/ai/CopilotFormPicker';
-import { FormCreatedDialog } from '@/components/ai/FormCreatedDialog';
 import { FORM_CREATE_ACTIONS, promptNeedsExistingForm } from '@/lib/copilotUtils';
 import { useOnboardingGate } from '@/hooks/useOnboardingGate';
 import {
@@ -25,6 +24,20 @@ function extractCreatedForm(message: {
   const formId = message.action.result?.result?.formId;
   if (!formId) return null;
   return { formId, formName: message.action.result?.result?.formName };
+}
+
+/** Prefer Form Builder designer over the fillable form / records ("backend") view. */
+function toFormBuilderPath(href: string): string {
+  const builderMatch = href.match(/^\/form-builder\/([^/?#]+)(.*)$/);
+  if (builderMatch) return `/form-builder/${builderMatch[1]}${builderMatch[2] || ''}`;
+
+  const formViewMatch = href.match(/^\/form\/([^/?#]+)\/?$/);
+  if (formViewMatch) return `/form-builder/${formViewMatch[1]}`;
+
+  const settingsMatch = href.match(/^\/form\/([^/?#]+)\/settings\/?$/);
+  if (settingsMatch) return `/form-builder/${settingsMatch[1]}`;
+
+  return href;
 }
 
 const SUGGESTIONS = [
@@ -43,33 +56,37 @@ export default function AIStudio() {
   } = useCopilotEngine();
   const [input, setInput] = useState('');
   const [selectedFormId, setSelectedFormId] = useState<string>('');
-  const [createdFormPrompt, setCreatedFormPrompt] = useState<{ formId: string; formName?: string } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const sendRef = useRef(sendPrompt);
   sendRef.current = sendPrompt;
   const autoRan = useRef(false);
-  const promptedFormIds = useRef<Set<string>>(new Set());
-
-  useEffect(() => {
-    if (workspaceUnlocked) {
-      setCreatedFormPrompt(null);
-      return;
-    }
-    for (let i = messages.length - 1; i >= 0; i -= 1) {
-      const created = extractCreatedForm(messages[i]);
-      if (!created || promptedFormIds.current.has(created.formId)) continue;
-      promptedFormIds.current.add(created.formId);
-      setCreatedFormPrompt(created);
-      break;
-    }
-  }, [messages, workspaceUnlocked]);
+  const openedFormIds = useRef<Set<string>>(new Set());
 
   const openCreatedForm = (formId: string) => {
     unlockWorkspace();
-    setCreatedFormPrompt(null);
-    navigate(`/form-builder/${formId}`);
+    navigate(`/form-builder/${formId}?tab=builder`);
   };
+
+  // After a live AI create, open the Form Builder designer (not the fillable / records view).
+  // Skip restored chat history — only react to freshly completed creates.
+  useEffect(() => {
+    if (isLoading) return;
+    for (let i = messages.length - 1; i >= 0; i -= 1) {
+      const message = messages[i];
+      const created = extractCreatedForm(message);
+      if (!created || openedFormIds.current.has(created.formId)) continue;
+      const ageMs = Date.now() - new Date(message.timestamp).getTime();
+      if (ageMs > 60_000) {
+        openedFormIds.current.add(created.formId);
+        continue;
+      }
+      openedFormIds.current.add(created.formId);
+      openCreatedForm(created.formId);
+      break;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- navigate once per newly created form id
+  }, [messages, isLoading]);
 
   // Pick up a prompt handed over from the landing page hero panel
   useEffect(() => {
@@ -113,15 +130,16 @@ export default function AIStudio() {
       return (
         <button
           onClick={() => {
-            const formMatch = href.match(/^\/form-builder\/([^/?#]+)/);
-            if (formMatch && !workspaceUnlocked) {
+            const target = toFormBuilderPath(href);
+            const formMatch = target.match(/^\/form-builder\/([^/?#]+)/);
+            if (formMatch) {
               openCreatedForm(formMatch[1]);
               return;
             }
-            if (!workspaceUnlocked && !href.startsWith('/build')) {
+            if (!workspaceUnlocked && !target.startsWith('/build')) {
               unlockWorkspace();
             }
-            navigate(href);
+            navigate(target);
           }}
           className="text-primary underline underline-offset-2 font-medium"
         >
@@ -327,15 +345,6 @@ export default function AIStudio() {
           </div>
         </>
       )}
-
-      <FormCreatedDialog
-        open={!!createdFormPrompt && !workspaceUnlocked}
-        formName={createdFormPrompt?.formName}
-        onClose={() => setCreatedFormPrompt(null)}
-        onExplore={() => {
-          if (createdFormPrompt) openCreatedForm(createdFormPrompt.formId);
-        }}
-      />
     </div>
   );
 }
