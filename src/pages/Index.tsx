@@ -290,10 +290,7 @@ const Index = () => {
         </main>
 
         {/* Footer */}
-        <footer
-          className="relative text-brand-deep-foreground"
-          style={{ backgroundImage: 'var(--gradient-footer)' }}
-        >
+        <footer className="relative bg-primary text-brand-deep-foreground">
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/70 to-transparent" />
           <div className="container relative mx-auto px-4 py-14">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16">
@@ -328,14 +325,14 @@ const Index = () => {
                 </h3>
                 <ul className="space-y-3 text-sm text-brand-deep-muted">
                   <li className="flex items-start gap-3">
-                    <MapPin className="h-4 w-4 mt-0.5 shrink-0 text-accent" />
+                    <MapPin className="h-4 w-4 mt-0.5 shrink-0 text-brand-deep-foreground/80" />
                     <span>
                       B-439, Bhutani Technopark, Sector 127<br />
                       Noida — 201313, India
                     </span>
                   </li>
                   <li className="flex items-center gap-3">
-                    <Mail className="h-4 w-4 shrink-0 text-accent" />
+                    <Mail className="h-4 w-4 shrink-0 text-brand-deep-foreground/80" />
                     <a href="mailto:contact@topsqill.com" className="hover:text-brand-deep-foreground transition-colors">
                       contact@topsqill.com
                     </a>
@@ -353,7 +350,7 @@ const Index = () => {
                     </a>
                   </li>
                   <li>
-                    <Link to="/contact" className="font-medium text-accent hover:underline underline-offset-4">
+                    <Link to="/contact" className="font-medium text-brand-deep-foreground hover:underline underline-offset-4">
                       Contact page →
                     </Link>
                   </li>
