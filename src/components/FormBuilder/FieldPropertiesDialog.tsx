@@ -17,6 +17,7 @@ import { useFieldData } from './FieldPropertiesDialog/hooks/useFieldData';
 import { backend as supabase } from '@/services/api';
 import { toast } from '@/hooks/use-toast';
 import { COUNTRIES } from '@/utils/filterUtils';
+import { isSystemStatusField } from '@/lib/systemStatusField';
 // Import field-specific configuration panels
 import { HeaderFieldConfig, DescriptionFieldConfig, SectionBreakFieldConfig, HorizontalLineFieldConfig, RichTextFieldConfig, FullWidthContainerFieldConfig, DateFieldConfig, TimeFieldConfig, DateTimeFieldConfig, AddressFieldConfig, EmailFieldConfig, UrlFieldConfig, IpAddressFieldConfig, UserPickerFieldConfig, BarcodeFieldConfig, ApprovalFieldConfig, DynamicDropdownFieldConfig, CalculatedFieldConfig, ConditionalSectionFieldConfig, GeoLocationFieldConfig, MatrixGridFieldConfig, PhoneFieldConfig, ColorFieldConfig } from './FieldPropertiesDialog/panels/fieldTypes';
 import { TextFieldConfig } from './FieldPropertiesDialog/panels/fieldTypes/TextFieldConfig';
@@ -1119,7 +1120,7 @@ const { localConfig: fieldConfig, updateConfig } = useFieldConfiguration(selecte
 
         <div className="flex justify-between pt-4 border-t">
           <div>
-            {onDelete && selectedField?.id && (
+            {onDelete && selectedField?.id && !isSystemStatusField(selectedField) && (
               <Button 
                 variant="destructive" 
                 onClick={() => {
@@ -1130,6 +1131,11 @@ const { localConfig: fieldConfig, updateConfig } = useFieldConfiguration(selecte
                 <Trash2 className="h-4 w-4 mr-2" />
                 Delete Field
               </Button>
+            )}
+            {selectedField && isSystemStatusField(selectedField) && (
+              <p className="text-xs text-muted-foreground self-center">
+                System Status field cannot be deleted.
+              </p>
             )}
           </div>
           <div className="flex space-x-3">

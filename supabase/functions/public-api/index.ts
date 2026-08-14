@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { Hono } from 'https://deno.land/x/hono@v3.12.0/mod.ts';
+import { insertAiGeneratedFormFields } from '../_shared/copilot-helpers.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -395,6 +396,12 @@ app.post('/forms', validateApiKey, async (c) => {
   if (error) {
     await logRequest(c, 500, error.message);
     return c.json({ error: 'Failed to create form', details: error.message }, 500, corsHeaders);
+  }
+
+  try {
+    await insertAiGeneratedFormFields(supabase, data.id, []);
+  } catch (statusError) {
+    console.error('Failed to seed system Status field:', statusError);
   }
 
   await logRequest(c, 201);

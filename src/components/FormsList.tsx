@@ -125,6 +125,8 @@ export function FormsList() {
 
       if (newForm && form.fields.length > 0) {
         for (const field of form.fields) {
+          // System Status is auto-created on the new form — don't duplicate it
+          if (field.customConfig?.isSystemField) continue;
           await addField(newForm.id, {
             label: field.label,
             type: field.type,

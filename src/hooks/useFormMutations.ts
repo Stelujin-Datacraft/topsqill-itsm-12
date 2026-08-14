@@ -2,6 +2,7 @@ import { backend as supabase } from '@/services/api';
 import { Form } from '@/types/form';
 import { toast } from '@/hooks/use-toast';
 import { logFormAuditEvent, describeFormChanges } from '@/utils/formAuditLogger';
+import { ensureSystemStatusField } from '@/lib/systemStatusField';
 
 export function useFormMutations() {
   const createForm = async (formData: Omit<Form, 'id' | 'createdAt' | 'updatedAt' | 'fields'>, userProfile: any) => {
@@ -63,6 +64,16 @@ export function useFormMutations() {
         return null;
       }
 
+      let statusField = null as Awaited<ReturnType<typeof ensureSystemStatusField>>['field'] | null;
+      let pages = JSON.parse(data.pages as string);
+      try {
+        const ensured = await ensureSystemStatusField(supabase, data.id);
+        statusField = ensured.field;
+        pages = ensured.pages;
+      } catch (statusError) {
+        console.error('useFormMutations: Failed to create system Status field:', statusError);
+      }
+
       const newForm: Form = {
         id: data.id,
         name: data.name,
@@ -74,13 +85,13 @@ export function useFormMutations() {
         updatedAt: data.updated_at,
         createdBy: data.created_by,
         isPublic: data.is_public || false,
-        fields: [],
+        fields: statusField ? [statusField] : [],
         permissions: JSON.parse(data.permissions as string),
         shareSettings: JSON.parse(data.share_settings as string),
         fieldRules: JSON.parse(data.field_rules as string),
         formRules: JSON.parse(data.form_rules as string),
         layout: JSON.parse(data.layout as string),
-        pages: JSON.parse(data.pages as string),
+        pages,
       };
 
       // Log audit event for form creation - MUST happen before returning

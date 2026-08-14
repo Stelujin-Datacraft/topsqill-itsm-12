@@ -4,6 +4,7 @@ import {
   type AiGeneratedFormField,
   type AiGeneratedFormSchema,
 } from '@/lib/createFormFromAiGeneration';
+import { isSystemStatusField } from '@/lib/systemStatusField';
 
 export interface FormPageInfo {
   id: string;
@@ -397,6 +398,10 @@ export async function updateFormFromAiGeneration(
 
     if (op === 'remove') {
       if (!existing) {
+        skippedCount += 1;
+        continue;
+      }
+      if (isSystemStatusField(existing)) {
         skippedCount += 1;
         continue;
       }

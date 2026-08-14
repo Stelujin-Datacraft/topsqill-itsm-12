@@ -103,6 +103,18 @@ export interface FormField {
   isFullWidth?: boolean;
   fieldCategory?: string;
   customConfig?: {
+    /** System fields (e.g. Status) cannot be deleted by users */
+    isSystemField?: boolean;
+    displayAsLifecycle?: boolean;
+    showWithoutCondition?: boolean;
+    requireCommentOnChange?: boolean;
+    slaWarningHours?: number | null;
+    transitionRules?: Record<string, string[]>;
+    lifecycleVisibilityCondition?: {
+      fieldId?: string;
+      operator?: string;
+      value?: string;
+    } | null;
     // Header specific
     level?: 'h1' | 'h2' | 'h3' | 'h4';
     alignment?: 'left' | 'center' | 'right';

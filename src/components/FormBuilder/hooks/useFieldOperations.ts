@@ -5,6 +5,7 @@ import { useProject } from '@/contexts/ProjectContext';
 import { FormField, Form, FormPage } from '@/types/form';
 import { fieldTypes } from '@/data/fieldTypes';
 import { toast } from '@/hooks/use-toast';
+import { isSystemStatusField } from '@/lib/systemStatusField';
 
 export function useFieldOperations(
   currentForm: Form | null,
@@ -151,6 +152,16 @@ export function useFieldOperations(
 
   const handleFieldDelete = async (fieldId: string) => {
     if (!currentForm) return;
+
+    const fieldToDelete = currentForm.fields.find((f) => f.id === fieldId);
+    if (fieldToDelete && isSystemStatusField(fieldToDelete)) {
+      toast({
+        title: 'System field protected',
+        description: 'The Status system field cannot be deleted.',
+        variant: 'destructive',
+      });
+      return;
+    }
     
     console.log('Deleting field:', fieldId);
     

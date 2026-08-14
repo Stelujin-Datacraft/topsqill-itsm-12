@@ -4,6 +4,7 @@ import { Form } from '@/types/form';
 import { backend as supabase } from '@/services/api';
 import { useProject } from './ProjectContext';
 import { logFormAuditEvent } from '@/utils/formAuditLogger';
+import { ensureSystemStatusField } from '@/lib/systemStatusField';
 
 interface FormContextType {
   forms: Form[];
@@ -263,7 +264,17 @@ export const FormProvider: React.FC<FormProviderProps> = ({ children }) => {
         return null;
       }
 
-      const createdForm = transformDatabaseFormToAppForm(data);
+      let createdForm = transformDatabaseFormToAppForm(data);
+      try {
+        const ensured = await ensureSystemStatusField(supabase, data.id);
+        createdForm = {
+          ...createdForm,
+          fields: [ensured.field],
+          pages: ensured.pages,
+        };
+      } catch (statusError) {
+        console.error('FormContext: Failed to create system Status field:', statusError);
+      }
       
       // Log audit event for form creation
       console.log('🔵 FormContext: Logging form_created event for:', createdForm.id, createdForm.name);

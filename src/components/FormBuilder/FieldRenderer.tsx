@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { Draggable } from 'react-beautiful-dnd';
 import { Button } from '@/components/ui/button';
 import { FormField } from '@/types/form';
-import { GripVertical, Settings, Trash2, Copy, Check } from 'lucide-react';
+import { GripVertical, Settings, Trash2, Copy, Check, Lock } from 'lucide-react';
+import { isSystemStatusField } from '@/lib/systemStatusField';
 import { toast } from '@/hooks/use-toast';
 // Full-width field types that should span all columns
 const fullWidthTypes = [
@@ -40,6 +41,7 @@ export function FieldRenderer({
     return undefined;
   };
   const [copied, setCopied] = useState(false);
+  const isSystemField = isSystemStatusField(field);
   const handleCopyFieldId = async (e: React.MouseEvent) => {
     e.stopPropagation();
     try {
@@ -66,7 +68,15 @@ export function FieldRenderer({
                 <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab hover:cursor-grabbing" />
               </div>
               <div className="flex-1">
-                <p className="font-medium">{field.label}</p>
+                <p className="font-medium flex items-center gap-2">
+                  {field.label}
+                  {isSystemField && (
+                    <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wide text-muted-foreground border rounded px-1.5 py-0.5">
+                      <Lock className="h-3 w-3" />
+                      System
+                    </span>
+                  )}
+                </p>
                 <p className="text-sm text-muted-foreground">
   {field.type}{" "}
   {field.required && (
@@ -87,12 +97,14 @@ export function FieldRenderer({
           }}>
                 <Settings className="h-4 w-4" />
               </Button>
-              <Button size="sm" variant="ghost" onClick={e => {
-            e.stopPropagation();
-            onFieldDelete(field.id);
-          }}>
-                <Trash2 className="h-4 w-4" />
-              </Button>
+              {!isSystemField && (
+                <Button size="sm" variant="ghost" onClick={e => {
+              e.stopPropagation();
+              onFieldDelete(field.id);
+            }}>
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              )}
             </div>
           </div>
         </div>}

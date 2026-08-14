@@ -1,4 +1,5 @@
 import { backend as supabase } from '@/services/api';
+import { ensureSystemStatusField } from '@/lib/systemStatusField';
 
 export interface AiGeneratedFormField {
   label: string;
@@ -176,6 +177,12 @@ export async function createFormFromAiGeneration(
     if (aiPages && !referencedIndexes.has(i)) continue;
 
     const field = generatedForm.fields[i];
+    // System Status field is added via ensureSystemStatusField — skip AI duplicates
+    if ((field.label || '').trim().toLowerCase() === 'status'
+      && sanitizeAiFieldType(field.type) === 'select') {
+      continue;
+    }
+
     const pageId = fieldPageMap[i] || formPages[0]?.id || 'default';
     const mappedOptions = field.options?.map((opt, idx) => ({
       id: `opt-${idx}-${Date.now()}`,
@@ -245,10 +252,31 @@ export async function createFormFromAiGeneration(
     throw new Error(pagesError.message || 'Failed to assign fields to pages');
   }
 
+  // Always ensure the system Status lifecycle field exists
+  await ensureSystemStatusField(supabase, newFormRow.id);
+
+  const { data: finalFields } = await supabase
+    .from('form_fields')
+    .select('id')
+    .eq('form_id', newFormRow.id);
+  const { data: finalForm } = await supabase
+    .from('forms')
+    .select('pages')
+    .eq('id', newFormRow.id)
+    .single();
+
+  let pageCount = formPages.length;
+  try {
+    const rawPages = typeof finalForm?.pages === 'string' ? JSON.parse(finalForm.pages) : finalForm?.pages;
+    if (Array.isArray(rawPages) && rawPages.length > 0) pageCount = rawPages.length;
+  } catch {
+    /* ignore */
+  }
+
   return {
     formId: newFormRow.id,
     formName: newFormRow.name,
-    fieldCount,
-    pageCount: formPages.length,
+    fieldCount: finalFields?.length ?? fieldCount,
+    pageCount,
   };
 }

@@ -2,6 +2,7 @@ import { backend as supabase } from '@/services/api';
 import { FormField } from '@/types/form';
 import { toast } from '@/hooks/use-toast';
 import { logFormAuditEvent } from '@/utils/formAuditLogger';
+import { isSystemStatusField } from '@/lib/systemStatusField';
 
 export function useFieldMutations() {
   // Single field update (used for individual field changes outside of save)
@@ -127,10 +128,28 @@ export function useFieldMutations() {
     try {
       if (fieldIds.length === 0) return;
 
+      const { data: rows } = await supabase
+        .from('form_fields')
+        .select('id, label, field_type, custom_config')
+        .in('id', fieldIds);
+
+      const lockedIds = new Set(
+        (rows || []).filter((row) => isSystemStatusField(row)).map((row) => row.id),
+      );
+      const deletableIds = fieldIds.filter((id) => !lockedIds.has(id));
+      if (lockedIds.size > 0) {
+        toast({
+          title: 'System field protected',
+          description: 'The Status system field cannot be deleted.',
+          variant: 'destructive',
+        });
+      }
+      if (deletableIds.length === 0) return;
+
       const { error } = await supabase
         .from('form_fields')
         .delete()
-        .in('id', fieldIds);
+        .in('id', deletableIds);
 
       if (error) {
         console.error('useFieldMutations: Error batch deleting fields:', error);
@@ -296,6 +315,21 @@ export function useFieldMutations() {
 
   const deleteField = async (fieldId: string, auditInfo?: { userId: string; formId: string; formName?: string; fieldLabel?: string }) => {
     try {
+      const { data: existing } = await supabase
+        .from('form_fields')
+        .select('id, label, field_type, custom_config')
+        .eq('id', fieldId)
+        .maybeSingle();
+
+      if (existing && isSystemStatusField(existing)) {
+        toast({
+          title: 'System field protected',
+          description: 'The Status system field cannot be deleted.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
       const { error } = await supabase
         .from('form_fields')
         .delete()
