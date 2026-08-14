@@ -1,7 +1,6 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { FormFieldsRenderer } from './FormFieldsRenderer';
 import { Form, FormField } from '@/types/form';
-import { getLifecycleFields } from '@/lib/lifecycleVisibility';
 
 interface SubmissionFormRendererProps {
   form: Form;
@@ -32,10 +31,6 @@ export function SubmissionFormRenderer({
     : [{ id: 'default', name: 'Form', order: 0, fields: form.fields.map(f => f.id) }];
   
   const currentPage = pages.find(p => p.id === currentPageId);
-  const lifecycleFieldIds = useMemo(
-    () => new Set(getLifecycleFields(form.fields, formData).map((f) => f.id)),
-    [form.fields, formData],
-  );
   
   // Get fields for the current page - if page has field references, use them, otherwise use all fields
   let pageFields = form.fields;
@@ -56,9 +51,6 @@ export function SubmissionFormRenderer({
       pageFields = form.fields;
     }
   }
-
-  // Lifecycle/Status fields render in the top status bar, not inline
-  pageFields = pageFields.filter((f) => !lifecycleFieldIds.has(f.id));
 
   // Define full-width field types
   const fullWidthTypes = ['header', 'description', 'section-break', 'horizontal-line', 'full-width-container', 

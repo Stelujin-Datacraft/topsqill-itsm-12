@@ -88,11 +88,6 @@ export function FormViewLayoutRenderer({
     [form.fields, formData],
   );
 
-  const lifecycleFieldIds = useMemo(
-    () => new Set(lifecycleFields.map((f) => f.id)),
-    [lifecycleFields],
-  );
-
   useEffect(() => {
     if (pages.length > 0 && !currentPageId) {
       setCurrentPageId(pages[0].id);
@@ -386,20 +381,13 @@ export function FormViewLayoutRenderer({
 
   const getCurrentPageFields = () => {
     const safeFormFields = Array.isArray(form.fields) ? form.fields : [];
-    if (!currentPageId || pages.length === 0) {
-      return safeFormFields.filter((field) => !lifecycleFieldIds.has(field.id));
-    }
+    if (!currentPageId || pages.length === 0) return safeFormFields;
     
     const currentPage = pages.find(p => p.id === currentPageId);
-    if (!currentPage || !Array.isArray(currentPage.fields)) {
-      return safeFormFields.filter((field) => !lifecycleFieldIds.has(field.id));
-    }
+    if (!currentPage || !Array.isArray(currentPage.fields)) return safeFormFields;
     
     // Filter fields and sort by the order in pages.fields
-    // Lifecycle/Status fields render in the top status bar, not inline
-    const filteredFields = safeFormFields.filter(
-      (field) => currentPage.fields.includes(field.id) && !lifecycleFieldIds.has(field.id),
-    );
+    const filteredFields = safeFormFields.filter(field => currentPage.fields.includes(field.id));
     return filteredFields.sort((a, b) => {
       const aIndex = currentPage.fields.indexOf(a.id);
       const bIndex = currentPage.fields.indexOf(b.id);
@@ -642,7 +630,7 @@ export function FormViewLayoutRenderer({
               <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-slate-200 dark:via-slate-700 to-transparent"></div>
             </div>
             
-            {/* Lifecycle / Status — visible immediately while creating */}
+            {/* Lifecycle / Status — visible immediately; read-only mirror of Status dropdown */}
             {lifecycleFields.length > 0 && (
               <div className="px-4 py-3 bg-white dark:bg-gray-950 border-b border-slate-100 dark:border-slate-800">
                 <div className="max-w-5xl mx-auto space-y-3">
@@ -651,9 +639,9 @@ export function FormViewLayoutRenderer({
                       key={field.id}
                       field={field}
                       value={formData[field.id] || field.defaultValue || ''}
-                      onChange={(value) => handleFieldChange(field.id, value)}
-                      disabled={isSubmitting || formLocked}
-                      isEditing={true}
+                      readOnly
+                      disabled
+                      isEditing={false}
                       formId={form.id}
                       hideHistoryButton
                     />
