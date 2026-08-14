@@ -464,7 +464,7 @@ ${JSON.stringify(context.availableReports || [], null, 2)}
             type: "function",
             function: {
               name: "create_form_with_workflow",
-              description: "Create a form AND a linked workflow together. Best for requests like 'create a leave request form with approval workflow'.",
+              description: "Create a form AND a linked workflow together ONLY when the user explicitly asks for both a form and a workflow/automation. Do NOT use this for form-only requests (e.g. forms that merely include an 'approval' field). Prefer create_form for forms and create_workflow for workflows on an existing form.",
               parameters: {
                 type: "object",
                 properties: {

@@ -24,7 +24,9 @@ import {
   promptUpdatesExistingWorkflow,
   promptWantsFieldRules,
   promptWantsWorkflowOnExistingForm,
+  promptWantsFormAndWorkflow,
   type CopilotToolCall,
+  type CopilotCreateType,
 } from '@/lib/copilotUtils';
 import { createFormFromAiGeneration, type AiGeneratedFormSchema } from '@/lib/createFormFromAiGeneration';
 import {
@@ -129,6 +131,7 @@ export function useCopilotEngine() {
     suggestWorkflow,
     generateReportComponent,
     suggestFieldRules,
+    generateContent,
     isLoading,
   } = useFormAI();
   const { currentProject, projects, setCurrentProject } = useProject();
@@ -805,6 +808,72 @@ export function useCopilotEngine() {
             },
           };
         }
+      } else if (action === 'create_knowledge_doc') {
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        if (!authUser) throw new Error('Not authenticated');
+        if (!activeProject?.id) throw new Error('No project available. Create a project first, then try again.');
+
+        const formId = rawParams.formId || formIdForEnrichment;
+        if (!formId) throw new Error('Select a source form for this knowledge doc.');
+
+        const linkedForm = formsWithFields.find((f) => f.id === formId);
+        const docName = String(rawParams.name || rawParams.title || '').trim()
+          || prompt.replace(/^(create|make|build|draft|write|generate)\s+(a\s+|an\s+|the\s+)?/i, '').slice(0, 80)
+          || 'Knowledge Document';
+
+        let contentHtml = '';
+        try {
+          const generated = await generateContent('response', prompt, {
+            tone: 'professional',
+            formName: linkedForm?.name,
+            outputFormat: 'html',
+          });
+          contentHtml = generated?.text || generated?.recommended || '';
+        } catch {
+          contentHtml = '';
+        }
+        if (!contentHtml) {
+          contentHtml = `<h1>${docName}</h1><p>${rawParams.description || prompt}</p>`;
+        } else if (!contentHtml.includes('<')) {
+          contentHtml = `<h1>${docName}</h1><p>${contentHtml}</p>`;
+        }
+
+        const { data: policy, error: policyError } = await supabase
+          .from('policies')
+          .insert([{
+            name: docName,
+            description: rawParams.description || `Knowledge doc linked to ${linkedForm?.name || 'form'}`,
+            category: rawParams.category || 'General',
+            status: 'draft',
+            owner_type: 'user',
+            owner_id: authUser.id,
+            created_by: authUser.id,
+            project_id: activeProject.id,
+            organization_id: activeProject.organization_id,
+            form_id: formId,
+            content: { html: contentHtml },
+            item_type: 'policy',
+            priority: 'medium',
+            review_cycle_days: 365,
+            acknowledgment_required: false,
+            exception_allowed: true,
+          } as any])
+          .select('id, name')
+          .single();
+
+        if (policyError || !policy) {
+          throw new Error(policyError?.message || 'Failed to create knowledge document');
+        }
+
+        actionResult = {
+          message: `Created knowledge doc "${policy.name}"${linkedForm ? ` linked to form "${linkedForm.name}"` : ''}.`,
+          result: {
+            policyId: policy.id,
+            formId,
+            formName: linkedForm?.name,
+            name: policy.name,
+          },
+        };
       } else {
         const params = await enrichActionParams(
           action,
@@ -876,7 +945,7 @@ export function useCopilotEngine() {
       toast.error('Action failed', { description: detail });
       throw err;
     }
-  }, [createClientFormFromPrompt, enrichActionParams, enrichWorkflowParams, executeCopilotAction, formsWithFields, loadContext, rememberActiveForm, updateClientFormFromPrompt]);
+  }, [activeProject, createClientFormFromPrompt, enrichActionParams, enrichWorkflowParams, executeCopilotAction, formsWithFields, generateContent, loadContext, rememberActiveForm, updateClientFormFromPrompt]);
 
   const resolveFormParams = useCallback((
     action: string,
@@ -933,11 +1002,13 @@ export function useCopilotEngine() {
     trimmed: string,
     messageContent: string,
     formIdOverride?: string,
+    createType?: CopilotCreateType | null,
   ) => {
     const normalized = normalizeToolCalls(toolCalls, trimmed, {
       selectedFormId: formIdOverride || activeFormIdRef.current,
       activeWorkflowId: activeWorkflowIdRef.current,
       activeReportId: activeReportIdRef.current,
+      createType,
     });
     if (normalized.length === 0) {
       setMessages((prev) => [...prev, {
@@ -980,6 +1051,8 @@ export function useCopilotEngine() {
             ? 'Which form should this workflow use? Pick the source form from the list.'
             : action === 'create_report' || action === 'update_report'
               ? 'Which form should this report use? Pick the source form from the list.'
+              : action === 'create_knowledge_doc'
+                ? 'Which form should this knowledge doc link to? Pick the source form from the list.'
           : `Which form should this **${action.replace(/_/g, ' ')}** use? Pick the source form to continue.`;
         setMessages((prev) => [...prev, {
           id: clarifyId,
@@ -1017,9 +1090,11 @@ export function useCopilotEngine() {
     );
   }, [formsWithFields, pendingAction, rememberActiveForm, runToolCall]);
 
-  const sendPrompt = useCallback(async (text: string, options?: { formId?: string }) => {
+  const sendPrompt = useCallback(async (text: string, options?: { formId?: string; createType?: CopilotCreateType }) => {
     const trimmed = text.trim();
     if (!trimmed || isLoading) return;
+
+    const createType = options?.createType || null;
 
     const userMessage: CopilotMessage = {
       id: `user-${Date.now()}`,
@@ -1033,25 +1108,34 @@ export function useCopilotEngine() {
       .filter((m) => m.id !== 'welcome')
       .map((m) => ({ role: m.role, content: m.content }));
 
-    const isUpdate = promptUpdatesExistingForm(trimmed);
-    const wantsWorkflowOnForm = promptWantsWorkflowOnExistingForm(trimmed);
-    const wantsReport = promptCreatesReport(trimmed) || promptUpdatesExistingReport(trimmed);
-    const wantsWorkflowUpdate = promptUpdatesExistingWorkflow(trimmed);
+    const isUpdate = createType === 'form' ? promptUpdatesExistingForm(trimmed) : false;
+    const wantsWorkflowOnForm = createType === 'workflow' || (!createType && promptWantsWorkflowOnExistingForm(trimmed));
+    const wantsReport = createType === 'report' || (!createType && (promptCreatesReport(trimmed) || promptUpdatesExistingReport(trimmed)));
+    const wantsDoc = createType === 'doc';
+    const wantsWorkflowUpdate = createType === 'workflow'
+      ? promptUpdatesExistingWorkflow(trimmed)
+      : (!createType && promptUpdatesExistingWorkflow(trimmed));
+    const wantsFormOnly = createType === 'form' || (!createType && promptCreatesNewForm(trimmed) && !promptWantsFormAndWorkflow(trimmed));
     const targetFormId = options?.formId
-      || ((isUpdate || wantsWorkflowOnForm || wantsReport || wantsWorkflowUpdate) ? activeFormIdRef.current : undefined)
+      || ((isUpdate || wantsWorkflowOnForm || wantsReport || wantsWorkflowUpdate || wantsDoc) ? activeFormIdRef.current : undefined)
       || undefined;
     const selectedFromList = targetFormId ? formsWithFields.find((f) => f.id === targetFormId) : undefined;
     const selectedName = selectedFromList?.name
       || (targetFormId && activeFormIdRef.current === targetFormId ? activeFormName : null);
 
     let promptForModel = trimmed;
+    if (createType === 'form' || wantsFormOnly) {
+      promptForModel = `${trimmed}\n\n(IMPORTANT: Create or update a FORM only. Use create_form or update_form. Do NOT create a workflow. Do NOT use create_form_with_workflow unless the user explicitly asked for both a form and a workflow.)`;
+    }
     if (isUpdate && targetFormId && selectedName) {
       promptForModel = `${trimmed}\n\n(IMPORTANT: Update the EXISTING form "${selectedName}" (id: ${targetFormId}). Do NOT create a new form. Use the update_form tool / modify that form only.)`;
     } else if ((wantsWorkflowOnForm || wantsWorkflowUpdate) && targetFormId && selectedName) {
       promptForModel = `${trimmed}\n\n(IMPORTANT: Use the EXISTING form "${selectedName}" (id: ${targetFormId}) as triggerFormId. Call ${wantsWorkflowUpdate && activeWorkflowIdRef.current ? 'update_workflow' : 'create_workflow'} only. Do NOT create a new form. Do NOT use create_form_with_workflow.)`;
     } else if (wantsReport && targetFormId && selectedName) {
       promptForModel = `${trimmed}\n\n(IMPORTANT: Use the EXISTING form "${selectedName}" (id: ${targetFormId}) as formId for ${promptUpdatesExistingReport(trimmed) && activeReportIdRef.current ? 'update_report' : 'create_report'}. Do NOT create a new form.)`;
-    } else if (targetFormId && selectedName && !isUpdate) {
+    } else if (wantsDoc && targetFormId && selectedName) {
+      promptForModel = `${trimmed}\n\n(IMPORTANT: Create a knowledge base / policy document linked to the EXISTING form "${selectedName}" (id: ${targetFormId}). Do NOT create a form or workflow.)`;
+    } else if (targetFormId && selectedName && !isUpdate && !wantsFormOnly) {
       promptForModel = `${trimmed}\n\n(Use the existing form "${selectedName}" (id: ${targetFormId}) as the source/trigger form. Do NOT create a new form unless explicitly asked.)`;
     } else if (isUpdate && !targetFormId) {
       promptForModel = `${trimmed}\n\n(IMPORTANT: This is an edit to an existing form. Prefer update_form over create_form. Ask which form if unclear.)`;
@@ -1084,32 +1168,31 @@ export function useCopilotEngine() {
           : [];
       // If the model returned only chat text with no tools, force the obvious action.
       const forcedCalls: CopilotToolCall[] = [];
-      if (isUpdate) {
-        forcedCalls.push({ action: 'update_form', params: targetFormId ? { formId: targetFormId } : {} });
-      } else if (wantsWorkflowUpdate) {
+      if (createType === 'form' || isUpdate) {
+        if (isUpdate) {
+          forcedCalls.push({ action: 'update_form', params: targetFormId ? { formId: targetFormId } : {} });
+        } else if (wantsFormOnly || createType === 'form') {
+          forcedCalls.push({ action: 'create_form', params: {} });
+        }
+      } else if (createType === 'workflow' || wantsWorkflowUpdate || wantsWorkflowOnForm) {
         forcedCalls.push({
-          action: activeWorkflowIdRef.current ? 'update_workflow' : 'create_workflow',
+          action: wantsWorkflowUpdate && activeWorkflowIdRef.current ? 'update_workflow' : 'create_workflow',
           params: {
             ...(targetFormId ? { triggerFormId: targetFormId } : {}),
-            ...(activeWorkflowIdRef.current ? { workflowId: activeWorkflowIdRef.current } : {}),
+            ...(activeWorkflowIdRef.current && wantsWorkflowUpdate ? { workflowId: activeWorkflowIdRef.current } : {}),
           },
         });
-      } else if (wantsWorkflowOnForm) {
+      } else if (createType === 'report' || wantsReport) {
         forcedCalls.push({
-          action: 'create_workflow',
-          params: targetFormId ? { triggerFormId: targetFormId } : {},
-        });
-      } else if (promptUpdatesExistingReport(trimmed)) {
-        forcedCalls.push({
-          action: activeReportIdRef.current ? 'update_report' : 'create_report',
+          action: promptUpdatesExistingReport(trimmed) && activeReportIdRef.current ? 'update_report' : 'create_report',
           params: {
             ...(targetFormId ? { formId: targetFormId } : {}),
-            ...(activeReportIdRef.current ? { reportId: activeReportIdRef.current } : {}),
+            ...(activeReportIdRef.current && promptUpdatesExistingReport(trimmed) ? { reportId: activeReportIdRef.current } : {}),
           },
         });
-      } else if (wantsReport) {
+      } else if (createType === 'doc' || wantsDoc) {
         forcedCalls.push({
-          action: 'create_report',
+          action: 'create_knowledge_doc',
           params: targetFormId ? { formId: targetFormId } : {},
         });
       }
@@ -1123,19 +1206,23 @@ export function useCopilotEngine() {
         }]);
         return;
       }
-      await processToolCalls(effectiveCalls, trimmed, messageContent, targetFormId);
-    } else if (copilotEnabled && (isUpdate || wantsWorkflowOnForm || wantsReport || wantsWorkflowUpdate)) {
-      const fallbackAction = isUpdate
+      await processToolCalls(effectiveCalls, trimmed, messageContent, targetFormId, createType);
+    } else if (copilotEnabled && (isUpdate || wantsWorkflowOnForm || wantsReport || wantsWorkflowUpdate || wantsDoc || createType === 'form')) {
+      const fallbackAction = createType === 'form' || wantsFormOnly
+        ? (isUpdate ? 'update_form' : 'create_form')
+        : createType === 'doc' || wantsDoc
+          ? 'create_knowledge_doc'
+        : isUpdate
         ? 'update_form'
         : wantsWorkflowUpdate && activeWorkflowIdRef.current
           ? 'update_workflow'
-          : wantsWorkflowOnForm || wantsWorkflowUpdate
+          : wantsWorkflowOnForm || wantsWorkflowUpdate || createType === 'workflow'
             ? 'create_workflow'
             : promptUpdatesExistingReport(trimmed) && activeReportIdRef.current
               ? 'update_report'
               : 'create_report';
       const fallbackParams: Record<string, unknown> = {};
-      if (fallbackAction === 'update_form' || fallbackAction === 'create_report' || fallbackAction === 'update_report') {
+      if (fallbackAction === 'update_form' || fallbackAction === 'create_report' || fallbackAction === 'update_report' || fallbackAction === 'create_knowledge_doc') {
         if (targetFormId) fallbackParams.formId = targetFormId;
       }
       if (fallbackAction === 'create_workflow' || fallbackAction === 'update_workflow') {
@@ -1152,6 +1239,7 @@ export function useCopilotEngine() {
         trimmed,
         messageContent || 'Working on your request…',
         targetFormId,
+        createType,
       );
     } else {
       setMessages((prev) => [...prev, {
