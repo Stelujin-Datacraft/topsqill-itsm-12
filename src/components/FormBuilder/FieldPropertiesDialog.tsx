@@ -18,6 +18,7 @@ import { backend as supabase } from '@/services/api';
 import { toast } from '@/hooks/use-toast';
 import { COUNTRIES } from '@/utils/filterUtils';
 import { isSystemStatusField } from '@/lib/systemStatusField';
+import { validateDropdownOptionsConfig, getValidDropdownOptions, isOptionBasedFieldType } from '@/lib/formMandatoryValidation';
 // Import field-specific configuration panels
 import { HeaderFieldConfig, DescriptionFieldConfig, SectionBreakFieldConfig, HorizontalLineFieldConfig, RichTextFieldConfig, FullWidthContainerFieldConfig, DateFieldConfig, TimeFieldConfig, DateTimeFieldConfig, AddressFieldConfig, EmailFieldConfig, UrlFieldConfig, IpAddressFieldConfig, UserPickerFieldConfig, BarcodeFieldConfig, ApprovalFieldConfig, DynamicDropdownFieldConfig, CalculatedFieldConfig, ConditionalSectionFieldConfig, GeoLocationFieldConfig, MatrixGridFieldConfig, PhoneFieldConfig, ColorFieldConfig } from './FieldPropertiesDialog/panels/fieldTypes';
 import { TextFieldConfig } from './FieldPropertiesDialog/panels/fieldTypes/TextFieldConfig';
@@ -244,9 +245,39 @@ const { localConfig: fieldConfig, updateConfig } = useFieldConfiguration(selecte
   };
   const handleSave = async () => {
     if (!selectedField || isSaving) return;
+
+    let configToSave = { ...localConfig };
+    if (isOptionBasedFieldType(selectedField.type)) {
+      const sanitizedOptions = getValidDropdownOptions(localConfig.options);
+      const optionError = validateDropdownOptionsConfig(
+        selectedField.type,
+        sanitizedOptions,
+        localConfig.required ?? selectedField.required,
+      );
+      if (optionError) {
+        toast({
+          title: 'Invalid dropdown options',
+          description: optionError,
+          variant: 'destructive',
+        });
+        return;
+      }
+      configToSave = { ...configToSave, options: sanitizedOptions };
+      // Required dropdowns should not allow clearing to an empty value
+      if (configToSave.required) {
+        configToSave = {
+          ...configToSave,
+          customConfig: {
+            ...(configToSave.customConfig || {}),
+            clearable: false,
+          },
+        };
+      }
+    }
+
     setIsSaving(true);
     try {
-      await onSave(selectedField.id, localConfig);
+      await onSave(selectedField.id, configToSave);
       toast({
         title: "Configuration saved",
         description: "Field configuration has been saved successfully."
@@ -342,8 +373,8 @@ const { localConfig: fieldConfig, updateConfig } = useFieldConfiguration(selecte
     const options = ensureOptionsArray(localConfig.options);
     options.push({
       id: `option-${Date.now()}`,
-      value: '',
-      label: ''
+      value: `option_${options.length + 1}`,
+      label: `Option ${options.length + 1}`,
     });
     updateField('options', options);
   };

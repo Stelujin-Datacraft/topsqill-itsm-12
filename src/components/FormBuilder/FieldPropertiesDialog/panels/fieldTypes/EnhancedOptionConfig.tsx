@@ -58,6 +58,11 @@ export function EnhancedOptionConfig({ options, onChange, fieldType }: EnhancedO
         });
       });
     });
+
+    if (newOptions.length === 0 && value.trim().length > 0) {
+      toast.error('Dropdown fields must have at least one valid option');
+      return;
+    }
     
     onChange(newOptions);
   };
@@ -69,16 +74,21 @@ export function EnhancedOptionConfig({ options, onChange, fieldType }: EnhancedO
   };
 
   const addOption = () => {
+    const nextIndex = options.length + 1;
     const newOptions = [...options, { 
       id: `option-${Date.now()}`, 
-      value: '', 
-      label: '', 
+      value: `option_${nextIndex}`, 
+      label: `Option ${nextIndex}`, 
       color: generateRandomColor() 
     }];
     onChange(newOptions);
   };
 
   const removeOption = (index: number) => {
+    if (options.length <= 1) {
+      toast.error('Dropdown fields must have at least one option');
+      return;
+    }
     const newOptions = options.filter((_, i) => i !== index);
     onChange(newOptions);
   };
@@ -151,6 +161,11 @@ export function EnhancedOptionConfig({ options, onChange, fieldType }: EnhancedO
         </TabsList>
 
         <TabsContent value="individual" className="space-y-3">
+          {options.length === 0 && (
+            <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+              Dropdowns require at least one option. Add an option below before saving this field.
+            </div>
+          )}
           <div className="space-y-2">
             {options.map((option, index) => (
               <Card key={option.id} className="relative">

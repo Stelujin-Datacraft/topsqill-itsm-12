@@ -34,7 +34,7 @@ const VALID_FIELD_TYPES = new Set([
   'text', 'textarea', 'number', 'date', 'time', 'datetime',
   'select', 'multi-select', 'radio', 'checkbox', 'toggle-switch',
   'slider', 'rating', 'file', 'image', 'color',
-  'country', 'phone', 'address', 'currency', 'email', 'url',
+  'country', 'address', 'currency', 'email', 'url',
   'ip-address', 'barcode', 'user-picker', 'group-picker',
   'approval', 'signature', 'tags', 'dynamic-dropdown',
   'cross-reference', 'child-cross-reference', 'calculated', 'conditional-section',
@@ -53,6 +53,11 @@ const FIELD_TYPE_ALIASES: Record<string, string> = {
   title: 'header',
   'text-area': 'textarea',
   dropdown: 'select',
+  phone: 'text',
+  telephone: 'text',
+  tel: 'text',
+  'phone-number': 'text',
+  mobile: 'text',
 };
 
 export function sanitizeAiFieldType(type: string): string {

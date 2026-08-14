@@ -92,6 +92,7 @@ export function useOptimizedFieldOperations(
     const targetPageId = currentPageId || 'default';
     
     const fieldConfig = fieldTypes.find(ft => ft.type === type);
+    const optionTypes = ['select', 'multi-select', 'radio', 'checkbox'];
     const newField: Omit<FormField, 'id'> = {
       type: type as FormField['type'],
       label: fieldConfig?.label || `New ${type} field`,
@@ -108,6 +109,13 @@ export function useOptimizedFieldOperations(
       pageId: targetPageId,
       isFullWidth: fieldConfig?.isFullWidth || false,
       fieldCategory: fieldConfig?.category || 'standard',
+      ...(optionTypes.includes(type)
+        ? {
+            options: [
+              { id: `option-${Date.now()}-1`, value: 'option_1', label: 'Option 1', color: '#3B82F6' },
+            ],
+          }
+        : {}),
     };
 
     console.log('Creating field in snapshot with pageId:', targetPageId);

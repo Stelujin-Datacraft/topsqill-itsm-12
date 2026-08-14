@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,13 @@ import { RuleProcessor, RuleProcessingContext } from '@/utils/ruleProcessor';
 import { parseFormFields } from '@/utils/fieldReferenceParser';
 import { useUniqueFieldValidation } from '@/hooks/useUniqueFieldValidation';
 import { useEmailTemplates } from '@/hooks/useEmailTemplates';
+import { MandatoryFieldsDialog } from './MandatoryFieldsDialog';
+import { LifecycleStatusBar } from './LifecycleStatusBar';
+import {
+  collectMandatoryFieldIssues,
+  type MandatoryFieldIssue,
+} from '@/lib/formMandatoryValidation';
+import { getLifecycleFields } from '@/lib/lifecycleVisibility';
 
 
 interface FormViewLayoutRendererProps {
@@ -67,12 +74,24 @@ export function FormViewLayoutRenderer({
   }>>({});
   const [formLocked, setFormLocked] = useState(false);
   const [submitAllowed, setSubmitAllowed] = useState(true);
+  const [mandatoryDialogOpen, setMandatoryDialogOpen] = useState(false);
+  const [mandatoryIssues, setMandatoryIssues] = useState<MandatoryFieldIssue[]>([]);
   const { sendTemplateEmail } = useEmailTemplates();
 
   // Initialize pages with proper type checking
   const pages = Array.isArray(form.pages) && form.pages.length > 0 
     ? form.pages 
     : [{ id: 'default', name: 'Page 1', order: 0, fields: form.fields?.map(f => f.id) || [] }];
+
+  const lifecycleFields = useMemo(
+    () => getLifecycleFields(Array.isArray(form.fields) ? form.fields : [], formData),
+    [form.fields, formData],
+  );
+
+  const lifecycleFieldIds = useMemo(
+    () => new Set(lifecycleFields.map((f) => f.id)),
+    [lifecycleFields],
+  );
 
   useEffect(() => {
     if (pages.length > 0 && !currentPageId) {
@@ -230,52 +249,66 @@ export function FormViewLayoutRenderer({
     }
   };
 
-  const validateForm = () => {
+  const validateForm = (): { ok: boolean; issues: MandatoryFieldIssue[] } => {
     const newErrors: Record<string, string> = {};
+    const safeFields = Array.isArray(form.fields) ? form.fields : [];
 
-    if (Array.isArray(form.fields)) {
-      form.fields.forEach(field => {
-        const value = formData[field.id];
-        const fieldState = fieldStates[field.id];
+    const issues = collectMandatoryFieldIssues({
+      fields: safeFields,
+      pages,
+      formData,
+      fieldStates,
+    });
 
-        // Skip validation if field is not visible or not enabled
-        if (!fieldState?.isVisible || !fieldState?.isEnabled) {
-          return;
+    issues.forEach((issue) => {
+      newErrors[issue.fieldId] = `${issue.fieldName} is required`;
+    });
+
+    safeFields.forEach(field => {
+      const value = formData[field.id];
+      const fieldState = fieldStates[field.id];
+
+      if (!fieldState?.isVisible || !fieldState?.isEnabled) {
+        return;
+      }
+
+      // Email validation
+      if (field.type === 'email' && value) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(value)) {
+          newErrors[field.id] = 'Please enter a valid email address';
         }
+      }
 
-        // Required field validation (check both field.required and fieldState.isRequired)
-        const isRequired = field.required || fieldState?.isRequired;
-        if (isRequired && (!value || value === '')) {
-          newErrors[field.id] = `${fieldState?.label || field.label} is required`;
-        }
-
-        // Email validation
-        if (field.type === 'email' && value) {
-          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-          if (!emailRegex.test(value)) {
-            newErrors[field.id] = 'Please enter a valid email address';
+      // Number validation
+      if (field.type === 'number' && value !== undefined && value !== '') {
+        const numValue = Number(value);
+        if (isNaN(numValue)) {
+          newErrors[field.id] = 'Please enter a valid number';
+        } else if (field.validation) {
+          if (field.validation.min !== undefined && numValue < field.validation.min) {
+            newErrors[field.id] = `Value must be at least ${field.validation.min}`;
+          }
+          if (field.validation.max !== undefined && numValue > field.validation.max) {
+            newErrors[field.id] = `Value must be at most ${field.validation.max}`;
           }
         }
-
-        // Number validation
-        if (field.type === 'number' && value !== undefined && value !== '') {
-          const numValue = Number(value);
-          if (isNaN(numValue)) {
-            newErrors[field.id] = 'Please enter a valid number';
-          } else if (field.validation) {
-            if (field.validation.min !== undefined && numValue < field.validation.min) {
-              newErrors[field.id] = `Value must be at least ${field.validation.min}`;
-            }
-            if (field.validation.max !== undefined && numValue > field.validation.max) {
-              newErrors[field.id] = `Value must be at most ${field.validation.max}`;
-            }
-          }
-        }
-      });
-    }
+      }
+    });
 
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    return { ok: Object.keys(newErrors).length === 0, issues };
+  };
+
+  const navigateToMandatoryField = (issue: MandatoryFieldIssue) => {
+    setMandatoryDialogOpen(false);
+    if (issue.pageId && issue.pageId !== currentPageId) {
+      setCurrentPageId(issue.pageId);
+    }
+    // Allow page render before scrolling
+    setTimeout(() => {
+      handleFieldHighlight(issue.fieldId);
+    }, 100);
   };
 
   const { validateUniqueFields, isValidating } = useUniqueFieldValidation();
@@ -293,7 +326,12 @@ export function FormViewLayoutRenderer({
       return;
     }
 
-    if (!validateForm()) {
+    const validation = validateForm();
+    if (!validation.ok) {
+      if (validation.issues.length > 0) {
+        setMandatoryIssues(validation.issues);
+        setMandatoryDialogOpen(true);
+      }
       return;
     }
 
@@ -348,13 +386,20 @@ export function FormViewLayoutRenderer({
 
   const getCurrentPageFields = () => {
     const safeFormFields = Array.isArray(form.fields) ? form.fields : [];
-    if (!currentPageId || pages.length === 0) return safeFormFields;
+    if (!currentPageId || pages.length === 0) {
+      return safeFormFields.filter((field) => !lifecycleFieldIds.has(field.id));
+    }
     
     const currentPage = pages.find(p => p.id === currentPageId);
-    if (!currentPage || !Array.isArray(currentPage.fields)) return safeFormFields;
+    if (!currentPage || !Array.isArray(currentPage.fields)) {
+      return safeFormFields.filter((field) => !lifecycleFieldIds.has(field.id));
+    }
     
     // Filter fields and sort by the order in pages.fields
-    const filteredFields = safeFormFields.filter(field => currentPage.fields.includes(field.id));
+    // Lifecycle/Status fields render in the top status bar, not inline
+    const filteredFields = safeFormFields.filter(
+      (field) => currentPage.fields.includes(field.id) && !lifecycleFieldIds.has(field.id),
+    );
     return filteredFields.sort((a, b) => {
       const aIndex = currentPage.fields.indexOf(a.id);
       const bIndex = currentPage.fields.indexOf(b.id);
@@ -526,6 +571,7 @@ export function FormViewLayoutRenderer({
   }
 
   const mainContent = (
+    <>
     <div className={`grid gap-2 h-full print:block ${
       navigationVisible 
         ? 'grid-cols-1 lg:grid-cols-4' 
@@ -596,6 +642,26 @@ export function FormViewLayoutRenderer({
               <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-slate-200 dark:via-slate-700 to-transparent"></div>
             </div>
             
+            {/* Lifecycle / Status — visible immediately while creating */}
+            {lifecycleFields.length > 0 && (
+              <div className="px-4 py-3 bg-white dark:bg-gray-950 border-b border-slate-100 dark:border-slate-800">
+                <div className="max-w-5xl mx-auto space-y-3">
+                  {lifecycleFields.map((field) => (
+                    <LifecycleStatusBar
+                      key={field.id}
+                      field={field}
+                      value={formData[field.id] || field.defaultValue || ''}
+                      onChange={(value) => handleFieldChange(field.id, value)}
+                      disabled={isSubmitting || formLocked}
+                      isEditing={true}
+                      formId={form.id}
+                      hideHistoryButton
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Page Navigation Section */}
             {pages.length > 1 && (
               <div className="px-4 py-4 bg-white dark:bg-gray-950 border-b border-slate-100 dark:border-slate-800">
@@ -655,6 +721,14 @@ export function FormViewLayoutRenderer({
         </Card>
       </div>
     </div>
+
+      <MandatoryFieldsDialog
+        open={mandatoryDialogOpen}
+        issues={mandatoryIssues}
+        onClose={() => setMandatoryDialogOpen(false)}
+        onNavigateToField={navigateToMandatoryField}
+      />
+    </>
   );
 
   if (showPublicHeader) {
