@@ -653,11 +653,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         { onConflict: 'user_id,organization_id' },
       );
 
-    // Default project so form creation works immediately
+    // Default project named after the organization (not a generic "Default Project")
     const { data: project, error: projectError } = await rawSupabase
       .from('projects')
       .insert({
-        name: 'Default Project',
+        name: args.name.trim() || 'Default Project',
         description: null,
         organization_id: org.id,
         created_by: args.userId,
