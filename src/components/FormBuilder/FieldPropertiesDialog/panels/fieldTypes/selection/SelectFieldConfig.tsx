@@ -145,10 +145,13 @@ export function SelectFieldConfig({ field, onConfigChange }: SelectFieldConfigPr
           <div className="flex items-center space-x-2">
             <Checkbox
               id="clearable"
-              checked={config.clearable !== false}
+              checked={config.required ? false : config.clearable !== false}
+              disabled={!!config.required}
               onCheckedChange={(checked) => onConfigChange({ clearable: checked })}
             />
-            <Label htmlFor="clearable">Allow clearing selection</Label>
+            <Label htmlFor="clearable">
+              Allow clearing selection{config.required ? ' (disabled for required fields)' : ''}
+            </Label>
           </div>
           
         </div>
@@ -175,7 +178,10 @@ export function SelectFieldConfig({ field, onConfigChange }: SelectFieldConfigPr
               id="displayAsLifecycle"
               checked={config.displayAsLifecycle || false}
               onCheckedChange={(checked) => {
-                onConfigChange({ displayAsLifecycle: checked });
+                onConfigChange({
+                  displayAsLifecycle: checked,
+                  ...(checked ? { showWithoutCondition: config.showWithoutCondition ?? true } : {}),
+                });
                 setLifecycleOpen(!!checked);
               }}
             />

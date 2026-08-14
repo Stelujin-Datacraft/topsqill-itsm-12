@@ -25,6 +25,12 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useDelegation } from '@/contexts/DelegationContext';
 import { logRecordFieldChanges, detectRecordChanges } from '@/utils/recordHistoryLogger';
 import { useUsersAndGroups } from '@/hooks/useUsersAndGroups';
+import { MandatoryFieldsDialog } from './MandatoryFieldsDialog';
+import {
+  collectMandatoryFieldIssues,
+  type MandatoryFieldIssue,
+} from '@/lib/formMandatoryValidation';
+import { getLifecycleFields } from '@/lib/lifecycleVisibility';
 
 interface SubmissionFormViewProps {
   submissionId: string;
@@ -68,47 +74,14 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
   const [showRecordHistory, setShowRecordHistory] = useState(false);
   const [showCommentBox, setShowCommentBox] = useState(false);
   const [showStageHistory, setShowStageHistory] = useState(false);
+  const [mandatoryDialogOpen, setMandatoryDialogOpen] = useState(false);
+  const [mandatoryIssues, setMandatoryIssues] = useState<MandatoryFieldIssue[]>([]);
 
-  // Find lifecycle dropdown fields (select fields with displayAsLifecycle enabled)
-  // Must be called before any early returns to follow Rules of Hooks
-  const allLifecycleFields = useMemo(() => {
-    if (!form?.fields) return [];
-    return form.fields.filter(
-      (field) => field.type === 'select' && (field.customConfig as any)?.displayAsLifecycle === true
-    );
-  }, [form?.fields]);
-
-  // Filter lifecycle fields by visibility condition
-  const lifecycleFields = useMemo(() => {
-    return allLifecycleFields.filter((field) => {
-      const cfg = field.customConfig as any;
-      
-      // If "show without condition" is checked, always visible
-      if (cfg?.showWithoutCondition) return true;
-      
-      const condition = cfg?.lifecycleVisibilityCondition;
-      // No condition configured and showWithoutCondition is not checked = hidden by default
-      if (!condition || !condition.fieldId) return false;
-      
-      const fieldValue = formData[condition.fieldId];
-      const conditionValue = condition.value;
-      
-      switch (condition.operator) {
-        case '==':
-          return String(fieldValue || '') === String(conditionValue || '');
-        case '!=':
-          return String(fieldValue || '') !== String(conditionValue || '');
-        case 'contains':
-          return String(fieldValue || '').toLowerCase().includes(String(conditionValue || '').toLowerCase());
-        case 'not_empty':
-          return fieldValue !== undefined && fieldValue !== null && fieldValue !== '';
-        case 'empty':
-          return fieldValue === undefined || fieldValue === null || fieldValue === '';
-        default:
-          return false;
-      }
-    });
-  }, [allLifecycleFields, formData]);
+  // Lifecycle/Status fields — visible immediately when the record form opens
+  const lifecycleFields = useMemo(
+    () => getLifecycleFields(form?.fields, formData),
+    [form?.fields, formData],
+  );
 
   // Load submission and form data
   const loadSubmissionAndForm = async () => {
@@ -427,6 +400,23 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
       }
     }
 
+    if (form) {
+      const formPages = form.pages && form.pages.length > 0
+        ? form.pages
+        : [{ id: 'default', name: 'Form', order: 0, fields: form.fields.map((f) => f.id) }];
+      const issues = collectMandatoryFieldIssues({
+        fields: form.fields || [],
+        pages: formPages,
+        formData,
+        fieldStates,
+      });
+      if (issues.length > 0) {
+        setMandatoryIssues(issues);
+        setMandatoryDialogOpen(true);
+        return;
+      }
+    }
+
     try {
       setSaving(true);
       const updatePayload: any = { submission_data: formData };
@@ -595,6 +585,16 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
     setTimeout(() => {
       setHighlightedFieldId(null);
     }, 5000);
+  };
+
+  const navigateToMandatoryField = (issue: MandatoryFieldIssue) => {
+    setMandatoryDialogOpen(false);
+    if (issue.pageId && issue.pageId !== currentPageId) {
+      setCurrentPageId(issue.pageId);
+    }
+    setTimeout(() => {
+      handleFieldHighlight(issue.fieldId);
+    }, 100);
   };
 
   return (
@@ -925,6 +925,13 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
           onClose={() => setShowStageHistory(false)}
         />
       )}
+
+      <MandatoryFieldsDialog
+        open={mandatoryDialogOpen}
+        issues={mandatoryIssues}
+        onClose={() => setMandatoryDialogOpen(false)}
+        onNavigateToField={navigateToMandatoryField}
+      />
     </div>
   );
 }

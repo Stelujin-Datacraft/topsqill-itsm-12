@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { 
   ArrowUpRight, MousePointer2, Boxes, Type, Mail, Hash, 
-  Calendar, ChevronDown, FileText, Phone, Star, Trash2,
+  Calendar, ChevronDown, FileText, Star, Trash2,
   Settings, Eye, Plus
 } from "lucide-react";
 
@@ -16,7 +16,6 @@ const fieldTypes = [
   { type: "date", icon: Calendar, label: "Date", color: "bg-orange-100 text-orange-700" },
   { type: "select", icon: ChevronDown, label: "Select", color: "bg-red-100 text-red-700" },
   { type: "file", icon: FileText, label: "File", color: "bg-yellow-100 text-yellow-700" },
-  { type: "phone", icon: Phone, label: "Phone", color: "bg-indigo-100 text-indigo-700" },
   { type: "rating", icon: Star, label: "Rating", color: "bg-pink-100 text-pink-700" }
 ];
 

@@ -13,7 +13,6 @@ export const VALID_FIELD_TYPES = [
   'textarea',
   'number',
   'email',
-  'phone',
   'date',
   'time',
   'datetime',
@@ -68,8 +67,11 @@ export const FIELD_TYPE_ALIASES: Record<string, ValidFieldType> = {
   'datepicker': 'date',
   'timepicker': 'time',
   'datetime-local': 'datetime',
-  'tel': 'phone',
-  'telephone': 'phone',
+  'tel': 'text',
+  'telephone': 'text',
+  'phone': 'text',
+  'phone-number': 'text',
+  'mobile': 'text',
   'upload': 'file',
   'attachment': 'file',
   'photo': 'image',
@@ -377,6 +379,10 @@ export function generateSchemaPromptContext(): string {
 
 VALID FIELD TYPES (use EXACTLY these values):
 ${VALID_FIELD_TYPES.map(t => `- ${t}`).join('\n')}
+
+PHONE NUMBERS: Use the "text" field type for phone numbers. Do not use a separate phone field type.
+
+SELECT/DROPDOWN FIELDS: Every select, multi-select, radio, or checkbox field MUST include at least one option with non-empty value and label.
 
 VALID WORKFLOW NODE TYPES (use EXACTLY these values):
 ${VALID_NODE_TYPES.map(t => `- ${t}`).join('\n')}

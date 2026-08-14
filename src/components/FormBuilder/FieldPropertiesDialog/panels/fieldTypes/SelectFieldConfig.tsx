@@ -159,10 +159,13 @@ export function SelectFieldConfig({ config, onUpdate, errors, fieldType, formId 
           </div>
           
           <div className="flex items-center justify-between">
-            <Label htmlFor="clearable" className="text-sm font-normal">Allow clearing selection</Label>
+            <Label htmlFor="clearable" className="text-sm font-normal">
+              Allow clearing selection{config.required ? ' (disabled for required fields)' : ''}
+            </Label>
             <Switch
               id="clearable"
-              checked={customConfig.clearable !== false}
+              checked={config.required ? false : customConfig.clearable !== false}
+              disabled={!!config.required}
               onCheckedChange={(checked) => onUpdate({ customConfig: { ...customConfig, clearable: checked } })}
             />
           </div>
@@ -201,7 +204,14 @@ export function SelectFieldConfig({ config, onUpdate, errors, fieldType, formId 
               </div>
               <Switch
                 checked={displayAsLifecycle}
-                onCheckedChange={(checked) => onUpdate({ customConfig: { ...customConfig, displayAsLifecycle: checked } })}
+                onCheckedChange={(checked) => onUpdate({
+                  customConfig: {
+                    ...customConfig,
+                    displayAsLifecycle: checked,
+                    // Status/lifecycle should be visible immediately when enabled
+                    ...(checked ? { showWithoutCondition: customConfig.showWithoutCondition ?? true } : {}),
+                  },
+                })}
               />
             </div>
           </CardHeader>
@@ -366,7 +376,7 @@ export function SelectFieldConfig({ config, onUpdate, errors, fieldType, formId 
                 <div className="flex items-center space-x-2 bg-background rounded-md p-2 border">
                   <Checkbox
                     id="showWithoutCondition"
-                    checked={customConfig.showWithoutCondition || false}
+                    checked={customConfig.showWithoutCondition !== false}
                     onCheckedChange={(checked) => {
                       onUpdate({ customConfig: { ...customConfig, showWithoutCondition: !!checked } });
                     }}
@@ -377,7 +387,7 @@ export function SelectFieldConfig({ config, onUpdate, errors, fieldType, formId 
                 </div>
 
                 {/* Condition fields - shown only when "show without condition" is unchecked */}
-                {!customConfig.showWithoutCondition && (
+                {customConfig.showWithoutCondition === false && (
                   <div className="space-y-3 pl-1">
                     <p className="text-xs text-amber-600 dark:text-amber-400 font-medium flex items-center gap-1">
                       <AlertTriangle className="h-3 w-3" />
