@@ -2,6 +2,7 @@
 import { Hono } from 'hono';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { EngineContext } from './shared/engine-context';
+import { insertAiGeneratedFormFields } from './shared/copilot-helpers';
 
 export function createPublicApiApp(supabase: SupabaseClient, _ctx: EngineContext) {
 
@@ -391,6 +392,12 @@ app.post('/forms', validateApiKey, async (c) => {
   if (error) {
     await logRequest(c, 500, error.message);
     return c.json({ error: 'Failed to create form', details: error.message }, 500, corsHeaders);
+  }
+
+  try {
+    await insertAiGeneratedFormFields(supabase, data.id, []);
+  } catch (statusError: any) {
+    console.error('Failed to seed system Status field:', statusError);
   }
 
   await logRequest(c, 201);

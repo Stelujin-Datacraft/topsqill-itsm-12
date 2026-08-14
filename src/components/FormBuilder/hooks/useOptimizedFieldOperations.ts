@@ -6,6 +6,7 @@ import { fieldTypes } from '@/data/fieldTypes';
 import { toast } from '@/hooks/use-toast';
 import { useFormSnapshotContext } from '../contexts/FormSnapshotContext';
 import { useCrossReferenceSync } from '@/hooks/useCrossReferenceSync';
+import { isSystemStatusField } from '@/lib/systemStatusField';
 
 export function useOptimizedFieldOperations(
   currentPageId: string,
@@ -133,6 +134,15 @@ export function useOptimizedFieldOperations(
   const handleFieldDelete = async (fieldId: string) => {
     
     const fieldToDelete = snapshot.form?.fields.find(f => f.id === fieldId);
+
+    if (fieldToDelete && isSystemStatusField(fieldToDelete)) {
+      toast({
+        title: 'System field protected',
+        description: 'The Status system field cannot be deleted.',
+        variant: 'destructive',
+      });
+      return;
+    }
     
     // Check if the field is a child-cross-reference - warn user but allow deletion
     if (fieldToDelete?.type === 'child-cross-reference') {

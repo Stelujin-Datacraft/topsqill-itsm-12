@@ -599,46 +599,31 @@
  
          if (formError) throw formError;
          
-         // 2. Create form fields including lifecycle field
+         // 2. Create form fields (always includes system Status lifecycle field)
          let lifecycleFieldId: string | null = null;
-         const formFields = fields.map((f: any, idx: number) => ({
-           form_id: form.id,
-           field_type: f.type || 'text',
-           label: f.label,
-           placeholder: f.placeholder,
-           required: f.required || false,
-           field_order: idx + 1,
-           options: f.options ? JSON.stringify(f.options) : null,
-           tooltip: f.tooltip,
-           custom_config: f.customConfig || null
-         }));
-         
-         // Add lifecycle status field if specified
-         if (lifecycleFieldLabel) {
-           const lifecycleOptions = [
-             { id: crypto.randomUUID(), value: 'pending', label: 'Pending' },
-             { id: crypto.randomUUID(), value: 'in_progress', label: 'In Progress' },
-             { id: crypto.randomUUID(), value: 'completed', label: 'Completed' }
-           ];
-           formFields.push({
-             form_id: form.id,
-             field_type: 'select',
-             label: lifecycleFieldLabel,
-             placeholder: 'Select status',
-             required: false,
-             field_order: formFields.length + 1,
-             options: JSON.stringify(lifecycleOptions),
-             tooltip: 'Lifecycle status for SLA tracking',
-             custom_config: JSON.stringify({ isLifecycleStatusBar: true })
-           });
-         }
-         
-         const { data: insertedFields } = await supabase.from('form_fields').insert(formFields).select();
-         
-         // Find lifecycle field ID
-         if (insertedFields && lifecycleFieldLabel) {
-           const lifecycleField = insertedFields.find((f: any) => f.label === lifecycleFieldLabel);
-           if (lifecycleField) lifecycleFieldId = lifecycleField.id;
+         await insertAiGeneratedFormFields(supabase, form.id, fields, params.pages);
+
+         const { data: statusField } = await supabase
+           .from('form_fields')
+           .select('id, label, custom_config')
+           .eq('form_id', form.id)
+           .eq('label', 'Status')
+           .limit(1)
+           .maybeSingle();
+         if (statusField?.id) {
+           lifecycleFieldId = statusField.id;
+           const existingConfig = typeof statusField.custom_config === 'string'
+             ? JSON.parse(statusField.custom_config || '{}')
+             : (statusField.custom_config || {});
+           await supabase.from('form_fields').update({
+             custom_config: {
+               ...existingConfig,
+               isSystemField: true,
+               displayAsLifecycle: true,
+               showWithoutCondition: true,
+               isLifecycleStatusBar: true,
+             },
+           }).eq('id', statusField.id);
          }
          
          // 3. Handle SLA template - create new or use existing
@@ -811,20 +796,8 @@
  
          if (formError) throw formError;
          
-         // 2. Create form fields
-         if (fields.length > 0) {
-           const formFields = fields.map((f: any, idx: number) => ({
-             form_id: form.id,
-             field_type: f.type || 'text',
-             label: f.label,
-             placeholder: f.placeholder,
-             required: f.required || false,
-             field_order: idx + 1,
-             options: f.options ? JSON.stringify(f.options) : null,
-             tooltip: f.tooltip
-           }));
-           await supabase.from('form_fields').insert(formFields);
-         }
+         // 2. Create form fields (always includes system Status lifecycle field)
+         await insertAiGeneratedFormFields(supabase, form.id, fields, params.pages);
          
          // 3. Handle email template - create new or link existing
          let finalTemplateId = existingTemplateId;

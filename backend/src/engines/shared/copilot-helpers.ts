@@ -30,15 +30,54 @@ export function getActionErrorMessage(error: unknown): string {
   return 'Unknown error';
 }
 
-export function sanitizeFieldType(type: string): string {
+function sanitizeFieldType(type: string): string {
   const normalized = (type || 'text').toLowerCase().trim();
   if (VALID_FIELD_TYPES.has(normalized)) return normalized;
   return FIELD_TYPE_ALIASES[normalized] || 'text';
 }
 
+const SYSTEM_STATUS_OPTIONS = [
+  { id: 'status-opt-draft', value: 'Draft', label: 'Draft' },
+  { id: 'status-opt-inprogress', value: 'Inprogress', label: 'Inprogress' },
+  { id: 'status-opt-pending', value: 'Pending', label: 'Pending' },
+  { id: 'status-opt-completed', value: 'Completed', label: 'Completed' },
+  { id: 'status-opt-archived', value: 'Archived', label: 'Archived' },
+];
+
+const SYSTEM_STATUS_CUSTOM_CONFIG = {
+  isSystemField: true,
+  displayAsLifecycle: true,
+  showWithoutCondition: true,
+  requireCommentOnChange: false,
+  searchable: false,
+  clearable: false,
+};
+
+function buildSystemStatusFieldRow(formId: string, fieldOrder = 0) {
+  return {
+    form_id: formId,
+    field_type: 'select',
+    label: 'Status',
+    placeholder: 'Select status',
+    required: true,
+    default_value: 'Draft',
+    options: JSON.stringify(SYSTEM_STATUS_OPTIONS),
+    field_order: fieldOrder,
+    tooltip: 'Record lifecycle status',
+    custom_config: JSON.stringify(SYSTEM_STATUS_CUSTOM_CONFIG),
+    permissions: JSON.stringify({ read: ['*'], write: ['*'] }),
+    triggers: JSON.stringify([]),
+    is_visible: true,
+    is_enabled: true,
+    current_value: '',
+    error_message: '',
+  };
+}
+
 /**
  * Inserts AI-generated form fields and wires them into forms.pages[].fields
  * (the Form Builder reads field membership from pages, not a page_id column).
+ * Always prepends the system Status lifecycle field.
  */
 export async function insertAiGeneratedFormFields(
   supabase: SupabaseClient,
@@ -90,13 +129,22 @@ export async function insertAiGeneratedFormFields(
   const pageFieldIds: Record<string, string[]> = {};
   formPages.forEach((p) => { pageFieldIds[p.id] = []; });
 
-  const fieldsToInsert: Array<Record<string, unknown>> = [];
-  const fieldMeta: Array<{ pageId: string; order: number }> = [];
+  const fieldsToInsert: Array<Record<string, unknown>> = [
+    buildSystemStatusFieldRow(formId, 0),
+  ];
+  const fieldMeta: Array<{ pageId: string; order: number }> = [
+    { pageId: formPages[0]?.id || 'default', order: 0 },
+  ];
 
   for (let i = 0; i < fields.length; i++) {
     if (aiPages && !referencedIndexes.has(i)) continue;
     const f = fields[i] as Record<string, unknown>;
     if (!f?.label) continue;
+    // Skip AI Status select — system Status is already prepended
+    if (String(f.label).trim().toLowerCase() === 'status'
+      && sanitizeFieldType(String(f.type || 'text')) === 'select') {
+      continue;
+    }
 
     const pageId = fieldPageMap[i] || formPages[0]?.id || 'default';
     let options = f.options;
@@ -110,15 +158,14 @@ export async function insertAiGeneratedFormFields(
       label: f.label,
       placeholder: f.placeholder || null,
       required: Boolean(f.required),
-      field_order: fieldsToInsert.length + 1,
+      field_order: fieldsToInsert.length,
       options: options || null,
       tooltip: f.tooltip || null,
+      custom_config: f.customConfig || f.custom_config
+        ? JSON.stringify(f.customConfig || f.custom_config)
+        : null,
     });
     fieldMeta.push({ pageId, order: fieldsToInsert.length - 1 });
-  }
-
-  if (fieldsToInsert.length === 0) {
-    return { fieldCount: 0, pageCount: formPages.length };
   }
 
   const { data: inserted, error: insertError } = await supabase
