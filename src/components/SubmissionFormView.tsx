@@ -712,9 +712,9 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
         <LifecycleStatusBar
           field={field}
           value={formData[field.id] || ''}
-          onChange={(value) => handleFieldChange(field.id, value)}
-          disabled={saving}
-          isEditing={isEditing}
+          readOnly
+          disabled
+          isEditing={false}
           submissionId={submission.id}
           formId={form?.id}
           hideHistoryButton

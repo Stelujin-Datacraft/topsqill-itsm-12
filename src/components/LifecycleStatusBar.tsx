@@ -23,6 +23,8 @@ interface LifecycleStatusBarProps {
   onChange?: (value: string) => void;
   disabled?: boolean;
   isEditing?: boolean;
+  /** When true, bar is display-only — status is changed via the Status dropdown. */
+  readOnly?: boolean;
   submissionId?: string;
   formId?: string;
   hideHistoryButton?: boolean;
@@ -61,6 +63,7 @@ export function LifecycleStatusBar({
   onChange, 
   disabled = false,
   isEditing = false,
+  readOnly = false,
   submissionId,
   formId,
   hideHistoryButton = false,
@@ -177,20 +180,21 @@ export function LifecycleStatusBar({
   };
 
   const handleOptionClick = (optionValue: string) => {
-    if (!disabled && isEditing && onChange && optionValue !== value) {
-      if (!isTransitionAllowed(value, optionValue)) {
-        setPendingStage(optionValue);
-        setDialogOpen(true);
-        return;
-      }
-      if (requireCommentOnChange) {
-        setPendingStage(optionValue);
-        setDialogOpen(true);
-        return;
-      }
-      handleStageChange(optionValue, '');
+    if (readOnly || disabled || !isEditing || !onChange || optionValue === value) return;
+    if (!isTransitionAllowed(value, optionValue)) {
+      setPendingStage(optionValue);
+      setDialogOpen(true);
+      return;
     }
+    if (requireCommentOnChange) {
+      setPendingStage(optionValue);
+      setDialogOpen(true);
+      return;
+    }
+    handleStageChange(optionValue, '');
   };
+
+  const interactive = isEditing && !disabled && !readOnly;
 
   const handleStageChange = async (newStage: string, comment: string) => {
     if (onChange) {
@@ -243,21 +247,22 @@ export function LifecycleStatusBar({
               <Tooltip key={optionValue}>
                 <TooltipTrigger asChild>
                   <button
+                    type="button"
                     onClick={() => handleOptionClick(optionValue)}
-                    disabled={disabled || !isEditing || isSelected}
+                    disabled={readOnly || disabled || !isEditing || isSelected}
                     className={`
                       relative flex items-center justify-center gap-1.5 py-2.5 px-3 flex-1
                       text-xs font-medium transition-all duration-200
                       ${!isLast ? 'border-r border-border/50' : ''}
-                      ${isEditing && !isSelected && canTransition ? 'cursor-pointer' : ''}
-                      ${!canTransition && isEditing && !isSelected ? 'opacity-50 cursor-not-allowed' : ''}
+                      ${interactive && !isSelected && canTransition ? 'cursor-pointer' : 'cursor-default'}
+                      ${!canTransition && interactive && !isSelected ? 'opacity-50 cursor-not-allowed' : ''}
                       ${isSelected ? 'font-semibold' : ''}
-                      ${isFuture && !isEditing ? 'opacity-60' : ''}
+                      ${isFuture && !interactive ? 'opacity-60' : ''}
                     `}
                     style={{
                       backgroundColor: color.bg,
                       color: '#ffffff',
-                      opacity: isFuture && !isEditing ? 0.55 : 1,
+                      opacity: isFuture && !interactive ? 0.55 : 1,
                     }}
                   >
                     {/* Icon */}
@@ -294,8 +299,11 @@ export function LifecycleStatusBar({
                     {isSelected && <p className="text-xs opacity-70">Current stage</p>}
                     {isPast && <p className="text-xs opacity-70">Completed</p>}
                     {isFuture && <p className="text-xs opacity-70">Upcoming</p>}
-                    {!canTransition && isEditing && !isSelected && (
+                    {!canTransition && interactive && !isSelected && (
                       <p className="text-xs text-destructive">Transition not allowed</p>
+                    )}
+                    {readOnly && isSelected && (
+                      <p className="text-xs opacity-70">Change via Status field</p>
                     )}
                   </div>
                 </TooltipContent>
