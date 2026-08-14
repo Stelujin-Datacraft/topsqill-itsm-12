@@ -4,26 +4,24 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { FileText, Workflow, BarChart3, BookOpen, ArrowUp } from 'lucide-react';
+import type { CopilotCreateType } from '@/lib/copilotUtils';
 
-type AssetType = 'form' | 'workflow' | 'report' | 'doc';
-
-const ASSETS: { id: AssetType; label: string; icon: React.ElementType; color: string; placeholder: string; intent: string; disabled?: boolean }[] = [
+const ASSETS: { id: CopilotCreateType; label: string; icon: React.ElementType; color: string; placeholder: string; intent: string }[] = [
   { id: 'form', label: 'Form', icon: FileText, color: 'text-module-forms', placeholder: 'Create an employee onboarding form with manager approval…', intent: 'Create a form' },
-  { id: 'workflow', label: 'Workflow', icon: Workflow, color: 'text-module-workflows', placeholder: 'Route high severity incidents to L2 and email the owner…', intent: 'Create a workflow', disabled: true },
-  { id: 'report', label: 'Report', icon: BarChart3, color: 'text-module-reports', placeholder: 'Show open vulnerabilities by business unit as a bar chart…', intent: 'Create a report', disabled: true },
-  { id: 'doc', label: 'Knowledge Doc', icon: BookOpen, color: 'text-module-knowledge', placeholder: 'Draft an access control policy with review cycle…', intent: 'Create a knowledge doc', disabled: true },
+  { id: 'workflow', label: 'Workflow', icon: Workflow, color: 'text-module-workflows', placeholder: 'Route high severity incidents to L2 and email the owner…', intent: 'Create a workflow' },
+  { id: 'report', label: 'Report', icon: BarChart3, color: 'text-module-reports', placeholder: 'Show open vulnerabilities by business unit as a bar chart…', intent: 'Create a report' },
+  { id: 'doc', label: 'Knowledge Base', icon: BookOpen, color: 'text-module-knowledge', placeholder: 'Draft an access control policy with review cycle…', intent: 'Create a knowledge doc' },
 ];
 
 /**
  * Landing hero builder.
- * - Signed-in users: submit → AI Builder (/build) with the prompt.
- * - Guests: no "Sign in to build" CTA — they use Sign In / Sign Up in the nav,
- *   then create on the AI chat page (the only page for new users).
+ * - Signed-in users: submit → AI Builder (/build) with the prompt + create type.
+ * - Guests: Sign In / Sign Up in the nav, then create on the AI chat page.
  */
 export default function HeroPromptPanel() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [type, setType] = useState<AssetType>('form');
+  const [type, setType] = useState<CopilotCreateType>('form');
   const [prompt, setPrompt] = useState('');
 
   const active = ASSETS.find((a) => a.id === type)!;
@@ -44,7 +42,6 @@ export default function HeroPromptPanel() {
       return;
     }
 
-    // Guests use Sign In / Sign Up from the nav; keep the prompt for after auth.
     navigate(`/auth?returnTo=${encodeURIComponent('/build')}`);
   };
 
@@ -70,14 +67,9 @@ export default function HeroPromptPanel() {
               <button
                 key={a.id}
                 type="button"
-                onClick={() => { if (!a.disabled) setType(a.id); }}
-                disabled={a.disabled}
-                aria-disabled={a.disabled}
-                title={a.disabled ? 'Coming soon — available inside the app' : undefined}
+                onClick={() => setType(a.id)}
                 className={`flex items-center gap-1.5 shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
-                  a.disabled
-                    ? 'border-border/50 text-muted-foreground/60 cursor-not-allowed opacity-60'
-                    : type === a.id
+                  type === a.id
                     ? 'border-primary bg-primary/10 text-foreground'
                     : 'border-border bg-muted/40 text-muted-foreground hover:bg-muted/70'
                 }`}
@@ -99,8 +91,8 @@ export default function HeroPromptPanel() {
       </div>
       <p className="text-xs text-muted-foreground text-center mt-3">
         {user
-          ? 'Describe what you need — the AI Copilot builds it in your workspace.'
-          : 'Describe what you need, or use Sign In / Sign Up to open the AI Builder and create your first form.'}
+          ? 'Pick Form, Workflow, Report, or Knowledge Base — then describe what you need.'
+          : 'Describe what you need, or use Sign In / Sign Up to open the AI Builder.'}
       </p>
     </div>
   );

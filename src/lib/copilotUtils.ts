@@ -5,6 +5,46 @@ export interface CopilotToolCall {
   params: Record<string, unknown>;
 }
 
+/** Explicit create target selected in AI Builder / landing hero. */
+export type CopilotCreateType = 'form' | 'workflow' | 'report' | 'doc';
+
+export const COPILOT_CREATE_TYPES: Array<{
+  id: CopilotCreateType;
+  label: string;
+  intent: string;
+  placeholder: string;
+}> = [
+  {
+    id: 'form',
+    label: 'Form',
+    intent: 'Create a form',
+    placeholder: 'Create an employee onboarding form with name, email, department…',
+  },
+  {
+    id: 'workflow',
+    label: 'Workflow',
+    intent: 'Create a workflow',
+    placeholder: 'When severity is Critical, assign to L2 and email the owner…',
+  },
+  {
+    id: 'report',
+    label: 'Report',
+    intent: 'Create a report',
+    placeholder: 'Open vulnerabilities grouped by business unit as a bar chart…',
+  },
+  {
+    id: 'doc',
+    label: 'Knowledge Base',
+    intent: 'Create a knowledge doc',
+    placeholder: 'Access control policy with purpose, scope, and annual review…',
+  },
+];
+
+/** True when this create type needs an existing form (not just a project). */
+export function createTypeNeedsForm(type: CopilotCreateType | null | undefined): boolean {
+  return type === 'workflow' || type === 'report' || type === 'doc';
+}
+
 /** Actions the backend ai-copilot-action engine actually implements. */
 export const SUPPORTED_COPILOT_ACTIONS = new Set([
   'create_form',
@@ -27,6 +67,8 @@ export const SUPPORTED_COPILOT_ACTIONS = new Set([
   'get_form_stats',
   'update_submission_status',
   'create_email_template',
+  /** Frontend-handled knowledge base / policy create */
+  'create_knowledge_doc',
 ]);
 
 /** Actions that create or mutate workspace assets — refresh context after success. */
@@ -45,6 +87,7 @@ export const CONTEXT_REFRESH_ACTIONS = new Set([
   'link_form_to_sla',
   'add_email_action_to_workflow',
   'create_email_template',
+  'create_knowledge_doc',
 ]);
 
 /** Pure form-creation actions — never require picking an existing form. */
@@ -67,6 +110,7 @@ export const FORM_REQUIRED_ACTIONS: Record<string, string> = {
   update_report: 'formId',
   link_form_to_workflow: 'formId',
   link_form_to_sla: 'formId',
+  create_knowledge_doc: 'formId',
 };
 
 /** Workflow-creating actions that should be enriched with suggest-workflow when nodes are thin. */
@@ -92,6 +136,7 @@ export const ACTION_PERMISSIONS: Partial<Record<string, { entity: EntityType; ac
   update_report: { entity: 'reports', action: 'update' },
   link_form_to_sla: { entity: 'forms', action: 'update' },
   create_submission: { entity: 'forms', action: 'create' },
+  create_knowledge_doc: { entity: 'policies', action: 'create' },
 };
 
 export function getFormParamKey(action: string): string | null {
@@ -258,7 +303,10 @@ export function promptUpdatesExistingWorkflow(text: string): boolean {
  * Whether the composer should ask the user to pick a source form before sending.
  * Avoids blocking prompts like "create a form for email requests".
  */
-export function promptNeedsExistingForm(text: string): boolean {
+export function promptNeedsExistingForm(text: string, createType?: CopilotCreateType | null): boolean {
+  if (createType === 'form') return false;
+  if (createType && createTypeNeedsForm(createType)) return true;
+
   const t = text.toLowerCase();
 
   if (promptWantsFormAndWorkflow(text)) return false;
@@ -283,6 +331,11 @@ export function promptNeedsExistingForm(text: string): boolean {
   if (/\b(workflows?|automation|automate)\b/.test(t)) return true;
 
   if (/\b(sla|email template|email notification)\b/.test(t) && !promptCreatesNewForm(text)) return true;
+
+  if (/\b(knowledge|policy|policies|kb\b|doc|document)\b/.test(t)
+    && /\b(create|make|build|draft|write|generate)\b/.test(t)) {
+    return true;
+  }
 
   return false;
 }
@@ -331,6 +384,8 @@ export interface NormalizeToolCallsOptions {
   selectedFormId?: string | null;
   activeWorkflowId?: string | null;
   activeReportId?: string | null;
+  /** Explicit AI Builder create type — constrains which actions may run. */
+  createType?: CopilotCreateType | null;
 }
 
 /** Normalize AI output and upgrade/downgrade tool calls based on user intent. */
@@ -344,17 +399,140 @@ export function normalizeToolCalls(
 
   let normalized = supported;
   const selectedFormId = options?.selectedFormId || undefined;
-  const wantsGreenfieldFormWorkflow = promptWantsFormAndWorkflow(userPrompt);
+  const createType = options?.createType || null;
+  const wantsGreenfieldFormWorkflow = createType
+    ? createType === 'form' && promptWantsFormAndWorkflow(userPrompt)
+    : promptWantsFormAndWorkflow(userPrompt);
   const mentionsWorkflow = /\b(workflows?|automation)\b/.test(userPrompt.toLowerCase());
-  const wantsWorkflowOnExisting = !wantsGreenfieldFormWorkflow && mentionsWorkflow && (
-    promptWantsWorkflowOnExistingForm(userPrompt)
-    || promptTargetsExistingForm(userPrompt)
-    || (Boolean(selectedFormId)
-      && !/\b(create|make|build|set up|design|generate)\s+(a\s+|an\s+|the\s+)?(new\s+)?forms?\b/.test(userPrompt.toLowerCase()))
+  const wantsWorkflowOnExisting = !wantsGreenfieldFormWorkflow && (
+    createType === 'workflow'
+    || (mentionsWorkflow && (
+      promptWantsWorkflowOnExistingForm(userPrompt)
+      || promptTargetsExistingForm(userPrompt)
+      || (Boolean(selectedFormId)
+        && !/\b(create|make|build|set up|design|generate)\s+(a\s+|an\s+|the\s+)?(new\s+)?forms?\b/.test(userPrompt.toLowerCase()))
+    ))
   );
 
+  // Explicit create-type lock: never invent the wrong asset kind.
+  if (createType === 'form') {
+    normalized = normalized
+      .map((tc) => {
+        if (tc.action === 'create_form_with_workflow' && !wantsGreenfieldFormWorkflow) {
+          return {
+            action: 'create_form',
+            params: {
+              ...tc.params,
+              name: tc.params.formName ?? tc.params.name,
+              description: tc.params.formDescription ?? tc.params.description,
+              fields: tc.params.fields,
+            },
+          };
+        }
+        if (
+          tc.action === 'create_workflow'
+          || tc.action === 'update_workflow'
+          || tc.action === 'create_report'
+          || tc.action === 'update_report'
+          || tc.action === 'create_knowledge_doc'
+        ) {
+          return {
+            action: 'create_form',
+            params: {
+              ...tc.params,
+              name: tc.params.formName ?? tc.params.name,
+              description: tc.params.formDescription ?? tc.params.description,
+              fields: tc.params.fields,
+            },
+          };
+        }
+        return tc;
+      })
+      .filter((tc, index, arr) => {
+        // Keep a single create_form / update_form when the model emitted duplicates.
+        if (tc.action !== 'create_form' && tc.action !== 'update_form') return true;
+        return arr.findIndex((x) => x.action === tc.action) === index;
+      });
+  } else if (createType === 'workflow') {
+    normalized = normalized.map((tc) => {
+      if (
+        tc.action === 'create_form'
+        || tc.action === 'create_form_with_workflow'
+        || tc.action === 'create_report'
+        || tc.action === 'update_report'
+        || tc.action === 'create_knowledge_doc'
+      ) {
+        return {
+          action: promptUpdatesExistingWorkflow(userPrompt) ? 'update_workflow' : 'create_workflow',
+          params: {
+            ...tc.params,
+            name: tc.params.workflowName ?? tc.params.name,
+            description: tc.params.workflowDescription ?? tc.params.description,
+            nodes: tc.params.workflowNodes ?? tc.params.nodes,
+            triggerFormId: selectedFormId || tc.params.triggerFormId || tc.params.formId,
+            workflowId: options?.activeWorkflowId || tc.params.workflowId,
+          },
+        };
+      }
+      return tc;
+    });
+  } else if (createType === 'report') {
+    const reportAction = promptUpdatesExistingReport(userPrompt) ? 'update_report' : 'create_report';
+    normalized = normalized.map((tc) => ({
+      action: reportAction,
+      params: {
+        ...tc.params,
+        formId: selectedFormId || tc.params.formId,
+        name: tc.params.name || tc.params.formName,
+        reportId: options?.activeReportId || tc.params.reportId,
+      },
+    }));
+  } else if (createType === 'doc') {
+    normalized = normalized.map((tc) => ({
+      action: 'create_knowledge_doc',
+      params: {
+        ...tc.params,
+        formId: selectedFormId || tc.params.formId,
+        name: tc.params.name || tc.params.formName || tc.params.title,
+        description: tc.params.description || tc.params.content,
+      },
+    }));
+  }
+
+  // Form-only prompts must never silently create a workflow (e.g. "manager approval" fields).
+  if (!createType || createType === 'form') {
+    const formOnly = promptCreatesNewForm(userPrompt) && !wantsGreenfieldFormWorkflow;
+    if (formOnly) {
+      normalized = normalized.map((tc) => {
+        if (tc.action === 'create_form_with_workflow') {
+          return {
+            action: 'create_form',
+            params: {
+              ...tc.params,
+              name: tc.params.formName ?? tc.params.name,
+              description: tc.params.formDescription ?? tc.params.description,
+              fields: tc.params.fields,
+            },
+          };
+        }
+        if (tc.action === 'create_workflow' && !mentionsWorkflow) {
+          return {
+            action: 'create_form',
+            params: {
+              ...tc.params,
+              name: tc.params.formName ?? tc.params.name,
+              description: tc.params.formDescription ?? tc.params.description,
+              fields: tc.params.fields,
+            },
+          };
+        }
+        return tc;
+      });
+    }
+  }
+
   // Existing/selected form + workflow request → never create a new form.
-  if (wantsWorkflowOnExisting) {
+  if (wantsWorkflowOnExisting && createType !== 'form' && createType !== 'report' && createType !== 'doc') {
     normalized = normalized.map((tc) => {
       if (tc.action === 'create_form_with_workflow' || tc.action === 'create_form') {
         return {
@@ -371,7 +549,7 @@ export function normalizeToolCalls(
       }
       return tc;
     });
-  } else if (wantsGreenfieldFormWorkflow && normalized.length === 1) {
+  } else if (wantsGreenfieldFormWorkflow && normalized.length === 1 && (!createType || createType === 'form')) {
     const only = normalized[0];
     if (only.action === 'create_form' || only.action === 'create_workflow') {
       normalized = [{
@@ -386,7 +564,7 @@ export function normalizeToolCalls(
   }
 
   // Report on selected/existing form: strip accidental form creates; prefer update when asked.
-  if (promptCreatesReport(userPrompt) || promptUpdatesExistingReport(userPrompt)) {
+  if ((!createType || createType === 'report') && (promptCreatesReport(userPrompt) || promptUpdatesExistingReport(userPrompt))) {
     const reportAction = promptUpdatesExistingReport(userPrompt) ? 'update_report' : 'create_report';
     normalized = normalized.map((tc) => {
       if (
@@ -410,7 +588,7 @@ export function normalizeToolCalls(
     });
   }
 
-  if (promptUpdatesExistingWorkflow(userPrompt)) {
+  if (promptUpdatesExistingWorkflow(userPrompt) && createType !== 'form' && createType !== 'report' && createType !== 'doc') {
     normalized = normalized.map((tc) => (
       tc.action === 'create_workflow' || tc.action === 'create_form_with_workflow'
         ? {
@@ -427,7 +605,7 @@ export function normalizeToolCalls(
   }
 
   // Follow-up edits must update the existing form — never spawn a duplicate create_form.
-  if (promptUpdatesExistingForm(userPrompt)) {
+  if (promptUpdatesExistingForm(userPrompt) && (!createType || createType === 'form')) {
     normalized = normalized.map((tc) => (
       tc.action === 'create_form'
         ? { action: 'update_form', params: { ...tc.params } }

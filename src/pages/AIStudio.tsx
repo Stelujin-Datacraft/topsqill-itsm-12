@@ -13,7 +13,7 @@ import { useCopilotEngine } from '@/hooks/useCopilotEngine';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CopilotFormPicker } from '@/components/ai/CopilotFormPicker';
 import { CopilotFormPreviewPanel, type PreviewSizeMode } from '@/components/ai/CopilotFormPreviewPanel';
-import { FORM_CREATE_ACTIONS, promptNeedsExistingForm, promptUpdatesExistingForm } from '@/lib/copilotUtils';
+import { FORM_CREATE_ACTIONS, promptNeedsExistingForm, promptUpdatesExistingForm, createTypeNeedsForm, COPILOT_CREATE_TYPES, type CopilotCreateType } from '@/lib/copilotUtils';
 import { useOnboardingGate } from '@/hooks/useOnboardingGate';
 import { useIsMobile } from '@/hooks/use-mobile';
 import {
@@ -28,6 +28,20 @@ const PREVIEW_SIZES: Record<PreviewSizeMode, number> = {
 };
 
 const PREVIEW_SIZE_ORDER: PreviewSizeMode[] = ['compact', 'default', 'expanded'];
+
+const CREATE_TYPE_ICONS: Record<CopilotCreateType, { icon: typeof FileText; color: string }> = {
+  form: { icon: FileText, color: 'text-module-forms' },
+  workflow: { icon: Workflow, color: 'text-module-workflows' },
+  report: { icon: BarChart3, color: 'text-module-reports' },
+  doc: { icon: BookOpen, color: 'text-module-knowledge' },
+};
+
+const SUGGESTIONS: Array<{ type: CopilotCreateType; prompt: string }> = [
+  { type: 'form', prompt: 'Employee onboarding request with employee name, email, department, start date and manager approval' },
+  { type: 'workflow', prompt: 'When an incident is submitted with severity Critical, assign to L2 and email the application owner' },
+  { type: 'report', prompt: 'Open vulnerabilities grouped by business unit as a bar chart' },
+  { type: 'doc', prompt: 'Access control policy with purpose, scope, responsibilities and annual review cycle' },
+];
 
 function extractCreatedForm(message: {
   action?: { type: string; status: string; result?: { result?: { formId?: string; formName?: string } } };
@@ -48,13 +62,6 @@ function isViewFormsLink(href: string): boolean {
   return false;
 }
 
-const SUGGESTIONS = [
-  { icon: FileText, color: 'text-module-forms', label: 'Form', prompt: 'Create a form: employee onboarding request with employee name, email, department, start date and manager approval' },
-  { icon: Workflow, color: 'text-module-workflows', label: 'Workflow', prompt: 'Create a workflow: when an incident is submitted with severity Critical, assign to L2 and email the application owner' },
-  { icon: BarChart3, color: 'text-module-reports', label: 'Report', prompt: 'Create a report: open vulnerabilities grouped by business unit as a bar chart' },
-  { icon: BookOpen, color: 'text-module-knowledge', label: 'Knowledge Doc', prompt: 'Create a knowledge doc: access control policy with purpose, scope, responsibilities and annual review cycle' },
-];
-
 export default function AIStudio() {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
@@ -65,6 +72,7 @@ export default function AIStudio() {
     sendPrompt, clearChat, hasConversation, copilotEnabled, setCopilotEnabled, resolveFormChoice,
   } = useCopilotEngine();
   const [input, setInput] = useState('');
+  const [createType, setCreateType] = useState<CopilotCreateType>('form');
   const [selectedFormId, setSelectedFormId] = useState<string>('');
   const [previewFormId, setPreviewFormId] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -76,9 +84,14 @@ export default function AIStudio() {
   const previewPanelRef = useRef<ImperativePanelHandle>(null);
   const sendRef = useRef(sendPrompt);
   sendRef.current = sendPrompt;
+  const createTypeRef = useRef(createType);
+  createTypeRef.current = createType;
   const autoRan = useRef(false);
   const promptedFormIds = useRef<Set<string>>(new Set());
   const lastPreviewRefreshMsgId = useRef<string | null>(null);
+
+  const activeCreateMeta = COPILOT_CREATE_TYPES.find((t) => t.id === createType)!;
+  const needsFormForType = createTypeNeedsForm(createType);
 
   const viewFormsList = () => {
     unlockWorkspace();
@@ -183,19 +196,26 @@ export default function AIStudio() {
   // Pick up a prompt handed over from the landing page hero panel
   useEffect(() => {
     if (autoRan.current) return;
-    let stored: string | null = null;
+    let storedPrompt: string | null = null;
+    let storedType: CopilotCreateType | null = null;
     try {
       const raw = sessionStorage.getItem('pendingHeroPrompt');
       if (raw) {
         sessionStorage.removeItem('pendingHeroPrompt');
-        stored = (JSON.parse(raw) as { prompt?: string })?.prompt ?? null;
+        const parsed = JSON.parse(raw) as { prompt?: string; type?: CopilotCreateType };
+        storedPrompt = parsed?.prompt ?? null;
+        if (parsed?.type && ['form', 'workflow', 'report', 'doc'].includes(parsed.type)) {
+          storedType = parsed.type;
+          setCreateType(parsed.type);
+        }
       }
     } catch {
       /* storage unavailable */
     }
-    if (stored?.trim()) {
+    if (storedPrompt?.trim()) {
       autoRan.current = true;
-      setTimeout(() => sendRef.current(stored as string), 400);
+      const typeForSend = storedType || createTypeRef.current;
+      setTimeout(() => sendRef.current(storedPrompt as string, { createType: typeForSend }), 400);
     }
   }, []);
 
@@ -208,17 +228,20 @@ export default function AIStudio() {
     textareaRef.current?.focus();
   }, [isLoading]);
 
-  const submit = (text?: string) => {
+  const submit = (text?: string, typeOverride?: CopilotCreateType) => {
     const value = (text ?? input).trim();
     if (!value || isLoading) return;
-    const isUpdate = promptUpdatesExistingForm(value);
-    const dependsOnForm = promptNeedsExistingForm(value);
+    const type = typeOverride || createType;
+    const isUpdate = type === 'form' && promptUpdatesExistingForm(value);
+    const dependsOnForm = createTypeNeedsForm(type) || promptNeedsExistingForm(value, type);
     const targetFormId = selectedFormId || activeFormId || previewFormId || '';
-    // For updates, allow send when chat already has an active form even if picker empty.
     if (dependsOnForm && availableForms.length > 0 && !targetFormId) return;
     if (isUpdate && !targetFormId && availableForms.length === 0) return;
     setInput('');
-    void sendPrompt(value, targetFormId ? { formId: targetFormId } : undefined);
+    void sendPrompt(value, {
+      formId: targetFormId || undefined,
+      createType: type,
+    });
   };
 
   const LinkRenderer = ({ href, children }: { href?: string; children?: React.ReactNode }) => {
@@ -244,8 +267,8 @@ export default function AIStudio() {
     return <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary underline">{children}</a>;
   };
 
-  const needsForm = promptNeedsExistingForm(input);
-  const isUpdatePrompt = promptUpdatesExistingForm(input);
+  const needsForm = needsFormForType || promptNeedsExistingForm(input, createType);
+  const isUpdatePrompt = createType === 'form' && promptUpdatesExistingForm(input);
   const effectiveTargetFormId = selectedFormId || activeFormId || previewFormId || '';
   const formMissing = needsForm && availableForms.length === 0 && !(isUpdatePrompt && activeFormId);
   const formRequired = needsForm && availableForms.length > 0 && !effectiveTargetFormId;
@@ -256,6 +279,31 @@ export default function AIStudio() {
 
   const composer = (
     <div className="rounded-2xl border border-border/70 bg-card shadow-token-md p-3">
+      <div className="flex flex-wrap items-center gap-2 pb-2">
+        {COPILOT_CREATE_TYPES.map((asset) => {
+          const meta = CREATE_TYPE_ICONS[asset.id];
+          const Icon = meta.icon;
+          return (
+            <button
+              key={asset.id}
+              type="button"
+              onClick={() => {
+                setCreateType(asset.id);
+                if (!createTypeNeedsForm(asset.id)) setSelectedFormId('');
+              }}
+              className={cn(
+                'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors',
+                createType === asset.id
+                  ? 'border-primary bg-primary/10 text-foreground'
+                  : 'border-border bg-muted/40 text-muted-foreground hover:bg-muted/70',
+              )}
+            >
+              <Icon className={cn('h-3.5 w-3.5', meta.color)} />
+              {asset.label}
+            </button>
+          );
+        })}
+      </div>
       <div className="flex flex-wrap items-center gap-2 pb-2">
         <Select
           value={activeProject?.id ?? ''}
@@ -274,28 +322,40 @@ export default function AIStudio() {
             ))}
           </SelectContent>
         </Select>
-        {(needsForm || isUpdatePrompt || !!activeFormId) && availableForms.length > 0 && (
-          <CopilotFormPicker
-            forms={availableForms}
-            onSelect={(formId) => {
-              setSelectedFormId(formId);
-              const form = availableForms.find((f) => f.id === formId);
-              setActiveFormId(formId, form?.name);
-            }}
-            selectedId={effectiveTargetFormId || undefined}
-            placeholder={isUpdatePrompt ? 'Form to update' : 'Source form (required)'}
-            className={cn('w-[220px]', formRequired && 'border-destructive text-destructive')}
-          />
+        {needsFormForType && (
+          availableForms.length > 0 ? (
+            <CopilotFormPicker
+              forms={availableForms}
+              onSelect={(formId) => {
+                setSelectedFormId(formId);
+                const form = availableForms.find((f) => f.id === formId);
+                setActiveFormId(formId, form?.name);
+              }}
+              selectedId={effectiveTargetFormId || undefined}
+              placeholder={
+                createType === 'workflow'
+                  ? 'Source form (required)'
+                  : createType === 'report'
+                    ? 'Report form (required)'
+                    : 'Linked form (required)'
+              }
+              className={cn('w-[220px]', formRequired && 'border-destructive text-destructive')}
+            />
+          ) : (
+            <span className="text-xs text-destructive">
+              No forms in this project yet — create a form first.
+            </span>
+          )
         )}
-        {activeFormLabel && (
-          <Badge variant="secondary" className="text-[10px] max-w-[180px] truncate" title={activeFormLabel}>
-            {isUpdatePrompt ? 'Editing' : 'Using'}: {activeFormLabel}
-          </Badge>
-        )}
-        {formMissing && (
-          <span className="text-xs text-destructive">
-            No forms in this project yet — create a form first.
+        {!needsFormForType && createType === 'form' && (
+          <span className="text-[11px] text-muted-foreground">
+            Project only — no source form needed
           </span>
+        )}
+        {activeFormLabel && needsFormForType && (
+          <Badge variant="secondary" className="text-[10px] max-w-[180px] truncate" title={activeFormLabel}>
+            Using: {activeFormLabel}
+          </Badge>
         )}
         {formRequired && (
           <span className="text-xs text-destructive">
@@ -314,7 +374,7 @@ export default function AIStudio() {
           }
         }}
         rows={hasConversation ? 2 : 3}
-        placeholder="Describe the form, workflow, report or doc you want to build…"
+        placeholder={activeCreateMeta.placeholder}
         className="resize-none border-0 bg-transparent shadow-none focus-visible:ring-0 text-base"
         disabled={isLoading}
       />
@@ -360,17 +420,35 @@ export default function AIStudio() {
             </p>
             <div className="mt-8">{composer}</div>
             <div className="mt-6 grid gap-2 sm:grid-cols-2">
-              {SUGGESTIONS.map((s) => (
-                <button
-                  key={s.label}
-                  type="button"
-                  onClick={() => submit(s.prompt)}
-                  className="flex items-start gap-3 rounded-xl border border-border/70 bg-card/60 p-3 text-left transition-colors hover:bg-muted/50"
-                >
-                  <s.icon className={cn('h-4 w-4 mt-0.5 shrink-0', s.color)} />
-                  <span className="text-sm text-muted-foreground line-clamp-2">{s.prompt}</span>
-                </button>
-              ))}
+              {SUGGESTIONS.map((s) => {
+                const meta = CREATE_TYPE_ICONS[s.type];
+                const Icon = meta.icon;
+                const label = COPILOT_CREATE_TYPES.find((t) => t.id === s.type)?.label || s.type;
+                return (
+                  <button
+                    key={s.type}
+                    type="button"
+                    onClick={() => {
+                      setCreateType(s.type);
+                      if (createTypeNeedsForm(s.type) && !(selectedFormId || activeFormId)) {
+                        setInput(s.prompt);
+                        return;
+                      }
+                      submit(s.prompt, s.type);
+                    }}
+                    className={cn(
+                      'flex items-start gap-3 rounded-xl border p-3 text-left transition-colors hover:bg-muted/50',
+                      createType === s.type ? 'border-primary bg-primary/5' : 'border-border/70 bg-card/60',
+                    )}
+                  >
+                    <Icon className={cn('h-4 w-4 mt-0.5 shrink-0', meta.color)} />
+                    <span className="min-w-0">
+                      <span className="block text-xs font-medium text-foreground mb-0.5">{label}</span>
+                      <span className="text-sm text-muted-foreground line-clamp-2">{s.prompt}</span>
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>
