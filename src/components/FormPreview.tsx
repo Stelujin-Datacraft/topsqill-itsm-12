@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { RuleProcessor, RuleProcessingContext } from '@/utils/ruleProcessor';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,8 @@ import { FormNavigationPanel } from './FormNavigationPanel';
 import { AIAutoFillInput } from './form-fields/AIAutoFillInput';
 import { Separator } from '@/components/ui/separator';
 import { validateFieldValue } from '@/utils/fieldValidation';
+import { LifecycleStatusBar } from './LifecycleStatusBar';
+import { getLifecycleFields } from '@/lib/lifecycleVisibility';
 
 interface FormPreviewProps {
   form: Form;
@@ -40,6 +42,11 @@ export function FormPreview({ form, showNavigation = false }: FormPreviewProps) 
     ? form.pages 
     : [{ id: 'default', name: 'Form', order: 0, fields: formFields.map(f => f.id) }];
   const currentPageIndex = Array.isArray(pages) ? pages.findIndex(p => p.id === currentPageId) : -1;
+
+  const lifecycleFields = useMemo(
+    () => getLifecycleFields(formFields, formData),
+    [formFields, formData],
+  );
 
   useEffect(() => {
     if (pages.length > 0 && !currentPageId) {
@@ -472,6 +479,26 @@ export function FormPreview({ form, showNavigation = false }: FormPreviewProps) 
                 <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-slate-200 dark:via-slate-700 to-transparent"></div>
               </div>
               
+              {/* Lifecycle / Status — read-only mirror of Status dropdown */}
+              {lifecycleFields.length > 0 && (
+                <div className="px-4 py-3 bg-white dark:bg-gray-950 border-b border-slate-100 dark:border-slate-800">
+                  <div className="max-w-5xl mx-auto space-y-3">
+                    {lifecycleFields.map((field) => (
+                      <LifecycleStatusBar
+                        key={field.id}
+                        field={field}
+                        value={formData[field.id] || field.defaultValue || ''}
+                        readOnly
+                        disabled
+                        isEditing={false}
+                        formId={form.id}
+                        hideHistoryButton
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Page Navigation Section */}
               {pages.length > 1 && (
               <div className="px-4 py-4 bg-white dark:bg-gray-950 border-b border-slate-100 dark:border-slate-800">
@@ -547,6 +574,26 @@ export function FormPreview({ form, showNavigation = false }: FormPreviewProps) 
           </div>
           <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-slate-200 dark:via-slate-700 to-transparent"></div>
         </div>
+
+        {/* Lifecycle / Status — read-only mirror of Status dropdown */}
+        {lifecycleFields.length > 0 && (
+          <div className="px-4 py-3 bg-white dark:bg-gray-950 border-b border-slate-100 dark:border-slate-800">
+            <div className="max-w-5xl mx-auto space-y-3">
+              {lifecycleFields.map((field) => (
+                <LifecycleStatusBar
+                  key={field.id}
+                  field={field}
+                  value={formData[field.id] || field.defaultValue || ''}
+                  readOnly
+                  disabled
+                  isEditing={false}
+                  formId={form.id}
+                  hideHistoryButton
+                />
+              ))}
+            </div>
+          </div>
+        )}
         
         {/* Page Navigation Section */}
         {pages.length > 1 && (
