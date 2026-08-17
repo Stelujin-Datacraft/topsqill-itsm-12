@@ -1,4 +1,5 @@
 import type { EntityType, ActionType } from '@/hooks/useUnifiedAccessControl';
+import { mapAndNormalizeAiWorkflowNodes } from '@/lib/normalizeAiWorkflowNodes';
 
 export interface CopilotToolCall {
   action: string;
@@ -347,36 +348,24 @@ export function mapSuggestedWorkflowNodes(
     label: string;
     config?: Record<string, unknown>;
     connections?: Array<{ to: string; condition?: string }>;
+    tempId?: string;
+    positionX?: number;
+    positionY?: number;
   }>,
+  options?: { triggerFormId?: string; triggerFormName?: string },
 ) {
-  const labelToTempId = new Map<string, string>();
-  const withIds = nodes.map((node, index) => {
-    const tempId = `node_${index}`;
-    labelToTempId.set(node.label.toLowerCase(), tempId);
-    const nodeType = node.type.toLowerCase() === 'trigger' ? 'start' : node.type;
-    return {
-      tempId,
-      type: nodeType,
+  return mapAndNormalizeAiWorkflowNodes(
+    (nodes || []).map((node) => ({
+      tempId: node.tempId,
+      type: node.type,
       label: node.label,
-      config: node.config || {},
-      positionX: nodeType === 'condition' ? 350 : 250,
-      positionY: 100 + index * 150,
+      config: (node.config || {}) as Record<string, any>,
+      positionX: node.positionX,
+      positionY: node.positionY,
       connections: node.connections || [],
-    };
-  });
-
-  return withIds.map((node) => ({
-    tempId: node.tempId,
-    type: node.type,
-    label: node.label,
-    config: node.config,
-    positionX: node.positionX,
-    positionY: node.positionY,
-    connections: node.connections.map((conn) => ({
-      to: labelToTempId.get(conn.to.toLowerCase()) || conn.to,
-      conditionType: conn.condition || undefined,
     })),
-  }));
+    options,
+  );
 }
 
 export interface NormalizeToolCallsOptions {

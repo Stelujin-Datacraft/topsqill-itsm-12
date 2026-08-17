@@ -18,6 +18,7 @@ import { useToast } from '@/hooks/use-toast';
 import { AIWorkflowSuggester } from '@/components/ai/AIWorkflowSuggester';
 import { backend as supabase } from '@/services/api';
 import { normalizeRelativeDateCondition } from '@/utils/conditionOperators';
+import { normalizeAiWorkflowNodeConfig } from '@/lib/normalizeAiWorkflowNodes';
 
 const WorkflowDesignerPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -367,8 +368,12 @@ const WorkflowDesignerPage = () => {
 
   // Normalize AI-generated config to match our expected structure
   const normalizeNodeConfig = (nodeType: string, aiConfig: Record<string, any>, triggerForm?: { id: string; name: string } | null): Record<string, any> => {
-    const config = { ...aiConfig };
-    
+    // Shared AI→designer normalization (start form, change_field_value, conditions)
+    let config = normalizeAiWorkflowNodeConfig(nodeType, aiConfig || {}, {
+      triggerFormId: triggerForm?.id,
+      triggerFormName: triggerForm?.name,
+    });
+
     switch (nodeType) {
       case 'start':
         // Ensure triggerType has a valid value
@@ -584,15 +589,18 @@ const WorkflowDesignerPage = () => {
       description?: string;
       config: Record<string, any>;
       connections?: Array<{ to: string; condition?: string }>;
+      tempId?: string;
     }>;
   }) => {
-    const timestamp = Date.now();
-    
    // Try to extract trigger form info from the first start node config if available
    const startNode = suggestion.nodes.find(n => n.type.toLowerCase() === 'start' || n.type.toLowerCase() === 'trigger');
-   const triggerFormInfo = startNode?.config?.triggerFormId ? {
-     id: startNode.config.triggerFormId,
-     name: startNode.config.triggerFormName || 'Trigger Form'
+   const startFormId = startNode?.config?.triggerFormId || startNode?.config?.formId;
+   const matchedAvailable = startFormId
+     ? availableForms.find((f) => f.id === startFormId)
+     : undefined;
+   const triggerFormInfo = startFormId ? {
+     id: startFormId,
+     name: startNode?.config?.triggerFormName || matchedAvailable?.name || 'Trigger Form'
    } : null;
    
     // Convert AI suggestions to workflow format with valid node types and normalized configs
@@ -618,17 +626,19 @@ const WorkflowDesignerPage = () => {
 
     // Build connections from node.connections with proper edge handling
     const newConnections: WorkflowConnection[] = [];
-    const connectionTimestamp = Date.now();
     
     suggestion.nodes.forEach((node, sourceIndex) => {
       const sourceNode = newNodes[sourceIndex];
       
       if (node.connections && node.connections.length > 0) {
-        node.connections.forEach((conn, connIndex) => {
-          // Find target by label (case-insensitive)
-          const targetIndex = suggestion.nodes.findIndex(n => 
-            n.label.toLowerCase() === conn.to.toLowerCase()
-          );
+        node.connections.forEach((conn) => {
+          // Resolve by label OR tempId (node_N) after AI remapping
+          const targetIndex = suggestion.nodes.findIndex((n, idx) => {
+            const to = String(conn.to || '').toLowerCase();
+            return n.label.toLowerCase() === to
+              || `node_${idx}` === to
+              || String((n as any).tempId || '').toLowerCase() === to;
+          });
           
           if (targetIndex !== -1) {
             const targetNode = newNodes[targetIndex];

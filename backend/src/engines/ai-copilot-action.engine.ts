@@ -265,6 +265,16 @@ export async function aiCopilotAction(
            .single();
  
          if (wfError) throw wfError;
+
+         let triggerFormName = params.triggerFormName || params.formName || '';
+         if (triggerFormId && !triggerFormName) {
+           const { data: formRow } = await supabase
+             .from('forms')
+             .select('id, name')
+             .eq('id', triggerFormId)
+             .maybeSingle();
+           if (formRow?.name) triggerFormName = formRow.name;
+         }
          
          // Create workflow trigger if form is specified
          if (triggerFormId) {
@@ -290,6 +300,12 @@ export async function aiCopilotAction(
          
          // Create nodes if provided
          if (Array.isArray(nodeDefinitions) && nodeDefinitions.length > 0) {
+           const { mapAndNormalizeAiWorkflowNodes } = await import('./normalizeAiWorkflowNodes');
+           nodeDefinitions = mapAndNormalizeAiWorkflowNodes(nodeDefinitions, {
+             triggerFormId,
+             triggerFormName,
+           });
+
            const nodeIdMap: Record<string, string> = {};
            const nodesToInsert = [];
            
@@ -312,7 +328,7 @@ export async function aiCopilotAction(
            
            await supabase.from('workflow_nodes').insert(nodesToInsert);
            
-           // Create connections between nodes
+           // Create connections between nodes (to is already remapped to tempId)
            const connectionsToInsert = [];
            for (let i = 0; i < nodeDefinitions.length; i++) {
              const nodeDef = nodeDefinitions[i];
@@ -323,14 +339,17 @@ export async function aiCopilotAction(
                const targetId = nodeIdMap[conn.to];
                
                 if (sourceId && targetId) {
+                  const condition = String(conn.conditionType || conn.condition || conn.sourceHandle || '').toLowerCase();
+                  const sourceHandle = condition === 'true' || condition === 'false'
+                    ? condition
+                    : (conn.sourceHandle || null);
                   connectionsToInsert.push({
                     workflow_id: workflow.id,
                     source_node_id: sourceId,
                     target_node_id: targetId,
-                    // Use null for default handles - React Flow nodes without explicit handle IDs use null
-                    source_handle: conn.sourceHandle || null,
+                    source_handle: sourceHandle,
                     target_handle: conn.targetHandle || null,
-                    condition_type: conn.conditionType || null
+                    condition_type: condition === 'true' || condition === 'false' ? condition : (conn.conditionType || null)
                   });
                }
              }
@@ -425,6 +444,12 @@ export async function aiCopilotAction(
           const createdTemplates: Array<{ nodeLabel: string; templateId: string; templateName: string }> = [];
           
           if (workflowNodes.length > 0) {
+            const { mapAndNormalizeAiWorkflowNodes } = await import('./normalizeAiWorkflowNodes');
+            workflowNodes = mapAndNormalizeAiWorkflowNodes(workflowNodes, {
+              triggerFormId: form.id,
+              triggerFormName: form.name,
+            });
+
             const nodeIdMap: Record<string, string> = {};
             const nodesToInsert = [];
             
@@ -511,14 +536,17 @@ export async function aiCopilotAction(
                 const targetId = nodeIdMap[conn.to];
                 
                 if (sourceId && targetId) {
+                  const condition = String(conn.conditionType || conn.condition || conn.sourceHandle || '').toLowerCase();
+                  const sourceHandle = condition === 'true' || condition === 'false'
+                    ? condition
+                    : (conn.sourceHandle || null);
                   connectionsToInsert.push({
                     workflow_id: workflow.id,
                     source_node_id: sourceId,
                     target_node_id: targetId,
-                    // Use null for default handles - React Flow nodes without explicit handle IDs use null
-                    source_handle: conn.sourceHandle || null,
+                    source_handle: sourceHandle,
                     target_handle: conn.targetHandle || null,
-                    condition_type: conn.conditionType || null
+                    condition_type: condition === 'true' || condition === 'false' ? condition : (conn.conditionType || null)
                   });
                 }
               }

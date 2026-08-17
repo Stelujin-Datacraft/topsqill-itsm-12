@@ -130,13 +130,15 @@ export const ActionNode = React.memo(function ActionNode({ data }: ActionNodePro
     }
     
     if (actionType === 'change_field_value') {
-      const field = config.targetFieldName || config.targetFieldId || 'field';
-      const form = config.targetFormName || 'form';
+      const field = config.targetFieldName || config.targetFieldId || config.fieldName || config.fieldId || 'field';
+      const form = config.targetFormName || config.formName || 'form';
       let value: string;
-      if (config.valueType === 'static') {
+      const valueType = config.valueType || (config.dynamicValuePath ? 'dynamic' : 'static');
+      if (valueType === 'static') {
+        const staticValue = config.staticValue ?? config.value;
         // Handle object values (like submission-access { users, groups })
-        if (config.staticValue && typeof config.staticValue === 'object') {
-          const val = config.staticValue;
+        if (staticValue && typeof staticValue === 'object') {
+          const val = staticValue;
           if (val.users || val.groups) {
             const parts = [];
             if (val.users?.length) parts.push(`${val.users.length} user(s)`);
@@ -146,10 +148,10 @@ export const ActionNode = React.memo(function ActionNode({ data }: ActionNodePro
             value = JSON.stringify(val);
           }
         } else {
-          value = String(config.staticValue || '');
+          value = String(staticValue ?? '');
         }
       } else {
-        value = `{${config.dynamicValuePath}}`;
+        value = `{${config.dynamicValuePath || 'value'}}`;
       }
       return `Update ${field} in ${form} to ${value}`;
     }
