@@ -4,6 +4,7 @@ import { backend as supabase } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProject } from '@/contexts/ProjectContext';
 import { Workflow, WorkflowNode, WorkflowConnection } from '@/types/workflow';
+import { normalizeAiWorkflowNodeConfig } from '@/lib/normalizeAiWorkflowNodes';
 
 export function useWorkflowData() {
   const { userProfile } = useAuth();
@@ -121,8 +122,8 @@ export function useWorkflowData() {
 
   const loadWorkflowNodes = useCallback(async (workflowId: string): Promise<{ nodes: WorkflowNode[], connections: WorkflowConnection[] }> => {
     try {
-      // Load nodes and connections in parallel for better performance
-      const [nodesResult, connectionsResult] = await Promise.all([
+      // Load nodes, connections, and trigger form in parallel for better performance
+      const [nodesResult, connectionsResult, triggerResult] = await Promise.all([
         supabase
           .from('workflow_nodes')
           .select('*')
@@ -130,27 +131,57 @@ export function useWorkflowData() {
         supabase
           .from('workflow_connections')
           .select('*')
-          .eq('workflow_id', workflowId)
+          .eq('workflow_id', workflowId),
+        supabase
+          .from('workflow_triggers')
+          .select('source_form_id')
+          .eq('target_workflow_id', workflowId)
+          .eq('is_active', true)
+          .order('created_at', { ascending: false })
+          .limit(1),
       ]);
 
       if (nodesResult.error) throw nodesResult.error;
       if (connectionsResult.error) throw connectionsResult.error;
+
+      const triggerFormId = triggerResult.data?.[0]?.source_form_id || undefined;
+      let triggerFormName: string | undefined;
+      if (triggerFormId) {
+        const { data: formRow } = await supabase
+          .from('forms')
+          .select('name')
+          .eq('id', triggerFormId)
+          .maybeSingle();
+        triggerFormName = formRow?.name || undefined;
+      }
 
       const nodes: WorkflowNode[] = (nodesResult.data || []).map(node => ({
         id: node.id,
         type: node.node_type as WorkflowNode['type'],
         label: node.label,
         position: { x: node.position_x, y: node.position_y },
-        data: { config: node.config }
+        data: {
+          config: normalizeAiWorkflowNodeConfig(
+            node.node_type,
+            (node.config || {}) as Record<string, any>,
+            { triggerFormId, triggerFormName },
+          ),
+        },
       }));
 
-      const connections: WorkflowConnection[] = (connectionsResult.data || []).map(conn => ({
-        id: conn.id,
-        source: conn.source_node_id,
-        target: conn.target_node_id,
-        sourceHandle: conn.source_handle,
-        targetHandle: conn.target_handle
-      }));
+      const connections: WorkflowConnection[] = (connectionsResult.data || []).map(conn => {
+        const condition = String(conn.condition_type || '').toLowerCase();
+        const sourceHandle = conn.source_handle
+          || ((condition === 'true' || condition === 'false') ? condition : undefined);
+        return {
+          id: conn.id,
+          source: conn.source_node_id,
+          target: conn.target_node_id,
+          sourceHandle,
+          targetHandle: conn.target_handle,
+          label: (condition === 'true' || condition === 'false') ? condition : undefined,
+        };
+      });
 
       return { nodes, connections };
     } catch (error) {

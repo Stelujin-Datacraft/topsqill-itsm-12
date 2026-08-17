@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Sparkles, Loader2, Check, GitBranch, ArrowRight, Lightbulb, Plus, X } from 'lucide-react';
 import { useFormAI } from '@/hooks/useFormAI';
 import { useConditionResolution } from '@/hooks/useConditionResolution';
+import { mapAndNormalizeAiWorkflowNodes } from '@/lib/normalizeAiWorkflowNodes';
 import { toast } from 'sonner';
 import {
   Dialog,
@@ -205,19 +206,42 @@ export function AIWorkflowSuggester({
     // Close suggester first so Field/Value dialogs are not nested under it
     setIsOpen(false);
 
+    const formId = triggerFormId || triggerForm?.id;
+    const formName = triggerForm?.name;
     let nodes = pending.nodes;
     try {
       const forms = selectedForms.length > 0 ? selectedForms : availableForms;
       const resolved = await resolveWorkflowConditionsInteractive({
         nodes,
         forms,
-        defaultFormId: triggerFormId || triggerForm?.id || forms[0]?.id,
+        defaultFormId: formId || forms[0]?.id,
       });
       nodes = resolved.nodes;
     } catch (e) {
       console.error('Condition resolution failed:', e);
       toast.error('Could not validate condition fields. Applying suggestion as-is.');
     }
+
+    // Stamp trigger form + remap connections/values into designer-compatible shapes
+    nodes = mapAndNormalizeAiWorkflowNodes(
+      nodes.map((n) => ({
+        type: n.type,
+        label: n.label,
+        description: n.description,
+        config: n.config,
+        connections: n.connections,
+      })),
+      { triggerFormId: formId, triggerFormName: formName },
+    ).map((n) => ({
+      type: n.type,
+      label: n.label,
+      description: n.description,
+      config: n.config || {},
+      connections: (n.connections || []).map((c) => ({
+        to: c.to,
+        condition: c.conditionType || c.condition,
+      })),
+    }));
 
     onApply({ ...pending, nodes });
     resetForm();

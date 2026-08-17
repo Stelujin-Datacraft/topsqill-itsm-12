@@ -353,12 +353,26 @@ export function useCopilotEngine() {
       try { nodes = JSON.parse(nodes); } catch { nodes = []; }
     }
     const nodeCount = Array.isArray(nodes) ? nodes.length : 0;
-    if (nodeCount >= 2) return params;
 
     const resolvedFormId = triggerFormId || params.triggerFormId || params.formId;
     const triggerForm = resolvedFormId
       ? formsWithFields.find((f) => f.id === resolvedFormId)
       : undefined;
+
+    const normalizeOpts = {
+      triggerFormId: resolvedFormId || undefined,
+      triggerFormName: triggerForm?.name || params.triggerFormName || params.formName || params.name,
+    };
+
+    // Always normalize existing AI nodes (start form, connections, action/condition values)
+    if (nodeCount >= 2) {
+      return {
+        ...params,
+        [nodesKey]: mapSuggestedWorkflowNodes(nodes, normalizeOpts),
+        triggerFormId: params.triggerFormId || resolvedFormId,
+        triggerFormName: params.triggerFormName || normalizeOpts.triggerFormName,
+      };
+    }
 
     const syntheticTrigger = action === 'create_form_with_workflow' && !triggerForm
       ? {
@@ -380,7 +394,10 @@ export function useCopilotEngine() {
         triggerForm: syntheticTrigger,
       });
       if (suggested?.nodes?.length) {
-        const mappedNodes = mapSuggestedWorkflowNodes(suggested.nodes);
+        const mappedNodes = mapSuggestedWorkflowNodes(suggested.nodes, {
+          triggerFormId: resolvedFormId || (syntheticTrigger?.id !== 'pending' ? syntheticTrigger?.id : undefined),
+          triggerFormName: normalizeOpts.triggerFormName || syntheticTrigger?.name,
+        });
         return {
           ...params,
           [nodesKey]: mappedNodes,
@@ -389,12 +406,22 @@ export function useCopilotEngine() {
           workflowName: params.workflowName || suggested.name,
           workflowDescription: params.workflowDescription || suggested.description,
           triggerFormId: params.triggerFormId || resolvedFormId,
+          triggerFormName: params.triggerFormName || normalizeOpts.triggerFormName,
         };
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : '';
       if (/rate limit|credits exhausted|429|402/i.test(msg)) throw e;
       console.error('Workflow enrichment failed, using original nodes:', e);
+    }
+
+    if (Array.isArray(nodes) && nodes.length > 0) {
+      return {
+        ...params,
+        [nodesKey]: mapSuggestedWorkflowNodes(nodes, normalizeOpts),
+        triggerFormId: params.triggerFormId || resolvedFormId,
+        triggerFormName: params.triggerFormName || normalizeOpts.triggerFormName,
+      };
     }
 
     return params;

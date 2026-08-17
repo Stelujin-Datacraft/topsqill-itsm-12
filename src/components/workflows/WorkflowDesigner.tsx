@@ -181,6 +181,7 @@ function WorkflowDesignerInner({ workflowId, projectId, initialNodes, initialCon
 
   // Use start node config first, fallback to DB
   const triggerFormId = startNodeTriggerFormId || triggerFormIdFromDB;
+  const hydratedStartFormRef = useRef<string | null>(null);
   
   // Debug logging for trigger form ID resolution
   useEffect(() => {
@@ -244,6 +245,57 @@ function WorkflowDesignerInner({ workflowId, projectId, initialNodes, initialCon
       }));
     });
   }, [setReactFlowNodes, setReactFlowEdges]);
+
+  // Hydrate Start node config from workflow_triggers when AI created the trigger
+  // row but omitted triggerFormId on the start node (keeps FormSelector populated).
+  useEffect(() => {
+    if (!triggerFormIdFromDB) return;
+    if (startNodeTriggerFormId) return;
+    if (hydratedStartFormRef.current === triggerFormIdFromDB) return;
+
+    const startNode = workflowNodes.find((n) => n.type === 'start');
+    if (!startNode) return;
+
+    let cancelled = false;
+    (async () => {
+      let formName = startNode.data?.config?.triggerFormName || '';
+      try {
+        const { data } = await supabase
+          .from('forms')
+          .select('name')
+          .eq('id', triggerFormIdFromDB)
+          .maybeSingle();
+        if (data?.name) formName = data.name;
+      } catch {
+        /* non-fatal */
+      }
+      if (cancelled) return;
+
+      hydratedStartFormRef.current = triggerFormIdFromDB;
+      setWorkflowNodes((prev) => {
+        const updatedNodes = prev.map((n) => {
+          if (n.type !== 'start') return n;
+          const config = {
+            ...(n.data?.config || {}),
+            triggerType: n.data?.config?.triggerType || 'form_submission',
+            triggerFormId: triggerFormIdFromDB,
+            triggerFormName: formName || n.data?.config?.triggerFormName,
+            formId: n.data?.config?.formId || triggerFormIdFromDB,
+          };
+          return {
+            ...n,
+            data: { ...n.data, config },
+          };
+        });
+        requestAnimationFrame(() => {
+          syncToReactFlow(updatedNodes, workflowConnectionsRef.current);
+        });
+        return updatedNodes;
+      });
+    })();
+
+    return () => { cancelled = true; };
+  }, [triggerFormIdFromDB, startNodeTriggerFormId, workflowNodes, syncToReactFlow]);
 
   // Track previous props to detect external changes (e.g., AI suggestions)
   const prevInitialNodesRef = useRef<string>('');
