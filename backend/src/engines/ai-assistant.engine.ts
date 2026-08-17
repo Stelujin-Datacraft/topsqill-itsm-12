@@ -1170,17 +1170,24 @@ CONDITION NODE config:
           "fieldId": "field_id",
           "fieldLabel": "Field Label",
           "fieldType": "text|select|radio|checkbox|toggle|number|date|...",
-          "operator": "==" | "!=" | ">" | "<" | "contains" | "not_contains",
-          "value": "comparison_value"
+          "operator": "==" | "!=" | ">" | "<" | "contains" | "not_contains" | "is_today" | "is_yesterday" | "after" | "before" | ...,
+          "value": "comparison_value_or_empty_for_relative_date_ops"
         }
       }
     ]
   }
 }
 Rules for CONDITION nodes:
-- Field → Operator → Value. Operators must match the field type.
-- Prefer exact fieldId/fieldLabel and option values from form metadata.
-- Never invent option values for select/radio/checkbox/toggle; use listed options only.
+- Field → Operator → Value. ALWAYS inspect the trigger form field list first: use each field's real "type" and, when present, its "options".
+- Operators MUST match the field type:
+  * date/datetime: use is_today / is_yesterday / is_tomorrow / after / before / on_or_after / on_or_before / between / last_n_days / next_n_days — NEVER put the literal string "today"/"yesterday" in value with operator "=="
+  * select/radio/checkbox/toggle/dropdown: operator "==" or "!=" and value MUST be one of the field's listed option values (use the option's value, not a guessed label)
+  * number/currency/rating/slider: numeric operators and numeric values only
+  * text/textarea/email: equals/contains/starts_with/ends_with with a string value
+- Prefer exact fieldId/fieldLabel and option values from form metadata. Do not invent fields or options.
+- For "today's date" / "is today" on a date field: set operator to "is_today" and value to "" (empty).
+- For "in the future" on a date field: set operator to "after" and value to today's ISO date (YYYY-MM-DD).
+- For "in the past" on a date field: set operator to "before" and value to today's ISO date (YYYY-MM-DD).
 
 WAIT NODE config:
 {
@@ -1226,7 +1233,9 @@ ${JSON.stringify(context.existingNodes, null, 2)}` : ''}
 
 IMPORTANT: 
 - Use the ACTUAL field IDs and form IDs from the forms provided above - DO NOT make up IDs
+- Analyze each form field's type before writing a condition: date → relative/date operators; option fields → only listed options; numbers → numeric ops; text → text ops. Do not guess values that are not valid for that type.
 - For condition nodes, reference actual field IDs, labels, and for select/radio/checkbox/toggle fields use ONLY the actual option values from the form metadata
+- For date fields requesting "today" / "today's date": use operator "is_today" with empty value — never operator "==" with value "today"
 - Do NOT invent field names or option values that are not listed above. Prefer existing fields/options. If a needed field or option is missing, still emit the intended fieldLabel/value using real formId so the UI can ask the user to create it
 - For send_notification actions, use {{field_label}} placeholders matching the actual field labels
 - For change_field_value, use actual field IDs from the correct form
