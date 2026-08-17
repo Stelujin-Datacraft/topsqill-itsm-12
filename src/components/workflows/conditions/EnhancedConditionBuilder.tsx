@@ -26,6 +26,7 @@ import { useOrganizationUsers } from '@/hooks/useOrganizationUsers';
 import { useGroups } from '@/hooks/useGroups';
 import { LogicalExpressionInput } from './LogicalExpressionInput';
 import { ExpressionEvaluator } from '@/utils/expressionEvaluator';
+import { getOperatorsForFieldType } from '@/utils/conditionOperators';
 
 // Phone country codes
 const PHONE_COUNTRY_CODES = [
@@ -615,95 +616,6 @@ const FormLevelConditionBuilder = React.memo(({ condition, forms, onChange }: Fo
     </div>
   );
 });
-
-// Helper function to get operators based on field type
-const getOperatorsForFieldType = (fieldType: string): Array<{ value: ComparisonOperator; label: string }> => {
-  const normalizedType = (fieldType || '').toLowerCase().replace(/[_\s]/g, '-');
-  
-  // Base operators available for all fields
-  const baseOperators: Array<{ value: ComparisonOperator; label: string }> = [
-    { value: '==', label: 'Equals' },
-    { value: '!=', label: 'Not Equals' },
-    { value: 'exists', label: 'Has Value' },
-    { value: 'not_exists', label: 'Is Empty' },
-  ];
-  
-  // Text operators for text-like fields
-  const textOperators: Array<{ value: ComparisonOperator; label: string }> = [
-    { value: 'contains', label: 'Contains' },
-    { value: 'not_contains', label: 'Does Not Contain' },
-    { value: 'starts_with', label: 'Starts With' },
-    { value: 'ends_with', label: 'Ends With' },
-  ];
-  
-  // Date/Time specific operators
-  const dateTimeOperators: Array<{ value: ComparisonOperator; label: string }> = [
-    { value: 'after', label: 'After' },
-    { value: 'before', label: 'Before' },
-    { value: 'on_or_after', label: 'On or After' },
-    { value: 'on_or_before', label: 'On or Before' },
-    { value: 'between', label: 'Between' },
-    { value: 'is_today', label: 'Is Today' },
-    { value: 'is_yesterday', label: 'Is Yesterday' },
-    { value: 'is_tomorrow', label: 'Is Tomorrow' },
-    { value: 'is_current_week', label: 'Is Current Week' },
-    { value: 'is_last_week', label: 'Is Last Week' },
-    { value: 'is_next_week', label: 'Is Next Week' },
-    { value: 'is_current_month', label: 'Is Current Month' },
-    { value: 'is_last_month', label: 'Is Last Month' },
-    { value: 'is_next_month', label: 'Is Next Month' },
-    { value: 'is_current_year', label: 'Is Current Year' },
-    { value: 'is_last_year', label: 'Is Last Year' },
-    { value: 'last_n_days', label: 'Last N Days' },
-    { value: 'next_n_days', label: 'Next N Days' },
-  ];
-  
-  // Time only operators (subset of dateTime)
-  const timeOnlyOperators: Array<{ value: ComparisonOperator; label: string }> = [
-    { value: 'after', label: 'After' },
-    { value: 'before', label: 'Before' },
-    { value: 'on_or_after', label: 'On or After' },
-    { value: 'on_or_before', label: 'On or Before' },
-    { value: 'between', label: 'Between' },
-  ];
-  
-  // Numeric operators
-  const numericOperators: Array<{ value: ComparisonOperator; label: string }> = [
-    { value: '>', label: 'Greater Than' },
-    { value: '<', label: 'Less Than' },
-    { value: '>=', label: 'Greater or Equal' },
-    { value: '<=', label: 'Less or Equal' },
-    { value: 'between', label: 'Between' },
-  ];
-  
-  // Date fields
-  if (normalizedType === 'date') {
-    return [...baseOperators, ...dateTimeOperators];
-  }
-  
-  // DateTime fields
-  if (normalizedType === 'datetime' || normalizedType === 'date-time' || normalizedType === 'datetime-local') {
-    return [...baseOperators, ...dateTimeOperators];
-  }
-  
-  // Time fields
-  if (normalizedType === 'time') {
-    return [...baseOperators, ...timeOnlyOperators];
-  }
-  
-  // Numeric fields
-  if (['number', 'currency', 'slider', 'range', 'rating', 'star-rating', 'starrating'].includes(normalizedType)) {
-    return [...baseOperators, ...numericOperators];
-  }
-  
-  // Text-like fields
-  if (['text', 'textarea', 'email', 'url', 'phone', 'phonenumber', 'phone-number'].includes(normalizedType)) {
-    return [...baseOperators, ...textOperators];
-  }
-  
-  // Default: base + text operators
-  return [...baseOperators, { value: 'contains', label: 'Contains' }, { value: 'not_contains', label: 'Does Not Contain' }];
-};
 
 // Check if operator requires no value input (relative date operators)
 const isNoValueOperator = (operator: ComparisonOperator): boolean => {

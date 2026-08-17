@@ -36,6 +36,7 @@ import {
   type AiFieldOp,
   type FormUpdatePlan,
 } from '@/lib/updateFormFromAiGeneration';
+import { useConditionResolution } from '@/hooks/useConditionResolution';
 import type { FieldRule, FormField } from '@/types/form';
 
 export interface CopilotMessage {
@@ -134,6 +135,10 @@ export function useCopilotEngine() {
     generateContent,
     isLoading,
   } = useFormAI();
+  const {
+    resolveWorkflowConditionsInteractive,
+    conditionResolutionDialogs,
+  } = useConditionResolution();
   const { currentProject, projects, setCurrentProject } = useProject();
   const { user } = useAuth();
   const location = useLocation();
@@ -394,6 +399,103 @@ export function useCopilotEngine() {
 
     return params;
   }, [formsWithFields, suggestWorkflow]);
+
+  /**
+   * Validate AI condition nodes against live form metadata.
+   * Missing fields/values prompt the user (Create / Choose Existing / Cancel) — never auto-create.
+   */
+  const confirmWorkflowConditionParams = useCallback(async (
+    params: Record<string, any>,
+    nodesKey: 'nodes' | 'workflowNodes' = 'nodes',
+  ) => {
+    let nodes = params[nodesKey];
+    if (typeof nodes === 'string') {
+      try { nodes = JSON.parse(nodes); } catch { nodes = []; }
+    }
+    if (!Array.isArray(nodes) || nodes.length === 0) return params;
+
+    const defaultFormId = params.triggerFormId || params.formId || activeFormIdRef.current || undefined;
+
+    // Prefer live DB metadata so post-create flows see newly inserted fields
+    let formsForResolve: FormWithFields[] = formsWithFields;
+    if (defaultFormId) {
+      try {
+        const { data: formRow } = await supabase
+          .from('forms')
+          .select('id, name, description, form_fields(id, label, field_type, options, required)')
+          .eq('id', defaultFormId)
+          .maybeSingle();
+        if (formRow) {
+          const fields = ((formRow as any).form_fields || []).map((field: any) => {
+            let parsedOptions: any[] = [];
+            if (field.options) {
+              try {
+                parsedOptions = typeof field.options === 'string' ? JSON.parse(field.options) : field.options;
+              } catch {
+                parsedOptions = [];
+              }
+            }
+            return {
+              id: field.id,
+              label: field.label,
+              type: field.field_type,
+              options: Array.isArray(parsedOptions) ? parsedOptions.map((o: any, idx: number) => ({
+                id: o.id || `opt-${idx}`,
+                value: o.value || o.label || '',
+                label: o.label || o.value || '',
+              })) : [],
+              required: field.required || false,
+            };
+          });
+          formsForResolve = [{
+            id: formRow.id,
+            name: formRow.name,
+            description: formRow.description || undefined,
+            fields,
+          }];
+        }
+      } catch (e) {
+        console.error('Failed to refresh form fields for condition resolution:', e);
+      }
+    }
+
+    if (formsForResolve.length === 0) {
+      formsForResolve = defaultFormId
+        ? [{
+            id: defaultFormId,
+            name: 'Form',
+            fields: (Array.isArray(params.fields) ? params.fields : []).map((f: any, idx: number) => ({
+              id: f.id || `field_${idx}`,
+              label: f.label,
+              type: f.type || 'text',
+              options: f.options,
+              required: Boolean(f.required),
+            })),
+          }]
+        : [];
+    }
+
+    if (formsForResolve.length === 0) return params;
+
+    try {
+      const resolved = await resolveWorkflowConditionsInteractive({
+        nodes,
+        forms: formsForResolve,
+        defaultFormId: defaultFormId || formsForResolve[0]?.id,
+        onMetadataChanged: async () => {
+          await loadContext();
+        },
+      });
+      return {
+        ...params,
+        [nodesKey]: resolved.nodes,
+        triggerFormId: params.triggerFormId || defaultFormId,
+      };
+    } catch (e) {
+      console.error('Condition resolution failed, continuing with original nodes:', e);
+      return params;
+    }
+  }, [formsWithFields, loadContext, resolveWorkflowConditionsInteractive]);
 
   const enrichReportParams = useCallback(async (
     action: string,
@@ -751,7 +853,7 @@ export function useCopilotEngine() {
 
         if (reuseExisting && existingForm) {
           rememberActiveForm(existingForm.id, existingForm.name);
-          const workflowParams = await enrichWorkflowParams(
+          let workflowParams = await enrichWorkflowParams(
             'create_workflow',
             {
               name: rawParams.workflowName || rawParams.name || `${existingForm.name} Workflow`,
@@ -762,6 +864,7 @@ export function useCopilotEngine() {
             prompt,
             existingForm.id,
           );
+          workflowParams = await confirmWorkflowConditionParams(workflowParams, 'nodes');
           const wfResult = await executeCopilotAction('create_workflow', workflowParams);
           const workflowId = (wfResult as { result?: { workflowId?: string } })?.result?.workflowId;
           if (workflowId) {
@@ -782,7 +885,7 @@ export function useCopilotEngine() {
             description: rawParams.formDescription || rawParams.description,
           });
           rememberActiveForm(created.formId, created.formName);
-          const workflowParams = await enrichWorkflowParams(
+          let workflowParams = await enrichWorkflowParams(
             'create_workflow',
             {
               name: rawParams.workflowName || `${created.formName} Workflow`,
@@ -793,6 +896,7 @@ export function useCopilotEngine() {
             prompt,
             created.formId,
           );
+          workflowParams = await confirmWorkflowConditionParams(workflowParams, 'nodes');
           const wfResult = await executeCopilotAction('create_workflow', workflowParams);
           const workflowId = (wfResult as { result?: { workflowId?: string } })?.result?.workflowId;
           if (workflowId) {
@@ -875,7 +979,7 @@ export function useCopilotEngine() {
           },
         };
       } else {
-        const params = await enrichActionParams(
+        let params = await enrichActionParams(
           action,
           {
             ...rawParams,
@@ -889,6 +993,9 @@ export function useCopilotEngine() {
           prompt,
           formIdForEnrichment || rawParams.triggerFormId || rawParams.formId,
         );
+        if (action === 'create_workflow' || action === 'update_workflow') {
+          params = await confirmWorkflowConditionParams(params, 'nodes');
+        }
         actionResult = await executeCopilotAction(action, params);
         const resultFormId = actionResult?.result?.formId as string | undefined;
         if (resultFormId && (FORM_CREATE_ACTIONS.has(action) || action === 'update_form')) {
@@ -945,7 +1052,7 @@ export function useCopilotEngine() {
       toast.error('Action failed', { description: detail });
       throw err;
     }
-  }, [activeProject, createClientFormFromPrompt, enrichActionParams, enrichWorkflowParams, executeCopilotAction, formsWithFields, generateContent, loadContext, rememberActiveForm, updateClientFormFromPrompt]);
+  }, [activeProject, confirmWorkflowConditionParams, createClientFormFromPrompt, enrichActionParams, enrichWorkflowParams, executeCopilotAction, formsWithFields, generateContent, loadContext, rememberActiveForm, updateClientFormFromPrompt]);
 
   const resolveFormParams = useCallback((
     action: string,
@@ -1290,6 +1397,7 @@ export function useCopilotEngine() {
     appendMessage,
     resolveFormChoice,
     reloadContext: loadContext,
+    conditionResolutionDialogs,
     hasConversation: messages.some((m) => m.id !== 'welcome'),
   };
 }
