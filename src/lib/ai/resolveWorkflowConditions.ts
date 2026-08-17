@@ -1,5 +1,6 @@
 import type { ComparisonOperator, FieldLevelCondition } from '@/types/conditions';
 import {
+  coerceOperatorForFieldType,
   getOperatorsForFieldType,
   isOptionBasedFieldType,
   normalizeConditionOperator,
@@ -132,6 +133,8 @@ function extractFieldLevelConditions(nodeConfig: any): Array<{ path: 'conditions
     enhanced.conditions.forEach((item: any, index: number) => {
       if (item?.fieldLevelCondition) {
         out.push({ path: 'conditions', index, flc: item.fieldLevelCondition });
+      } else if (item?.fieldId || item?.fieldLabel || item?.field) {
+        out.push({ path: 'conditions', index, flc: item });
       }
     });
   } else if (enhanced.fieldLevelCondition) {
@@ -250,14 +253,10 @@ export function resolveWorkflowConditions(
       }
 
       const operators = getOperatorsForFieldType(matched.type);
-      let operator = flc.operator;
-      if (!operators.some((o) => o.value === operator)) {
-        operator = operators[0]?.value || '==';
-      }
-
+      let operator = coerceOperatorForFieldType(matched.type, flc.operator);
       let value = flc.value;
 
-      // Date fields: map Equals+"today" → is_today (and similar relative phrases)
+      // Date fields: map Equals+"today" → is_today; ">" → after; DD/MM/YYYY → ISO
       const dateNormalized = normalizeRelativeDateCondition(matched.type, operator, value);
       operator = dateNormalized.operator;
       value = dateNormalized.value;

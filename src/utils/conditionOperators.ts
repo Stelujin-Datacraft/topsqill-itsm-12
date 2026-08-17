@@ -107,9 +107,28 @@ export function normalizeConditionOperator(raw: unknown): ComparisonOperator {
   const aliases: Record<string, ComparisonOperator> = {
     equals: '==',
     equal: '==',
+    eq: '==',
     is: '==',
     not_equals: '!=',
     not_equal: '!=',
+    ne: '!=',
+    '!==': '!=',
+    greater_than: '>',
+    // Common AI typo from "greate than"
+    greate_than: '>',
+    gt: '>',
+    less_than: '<',
+    lt: '<',
+    greater_than_or_equal: '>=',
+    greater_or_equal: '>=',
+    gte: '>=',
+    less_than_or_equal: '<=',
+    less_or_equal: '<=',
+    lte: '<=',
+    after: 'after',
+    before: 'before',
+    on_or_after: 'on_or_after',
+    on_or_before: 'on_or_before',
     startsWith: 'starts_with',
     starts_with: 'starts_with',
     endsWith: 'ends_with',
@@ -147,6 +166,96 @@ export function normalizeConditionOperator(raw: unknown): ComparisonOperator {
   return (aliases[normalized] || aliases[value] || value) as ComparisonOperator;
 }
 
+/**
+ * Date/datetime fields use after/before — not numeric >/<.
+ * Map AI "greater than" / ">" onto After so the Operator Select stays selected.
+ */
+export function coerceOperatorForFieldType(
+  fieldType: string | undefined,
+  operator: ComparisonOperator,
+): ComparisonOperator {
+  const op = normalizeConditionOperator(operator);
+  if (!isDateLikeFieldType(fieldType)) return op;
+
+  const dateNumericMap: Record<string, ComparisonOperator> = {
+    '>': 'after',
+    '>=': 'on_or_after',
+    '<': 'before',
+    '<=': 'on_or_before',
+  };
+  return dateNumericMap[op] || op;
+}
+
+function pad2(n: number): string {
+  return String(n).padStart(2, '0');
+}
+
+function expandShortYear(year: number): number {
+  if (year >= 1000) return year;
+  // 0–29 → 2000–2029, 30–99 → 1930–1999 (common DOB heuristic)
+  if (year < 0) return year;
+  if (year <= 29) return 2000 + year;
+  if (year < 100) return 1900 + year;
+  // 3-digit years like 206 → 2006
+  if (year < 1000) return 2000 + (year % 100);
+  return year;
+}
+
+/**
+ * Normalize AI/user date strings to YYYY-MM-DD for <input type="date">.
+ * Handles ISO, DD/MM/YYYY, MM/DD/YYYY (when unambiguous), and short years (e.g. 01/10/206 → 2006-10-01).
+ */
+export function normalizeConditionDateValue(value: unknown): string {
+  if (value === undefined || value === null) return '';
+  const raw = String(value).trim();
+  if (!raw) return '';
+
+  // Already ISO date or datetime
+  const iso = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+
+  // Slash or dash separated: D/M/Y or M/D/Y
+  const parts = raw.match(/^(\d{1,4})[\/\-.](\d{1,2})[\/\-.](\d{1,4})$/);
+  if (!parts) return raw;
+
+  let a = Number(parts[1]);
+  let b = Number(parts[2]);
+  let c = Number(parts[3]);
+  if (!Number.isFinite(a) || !Number.isFinite(b) || !Number.isFinite(c)) return raw;
+
+  let year: number;
+  let month: number;
+  let day: number;
+
+  // If first segment looks like a year (4 digits or 3-digit short year alone as last)
+  if (parts[1].length === 4) {
+    year = a;
+    month = b;
+    day = c;
+  } else if (parts[3].length >= 3 || parts[3].length === 2 || parts[3].length === 1) {
+    // D/M/Y or M/D/Y with year last
+    year = expandShortYear(c);
+    // Prefer DMY when day > 12; prefer MDY when first > 12; else assume DMY (common outside US)
+    if (a > 12 && b <= 12) {
+      day = a;
+      month = b;
+    } else if (b > 12 && a <= 12) {
+      month = a;
+      day = b;
+    } else {
+      // Ambiguous — prefer DMY for AI prompts like 01/10/206
+      day = a;
+      month = b;
+    }
+  } else {
+    return raw;
+  }
+
+  year = expandShortYear(year);
+  if (month < 1 || month > 12 || day < 1 || day > 31) return raw;
+  return `${year}-${pad2(month)}-${pad2(day)}`;
+}
+
 function todayIsoDate(): string {
   return new Date().toISOString().slice(0, 10);
 }
@@ -161,10 +270,10 @@ export function normalizeRelativeDateCondition(
   value: unknown,
 ): { operator: ComparisonOperator; value: unknown } {
   if (!isDateLikeFieldType(fieldType)) {
-    return { operator, value };
+    return { operator: normalizeConditionOperator(operator), value };
   }
 
-  let nextOperator = normalizeConditionOperator(operator);
+  let nextOperator = coerceOperatorForFieldType(fieldType, operator);
   const raw = String(value ?? '').trim().toLowerCase().replace(/[_-]+/g, ' ');
 
   // Operator itself may already be a relative keyword from the AI
@@ -239,5 +348,7 @@ export function normalizeRelativeDateCondition(
   const nextN = raw.match(/^next\s+(\d+)\s+days?$/);
   if (nextN) return { operator: 'next_n_days', value: nextN[1] };
 
-  return { operator: nextOperator, value };
+  // Concrete calendar dates → ISO so the date picker shows the value
+  const isoValue = normalizeConditionDateValue(value);
+  return { operator: nextOperator, value: isoValue };
 }
