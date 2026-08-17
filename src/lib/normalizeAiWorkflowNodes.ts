@@ -34,16 +34,60 @@ function normalizeChangeFieldValueConfig(
   triggerFormName?: string,
 ): Record<string, any> {
   const next = { ...config };
-  if ((next.actionType || '').toLowerCase() !== 'change_field_value') return next;
+
+  const rawAction = String(next.actionType || '').toLowerCase().replace(/[\s-]+/g, '_');
+  const actionAliases = new Set([
+    'change_field_value',
+    'change_field',
+    'set_field_value',
+    'set_field',
+    'update_field_value',
+    'update_field',
+    'update_field_values',
+    'set_value',
+  ]);
+  const hasFieldUpdateShape = (Array.isArray(next.fieldUpdates) && next.fieldUpdates.length > 0)
+    || !!next.targetFieldId
+    || !!next.fieldId
+    || (!!next.field && (next.value !== undefined || next.staticValue !== undefined || next.newValue !== undefined));
+
+  // Only normalize Change Field Value (aliases, explicit type, or untyped field-update shape)
+  if (actionAliases.has(rawAction)) {
+    next.actionType = 'change_field_value';
+  } else if (!rawAction && hasFieldUpdateShape) {
+    next.actionType = 'change_field_value';
+  } else if (rawAction !== 'change_field_value') {
+    return next;
+  } else {
+    next.actionType = 'change_field_value';
+  }
 
   const firstUpdate = Array.isArray(next.fieldUpdates) ? next.fieldUpdates[0] : undefined;
 
-  // AI often emits fieldId/value instead of targetFieldId/staticValue
+  // AI often emits fieldId/value/field/newValue instead of targetFieldId/staticValue
   if (!next.targetFieldId) {
-    next.targetFieldId = firstUpdate?.targetFieldId || firstUpdate?.fieldId || next.fieldId || '';
+    next.targetFieldId = firstUpdate?.targetFieldId
+      || firstUpdate?.fieldId
+      || next.fieldId
+      || next.field
+      || next.targetField
+      || '';
   }
   if (!next.targetFieldName) {
-    next.targetFieldName = firstUpdate?.targetFieldName || firstUpdate?.fieldName || next.fieldName || next.fieldLabel || next.targetFieldId || '';
+    next.targetFieldName = firstUpdate?.targetFieldName
+      || firstUpdate?.fieldName
+      || firstUpdate?.fieldLabel
+      || next.fieldName
+      || next.fieldLabel
+      || next.targetField
+      || next.targetFieldId
+      || '';
+  }
+  if (!next.targetFieldType) {
+    next.targetFieldType = firstUpdate?.targetFieldType
+      || firstUpdate?.fieldType
+      || next.fieldType
+      || undefined;
   }
   if (!next.targetFormId) {
     next.targetFormId = firstUpdate?.targetFormId || next.formId || triggerFormId || '';
@@ -52,48 +96,71 @@ function normalizeChangeFieldValueConfig(
     next.targetFormName = firstUpdate?.targetFormName || next.formName || triggerFormName || '';
   }
 
-  const rawValue = next.staticValue ?? firstUpdate?.staticValue ?? next.value ?? firstUpdate?.value;
-  const rawDynamic = next.dynamicValuePath ?? firstUpdate?.dynamicValuePath;
-  const inferredType = next.valueType || firstUpdate?.valueType
-    || (rawDynamic ? 'dynamic' : 'static');
+  const rawValue = next.staticValue
+    ?? firstUpdate?.staticValue
+    ?? next.value
+    ?? next.newValue
+    ?? next.setValue
+    ?? firstUpdate?.value
+    ?? firstUpdate?.newValue;
+  const rawDynamic = next.dynamicValuePath
+    ?? firstUpdate?.dynamicValuePath
+    ?? next.sourceFieldId
+    ?? firstUpdate?.sourceFieldId;
+
+  // Default is ALWAYS static unless an explicit dynamic source path is present
+  const explicitType = String(next.valueType || firstUpdate?.valueType || '').toLowerCase();
+  const inferredType: 'static' | 'dynamic' =
+    explicitType === 'dynamic' || (Boolean(rawDynamic) && explicitType !== 'static')
+      ? 'dynamic'
+      : 'static';
 
   next.valueType = inferredType;
   if (inferredType === 'static') {
-    next.staticValue = rawValue ?? '';
+    next.staticValue = rawValue !== undefined && rawValue !== null ? rawValue : '';
+    if (!rawDynamic) {
+      delete next.dynamicValuePath;
+    }
   } else if (rawDynamic) {
     next.dynamicValuePath = rawDynamic;
   }
 
+  const buildUpdate = (u?: any) => {
+    const valueType: 'static' | 'dynamic' = String(u?.valueType || next.valueType || 'static').toLowerCase() === 'dynamic'
+      ? 'dynamic'
+      : 'static';
+    const staticValue = valueType === 'static'
+      ? (u?.staticValue ?? u?.value ?? u?.newValue ?? next.staticValue ?? '')
+      : undefined;
+    return {
+      ...(u || {}),
+      targetFieldId: u?.targetFieldId || u?.fieldId || next.targetFieldId,
+      targetFieldName: u?.targetFieldName || u?.fieldName || u?.fieldLabel || next.targetFieldName,
+      targetFieldType: u?.targetFieldType || u?.fieldType || next.targetFieldType || next.fieldType,
+      targetFieldOptions: u?.targetFieldOptions || u?.fieldOptions || next.targetFieldOptions || next.fieldOptions,
+      valueType,
+      staticValue,
+      dynamicValuePath: valueType === 'dynamic'
+        ? (u?.dynamicValuePath || u?.sourceFieldId || next.dynamicValuePath)
+        : undefined,
+    };
+  };
+
   if (!Array.isArray(next.fieldUpdates) || next.fieldUpdates.length === 0) {
-    next.fieldUpdates = [{
-      targetFieldId: next.targetFieldId,
-      targetFieldName: next.targetFieldName,
-      targetFieldType: next.targetFieldType || next.fieldType,
-      targetFieldOptions: next.targetFieldOptions || next.fieldOptions,
-      valueType: next.valueType,
-      staticValue: next.valueType === 'static' ? next.staticValue : undefined,
-      dynamicValuePath: next.valueType === 'dynamic' ? next.dynamicValuePath : undefined,
-    }];
+    next.fieldUpdates = [buildUpdate()];
   } else {
-    next.fieldUpdates = next.fieldUpdates.map((u: any) => ({
-      ...u,
-      targetFieldId: u.targetFieldId || u.fieldId || next.targetFieldId,
-      targetFieldName: u.targetFieldName || u.fieldName || next.targetFieldName,
-      targetFieldType: u.targetFieldType || u.fieldType || next.targetFieldType || next.fieldType,
-      targetFieldOptions: u.targetFieldOptions || u.fieldOptions || next.targetFieldOptions,
-      valueType: u.valueType || next.valueType || 'static',
-      staticValue: u.staticValue ?? u.value ?? (u.valueType === 'dynamic' ? undefined : next.staticValue),
-      dynamicValuePath: u.dynamicValuePath ?? next.dynamicValuePath,
-    }));
+    next.fieldUpdates = next.fieldUpdates.map((u: any) => buildUpdate(u));
   }
 
-  // Mirror type onto top-level for legacy readers / UI migration
+  // Mirror first update onto top-level for legacy readers / UI migration
   const first = next.fieldUpdates[0];
-  if (first?.targetFieldType && !next.targetFieldType) {
-    next.targetFieldType = first.targetFieldType;
-  }
-  if (first?.targetFieldOptions && !next.targetFieldOptions) {
-    next.targetFieldOptions = first.targetFieldOptions;
+  if (first?.targetFieldId) next.targetFieldId = first.targetFieldId;
+  if (first?.targetFieldName) next.targetFieldName = first.targetFieldName;
+  if (first?.targetFieldType) next.targetFieldType = first.targetFieldType;
+  if (first?.targetFieldOptions) next.targetFieldOptions = first.targetFieldOptions;
+  next.valueType = first?.valueType || 'static';
+  if (next.valueType === 'static') {
+    next.staticValue = first?.staticValue ?? next.staticValue ?? '';
   }
 
   return next;

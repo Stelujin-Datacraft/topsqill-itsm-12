@@ -403,7 +403,7 @@ Your job for create_workflow:
    - number → > < >= <= ==
    - text → == / contains
 3. Emit Condition config as enhancedCondition with Field→Operator→Value filled for EVERY predicate (AND when user says and).
-4. Emit change_field_value with real targetFieldId + staticValue from options.
+4. When the user says set/change/update a field value → Action Type MUST be change_field_value with valueType "static" (default) and the concrete staticValue filled.
 5. Condition nodes need true/false connections.
 
 Condition node config shape:
@@ -427,7 +427,37 @@ Condition node config shape:
       }
     ]
   }
-}`;
+}
+
+## CRITICAL — Action Node Change Field Value (set / change / update):
+Words like "set", "change", "update" a field → actionType "change_field_value".
+DEFAULT valueType is "static" (put the literal/option value in staticValue). Only use "dynamic" when the user says to copy from another field.
+
+Required config shape (fill ALL of these from Available Forms):
+{
+  "actionType": "change_field_value",
+  "targetFormId": "<trigger form UUID>",
+  "targetFormName": "<form name>",
+  "targetFieldId": "<field UUID>",
+  "targetFieldName": "<exact field label>",
+  "targetFieldType": "<exact field type>",
+  "valueType": "static",
+  "staticValue": "<concrete value — for select/radio use the option's value>",
+  "fieldUpdates": [
+    {
+      "targetFieldId": "<field UUID>",
+      "targetFieldName": "<exact field label>",
+      "targetFieldType": "<exact field type>",
+      "valueType": "static",
+      "staticValue": "<same concrete value>"
+    }
+  ]
+}
+Rules:
+- Prefer static. "set Marital Status to Married" → valueType static, staticValue = real option value (e.g. "Married").
+- Never leave staticValue empty when the user named a value.
+- Include targetFieldType so the Action Node New Value input can render.
+- Do NOT use legacy keys alone (fieldId/value) — always emit targetFieldId + staticValue + fieldUpdates.`;
 
         // Define tools for structured output
         const copilotTools = [
@@ -478,7 +508,7 @@ Condition node config shape:
             type: "function",
             function: {
               name: "create_workflow",
-              description: "Create a workflow from a SHORT natural-language goal. Users will NOT spell out Field/Operator/Value — YOU look up the selected form's fields/options and fill enhancedCondition + change_field_value completely. Map dob→Date of Birth, > on dates→after, year-only 2006→2006-12-31 for after, male→real Gender option value, etc.",
+              description: "Create a workflow from a SHORT natural-language goal. Users will NOT spell out details — YOU look up the selected form's fields/options. For set/change/update field values use actionType change_field_value with valueType static (default) and concrete staticValue + targetFieldId/Name/Type + fieldUpdates[]. Map dob→Date of Birth, > on dates→after, year-only 2006→2006-12-31 for after, male→real Gender option value, etc.",
               parameters: {
                 type: "object",
                 properties: {
@@ -495,7 +525,7 @@ Condition node config shape:
                         label: { type: "string" },
                         config: {
                           type: "object",
-                          description: "For type=condition: { enhancedCondition: { systemType: 'field_level', logicalOperator: 'AND', conditions: [{ id, systemType: 'field_level', logicalOperatorWithNext: 'AND', fieldLevelCondition: { formId, fieldId, fieldLabel, fieldType, operator, value } }] } }. For type=action change_field_value: { actionType, targetFormId, targetFormName, targetFieldId, targetFieldName, valueType: 'static', staticValue, fieldUpdates }."
+                          description: "For type=condition: { enhancedCondition: { systemType: 'field_level', logicalOperator: 'AND', conditions: [{ id, systemType: 'field_level', logicalOperatorWithNext: 'AND', fieldLevelCondition: { formId, fieldId, fieldLabel, fieldType, operator, value } }] } }. For type=action change_field_value (set/change/update a field): { actionType: 'change_field_value', targetFormId, targetFormName, targetFieldId, targetFieldName, targetFieldType, valueType: 'static', staticValue, fieldUpdates: [{ targetFieldId, targetFieldName, targetFieldType, valueType: 'static', staticValue }] }. Default valueType is static."
                         },
                         connections: { type: "array", items: { type: "object", properties: { to: { type: "string" }, sourceHandle: { type: "string" }, conditionType: { type: "string" } }, required: ["to"] } }
                       },
@@ -1138,14 +1168,32 @@ For send_notification:
   }
 }
 
-For change_field_value:
+For change_field_value (use when user says set / change / update a field value):
 {
   "actionType": "change_field_value",
   "targetFormId": "form_id",
+  "targetFormName": "Form Name",
+  "targetFieldId": "field_uuid",
+  "targetFieldName": "Field Label",
+  "targetFieldType": "select|text|date|number|...",
+  "valueType": "static",
+  "staticValue": "concrete_value_or_option_value",
   "fieldUpdates": [
-    { "fieldId": "status_field", "value": "approved", "valueType": "static" }
+    {
+      "targetFieldId": "field_uuid",
+      "targetFieldName": "Field Label",
+      "targetFieldType": "select|text|date|number|...",
+      "valueType": "static",
+      "staticValue": "concrete_value_or_option_value"
+    }
   ]
 }
+Rules for change_field_value:
+- DEFAULT valueType is "static". Put the actual value in staticValue (for select/radio/checkbox/toggle use the option's value from form metadata).
+- Only use valueType "dynamic" when the user explicitly wants to copy from another field (then set dynamicValuePath to that field UUID).
+- Always include targetFieldType so the designer shows the New Value input.
+- Always include both top-level targetField*/staticValue AND fieldUpdates[] with the same data.
+- Never emit only legacy keys like fieldId/value without targetFieldId/staticValue.
 
 For create_record:
 {
@@ -1289,7 +1337,7 @@ IMPORTANT:
 - For date "greater than" / ">": use operator "after". Year-only "after 2006" → value "2006-12-31". Concrete dates → YYYY-MM-DD.
 - Do NOT invent field names or option values that are not listed above. Prefer existing fields/options. If a needed field or option is missing, still emit the intended fieldLabel/value using real formId so the UI can ask the user to create it
 - For send_notification actions, use {{field_label}} placeholders matching the actual field labels
-- For change_field_value, use actual field IDs from the correct form
+- For change_field_value (set/change/update field): use actionType "change_field_value", valueType "static" by default, real targetFieldId/targetFieldName/targetFieldType, and staticValue from form options/values. Also fill fieldUpdates[] the same way. Only use dynamic when copying from another field.
 - For create_record, map source fields to target fields using actual IDs from both forms
 - CROSS-REFERENCE ACTIONS: When fields have "crossRefConfig" property, they are cross-reference fields linked to other forms. USE these to suggest cross-ref actions:
   * create_linked_record: Use when the workflow should create new records in linked forms (use the crossRefConfig.targetFormId and the cross-ref field ID)
@@ -1299,7 +1347,7 @@ IMPORTANT:
 - Condition nodes MUST have both "true" and "false" connections
 - CRITICAL: Every node config MUST be COMPLETE with all required nested properties
 - For action nodes with send_notification: MUST include full notificationConfig with type, subject, message, and recipientConfig
-- For action nodes with change_field_value: MUST include targetFormId, targetFormName, targetFieldId, targetFieldName, staticValue/dynamicValuePath, and fieldUpdates array
+- For action nodes with change_field_value: MUST include targetFormId, targetFormName, targetFieldId, targetFieldName, targetFieldType, valueType "static" (default), staticValue, and fieldUpdates array with the same fields
 - Do NOT return empty or partial configs - users should see meaningful node descriptions
 
 Return a valid JSON object:
