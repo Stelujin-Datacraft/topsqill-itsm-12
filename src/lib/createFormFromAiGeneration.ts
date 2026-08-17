@@ -156,7 +156,7 @@ export async function createFormFromAiGeneration(
       description: generatedForm.description,
       organization_id: organizationId,
       project_id: projectId,
-      status: 'draft',
+      status: 'active',
       permissions: JSON.stringify({ view: [], submit: [], edit: [] }),
       created_by: userId,
       is_public: false,
