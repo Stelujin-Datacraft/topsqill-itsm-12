@@ -43,7 +43,7 @@
              description,
              project_id: projectId,
              created_by: userId,
-             status: 'draft',
+             status: 'active',
              organization_id: organizationId,
              pages: [{ id: 'default', name: 'Page 1', order: 0, fields: [] }],
            })
@@ -60,7 +60,7 @@
          );
 
          result = { formId: form.id, formName: form.name, pageCount, fieldCount };
-         message = `Created form "${name}" with ${pageCount} page(s) and ${fieldCount} field(s)!`;
+         message = `Created and published form "${name}" with ${pageCount} page(s) and ${fieldCount} field(s)!`;
          break;
        }
  
@@ -251,7 +251,7 @@
              project_id: projectId,
              created_by: userId,
              organization_id: organizationId,
-             status: 'draft'
+             status: 'active'
            })
            .select()
            .single();
@@ -260,6 +260,13 @@
          
          // Create workflow trigger if form is specified
          if (triggerFormId) {
+           // Ensure trigger form is published so submissions (and workflow enrollment) work
+           await supabase
+             .from('forms')
+             .update({ status: 'active' })
+             .eq('id', triggerFormId)
+             .eq('status', 'draft');
+
            await supabase
              .from('workflow_triggers')
              .insert({
@@ -327,7 +334,7 @@
          }
  
          result = { workflowId: workflow.id };
-         message = `Created workflow "${name}"!`;
+         message = `Created and activated workflow "${name}"!`;
          break;
        }
        
@@ -364,7 +371,7 @@
              description: formDescription,
              project_id: projectId,
              created_by: userId,
-             status: 'draft',
+             status: 'active',
              organization_id: organizationId
            })
            .select()
@@ -386,7 +393,7 @@
              project_id: projectId,
              created_by: userId,
              organization_id: organizationId,
-             status: 'draft'
+             status: 'active'
            })
            .select()
            .single();
@@ -565,7 +572,7 @@
           if (createdTemplates.length > 0) {
             templateInfo = ` with ${createdTemplates.length} email template(s): ${createdTemplates.map(t => t.templateName).join(', ')}`;
           }
-          message = `Created form "${formName}" with linked workflow "${workflow.name}"${templateInfo}!`;
+          message = `Created and published form "${formName}" with linked active workflow "${workflow.name}"${templateInfo}!`;
           break;
        }
  
@@ -591,7 +598,7 @@
              description: formDescription,
              project_id: projectId,
              created_by: userId,
-             status: 'draft',
+             status: 'active',
              organization_id: organizationId
            })
            .select()
@@ -762,7 +769,7 @@
            escalationChainId: finalEscalationChainId,
            escalationChainName: finalEscalationChainName
          };
-         message = `Created form "${formName}" with SLA tracking${finalSlaTemplateName ? ` using "${finalSlaTemplateName}" template` : ''}${finalEscalationChainName ? ` and "${finalEscalationChainName}" escalation chain` : ''}!`;
+         message = `Created and published form "${formName}" with SLA tracking${finalSlaTemplateName ? ` using "${finalSlaTemplateName}" template` : ''}${finalEscalationChainName ? ` and "${finalEscalationChainName}" escalation chain` : ''}!`;
          break;
        }
  
@@ -788,7 +795,7 @@
              description: formDescription,
              project_id: projectId,
              created_by: userId,
-             status: 'draft',
+             status: 'active',
              organization_id: organizationId
            })
            .select()
@@ -875,7 +882,7 @@
            emailTemplateId: finalTemplateId,
            emailTemplateName: finalTemplateName
          };
-         message = `Created form "${formName}"${finalTemplateName ? ` with email template "${finalTemplateName}"` : ''}!`;
+         message = `Created and published form "${formName}"${finalTemplateName ? ` with email template "${finalTemplateName}"` : ''}!`;
          break;
        }
  

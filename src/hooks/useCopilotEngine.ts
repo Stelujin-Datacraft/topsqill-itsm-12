@@ -794,7 +794,7 @@ export function useCopilotEngine() {
         });
         rememberActiveForm(created.formId, created.formName);
         actionResult = {
-          message: `Created form "${created.formName}" with ${created.pageCount} page(s) and ${created.fieldCount} field(s)! Further field changes in this chat will update this form.`,
+          message: `Created and published form "${created.formName}" with ${created.pageCount} page(s) and ${created.fieldCount} field(s)! Further field changes in this chat will update this form.`,
           result: {
             formId: created.formId,
             formName: created.formName,
@@ -904,7 +904,7 @@ export function useCopilotEngine() {
             activeWorkflowIdRef.current = workflowId;
           }
           actionResult = {
-            message: `Created form "${created.formName}" and workflow! Further field changes in this chat will update this form.`,
+            message: `Created and published form "${created.formName}" with an active workflow! Further field changes in this chat will update this form.`,
             result: {
               formId: created.formId,
               formName: created.formName,
