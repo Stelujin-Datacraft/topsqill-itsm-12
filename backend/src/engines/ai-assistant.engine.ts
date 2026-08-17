@@ -381,12 +381,47 @@ ${JSON.stringify(context.availableReports || [], null, 2)}
 ## Rules:
 - When the user asks to CREATE something, use the appropriate tool
 - When creating workflows, ALWAYS reference real form IDs and field labels from the context above
-- For workflow conditions, use actual field IDs and values from the form's field options
 - For email templates, generate COMPLETE professional content - never use placeholders like "content here"
 - When linking forms to workflows, use the real form ID from the context
 - Be concise and helpful. Use markdown for formatting.
 - If user asks "how" to do something, explain without executing
-- If user says "create/make/set up", execute the action via tools`;
+- If user says "create/make/set up", execute the action via tools
+
+## CRITICAL — create_workflow CONDITION nodes (Field → Operator → Value):
+Condition node config MUST use this exact shape (never a free-text condition string):
+{
+  "enhancedCondition": {
+    "systemType": "field_level",
+    "logicalOperator": "AND",
+    "conditions": [
+      {
+        "id": "cond_1",
+        "systemType": "field_level",
+        "logicalOperatorWithNext": "AND",
+        "fieldLevelCondition": {
+          "id": "flc_1",
+          "formId": "<trigger form UUID>",
+          "fieldId": "<exact field UUID from Available Forms>",
+          "fieldLabel": "<exact field label>",
+          "fieldType": "<exact field type>",
+          "operator": "<operator for that type>",
+          "value": "<comparison value>"
+        }
+      }
+    ]
+  }
+}
+Rules:
+- ALWAYS look up fields in Available Forms first. Copy real fieldId, fieldLabel, fieldType, and option values — do not invent them.
+- Multiple predicates joined by "and"/"if both" → multiple entries in conditions[] with logicalOperatorWithNext "AND".
+- Operators by field type:
+  * date/datetime: after | before | on_or_after | on_or_before | is_today | ... — NEVER use ">" / "greater_than" on dates; "greater than" a date → operator "after". Date values MUST be ISO YYYY-MM-DD (e.g. 2006-10-01). Never leave incomplete years like 206.
+  * select/radio/checkbox/toggle/dropdown: operator "==" or "!=" and value MUST be an option's value from that field's options list (match case; "male" → use the listed option value e.g. "Male" or "male").
+  * number: ">" "<" ">=" "<=" "=="
+  * text: "==" | contains | starts_with | ends_with
+- change_field_value action config MUST include targetFormId, targetFormName, targetFieldId, targetFieldName, valueType "static", staticValue (use real option value for select fields), and fieldUpdates[].
+- Condition nodes MUST have two connections: conditionType/sourceHandle "true" and "false".
+- Prefer exact labels from the selected/trigger form the user chose.`;
 
         // Define tools for structured output
         const copilotTools = [
@@ -437,7 +472,7 @@ ${JSON.stringify(context.availableReports || [], null, 2)}
             type: "function",
             function: {
               name: "create_workflow",
-              description: "Create a workflow with nodes triggered by a form submission. You MUST provide triggerFormId from available forms and include at least start, action/condition, and end nodes.",
+              description: "Create a workflow with nodes triggered by a form submission. You MUST provide triggerFormId from available forms and include at least start, condition/action, and end nodes. For condition nodes, config.enhancedCondition.conditions[].fieldLevelCondition MUST set formId, fieldId (UUID), fieldLabel, fieldType, operator, and value from the form's real fields/options. Date 'greater than' → operator after + ISO YYYY-MM-DD value. Option fields → exact option value. Multiple AND predicates → multiple conditions with logicalOperatorWithNext AND. For change_field_value actions include targetFieldId, targetFieldName, staticValue, fieldUpdates.",
               parameters: {
                 type: "object",
                 properties: {
@@ -452,7 +487,10 @@ ${JSON.stringify(context.availableReports || [], null, 2)}
                         tempId: { type: "string" },
                         type: { type: "string", enum: ["start", "action", "condition", "wait", "end"] },
                         label: { type: "string" },
-                        config: { type: "object" },
+                        config: {
+                          type: "object",
+                          description: "For type=condition: { enhancedCondition: { systemType: 'field_level', logicalOperator: 'AND', conditions: [{ id, systemType: 'field_level', logicalOperatorWithNext: 'AND', fieldLevelCondition: { formId, fieldId, fieldLabel, fieldType, operator, value } }] } }. For type=action change_field_value: { actionType, targetFormId, targetFormName, targetFieldId, targetFieldName, valueType: 'static', staticValue, fieldUpdates }."
+                        },
                         connections: { type: "array", items: { type: "object", properties: { to: { type: "string" }, sourceHandle: { type: "string" }, conditionType: { type: "string" } }, required: ["to"] } }
                       },
                       required: ["tempId", "type", "label", "config"]
@@ -1183,14 +1221,16 @@ CONDITION NODE config:
 Rules for CONDITION nodes:
 - Field → Operator → Value. ALWAYS inspect the trigger form field list first: use each field's real "type" and, when present, its "options".
 - Operators MUST match the field type:
-  * date/datetime: use is_today / is_yesterday / is_tomorrow / after / before / on_or_after / on_or_before / between / last_n_days / next_n_days — NEVER put the literal string "today"/"yesterday" in value with operator "=="
+  * date/datetime: use is_today / is_yesterday / is_tomorrow / after / before / on_or_after / on_or_before / between / last_n_days / next_n_days — NEVER put the literal string "today"/"yesterday" in value with operator "==". NEVER use numeric ">" / "greater_than" on dates — map "greater than" / "after" to operator "after" with ISO YYYY-MM-DD value.
   * select/radio/checkbox/toggle/dropdown: operator "==" or "!=" and value MUST be one of the field's listed option values (use the option's value, not a guessed label)
   * number/currency/rating/slider: numeric operators and numeric values only
   * text/textarea/email: equals/contains/starts_with/ends_with with a string value
 - Prefer exact fieldId/fieldLabel and option values from form metadata. Do not invent fields or options.
+- Multiple conditions joined by AND/OR: emit multiple entries in enhancedCondition.conditions with logicalOperatorWithNext set accordingly (default AND).
 - For "today's date" / "is today" on a date field: set operator to "is_today" and value to "" (empty).
 - For "in the future" on a date field: set operator to "after" and value to today's ISO date (YYYY-MM-DD).
 - For "in the past" on a date field: set operator to "before" and value to today's ISO date (YYYY-MM-DD).
+- Concrete dates in prompts (e.g. 01/10/2006): always store value as YYYY-MM-DD.
 
 WAIT NODE config:
 {

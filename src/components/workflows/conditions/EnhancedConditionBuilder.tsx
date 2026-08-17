@@ -26,7 +26,13 @@ import { useOrganizationUsers } from '@/hooks/useOrganizationUsers';
 import { useGroups } from '@/hooks/useGroups';
 import { LogicalExpressionInput } from './LogicalExpressionInput';
 import { ExpressionEvaluator } from '@/utils/expressionEvaluator';
-import { getOperatorsForFieldType, isNoValueConditionOperator, normalizeRelativeDateCondition, normalizeConditionOperator } from '@/utils/conditionOperators';
+import {
+  coerceOperatorForFieldType,
+  getOperatorsForFieldType,
+  isNoValueConditionOperator,
+  normalizeConditionOperator,
+  normalizeRelativeDateCondition,
+} from '@/utils/conditionOperators';
 import { bindConditionToFormFields } from '@/lib/bindConditionToFormFields';
 
 // Phone country codes
@@ -1355,7 +1361,29 @@ const FieldLevelConditionBuilder = React.memo(({ condition, forms, triggerFormId
   }, [triggerFormId, overrideForm]);
 
   const conditionFieldLabel = (condition as any)?.fieldLabel as string | undefined;
-  const [selectedField, setSelectedField] = useState(condition?.fieldId || '');
+  // Keep AI-requested label/id so bind still works even if an early onChange drops fieldLabel
+  const aiDraftRef = React.useRef({
+    fieldId: condition?.fieldId || '',
+    fieldLabel: conditionFieldLabel || '',
+    fieldType: condition?.fieldType || '',
+    operator: condition?.operator || '',
+    value: condition?.value,
+  });
+  if (condition?.fieldId || conditionFieldLabel) {
+    aiDraftRef.current = {
+      fieldId: condition?.fieldId || aiDraftRef.current.fieldId,
+      fieldLabel: conditionFieldLabel || aiDraftRef.current.fieldLabel,
+      fieldType: condition?.fieldType || aiDraftRef.current.fieldType,
+      operator: condition?.operator || aiDraftRef.current.operator,
+      value: condition?.value !== undefined ? condition.value : aiDraftRef.current.value,
+    };
+  }
+
+  // Only seed Select with a real UUID — label-like AI ids show blank until bind
+  const seedLooksLikeId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+    String(condition?.fieldId || ''),
+  );
+  const [selectedField, setSelectedField] = useState(seedLooksLikeId ? (condition?.fieldId || '') : '');
   const initialBound = bindConditionToFormFields(
     {
       formId: condition?.formId,
@@ -1368,7 +1396,9 @@ const FieldLevelConditionBuilder = React.memo(({ condition, forms, triggerFormId
     [],
     initialForm,
   );
-  const [operator, setOperator] = useState<ComparisonOperator>(initialBound.operator);
+  const [operator, setOperator] = useState<ComparisonOperator>(
+    coerceOperatorForFieldType(condition?.fieldType, initialBound.operator),
+  );
   const [value, setValue] = useState(String(initialBound.value ?? ''));
   const fieldBindDoneRef = React.useRef(false);
 
@@ -1398,15 +1428,16 @@ const FieldLevelConditionBuilder = React.memo(({ condition, forms, triggerFormId
     if (loading || fields.length === 0) return;
     if (fieldBindDoneRef.current && fields.some((f) => f.id === selectedField)) return;
 
+    const draft = aiDraftRef.current;
     const bound = bindConditionToFormFields(
       {
         formId: selectedForm || condition?.formId,
         // Prefer original AI condition values so we can resolve label → UUID
-        fieldId: condition?.fieldId || selectedField,
-        fieldLabel: conditionFieldLabel || (condition as any)?.fieldLabel || condition?.fieldId,
-        fieldType: condition?.fieldType,
-        operator: condition?.operator || operator,
-        value: condition?.value ?? value,
+        fieldId: draft.fieldId || condition?.fieldId || selectedField,
+        fieldLabel: draft.fieldLabel || conditionFieldLabel || condition?.fieldId,
+        fieldType: draft.fieldType || condition?.fieldType,
+        operator: (draft.operator as ComparisonOperator) || condition?.operator || operator,
+        value: draft.value ?? condition?.value ?? value,
       },
       fields.map((f: any) => ({
         id: f.id,
@@ -1434,16 +1465,35 @@ const FieldLevelConditionBuilder = React.memo(({ condition, forms, triggerFormId
   }, [loading, fields, selectedForm, triggerFormId, condition?.fieldId, condition?.operator, condition?.value, conditionFieldLabel]);
 
   React.useEffect(() => {
-    // Avoid wiping AI draft values before fields finish loading
+    // Avoid wiping AI draft values before fields finish loading / before bind
     if (loading) return;
+    if (fields.length > 0 && selectedField && !fields.some((f) => f.id === selectedField)) {
+      return;
+    }
+    // Still waiting for AI bind when we have a draft label but no selected field yet
+    if (
+      fields.length > 0
+      && !selectedField
+      && (aiDraftRef.current.fieldLabel || aiDraftRef.current.fieldId)
+      && !fieldBindDoneRef.current
+    ) {
+      return;
+    }
     const timeoutId = setTimeout(() => {
       const selectedFieldData = fields.find(f => f.id === selectedField);
+      const preservedLabel = selectedFieldData?.label
+        || conditionFieldLabel
+        || aiDraftRef.current.fieldLabel
+        || undefined;
       const updatedCondition: FieldLevelCondition = {
         id: condition?.id || `field-level-${Date.now()}`,
         formId: selectedForm,
         fieldId: selectedField,
-        fieldType: selectedFieldData?.type || condition?.fieldType || 'text',
-        operator: normalizeConditionOperator(operator),
+        fieldType: selectedFieldData?.type || condition?.fieldType || aiDraftRef.current.fieldType || 'text',
+        operator: coerceOperatorForFieldType(
+          selectedFieldData?.type || condition?.fieldType,
+          normalizeConditionOperator(operator),
+        ),
         value,
         source,
         crossRefFieldId: source === 'linkedRecords' ? crossRefFieldId : undefined,
@@ -1454,12 +1504,12 @@ const FieldLevelConditionBuilder = React.memo(({ condition, forms, triggerFormId
         linkedFormName: source === 'linkedRecords' ? linkedFormName : undefined,
         quantifier: source === 'linkedRecords' ? quantifier : undefined,
         quantifierCount: source === 'linkedRecords' && quantifier === 'COUNT_GTE' ? quantifierCount : undefined,
-        ...(selectedFieldData?.label ? { fieldLabel: selectedFieldData.label } as any : {}),
+        ...(preservedLabel ? { fieldLabel: preservedLabel } as any : {}),
       };
       onChangeRef.current(updatedCondition);
     }, 300);
     return () => clearTimeout(timeoutId);
-  }, [selectedForm, selectedField, operator, value, fields, loading, condition?.id, source, crossRefFieldId, linkedFormId, linkedFormName, quantifier, quantifierCount, crossRefFields]);
+  }, [selectedForm, selectedField, operator, value, fields, loading, condition?.id, source, crossRefFieldId, linkedFormId, linkedFormName, quantifier, quantifierCount, crossRefFields, conditionFieldLabel]);
 
   const selectedFieldData = useMemo(() => {
     return fields.find(f => f.id === selectedField);
@@ -1474,11 +1524,16 @@ const FieldLevelConditionBuilder = React.memo(({ condition, forms, triggerFormId
   React.useEffect(() => {
     if (selectedFieldData) {
       const validOperators = getOperatorsForFieldType(selectedFieldData.type || 'text');
-      // Fix AI leftovers like Equals + "today" once the real field type is known
+      // Fix AI leftovers like Equals + "today" / ">" on dates once the real field type is known
       const dateNorm = normalizeRelativeDateCondition(selectedFieldData.type, operator, value);
       if (dateNorm.operator !== operator || String(dateNorm.value ?? '') !== String(value ?? '')) {
         setOperator(dateNorm.operator);
         setValue(String(dateNorm.value ?? ''));
+        return;
+      }
+      const coerced = coerceOperatorForFieldType(selectedFieldData.type, operator);
+      if (coerced !== operator && validOperators.some(op => op.value === coerced)) {
+        setOperator(coerced);
         return;
       }
       const isOperatorValid = validOperators.some(op => op.value === operator);
@@ -1702,7 +1757,7 @@ const FieldLevelConditionBuilder = React.memo(({ condition, forms, triggerFormId
           {source === 'linkedRecords' ? `Field (on ${linkedFormName || 'linked form'})` : 'Field'}
         </Label>
         <Select
-          value={selectedField}
+          value={fields.some((f) => f.id === selectedField) ? selectedField : undefined}
           onValueChange={(v) => {
             fieldBindDoneRef.current = true;
             setSelectedField(v);
@@ -1725,7 +1780,10 @@ const FieldLevelConditionBuilder = React.memo(({ condition, forms, triggerFormId
 
       <div>
         <Label className="text-xs text-muted-foreground mb-1 block">Operator</Label>
-        <Select value={operator} onValueChange={(v) => { setOperator(v as ComparisonOperator); if (isNoValueOperator(v as ComparisonOperator)) setValue(''); }}>
+        <Select
+          value={availableOperators.some((op) => op.value === operator) ? operator : undefined}
+          onValueChange={(v) => { setOperator(v as ComparisonOperator); if (isNoValueOperator(v as ComparisonOperator)) setValue(''); }}
+        >
           <SelectTrigger className="h-8 text-xs">
             <SelectValue />
           </SelectTrigger>

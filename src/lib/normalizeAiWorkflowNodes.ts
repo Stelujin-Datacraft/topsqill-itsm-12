@@ -97,7 +97,7 @@ function normalizeConditionConfig(
     const flc = { ...(raw || {}) };
     flc.formId = flc.formId || formId;
     flc.fieldId = flc.fieldId || flc.field || '';
-    flc.fieldLabel = flc.fieldLabel || flc.fieldName || flc.field || '';
+    flc.fieldLabel = flc.fieldLabel || flc.fieldName || flc.field || flc.fieldId || '';
     flc.fieldType = flc.fieldType || 'text';
     const operator = normalizeConditionOperator(flc.operator || '==');
     const dateNorm = normalizeRelativeDateCondition(
@@ -111,28 +111,27 @@ function normalizeConditionConfig(
     return flc;
   };
 
-  if (next.enhancedCondition?.conditions?.length) {
+  const wrapConditionItems = (items: any[], logicalOp?: string) => {
+    const conditions = items.map((item: any, idx: number) => {
+      const flcSource = item?.fieldLevelCondition || item;
+      const flc = ensureFlc(flcSource);
+      return {
+        id: item?.id || `cond_${idx}`,
+        systemType: 'field_level',
+        fieldLevelCondition: flc,
+        // Default AND when AI emits multiple conditions without an explicit combiner
+        ...(idx < items.length - 1
+          ? { logicalOperatorWithNext: item?.logicalOperatorWithNext || logicalOp || 'AND' }
+          : {}),
+      };
+    });
+    const first = conditions[0]?.fieldLevelCondition;
     next.enhancedCondition = {
-      ...next.enhancedCondition,
-      systemType: next.enhancedCondition.systemType || 'field_level',
-      conditions: next.enhancedCondition.conditions.map((item: any, idx: number) => {
-        if (item?.fieldLevelCondition) {
-          return {
-            ...item,
-            id: item.id || `cond_${idx}`,
-            systemType: 'field_level',
-            fieldLevelCondition: ensureFlc(item.fieldLevelCondition),
-          };
-        }
-        // Flat condition item
-        return {
-          id: item?.id || `cond_${idx}`,
-          systemType: 'field_level',
-          fieldLevelCondition: ensureFlc(item),
-        };
-      }),
+      systemType: 'field_level',
+      logicalOperator: logicalOp || next.enhancedCondition?.logicalOperator || 'AND',
+      fieldLevelCondition: first,
+      conditions,
     };
-    const first = next.enhancedCondition.conditions[0]?.fieldLevelCondition;
     if (first) {
       next.formId = first.formId;
       next.fieldId = first.fieldId;
@@ -142,54 +141,37 @@ function normalizeConditionConfig(
       next.value = first.value;
     }
     return next;
+  };
+
+  if (next.enhancedCondition?.conditions?.length) {
+    return wrapConditionItems(
+      next.enhancedCondition.conditions,
+      next.enhancedCondition.logicalOperator,
+    );
   }
 
   if (next.enhancedCondition?.fieldLevelCondition) {
-    const flc = ensureFlc(next.enhancedCondition.fieldLevelCondition);
-    next.enhancedCondition = {
-      systemType: 'field_level',
-      fieldLevelCondition: flc,
-      conditions: [{
-        id: `cond_0_${Date.now()}`,
-        systemType: 'field_level',
-        fieldLevelCondition: flc,
-      }],
-    };
-    next.formId = flc.formId;
-    next.fieldId = flc.fieldId;
-    next.fieldLabel = flc.fieldLabel;
-    next.fieldType = flc.fieldType;
-    next.operator = flc.operator;
-    next.value = flc.value;
-    return next;
+    return wrapConditionItems([next.enhancedCondition.fieldLevelCondition]);
+  }
+
+  // AI often emits top-level conditions/rules without enhancedCondition wrapper
+  const looseArray = next.conditions || next.rules || next.filters;
+  if (Array.isArray(looseArray) && looseArray.length > 0) {
+    return wrapConditionItems(looseArray, next.logicalOperator || 'AND');
   }
 
   // Simple / flat AI condition shapes
-  const simple = next.condition || (next.fieldId || next.fieldLabel || next.field ? next : null);
+  const simple = (typeof next.condition === 'object' && next.condition)
+    || (next.fieldId || next.fieldLabel || next.field ? next : null);
   if (simple) {
-    const flc = ensureFlc({
+    return wrapConditionItems([{
       formId: simple.formId || formId,
       fieldId: simple.fieldId || simple.field,
       fieldLabel: simple.fieldLabel || simple.field,
       fieldType: simple.fieldType || next.fieldType || 'text',
       operator: simple.operator || next.operator || '==',
       value: simple.value ?? next.value,
-    });
-    next.enhancedCondition = {
-      systemType: 'field_level',
-      fieldLevelCondition: flc,
-      conditions: [{
-        id: `cond_0_${Date.now()}`,
-        systemType: 'field_level',
-        fieldLevelCondition: flc,
-      }],
-    };
-    next.formId = flc.formId;
-    next.fieldId = flc.fieldId;
-    next.fieldLabel = flc.fieldLabel;
-    next.fieldType = flc.fieldType;
-    next.operator = flc.operator;
-    next.value = flc.value;
+    }]);
   }
 
   return next;

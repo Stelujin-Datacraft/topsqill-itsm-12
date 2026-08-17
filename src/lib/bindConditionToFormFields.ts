@@ -1,6 +1,7 @@
 import {
   normalizeConditionOperator,
   normalizeRelativeDateCondition,
+  coerceOperatorForFieldType,
   isOptionBasedFieldType,
 } from '@/utils/conditionOperators';
 import type { ComparisonOperator } from '@/types/conditions';
@@ -100,7 +101,10 @@ export function bindConditionToFormFields(
   );
 
   if (!matched) {
-    const operator = normalizeConditionOperator(condition.operator || '==');
+    const operator = coerceOperatorForFieldType(
+      condition.fieldType || 'text',
+      normalizeConditionOperator(condition.operator || '=='),
+    );
     const dateNorm = normalizeRelativeDateCondition(
       condition.fieldType || 'text',
       operator,
@@ -117,7 +121,10 @@ export function bindConditionToFormFields(
     };
   }
 
-  let operator = normalizeConditionOperator(condition.operator || '==');
+  let operator = coerceOperatorForFieldType(
+    matched.type,
+    normalizeConditionOperator(condition.operator || '=='),
+  );
   const dateNorm = normalizeRelativeDateCondition(matched.type, operator, condition.value);
   operator = dateNorm.operator;
 
