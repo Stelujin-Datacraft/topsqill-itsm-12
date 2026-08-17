@@ -26,7 +26,7 @@ import { useOrganizationUsers } from '@/hooks/useOrganizationUsers';
 import { useGroups } from '@/hooks/useGroups';
 import { LogicalExpressionInput } from './LogicalExpressionInput';
 import { ExpressionEvaluator } from '@/utils/expressionEvaluator';
-import { getOperatorsForFieldType } from '@/utils/conditionOperators';
+import { getOperatorsForFieldType, isNoValueConditionOperator, normalizeRelativeDateCondition } from '@/utils/conditionOperators';
 
 // Phone country codes
 const PHONE_COUNTRY_CODES = [
@@ -619,14 +619,7 @@ const FormLevelConditionBuilder = React.memo(({ condition, forms, onChange }: Fo
 
 // Check if operator requires no value input (relative date operators)
 const isNoValueOperator = (operator: ComparisonOperator): boolean => {
-  const noValueOperators: ComparisonOperator[] = [
-    'exists', 'not_exists',
-    'is_today', 'is_yesterday', 'is_tomorrow',
-    'is_current_week', 'is_last_week', 'is_next_week',
-    'is_current_month', 'is_last_month', 'is_next_month',
-    'is_current_year', 'is_last_year'
-  ];
-  return noValueOperators.includes(operator);
+  return isNoValueConditionOperator(operator);
 };
 
 // Check if operator requires a number input (N days)
@@ -1352,8 +1345,13 @@ const FieldLevelConditionBuilder = React.memo(({ condition, forms, triggerFormId
   }, [triggerFormId, overrideForm]);
 
   const [selectedField, setSelectedField] = useState(condition?.fieldId || '');
-  const [operator, setOperator] = useState<ComparisonOperator>(condition?.operator || '==');
-  const [value, setValue] = useState(String(condition?.value ?? ''));
+  const initialDateNorm = normalizeRelativeDateCondition(
+    condition?.fieldType,
+    (condition?.operator || '==') as ComparisonOperator,
+    condition?.value,
+  );
+  const [operator, setOperator] = useState<ComparisonOperator>(initialDateNorm.operator);
+  const [value, setValue] = useState(String(initialDateNorm.value ?? ''));
 
   // Linked-records state
   const [crossRefFieldId, setCrossRefFieldId] = useState(condition?.crossRefFieldId || '');
@@ -1414,6 +1412,13 @@ const FieldLevelConditionBuilder = React.memo(({ condition, forms, triggerFormId
   React.useEffect(() => {
     if (selectedFieldData) {
       const validOperators = getOperatorsForFieldType(selectedFieldData.type || 'text');
+      // Fix AI leftovers like Equals + "today" once the real field type is known
+      const dateNorm = normalizeRelativeDateCondition(selectedFieldData.type, operator, value);
+      if (dateNorm.operator !== operator || String(dateNorm.value ?? '') !== String(value ?? '')) {
+        setOperator(dateNorm.operator);
+        setValue(String(dateNorm.value ?? ''));
+        return;
+      }
       const isOperatorValid = validOperators.some(op => op.value === operator);
       if (!isOperatorValid && validOperators.length > 0) {
         setOperator(validOperators[0].value);
@@ -1609,7 +1614,7 @@ const FieldLevelConditionBuilder = React.memo(({ condition, forms, triggerFormId
             </div>
             <Badge variant="secondary" className="h-4 text-[9px] px-1.5">inherited</Badge>
           </div>
-        ) : !triggerFormId ? (
+        ) : !triggerFormId && !selectedForm ? (
           <div className="h-8 px-2 flex items-center gap-1 rounded border border-dashed border-amber-300 bg-amber-50 text-[11px] text-amber-700">
             <AlertCircle className="h-3 w-3" />
             Configure the Start node trigger form first.

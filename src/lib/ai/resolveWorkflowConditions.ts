@@ -3,6 +3,7 @@ import {
   getOperatorsForFieldType,
   isOptionBasedFieldType,
   normalizeConditionOperator,
+  normalizeRelativeDateCondition,
 } from '@/utils/conditionOperators';
 import { sanitizeAiFieldType } from '@/lib/createFormFromAiGeneration';
 
@@ -255,6 +256,17 @@ export function resolveWorkflowConditions(
       }
 
       let value = flc.value;
+
+      // Date fields: map Equals+"today" → is_today (and similar relative phrases)
+      const dateNormalized = normalizeRelativeDateCondition(matched.type, operator, value);
+      operator = dateNormalized.operator;
+      value = dateNormalized.value;
+      if (!operators.some((o) => o.value === operator)) {
+        // Keep mapped relative ops even if list ordering differs; fall back only if unknown
+        const stillValid = getOperatorsForFieldType(matched.type).some((o) => o.value === operator);
+        if (!stillValid) operator = operators[0]?.value || '==';
+      }
+
       if (isOptionBasedFieldType(matched.type) && value !== undefined && value !== null && value !== '') {
         const options = Array.isArray(matched.options) ? matched.options : [];
         const optionMatch = findOptionMatch(options, value);

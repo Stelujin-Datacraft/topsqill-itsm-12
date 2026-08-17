@@ -17,6 +17,7 @@ import { WorkflowNode, WorkflowConnection } from '@/types/workflow';
 import { useToast } from '@/hooks/use-toast';
 import { AIWorkflowSuggester } from '@/components/ai/AIWorkflowSuggester';
 import { backend as supabase } from '@/services/api';
+import { normalizeRelativeDateCondition } from '@/utils/conditionOperators';
 
 const WorkflowDesignerPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -467,6 +468,11 @@ const WorkflowDesignerPage = () => {
         if (!config.enhancedCondition && config.condition) {
           // Convert simple condition to enhanced format
           const simpleCondition = config.condition;
+          const dateNorm = normalizeRelativeDateCondition(
+            simpleCondition.fieldType || 'text',
+            simpleCondition.operator || '==',
+            simpleCondition.value || '',
+          );
           config.enhancedCondition = {
             systemType: 'field_level',
             conditions: [{
@@ -478,13 +484,18 @@ const WorkflowDesignerPage = () => {
                 fieldId: simpleCondition.fieldId || simpleCondition.field || '',
                 fieldLabel: simpleCondition.fieldLabel || simpleCondition.field || '',
                 fieldType: simpleCondition.fieldType || 'text',
-                operator: simpleCondition.operator || '==',
-                value: simpleCondition.value || ''
+                operator: dateNorm.operator,
+                value: dateNorm.value ?? ''
               }
             }]
           };
        } else if (!config.enhancedCondition && config.fieldId) {
          // Build from flat config
+         const dateNorm = normalizeRelativeDateCondition(
+           config.fieldType || 'text',
+           config.operator || '==',
+           config.value || '',
+         );
          config.enhancedCondition = {
            systemType: 'field_level',
            conditions: [{
@@ -496,11 +507,45 @@ const WorkflowDesignerPage = () => {
                fieldId: config.fieldId,
                fieldLabel: config.fieldLabel || config.fieldId,
                fieldType: config.fieldType || 'text',
-               operator: config.operator || '==',
-               value: config.value || ''
+               operator: dateNorm.operator,
+               value: dateNorm.value ?? ''
              }
            }]
          };
+        } else if (config.enhancedCondition) {
+          // Normalize relative date phrases already present (Equals + "today" → is_today)
+          const enhanced = config.enhancedCondition;
+          const normalizeFlc = (flc: any) => {
+            if (!flc) return flc;
+            const dateNorm = normalizeRelativeDateCondition(
+              flc.fieldType || config.fieldType || 'date',
+              flc.operator || '==',
+              flc.value,
+            );
+            return {
+              ...flc,
+              formId: flc.formId || triggerForm?.id || config.formId || '',
+              operator: dateNorm.operator,
+              value: dateNorm.value ?? '',
+            };
+          };
+          if (Array.isArray(enhanced.conditions)) {
+            enhanced.conditions = enhanced.conditions.map((item: any) => ({
+              ...item,
+              fieldLevelCondition: normalizeFlc(item.fieldLevelCondition),
+            }));
+            const first = enhanced.conditions[0]?.fieldLevelCondition;
+            if (first) {
+              config.fieldId = first.fieldId;
+              config.fieldLabel = first.fieldLabel;
+              config.fieldType = first.fieldType;
+              config.operator = first.operator;
+              config.value = first.value;
+              config.formId = first.formId;
+            }
+          } else if (enhanced.fieldLevelCondition) {
+            enhanced.fieldLevelCondition = normalizeFlc(enhanced.fieldLevelCondition);
+          }
         }
         break;
         
