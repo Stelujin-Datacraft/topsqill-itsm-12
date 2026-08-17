@@ -1593,7 +1593,23 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
               triggerFormId={triggerFormId}
               triggerFormName={triggerFormName}
               onChange={(condition: EnhancedCondition) => {
-                handleConfigUpdate('enhancedCondition', condition);
+                const flc = condition.fieldLevelCondition
+                  || condition.conditions?.[0]?.fieldLevelCondition;
+                // Keep flat keys in sync so canvas preview + resolvers see field/value
+                setLocalConfig((prev: any) => {
+                  const newConfig = {
+                    ...prev,
+                    enhancedCondition: condition,
+                    formId: flc?.formId || prev.formId || triggerFormId,
+                    fieldId: flc?.fieldId || '',
+                    fieldLabel: (flc as any)?.fieldLabel || prev.fieldLabel,
+                    fieldType: flc?.fieldType || prev.fieldType,
+                    operator: flc?.operator || prev.operator,
+                    value: flc?.value ?? prev.value,
+                  };
+                  syncToParent(newConfig);
+                  return newConfig;
+                });
               }}
             />
           </div>

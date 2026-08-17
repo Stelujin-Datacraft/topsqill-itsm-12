@@ -43,6 +43,8 @@ export interface FieldLevelCondition {
   id: string;
   formId: string;
   fieldId: string;
+  /** Display label — used by AI binding and canvas preview */
+  fieldLabel?: string;
   fieldType: string;
   operator: ComparisonOperator;
   value: any;

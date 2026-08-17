@@ -26,7 +26,8 @@ import { useOrganizationUsers } from '@/hooks/useOrganizationUsers';
 import { useGroups } from '@/hooks/useGroups';
 import { LogicalExpressionInput } from './LogicalExpressionInput';
 import { ExpressionEvaluator } from '@/utils/expressionEvaluator';
-import { getOperatorsForFieldType, isNoValueConditionOperator, normalizeRelativeDateCondition } from '@/utils/conditionOperators';
+import { getOperatorsForFieldType, isNoValueConditionOperator, normalizeRelativeDateCondition, normalizeConditionOperator } from '@/utils/conditionOperators';
+import { bindConditionToFormFields } from '@/lib/bindConditionToFormFields';
 
 // Phone country codes
 const PHONE_COUNTRY_CODES = [
@@ -1281,8 +1282,16 @@ const FieldValueInput = React.memo(({ fieldType, value, onChange, valueOptions, 
 
     // Fields with options (select, radio, dropdown)
     if (hasValueOptions) {
+      const matchedOption = valueOptions!.find((opt) =>
+        String(opt.value) === String(value)
+        || String(opt.label).toLowerCase() === String(value || '').toLowerCase(),
+      );
+      const selectValue = matchedOption?.value || value;
       return (
-        <Select value={value} onValueChange={onChange}>
+        <Select
+          value={selectValue}
+          onValueChange={onChange}
+        >
           <SelectTrigger className="h-8 text-xs">
             <SelectValue placeholder="Select value" />
           </SelectTrigger>
@@ -1330,11 +1339,12 @@ const FieldLevelConditionBuilder = React.memo(({ condition, forms, triggerFormId
   // Source: 'current' (existing behavior) or 'linkedRecords' (cross-ref traversal)
   const [source, setSource] = useState<'current' | 'linkedRecords'>(condition?.source || 'current');
 
-  // Auto-inherit form from Start node trigger unless user overrides
-  const initialForm = condition?.formId || triggerFormId || '';
+  // Prefer trigger form when AI left a non-matching / empty formId
+  const conditionFormExists = !!(condition?.formId && forms.some((f: any) => f.id === condition.formId));
+  const initialForm = (conditionFormExists ? condition?.formId : undefined) || triggerFormId || condition?.formId || '';
   const [selectedForm, setSelectedForm] = useState(initialForm);
   const [overrideForm, setOverrideForm] = useState<boolean>(
-    !!(condition?.formId && triggerFormId && condition.formId !== triggerFormId)
+    !!(conditionFormExists && triggerFormId && condition?.formId !== triggerFormId)
   );
 
   // Keep selectedForm synced with trigger form when not overriding
@@ -1344,14 +1354,23 @@ const FieldLevelConditionBuilder = React.memo(({ condition, forms, triggerFormId
     }
   }, [triggerFormId, overrideForm]);
 
+  const conditionFieldLabel = (condition as any)?.fieldLabel as string | undefined;
   const [selectedField, setSelectedField] = useState(condition?.fieldId || '');
-  const initialDateNorm = normalizeRelativeDateCondition(
-    condition?.fieldType,
-    (condition?.operator || '==') as ComparisonOperator,
-    condition?.value,
+  const initialBound = bindConditionToFormFields(
+    {
+      formId: condition?.formId,
+      fieldId: condition?.fieldId,
+      fieldLabel: conditionFieldLabel,
+      fieldType: condition?.fieldType,
+      operator: condition?.operator,
+      value: condition?.value,
+    },
+    [],
+    initialForm,
   );
-  const [operator, setOperator] = useState<ComparisonOperator>(initialDateNorm.operator);
-  const [value, setValue] = useState(String(initialDateNorm.value ?? ''));
+  const [operator, setOperator] = useState<ComparisonOperator>(initialBound.operator);
+  const [value, setValue] = useState(String(initialBound.value ?? ''));
+  const fieldBindDoneRef = React.useRef(false);
 
   // Linked-records state
   const [crossRefFieldId, setCrossRefFieldId] = useState(condition?.crossRefFieldId || '');
@@ -1374,15 +1393,57 @@ const FieldLevelConditionBuilder = React.memo(({ condition, forms, triggerFormId
     onChangeRef.current = onChange;
   }, [onChange]);
 
+  // Bind AI fieldId/label + option value to live form_fields once metadata loads
   React.useEffect(() => {
+    if (loading || fields.length === 0) return;
+    if (fieldBindDoneRef.current && fields.some((f) => f.id === selectedField)) return;
+
+    const bound = bindConditionToFormFields(
+      {
+        formId: selectedForm || condition?.formId,
+        // Prefer original AI condition values so we can resolve label → UUID
+        fieldId: condition?.fieldId || selectedField,
+        fieldLabel: conditionFieldLabel || (condition as any)?.fieldLabel || condition?.fieldId,
+        fieldType: condition?.fieldType,
+        operator: condition?.operator || operator,
+        value: condition?.value ?? value,
+      },
+      fields.map((f: any) => ({
+        id: f.id,
+        label: f.label,
+        type: f.type,
+        options: f.options,
+      })),
+      selectedForm || triggerFormId,
+    );
+
+    if (!bound.matched && selectedField && fields.some((f) => f.id === selectedField)) {
+      fieldBindDoneRef.current = true;
+      return;
+    }
+
+    if (bound.matched) {
+      fieldBindDoneRef.current = true;
+      if (bound.fieldId !== selectedField) setSelectedField(bound.fieldId);
+      if (bound.operator !== operator) setOperator(bound.operator);
+      if (String(bound.value) !== String(value)) setValue(bound.value);
+      if (bound.formId && bound.formId !== selectedForm && !overrideForm) {
+        setSelectedForm(bound.formId);
+      }
+    }
+  }, [loading, fields, selectedForm, triggerFormId, condition?.fieldId, condition?.operator, condition?.value, conditionFieldLabel]);
+
+  React.useEffect(() => {
+    // Avoid wiping AI draft values before fields finish loading
+    if (loading) return;
     const timeoutId = setTimeout(() => {
       const selectedFieldData = fields.find(f => f.id === selectedField);
       const updatedCondition: FieldLevelCondition = {
         id: condition?.id || `field-level-${Date.now()}`,
         formId: selectedForm,
         fieldId: selectedField,
-        fieldType: selectedFieldData?.type || 'text',
-        operator,
+        fieldType: selectedFieldData?.type || condition?.fieldType || 'text',
+        operator: normalizeConditionOperator(operator),
         value,
         source,
         crossRefFieldId: source === 'linkedRecords' ? crossRefFieldId : undefined,
@@ -1393,11 +1454,12 @@ const FieldLevelConditionBuilder = React.memo(({ condition, forms, triggerFormId
         linkedFormName: source === 'linkedRecords' ? linkedFormName : undefined,
         quantifier: source === 'linkedRecords' ? quantifier : undefined,
         quantifierCount: source === 'linkedRecords' && quantifier === 'COUNT_GTE' ? quantifierCount : undefined,
+        ...(selectedFieldData?.label ? { fieldLabel: selectedFieldData.label } as any : {}),
       };
       onChangeRef.current(updatedCondition);
     }, 300);
     return () => clearTimeout(timeoutId);
-  }, [selectedForm, selectedField, operator, value, fields, condition?.id, source, crossRefFieldId, linkedFormId, linkedFormName, quantifier, quantifierCount, crossRefFields]);
+  }, [selectedForm, selectedField, operator, value, fields, loading, condition?.id, source, crossRefFieldId, linkedFormId, linkedFormName, quantifier, quantifierCount, crossRefFields]);
 
   const selectedFieldData = useMemo(() => {
     return fields.find(f => f.id === selectedField);
@@ -1436,7 +1498,7 @@ const FieldLevelConditionBuilder = React.memo(({ condition, forms, triggerFormId
     const fieldOptions = selectedFieldData.options || [];
     
     // Field types with predefined options from the field config
-    const optionFieldTypes = ['select', 'multi-select', 'multiselect', 'radio', 'dropdown', 'checkbox'];
+    const optionFieldTypes = ['select', 'multi-select', 'multiselect', 'radio', 'dropdown', 'checkbox', 'toggle', 'toggle-switch'];
     if (optionFieldTypes.includes(fieldType) && fieldOptions.length > 0) {
       return fieldOptions.map((opt: any) => ({
         value: String(opt.value || opt.id || opt.label || opt),
@@ -1445,7 +1507,7 @@ const FieldLevelConditionBuilder = React.memo(({ condition, forms, triggerFormId
     }
     
     // Toggle/Switch field - boolean options
-    if (fieldType === 'toggle' || fieldType === 'switch') {
+    if (fieldType === 'toggle' || fieldType === 'switch' || fieldType === 'toggle-switch') {
       return [
         { value: 'true', label: 'On / Yes / True' },
         { value: 'false', label: 'Off / No / False' }
@@ -1641,7 +1703,11 @@ const FieldLevelConditionBuilder = React.memo(({ condition, forms, triggerFormId
         </Label>
         <Select
           value={selectedField}
-          onValueChange={(v) => { setSelectedField(v); setValue(''); }}
+          onValueChange={(v) => {
+            fieldBindDoneRef.current = true;
+            setSelectedField(v);
+            setValue('');
+          }}
           disabled={(source === 'linkedRecords' ? !linkedFormId : !selectedForm) || loading}
         >
           <SelectTrigger className="h-8 text-xs">
