@@ -68,6 +68,8 @@ function normalizeChangeFieldValueConfig(
     next.fieldUpdates = [{
       targetFieldId: next.targetFieldId,
       targetFieldName: next.targetFieldName,
+      targetFieldType: next.targetFieldType || next.fieldType,
+      targetFieldOptions: next.targetFieldOptions || next.fieldOptions,
       valueType: next.valueType,
       staticValue: next.valueType === 'static' ? next.staticValue : undefined,
       dynamicValuePath: next.valueType === 'dynamic' ? next.dynamicValuePath : undefined,
@@ -77,10 +79,21 @@ function normalizeChangeFieldValueConfig(
       ...u,
       targetFieldId: u.targetFieldId || u.fieldId || next.targetFieldId,
       targetFieldName: u.targetFieldName || u.fieldName || next.targetFieldName,
+      targetFieldType: u.targetFieldType || u.fieldType || next.targetFieldType || next.fieldType,
+      targetFieldOptions: u.targetFieldOptions || u.fieldOptions || next.targetFieldOptions,
       valueType: u.valueType || next.valueType || 'static',
       staticValue: u.staticValue ?? u.value ?? (u.valueType === 'dynamic' ? undefined : next.staticValue),
       dynamicValuePath: u.dynamicValuePath ?? next.dynamicValuePath,
     }));
+  }
+
+  // Mirror type onto top-level for legacy readers / UI migration
+  const first = next.fieldUpdates[0];
+  if (first?.targetFieldType && !next.targetFieldType) {
+    next.targetFieldType = first.targetFieldType;
+  }
+  if (first?.targetFieldOptions && !next.targetFieldOptions) {
+    next.targetFieldOptions = first.targetFieldOptions;
   }
 
   return next;
