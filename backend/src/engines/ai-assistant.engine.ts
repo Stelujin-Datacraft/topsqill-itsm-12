@@ -1169,7 +1169,7 @@ CONDITION NODE config:
           "formId": "form_id",
           "fieldId": "field_id",
           "fieldLabel": "Field Label",
-          "fieldType": "text",
+          "fieldType": "text|select|radio|checkbox|toggle|number|date|...",
           "operator": "==" | "!=" | ">" | "<" | "contains" | "not_contains",
           "value": "comparison_value"
         }
@@ -1177,6 +1177,10 @@ CONDITION NODE config:
     ]
   }
 }
+Rules for CONDITION nodes:
+- Field → Operator → Value. Operators must match the field type.
+- Prefer exact fieldId/fieldLabel and option values from form metadata.
+- Never invent option values for select/radio/checkbox/toggle; use listed options only.
 
 WAIT NODE config:
 {
@@ -1222,7 +1226,8 @@ ${JSON.stringify(context.existingNodes, null, 2)}` : ''}
 
 IMPORTANT: 
 - Use the ACTUAL field IDs and form IDs from the forms provided above - DO NOT make up IDs
-- For condition nodes, reference actual field IDs, labels, and for select/radio fields use the actual option values
+- For condition nodes, reference actual field IDs, labels, and for select/radio/checkbox/toggle fields use ONLY the actual option values from the form metadata
+- Do NOT invent field names or option values that are not listed above. Prefer existing fields/options. If a needed field or option is missing, still emit the intended fieldLabel/value using real formId so the UI can ask the user to create it
 - For send_notification actions, use {{field_label}} placeholders matching the actual field labels
 - For change_field_value, use actual field IDs from the correct form
 - For create_record, map source fields to target fields using actual IDs from both forms

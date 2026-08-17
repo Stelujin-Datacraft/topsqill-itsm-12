@@ -70,6 +70,7 @@ export default function AIStudio() {
     messages, isLoading, activeProject, projects, setCurrentProject, availableForms,
     activeFormId, activeFormName, setActiveFormId,
     sendPrompt, clearChat, hasConversation, copilotEnabled, setCopilotEnabled, resolveFormChoice,
+    conditionResolutionDialogs,
   } = useCopilotEngine();
   const [input, setInput] = useState('');
   const [createType, setCreateType] = useState<CopilotCreateType>('form');
@@ -545,6 +546,7 @@ export default function AIStudio() {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
+      {conditionResolutionDialogs}
       <div className="flex items-center justify-between gap-3 border-b px-4 py-3 sm:px-6">
         <div className="flex items-center gap-2 min-w-0">
           <Sparkle className="h-5 w-5 text-primary shrink-0" />

@@ -4,6 +4,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Sparkles, Loader2, Check, GitBranch, ArrowRight, Lightbulb, Plus, X } from 'lucide-react';
 import { useFormAI } from '@/hooks/useFormAI';
+import { useConditionResolution } from '@/hooks/useConditionResolution';
 import { toast } from 'sonner';
 import {
   Dialog,
@@ -115,6 +116,7 @@ export function AIWorkflowSuggester({
   const [triggerFormId, setTriggerFormId] = useState<string>('');
   const [suggestion, setSuggestion] = useState<WorkflowSuggestion | null>(null);
   const { suggestWorkflow, isLoading } = useFormAI();
+  const { resolveWorkflowConditionsInteractive, conditionResolutionDialogs } = useConditionResolution();
 
   const triggerForm = selectedForms.find(f => f.id === triggerFormId) || selectedForms[0];
 
@@ -196,13 +198,30 @@ export function AIWorkflowSuggester({
     }
   };
 
-  const handleApply = () => {
-    if (suggestion) {
-      onApply(suggestion);
-      setIsOpen(false);
-      resetForm();
-      toast.success('Workflow suggestion applied');
+  const handleApply = async () => {
+    if (!suggestion) return;
+
+    const pending = suggestion;
+    // Close suggester first so Field/Value dialogs are not nested under it
+    setIsOpen(false);
+
+    let nodes = pending.nodes;
+    try {
+      const forms = selectedForms.length > 0 ? selectedForms : availableForms;
+      const resolved = await resolveWorkflowConditionsInteractive({
+        nodes,
+        forms,
+        defaultFormId: triggerFormId || triggerForm?.id || forms[0]?.id,
+      });
+      nodes = resolved.nodes;
+    } catch (e) {
+      console.error('Condition resolution failed:', e);
+      toast.error('Could not validate condition fields. Applying suggestion as-is.');
     }
+
+    onApply({ ...pending, nodes });
+    resetForm();
+    toast.success('Workflow suggestion applied');
   };
 
   const resetForm = () => {
@@ -217,6 +236,8 @@ export function AIWorkflowSuggester({
   );
 
   return (
+    <>
+      {conditionResolutionDialogs}
     <Dialog open={isOpen} onOpenChange={(open) => { setIsOpen(open); if (!open) resetForm(); }}>
       <DialogTrigger asChild>
         <Button variant={buttonVariant} size={buttonSize} className="gap-2">
@@ -481,5 +502,6 @@ export function AIWorkflowSuggester({
         </div>
       </DialogContent>
     </Dialog>
+    </>
   );
 }

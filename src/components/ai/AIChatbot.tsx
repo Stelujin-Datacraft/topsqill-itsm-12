@@ -18,7 +18,7 @@ export function AIChatbot() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const { messages, isLoading, sendPrompt, clearChat, copilotEnabled, setCopilotEnabled, appendMessage, resolveFormChoice, availableForms } = useCopilotEngine();
+  const { messages, isLoading, sendPrompt, clearChat, copilotEnabled, setCopilotEnabled, appendMessage, resolveFormChoice, availableForms, conditionResolutionDialogs } = useCopilotEngine();
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -100,6 +100,8 @@ export function AIChatbot() {
   }
 
   return (
+    <>
+      {conditionResolutionDialogs}
     <div
       className={cn(
         "fixed bottom-6 right-6 bg-background border rounded-lg shadow-xl z-50 flex flex-col transition-all duration-200",
@@ -271,5 +273,6 @@ export function AIChatbot() {
         </>
       )}
     </div>
+    </>
   );
 }
