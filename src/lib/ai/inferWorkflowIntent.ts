@@ -427,6 +427,16 @@ function applyUpdatesToActionConfig(
   if (!field) return config;
 
   const staticValue = matchOptionValueByHint(field, update.valueHint);
+  const fieldUpdate = {
+    targetFieldId: field.id,
+    targetFieldName: field.label,
+    targetFieldType: field.type,
+    targetFieldOptions: Array.isArray(field.options)
+      ? field.options.map((o) => ({ label: o.label, value: o.value }))
+      : undefined,
+    valueType: 'static' as const,
+    staticValue,
+  };
   const next = {
     ...config,
     actionType: 'change_field_value',
@@ -434,16 +444,32 @@ function applyUpdatesToActionConfig(
     targetFormName: config.targetFormName || formName || '',
     targetFieldId: config.targetFieldId || field.id,
     targetFieldName: config.targetFieldName || field.label,
+    targetFieldType: config.targetFieldType || field.type,
+    targetFieldOptions: config.targetFieldOptions || fieldUpdate.targetFieldOptions,
     valueType: 'static',
     staticValue: config.staticValue || staticValue,
     fieldUpdates: Array.isArray(config.fieldUpdates) && config.fieldUpdates.length
-      ? config.fieldUpdates
-      : [{
-          targetFieldId: field.id,
-          targetFieldName: field.label,
-          valueType: 'static',
-          staticValue,
-        }],
+      ? config.fieldUpdates.map((u: any, idx: number) => {
+          if (idx !== 0) return u;
+          const matched = matchFormFieldByHint(fields, u.targetFieldName || u.targetFieldId || update.fieldHint)
+            || field;
+          const resolvedValue = matchOptionValueByHint(
+            matched,
+            u.staticValue ?? u.value ?? staticValue,
+          );
+          return {
+            ...u,
+            targetFieldId: u.targetFieldId || matched.id,
+            targetFieldName: u.targetFieldName || matched.label,
+            targetFieldType: u.targetFieldType || matched.type,
+            targetFieldOptions: u.targetFieldOptions || (Array.isArray(matched.options)
+              ? matched.options.map((o) => ({ label: o.label, value: o.value }))
+              : undefined),
+            valueType: u.valueType || 'static',
+            staticValue: resolvedValue,
+          };
+        })
+      : [fieldUpdate],
   };
   return next;
 }
@@ -466,7 +492,77 @@ function conditionNeedsEnrichment(config: any): boolean {
 function actionNeedsEnrichment(config: any): boolean {
   const actionType = String(config?.actionType || '').toLowerCase();
   if (actionType && actionType !== 'change_field_value') return false;
-  return !config?.targetFieldId || (config?.staticValue === undefined || config?.staticValue === '');
+  const updates = Array.isArray(config?.fieldUpdates) ? config.fieldUpdates : [];
+  const missingType = updates.some((u: any) => u?.targetFieldId && !u?.targetFieldType);
+  return !config?.targetFieldId
+    || (config?.staticValue === undefined || config?.staticValue === '')
+    || missingType
+    || !config?.targetFieldType;
+}
+
+/** Stamp targetFieldType/options onto change_field_value updates from live form fields. */
+function hydrateChangeFieldValueTypes(
+  config: Record<string, any>,
+  fields: InferFormField[],
+  formId?: string,
+  formName?: string,
+): Record<string, any> {
+  const actionType = String(config.actionType || '').toLowerCase();
+  if (actionType && actionType !== 'change_field_value') return config;
+  if (!fields.length) return config;
+
+  const next = { ...config };
+  if (!next.targetFormId && formId) next.targetFormId = formId;
+  if (!next.targetFormName && formName) next.targetFormName = formName;
+  if (!next.valueType) next.valueType = 'static';
+
+  const hydrateOne = (u: any) => {
+    const matched = matchFormFieldByHint(
+      fields,
+      u?.targetFieldName || u?.targetFieldId || u?.fieldName || next.targetFieldName || next.targetFieldId || '',
+    ) || (u?.targetFieldId
+      ? fields.find((f) => f.id === u.targetFieldId)
+      : undefined)
+      || (next.targetFieldId ? fields.find((f) => f.id === next.targetFieldId) : undefined);
+
+    if (!matched) return u;
+    return {
+      ...u,
+      targetFieldId: u.targetFieldId || matched.id,
+      targetFieldName: u.targetFieldName || matched.label,
+      targetFieldType: u.targetFieldType || matched.type,
+      targetFieldOptions: u.targetFieldOptions || (Array.isArray(matched.options)
+        ? matched.options.map((o) => ({ label: o.label, value: o.value }))
+        : undefined),
+      valueType: u.valueType || next.valueType || 'static',
+      staticValue: matchOptionValueByHint(matched, u.staticValue ?? u.value ?? next.staticValue),
+    };
+  };
+
+  if (Array.isArray(next.fieldUpdates) && next.fieldUpdates.length > 0) {
+    next.fieldUpdates = next.fieldUpdates.map(hydrateOne);
+    const first = next.fieldUpdates[0];
+    next.targetFieldId = next.targetFieldId || first.targetFieldId;
+    next.targetFieldName = next.targetFieldName || first.targetFieldName;
+    next.targetFieldType = next.targetFieldType || first.targetFieldType;
+    next.targetFieldOptions = next.targetFieldOptions || first.targetFieldOptions;
+    next.staticValue = next.staticValue ?? first.staticValue;
+  } else if (next.targetFieldId || next.targetFieldName) {
+    const hydrated = hydrateOne({
+      targetFieldId: next.targetFieldId,
+      targetFieldName: next.targetFieldName,
+      targetFieldType: next.targetFieldType,
+      valueType: next.valueType || 'static',
+      staticValue: next.staticValue,
+    });
+    next.fieldUpdates = [hydrated];
+    next.targetFieldType = hydrated.targetFieldType;
+    next.targetFieldOptions = hydrated.targetFieldOptions;
+    next.targetFieldName = hydrated.targetFieldName;
+    next.targetFieldId = hydrated.targetFieldId;
+  }
+
+  return next;
 }
 
 /**
@@ -527,12 +623,20 @@ export function enrichWorkflowNodesFromPrompt(
       });
     }
 
-    if (type === 'action' && updates.length && actionNeedsEnrichment(config)) {
-      config = applyUpdatesToActionConfig(config, updates, fields, formId, formName);
-      config = normalizeAiWorkflowNodeConfig('action', config, {
-        triggerFormId: formId,
-        triggerFormName: formName,
-      });
+    if (type === 'action') {
+      if (updates.length && actionNeedsEnrichment(config)) {
+        config = applyUpdatesToActionConfig(config, updates, fields, formId, formName);
+      }
+      // Always stamp targetFieldType/options so the Action Node value input is visible
+      if (String(config.actionType || '').toLowerCase() === 'change_field_value'
+        || config.targetFieldId
+        || (Array.isArray(config.fieldUpdates) && config.fieldUpdates.length > 0)) {
+        config = hydrateChangeFieldValueTypes(config, fields, formId, formName);
+        config = normalizeAiWorkflowNodeConfig('action', config, {
+          triggerFormId: formId,
+          triggerFormName: formName,
+        });
+      }
     }
 
     return { ...node, config };

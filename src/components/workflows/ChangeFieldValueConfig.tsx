@@ -174,25 +174,30 @@ function FieldUpdateItem({
 }: FieldUpdateItemProps) {
   const [loadingOptions, setLoadingOptions] = useState(false);
 
-  // Auto-fetch field options when needed
+  // AI Builder often sets targetFieldId + staticValue but omits targetFieldType.
+  // The value input only renders when targetFieldType is present — hydrate from DB.
   useEffect(() => {
+    if (!update.targetFieldId) return;
+
     const fieldType = update.targetFieldType?.toLowerCase() || '';
-    const optionFieldTypes = ['select', 'radio', 'dropdown', 'multiselect', 'multi-select'];
-    const needsOptions = optionFieldTypes.some(t => fieldType.includes(t));
+    const optionFieldTypes = ['select', 'radio', 'dropdown', 'multiselect', 'multi-select', 'checkbox', 'toggle'];
+    const needsType = !update.targetFieldType;
+    const needsOptions = Boolean(fieldType) && optionFieldTypes.some(t => fieldType.includes(t))
+      && !(Array.isArray(update.targetFieldOptions) && update.targetFieldOptions.length > 0);
 
-    if (!update.targetFieldId || !needsOptions) return;
-    if (Array.isArray(update.targetFieldOptions) && update.targetFieldOptions.length > 0) return;
+    if (!needsType && !needsOptions) return;
 
-    const fetchFieldOptions = async () => {
+    let cancelled = false;
+    const fetchFieldMeta = async () => {
       setLoadingOptions(true);
       try {
         const { data, error } = await supabase
           .from('form_fields')
-          .select('options, custom_config')
+          .select('label, field_type, options, custom_config')
           .eq('id', update.targetFieldId)
           .maybeSingle();
 
-        if (error || !data) return;
+        if (cancelled || error || !data) return;
 
         let options = data.options;
         if (typeof options === 'string') {
@@ -204,19 +209,44 @@ function FieldUpdateItem({
           try { customConfig = JSON.parse(customConfig); } catch { customConfig = {}; }
         }
 
-        if (Array.isArray(options) && options.length > 0) {
-          onUpdate(index, {
-            targetFieldOptions: options as Array<{ label: string; value: string }>,
-            targetFieldCustomConfig: customConfig
-          });
+        const patch: Partial<FieldValueUpdate> = {};
+        if (needsType && data.field_type) {
+          patch.targetFieldType = data.field_type;
+        }
+        if (!update.targetFieldName && data.label) {
+          patch.targetFieldName = data.label;
+        }
+        if (Array.isArray(options) && options.length > 0 && (needsOptions || needsType)) {
+          patch.targetFieldOptions = options as Array<{ label: string; value: string }>;
+        }
+        if (customConfig && (needsType || needsOptions)) {
+          patch.targetFieldCustomConfig = customConfig;
+        }
+
+        // Default valueType so static input can show
+        if (!update.valueType) {
+          patch.valueType = 'static';
+        }
+
+        if (Object.keys(patch).length > 0) {
+          onUpdate(index, patch);
         }
       } finally {
-        setLoadingOptions(false);
+        if (!cancelled) setLoadingOptions(false);
       }
     };
 
-    fetchFieldOptions();
-  }, [update.targetFieldId, update.targetFieldType, update.targetFieldOptions, index, onUpdate]);
+    fetchFieldMeta();
+    return () => { cancelled = true; };
+  }, [
+    update.targetFieldId,
+    update.targetFieldType,
+    update.targetFieldName,
+    update.targetFieldOptions,
+    update.valueType,
+    index,
+    onUpdate,
+  ]);
 
   return (
     <Card className="bg-muted/30">
@@ -278,12 +308,12 @@ function FieldUpdateItem({
           </div>
         )}
 
-        {update.valueType === 'static' && update.targetFieldType && (
+        {((update.valueType || 'static') === 'static') && update.targetFieldId && (
           <div>
             <Label className="text-xs">New Value</Label>
-            {loadingOptions ? (
-              <div className="text-xs text-muted-foreground">Loading options...</div>
-            ) : (
+            {loadingOptions && !update.targetFieldType ? (
+              <div className="text-xs text-muted-foreground">Loading field…</div>
+            ) : update.targetFieldType ? (
               <DynamicValueInput
                 field={{
                   id: update.targetFieldId,
@@ -295,6 +325,8 @@ function FieldUpdateItem({
                 value={update.staticValue ?? ''}
                 onChange={(value) => onUpdate(index, { staticValue: value })}
               />
+            ) : (
+              <div className="text-xs text-muted-foreground">Loading field input…</div>
             )}
           </div>
         )}

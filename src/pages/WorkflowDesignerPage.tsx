@@ -421,20 +421,35 @@ const WorkflowDesignerPage = () => {
            config.targetFormName = triggerForm.name;
          }
          // Ensure fieldUpdates array exists
-         if (!config.fieldUpdates && config.fieldId) {
+         if (!config.fieldUpdates && (config.fieldId || config.targetFieldId)) {
            config.fieldUpdates = [{
-             fieldId: config.fieldId,
-             fieldLabel: config.fieldLabel || config.fieldId,
-             value: config.value || config.newValue || '',
+             targetFieldId: config.targetFieldId || config.fieldId,
+             targetFieldName: config.targetFieldName || config.fieldLabel || config.fieldId,
+             targetFieldType: config.targetFieldType || config.fieldType,
+             targetFieldOptions: config.targetFieldOptions,
+             value: config.value || config.newValue || config.staticValue || '',
+             staticValue: config.staticValue ?? config.value ?? config.newValue ?? '',
              valueType: config.valueType || 'static'
            }];
          }
-         // Set display-friendly properties
+         // Set display-friendly properties (prefer targetField* keys used by the config UI)
          if (config.fieldUpdates && config.fieldUpdates[0]) {
-           config.targetFieldId = config.fieldUpdates[0].fieldId;
-           config.targetFieldName = config.fieldUpdates[0].fieldLabel || config.fieldUpdates[0].fieldId;
-           config.staticValue = config.fieldUpdates[0].value;
-           config.valueType = config.fieldUpdates[0].valueType || 'static';
+           const first = config.fieldUpdates[0];
+           config.targetFieldId = first.targetFieldId || first.fieldId || config.targetFieldId;
+           config.targetFieldName = first.targetFieldName || first.fieldLabel || first.fieldId || config.targetFieldName;
+           config.targetFieldType = first.targetFieldType || first.fieldType || config.targetFieldType;
+           config.targetFieldOptions = first.targetFieldOptions || config.targetFieldOptions;
+           config.staticValue = first.staticValue ?? first.value ?? config.staticValue;
+           config.valueType = first.valueType || config.valueType || 'static';
+           // Keep fieldUpdates in the shape ChangeFieldValueConfig expects
+           first.targetFieldId = config.targetFieldId;
+           first.targetFieldName = config.targetFieldName;
+           if (config.targetFieldType) first.targetFieldType = config.targetFieldType;
+           if (config.targetFieldOptions) first.targetFieldOptions = config.targetFieldOptions;
+           first.valueType = config.valueType;
+           if (first.staticValue === undefined && first.value !== undefined) {
+             first.staticValue = first.value;
+           }
          }
        }
        
