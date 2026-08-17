@@ -12,6 +12,7 @@ import {
   normalizeRelativeDateCondition,
 } from '@/utils/conditionOperators';
 import { normalizeAiWorkflowNodeConfig } from '@/lib/normalizeAiWorkflowNodes';
+import { isUnusableFieldLabel } from '@/lib/changeFieldValueDisplay';
 
 export interface InferFormField {
   id: string;
@@ -460,7 +461,9 @@ function applyUpdatesToActionConfig(
           return {
             ...u,
             targetFieldId: u.targetFieldId || matched.id,
-            targetFieldName: u.targetFieldName || matched.label,
+            targetFieldName: isUnusableFieldLabel(u.targetFieldName, u.targetFieldId || matched.id)
+              ? matched.label
+              : (u.targetFieldName || matched.label),
             targetFieldType: u.targetFieldType || matched.type,
             targetFieldOptions: u.targetFieldOptions || (Array.isArray(matched.options)
               ? matched.options.map((o) => ({ label: o.label, value: o.value }))
@@ -526,10 +529,14 @@ function hydrateChangeFieldValueTypes(
       || (next.targetFieldId ? fields.find((f) => f.id === next.targetFieldId) : undefined);
 
     if (!matched) return u;
+    const targetFieldId = u.targetFieldId || matched.id;
     return {
       ...u,
-      targetFieldId: u.targetFieldId || matched.id,
-      targetFieldName: u.targetFieldName || matched.label,
+      targetFieldId,
+      // Always prefer real form label when AI stored UUID/id as the name
+      targetFieldName: isUnusableFieldLabel(u.targetFieldName, targetFieldId)
+        ? matched.label
+        : (u.targetFieldName || matched.label),
       targetFieldType: u.targetFieldType || matched.type,
       targetFieldOptions: u.targetFieldOptions || (Array.isArray(matched.options)
         ? matched.options.map((o) => ({ label: o.label, value: o.value }))
@@ -543,10 +550,12 @@ function hydrateChangeFieldValueTypes(
     next.fieldUpdates = next.fieldUpdates.map(hydrateOne);
     const first = next.fieldUpdates[0];
     next.targetFieldId = next.targetFieldId || first.targetFieldId;
-    next.targetFieldName = next.targetFieldName || first.targetFieldName;
+    next.targetFieldName = isUnusableFieldLabel(next.targetFieldName, next.targetFieldId)
+      ? first.targetFieldName
+      : (next.targetFieldName || first.targetFieldName);
     next.targetFieldType = next.targetFieldType || first.targetFieldType;
     next.targetFieldOptions = next.targetFieldOptions || first.targetFieldOptions;
-    next.staticValue = next.staticValue ?? first.staticValue;
+    next.staticValue = first.staticValue ?? next.staticValue;
   } else if (next.targetFieldId || next.targetFieldName) {
     const hydrated = hydrateOne({
       targetFieldId: next.targetFieldId,
@@ -560,6 +569,7 @@ function hydrateChangeFieldValueTypes(
     next.targetFieldOptions = hydrated.targetFieldOptions;
     next.targetFieldName = hydrated.targetFieldName;
     next.targetFieldId = hydrated.targetFieldId;
+    next.staticValue = hydrated.staticValue ?? next.staticValue;
   }
 
   return next;

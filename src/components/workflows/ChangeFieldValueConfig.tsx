@@ -11,6 +11,11 @@ import { DynamicValueInput } from './conditions/DynamicValueInput';
 import { FormFieldOption } from '@/types/conditions';
 import { FieldValueUpdate } from '@/types/workflowConfig';
 import { backend as supabase } from '@/services/api';
+import {
+  isUnusableFieldLabel,
+  pickReadableFieldLabel,
+  resolveOptionStaticValue,
+} from '@/lib/changeFieldValueDisplay';
 
 interface ChangeFieldValueConfigProps {
   config: any;
@@ -174,18 +179,27 @@ function FieldUpdateItem({
 }: FieldUpdateItemProps) {
   const [loadingOptions, setLoadingOptions] = useState(false);
 
-  // AI Builder often sets targetFieldId + staticValue but omits targetFieldType.
-  // The value input only renders when targetFieldType is present — hydrate from DB.
+  // AI Builder often sets targetFieldId + staticValue but omits/mis-sets
+  // targetFieldType and targetFieldName (sometimes the UUID). Hydrate from DB.
   useEffect(() => {
     if (!update.targetFieldId) return;
 
-    const fieldType = update.targetFieldType?.toLowerCase() || '';
+    const fieldType = (update.targetFieldType || '').toLowerCase();
     const optionFieldTypes = ['select', 'radio', 'dropdown', 'multiselect', 'multi-select', 'checkbox', 'toggle'];
     const needsType = !update.targetFieldType;
-    const needsOptions = Boolean(fieldType) && optionFieldTypes.some(t => fieldType.includes(t))
+    const needsLabel = isUnusableFieldLabel(update.targetFieldName, update.targetFieldId);
+    const isOptionField = optionFieldTypes.some((t) => fieldType.includes(t));
+    const needsOptions = (needsType || isOptionField)
       && !(Array.isArray(update.targetFieldOptions) && update.targetFieldOptions.length > 0);
 
-    if (!needsType && !needsOptions) return;
+    // Locally normalize staticValue against options we already have
+    if (!needsType && !needsLabel && !needsOptions) {
+      const resolved = resolveOptionStaticValue(update.targetFieldOptions, update.staticValue);
+      if (resolved && resolved.value !== String(update.staticValue ?? '')) {
+        onUpdate(index, { staticValue: resolved.value });
+      }
+      return;
+    }
 
     let cancelled = false;
     const fetchFieldMeta = async () => {
@@ -203,6 +217,7 @@ function FieldUpdateItem({
         if (typeof options === 'string') {
           try { options = JSON.parse(options); } catch { options = []; }
         }
+        if (!Array.isArray(options)) options = [];
 
         let customConfig = data.custom_config;
         if (typeof customConfig === 'string') {
@@ -213,19 +228,23 @@ function FieldUpdateItem({
         if (needsType && data.field_type) {
           patch.targetFieldType = data.field_type;
         }
-        if (!update.targetFieldName && data.label) {
+        if (needsLabel && data.label) {
           patch.targetFieldName = data.label;
         }
-        if (Array.isArray(options) && options.length > 0 && (needsOptions || needsType)) {
+        if (options.length > 0) {
           patch.targetFieldOptions = options as Array<{ label: string; value: string }>;
         }
-        if (customConfig && (needsType || needsOptions)) {
+        if (customConfig) {
           patch.targetFieldCustomConfig = customConfig;
         }
-
-        // Default valueType so static input can show
         if (!update.valueType) {
           patch.valueType = 'static';
+        }
+
+        const optsForResolve = (patch.targetFieldOptions || update.targetFieldOptions) as Array<{ label: string; value: string }>;
+        const resolved = resolveOptionStaticValue(optsForResolve, update.staticValue);
+        if (resolved && resolved.value !== String(update.staticValue ?? '')) {
+          patch.staticValue = resolved.value;
         }
 
         if (Object.keys(patch).length > 0) {
@@ -244,9 +263,21 @@ function FieldUpdateItem({
     update.targetFieldName,
     update.targetFieldOptions,
     update.valueType,
+    update.staticValue,
     index,
     onUpdate,
   ]);
+
+  const displayFieldName = pickReadableFieldLabel(
+    update.targetFieldName,
+    undefined,
+    update.targetFieldId,
+  );
+  const resolvedOption = resolveOptionStaticValue(update.targetFieldOptions, update.staticValue);
+  const displayStaticLabel = resolvedOption?.label
+    ?? (update.staticValue !== undefined && update.staticValue !== null && typeof update.staticValue !== 'object'
+      ? String(update.staticValue)
+      : '');
 
   return (
     <Card className="bg-muted/30">
@@ -317,13 +348,14 @@ function FieldUpdateItem({
               <DynamicValueInput
                 field={{
                   id: update.targetFieldId,
-                  label: update.targetFieldName || 'Field',
+                  label: displayFieldName,
                   type: update.targetFieldType,
                   options: (update.targetFieldOptions || []) as Array<{ label: string; value: string }>,
                   custom_config: update.targetFieldCustomConfig || {}
                 } as FormFieldOption}
-                value={update.staticValue ?? ''}
+                value={resolvedOption?.value ?? update.staticValue ?? ''}
                 onChange={(value) => onUpdate(index, { staticValue: value })}
+                hideFieldCaption
               />
             ) : (
               <div className="text-xs text-muted-foreground">Loading field input…</div>
@@ -354,9 +386,8 @@ function FieldUpdateItem({
 
         {update.targetFieldId && update.valueType && (update.staticValue !== undefined || update.dynamicValuePath) && (
           <div className="text-xs text-muted-foreground bg-background/50 p-2 rounded">
-            "{update.targetFieldName}" → {update.valueType === 'static' 
+            "{displayFieldName}" → {update.valueType === 'static' 
               ? (() => {
-                  // Handle object values (like submission-access { users, groups })
                   if (update.staticValue && typeof update.staticValue === 'object') {
                     const val = update.staticValue as any;
                     if (val.users || val.groups) {
@@ -367,7 +398,7 @@ function FieldUpdateItem({
                     }
                     return JSON.stringify(val);
                   }
-                  return `"${update.staticValue}"`;
+                  return `"${displayStaticLabel}"`;
                 })()
               : `from "${update.dynamicFieldName || update.dynamicValuePath}"`}
           </div>
