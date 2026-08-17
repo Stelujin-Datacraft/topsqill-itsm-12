@@ -82,11 +82,41 @@ function findOptionMatch(
   if (requested === undefined || requested === null || requested === '') return undefined;
   const raw = String(requested).trim();
   const lower = raw.toLowerCase();
-  return options.find((o) =>
-    String(o.value).toLowerCase() === lower
-    || String(o.label).toLowerCase() === lower
-    || String(o.id || '').toLowerCase() === lower,
-  );
+  const compact = lower.replace(/[^a-z0-9]+/g, '');
+  const synonyms: Record<string, string[]> = {
+    male: ['m', 'man', 'boy'],
+    female: ['f', 'woman', 'girl'],
+    married: ['marriage', 'wed'],
+    single: ['unmarried'],
+    yes: ['y', 'true', 'on'],
+    no: ['n', 'false', 'off'],
+  };
+  const queries = new Set<string>([lower, compact]);
+  for (const [canonical, alts] of Object.entries(synonyms)) {
+    if (lower === canonical || alts.includes(lower) || alts.includes(compact)) {
+      queries.add(canonical);
+      alts.forEach((a) => queries.add(a));
+    }
+  }
+
+  for (const q of queries) {
+    const exact = options.find((o) =>
+      String(o.value).toLowerCase() === q
+      || String(o.label).toLowerCase() === q
+      || String(o.id || '').toLowerCase() === q
+      || String(o.value).toLowerCase().replace(/[^a-z0-9]+/g, '') === q
+      || String(o.label).toLowerCase().replace(/[^a-z0-9]+/g, '') === q,
+    );
+    if (exact) return exact;
+  }
+
+  const partials = options.filter((o) => {
+    const v = String(o.value).toLowerCase();
+    const l = String(o.label).toLowerCase();
+    return [...queries].some((q) => q.length >= 2 && (v.includes(q) || l.includes(q)));
+  });
+  if (partials.length === 1) return partials[0];
+  return undefined;
 }
 
 function ensureFieldLevelShape(flc: any, formId: string): FieldLevelCondition & { fieldLabel?: string } {

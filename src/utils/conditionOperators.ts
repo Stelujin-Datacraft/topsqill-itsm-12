@@ -348,6 +348,17 @@ export function normalizeRelativeDateCondition(
   const nextN = raw.match(/^next\s+(\d+)\s+days?$/);
   if (nextN) return { operator: 'next_n_days', value: nextN[1] };
 
+  // Year-only (“after 2006”) → concrete ISO for the date picker
+  const yearOnly = String(value ?? '').trim().match(/^(19|20)\d{2}$/);
+  if (yearOnly) {
+    const year = yearOnly[0];
+    if (nextOperator === 'after') return { operator: nextOperator, value: `${year}-12-31` };
+    if (nextOperator === 'before') return { operator: nextOperator, value: `${year}-01-01` };
+    if (nextOperator === 'on_or_after') return { operator: nextOperator, value: `${year}-01-01` };
+    if (nextOperator === 'on_or_before') return { operator: nextOperator, value: `${year}-12-31` };
+    return { operator: nextOperator, value: `${year}-01-01` };
+  }
+
   // Concrete calendar dates → ISO so the date picker shows the value
   const isoValue = normalizeConditionDateValue(value);
   return { operator: nextOperator, value: isoValue };

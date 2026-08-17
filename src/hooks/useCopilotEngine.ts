@@ -28,6 +28,7 @@ import {
   type CopilotToolCall,
   type CopilotCreateType,
 } from '@/lib/copilotUtils';
+import { enrichWorkflowNodesFromPrompt } from '@/lib/ai/inferWorkflowIntent';
 import { createFormFromAiGeneration, type AiGeneratedFormSchema } from '@/lib/createFormFromAiGeneration';
 import {
   buildUpdatePlanFromFields,
@@ -364,11 +365,20 @@ export function useCopilotEngine() {
       triggerFormName: triggerForm?.name || params.triggerFormName || params.formName || params.name,
     };
 
+    const applyPromptIntent = (mapped: any[], fields?: Array<{ id: string; label: string; type: string; options?: any[] }>) => {
+      if (!fields?.length || !userPrompt) return mapped;
+      return enrichWorkflowNodesFromPrompt(mapped, userPrompt, fields, {
+        formId: resolvedFormId || undefined,
+        formName: normalizeOpts.triggerFormName,
+      });
+    };
+
     // Always normalize existing AI nodes (start form, connections, action/condition values)
     if (nodeCount >= 2) {
+      const mapped = mapSuggestedWorkflowNodes(nodes, normalizeOpts);
       return {
         ...params,
-        [nodesKey]: mapSuggestedWorkflowNodes(nodes, normalizeOpts),
+        [nodesKey]: applyPromptIntent(mapped, triggerForm?.fields),
         triggerFormId: params.triggerFormId || resolvedFormId,
         triggerFormName: params.triggerFormName || normalizeOpts.triggerFormName,
       };
@@ -400,7 +410,7 @@ export function useCopilotEngine() {
         });
         return {
           ...params,
-          [nodesKey]: mappedNodes,
+          [nodesKey]: applyPromptIntent(mappedNodes, syntheticTrigger?.fields || triggerForm?.fields),
           name: params.name || suggested.name,
           description: params.description || suggested.description,
           workflowName: params.workflowName || suggested.name,
@@ -416,9 +426,10 @@ export function useCopilotEngine() {
     }
 
     if (Array.isArray(nodes) && nodes.length > 0) {
+      const mapped = mapSuggestedWorkflowNodes(nodes, normalizeOpts);
       return {
         ...params,
-        [nodesKey]: mapSuggestedWorkflowNodes(nodes, normalizeOpts),
+        [nodesKey]: applyPromptIntent(mapped, triggerForm?.fields || syntheticTrigger?.fields),
         triggerFormId: params.triggerFormId || resolvedFormId,
         triggerFormName: params.triggerFormName || normalizeOpts.triggerFormName,
       };

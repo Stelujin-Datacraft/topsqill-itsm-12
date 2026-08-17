@@ -344,7 +344,7 @@ Generate appropriate content for this request.`;
               options: field.options?.map((o: any) => ({
                 value: o.value || o.label || '',
                 label: o.label || o.value || '',
-              })).filter((o: any) => o.value).slice(0, 10),
+              })).filter((o: any) => o.value),
               required: field.required
             }))
           };
@@ -387,8 +387,26 @@ ${JSON.stringify(context.availableReports || [], null, 2)}
 - If user asks "how" to do something, explain without executing
 - If user says "create/make/set up", execute the action via tools
 
-## CRITICAL — create_workflow CONDITION nodes (Field → Operator → Value):
-Condition node config MUST use this exact shape (never a free-text condition string):
+## CRITICAL — Short prompts are enough (auto-catch intent):
+Users type casually. Do NOT require detailed wording. YOU expand short intent using Available Forms.
+
+Examples of prompts that MUST work (map to real fieldId/options yourself):
+- "set marital status to married if dob after 2006 and gender male"
+- "if date of birth > 01/10/2006 and gender is male then change marital status to married"
+- "update marital status married when gender male"
+
+Your job for create_workflow:
+1. Resolve synonyms to form fields (dob→Date of Birth, gender→Gender, marital→Marital Status, etc.).
+2. Pick operators from the field TYPE (never invent):
+   - date → after/before/on_or_after/on_or_before/is_today (map ">" / "greater than" → after). Year-only "2006" → after + 2006-12-31. Full dates → YYYY-MM-DD.
+   - select/radio/toggle → "==" and the option's real value (male→Male if that is the option).
+   - number → > < >= <= ==
+   - text → == / contains
+3. Emit Condition config as enhancedCondition with Field→Operator→Value filled for EVERY predicate (AND when user says and).
+4. Emit change_field_value with real targetFieldId + staticValue from options.
+5. Condition nodes need true/false connections.
+
+Condition node config shape:
 {
   "enhancedCondition": {
     "systemType": "field_level",
@@ -399,29 +417,17 @@ Condition node config MUST use this exact shape (never a free-text condition str
         "systemType": "field_level",
         "logicalOperatorWithNext": "AND",
         "fieldLevelCondition": {
-          "id": "flc_1",
           "formId": "<trigger form UUID>",
-          "fieldId": "<exact field UUID from Available Forms>",
-          "fieldLabel": "<exact field label>",
-          "fieldType": "<exact field type>",
-          "operator": "<operator for that type>",
-          "value": "<comparison value>"
+          "fieldId": "<field UUID>",
+          "fieldLabel": "<label>",
+          "fieldType": "<type>",
+          "operator": "<type-valid op>",
+          "value": "<ISO date or option value>"
         }
       }
     ]
   }
-}
-Rules:
-- ALWAYS look up fields in Available Forms first. Copy real fieldId, fieldLabel, fieldType, and option values — do not invent them.
-- Multiple predicates joined by "and"/"if both" → multiple entries in conditions[] with logicalOperatorWithNext "AND".
-- Operators by field type:
-  * date/datetime: after | before | on_or_after | on_or_before | is_today | ... — NEVER use ">" / "greater_than" on dates; "greater than" a date → operator "after". Date values MUST be ISO YYYY-MM-DD (e.g. 2006-10-01). Never leave incomplete years like 206.
-  * select/radio/checkbox/toggle/dropdown: operator "==" or "!=" and value MUST be an option's value from that field's options list (match case; "male" → use the listed option value e.g. "Male" or "male").
-  * number: ">" "<" ">=" "<=" "=="
-  * text: "==" | contains | starts_with | ends_with
-- change_field_value action config MUST include targetFormId, targetFormName, targetFieldId, targetFieldName, valueType "static", staticValue (use real option value for select fields), and fieldUpdates[].
-- Condition nodes MUST have two connections: conditionType/sourceHandle "true" and "false".
-- Prefer exact labels from the selected/trigger form the user chose.`;
+}`;
 
         // Define tools for structured output
         const copilotTools = [
@@ -472,7 +478,7 @@ Rules:
             type: "function",
             function: {
               name: "create_workflow",
-              description: "Create a workflow with nodes triggered by a form submission. You MUST provide triggerFormId from available forms and include at least start, condition/action, and end nodes. For condition nodes, config.enhancedCondition.conditions[].fieldLevelCondition MUST set formId, fieldId (UUID), fieldLabel, fieldType, operator, and value from the form's real fields/options. Date 'greater than' → operator after + ISO YYYY-MM-DD value. Option fields → exact option value. Multiple AND predicates → multiple conditions with logicalOperatorWithNext AND. For change_field_value actions include targetFieldId, targetFieldName, staticValue, fieldUpdates.",
+              description: "Create a workflow from a SHORT natural-language goal. Users will NOT spell out Field/Operator/Value — YOU look up the selected form's fields/options and fill enhancedCondition + change_field_value completely. Map dob→Date of Birth, > on dates→after, year-only 2006→2006-12-31 for after, male→real Gender option value, etc.",
               parameters: {
                 type: "object",
                 properties: {
@@ -1275,10 +1281,12 @@ Existing Nodes to consider:
 ${JSON.stringify(context.existingNodes, null, 2)}` : ''}
 
 IMPORTANT: 
+- Users write SHORT casual prompts — expand synonyms (dob→Date of Birth) and fill Field/Operator/Value from the form metadata yourself. Do not require the user to name operators or ISO dates.
 - Use the ACTUAL field IDs and form IDs from the forms provided above - DO NOT make up IDs
 - Analyze each form field's type before writing a condition: date → relative/date operators; option fields → only listed options; numbers → numeric ops; text → text ops. Do not guess values that are not valid for that type.
 - For condition nodes, reference actual field IDs, labels, and for select/radio/checkbox/toggle fields use ONLY the actual option values from the form metadata
 - For date fields requesting "today" / "today's date": use operator "is_today" with empty value — never operator "==" with value "today"
+- For date "greater than" / ">": use operator "after". Year-only "after 2006" → value "2006-12-31". Concrete dates → YYYY-MM-DD.
 - Do NOT invent field names or option values that are not listed above. Prefer existing fields/options. If a needed field or option is missing, still emit the intended fieldLabel/value using real formId so the UI can ask the user to create it
 - For send_notification actions, use {{field_label}} placeholders matching the actual field labels
 - For change_field_value, use actual field IDs from the correct form
