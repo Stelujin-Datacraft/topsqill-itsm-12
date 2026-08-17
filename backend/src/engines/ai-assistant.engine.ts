@@ -341,7 +341,10 @@ Generate appropriate content for this request.`;
               id: field.id,
               label: field.label,
               type: field.type,
-              options: field.options?.map((o: any) => o.label || o.value).slice(0, 10),
+              options: field.options?.map((o: any) => ({
+                value: o.value || o.label || '',
+                label: o.label || o.value || '',
+              })).filter((o: any) => o.value).slice(0, 10),
               required: field.required
             }))
           };

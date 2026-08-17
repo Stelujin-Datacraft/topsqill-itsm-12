@@ -1,5 +1,8 @@
 import type { ComparisonOperator } from '@/types/conditions';
-import { normalizeRelativeDateCondition } from '@/utils/conditionOperators';
+import {
+  normalizeConditionOperator,
+  normalizeRelativeDateCondition,
+} from '@/utils/conditionOperators';
 
 export interface AiWorkflowNodeConnection {
   to: string;
@@ -94,11 +97,12 @@ function normalizeConditionConfig(
     const flc = { ...(raw || {}) };
     flc.formId = flc.formId || formId;
     flc.fieldId = flc.fieldId || flc.field || '';
-    flc.fieldLabel = flc.fieldLabel || flc.fieldName || flc.field || flc.fieldId || '';
+    flc.fieldLabel = flc.fieldLabel || flc.fieldName || flc.field || '';
     flc.fieldType = flc.fieldType || 'text';
+    const operator = normalizeConditionOperator(flc.operator || '==');
     const dateNorm = normalizeRelativeDateCondition(
       flc.fieldType,
-      (flc.operator || '==') as ComparisonOperator,
+      operator,
       flc.value,
     );
     flc.operator = dateNorm.operator;

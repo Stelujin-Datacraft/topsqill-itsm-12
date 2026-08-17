@@ -20,16 +20,30 @@ export const ConditionNode = React.memo(function ConditionNode({ data }: Conditi
     // Check for enhanced condition
     if (config?.enhancedCondition) {
       const enhancedCondition = config.enhancedCondition;
+      const fieldCondition = enhancedCondition.fieldLevelCondition
+        || enhancedCondition.conditions?.[0]?.fieldLevelCondition;
       
       if (enhancedCondition.systemType === 'form_level' && enhancedCondition.formLevelCondition) {
         const formCondition = enhancedCondition.formLevelCondition;
         return `${formCondition.conditionType} ${formCondition.operator} ${formCondition.value}`;
-      } else if (enhancedCondition.systemType === 'field_level' && enhancedCondition.fieldLevelCondition) {
-        const fieldCondition = enhancedCondition.fieldLevelCondition;
-        return `Field ${fieldCondition.operator} ${fieldCondition.value}`;
+      } else if (fieldCondition) {
+        const label = fieldCondition.fieldLabel || fieldCondition.fieldId || 'Field';
+        const op = fieldCondition.operator || '==';
+        const val = fieldCondition.value === undefined || fieldCondition.value === ''
+          ? (op.startsWith('is_') || op === 'exists' || op === 'not_exists' ? '' : '…')
+          : String(fieldCondition.value);
+        return val ? `${label} ${op} ${val}` : `${label} ${op}`;
       }
       
       return 'Enhanced condition configured';
+    }
+    
+    // Flat AI keys on the node config
+    if (config?.fieldId || config?.fieldLabel) {
+      const label = config.fieldLabel || config.fieldId;
+      const op = config.operator || '==';
+      const val = config.value === undefined || config.value === '' ? '' : String(config.value);
+      return val ? `${label} ${op} ${val}` : `${label} ${op}`;
     }
     
     // Legacy condition display

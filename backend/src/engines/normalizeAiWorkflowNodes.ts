@@ -66,13 +66,19 @@ function normalizeConditionConfig(config: Record<string, any>, triggerFormId?: s
     const flc = { ...(raw || {}) };
     flc.formId = flc.formId || formId;
     flc.fieldId = flc.fieldId || flc.field || '';
-    flc.fieldLabel = flc.fieldLabel || flc.fieldName || flc.field || flc.fieldId || '';
+    flc.fieldLabel = flc.fieldLabel || flc.fieldName || flc.field || '';
     flc.fieldType = flc.fieldType || 'text';
-    flc.operator = flc.operator || '==';
-    // Relative date: Equals + "today" → is_today
+    // Normalize operator aliases (equals → ==) then relative dates
+    const aliases: Record<string, string> = {
+      equals: '==', equal: '==', is: '==', not_equals: '!=', not_equal: '!=',
+      today: 'is_today', yesterday: 'is_yesterday', tomorrow: 'is_tomorrow',
+    };
+    const opRaw = String(flc.operator ?? '==').trim();
+    const opNorm = aliases[opRaw.toLowerCase().replace(/[\s-]+/g, '_')] || opRaw;
+    flc.operator = opNorm;
     const rawVal = String(flc.value ?? '').trim().toLowerCase();
     if (['date', 'datetime', 'date-time', 'datetime-local'].includes(String(flc.fieldType).toLowerCase())) {
-      if (flc.operator === '==' && /^(today|todays date|today'?s date|current date|now)$/.test(rawVal)) {
+      if ((opNorm === '==' || opNorm === 'equals') && /^(today|todays date|today'?s date|current date|now)$/.test(rawVal)) {
         flc.operator = 'is_today';
         flc.value = '';
       }
