@@ -209,6 +209,50 @@ export function useConditionResolution() {
     });
   }, [autoConfirm]);
 
+  /** Skip creates but still finish the workflow using existing form fields/options. */
+  const handleAutoConfirmSkipContinue = useCallback(() => {
+    if (!autoConfirm) return;
+    const session = autoConfirm;
+    setAutoConfirm(null);
+    setIsCreating(false);
+
+    const rebound = rebindWorkflowNodesToFormAssets({
+      nodes: session.nodes,
+      forms: session.forms,
+      defaultFormId: session.defaultFormId,
+      userPrompt: session.userPrompt,
+    });
+    const formFieldsByFormId = buildConditionFieldsByFormId(rebound.forms);
+    const { nodes, issues } = resolveWorkflowConditions(
+      rebound.nodes,
+      formFieldsByFormId,
+      session.defaultFormId,
+    );
+
+    const skippedParts = [
+      session.plan.fieldsToCreate.length
+        ? `${session.plan.fieldsToCreate.length} field${session.plan.fieldsToCreate.length > 1 ? 's' : ''}`
+        : '',
+      session.plan.optionsToCreate.length
+        ? `${session.plan.optionsToCreate.length} option${session.plan.optionsToCreate.length > 1 ? 's' : ''}`
+        : '',
+    ].filter(Boolean);
+
+    toast.message(
+      skippedParts.length
+        ? `Continued without creating ${skippedParts.join(' and ')}. Using existing form fields where possible.`
+        : 'Continued without creating form updates.',
+    );
+
+    session.settle({
+      nodes,
+      aborted: false,
+      skipped: issues.length,
+      createdFields: [],
+      createdOptions: [],
+    });
+  }, [autoConfirm]);
+
   const handleAutoConfirmCreate = useCallback(async () => {
     if (!autoConfirm) return;
     setIsCreating(true);
@@ -460,6 +504,7 @@ export function useConditionResolution() {
           open
           plan={autoConfirm.plan}
           onConfirm={() => { void handleAutoConfirmCreate(); }}
+          onSkipContinue={handleAutoConfirmSkipContinue}
           onCancel={handleAutoConfirmCancel}
           isCreating={isCreating}
         />
