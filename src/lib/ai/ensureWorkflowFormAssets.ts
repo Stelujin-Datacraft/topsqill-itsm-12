@@ -23,6 +23,10 @@ import {
 } from '@/lib/ai/inferWorkflowIntent';
 import { sanitizeAiFieldType } from '@/lib/createFormFromAiGeneration';
 import { isOptionBasedFieldType } from '@/utils/conditionOperators';
+import {
+  findExistingDecisionOption,
+  isProtectedStatusField,
+} from '@/lib/ai/workflowBuilder/decisionOptionResolver';
 
 /** Labels that are command noise, not real form fields (e.g. prompt started with "create"). */
 const META_PLANNED_FIELD_LABELS = new Set([
@@ -314,6 +318,8 @@ export function planMissingWorkflowFormAssets(params: {
 
     if (matched) {
       reusedFields.push(matched.label);
+      // Never create options on the system Status / lifecycle field
+      if (isProtectedStatusField(matched)) continue;
       if (isOptionBasedFieldType(matched.type)) {
         const opts = matched.options || [];
         for (const label of optionLabels) {
@@ -322,6 +328,11 @@ export function planMissingWorkflowFormAssets(params: {
             || String(o.label).toLowerCase() === label.toLowerCase(),
           );
           if (exists) continue;
+          // Semantic reuse: Approved ↔ Completed, Rejected ↔ Archived, etc.
+          const kind = /reject/i.test(label) ? 'rejected' as const
+            : /pend/i.test(label) ? 'pending' as const
+              : 'approved' as const;
+          if (findExistingDecisionOption(matched, kind)) continue;
           // Avoid duplicate planned options
           if (optionsToCreate.some((o) =>
             o.fieldId === matched.id && o.valueLabel.toLowerCase() === label.toLowerCase()
@@ -381,6 +392,13 @@ export function planMissingWorkflowFormAssets(params: {
         reason: 'Referenced by a condition',
       });
     } else if (issue.kind === 'missing_value') {
+      const issueField = fields.find((f) => f.id === issue.fieldId)
+        || { id: issue.fieldId, label: issue.fieldLabel, type: issue.fieldType, options: issue.availableOptions };
+      if (isProtectedStatusField(issueField)) continue;
+      const kind = /reject/i.test(issue.requestedValue) ? 'rejected' as const
+        : /pend/i.test(issue.requestedValue) ? 'pending' as const
+          : 'approved' as const;
+      if (findExistingDecisionOption(issueField as any, kind)) continue;
       if (optionsToCreate.some((o) =>
         o.fieldId === issue.fieldId
         && o.valueLabel.toLowerCase() === issue.requestedValue.toLowerCase()
@@ -491,6 +509,7 @@ export async function applyWorkflowAssetPlan(params: {
     const field = fields.find((f) => f.id === optPlan.fieldId)
       || fields.find((f) => f.label.toLowerCase() === optPlan.fieldLabel.toLowerCase());
     if (!field || !isOptionBasedFieldType(field.type)) continue;
+    if (isProtectedStatusField(field)) continue;
     const raw = optPlan.valueLabel.trim();
     if (!raw) continue;
     const exists = (field.options || []).some((o) =>

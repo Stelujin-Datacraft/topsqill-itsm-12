@@ -39,8 +39,9 @@ import {
 } from '@/lib/updateFormFromAiGeneration';
 import { useConditionResolution } from '@/hooks/useConditionResolution';
 import { useWorkflowBuilderConversation } from '@/hooks/useWorkflowBuilderConversation';
-import { shouldUseConversationalWorkflowBuilder, applyPendingConfigActions } from '@/lib/ai/workflowBuilder';
+import { shouldUseConversationalWorkflowBuilder, applyPendingConfigActions, bindConditionNodesToDecisionValues } from '@/lib/ai/workflowBuilder';
 import type { FieldRule, FormField } from '@/types/form';
+import { isProtectedStatusField } from '@/lib/ai/workflowBuilder/decisionOptionResolver';
 
 export interface CopilotMessage {
   id: string;
@@ -204,11 +205,17 @@ export function useCopilotEngine() {
               id: field.id,
               label: field.label,
               type: field.field_type,
-              options: Array.isArray(parsedOptions) ? parsedOptions.map((o: any, idx: number) => ({
-                id: o.id || `opt-${idx}`,
-                value: o.value || o.label || '',
-                label: o.label || o.value || '',
-              })) : [],
+              options: Array.isArray(parsedOptions) ? parsedOptions.map((o: any, idx: number) => {
+                if (typeof o === 'string' || typeof o === 'number' || typeof o === 'boolean') {
+                  const raw = String(o);
+                  return { id: `opt-${idx}`, value: raw, label: raw };
+                }
+                return {
+                  id: o.id || `opt-${idx}`,
+                  value: String(o.value ?? o.label ?? o.id ?? ''),
+                  label: String(o.label ?? o.value ?? o.id ?? ''),
+                };
+              }) : [],
               required: field.required || false,
             };
           }),
@@ -489,11 +496,17 @@ export function useCopilotEngine() {
               id: field.id,
               label: field.label,
               type: field.field_type,
-              options: Array.isArray(parsedOptions) ? parsedOptions.map((o: any, idx: number) => ({
-                id: o.id || `opt-${idx}`,
-                value: o.value || o.label || '',
-                label: o.label || o.value || '',
-              })) : [],
+              options: Array.isArray(parsedOptions) ? parsedOptions.map((o: any, idx: number) => {
+                if (typeof o === 'string' || typeof o === 'number' || typeof o === 'boolean') {
+                  const raw = String(o);
+                  return { id: `opt-${idx}`, value: raw, label: raw };
+                }
+                return {
+                  id: o.id || `opt-${idx}`,
+                  value: String(o.value ?? o.label ?? o.id ?? ''),
+                  label: String(o.label ?? o.value ?? o.id ?? ''),
+                };
+              }) : [],
               required: field.required || false,
             };
           });
@@ -851,32 +864,101 @@ export function useCopilotEngine() {
       let name = compiled.name;
       let description = compiled.description;
 
-      const liveForm = formsWithFields.find((f) => f.id === triggerFormId);
-      const liveFields = (liveForm?.fields || []).map((field) => ({
-        id: field.id,
-        label: field.label,
-        type: field.type,
-        options: field.options,
-      }));
+      // Always fetch fresh form fields/options so values bind to real option.value
+      let liveFields: Array<{
+        id: string;
+        label: string;
+        type: string;
+        options?: Array<{ id?: string; value: string; label: string }>;
+        custom_config?: Record<string, unknown> | null;
+      }> = [];
+      try {
+        const { data: formRow } = await supabase
+          .from('forms')
+          .select('id, name, form_fields(id, label, field_type, options, custom_config, required)')
+          .eq('id', triggerFormId)
+          .maybeSingle();
+        if (formRow) {
+          liveFields = ((formRow as any).form_fields || []).map((field: any) => {
+            let parsedOptions: any[] = [];
+            if (field.options) {
+              try {
+                parsedOptions = typeof field.options === 'string' ? JSON.parse(field.options) : field.options;
+              } catch {
+                parsedOptions = [];
+              }
+            }
+            let customConfig: Record<string, unknown> | null = null;
+            if (field.custom_config) {
+              try {
+                customConfig = typeof field.custom_config === 'string'
+                  ? JSON.parse(field.custom_config)
+                  : field.custom_config;
+              } catch {
+                customConfig = null;
+              }
+            }
+            return {
+              id: field.id,
+              label: field.label,
+              type: field.field_type,
+              custom_config: customConfig,
+              options: Array.isArray(parsedOptions) ? parsedOptions.map((o: any, idx: number) => {
+                if (typeof o === 'string' || typeof o === 'number' || typeof o === 'boolean') {
+                  const raw = String(o);
+                  return { id: `opt-${idx}`, value: raw, label: raw };
+                }
+                return {
+                  id: o.id || `opt-${idx}`,
+                  value: String(o.value ?? o.label ?? o.id ?? ''),
+                  label: String(o.label ?? o.value ?? o.id ?? ''),
+                };
+              }) : [],
+            };
+          });
+        }
+      } catch (e) {
+        console.error('Failed to load form fields for workflow value binding:', e);
+        const liveForm = formsWithFields.find((f) => f.id === triggerFormId);
+        liveFields = (liveForm?.fields || []).map((field) => ({
+          id: field.id,
+          label: field.label,
+          type: field.type,
+          options: field.options,
+        }));
+      }
 
       // Apply confirmed field/option creates from the builder session before create_workflow
       const builderSession = getBuilderSession();
       if (builderSession?.pendingActions?.some((a) => a.userConfirmed)) {
+        // Drop any Status option creates that slipped through
+        const safeSession = {
+          ...builderSession,
+          pendingActions: builderSession.pendingActions.filter((a) => {
+            if (a.kind !== 'CREATE_FIELD_VALUE') return true;
+            const fieldId = String(a.payload.fieldId || '');
+            const field = liveFields.find((f) => f.id === fieldId);
+            return !isProtectedStatusField(field);
+          }),
+        };
         const applied = await applyPendingConfigActions({
-          session: builderSession,
+          session: safeSession,
           formId: triggerFormId,
           formFields: liveFields,
         });
         updateBuilderSession({
-          ...builderSession,
+          ...safeSession,
           requirements: applied.definition,
           compiledNodes: applied.compiled.nodes,
-          pendingActions: builderSession.pendingActions.map((a) => ({ ...a, userConfirmed: true })),
+          pendingActions: safeSession.pendingActions.map((a) => ({ ...a, userConfirmed: true })),
           updatedAt: new Date().toISOString(),
         });
         nodes = applied.compiled.nodes;
         name = applied.compiled.name;
         description = applied.compiled.description;
+        if (applied.formFields?.length) {
+          liveFields = applied.formFields;
+        }
         if (applied.createdFields.length || applied.createdValues.length) {
           const bits: string[] = [];
           if (applied.createdFields.length) {
@@ -895,6 +977,9 @@ export function useCopilotEngine() {
         await loadContext();
       }
 
+      // Force-bind condition values to existing option.value before enrich/create
+      nodes = bindConditionNodesToDecisionValues(nodes, liveFields);
+
       // Same normalize + option-value rebind path as standard create_workflow
       let workflowParams = await enrichWorkflowParams(
         'create_workflow',
@@ -907,6 +992,12 @@ export function useCopilotEngine() {
         builderSession?.originalRequest || description || name,
         triggerFormId,
       );
+
+      // Re-bind after enrich (uses possibly stale in-memory fields) using live DB fields
+      workflowParams = {
+        ...workflowParams,
+        nodes: bindConditionNodesToDecisionValues(workflowParams.nodes || nodes, liveFields),
+      };
 
       const confirmed = await confirmWorkflowConditionParams(
         workflowParams,
@@ -922,7 +1013,7 @@ export function useCopilotEngine() {
         }]);
         return;
       }
-      nodes = confirmed.nodes;
+      nodes = bindConditionNodesToDecisionValues(confirmed.nodes || nodes, liveFields);
       name = confirmed.name || name;
       description = confirmed.description || description;
 

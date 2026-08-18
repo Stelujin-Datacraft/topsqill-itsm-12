@@ -20,6 +20,7 @@ import {
   type DiscoveredWorkflow,
   findExistingWorkflowsForForm,
 } from './metadataDiscovery';
+import { isProtectedStatusField } from './decisionOptionResolver';
 import { validateWorkflowDefinition, hasBlockingValidationErrors } from './validationEngine';
 import { generateWorkflowPreview, formatPreviewAsMarkdown } from './previewGenerator';
 import { compileWorkflowDefinition } from './nodeCompiler';
@@ -168,6 +169,11 @@ export function buildPendingActions(
     }
 
     if (level.pendingOptionValues?.length && level.approvalFieldId) {
+      // Never plan option creates on Status
+      const decisionField = form?.fields.find((f) => f.id === level.approvalFieldId);
+      if (decisionField && isProtectedStatusField(decisionField)) {
+        continue;
+      }
       for (const valueLabel of level.pendingOptionValues) {
         actions.push({
           id: `create_value_l${level.level}_${valueLabel.replace(/\s+/g, '_').toLowerCase()}`,

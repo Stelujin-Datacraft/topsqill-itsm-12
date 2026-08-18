@@ -4,6 +4,11 @@
  */
 import { matchFormFieldByHint, type InferFormField } from '@/lib/ai/inferWorkflowIntent';
 import { isOptionBasedFieldType } from '@/utils/conditionOperators';
+import {
+  hasExistingDecisionOption,
+  isProtectedStatusField,
+  missingDecisionOptionLabels,
+} from './decisionOptionResolver';
 
 export interface DiscoveredFormField {
   id: string;
@@ -102,7 +107,10 @@ export function suggestApproverFields(form: DiscoveredForm | undefined): Discove
 }
 
 export function suggestDecisionFields(form: DiscoveredForm | undefined): DiscoveredFormField[] {
-  return (form?.fields || []).filter((f) => isDecisionCompatibleFieldType(f.type));
+  return (form?.fields || []).filter((f) =>
+    isDecisionCompatibleFieldType(f.type)
+    && !isProtectedStatusField(f),
+  );
 }
 
 export function findMissingOptionValues(
@@ -110,9 +118,16 @@ export function findMissingOptionValues(
   requiredLabels: string[],
 ): string[] {
   if (!field || !requiredLabels.length) return [];
-  const opts = field.options || [];
+  // Never treat Status as missing values we should create
+  if (isProtectedStatusField(field)) return [];
   return requiredLabels.filter((label) => {
+    const kind = /reject/i.test(label) ? 'rejected' as const
+      : /pend/i.test(label) ? 'pending' as const
+        : 'approved' as const;
+    // Semantic reuse: Completed covers Approved, etc.
+    if (hasExistingDecisionOption(field, kind)) return false;
     const key = label.toLowerCase();
+    const opts = field.options || [];
     return !opts.some((o) =>
       String(o.value).toLowerCase() === key
       || String(o.label).toLowerCase() === key,
