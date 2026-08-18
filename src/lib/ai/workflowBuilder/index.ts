@@ -10,3 +10,4 @@ export * from './previewGenerator';
 export * from './nodeCompiler';
 export * from './conversationEngine';
 export * from './applyPendingConfigActions';
+export * from './decisionOptionResolver';

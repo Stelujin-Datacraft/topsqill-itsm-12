@@ -851,12 +851,21 @@ export function useCopilotEngine() {
       let name = compiled.name;
       let description = compiled.description;
 
+      const liveForm = formsWithFields.find((f) => f.id === triggerFormId);
+      const liveFields = (liveForm?.fields || []).map((field) => ({
+        id: field.id,
+        label: field.label,
+        type: field.type,
+        options: field.options,
+      }));
+
       // Apply confirmed field/option creates from the builder session before create_workflow
       const builderSession = getBuilderSession();
       if (builderSession?.pendingActions?.some((a) => a.userConfirmed)) {
         const applied = await applyPendingConfigActions({
           session: builderSession,
           formId: triggerFormId,
+          formFields: liveFields,
         });
         updateBuilderSession({
           ...builderSession,
@@ -886,15 +895,23 @@ export function useCopilotEngine() {
         await loadContext();
       }
 
-      const confirmed = await confirmWorkflowConditionParams(
+      // Same normalize + option-value rebind path as standard create_workflow
+      let workflowParams = await enrichWorkflowParams(
+        'create_workflow',
         {
           name,
           description,
           triggerFormId,
           nodes,
         },
+        builderSession?.originalRequest || description || name,
+        triggerFormId,
+      );
+
+      const confirmed = await confirmWorkflowConditionParams(
+        workflowParams,
         'nodes',
-        description || name,
+        builderSession?.originalRequest || description || name,
       );
       if (!confirmed) {
         setMessages((prev) => [...prev, {
@@ -906,6 +923,8 @@ export function useCopilotEngine() {
         return;
       }
       nodes = confirmed.nodes;
+      name = confirmed.name || name;
+      description = confirmed.description || description;
 
       const wfResult = await executeCopilotAction('create_workflow', {
         name,
@@ -943,7 +962,9 @@ export function useCopilotEngine() {
   }, [
     clearBuilderSession,
     confirmWorkflowConditionParams,
+    enrichWorkflowParams,
     executeCopilotAction,
+    formsWithFields,
     getBuilderSession,
     loadContext,
     markPublished,

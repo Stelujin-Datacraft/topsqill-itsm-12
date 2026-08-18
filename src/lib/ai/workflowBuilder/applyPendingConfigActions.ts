@@ -12,12 +12,15 @@ import type {
   WorkflowBuilderSession,
 } from './types';
 import { compileWorkflowDefinition, type CompiledWorkflowGraph } from './nodeCompiler';
+import type { DecisionFieldMeta } from './decisionOptionResolver';
 
 export interface AppliedPendingCreatesResult {
   definition: AIWorkflowDefinition;
   compiled: CompiledWorkflowGraph;
   createdFields: string[];
   createdValues: string[];
+  /** Updated field metadata including newly created options (for value binding) */
+  formFields: DecisionFieldMeta[];
 }
 
 /**
@@ -26,6 +29,8 @@ export interface AppliedPendingCreatesResult {
 export async function applyPendingConfigActions(params: {
   session: WorkflowBuilderSession;
   formId: string;
+  /** Existing form fields — merged with creates for option-value binding */
+  formFields?: DecisionFieldMeta[];
 }): Promise<AppliedPendingCreatesResult> {
   const { session, formId } = params;
   let definition: AIWorkflowDefinition = {
@@ -38,6 +43,9 @@ export async function applyPendingConfigActions(params: {
     })),
   };
 
+  const fieldById = new Map<string, DecisionFieldMeta>(
+    (params.formFields || []).map((f) => [f.id, { ...f, options: [...(f.options || [])] }]),
+  );
   const createdFields: string[] = [];
   const createdValues: string[] = [];
   const confirmed = (session.pendingActions || []).filter((a) => a.userConfirmed);
@@ -62,6 +70,7 @@ export async function applyPendingConfigActions(params: {
     });
     createdFields.push(created.label);
 
+    let fieldOptions = [...(created.options || [])];
     if (isOptionBasedFieldType(created.type)) {
       for (const value of options) {
         try {
@@ -69,6 +78,7 @@ export async function applyPendingConfigActions(params: {
             fieldId: created.id,
             valueLabel: value,
           });
+          fieldOptions = opt.options || fieldOptions;
           if (!createdValues.includes(`${created.label}:${opt.label}`)) {
             createdValues.push(`${created.label}:${opt.label}`);
           }
@@ -77,6 +87,17 @@ export async function applyPendingConfigActions(params: {
         }
       }
     }
+
+    fieldById.set(created.id, {
+      id: created.id,
+      label: created.label,
+      type: created.type,
+      options: fieldOptions.map((o) => ({
+        id: o.id,
+        value: String(o.value),
+        label: String(o.label || o.value),
+      })),
+    });
 
     definition = rebindCreatedField(definition, {
       role,
@@ -96,6 +117,17 @@ export async function applyPendingConfigActions(params: {
       const opt = await addConditionFieldOption({ fieldId, valueLabel });
       const fieldLabel = String(action.payload.fieldLabel || fieldId);
       createdValues.push(`${fieldLabel}:${opt.label}`);
+      const existing = fieldById.get(fieldId);
+      fieldById.set(fieldId, {
+        id: fieldId,
+        label: existing?.label || fieldLabel,
+        type: existing?.type || 'select',
+        options: (opt.options || []).map((o) => ({
+          id: o.id,
+          value: String(o.value),
+          label: String(o.label || o.value),
+        })),
+      });
     } catch {
       /* non-fatal */
     }
@@ -112,8 +144,9 @@ export async function applyPendingConfigActions(params: {
     status: 'READY_TO_PUBLISH',
   };
 
-  const compiled = compileWorkflowDefinition(definition);
-  return { definition, compiled, createdFields, createdValues };
+  const formFields = Array.from(fieldById.values());
+  const compiled = compileWorkflowDefinition(definition, { formFields });
+  return { definition, compiled, createdFields, createdValues, formFields };
 }
 
 function rebindCreatedField(
