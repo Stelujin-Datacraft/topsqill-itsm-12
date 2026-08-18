@@ -210,8 +210,23 @@ export function AIWorkflowSuggester({
     const formId = triggerFormId || triggerForm?.id;
     const formName = triggerForm?.name;
     let nodes = pending.nodes;
+    const forms = selectedForms.length > 0 ? selectedForms : availableForms;
+
+    // 1) Normalize shapes + connections FIRST (matches Copilot: normalize → enrich → resolve).
+    //    Enrichment needs enhancedCondition / fieldUpdates materialized before label→UUID bind.
+    nodes = mapAndNormalizeAiWorkflowNodes(
+      nodes.map((n) => ({
+        type: n.type,
+        label: n.label,
+        description: n.description,
+        config: n.config,
+        connections: n.connections,
+        tempId: (n as any).tempId,
+      })),
+      { triggerFormId: formId, triggerFormName: formName },
+    );
+
     try {
-      const forms = selectedForms.length > 0 ? selectedForms : availableForms;
       const resolved = await resolveWorkflowConditionsInteractive({
         nodes,
         forms,
@@ -229,25 +244,14 @@ export function AIWorkflowSuggester({
       toast.error('Could not validate condition fields. Applying suggestion as-is.');
     }
 
-    // Stamp trigger form + remap connections/values into designer-compatible shapes.
-    // Keep tempId so apply can resolve edges after remap.
-    nodes = mapAndNormalizeAiWorkflowNodes(
-      nodes.map((n) => ({
-        type: n.type,
-        label: n.label,
-        description: n.description,
-        config: n.config,
-        connections: n.connections,
-        tempId: (n as any).tempId,
-      })),
-      { triggerFormId: formId, triggerFormName: formName },
-    ).map((n) => ({
+    // Keep tempId so designer apply can resolve edges after remap.
+    nodes = nodes.map((n) => ({
       type: n.type,
       label: n.label,
       description: n.description,
       config: n.config || {},
       tempId: n.tempId,
-      connections: (n.connections || []).map((c) => ({
+      connections: (n.connections || []).map((c: any) => ({
         to: c.to,
         condition: c.conditionType || c.condition || (c.sourceHandle as string | undefined),
         conditionType: c.conditionType || c.condition,

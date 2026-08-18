@@ -168,10 +168,22 @@ export function useFormFields(formId: string | undefined) {
 
         if (error) throw error;
 
-        // Filter out static/layout fields AND non-input value fields
-        // (e.g. signature, barcode, file) — not useful in condition comparisons
+        // Conditions may reference file/image/attachment (empty / not-empty checks).
+        // Still exclude static layout + non-comparable complex types.
+        const conditionExclusions = [
+          ...STATIC_LAYOUT_FIELD_TYPES,
+          'signature',
+          'barcode',
+          'geo-location',
+          'matrix-grid',
+          'record-table',
+          'cross-reference',
+          'query',
+          'calculated',
+        ] as const;
+
         const dataFields = data.filter(
-          field => !WORKFLOW_VALUE_FIELD_EXCLUSIONS.includes(field.field_type as any)
+          field => !conditionExclusions.includes(field.field_type as any)
         );
 
         const formattedFields: FormFieldOption[] = dataFields.map(field => {

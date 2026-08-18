@@ -155,6 +155,25 @@ function extractFieldLevelConditions(nodeConfig: any): Array<{ path: 'conditions
           value: nodeConfig.value,
         },
       });
+      return out;
+    }
+    // AI Suggest often emits nested config.condition before normalize
+    const nested = typeof nodeConfig?.condition === 'object' && nodeConfig.condition
+      ? nodeConfig.condition
+      : null;
+    if (nested && (nested.fieldId || nested.fieldLabel || nested.field || nested.fieldName)) {
+      out.push({
+        path: 'root',
+        index: 0,
+        flc: {
+          formId: nested.formId || nodeConfig.formId,
+          fieldId: nested.fieldId || nested.field,
+          fieldLabel: nested.fieldLabel || nested.fieldName || nested.field,
+          fieldType: nested.fieldType || 'text',
+          operator: nested.operator || '==',
+          value: nested.value,
+        },
+      });
     }
     return out;
   }
