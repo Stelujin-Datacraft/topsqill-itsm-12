@@ -10,13 +10,13 @@
     },
     {
       "name": "backend-build",
-      "command": "cd backend && npm run build -- --watch",
-      "description": "NestJS compiler in watch mode. Emits backend/dist on every change (tolerates the repo's pre-existing TS type-check warnings)."
+      "command": "cd backend && npx tsc -p tsconfig.json --watch --preserveWatchOutput",
+      "description": "TypeScript compiler in watch mode. Emits backend/dist incrementally on every change (tolerates the repo's pre-existing TS type-check warnings; does not wipe dist)."
     },
     {
       "name": "backend-run",
-      "command": "cd backend && until [ -f dist/main.js ]; do sleep 1; done && node --watch dist/main.js",
-      "description": "Runs the compiled NestJS API on http://localhost:3001/api and restarts when backend/dist changes. Requires the SUPABASE_SERVICE_ROLE_KEY secret."
+      "command": "cd backend && while true; do until [ -f dist/main.js ]; do sleep 1; done; node --watch dist/main.js; echo '[backend-run] process exited, restarting in 2s'; sleep 2; done",
+      "description": "Runs the compiled NestJS API on http://localhost:3001/api, auto-restarts on backend/dist changes, and is supervised so it recovers from transient rebuilds. Requires the SUPABASE_SERVICE_ROLE_KEY secret."
     }
   ],
   "ports": [
