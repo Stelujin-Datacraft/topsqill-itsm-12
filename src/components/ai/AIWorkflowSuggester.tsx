@@ -218,6 +218,10 @@ export function AIWorkflowSuggester({
         mode: 'auto',
         userPrompt: goal || pending.description || pending.name || '',
       });
+      if (resolved.aborted) {
+        toast.message('Cancelled. Workflow suggestion was not applied.');
+        return;
+      }
       nodes = resolved.nodes;
     } catch (e) {
       console.error('Condition resolution failed:', e);

@@ -1,6 +1,6 @@
 /**
- * Ensure form fields/options exist for an AI-generated workflow.
- * Uses existing fields when present; creates missing ones so the workflow can complete.
+ * Plan and apply form field/option creates for AI-generated workflows.
+ * Existing fields are reused; missing ones are planned first (for confirm UI), then created.
  */
 import {
   addConditionFieldOption,
@@ -40,6 +40,30 @@ export interface EnsuredAssetSummary {
   createdOptions: Array<{ field: string; value: string }>;
 }
 
+export interface PlannedFieldCreate {
+  label: string;
+  type: string;
+  /** Option labels to seed when the field is option-based */
+  options: string[];
+  reason: string;
+}
+
+export interface PlannedOptionCreate {
+  fieldId: string;
+  fieldLabel: string;
+  fieldType: string;
+  valueLabel: string;
+  reason: string;
+}
+
+export interface WorkflowAssetPlan {
+  formId: string;
+  formName?: string;
+  fieldsToCreate: PlannedFieldCreate[];
+  optionsToCreate: PlannedOptionCreate[];
+  reusedFields: string[];
+}
+
 function canonicalizeFieldLabel(label: string): string {
   const key = label.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
   const map: Record<string, string> = {
@@ -68,11 +92,34 @@ function inferFieldTypeFromValue(value: unknown, hintType?: string): string {
     return 'select';
   }
   if (/^-?\d+(\.\d+)?$/.test(raw)) return 'number';
-  // Short categorical tokens → select
   if (/^[A-Za-z][A-Za-z0-9 _-]{0,24}$/.test(raw) && raw.split(/\s+/).length <= 3) {
     return 'select';
   }
   return 'text';
+}
+
+function humanizeFieldType(type: string): string {
+  const t = sanitizeAiFieldType(type);
+  const map: Record<string, string> = {
+    text: 'Text',
+    textarea: 'Long text',
+    number: 'Number',
+    date: 'Date',
+    datetime: 'Date & time',
+    select: 'Dropdown',
+    radio: 'Radio',
+    checkbox: 'Checkbox',
+    toggle: 'Toggle',
+    email: 'Email',
+    phone: 'Phone',
+  };
+  return map[t] || t.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function reasonForSource(source: string): string {
+  if (source === 'condition') return 'Referenced by a condition';
+  if (source === 'action') return 'Referenced by Change Field Value';
+  return 'Detected from your prompt';
 }
 
 function collectRequirementsFromNodes(
@@ -131,7 +178,6 @@ function collectRequirementsFromNodes(
     }
   }
 
-  // formId unused but kept for API clarity / future multi-form
   void formId;
   return out;
 }
@@ -161,23 +207,25 @@ function collectRequirementsFromPrompt(prompt: string): Array<{ label: string; t
 
 function mergeRequirements(
   ...lists: Array<Array<{ label: string; type: string; value?: unknown; source: string }>>
-): Array<{ label: string; type: string; values: unknown[] }> {
-  const map = new Map<string, { label: string; type: string; values: unknown[] }>();
+): Array<{ label: string; type: string; values: unknown[]; reasons: string[] }> {
+  const map = new Map<string, { label: string; type: string; values: unknown[]; reasons: string[] }>();
   for (const list of lists) {
     for (const item of list) {
       const key = item.label.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
       if (!key) continue;
+      const reason = reasonForSource(item.source);
       const existing = map.get(key);
       if (!existing) {
         map.set(key, {
           label: item.label,
           type: item.type,
           values: item.value !== undefined && item.value !== '' ? [item.value] : [],
+          reasons: [reason],
         });
       } else {
-        // Prefer more specific types (date/select/number over text)
         if (existing.type === 'text' && item.type !== 'text') existing.type = item.type;
         if (item.value !== undefined && item.value !== '') existing.values.push(item.value);
+        if (!existing.reasons.includes(reason)) existing.reasons.push(reason);
       }
     }
   }
@@ -193,31 +241,36 @@ function toInferFields(fields: ConditionFormFieldMeta[]): InferFormField[] {
   }));
 }
 
+function uniqueLabels(values: unknown[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const v of values) {
+    const raw = String(v ?? '').trim();
+    if (!raw) continue;
+    const key = raw.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(raw.replace(/\b\w/g, (c) => c.toUpperCase()));
+  }
+  return out;
+}
+
 /**
- * Create any missing form fields/options referenced by the prompt or AI nodes,
- * then re-bind condition + change_field_value configs to the live metadata.
+ * Analyze prompt + nodes and return what would be created (no mutations).
  */
-export async function ensureMissingWorkflowFormAssets(params: {
+export function planMissingWorkflowFormAssets(params: {
   nodes: any[];
   forms: EnsureFormAssetForm[];
   defaultFormId?: string;
   userPrompt?: string;
-}): Promise<{
-  nodes: any[];
-  forms: EnsureFormAssetForm[];
-  summary: EnsuredAssetSummary;
-}> {
+}): WorkflowAssetPlan | null {
   const formId = params.defaultFormId || params.forms[0]?.id;
   if (!formId || !Array.isArray(params.nodes) || params.nodes.length === 0) {
-    return {
-      nodes: params.nodes,
-      forms: params.forms,
-      summary: { createdFields: [], createdOptions: [] },
-    };
+    return null;
   }
 
-  let formFieldsByFormId = buildConditionFieldsByFormId(params.forms);
-  let fields = formFieldsByFormId[formId] || [];
+  const formFieldsByFormId = buildConditionFieldsByFormId(params.forms);
+  const fields = formFieldsByFormId[formId] || [];
   const formName = params.forms.find((f) => f.id === formId)?.name;
 
   const requirements = mergeRequirements(
@@ -225,48 +278,157 @@ export async function ensureMissingWorkflowFormAssets(params: {
     params.userPrompt ? collectRequirementsFromPrompt(params.userPrompt) : [],
   );
 
-  const summary: EnsuredAssetSummary = { createdFields: [], createdOptions: [] };
+  const fieldsToCreate: PlannedFieldCreate[] = [];
+  const optionsToCreate: PlannedOptionCreate[] = [];
+  const reusedFields: string[] = [];
 
-  // 1) Ensure fields exist
   for (const req of requirements) {
     const matched = matchFormFieldByHint(toInferFields(fields), req.label)
       || fields.find((f) => f.label.toLowerCase() === req.label.toLowerCase());
 
+    const reason = req.reasons.join('; ');
+    const optionLabels = uniqueLabels(req.values);
+
     if (matched) {
-      // Ensure option values exist on option fields
+      reusedFields.push(matched.label);
       if (isOptionBasedFieldType(matched.type)) {
-        for (const value of req.values) {
-          const raw = String(value ?? '').trim();
-          if (!raw) continue;
-          const opts = matched.options || [];
+        const opts = matched.options || [];
+        for (const label of optionLabels) {
           const exists = opts.some((o) =>
-            String(o.value).toLowerCase() === raw.toLowerCase()
-            || String(o.label).toLowerCase() === raw.toLowerCase(),
+            String(o.value).toLowerCase() === label.toLowerCase()
+            || String(o.label).toLowerCase() === label.toLowerCase(),
           );
           if (exists) continue;
-          try {
-            const created = await addConditionFieldOption({
-              fieldId: matched.id,
-              valueLabel: raw,
-            });
-            matched.options = created.options;
-            summary.createdOptions.push({ field: matched.label, value: created.label });
-          } catch (e) {
-            console.error('ensureMissingWorkflowFormAssets: add option failed', e);
-          }
+          // Avoid duplicate planned options
+          if (optionsToCreate.some((o) =>
+            o.fieldId === matched.id && o.valueLabel.toLowerCase() === label.toLowerCase()
+          )) continue;
+          optionsToCreate.push({
+            fieldId: matched.id,
+            fieldLabel: matched.label,
+            fieldType: matched.type,
+            valueLabel: label,
+            reason,
+          });
         }
       }
       continue;
     }
 
-    // Create missing field (seed first option when select-like)
-    const seedValue = req.values.find((v) => String(v ?? '').trim());
+    // Also check if already planned as a new field
+    const alreadyPlanned = fieldsToCreate.find(
+      (f) => f.label.toLowerCase() === req.label.toLowerCase(),
+    );
+    if (alreadyPlanned) {
+      for (const label of optionLabels) {
+        if (!alreadyPlanned.options.some((o) => o.toLowerCase() === label.toLowerCase())) {
+          alreadyPlanned.options.push(label);
+        }
+      }
+      continue;
+    }
+
+    fieldsToCreate.push({
+      label: req.label,
+      type: req.type,
+      options: isOptionBasedFieldType(req.type) ? optionLabels : [],
+      reason,
+    });
+  }
+
+  // Include resolveWorkflowConditions issues not already covered (UUID-only labels, etc.)
+  const { issues } = resolveWorkflowConditions(
+    params.nodes,
+    formFieldsByFormId,
+    formId,
+  );
+  for (const issue of issues as ConditionResolutionIssue[]) {
+    if (issue.kind === 'missing_field') {
+      const label = canonicalizeFieldLabel(issue.requestedLabel);
+      if (fieldsToCreate.some((f) => f.label.toLowerCase() === label.toLowerCase())) continue;
+      if (matchFormFieldByHint(toInferFields(fields), label)) continue;
+      const optionLabels = uniqueLabels(
+        issue.value !== undefined && issue.value !== '' ? [issue.value] : [],
+      );
+      fieldsToCreate.push({
+        label,
+        type: sanitizeAiFieldType(issue.requestedType),
+        options: isOptionBasedFieldType(issue.requestedType) ? optionLabels : [],
+        reason: 'Referenced by a condition',
+      });
+    } else if (issue.kind === 'missing_value') {
+      if (optionsToCreate.some((o) =>
+        o.fieldId === issue.fieldId
+        && o.valueLabel.toLowerCase() === issue.requestedValue.toLowerCase()
+      )) continue;
+      // Skip if the field itself is being created with this option
+      const pendingField = fieldsToCreate.find(
+        (f) => f.label.toLowerCase() === issue.fieldLabel.toLowerCase(),
+      );
+      if (pendingField) {
+        const label = uniqueLabels([issue.requestedValue])[0];
+        if (label && !pendingField.options.some((o) => o.toLowerCase() === label.toLowerCase())) {
+          pendingField.options.push(label);
+        }
+        continue;
+      }
+      optionsToCreate.push({
+        fieldId: issue.fieldId,
+        fieldLabel: issue.fieldLabel,
+        fieldType: issue.fieldType,
+        valueLabel: uniqueLabels([issue.requestedValue])[0] || issue.requestedValue,
+        reason: 'Referenced by a condition',
+      });
+    }
+  }
+
+  return {
+    formId,
+    formName,
+    fieldsToCreate,
+    optionsToCreate,
+    reusedFields: [...new Set(reusedFields)],
+  };
+}
+
+export function workflowAssetPlanHasCreates(plan: WorkflowAssetPlan | null | undefined): boolean {
+  if (!plan) return false;
+  return plan.fieldsToCreate.length > 0 || plan.optionsToCreate.length > 0;
+}
+
+export function describeFieldType(type: string): string {
+  return humanizeFieldType(type);
+}
+
+/**
+ * Apply a previously planned set of creates, then re-bind workflow nodes.
+ */
+export async function applyWorkflowAssetPlan(params: {
+  nodes: any[];
+  forms: EnsureFormAssetForm[];
+  plan: WorkflowAssetPlan;
+  userPrompt?: string;
+}): Promise<{
+  nodes: any[];
+  forms: EnsureFormAssetForm[];
+  summary: EnsuredAssetSummary;
+}> {
+  const { plan } = params;
+  const formId = plan.formId;
+  let formFieldsByFormId = buildConditionFieldsByFormId(params.forms);
+  let fields = [...(formFieldsByFormId[formId] || [])];
+  const formName = plan.formName || params.forms.find((f) => f.id === formId)?.name;
+  const summary: EnsuredAssetSummary = { createdFields: [], createdOptions: [] };
+
+  // 1) Create new fields
+  for (const fieldPlan of plan.fieldsToCreate) {
+    const seed = fieldPlan.options[0];
     try {
       const created = await createConditionFormField({
         formId,
-        label: req.label,
-        type: req.type,
-        initialValue: isOptionBasedFieldType(req.type) ? seedValue : undefined,
+        label: fieldPlan.label,
+        type: fieldPlan.type,
+        initialValue: isOptionBasedFieldType(fieldPlan.type) ? seed : undefined,
       });
       const meta: ConditionFormFieldMeta = {
         id: created.id,
@@ -277,9 +439,8 @@ export async function ensureMissingWorkflowFormAssets(params: {
       fields = [...fields.filter((f) => f.id !== created.id), meta];
       summary.createdFields.push(created.label);
 
-      // Add any additional option values beyond the seed
       if (isOptionBasedFieldType(created.type)) {
-        for (const value of req.values) {
+        for (const value of fieldPlan.options) {
           const raw = String(value ?? '').trim();
           if (!raw) continue;
           const exists = (meta.options || []).some((o) =>
@@ -292,18 +453,42 @@ export async function ensureMissingWorkflowFormAssets(params: {
             meta.options = opt.options;
             summary.createdOptions.push({ field: created.label, value: opt.label });
           } catch (e) {
-            console.error('ensureMissingWorkflowFormAssets: seed extra option failed', e);
+            console.error('applyWorkflowAssetPlan: seed extra option failed', e);
           }
         }
       }
     } catch (e) {
-      console.error('ensureMissingWorkflowFormAssets: create field failed', e);
+      console.error('applyWorkflowAssetPlan: create field failed', e);
+    }
+  }
+
+  // 2) Add options on existing fields
+  for (const optPlan of plan.optionsToCreate) {
+    const field = fields.find((f) => f.id === optPlan.fieldId)
+      || fields.find((f) => f.label.toLowerCase() === optPlan.fieldLabel.toLowerCase());
+    if (!field || !isOptionBasedFieldType(field.type)) continue;
+    const raw = optPlan.valueLabel.trim();
+    if (!raw) continue;
+    const exists = (field.options || []).some((o) =>
+      String(o.value).toLowerCase() === raw.toLowerCase()
+      || String(o.label).toLowerCase() === raw.toLowerCase(),
+    );
+    if (exists) continue;
+    try {
+      const created = await addConditionFieldOption({
+        fieldId: field.id,
+        valueLabel: raw,
+      });
+      field.options = created.options;
+      summary.createdOptions.push({ field: field.label, value: created.label });
+    } catch (e) {
+      console.error('applyWorkflowAssetPlan: add option failed', e);
     }
   }
 
   formFieldsByFormId = { ...formFieldsByFormId, [formId]: fields };
 
-  // 2) Re-bind AI nodes against updated metadata (prompt enrich + condition resolve)
+  // 3) Re-bind AI nodes
   let nodes = enrichWorkflowNodesFromPrompt(
     params.nodes,
     params.userPrompt || '',
@@ -311,7 +496,7 @@ export async function ensureMissingWorkflowFormAssets(params: {
     { formId, formName },
   );
 
-  // 3) Auto-resolve remaining condition issues (create anything still missing)
+  // 4) Resolve remaining condition issues (safety net — should be rare after plan apply)
   let guard = 0;
   while (guard < 8) {
     guard += 1;
@@ -351,7 +536,7 @@ export async function ensureMissingWorkflowFormAssets(params: {
           }
           createdSomething = true;
         } catch (e) {
-          console.error('auto-create missing field failed', e);
+          console.error('applyWorkflowAssetPlan: safety create field failed', e);
         }
       } else if (issue.kind === 'missing_value') {
         try {
@@ -370,14 +555,13 @@ export async function ensureMissingWorkflowFormAssets(params: {
           summary.createdOptions.push({ field: issue.fieldLabel, value: created.label });
           createdSomething = true;
         } catch (e) {
-          console.error('auto-create missing value failed', e);
+          console.error('applyWorkflowAssetPlan: safety create value failed', e);
         }
       }
     }
     if (!createdSomething) break;
   }
 
-  // Final enrich pass for change_field_value binding
   nodes = enrichWorkflowNodesFromPrompt(
     nodes,
     params.userPrompt || '',
@@ -400,4 +584,67 @@ export async function ensureMissingWorkflowFormAssets(params: {
   });
 
   return { nodes, forms: nextForms, summary };
+}
+
+/**
+ * Re-bind nodes when nothing needs to be created (existing fields only).
+ */
+export function rebindWorkflowNodesToFormAssets(params: {
+  nodes: any[];
+  forms: EnsureFormAssetForm[];
+  defaultFormId?: string;
+  userPrompt?: string;
+}): { nodes: any[]; forms: EnsureFormAssetForm[] } {
+  const formId = params.defaultFormId || params.forms[0]?.id;
+  if (!formId) return { nodes: params.nodes, forms: params.forms };
+
+  const formFieldsByFormId = buildConditionFieldsByFormId(params.forms);
+  const fields = formFieldsByFormId[formId] || [];
+  const formName = params.forms.find((f) => f.id === formId)?.name;
+
+  let nodes = enrichWorkflowNodesFromPrompt(
+    params.nodes,
+    params.userPrompt || '',
+    toInferFields(fields),
+    { formId, formName },
+  );
+  const resolved = resolveWorkflowConditions(nodes, formFieldsByFormId, formId);
+  nodes = enrichWorkflowNodesFromPrompt(
+    resolved.nodes,
+    params.userPrompt || '',
+    toInferFields(fields),
+    { formId, formName },
+  );
+  return { nodes, forms: params.forms };
+}
+
+/**
+ * Create any missing form fields/options (no confirm) then re-bind.
+ * Prefer plan + confirm + applyWorkflowAssetPlan for interactive UX.
+ */
+export async function ensureMissingWorkflowFormAssets(params: {
+  nodes: any[];
+  forms: EnsureFormAssetForm[];
+  defaultFormId?: string;
+  userPrompt?: string;
+}): Promise<{
+  nodes: any[];
+  forms: EnsureFormAssetForm[];
+  summary: EnsuredAssetSummary;
+}> {
+  const plan = planMissingWorkflowFormAssets(params);
+  if (!workflowAssetPlanHasCreates(plan)) {
+    const rebound = rebindWorkflowNodesToFormAssets(params);
+    return {
+      nodes: rebound.nodes,
+      forms: rebound.forms,
+      summary: { createdFields: [], createdOptions: [] },
+    };
+  }
+  return applyWorkflowAssetPlan({
+    nodes: params.nodes,
+    forms: params.forms,
+    plan: plan!,
+    userPrompt: params.userPrompt,
+  });
 }
