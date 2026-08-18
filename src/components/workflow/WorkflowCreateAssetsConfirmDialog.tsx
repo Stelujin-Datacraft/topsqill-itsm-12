@@ -17,6 +17,8 @@ export interface WorkflowCreateAssetsConfirmDialogProps {
   open: boolean;
   plan: WorkflowAssetPlan;
   onConfirm: () => void;
+  /** Skip creating new fields/options and continue with existing form assets. */
+  onSkipContinue: () => void;
   onCancel: () => void;
   isCreating?: boolean;
 }
@@ -29,6 +31,7 @@ export function WorkflowCreateAssetsConfirmDialog({
   open,
   plan,
   onConfirm,
+  onSkipContinue,
   onCancel,
   isCreating = false,
 }: WorkflowCreateAssetsConfirmDialogProps) {
@@ -50,11 +53,11 @@ export function WorkflowCreateAssetsConfirmDialog({
           <DialogDescription className="text-base pt-1 space-y-2">
             <span className="block">
               To finish creating this workflow,{" "}
-              {total === 1 ? "the following will be added" : `${total} items will be added`}{" "}
+              {total === 1 ? "the following may be added" : `${total} items may be added`}{" "}
               to <span className="font-medium text-foreground">{formLabel}</span>.
             </span>
             <span className="block text-muted-foreground">
-              Existing fields are reused when possible. Nothing is created until you confirm.
+              Create them, continue without creating (use existing fields/options only), or cancel.
             </span>
           </DialogDescription>
         </DialogHeader>
@@ -138,6 +141,15 @@ export function WorkflowCreateAssetsConfirmDialog({
               : total === 1
                 ? "Create & continue"
                 : `Create ${total} items & continue`}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={onSkipContinue}
+            disabled={isCreating}
+          >
+            No & continue
           </Button>
           <Button
             type="button"
