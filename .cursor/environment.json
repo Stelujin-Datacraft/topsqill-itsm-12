@@ -1,0 +1,26 @@
+{
+  "name": "TopSqill ITSM",
+  "user": "ubuntu",
+  "install": "npm ci --legacy-peer-deps && cd backend && npm ci && (npm run build || true)",
+  "terminals": [
+    {
+      "name": "frontend",
+      "command": "npm run dev",
+      "description": "Vite + React dev server for the TopSqill SPA on http://localhost:8080 (proxies /api to the backend)."
+    },
+    {
+      "name": "backend-build",
+      "command": "cd backend && npm run build -- --watch",
+      "description": "NestJS compiler in watch mode. Emits backend/dist on every change (tolerates the repo's pre-existing TS type-check warnings)."
+    },
+    {
+      "name": "backend-run",
+      "command": "cd backend && until [ -f dist/main.js ]; do sleep 1; done && node --watch dist/main.js",
+      "description": "Runs the compiled NestJS API on http://localhost:3001/api and restarts when backend/dist changes. Requires the SUPABASE_SERVICE_ROLE_KEY secret."
+    }
+  ],
+  "ports": [
+    { "name": "frontend", "port": 8080 },
+    { "name": "backend", "port": 3001 }
+  ]
+}
