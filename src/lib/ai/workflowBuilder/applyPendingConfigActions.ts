@@ -13,6 +13,7 @@ import type {
 } from './types';
 import { compileWorkflowDefinition, type CompiledWorkflowGraph } from './nodeCompiler';
 import type { DecisionFieldMeta } from './decisionOptionResolver';
+import { isProtectedStatusField } from './decisionOptionResolver';
 
 export interface AppliedPendingCreatesResult {
   definition: AIWorkflowDefinition;
@@ -108,11 +109,13 @@ export async function applyPendingConfigActions(params: {
     });
   }
 
-  // 2) Create option values on existing fields
+  // 2) Create option values on existing fields (never on Status)
   for (const action of confirmed.filter((a) => a.kind === 'CREATE_FIELD_VALUE')) {
     const fieldId = String(action.payload.fieldId || '');
     const valueLabel = String(action.payload.valueLabel || '').trim();
     if (!fieldId || !valueLabel) continue;
+    const existingMeta = fieldById.get(fieldId);
+    if (existingMeta && isProtectedStatusField(existingMeta)) continue;
     try {
       const opt = await addConditionFieldOption({ fieldId, valueLabel });
       const fieldLabel = String(action.payload.fieldLabel || fieldId);

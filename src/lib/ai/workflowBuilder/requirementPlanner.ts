@@ -16,6 +16,10 @@ import {
   suggestDecisionFields,
   type DiscoveredForm,
 } from './metadataDiscovery';
+import {
+  isProtectedStatusField,
+  missingDecisionOptionLabels,
+} from './decisionOptionResolver';
 
 function req(
   partial: Omit<MissingRequirement, 'answered'> & { answered?: boolean },
@@ -236,48 +240,33 @@ export function planMissingRequirements(
     }
   }
 
-  // Option values for decision fields
+  // Option values for decision fields — reuse existing; never mutate Status
   if (form) {
     for (const level of definition.levels) {
       if (!level.approvalFieldId) continue;
       const field = form.fields.find((f) => f.id === level.approvalFieldId);
       if (!field || !isDecisionCompatibleFieldType(field.type)) continue;
-      const needed = [
-        `Pending Level ${level.level}`,
-        `Approved Level ${level.level}`,
-        `Rejected Level ${level.level}`,
-      ];
-      // Also accept generic Pending/Approved/Rejected for single shared field
-      const missingLeveled = findMissingOptionValues(field, needed);
+      if (isProtectedStatusField(field)) continue;
+
+      const missing = missingDecisionOptionLabels(field, level.level);
+      if (!missing.length) continue;
+
+      // Prefer generic Pending/Approved/Rejected when those are what's missing
       const missingGeneric = findMissingOptionValues(field, ['Pending', 'Approved', 'Rejected']);
-      if (missingLeveled.length === 3 && missingGeneric.length > 0) {
-        push(req({
-          id: `level.${level.level}.decision_values`,
-          scope: 'metadata',
-          level: level.level,
-          key: 'decision_values',
-          question: `**${field.label}** is missing values needed for Level ${level.level}. May I add: ${missingGeneric.join(', ')}?`,
-          inputKind: 'confirm',
-          options: [
-            { value: 'add_generic', label: 'Yes, add Pending / Approved / Rejected' },
-            { value: 'add_leveled', label: `Yes, add Level ${level.level} specific values` },
-            { value: 'skip', label: 'No, use existing values' },
-          ],
-        }));
-      } else if (missingLeveled.length && missingLeveled.length < 3) {
-        push(req({
-          id: `level.${level.level}.decision_values`,
-          scope: 'metadata',
-          level: level.level,
-          key: 'decision_values',
-          question: `**${field.label}** is missing: ${missingLeveled.join(', ')}. May I add them?`,
-          inputKind: 'confirm',
-          options: [
-            { value: 'add_leveled', label: 'Yes, add missing values' },
-            { value: 'skip', label: 'No, continue without them' },
-          ],
-        }));
-      }
+      if (missingGeneric.length === 0) continue;
+
+      push(req({
+        id: `level.${level.level}.decision_values`,
+        scope: 'metadata',
+        level: level.level,
+        key: 'decision_values',
+        question: `**${field.label}** is missing decision values (${missingGeneric.join(', ')}). May I add them?`,
+        inputKind: 'confirm',
+        options: [
+          { value: 'add_generic', label: `Yes, add ${missingGeneric.join(' / ')}` },
+          { value: 'skip', label: 'No, use existing values only' },
+        ],
+      }));
     }
   }
 
