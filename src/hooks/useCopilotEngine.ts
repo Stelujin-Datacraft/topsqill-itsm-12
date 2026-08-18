@@ -38,6 +38,8 @@ import {
   type FormUpdatePlan,
 } from '@/lib/updateFormFromAiGeneration';
 import { useConditionResolution } from '@/hooks/useConditionResolution';
+import { useWorkflowBuilderConversation } from '@/hooks/useWorkflowBuilderConversation';
+import { shouldUseConversationalWorkflowBuilder, applyPendingConfigActions } from '@/lib/ai/workflowBuilder';
 import type { FieldRule, FormField } from '@/types/form';
 
 export interface CopilotMessage {
@@ -140,6 +142,15 @@ export function useCopilotEngine() {
     resolveWorkflowConditionsInteractive,
     conditionResolutionDialogs,
   } = useConditionResolution();
+  const {
+    maybeStartOrContinue,
+    clearBuilderSession,
+    getCompiledForPublish,
+    getBuilderSession,
+    updateBuilderSession,
+    markPublished,
+    isBuilderActive,
+  } = useWorkflowBuilderConversation();
   const { currentProject, projects, setCurrentProject } = useProject();
   const { user } = useAuth();
   const location = useLocation();
@@ -812,6 +823,133 @@ export function useCopilotEngine() {
     return null;
   };
 
+  const shouldInterceptApprovalPrompt = (prompt: string) =>
+    shouldUseConversationalWorkflowBuilder(prompt);
+
+  const publishConversationalWorkflow = useCallback(async (
+    compiled: {
+      name: string;
+      description: string;
+      triggerFormId?: string;
+      nodes: any[];
+    },
+    fallbackFormId?: string,
+  ) => {
+    const triggerFormId = compiled.triggerFormId || fallbackFormId;
+    if (!triggerFormId) {
+      setMessages((prev) => [...prev, {
+        id: `assistant-wfb-err-${Date.now()}`,
+        role: 'assistant',
+        content: 'Select a trigger form before publishing this workflow.',
+        timestamp: new Date(),
+      }]);
+      return;
+    }
+
+    try {
+      let nodes = compiled.nodes;
+      let name = compiled.name;
+      let description = compiled.description;
+
+      // Apply confirmed field/option creates from the builder session before create_workflow
+      const builderSession = getBuilderSession();
+      if (builderSession?.pendingActions?.some((a) => a.userConfirmed)) {
+        const applied = await applyPendingConfigActions({
+          session: builderSession,
+          formId: triggerFormId,
+        });
+        updateBuilderSession({
+          ...builderSession,
+          requirements: applied.definition,
+          compiledNodes: applied.compiled.nodes,
+          pendingActions: builderSession.pendingActions.map((a) => ({ ...a, userConfirmed: true })),
+          updatedAt: new Date().toISOString(),
+        });
+        nodes = applied.compiled.nodes;
+        name = applied.compiled.name;
+        description = applied.compiled.description;
+        if (applied.createdFields.length || applied.createdValues.length) {
+          const bits: string[] = [];
+          if (applied.createdFields.length) {
+            bits.push(`fields: ${applied.createdFields.join(', ')}`);
+          }
+          if (applied.createdValues.length) {
+            bits.push(`values: ${applied.createdValues.join(', ')}`);
+          }
+          setMessages((prev) => [...prev, {
+            id: `assistant-wfb-assets-${Date.now()}`,
+            role: 'assistant',
+            content: `Created form assets (${bits.join('; ')}). Publishing workflow…`,
+            timestamp: new Date(),
+          }]);
+        }
+        await loadContext();
+      }
+
+      const confirmed = await confirmWorkflowConditionParams(
+        {
+          name,
+          description,
+          triggerFormId,
+          nodes,
+        },
+        'nodes',
+        description || name,
+      );
+      if (!confirmed) {
+        setMessages((prev) => [...prev, {
+          id: `assistant-wfb-cancel-${Date.now()}`,
+          role: 'assistant',
+          content: 'Publishing cancelled. No workflow was created.',
+          timestamp: new Date(),
+        }]);
+        return;
+      }
+      nodes = confirmed.nodes;
+
+      const wfResult = await executeCopilotAction('create_workflow', {
+        name,
+        description,
+        triggerFormId,
+        nodes,
+      });
+      const workflowId = (wfResult as { result?: { workflowId?: string } })?.result?.workflowId;
+      if (workflowId) {
+        setActiveWorkflowId(workflowId);
+        activeWorkflowIdRef.current = workflowId;
+      }
+      markPublished();
+      clearBuilderSession();
+      setMessages((prev) => [...prev, {
+        id: `assistant-wfb-done-${Date.now()}`,
+        role: 'assistant',
+        content: workflowId
+          ? `✅ **Workflow published!**\n\n• [Open the workflow](/workflow-designer/${workflowId})`
+          : `✅ ${((wfResult as any)?.message) || 'Workflow created.'}`,
+        timestamp: new Date(),
+      }]);
+      toast.success('Workflow published');
+      await loadContext();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to publish workflow';
+      setMessages((prev) => [...prev, {
+        id: `assistant-wfb-err-${Date.now()}`,
+        role: 'assistant',
+        content: `⚠️ Could not publish the workflow: ${msg}`,
+        timestamp: new Date(),
+      }]);
+      toast.error('Publish failed', { description: msg });
+    }
+  }, [
+    clearBuilderSession,
+    confirmWorkflowConditionParams,
+    executeCopilotAction,
+    getBuilderSession,
+    loadContext,
+    markPublished,
+    updateBuilderSession,
+  ]);
+
   const runToolCall = useCallback(async (
     action: string,
     rawParams: Record<string, any>,
@@ -1295,6 +1433,52 @@ export function useCopilotEngine() {
     };
     setMessages((prev) => [...prev, userMessage]);
 
+    // ── Conversational Workflow Builder (approval / multi-level) ──────────
+    // Do NOT blindly create; ask missing questions, validate, preview, then publish.
+    const builderFormId = options?.formId || activeFormIdRef.current || undefined;
+    const builderForm = builderFormId
+      ? formsWithFields.find((f) => f.id === builderFormId)
+      : undefined;
+    const wantsConversationalWorkflow = createType === 'workflow'
+      || isBuilderActive
+      || shouldInterceptApprovalPrompt(trimmed);
+
+    if (wantsConversationalWorkflow) {
+      const turn = maybeStartOrContinue({
+        prompt: trimmed,
+        form: builderForm
+          ? {
+              id: builderForm.id,
+              name: builderForm.name,
+              fields: (builderForm.fields || []).map((field) => ({
+                id: field.id,
+                label: field.label,
+                type: field.type,
+                options: field.options,
+                required: field.required,
+              })),
+            }
+          : undefined,
+        workflows,
+        userId: user?.id,
+        projectId: activeProject?.id,
+      });
+
+      if (turn) {
+        setMessages((prev) => [...prev, {
+          id: `assistant-wfb-${Date.now()}`,
+          role: 'assistant',
+          content: turn.assistantMessage,
+          timestamp: new Date(),
+        }]);
+
+        if (turn.readyToPublish && turn.compiled) {
+          await publishConversationalWorkflow(turn.compiled, builderForm?.id);
+        }
+        return;
+      }
+    }
+
     const chatHistory = messages
       .filter((m) => m.id !== 'welcome')
       .map((m) => ({ role: m.role, content: m.content }));
@@ -1440,7 +1624,23 @@ export function useCopilotEngine() {
         timestamp: new Date(),
       }]);
     }
-  }, [activeFormName, chatbotAssist, copilotEnabled, formsWithFields, isLoading, location.pathname, messages, processToolCalls, reports, workflows]);
+  }, [
+    activeFormName,
+    activeProject?.id,
+    chatbotAssist,
+    copilotEnabled,
+    formsWithFields,
+    isBuilderActive,
+    isLoading,
+    location.pathname,
+    maybeStartOrContinue,
+    messages,
+    processToolCalls,
+    publishConversationalWorkflow,
+    reports,
+    user?.id,
+    workflows,
+  ]);
 
   const clearChat = useCallback(() => {
     setMessages([welcomeMessage()]);
@@ -1451,6 +1651,7 @@ export function useCopilotEngine() {
     activeFormIdRef.current = null;
     activeWorkflowIdRef.current = null;
     activeReportIdRef.current = null;
+    clearBuilderSession();
     if (user?.id && activeProject?.id) {
       try {
         localStorage.removeItem(getChatStorageKey(user.id, activeProject.id));
@@ -1458,7 +1659,7 @@ export function useCopilotEngine() {
         /* ignore */
       }
     }
-  }, [user?.id, activeProject?.id]);
+  }, [user?.id, activeProject?.id, clearBuilderSession]);
 
   const appendMessage = useCallback((message: CopilotMessage) => {
     setMessages((prev) => [...prev, message]);

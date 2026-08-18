@@ -15,3 +15,6 @@ export * from './fewShotExamples';
 
 // Context provider
 export * from './aiContextProvider';
+
+// Conversational workflow builder
+export * from './workflowBuilder';
