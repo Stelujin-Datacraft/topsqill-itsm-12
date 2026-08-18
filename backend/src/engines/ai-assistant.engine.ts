@@ -406,8 +406,16 @@ Your job for create_workflow:
    - text → == / contains
 3. Emit Condition config as enhancedCondition with Field→Operator→Value filled for EVERY predicate (AND when user says and).
 4. When the user says set/change/update a field value → Action Type MUST be change_field_value with valueType "static" (default) and the concrete staticValue filled.
-5. Always emit a COMPLETE workflow (start → condition/action → end with true/false branches). Do not stop because a field is missing.
-6. Condition nodes need true/false connections.
+5. Always emit a COMPLETE workflow graph:
+   - Every non-end node MUST have a connections[] entry pointing to the next node by label or tempId.
+   - Typical approval/verification flow: Start → Action(s) → Condition (optional) → End(s).
+   - With Approved + Rejected ends: include a Condition with true→Approved and false→Rejected, OR chain Actions then connect the last Action to Approved.
+   - Never leave Start/Action/Condition with empty connections.
+6. Condition nodes need true/false connections (conditionType + sourceHandle).
+7. Every Action node MUST set actionType to a designer value:
+   - Review / verify / approve / assign / notify / HR / manager levels → "send_notification" (with notificationConfig).
+   - Set / change / update a field value → "change_field_value" (with fieldUpdates + staticValue).
+   - Never leave actionType empty. Do NOT use approve_form (not in the Action Type dropdown).
 
 Condition node config shape:
 {

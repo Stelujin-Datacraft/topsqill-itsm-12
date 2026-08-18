@@ -631,7 +631,7 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
             <div>
               <Label htmlFor="actionType">Action Type</Label>
               <Select 
-                value={localConfig?.actionType || 'approve_form'} 
+                value={localConfig?.actionType || undefined} 
                 onValueChange={handleActionTypeChange}
               >
                 <SelectTrigger>

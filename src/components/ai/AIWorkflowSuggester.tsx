@@ -46,7 +46,8 @@ interface WorkflowNode {
   label: string;
   description?: string;
   config: Record<string, any>;
-  connections?: Array<{ to: string; condition?: string }>;
+  tempId?: string;
+  connections?: Array<{ to: string; condition?: string; conditionType?: string }>;
 }
 
 interface WorkflowSuggestion {
@@ -228,7 +229,8 @@ export function AIWorkflowSuggester({
       toast.error('Could not validate condition fields. Applying suggestion as-is.');
     }
 
-    // Stamp trigger form + remap connections/values into designer-compatible shapes
+    // Stamp trigger form + remap connections/values into designer-compatible shapes.
+    // Keep tempId so apply can resolve edges after remap.
     nodes = mapAndNormalizeAiWorkflowNodes(
       nodes.map((n) => ({
         type: n.type,
@@ -236,6 +238,7 @@ export function AIWorkflowSuggester({
         description: n.description,
         config: n.config,
         connections: n.connections,
+        tempId: (n as any).tempId,
       })),
       { triggerFormId: formId, triggerFormName: formName },
     ).map((n) => ({
@@ -243,9 +246,11 @@ export function AIWorkflowSuggester({
       label: n.label,
       description: n.description,
       config: n.config || {},
+      tempId: n.tempId,
       connections: (n.connections || []).map((c) => ({
         to: c.to,
-        condition: c.conditionType || c.condition,
+        condition: c.conditionType || c.condition || (c.sourceHandle as string | undefined),
+        conditionType: c.conditionType || c.condition,
       })),
     }));
 

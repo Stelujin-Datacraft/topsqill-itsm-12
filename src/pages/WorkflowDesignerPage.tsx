@@ -641,11 +641,13 @@ const WorkflowDesignerPage = () => {
 
     // Build connections from node.connections with proper edge handling
     const newConnections: WorkflowConnection[] = [];
-    
+    let unresolvedEdges = 0;
+
     suggestion.nodes.forEach((node, sourceIndex) => {
       const sourceNode = newNodes[sourceIndex];
-      
+
       if (node.connections && node.connections.length > 0) {
+        let resolvedAny = false;
         node.connections.forEach((conn) => {
           // Resolve by label OR tempId (node_N) after AI remapping
           const targetIndex = suggestion.nodes.findIndex((n, idx) => {
@@ -654,35 +656,55 @@ const WorkflowDesignerPage = () => {
               || `node_${idx}` === to
               || String((n as any).tempId || '').toLowerCase() === to;
           });
-          
+
           if (targetIndex !== -1) {
+            resolvedAny = true;
             const targetNode = newNodes[targetIndex];
-            
+            const conditionRaw = String(
+              (conn as any).conditionType || conn.condition || (conn as any).sourceHandle || '',
+            ).toLowerCase();
+
             // Determine source handle for condition nodes
             let sourceHandle: string | undefined;
-            if (sourceNode.type === 'condition' && conn.condition) {
-              sourceHandle = conn.condition.toLowerCase() === 'true' ? 'true' : 'false';
+            if (sourceNode.type === 'condition' && (conditionRaw === 'true' || conditionRaw === 'false')) {
+              sourceHandle = conditionRaw;
             }
-            
+
             newConnections.push({
               id: crypto.randomUUID(),
               source: sourceNode.id,
               target: targetNode.id,
               sourceHandle,
-              label: sourceNode.type === 'condition' ? conn.condition : undefined
+              label: sourceNode.type === 'condition' ? conditionRaw || undefined : undefined,
             });
+          } else {
+            unresolvedEdges += 1;
           }
         });
+
+        // If declared edges failed to resolve, fall back to sequential connect
+        if (!resolvedAny && sourceNode.type !== 'end' && sourceIndex < suggestion.nodes.length - 1) {
+          const nextNode = newNodes[sourceIndex + 1];
+          newConnections.push({
+            id: crypto.randomUUID(),
+            source: sourceNode.id,
+            target: nextNode.id,
+          });
+        }
       } else if (sourceNode.type !== 'end' && sourceIndex < suggestion.nodes.length - 1) {
         // Auto-connect sequential nodes if no connections specified (except for end nodes)
         const nextNode = newNodes[sourceIndex + 1];
         newConnections.push({
           id: crypto.randomUUID(),
           source: sourceNode.id,
-          target: nextNode.id
+          target: nextNode.id,
         });
       }
     });
+
+    if (unresolvedEdges > 0) {
+      console.warn(`AI workflow apply: ${unresolvedEdges} connection target(s) could not be resolved`);
+    }
 
     console.log('🤖 AI Workflow Applied:', { 
       nodes: newNodes.length, 

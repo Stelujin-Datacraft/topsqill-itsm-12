@@ -355,8 +355,11 @@ export async function aiCopilotAction(
              }
            }
            
-           if (connectionsToInsert.length > 0) {
-             await supabase.from('workflow_connections').insert(connectionsToInsert);
+  if (connectionsToInsert.length > 0) {
+             const { error: connError } = await supabase.from('workflow_connections').insert(connectionsToInsert);
+             if (connError) {
+               console.error('Error creating workflow connections:', connError);
+             }
            }
          }
  
