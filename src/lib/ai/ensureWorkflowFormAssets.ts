@@ -15,6 +15,7 @@ import {
 } from '@/lib/ai/resolveWorkflowConditions';
 import {
   enrichWorkflowNodesFromPrompt,
+  isCreateEntityPrompt,
   matchFormFieldByHint,
   parseConditionPredicates,
   parseFieldUpdates,
@@ -22,6 +23,23 @@ import {
 } from '@/lib/ai/inferWorkflowIntent';
 import { sanitizeAiFieldType } from '@/lib/createFormFromAiGeneration';
 import { isOptionBasedFieldType } from '@/utils/conditionOperators';
+
+/** Labels that are command noise, not real form fields (e.g. prompt started with "create"). */
+const META_PLANNED_FIELD_LABELS = new Set([
+  'create', 'make', 'build', 'generate', 'design', 'add', 'new', 'please',
+  'workflow', 'workflows', 'form', 'forms', 'automation', 'automate',
+  'set', 'change', 'update', 'a', 'an', 'the', 'my', 'our',
+  'start', 'end', 'action', 'condition', 'notification',
+]);
+
+function isPlannableFieldLabel(label: string): boolean {
+  const key = String(label || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  if (!key || key.length < 2) return false;
+  if (META_PLANNED_FIELD_LABELS.has(key)) return false;
+  const first = key.split(/\s+/)[0];
+  if (/^(create|make|build|generate|design)$/.test(first)) return false;
+  return true;
+}
 
 export interface EnsureFormAssetForm {
   id: string;
@@ -183,6 +201,9 @@ function collectRequirementsFromNodes(
 }
 
 function collectRequirementsFromPrompt(prompt: string): Array<{ label: string; type: string; value?: unknown; source: 'prompt' }> {
+  // "Create a workflow…" is not a request to insert form fields
+  if (isCreateEntityPrompt(prompt)) return [];
+
   const preds = parseConditionPredicates(prompt);
   const updates = parseFieldUpdates(prompt);
   const out: Array<{ label: string; type: string; value?: unknown; source: 'prompt' }> = [];
@@ -283,6 +304,8 @@ export function planMissingWorkflowFormAssets(params: {
   const reusedFields: string[] = [];
 
   for (const req of requirements) {
+    if (!isPlannableFieldLabel(req.label)) continue;
+
     const matched = matchFormFieldByHint(toInferFields(fields), req.label)
       || fields.find((f) => f.label.toLowerCase() === req.label.toLowerCase());
 
@@ -345,6 +368,7 @@ export function planMissingWorkflowFormAssets(params: {
   for (const issue of issues as ConditionResolutionIssue[]) {
     if (issue.kind === 'missing_field') {
       const label = canonicalizeFieldLabel(issue.requestedLabel);
+      if (!isPlannableFieldLabel(label)) continue;
       if (fieldsToCreate.some((f) => f.label.toLowerCase() === label.toLowerCase())) continue;
       if (matchFormFieldByHint(toInferFields(fields), label)) continue;
       const optionLabels = uniqueLabels(
