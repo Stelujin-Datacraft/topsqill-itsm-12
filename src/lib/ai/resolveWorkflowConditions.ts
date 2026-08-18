@@ -90,10 +90,19 @@ function findOptionMatch(
     single: ['unmarried'],
     yes: ['y', 'true', 'on'],
     no: ['n', 'false', 'off'],
+    approved: ['approve', 'accepted', 'accept', 'completed', 'complete', 'passed', 'pass', 'success', 'ok', 'done'],
+    rejected: ['reject', 'denied', 'deny', 'failed', 'fail', 'cancelled', 'canceled', 'declined', 'archived'],
+    pending: ['inprogress', 'in progress', 'draft', 'submitted', 'waiting', 'open'],
+    completed: ['complete', 'approved', 'approve', 'done', 'success'],
   };
   const queries = new Set<string>([lower, compact]);
   for (const [canonical, alts] of Object.entries(synonyms)) {
-    if (lower === canonical || alts.includes(lower) || alts.includes(compact)) {
+    if (
+      lower === canonical
+      || alts.includes(lower)
+      || alts.includes(compact)
+      || compact === canonical.replace(/[^a-z0-9]+/g, '')
+    ) {
       queries.add(canonical);
       alts.forEach((a) => queries.add(a));
     }
@@ -317,6 +326,19 @@ export function resolveWorkflowConditions(
 
       if (isOptionBasedFieldType(matched.type) && value !== undefined && value !== null && value !== '') {
         const options = Array.isArray(matched.options) ? matched.options : [];
+        // Empty options → keep the requested value (can't validate yet; don't wipe the Select)
+        if (options.length === 0) {
+          writeResolvedFlc(next.config, path, index, {
+            ...flc,
+            formId: effectiveFormId,
+            fieldId: matched.id,
+            fieldType: matched.type,
+            operator,
+            value,
+            fieldLabel: matched.label,
+          } as any, effectiveFormId);
+          return;
+        }
         const optionMatch = findOptionMatch(options, value);
         if (!optionMatch) {
           issues.push({
@@ -332,13 +354,15 @@ export function resolveWorkflowConditions(
             requestedValue: String(value),
             availableOptions: options,
           });
+          // Keep the requested value in the draft so the designer still shows intent;
+          // create/choose flow can replace it. Clearing to '' made Field selected but Value blank.
           writeResolvedFlc(next.config, path, index, {
             ...flc,
             formId: effectiveFormId,
             fieldId: matched.id,
             fieldType: matched.type,
             operator,
-            value: '',
+            value: String(value),
             fieldLabel: matched.label,
           } as any, effectiveFormId);
           return;

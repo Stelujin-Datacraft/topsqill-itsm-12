@@ -100,6 +100,10 @@ const OPTION_SYNONYMS: Record<string, string[]> = {
   single: ['unmarried', 'not married'],
   yes: ['y', 'true', 'on'],
   no: ['n', 'false', 'off'],
+  approved: ['approve', 'accepted', 'accept', 'completed', 'complete', 'passed', 'pass', 'success', 'ok', 'done'],
+  rejected: ['reject', 'denied', 'deny', 'failed', 'fail', 'cancelled', 'canceled', 'declined', 'archived'],
+  pending: ['inprogress', 'in progress', 'draft', 'submitted', 'waiting', 'open'],
+  completed: ['complete', 'approved', 'approve', 'done', 'success'],
 };
 
 function expandOptionQuery(raw: string): string[] {

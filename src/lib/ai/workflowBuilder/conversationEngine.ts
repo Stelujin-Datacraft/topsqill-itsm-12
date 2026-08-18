@@ -408,7 +408,9 @@ export function continueWorkflowBuilderSession(params: {
         };
       }
 
-      const compiled = compileWorkflowDefinition(session.requirements);
+      const compiled = compileWorkflowDefinition(session.requirements, {
+        formFields: form?.fields,
+      });
       session = touch({
         ...session,
         status: 'ready_to_publish',

@@ -4,6 +4,10 @@
  * Approval steps are modeled as: notify approver → wait → condition on decision field.
  */
 import type { AIWorkflowDefinition } from './types';
+import {
+  resolveDecisionOptionValue,
+  type DecisionFieldMeta,
+} from './decisionOptionResolver';
 
 export interface CompiledWorkflowGraph {
   name: string;
@@ -19,15 +23,28 @@ export interface CompiledWorkflowGraph {
   }>;
 }
 
-function decisionApprovedValue(level: number, fieldLabel?: string): string {
-  // Prefer leveled values when field was created for this level
-  if (fieldLabel && /level\s*\d/i.test(fieldLabel)) return `Approved Level ${level}`;
-  return 'Approved';
+export interface CompileWorkflowOptions {
+  /** Live form fields — used to bind condition values to real option.value strings */
+  formFields?: DecisionFieldMeta[];
 }
 
-function decisionRejectedValue(level: number, fieldLabel?: string): string {
-  if (fieldLabel && /level\s*\d/i.test(fieldLabel)) return `Rejected Level ${level}`;
-  return 'Rejected';
+function findField(
+  fields: DecisionFieldMeta[] | undefined,
+  fieldId?: string,
+  fieldLabel?: string,
+): DecisionFieldMeta | undefined {
+  if (!fields?.length) return undefined;
+  if (fieldId) {
+    const byId = fields.find((f) => f.id === fieldId);
+    if (byId) return byId;
+  }
+  if (fieldLabel) {
+    const key = fieldLabel.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    return fields.find((f) =>
+      f.label.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim() === key,
+    );
+  }
+  return undefined;
 }
 
 /**
@@ -35,9 +52,11 @@ function decisionRejectedValue(level: number, fieldLabel?: string): string {
  */
 export function compileWorkflowDefinition(
   definition: AIWorkflowDefinition,
+  options?: CompileWorkflowOptions,
 ): CompiledWorkflowGraph {
   const formId = definition.trigger.formId || definition.objectId || '';
   const formName = definition.trigger.formName || definition.objectName || '';
+  const formFields = options?.formFields || [];
   const nodes: CompiledWorkflowGraph['nodes'] = [];
 
   const startId = 'node_start';
@@ -65,6 +84,22 @@ export function compileWorkflowDefinition(
     const conditionId = `node_l${level.level}_decision`;
     levelNodeIds[level.level] = { notify: notifyId, wait: waitId, condition: conditionId };
 
+    const decisionField = findField(
+      formFields,
+      level.approvalFieldId,
+      level.approvalFieldLabel,
+    );
+    const approvedVal = resolveDecisionOptionValue(
+      decisionField || (level.approvalFieldLabel
+        ? { id: level.approvalFieldId || '', label: level.approvalFieldLabel, type: 'select' }
+        : undefined),
+      'approved',
+      level.level,
+    );
+    const fieldType = decisionField?.type || 'select';
+    const fieldId = decisionField?.id || level.approvalFieldId || '';
+    const fieldLabel = decisionField?.label || level.approvalFieldLabel || '';
+
     const approverLabel = level.approver.fieldLabel || level.approver.rawHint || `Level ${level.level} Approver`;
     nodes.push({
       tempId: notifyId,
@@ -76,7 +111,7 @@ export function compileWorkflowDefinition(
         notificationConfig: {
           type: 'in_app',
           subject: `Level ${level.level} approval required`,
-          message: `Please review and set ${level.approvalFieldLabel || 'approval decision'} for this submission.`,
+          message: `Please review and set ${fieldLabel || 'approval decision'} for this submission.`,
           recipientConfig: level.approver.fieldId
             ? {
                 type: 'field_value',
@@ -107,17 +142,16 @@ export function compileWorkflowDefinition(
       connections: [{ to: conditionId }],
     });
 
-    const approvedVal = decisionApprovedValue(level.level, level.approvalFieldLabel);
     nodes.push({
       tempId: conditionId,
       type: 'condition',
       label: `Level ${level.level} Decision`,
-      description: `${level.approvalFieldLabel || 'Decision'} == ${approvedVal}`,
+      description: `${fieldLabel || 'Decision'} == ${approvedVal}`,
       config: {
         formId,
-        fieldId: level.approvalFieldId || '',
-        fieldLabel: level.approvalFieldLabel || '',
-        fieldType: 'select',
+        fieldId,
+        fieldLabel,
+        fieldType,
         operator: '==',
         value: approvedVal,
         enhancedCondition: {
@@ -128,9 +162,9 @@ export function compileWorkflowDefinition(
             systemType: 'field_level',
             fieldLevelCondition: {
               formId,
-              fieldId: level.approvalFieldId || '',
-              fieldLabel: level.approvalFieldLabel || '',
-              fieldType: 'select',
+              fieldId,
+              fieldLabel,
+              fieldType,
               operator: '==',
               value: approvedVal,
             },

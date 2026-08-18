@@ -69,10 +69,19 @@ export function findConditionOptionValue(
     single: ['unmarried'],
     yes: ['y', 'true', 'on'],
     no: ['n', 'false', 'off'],
+    approved: ['approve', 'accepted', 'accept', 'completed', 'complete', 'passed', 'pass', 'success', 'ok', 'done'],
+    rejected: ['reject', 'denied', 'deny', 'failed', 'fail', 'cancelled', 'canceled', 'declined', 'archived'],
+    pending: ['inprogress', 'in progress', 'draft', 'submitted', 'waiting', 'open'],
+    completed: ['complete', 'approved', 'approve', 'done', 'success'],
   };
   const queries = new Set<string>([lower, compact]);
   for (const [canonical, alts] of Object.entries(synonyms)) {
-    if (lower === canonical || alts.includes(lower) || alts.includes(compact)) {
+    if (
+      lower === canonical
+      || alts.includes(lower)
+      || alts.includes(compact)
+      || compact === canonical.replace(/[^a-z0-9]+/g, '')
+    ) {
       queries.add(canonical);
       alts.forEach((a) => queries.add(a));
     }
