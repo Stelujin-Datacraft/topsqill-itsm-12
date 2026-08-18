@@ -82,9 +82,11 @@ interface DynamicValueInputProps {
   field: FormFieldOption;
   value: any;
   onChange: (value: any) => void;
+  /** When true, skip the "Value for {label}" caption (parent already labels the control). */
+  hideFieldCaption?: boolean;
 }
 
-export function DynamicValueInput({ field, value, onChange }: DynamicValueInputProps) {
+export function DynamicValueInput({ field, value, onChange, hideFieldCaption = false }: DynamicValueInputProps) {
   const normalizedType = (field.type || '').toLowerCase().replace(/[_\s]/g, '-');
   const { countries, loading: countriesLoading } = useCountries();
   const { users: orgUsers, loading: usersLoading } = useOrganizationUsers();
@@ -701,10 +703,12 @@ export function DynamicValueInput({ field, value, onChange }: DynamicValueInputP
 
   return (
     <div className="space-y-2">
-      <Label className="text-sm font-medium">
-        Value for {field.label}
-        <span className="text-xs text-muted-foreground ml-1">({field.type})</span>
-      </Label>
+      {!hideFieldCaption && (
+        <Label className="text-sm font-medium">
+          Value for {field.label}
+          <span className="text-xs text-muted-foreground ml-1">({field.type})</span>
+        </Label>
+      )}
       {renderInput()}
     </div>
   );

@@ -3,6 +3,7 @@ import {
   normalizeConditionOperator,
   normalizeRelativeDateCondition,
 } from '@/utils/conditionOperators';
+import { isUnusableFieldLabel } from '@/lib/changeFieldValueDisplay';
 
 export interface AiWorkflowNodeConnection {
   to: string;
@@ -73,15 +74,18 @@ function normalizeChangeFieldValueConfig(
       || next.targetField
       || '';
   }
-  if (!next.targetFieldName) {
-    next.targetFieldName = firstUpdate?.targetFieldName
+  {
+    const candidateName = firstUpdate?.targetFieldName
       || firstUpdate?.fieldName
       || firstUpdate?.fieldLabel
+      || next.targetFieldName
       || next.fieldName
       || next.fieldLabel
-      || next.targetField
-      || next.targetFieldId
       || '';
+    // Never persist the field UUID as the display name — leave empty for UI hydration
+    next.targetFieldName = isUnusableFieldLabel(candidateName, next.targetFieldId)
+      ? ''
+      : String(candidateName).trim();
   }
   if (!next.targetFieldType) {
     next.targetFieldType = firstUpdate?.targetFieldType
@@ -132,10 +136,15 @@ function normalizeChangeFieldValueConfig(
     const staticValue = valueType === 'static'
       ? (u?.staticValue ?? u?.value ?? u?.newValue ?? next.staticValue ?? '')
       : undefined;
+    const targetFieldId = u?.targetFieldId || u?.fieldId || next.targetFieldId;
+    const candidateName = u?.targetFieldName || u?.fieldName || u?.fieldLabel || next.targetFieldName;
+    const targetFieldName = isUnusableFieldLabel(candidateName, targetFieldId)
+      ? ''
+      : String(candidateName || '').trim();
     return {
       ...(u || {}),
-      targetFieldId: u?.targetFieldId || u?.fieldId || next.targetFieldId,
-      targetFieldName: u?.targetFieldName || u?.fieldName || u?.fieldLabel || next.targetFieldName,
+      targetFieldId,
+      targetFieldName,
       targetFieldType: u?.targetFieldType || u?.fieldType || next.targetFieldType || next.fieldType,
       targetFieldOptions: u?.targetFieldOptions || u?.fieldOptions || next.targetFieldOptions || next.fieldOptions,
       valueType,
