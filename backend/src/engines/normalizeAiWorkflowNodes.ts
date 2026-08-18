@@ -8,13 +8,82 @@ export interface NormalizeAiWorkflowNodesOptions {
   triggerFormName?: string;
 }
 
+const DESIGNER_ACTION_TYPES = new Set([
+  'send_notification',
+  'change_field_value',
+  'create_record',
+  'create_linked_record',
+  'update_linked_records',
+  'create_combination_records',
+]);
+
+const CHANGE_FIELD_ALIASES = new Set([
+  'change_field_value', 'change_field', 'set_field_value', 'set_field', 'set_field_values',
+  'update_field_value', 'update_field', 'update_field_values', 'set_value',
+]);
+
+const NOTIFICATION_ALIASES = new Set([
+  'send_notification', 'send_email', 'send_sms', 'notify', 'notification', 'email',
+  'approve_form', 'disapprove_form', 'assign_form', 'assign', 'review', 'verify', 'approval', 'escalate',
+]);
+
+function hasFieldUpdateShape(config: Record<string, any>): boolean {
+  return (Array.isArray(config.fieldUpdates) && config.fieldUpdates.length > 0)
+    || !!config.targetFieldId
+    || !!config.fieldId
+    || (!!config.field && (config.value !== undefined || config.staticValue !== undefined || config.newValue !== undefined));
+}
+
+export function inferDesignerActionType(
+  config: Record<string, any> | undefined,
+  label?: string,
+  description?: string,
+): string {
+  const next = config || {};
+  const rawAction = String(next.actionType || '').toLowerCase().replace(/[\s-]+/g, '_');
+  const haystack = `${label || ''} ${description || ''} ${rawAction}`.toLowerCase();
+
+  if (CHANGE_FIELD_ALIASES.has(rawAction) || (!rawAction && hasFieldUpdateShape(next))) {
+    return 'change_field_value';
+  }
+  if (DESIGNER_ACTION_TYPES.has(rawAction)) return rawAction;
+  if (NOTIFICATION_ALIASES.has(rawAction)) return 'send_notification';
+  if (/set|change|update/.test(haystack) && /field|value|status|married|gender|dob|birth/.test(haystack)) {
+    return 'change_field_value';
+  }
+  if (/create\s+linked|linked\s+record/.test(haystack)) return 'create_linked_record';
+  if (/create\s+combination|combination\s+record/.test(haystack)) return 'create_combination_records';
+  if (/create\s+record/.test(haystack)) return 'create_record';
+  if (/review|verif|approv|reject|assign|notify|email|escalat|hr\b|manager|level\s*\d/.test(haystack)) {
+    return 'send_notification';
+  }
+  return 'send_notification';
+}
+
+function ensureNotificationConfig(config: Record<string, any>, label?: string): Record<string, any> {
+  const next = { ...config, actionType: 'send_notification' };
+  if (!next.notificationConfig) {
+    next.notificationConfig = {
+      type: next.notificationType || next.type || 'in_app',
+      subject: next.subject || next.emailSubject || (label ? `${label}` : 'Workflow Notification'),
+      message: next.message || next.body || next.emailBody
+        || (label ? `Please complete: ${label}` : 'This is an automated notification from the workflow.'),
+      recipientConfig: next.recipientConfig || {
+        type: next.recipientType || 'form_submitter',
+        emails: [],
+        dynamicFieldPath: '',
+      },
+    };
+  }
+  return next;
+}
+
 function normalizeChangeFieldValueConfig(
   config: Record<string, any>,
   triggerFormId?: string,
   triggerFormName?: string,
 ): Record<string, any> {
-  const next = { ...config };
-  if (String(next.actionType || '').toLowerCase() !== 'change_field_value') return next;
+  const next = { ...config, actionType: 'change_field_value' };
 
   const firstUpdate = Array.isArray(next.fieldUpdates) ? next.fieldUpdates[0] : undefined;
   if (!next.targetFieldId) {
@@ -68,7 +137,6 @@ function normalizeConditionConfig(config: Record<string, any>, triggerFormId?: s
     flc.fieldId = flc.fieldId || flc.field || '';
     flc.fieldLabel = flc.fieldLabel || flc.fieldName || flc.field || '';
     flc.fieldType = flc.fieldType || 'text';
-    // Normalize operator aliases (equals → ==) then relative dates
     const aliases: Record<string, string> = {
       equals: '==', equal: '==', is: '==', not_equals: '!=', not_equal: '!=',
       today: 'is_today', yesterday: 'is_yesterday', tomorrow: 'is_tomorrow',
@@ -168,7 +236,7 @@ function normalizeStartConfig(config: Record<string, any>, options?: NormalizeAi
 export function normalizeAiWorkflowNodeConfig(
   nodeType: string,
   config: Record<string, any> | undefined,
-  options?: NormalizeAiWorkflowNodesOptions,
+  options?: NormalizeAiWorkflowNodesOptions & { label?: string; description?: string },
 ): Record<string, any> {
   const type = String(nodeType || '').toLowerCase();
   let next = { ...(config || {}) };
@@ -176,7 +244,13 @@ export function normalizeAiWorkflowNodeConfig(
   else if (type === 'condition' || type === 'branch' || type === 'decision') {
     next = normalizeConditionConfig(next, options?.triggerFormId);
   } else if (type === 'action') {
-    next = normalizeChangeFieldValueConfig(next, options?.triggerFormId, options?.triggerFormName);
+    const actionType = inferDesignerActionType(next, options?.label, options?.description);
+    next.actionType = actionType;
+    if (actionType === 'change_field_value') {
+      next = normalizeChangeFieldValueConfig(next, options?.triggerFormId, options?.triggerFormName);
+    } else if (actionType === 'send_notification') {
+      next = ensureNotificationConfig(next, options?.label);
+    }
     if (!next.targetFormId && options?.triggerFormId) next.targetFormId = options.triggerFormId;
     if (!next.targetFormName && options?.triggerFormName) next.targetFormName = options.triggerFormName;
   }
@@ -196,6 +270,80 @@ function resolveConnectionTarget(
     if (label.includes(to.toLowerCase()) || to.toLowerCase().includes(label)) return tempId;
   }
   return undefined;
+}
+
+function pickApproveEnd(ends: any[]): any | undefined {
+  return ends.find((n) => /approv|success|complete|done|accept|pass/i.test(n.label)) || ends[0];
+}
+
+function pickRejectEnd(ends: any[], approve?: any): any | undefined {
+  return ends.find((n) =>
+    n.tempId !== approve?.tempId
+    && /reject|deny|fail|need|update|revision|return|cancel/i.test(n.label),
+  ) || ends.find((n) => n.tempId !== approve?.tempId);
+}
+
+function findNextNonEnd(mapped: any[], fromIndex: number): any | undefined {
+  for (let j = fromIndex + 1; j < mapped.length; j++) {
+    if (String(mapped[j].type).toLowerCase() !== 'end') return mapped[j];
+  }
+  return undefined;
+}
+
+function fillMissingConnections(mapped: any[]): void {
+  if (mapped.length <= 1) return;
+
+  const ends = mapped.filter((n) => String(n.type).toLowerCase() === 'end');
+  const approveEnd = pickApproveEnd(ends);
+  const rejectEnd = pickRejectEnd(ends, approveEnd);
+
+  for (let i = 0; i < mapped.length; i++) {
+    const source = mapped[i];
+    const type = String(source.type).toLowerCase();
+    if (type === 'end') continue;
+
+    const conns = [...(source.connections || [])];
+
+    if (type === 'condition') {
+      const hasTrue = conns.some((c: any) =>
+        String(c.conditionType || c.condition || c.sourceHandle || '').toLowerCase() === 'true',
+      );
+      const hasFalse = conns.some((c: any) =>
+        String(c.conditionType || c.condition || c.sourceHandle || '').toLowerCase() === 'false',
+      );
+      const next = findNextNonEnd(mapped, i) || mapped[i + 1];
+      if (!hasTrue && next) {
+        conns.push({ to: next.tempId, conditionType: 'true', sourceHandle: 'true' });
+      }
+      if (!hasFalse) {
+        const falseTarget = rejectEnd
+          || ends.find((e: any) => e.tempId !== (conns.find((c: any) =>
+            String(c.conditionType || c.sourceHandle).toLowerCase() === 'true'
+          )?.to))
+          || approveEnd
+          || next;
+        if (falseTarget) {
+          conns.push({ to: falseTarget.tempId, conditionType: 'false', sourceHandle: 'false' });
+        }
+      }
+      source.connections = conns;
+      continue;
+    }
+
+    if (conns.length > 0) {
+      source.connections = conns;
+      continue;
+    }
+
+    const nextNonEnd = findNextNonEnd(mapped, i);
+    if (nextNonEnd) {
+      source.connections = [{ to: nextNonEnd.tempId }];
+    } else if (approveEnd) {
+      source.connections = [{ to: approveEnd.tempId }];
+    } else if (mapped[i + 1]) {
+      source.connections = [{ to: mapped[i + 1].tempId }];
+    }
+  }
 }
 
 /** Normalize AI node list before DB insert (tempIds, start form, edges, action/condition values). */
@@ -220,7 +368,11 @@ export function mapAndNormalizeAiWorkflowNodes(
       tempId,
       type,
       label,
-      config: normalizeAiWorkflowNodeConfig(type, node.config, options),
+      config: normalizeAiWorkflowNodeConfig(type, node.config, {
+        ...options,
+        label,
+        description: node.description,
+      }),
       positionX: node.positionX ?? (type === 'condition' ? 350 : 250),
       positionY: node.positionY ?? (100 + index * 150),
       connections: Array.isArray(node.connections) ? node.connections : [],
@@ -240,6 +392,7 @@ export function mapAndNormalizeAiWorkflowNodes(
         return {
           to,
           conditionType: condition === 'true' || condition === 'false' ? condition : (conn.conditionType || undefined),
+          condition: condition === 'true' || condition === 'false' ? condition : undefined,
           sourceHandle,
           targetHandle: conn.targetHandle ?? null,
         };
@@ -249,23 +402,7 @@ export function mapAndNormalizeAiWorkflowNodes(
     return { ...node, connections };
   });
 
-  const hasAnyConnection = mapped.some((n) => (n.connections || []).length > 0);
-  if (!hasAnyConnection && mapped.length > 1) {
-    for (let i = 0; i < mapped.length - 1; i++) {
-      const source = mapped[i];
-      const target = mapped[i + 1];
-      if (String(source.type).toLowerCase() === 'end') continue;
-      if (String(source.type).toLowerCase() === 'condition') {
-        const endNode = mapped.find((n) => String(n.type).toLowerCase() === 'end' && n.tempId !== target.tempId);
-        source.connections = [
-          { to: target.tempId, conditionType: 'true', sourceHandle: 'true' },
-          { to: endNode?.tempId || target.tempId, conditionType: 'false', sourceHandle: 'false' },
-        ];
-      } else {
-        source.connections = [{ to: target.tempId }];
-      }
-    }
-  }
+  fillMissingConnections(mapped);
 
   return mapped;
 }
