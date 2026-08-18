@@ -12,7 +12,8 @@ import {
   normalizeRelativeDateCondition,
 } from '@/utils/conditionOperators';
 import { normalizeAiWorkflowNodeConfig } from '@/lib/normalizeAiWorkflowNodes';
-import { isUnusableFieldLabel } from '@/lib/changeFieldValueDisplay';
+import { isLikelyUuid, isUnusableFieldLabel } from '@/lib/changeFieldValueDisplay';
+import { bindConditionToFormFields } from '@/lib/bindConditionToFormFields';
 
 export interface InferFormField {
   id: string;
@@ -508,12 +509,17 @@ function applyUpdatesToActionConfig(
     actionType: 'change_field_value',
     targetFormId: config.targetFormId || formId,
     targetFormName: config.targetFormName || formName || '',
-    targetFieldId: config.targetFieldId || field.id,
-    targetFieldName: config.targetFieldName || field.label,
+    // Prefer real UUID from matched field when AI stored a label as targetFieldId
+    targetFieldId: isLikelyUuid(config.targetFieldId) ? config.targetFieldId : field.id,
+    targetFieldName: isUnusableFieldLabel(config.targetFieldName, config.targetFieldId)
+      ? field.label
+      : (config.targetFieldName || field.label),
     targetFieldType: config.targetFieldType || field.type,
     targetFieldOptions: config.targetFieldOptions || fieldUpdate.targetFieldOptions,
     valueType: 'static',
-    staticValue: config.staticValue || staticValue,
+    staticValue: config.staticValue !== undefined && config.staticValue !== ''
+      ? matchOptionValueByHint(field, config.staticValue)
+      : staticValue,
     fieldUpdates: Array.isArray(config.fieldUpdates) && config.fieldUpdates.length
       ? config.fieldUpdates.map((u: any, idx: number) => {
           if (idx !== 0) return u;
@@ -525,7 +531,7 @@ function applyUpdatesToActionConfig(
           );
           return {
             ...u,
-            targetFieldId: u.targetFieldId || matched.id,
+            targetFieldId: matched.id,
             targetFieldName: isUnusableFieldLabel(u.targetFieldName, u.targetFieldId || matched.id)
               ? matched.label
               : (u.targetFieldName || matched.label),
@@ -594,7 +600,8 @@ function hydrateChangeFieldValueTypes(
       || (next.targetFieldId ? fields.find((f) => f.id === next.targetFieldId) : undefined);
 
     if (!matched) return u;
-    const targetFieldId = u.targetFieldId || matched.id;
+    // Always persist the real form field UUID so FormFieldSelector / Selects bind
+    const targetFieldId = matched.id;
     return {
       ...u,
       targetFieldId,
@@ -614,7 +621,7 @@ function hydrateChangeFieldValueTypes(
   if (Array.isArray(next.fieldUpdates) && next.fieldUpdates.length > 0) {
     next.fieldUpdates = next.fieldUpdates.map(hydrateOne);
     const first = next.fieldUpdates[0];
-    next.targetFieldId = next.targetFieldId || first.targetFieldId;
+    next.targetFieldId = first.targetFieldId;
     next.targetFieldName = isUnusableFieldLabel(next.targetFieldName, next.targetFieldId)
       ? first.targetFieldName
       : (next.targetFieldName || first.targetFieldName);
@@ -641,6 +648,82 @@ function hydrateChangeFieldValueTypes(
 }
 
 /**
+ * Rebind an already-materialized condition config so Field/Operator/Value use live UUIDs.
+ * Does not require prompt predicates — works from AI labels alone.
+ */
+function rebindConditionConfigToFields(
+  config: Record<string, any>,
+  fields: InferFormField[],
+  formId: string,
+): Record<string, any> {
+  if (!fields.length) return config;
+
+  const next = { ...config };
+  const enhanced = next.enhancedCondition;
+  const items: any[] = Array.isArray(enhanced?.conditions) && enhanced.conditions.length
+    ? enhanced.conditions
+    : enhanced?.fieldLevelCondition
+      ? [{ fieldLevelCondition: enhanced.fieldLevelCondition }]
+      : (next.fieldId || next.fieldLabel || next.field)
+        ? [{ fieldLevelCondition: next }]
+        : [];
+
+  if (!items.length) return next;
+
+  const conditions = items.map((item: any, idx: number) => {
+    const flc = { ...(item.fieldLevelCondition || item) };
+    const bound = bindConditionToFormFields(
+      {
+        formId: flc.formId || formId,
+        fieldId: flc.fieldId,
+        fieldLabel: flc.fieldLabel || flc.fieldName || flc.field,
+        fieldType: flc.fieldType,
+        operator: flc.operator,
+        value: flc.value,
+      },
+      fields,
+      formId,
+    );
+    const resolvedFlc = {
+      ...flc,
+      formId: bound.formId || formId || flc.formId,
+      fieldId: bound.matched ? bound.fieldId : (isLikelyUuid(flc.fieldId) ? flc.fieldId : ''),
+      fieldLabel: bound.matched ? bound.fieldLabel : (flc.fieldLabel || flc.fieldName || ''),
+      fieldType: bound.matched ? bound.fieldType : (flc.fieldType || 'text'),
+      operator: bound.operator,
+      value: bound.value,
+    };
+    return {
+      ...item,
+      id: item.id || `cond_bind_${idx}`,
+      systemType: 'field_level',
+      fieldLevelCondition: resolvedFlc,
+      ...(idx < items.length - 1
+        ? { logicalOperatorWithNext: item.logicalOperatorWithNext || 'AND' }
+        : {}),
+    };
+  });
+
+  const first = conditions[0]?.fieldLevelCondition;
+  next.enhancedCondition = {
+    ...enhanced,
+    systemType: 'field_level',
+    logicalOperator: enhanced?.logicalOperator || 'AND',
+    conditions,
+    fieldLevelCondition: first,
+  };
+  if (first) {
+    next.formId = first.formId;
+    next.fieldId = first.fieldId;
+    next.fieldLabel = first.fieldLabel;
+    next.fieldType = first.fieldType;
+    next.operator = first.operator;
+    next.value = first.value;
+  }
+  return next;
+}
+
+/**
  * Enrich AI workflow nodes from a short user prompt + form field metadata.
  * Fills Condition Field/Operator/Value and Change Field Value targets when missing/incomplete.
  */
@@ -661,37 +744,22 @@ export function enrichWorkflowNodesFromPrompt(
     const type = String(node?.type || '').toLowerCase();
     let config = { ...(node.config || {}) };
 
-    if ((type === 'condition' || type === 'branch' || type === 'decision') && predicates.length) {
-      if (conditionNeedsEnrichment(config) || predicates.length > (config.enhancedCondition?.conditions?.length || 0)) {
+    if (type === 'condition' || type === 'branch' || type === 'decision') {
+      // Materialize enhancedCondition from flat/nested AI shapes first
+      config = normalizeAiWorkflowNodeConfig('condition', config, {
+        triggerFormId: formId,
+        triggerFormName: formName,
+      });
+
+      if (predicates.length && (
+        conditionNeedsEnrichment(config)
+        || predicates.length > (config.enhancedCondition?.conditions?.length || 0)
+      )) {
         config = applyPredicatesToConditionConfig(config, predicates, fields, formId);
-      } else {
-        // Still re-bind option/date values against real metadata
-        const conditions = (config.enhancedCondition?.conditions || []).map((item: any, idx: number) => {
-          const flc = { ...(item.fieldLevelCondition || item) };
-          const field = matchFormFieldByHint(fields, flc.fieldLabel || flc.fieldId || predicates[idx]?.fieldHint || '');
-          if (field) {
-            const built = buildValueForField(
-              field,
-              normalizeConditionOperator(flc.operator || predicates[idx]?.operatorHint || '=='),
-              String(flc.value ?? predicates[idx]?.valueHint ?? ''),
-            );
-            flc.formId = formId || flc.formId;
-            flc.fieldId = field.id;
-            flc.fieldLabel = field.label;
-            flc.fieldType = field.type;
-            flc.operator = built.operator;
-            flc.value = built.value;
-          }
-          return { ...item, systemType: 'field_level', fieldLevelCondition: flc };
-        });
-        config.enhancedCondition = {
-          ...config.enhancedCondition,
-          systemType: 'field_level',
-          logicalOperator: 'AND',
-          conditions,
-          fieldLevelCondition: conditions[0]?.fieldLevelCondition,
-        };
       }
+
+      // Always rebind labels → UUIDs / option values (even when prompt has no predicates)
+      config = rebindConditionConfigToFields(config, fields, formId);
       config = normalizeAiWorkflowNodeConfig('condition', config, {
         triggerFormId: formId,
         triggerFormName: formName,
@@ -705,6 +773,7 @@ export function enrichWorkflowNodesFromPrompt(
       // Always stamp targetFieldType/options so the Action Node value input is visible
       if (String(config.actionType || '').toLowerCase() === 'change_field_value'
         || config.targetFieldId
+        || config.targetFieldName
         || (Array.isArray(config.fieldUpdates) && config.fieldUpdates.length > 0)) {
         config = hydrateChangeFieldValueTypes(config, fields, formId, formName);
         config = normalizeAiWorkflowNodeConfig('action', config, {
