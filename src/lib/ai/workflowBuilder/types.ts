@@ -88,6 +88,8 @@ export interface WorkflowLevelSpec {
   commentsFieldLabel?: string;
   onApprovalNext?: 'next_level' | 'complete' | string;
   onRejection: RejectionRoute | null;
+  /** Option labels to add on publish after user permission */
+  pendingOptionValues?: string[];
   /** Optional gate before this level runs */
   entryCondition?: WorkflowConditionSpec | null;
   configured: boolean;

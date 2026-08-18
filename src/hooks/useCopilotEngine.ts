@@ -39,7 +39,7 @@ import {
 } from '@/lib/updateFormFromAiGeneration';
 import { useConditionResolution } from '@/hooks/useConditionResolution';
 import { useWorkflowBuilderConversation } from '@/hooks/useWorkflowBuilderConversation';
-import { shouldUseConversationalWorkflowBuilder } from '@/lib/ai/workflowBuilder';
+import { shouldUseConversationalWorkflowBuilder, applyPendingConfigActions } from '@/lib/ai/workflowBuilder';
 import type { FieldRule, FormField } from '@/types/form';
 
 export interface CopilotMessage {
@@ -146,6 +146,8 @@ export function useCopilotEngine() {
     maybeStartOrContinue,
     clearBuilderSession,
     getCompiledForPublish,
+    getBuilderSession,
+    updateBuilderSession,
     markPublished,
     isBuilderActive,
   } = useWorkflowBuilderConversation();
@@ -844,21 +846,55 @@ export function useCopilotEngine() {
       return;
     }
 
-    // Apply any confirmed field creates from the builder session before create_workflow
-    const compiledForPublish = getCompiledForPublish();
-    void compiledForPublish;
-
     try {
       let nodes = compiled.nodes;
+      let name = compiled.name;
+      let description = compiled.description;
+
+      // Apply confirmed field/option creates from the builder session before create_workflow
+      const builderSession = getBuilderSession();
+      if (builderSession?.pendingActions?.some((a) => a.userConfirmed)) {
+        const applied = await applyPendingConfigActions({
+          session: builderSession,
+          formId: triggerFormId,
+        });
+        updateBuilderSession({
+          ...builderSession,
+          requirements: applied.definition,
+          compiledNodes: applied.compiled.nodes,
+          pendingActions: builderSession.pendingActions.map((a) => ({ ...a, userConfirmed: true })),
+          updatedAt: new Date().toISOString(),
+        });
+        nodes = applied.compiled.nodes;
+        name = applied.compiled.name;
+        description = applied.compiled.description;
+        if (applied.createdFields.length || applied.createdValues.length) {
+          const bits: string[] = [];
+          if (applied.createdFields.length) {
+            bits.push(`fields: ${applied.createdFields.join(', ')}`);
+          }
+          if (applied.createdValues.length) {
+            bits.push(`values: ${applied.createdValues.join(', ')}`);
+          }
+          setMessages((prev) => [...prev, {
+            id: `assistant-wfb-assets-${Date.now()}`,
+            role: 'assistant',
+            content: `Created form assets (${bits.join('; ')}). Publishing workflow…`,
+            timestamp: new Date(),
+          }]);
+        }
+        await loadContext();
+      }
+
       const confirmed = await confirmWorkflowConditionParams(
         {
-          name: compiled.name,
-          description: compiled.description,
+          name,
+          description,
           triggerFormId,
           nodes,
         },
         'nodes',
-        compiled.description || compiled.name,
+        description || name,
       );
       if (!confirmed) {
         setMessages((prev) => [...prev, {
@@ -872,8 +908,8 @@ export function useCopilotEngine() {
       nodes = confirmed.nodes;
 
       const wfResult = await executeCopilotAction('create_workflow', {
-        name: compiled.name,
-        description: compiled.description,
+        name,
+        description,
         triggerFormId,
         nodes,
       });
@@ -908,9 +944,10 @@ export function useCopilotEngine() {
     clearBuilderSession,
     confirmWorkflowConditionParams,
     executeCopilotAction,
-    getCompiledForPublish,
+    getBuilderSession,
     loadContext,
     markPublished,
+    updateBuilderSession,
   ]);
 
   const runToolCall = useCallback(async (

@@ -66,6 +66,13 @@ export function useWorkflowBuilderConversation() {
     return result;
   }, []);
 
+  const getBuilderSession = useCallback(() => sessionRef.current, []);
+
+  const updateBuilderSession = useCallback((next: WorkflowBuilderSession) => {
+    sessionRef.current = next;
+    setSession(next);
+  }, []);
+
   const getCompiledForPublish = useCallback(() => {
     const active = sessionRef.current;
     if (!active || active.status !== 'ready_to_publish') return null;
@@ -96,6 +103,8 @@ export function useWorkflowBuilderConversation() {
     isBuilderActive: isActive,
     maybeStartOrContinue,
     clearBuilderSession,
+    getBuilderSession,
+    updateBuilderSession,
     getCompiledForPublish,
     markPublished,
     shouldUseConversationalWorkflowBuilder,

@@ -26,7 +26,13 @@ export function validateWorkflowDefinition(
   }
 
   for (const level of definition.levels) {
-    if (!level.approver.resolved && !level.approver.fieldId && !level.approver.entityId) {
+    const hasApprover = Boolean(
+      level.approver.fieldId
+      || level.approver.entityId
+      || level.approver.type === 'submitter'
+      || (level.approver.resolved && level.approver.fieldLabel),
+    );
+    if (!hasApprover) {
       issues.push({
         severity: 'error',
         code: 'MISSING_APPROVER',
@@ -38,6 +44,13 @@ export function validateWorkflowDefinition(
         severity: 'error',
         code: 'MISSING_APPROVAL_FIELD',
         message: `Level ${level.level} has no approval decision field.`,
+      });
+    }
+    if (!level.rejectionFieldId && !level.rejectionFieldLabel) {
+      issues.push({
+        severity: 'error',
+        code: 'MISSING_REJECTION_FIELD',
+        message: `Level ${level.level} has no rejection field.`,
       });
     }
     if (!level.onRejection) {

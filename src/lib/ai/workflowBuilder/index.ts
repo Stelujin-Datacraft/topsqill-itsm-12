@@ -9,3 +9,4 @@ export * from './validationEngine';
 export * from './previewGenerator';
 export * from './nodeCompiler';
 export * from './conversationEngine';
+export * from './applyPendingConfigActions';

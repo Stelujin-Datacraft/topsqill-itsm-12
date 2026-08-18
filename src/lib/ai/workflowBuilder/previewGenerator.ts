@@ -11,10 +11,10 @@ import type {
 function rejectionLabel(level: AIWorkflowDefinition['levels'][number]): string {
   const r = level.onRejection;
   if (!r) return '(not set)';
-  if (r.action === 'RETURN_TO_REQUESTER') return 'Requester';
+  if (r.action === 'RETURN_TO_REQUESTER') return 'Return to requester';
   if (r.action === 'END_WORKFLOW') return 'End workflow';
   if (r.action === 'START_OVER') return 'Start over';
-  if (r.action === 'RETURN_TO_LEVEL') return `Level ${r.targetLevel}`;
+  if (r.action === 'RETURN_TO_LEVEL') return `Return to Level ${r.targetLevel}`;
   if (r.action === 'RETURN_TO_STAGE') return r.targetStage || 'Custom stage';
   return r.action;
 }
@@ -39,6 +39,7 @@ export function generateWorkflowPreview(
     const lines = [
       `Approver: ${level.approver.fieldLabel || level.approver.entityLabel || level.approver.rawHint || '(not set)'}`,
       `Approval field: ${level.approvalFieldLabel || '(not set)'}`,
+      `Rejection field: ${level.rejectionFieldLabel || '(not set)'}`,
       `On Approval: ${level.onApprovalNext === 'complete' ? 'Workflow Complete' : level.onApprovalNext === 'next_level' ? `Level ${level.level + 1}` : String(level.onApprovalNext || 'Next')}`,
       `On Rejection: ${rejectionLabel(level)}`,
     ];
@@ -104,7 +105,7 @@ export function formatPreviewAsMarkdown(preview: WorkflowBuilderPreview): string
   const parts: string[] = [
     `### ${preview.title}`,
     '',
-    'Here is the workflow I will create. Please review before activation.',
+    'Here is the workflow I will create. Please review before I proceed.',
     '',
   ];
   for (const section of preview.sections) {
@@ -129,6 +130,7 @@ export function formatPreviewAsMarkdown(preview: WorkflowBuilderPreview): string
     parts.push(...preview.warnings.map((w) => `- ${w}`));
   }
   parts.push('');
-  parts.push('Reply **publish** to activate, **modify** to change something, or **cancel** to abort.');
+  parts.push('**Create this workflow?**');
+  parts.push('Reply **yes** / **create** to proceed, **modify** to change something, or **cancel** to abort.');
   return parts.join('\n');
 }

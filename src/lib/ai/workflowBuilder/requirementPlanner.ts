@@ -24,12 +24,20 @@ function req(
 }
 
 function levelConfigured(level: WorkflowLevelSpec): boolean {
-  return Boolean(
+  const hasApprover = Boolean(
     level.approver.resolved
-    && (level.approver.fieldId || level.approver.entityId || level.approver.type === 'submitter')
-    && level.approvalFieldId
-    && level.onRejection,
+    && (
+      level.approver.fieldId
+      || level.approver.entityId
+      || level.approver.type === 'submitter'
+      // Pending create: label known, id filled after permission + publish
+      || level.approver.fieldLabel
+    ),
   );
+  const hasApprovalField = Boolean(level.approvalFieldId || level.approvalFieldLabel);
+  // Explicit rejection field (including "same as approval") — never implied
+  const hasRejectionField = Boolean(level.rejectionFieldId || level.rejectionFieldLabel);
+  return hasApprover && hasApprovalField && hasRejectionField && Boolean(level.onRejection);
 }
 
 /**
@@ -162,17 +170,42 @@ export function planMissingRequirements(
     }
 
     // Approval decision field
-    if (!level.approvalFieldId) {
+    if (!level.approvalFieldId && !level.approvalFieldLabel) {
       push(req({
         id: `level.${level.level}.approval_field`,
         scope: 'level',
         level: level.level,
         key: 'approval_field',
-        question: `What field should store Level ${level.level} approval / rejection decision?`,
+        question: `*Level ${level.level}* — Which field stores the **approval** decision?`,
         inputKind: 'field_select',
         options: [
           ...decisionSuggestions.map((f) => ({ value: f.id, label: `${f.label} (${f.type})` })),
-          { value: '__create__', label: `Create "Level ${level.level} Decision" (Choice)` },
+          { value: '__create__', label: `Create "Level ${level.level} Decision" (Choice) — requires permission` },
+        ],
+      }));
+    }
+
+    // Rejection field (may reuse approval decision field)
+    if (
+      (level.approvalFieldId || level.approvalFieldLabel)
+      && !level.rejectionFieldId
+      && !level.rejectionFieldLabel
+    ) {
+      push(req({
+        id: `level.${level.level}.rejection_field`,
+        scope: 'level',
+        level: level.level,
+        key: 'rejection_field',
+        question: `*Level ${level.level}* — Which field stores **rejection**?`,
+        inputKind: 'field_select',
+        options: [
+          ...(level.approvalFieldId
+            ? [{ value: '__same_as_approval__', label: `Same as approval field (${level.approvalFieldLabel})` }]
+            : [{ value: '__same_as_approval__', label: 'Same as approval decision field' }]),
+          ...decisionSuggestions
+            .filter((f) => f.id !== level.approvalFieldId)
+            .map((f) => ({ value: f.id, label: `${f.label} (${f.type})` })),
+          { value: '__create__', label: `Create "Level ${level.level} Rejection" (Choice) — requires permission` },
         ],
       }));
     }
@@ -182,17 +215,21 @@ export function planMissingRequirements(
       const priorLevels = definition.levels
         .filter((l) => l.level < level.level)
         .map((l) => ({ value: `level:${l.level}`, label: `Return to Level ${l.level}` }));
+      const otherLevels = definition.levels
+        .filter((l) => l.level !== level.level && l.level > level.level)
+        .map((l) => ({ value: `level:${l.level}`, label: `Return to Level ${l.level}` }));
       push(req({
         id: `level.${level.level}.rejection`,
         scope: 'routing',
         level: level.level,
         key: 'rejection_route',
-        question: `If Level ${level.level} rejects, where should the workflow go?`,
+        question: `*Level ${level.level}* — What should happen if Level ${level.level} **rejects**?`,
         inputKind: 'rejection_route',
         options: [
           { value: 'RETURN_TO_REQUESTER', label: 'Return to requester' },
           ...priorLevels,
-          { value: 'END_WORKFLOW', label: 'End the workflow' },
+          ...otherLevels,
+          { value: 'END_WORKFLOW', label: 'End workflow' },
           { value: 'START_OVER', label: 'Start over' },
         ],
       }));
@@ -295,18 +332,22 @@ export function applyAnswerToDefinition(
     if (!level) return next;
 
     if (requirement.key === 'approver' || requirement.key === 'approver_disambiguate' || requirement.key === 'approver_invalid') {
-      if (value === '__create__') {
+      if (value === '__create__' || value.startsWith('__create_named__:')) {
+        const named = value.startsWith('__create_named__:')
+          ? value.slice('__create_named__:'.length).trim()
+          : '';
+        const label = named || level.approver.rawHint || `Level ${level.level} Approver`;
         level.approver = {
           type: 'field',
-          rawHint: level.approver.rawHint || `Level ${level.level} Approver`,
-          fieldLabel: level.approver.rawHint || `Level ${level.level} Approver`,
-          resolved: false,
+          rawHint: label,
+          fieldLabel: label,
+          resolved: true, // pending create — id assigned on publish after permission
         };
       } else {
         const field = form?.fields.find((f) => f.id === value);
         level.approver = {
           type: 'field',
-          fieldId: value,
+          fieldId: field ? value : undefined,
           fieldLabel: field?.label || value,
           rawHint: level.approver.rawHint,
           resolved: Boolean(field),
@@ -315,20 +356,24 @@ export function applyAnswerToDefinition(
     }
 
     if (requirement.key === 'approver_confirm') {
-      if (value === '__choose__') {
+      if (value === '__choose__' || value === '__reask__') {
         level.approver = { ...level.approver, resolved: false, fieldId: undefined };
-      } else if (value === '__create__') {
+      } else if (value === '__create__' || value.startsWith('__create_named__:')) {
+        const named = value.startsWith('__create_named__:')
+          ? value.slice('__create_named__:'.length).trim()
+          : '';
+        const label = named || level.approver.rawHint || `Level ${level.level} Approver`;
         level.approver = {
           type: 'field',
-          rawHint: level.approver.rawHint || `Level ${level.level} Approver`,
-          fieldLabel: level.approver.rawHint || `Level ${level.level} Approver`,
-          resolved: false,
+          rawHint: label,
+          fieldLabel: label,
+          resolved: true,
         };
       } else {
         const field = form?.fields.find((f) => f.id === value);
         level.approver = {
           type: 'field',
-          fieldId: value,
+          fieldId: field ? value : undefined,
           fieldLabel: field?.label || level.approver.rawHint,
           rawHint: level.approver.rawHint,
           resolved: Boolean(field),
@@ -336,14 +381,47 @@ export function applyAnswerToDefinition(
       }
     }
 
-    if (requirement.key === 'approval_field') {
-      if (value === '__create__') {
-        level.approvalFieldLabel = `Level ${level.level} Decision`;
+    if (requirement.key === 'approval_field' || requirement.key === 'approval_field_create') {
+      if (value === '__reask__') {
+        level.approvalFieldId = undefined;
+        level.approvalFieldLabel = undefined;
+      } else if (value === '__create__' || value.startsWith('__create_named__:')) {
+        const named = value.startsWith('__create_named__:')
+          ? value.slice('__create_named__:'.length).trim()
+          : '';
+        level.approvalFieldLabel = named || `Level ${level.level} Decision`;
         level.approvalFieldId = undefined;
       } else {
         const field = form?.fields.find((f) => f.id === value);
-        level.approvalFieldId = value;
-        level.approvalFieldLabel = field?.label || value;
+        if (field && !isDecisionCompatibleFieldType(field.type)) {
+          level.approvalFieldId = undefined;
+          level.approvalFieldLabel = undefined;
+        } else if (field) {
+          level.approvalFieldId = value;
+          level.approvalFieldLabel = field.label;
+        }
+      }
+    }
+
+    if (requirement.key === 'rejection_field' || requirement.key === 'rejection_field_create') {
+      if (value === '__reask__') {
+        level.rejectionFieldId = undefined;
+        level.rejectionFieldLabel = undefined;
+      } else if (value === '__same_as_approval__') {
+        level.rejectionFieldId = level.approvalFieldId;
+        level.rejectionFieldLabel = level.approvalFieldLabel || 'Same as approval field';
+      } else if (value === '__create__' || value.startsWith('__create_named__:')) {
+        const named = value.startsWith('__create_named__:')
+          ? value.slice('__create_named__:'.length).trim()
+          : '';
+        level.rejectionFieldLabel = named || `Level ${level.level} Rejection`;
+        level.rejectionFieldId = undefined;
+      } else {
+        const field = form?.fields.find((f) => f.id === value);
+        if (field) {
+          level.rejectionFieldId = value;
+          level.rejectionFieldLabel = field.label;
+        }
       }
     }
 
@@ -357,6 +435,18 @@ export function applyAnswerToDefinition(
         level.onRejection = {
           action: value as any,
         };
+      }
+    }
+
+    if (requirement.key === 'decision_values') {
+      if (value === 'add_generic') {
+        level.pendingOptionValues = ['Pending', 'Approved', 'Rejected'];
+      } else if (value === 'add_leveled') {
+        level.pendingOptionValues = [
+          `Pending Level ${level.level}`,
+          `Approved Level ${level.level}`,
+          `Rejected Level ${level.level}`,
+        ];
       }
     }
   }
