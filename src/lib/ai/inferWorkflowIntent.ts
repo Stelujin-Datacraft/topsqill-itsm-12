@@ -147,6 +147,45 @@ export function matchOptionValueByHint(
 const OPERATOR_WORDS =
   'greater\\s+than|greate\\s+than|less\\s+than|after|before|on\\s+or\\s+after|on\\s+or\\s+before|equals?|contains|starts\\s+with|ends\\s+with|is\\s+not|isn\'?t|!=|>=|<=|==|>|<|is';
 
+/** Words that are never real form field names (command / scaffolding). */
+const META_FIELD_HINTS = new Set([
+  'create', 'make', 'build', 'generate', 'design', 'add', 'new', 'please',
+  'workflow', 'workflows', 'form', 'forms', 'automation', 'automate',
+  'set', 'change', 'update', 'a', 'an', 'the', 'my', 'our', 'this', 'that',
+  'multi', 'level', 'approval', 'notification', 'action', 'condition',
+  'start', 'end', 'node', 'for', 'on', 'with', 'using', 'from',
+]);
+
+/**
+ * "Create a workflow…" / "Build a form…" style prompts are not condition clauses.
+ * Without if/when, do not mine them for field predicates.
+ */
+export function isCreateEntityPrompt(prompt: string): boolean {
+  const text = String(prompt || '').replace(/\s+/g, ' ').trim();
+  if (!text) return false;
+  if (/\b(?:if|when)\b/i.test(text)) return false;
+  // Explicit set/change field language means field intent, not bare create-entity
+  if (/\b(?:set|change|update)\s+[A-Za-z].{0,40}?\s+(?:to|as|=)\b/i.test(text)) return false;
+  return /^\s*(?:please\s+)?(?:create|make|build|generate|design|set\s+up)\b/i.test(text)
+    && /\b(?:workflow|workflows|form|forms|automation|report|dashboard|sla)\b/i.test(text);
+}
+
+function isUsableFieldHint(hint: string): boolean {
+  const key = normKey(hint);
+  if (!key || key.length < 2) return false;
+  if (META_FIELD_HINTS.has(key)) return false;
+  // Multi-word: reject if every token is meta ("create a workflow")
+  const tokens = key.split(/\s+/).filter(Boolean);
+  if (tokens.length > 0 && tokens.every((t) => META_FIELD_HINTS.has(t) || t.length < 2)) {
+    return false;
+  }
+  // Leading command verb ("create employee info…") is still not a field
+  if (META_FIELD_HINTS.has(tokens[0]) && /^(create|make|build|generate|design)$/.test(tokens[0])) {
+    return false;
+  }
+  return true;
+}
+
 function mapOperatorHint(raw: string): ComparisonOperator {
   const t = String(raw || '').trim().toLowerCase().replace(/\s+/g, '_');
   if (t === 'is' || t === 'equals' || t === 'equal' || t === '==') return '==';
@@ -208,23 +247,36 @@ function buildValueForField(
  *  - if dob after 2006 and gender male
  *  - Date of Birth is after 2006-10-01 AND Gender equals Male
  *  - if gender is male
+ *
+ * Does NOT treat "create a workflow…" as a condition (that falsely planned a "Create" field).
  */
 export function parseConditionPredicates(prompt: string): InferredPredicate[] {
   const text = String(prompt || '').replace(/\s+/g, ' ').trim();
   if (!text) return [];
 
+  // Bare create/build workflow|form prompts have no field conditions to mine
+  if (isCreateEntityPrompt(text)) return [];
+
   // Prefer the clause after "if"/"when" and before "then" / trailing noise
   let scope = text;
   const ifMatch = text.match(/\b(?:if|when)\b(.+?)(?:\bthen\b|$)/i);
+  const hasIfWhen = Boolean(ifMatch);
+  const looksLikeCondition = new RegExp(`\\b(?:${OPERATOR_WORDS})\\b`, 'i').test(text)
+    || (/^[A-Za-z][A-Za-z0-9 /_-]{0,40}\s+[A-Za-z0-9][A-Za-z0-9 _/-]{0,30}$/i.test(text)
+      && !/^\s*(?:create|make|build|generate|design)\b/i.test(text));
+
   if (ifMatch) {
     scope = ifMatch[1];
   } else {
-    // "set X to Y if ..." → take after if already handled; else strip leading set-action
+    // Only mine the full prompt when it looks like a condition fragment
+    // (operator words or short "field value" style) — not narrative create text.
+    if (!looksLikeCondition) return [];
     scope = text
       .replace(/^.*?\b(?:if|when)\b/i, '')
       .replace(/\bthen\b[\s\S]*$/i, '');
   }
   scope = scope.trim();
+  if (!scope) return [];
 
   // Split AND/OR clauses so "gender male" works without an explicit operator word
   const parts = scope.split(/\s+(?:and|or|&)\s+/i).map((p) => p.trim()).filter(Boolean);
@@ -241,21 +293,31 @@ export function parseConditionPredicates(prompt: string): InferredPredicate[] {
 
     const m = cleaned.match(withOp);
     if (m) {
+      const fieldHint = m[1].replace(/\b(if|when|where)\b/gi, '').trim();
+      if (!isUsableFieldHint(fieldHint)) continue;
       predicates.push({
-        fieldHint: m[1].replace(/\b(if|when|where)\b/gi, '').trim(),
+        fieldHint,
         operatorHint: m[2].trim(),
         valueHint: m[3].trim().replace(/[.!]+$/, '').trim(),
       });
       continue;
     }
 
-    // "gender male" / "status married" — last token is the value
+    // Loose "gender male" — only for if/when scopes or short condition-like prompts
+    if (!hasIfWhen && !looksLikeCondition) continue;
     const loose = cleaned.match(/^([A-Za-z][A-Za-z0-9 /_-]{1,40}?)\s+([A-Za-z0-9][A-Za-z0-9 _/-]*)$/i);
     if (loose) {
+      const fieldHint = loose[1].trim();
+      if (!isUsableFieldHint(fieldHint)) continue;
+      // Reject values that look like whole sentences / create-entity leftovers
+      const valueHint = loose[2].trim();
+      if (/\b(?:workflow|form|automation|verification|approval)\b/i.test(valueHint) && valueHint.split(/\s+/).length > 3) {
+        continue;
+      }
       predicates.push({
-        fieldHint: loose[1].trim(),
+        fieldHint,
         operatorHint: 'is',
-        valueHint: loose[2].trim(),
+        valueHint,
       });
     }
   }
@@ -264,7 +326,7 @@ export function parseConditionPredicates(prompt: string): InferredPredicate[] {
   const seen = new Set<string>();
   return predicates.filter((p) => {
     const k = normKey(p.fieldHint);
-    if (!k || seen.has(k)) return false;
+    if (!k || seen.has(k) || !isUsableFieldHint(p.fieldHint)) return false;
     seen.add(k);
     return true;
   });
@@ -280,6 +342,7 @@ export function parseFieldUpdates(
 ): InferredFieldUpdate[] {
   const text = String(prompt || '').replace(/\s+/g, ' ').trim();
   if (!text) return [];
+  if (isCreateEntityPrompt(text)) return [];
   const out: InferredFieldUpdate[] = [];
 
   // Prefer the action side of the sentence (before if/when, or after then)
@@ -300,7 +363,9 @@ export function parseFieldUpdates(
       re.lastIndex = 0;
       let m: RegExpExecArray | null;
       while ((m = re.exec(scope)) !== null) {
-        out.push({ fieldHint: m[1].trim(), valueHint: m[2].trim().replace(/[.!]+$/, '') });
+        const fieldHint = m[1].trim();
+        if (!isUsableFieldHint(fieldHint)) continue;
+        out.push({ fieldHint, valueHint: m[2].trim().replace(/[.!]+$/, '') });
       }
     }
 
