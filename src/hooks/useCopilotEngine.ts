@@ -439,12 +439,13 @@ export function useCopilotEngine() {
   }, [formsWithFields, suggestWorkflow]);
 
   /**
-   * Validate AI condition nodes against live form metadata.
-   * Missing fields/values prompt the user (Create / Choose Existing / Cancel) — never auto-create.
+   * Resolve AI condition/action field refs against live form metadata.
+   * Auto-creates missing fields/options from the prompt so the workflow can complete.
    */
   const confirmWorkflowConditionParams = useCallback(async (
     params: Record<string, any>,
     nodesKey: 'nodes' | 'workflowNodes' = 'nodes',
+    userPrompt?: string,
   ) => {
     let nodes = params[nodesKey];
     if (typeof nodes === 'string') {
@@ -520,6 +521,8 @@ export function useCopilotEngine() {
         nodes,
         forms: formsForResolve,
         defaultFormId: defaultFormId || formsForResolve[0]?.id,
+        mode: 'auto',
+        userPrompt: userPrompt || params.description || params.name || '',
         onMetadataChanged: async () => {
           await loadContext();
         },
@@ -902,7 +905,7 @@ export function useCopilotEngine() {
             prompt,
             existingForm.id,
           );
-          workflowParams = await confirmWorkflowConditionParams(workflowParams, 'nodes');
+          workflowParams = await confirmWorkflowConditionParams(workflowParams, 'nodes', prompt);
           const wfResult = await executeCopilotAction('create_workflow', workflowParams);
           const workflowId = (wfResult as { result?: { workflowId?: string } })?.result?.workflowId;
           if (workflowId) {
@@ -934,7 +937,7 @@ export function useCopilotEngine() {
             prompt,
             created.formId,
           );
-          workflowParams = await confirmWorkflowConditionParams(workflowParams, 'nodes');
+          workflowParams = await confirmWorkflowConditionParams(workflowParams, 'nodes', prompt);
           const wfResult = await executeCopilotAction('create_workflow', workflowParams);
           const workflowId = (wfResult as { result?: { workflowId?: string } })?.result?.workflowId;
           if (workflowId) {
@@ -1032,7 +1035,7 @@ export function useCopilotEngine() {
           formIdForEnrichment || rawParams.triggerFormId || rawParams.formId,
         );
         if (action === 'create_workflow' || action === 'update_workflow') {
-          params = await confirmWorkflowConditionParams(params, 'nodes');
+          params = await confirmWorkflowConditionParams(params, 'nodes', prompt);
         }
         actionResult = await executeCopilotAction(action, params);
         const resultFormId = actionResult?.result?.formId as string | undefined;

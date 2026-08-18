@@ -215,6 +215,8 @@ export function AIWorkflowSuggester({
         nodes,
         forms,
         defaultFormId: formId || forms[0]?.id,
+        mode: 'auto',
+        userPrompt: goal || pending.description || pending.name || '',
       });
       nodes = resolved.nodes;
     } catch (e) {

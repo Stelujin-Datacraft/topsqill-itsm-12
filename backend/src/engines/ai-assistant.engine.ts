@@ -390,13 +390,15 @@ ${JSON.stringify(context.availableReports || [], null, 2)}
 ## CRITICAL — Short prompts are enough (auto-catch intent):
 Users type casually. Do NOT require detailed wording. YOU expand short intent using Available Forms.
 
-Examples of prompts that MUST work (map to real fieldId/options yourself):
+If a field or option the user needs is NOT on the form yet, STILL emit the intended fieldLabel/value/type in the workflow JSON (real formId). The system will auto-create missing fields/options and complete the workflow. Prefer existing fields when they match.
+
+Examples of prompts that MUST work (map to real fieldId/options yourself, or emit labels for create):
 - "set marital status to married if dob after 2006 and gender male"
 - "if date of birth > 01/10/2006 and gender is male then change marital status to married"
 - "update marital status married when gender male"
 
 Your job for create_workflow:
-1. Resolve synonyms to form fields (dob→Date of Birth, gender→Gender, marital→Marital Status, etc.).
+1. Resolve synonyms to form fields (dob→Date of Birth, gender→Gender, marital→Marital Status, etc.). Use existing fields when present; otherwise emit the intended labels so they can be created.
 2. Pick operators from the field TYPE (never invent):
    - date → after/before/on_or_after/on_or_before/is_today (map ">" / "greater than" → after). Year-only "2006" → after + 2006-12-31. Full dates → YYYY-MM-DD.
    - select/radio/toggle → "==" and the option's real value (male→Male if that is the option).
@@ -404,7 +406,8 @@ Your job for create_workflow:
    - text → == / contains
 3. Emit Condition config as enhancedCondition with Field→Operator→Value filled for EVERY predicate (AND when user says and).
 4. When the user says set/change/update a field value → Action Type MUST be change_field_value with valueType "static" (default) and the concrete staticValue filled.
-5. Condition nodes need true/false connections.
+5. Always emit a COMPLETE workflow (start → condition/action → end with true/false branches). Do not stop because a field is missing.
+6. Condition nodes need true/false connections.
 
 Condition node config shape:
 {
@@ -508,7 +511,7 @@ Rules:
             type: "function",
             function: {
               name: "create_workflow",
-              description: "Create a workflow from a SHORT natural-language goal. Users will NOT spell out details — YOU look up the selected form's fields/options. For set/change/update field values use actionType change_field_value with valueType static (default) and concrete staticValue + targetFieldId/Name/Type + fieldUpdates[]. Map dob→Date of Birth, > on dates→after, year-only 2006→2006-12-31 for after, male→real Gender option value, etc.",
+              description: "Create a complete workflow from a SHORT natural-language goal. Prefer existing form fields/options; if a needed field or option is missing, still emit fieldLabel/staticValue/type so the system can create them and finish the workflow. For set/change/update field values use actionType change_field_value with valueType static (default) and concrete staticValue + targetFieldId/Name/Type + fieldUpdates[]. Map dob→Date of Birth, > on dates→after, year-only 2006→2006-12-31 for after, male→real Gender option value, etc.",
               parameters: {
                 type: "object",
                 properties: {
@@ -1330,12 +1333,13 @@ ${JSON.stringify(context.existingNodes, null, 2)}` : ''}
 
 IMPORTANT: 
 - Users write SHORT casual prompts — expand synonyms (dob→Date of Birth) and fill Field/Operator/Value from the form metadata yourself. Do not require the user to name operators or ISO dates.
-- Use the ACTUAL field IDs and form IDs from the forms provided above - DO NOT make up IDs
+- Prefer existing fields/options. If a needed field or option is missing, STILL emit the intended fieldLabel/value/type with real formId — the system will create missing assets and complete the workflow.
+- Always return a COMPLETE workflow graph (start, conditions/actions, end) even when fields must be created.
+- Use the ACTUAL field IDs and form IDs from the forms provided above when they exist - DO NOT make up IDs for existing fields
 - Analyze each form field's type before writing a condition: date → relative/date operators; option fields → only listed options; numbers → numeric ops; text → text ops. Do not guess values that are not valid for that type.
 - For condition nodes, reference actual field IDs, labels, and for select/radio/checkbox/toggle fields use ONLY the actual option values from the form metadata
 - For date fields requesting "today" / "today's date": use operator "is_today" with empty value — never operator "==" with value "today"
 - For date "greater than" / ">": use operator "after". Year-only "after 2006" → value "2006-12-31". Concrete dates → YYYY-MM-DD.
-- Do NOT invent field names or option values that are not listed above. Prefer existing fields/options. If a needed field or option is missing, still emit the intended fieldLabel/value using real formId so the UI can ask the user to create it
 - For send_notification actions, use {{field_label}} placeholders matching the actual field labels
 - For change_field_value (set/change/update field): use actionType "change_field_value", valueType "static" by default, real targetFieldId/targetFieldName/targetFieldType, and staticValue from form options/values. Also fill fieldUpdates[] the same way. Only use dynamic when copying from another field.
 - For create_record, map source fields to target fields using actual IDs from both forms
