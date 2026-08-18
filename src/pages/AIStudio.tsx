@@ -38,7 +38,7 @@ const CREATE_TYPE_ICONS: Record<CopilotCreateType, { icon: typeof FileText; colo
 
 const SUGGESTIONS: Array<{ type: CopilotCreateType; prompt: string }> = [
   { type: 'form', prompt: 'Employee onboarding request with employee name, email, department, start date and manager approval' },
-  { type: 'workflow', prompt: 'When an incident is submitted with severity Critical, assign to L2 and email the application owner' },
+  { type: 'workflow', prompt: 'Create a 2 level approval workflow' },
   { type: 'report', prompt: 'Open vulnerabilities grouped by business unit as a bar chart' },
   { type: 'doc', prompt: 'Access control policy with purpose, scope, responsibilities and annual review cycle' },
 ];
