@@ -13,9 +13,17 @@ import {
   buildConditionFieldsByFormId,
   createConditionFormField,
 } from '@/lib/ai/conditionFormMutations';
+import {
+  applyWorkflowAssetPlan,
+  planMissingWorkflowFormAssets,
+  rebindWorkflowNodesToFormAssets,
+  workflowAssetPlanHasCreates,
+  type WorkflowAssetPlan,
+} from '@/lib/ai/ensureWorkflowFormAssets';
 import { ConditionFieldNotAvailableDialog } from '@/components/workflow/ConditionFieldNotAvailableDialog';
 import { ConditionValueNotAvailableDialog } from '@/components/workflow/ConditionValueNotAvailableDialog';
 import { ConditionChooseExistingDialog } from '@/components/workflow/ConditionChooseExistingDialog';
+import { WorkflowCreateAssetsConfirmDialog } from '@/components/workflow/WorkflowCreateAssetsConfirmDialog';
 import { isOptionBasedFieldType } from '@/utils/conditionOperators';
 
 export type ConditionFieldMeta = ConditionFormFieldMeta;
@@ -33,10 +41,26 @@ type ChooseMode =
   | { kind: 'value'; issue: ConditionValueIssue }
   | null;
 
+interface AutoConfirmSession {
+  plan: WorkflowAssetPlan;
+  nodes: any[];
+  forms: ResolveWorkflowConditionsInteractiveOptions['forms'];
+  defaultFormId?: string;
+  userPrompt?: string;
+  settle: (result: {
+    nodes: any[];
+    aborted: boolean;
+    skipped: number;
+    createdFields: string[];
+    createdOptions: Array<{ field: string; value: string }>;
+  }) => void;
+}
+
 export interface ResolveWorkflowConditionsInteractiveOptions {
   nodes: any[];
   forms: Array<{
     id: string;
+    name?: string;
     fields?: Array<{
       id: string;
       label: string;
@@ -47,15 +71,24 @@ export interface ResolveWorkflowConditionsInteractiveOptions {
   defaultFormId?: string;
   /** Called after a field/value is created so callers can refresh metadata caches */
   onMetadataChanged?: () => void | Promise<void>;
+  /**
+   * auto (default for AI Builder): plan missing fields/options, confirm, then create & finish.
+   * interactive: show Create / Choose Existing / Cancel dialogs per issue.
+   */
+  mode?: 'auto' | 'interactive';
+  /** Optional user prompt — used in auto mode to discover fields to create */
+  userPrompt?: string;
 }
 
 /**
- * Interactive Field/Value Not Available confirmation queue for AI workflow conditions.
- * Never creates fields or options without an explicit user click.
+ * Resolve AI workflow conditions against form metadata.
+ * - mode "auto": confirm missing field/option creates, then finish the workflow
+ * - mode "interactive": Field/Value Not Available confirmation queue
  */
 export function useConditionResolution() {
   const [session, setSession] = useState<ResolutionSession | null>(null);
   const [chooseMode, setChooseMode] = useState<ChooseMode>(null);
+  const [autoConfirm, setAutoConfirm] = useState<AutoConfirmSession | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const onMetadataChangedRef = useRef<ResolveWorkflowConditionsInteractiveOptions['onMetadataChanged']>();
 
@@ -85,7 +118,6 @@ export function useConditionResolution() {
       finishSession(nodes, settle, skipped, false);
       return;
     }
-    // Re-resolve remaining against updated metadata so duplicates collapse
     const { nodes: reResolved, issues } = resolveWorkflowConditions(
       nodes,
       formFieldsByFormId,
@@ -104,9 +136,140 @@ export function useConditionResolution() {
     });
   }, [finishSession]);
 
+  const finishAutoWithoutCreates = useCallback(async (
+    options: ResolveWorkflowConditionsInteractiveOptions,
+  ) => {
+    const rebound = rebindWorkflowNodesToFormAssets({
+      nodes: options.nodes,
+      forms: options.forms,
+      defaultFormId: options.defaultFormId,
+      userPrompt: options.userPrompt,
+    });
+    const formFieldsByFormId = buildConditionFieldsByFormId(rebound.forms);
+    const { nodes, issues } = resolveWorkflowConditions(
+      rebound.nodes,
+      formFieldsByFormId,
+      options.defaultFormId,
+    );
+    return {
+      nodes,
+      aborted: false,
+      skipped: issues.length,
+      createdFields: [] as string[],
+      createdOptions: [] as Array<{ field: string; value: string }>,
+    };
+  }, []);
+
+  const resolveWorkflowConditionsAuto = useCallback(async (
+    options: ResolveWorkflowConditionsInteractiveOptions,
+  ): Promise<{
+    nodes: any[];
+    aborted: boolean;
+    skipped: number;
+    createdFields: string[];
+    createdOptions: Array<{ field: string; value: string }>;
+  }> => {
+    onMetadataChangedRef.current = options.onMetadataChanged;
+
+    const plan = planMissingWorkflowFormAssets({
+      nodes: options.nodes,
+      forms: options.forms,
+      defaultFormId: options.defaultFormId,
+      userPrompt: options.userPrompt,
+    });
+
+    if (!workflowAssetPlanHasCreates(plan)) {
+      return finishAutoWithoutCreates(options);
+    }
+
+    return new Promise((settle) => {
+      setAutoConfirm({
+        plan: plan!,
+        nodes: options.nodes,
+        forms: options.forms,
+        defaultFormId: options.defaultFormId,
+        userPrompt: options.userPrompt,
+        settle,
+      });
+    });
+  }, [finishAutoWithoutCreates]);
+
+  const handleAutoConfirmCancel = useCallback(() => {
+    if (!autoConfirm) return;
+    const { settle, nodes } = autoConfirm;
+    setAutoConfirm(null);
+    setIsCreating(false);
+    toast.message('Cancelled. No form fields or options were created.');
+    settle({
+      nodes,
+      aborted: true,
+      skipped: 0,
+      createdFields: [],
+      createdOptions: [],
+    });
+  }, [autoConfirm]);
+
+  const handleAutoConfirmCreate = useCallback(async () => {
+    if (!autoConfirm) return;
+    setIsCreating(true);
+    try {
+      const ensured = await applyWorkflowAssetPlan({
+        nodes: autoConfirm.nodes,
+        forms: autoConfirm.forms,
+        plan: autoConfirm.plan,
+        userPrompt: autoConfirm.userPrompt,
+      });
+
+      try {
+        await onMetadataChangedRef.current?.();
+      } catch {
+        /* non-fatal */
+      }
+
+      const { createdFields, createdOptions } = ensured.summary;
+      if (createdFields.length || createdOptions.length) {
+        const fieldMsg = createdFields.length
+          ? `Created field${createdFields.length > 1 ? 's' : ''}: ${createdFields.join(', ')}`
+          : '';
+        const optMsg = createdOptions.length
+          ? `Added option${createdOptions.length > 1 ? 's' : ''}: ${createdOptions.map((o) => `${o.field}=${o.value}`).join(', ')}`
+          : '';
+        toast.success([fieldMsg, optMsg].filter(Boolean).join('. '));
+      }
+
+      const formFieldsByFormId = buildConditionFieldsByFormId(ensured.forms);
+      const { nodes, issues } = resolveWorkflowConditions(
+        ensured.nodes,
+        formFieldsByFormId,
+        autoConfirm.defaultFormId,
+      );
+
+      const settle = autoConfirm.settle;
+      setAutoConfirm(null);
+      setIsCreating(false);
+      settle({
+        nodes,
+        aborted: false,
+        skipped: issues.length,
+        createdFields,
+        createdOptions,
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Failed to create form assets';
+      toast.error('Could not create form updates', { description: msg });
+      setIsCreating(false);
+    }
+  }, [autoConfirm]);
+
   const resolveWorkflowConditionsInteractive = useCallback(async (
     options: ResolveWorkflowConditionsInteractiveOptions,
   ): Promise<{ nodes: any[]; aborted: boolean; skipped: number }> => {
+    const mode = options.mode || 'auto';
+    if (mode === 'auto') {
+      const result = await resolveWorkflowConditionsAuto(options);
+      return { nodes: result.nodes, aborted: result.aborted, skipped: result.skipped };
+    }
+
     onMetadataChangedRef.current = options.onMetadataChanged;
     const formFieldsByFormId = buildConditionFieldsByFormId(options.forms);
     const { nodes, issues } = resolveWorkflowConditions(
@@ -128,14 +291,13 @@ export function useConditionResolution() {
         settle,
       });
     });
-  }, []);
+  }, [resolveWorkflowConditionsAuto]);
 
   const handleCancelIssue = useCallback(() => {
     if (!session || !currentIssue) return;
     const skipped = 1;
     toast.message('Skipped creating missing condition field/value. You can reframe the prompt or configure the condition manually.');
     const remaining = session.queue.slice(1);
-    // Leave draft as-is; continue other issues
     if (remaining.length === 0) {
       finishSession(session.nodes, session.settle, skipped, false);
       return;
@@ -162,7 +324,6 @@ export function useConditionResolution() {
         fieldId: field.id,
         fieldLabel: field.label,
         fieldType: field.type,
-        // Keep original requested value; may surface missing_value on re-resolve
         value: chooseMode.issue.value,
       });
     } else {
@@ -214,7 +375,7 @@ export function useConditionResolution() {
         ],
       };
 
-      let nodes = applyConditionResolutionToNodes(session.nodes, currentIssue, {
+      const nodes = applyConditionResolutionToNodes(session.nodes, currentIssue, {
         fieldId: created.id,
         fieldLabel: created.label,
         fieldType: created.type,
@@ -294,6 +455,15 @@ export function useConditionResolution() {
 
   const conditionResolutionDialogs = (
     <>
+      {autoConfirm && (
+        <WorkflowCreateAssetsConfirmDialog
+          open
+          plan={autoConfirm.plan}
+          onConfirm={() => { void handleAutoConfirmCreate(); }}
+          onCancel={handleAutoConfirmCancel}
+          isCreating={isCreating}
+        />
+      )}
       {currentIssue?.kind === 'missing_field' && !chooseMode && (
         <ConditionFieldNotAvailableDialog
           open
@@ -345,7 +515,8 @@ export function useConditionResolution() {
 
   return {
     resolveWorkflowConditionsInteractive,
+    resolveWorkflowConditionsAuto,
     conditionResolutionDialogs,
-    isResolvingConditions: Boolean(session),
+    isResolvingConditions: Boolean(session) || Boolean(autoConfirm),
   };
 }

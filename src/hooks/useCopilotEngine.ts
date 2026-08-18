@@ -439,13 +439,14 @@ export function useCopilotEngine() {
   }, [formsWithFields, suggestWorkflow]);
 
   /**
-   * Validate AI condition nodes against live form metadata.
-   * Missing fields/values prompt the user (Create / Choose Existing / Cancel) — never auto-create.
+   * Resolve AI condition/action field refs against live form metadata.
+   * Auto-creates missing fields/options from the prompt so the workflow can complete.
    */
   const confirmWorkflowConditionParams = useCallback(async (
     params: Record<string, any>,
     nodesKey: 'nodes' | 'workflowNodes' = 'nodes',
-  ) => {
+    userPrompt?: string,
+  ): Promise<Record<string, any> | null> => {
     let nodes = params[nodesKey];
     if (typeof nodes === 'string') {
       try { nodes = JSON.parse(nodes); } catch { nodes = []; }
@@ -520,10 +521,15 @@ export function useCopilotEngine() {
         nodes,
         forms: formsForResolve,
         defaultFormId: defaultFormId || formsForResolve[0]?.id,
+        mode: 'auto',
+        userPrompt: userPrompt || params.description || params.name || '',
         onMetadataChanged: async () => {
           await loadContext();
         },
       });
+      if (resolved.aborted) {
+        return null;
+      }
       return {
         ...params,
         [nodesKey]: resolved.nodes,
@@ -902,21 +908,29 @@ export function useCopilotEngine() {
             prompt,
             existingForm.id,
           );
-          workflowParams = await confirmWorkflowConditionParams(workflowParams, 'nodes');
-          const wfResult = await executeCopilotAction('create_workflow', workflowParams);
-          const workflowId = (wfResult as { result?: { workflowId?: string } })?.result?.workflowId;
-          if (workflowId) {
-            setActiveWorkflowId(workflowId);
-            activeWorkflowIdRef.current = workflowId;
+          const confirmedWorkflowParams = await confirmWorkflowConditionParams(workflowParams, 'nodes', prompt);
+          if (!confirmedWorkflowParams) {
+            actionResult = {
+              message: 'Workflow creation cancelled. No form fields or options were created.',
+              result: { formId: existingForm.id, formName: existingForm.name, cancelled: true },
+            };
+          } else {
+            workflowParams = confirmedWorkflowParams;
+            const wfResult = await executeCopilotAction('create_workflow', workflowParams);
+            const workflowId = (wfResult as { result?: { workflowId?: string } })?.result?.workflowId;
+            if (workflowId) {
+              setActiveWorkflowId(workflowId);
+              activeWorkflowIdRef.current = workflowId;
+            }
+            actionResult = {
+              message: `Created workflow for existing form "${existingForm.name}" (did not create a new form).`,
+              result: {
+                formId: existingForm.id,
+                formName: existingForm.name,
+                workflowId,
+              },
+            };
           }
-          actionResult = {
-            message: `Created workflow for existing form "${existingForm.name}" (did not create a new form).`,
-            result: {
-              formId: existingForm.id,
-              formName: existingForm.name,
-              workflowId,
-            },
-          };
         } else {
           const created = await createClientFormFromPrompt(prompt, {
             name: rawParams.formName || rawParams.name,
@@ -934,21 +948,29 @@ export function useCopilotEngine() {
             prompt,
             created.formId,
           );
-          workflowParams = await confirmWorkflowConditionParams(workflowParams, 'nodes');
-          const wfResult = await executeCopilotAction('create_workflow', workflowParams);
-          const workflowId = (wfResult as { result?: { workflowId?: string } })?.result?.workflowId;
-          if (workflowId) {
-            setActiveWorkflowId(workflowId);
-            activeWorkflowIdRef.current = workflowId;
+          const confirmedWorkflowParams = await confirmWorkflowConditionParams(workflowParams, 'nodes', prompt);
+          if (!confirmedWorkflowParams) {
+            actionResult = {
+              message: `Form "${created.formName}" was created, but workflow creation was cancelled. No extra fields or options were added for the workflow.`,
+              result: { formId: created.formId, formName: created.formName, cancelled: true },
+            };
+          } else {
+            workflowParams = confirmedWorkflowParams;
+            const wfResult = await executeCopilotAction('create_workflow', workflowParams);
+            const workflowId = (wfResult as { result?: { workflowId?: string } })?.result?.workflowId;
+            if (workflowId) {
+              setActiveWorkflowId(workflowId);
+              activeWorkflowIdRef.current = workflowId;
+            }
+            actionResult = {
+              message: `Created and published form "${created.formName}" with an active workflow! Further field changes in this chat will update this form.`,
+              result: {
+                formId: created.formId,
+                formName: created.formName,
+                workflowId,
+              },
+            };
           }
-          actionResult = {
-            message: `Created and published form "${created.formName}" with an active workflow! Further field changes in this chat will update this form.`,
-            result: {
-              formId: created.formId,
-              formName: created.formName,
-              workflowId,
-            },
-          };
         }
       } else if (action === 'create_knowledge_doc') {
         const { data: { user: authUser } } = await supabase.auth.getUser();
@@ -1032,7 +1054,24 @@ export function useCopilotEngine() {
           formIdForEnrichment || rawParams.triggerFormId || rawParams.formId,
         );
         if (action === 'create_workflow' || action === 'update_workflow') {
-          params = await confirmWorkflowConditionParams(params, 'nodes');
+          const confirmed = await confirmWorkflowConditionParams(params, 'nodes', prompt);
+          if (!confirmed) {
+            actionResult = {
+              message: 'Cancelled. No form fields or options were created, and the workflow was not saved.',
+              result: { cancelled: true },
+            };
+            setMessages((prev) => prev.map((m) => m.id === assistantMessage.id
+              ? { ...m, action: { type: action, status: 'success' as const, result: actionResult } }
+              : m));
+            setMessages((prev) => [...prev, {
+              id: `result-${Date.now()}`,
+              role: 'assistant',
+              content: `ℹ️ ${actionResult?.message || 'Cancelled'}`,
+              timestamp: new Date(),
+            }]);
+            return;
+          }
+          params = confirmed;
         }
         actionResult = await executeCopilotAction(action, params);
         const resultFormId = actionResult?.result?.formId as string | undefined;
@@ -1050,6 +1089,7 @@ export function useCopilotEngine() {
           activeReportIdRef.current = reportId;
         }
       }
+      const wasCancelled = Boolean(actionResult?.result?.cancelled);
       setMessages((prev) => prev.map((m) => m.id === assistantMessage.id
         ? { ...m, action: { type: action, status: 'success' as const, result: actionResult } }
         : m));
@@ -1057,17 +1097,23 @@ export function useCopilotEngine() {
       setMessages((prev) => [...prev, {
         id: `result-${Date.now()}`,
         role: 'assistant',
-        content: `✅ **Action completed!** ${actionResult?.message || 'Done'}`,
+        content: wasCancelled
+          ? `ℹ️ ${actionResult?.message || 'Cancelled'}`
+          : `✅ **Action completed!** ${actionResult?.message || 'Done'}`,
         timestamp: new Date(),
       }]);
 
-      toast.success('Action completed', { description: actionResult?.message });
+      if (wasCancelled) {
+        toast.message('Cancelled', { description: actionResult?.message });
+      } else {
+        toast.success('Action completed', { description: actionResult?.message });
+      }
 
-      if (CONTEXT_REFRESH_ACTIONS.has(action)) {
+      if (!wasCancelled && CONTEXT_REFRESH_ACTIONS.has(action)) {
         await loadContext();
       }
 
-      const nav = buildNavMessage(actionResult?.result);
+      const nav = wasCancelled ? null : buildNavMessage(actionResult?.result);
       if (nav) {
         setMessages((prev) => [...prev, {
           id: `nav-offer-${Date.now()}`,
