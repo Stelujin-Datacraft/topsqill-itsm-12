@@ -25,7 +25,9 @@ import { sanitizeAiFieldType } from '@/lib/createFormFromAiGeneration';
 import { isOptionBasedFieldType } from '@/utils/conditionOperators';
 import {
   findExistingDecisionOption,
+  inferDecisionKindFromText,
   type DecisionKind,
+  sanitizeConditionValueHint,
 } from '@/lib/ai/workflowBuilder/decisionOptionResolver';
 
 /** Labels that are command noise, not real form fields (e.g. prompt started with "create"). */
@@ -171,7 +173,7 @@ function collectRequirementsFromNodes(
         out.push({
           label: canonicalizeFieldLabel(label),
           type: sanitizeAiFieldType(flc.fieldType || inferFieldTypeFromValue(flc.value)),
-          value: flc.value,
+          value: typeof flc.value === 'string' ? sanitizeConditionValueHint(flc.value) || flc.value : flc.value,
           source: 'condition',
         });
       }
@@ -212,18 +214,21 @@ function collectRequirementsFromPrompt(prompt: string): Array<{ label: string; t
   const updates = parseFieldUpdates(prompt);
   const out: Array<{ label: string; type: string; value?: unknown; source: 'prompt' }> = [];
   for (const p of preds) {
+    const value = sanitizeConditionValueHint(p.valueHint);
     out.push({
       label: canonicalizeFieldLabel(p.fieldHint),
-      type: inferFieldTypeFromValue(p.valueHint),
-      value: p.valueHint,
+      type: inferFieldTypeFromValue(value || p.valueHint),
+      value: value || undefined,
       source: 'prompt',
     });
   }
   for (const u of updates) {
+    // Action values are already isolated by parseFieldUpdates; still scrub glued clauses
+    const value = sanitizeConditionValueHint(u.valueHint) || u.valueHint;
     out.push({
       label: canonicalizeFieldLabel(u.fieldHint),
-      type: inferFieldTypeFromValue(u.valueHint),
-      value: u.valueHint,
+      type: inferFieldTypeFromValue(value),
+      value,
       source: 'prompt',
     });
   }
@@ -270,8 +275,10 @@ function uniqueLabels(values: unknown[]): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
   for (const v of values) {
-    const raw = String(v ?? '').trim();
+    const raw = sanitizeConditionValueHint(String(v ?? ''));
     if (!raw) continue;
+    // Reject sentence-like option labels (e.g. leftover "Closed Set Priority High")
+    if (/\b(set|change|update)\b/i.test(raw) && raw.split(/\s+/).length > 2) continue;
     const key = raw.toLowerCase();
     if (seen.has(key)) continue;
     seen.add(key);
@@ -285,18 +292,7 @@ function uniqueLabels(values: unknown[]): string[] {
  * decision states. Never map arbitrary values like "Closed" or "High" → Completed.
  */
 function decisionKindForOptionLabel(label: string): DecisionKind | null {
-  const key = String(label || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-  if (!key) return null;
-  if (/\b(reject(ed|ion)?|denied|deny|declined|decline|failed|fail|cancelled|canceled)\b/.test(key)) {
-    return 'rejected';
-  }
-  if (/\b(pending|in progress|inprogress|draft|submitted|waiting|open)\b/.test(key)) {
-    return 'pending';
-  }
-  if (/\b(approved|approve|approval|accepted|accept|completed|complete|passed|pass|success|successful|done)\b/.test(key)) {
-    return 'approved';
-  }
-  return null;
+  return inferDecisionKindFromText(label);
 }
 
 function optionAlreadyExists(
