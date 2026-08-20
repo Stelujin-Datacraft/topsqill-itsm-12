@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/DashboardLayout';
 import { DesktopOnlyNotice } from '@/components/DesktopOnlyNotice';
@@ -250,8 +250,7 @@ const WorkflowDesignerPage = () => {
   };
 
   // Fetch available forms with fields for AI context
-  useEffect(() => {
-    const fetchForms = async () => {
+  const refreshAvailableForms = useCallback(async () => {
       try {
         const { data: forms, error } = await supabase
           .from('forms')
@@ -272,13 +271,30 @@ const WorkflowDesignerPage = () => {
             // For cross-reference fields, fetch linked form info
             const enrichedFields = await Promise.all(
               (fields || []).map(async (f) => {
+                let parsedOptions: Array<{ id: string; value: string; label: string }> | undefined;
+                try {
+                  const rawOpts = typeof f.options === 'string' ? JSON.parse(f.options) : f.options;
+                  if (Array.isArray(rawOpts)) {
+                    parsedOptions = rawOpts.map((o: any, idx: number) => {
+                      if (typeof o === 'string' || typeof o === 'number' || typeof o === 'boolean') {
+                        const raw = String(o);
+                        return { id: `opt-${idx}`, value: raw, label: raw };
+                      }
+                      return {
+                        id: String(o.id || o.value || `opt-${idx}`),
+                        value: String(o.value ?? o.label ?? ''),
+                        label: String(o.label ?? o.value ?? ''),
+                      };
+                    }).filter((o) => o.value || o.label);
+                  }
+                } catch {
+                  parsedOptions = undefined;
+                }
                 const base = {
                   id: f.id,
                   label: f.label,
                   type: f.field_type,
-                  options: Array.isArray(f.options) 
-                    ? (f.options as Array<{ id?: string; value: string; label: string }>).map(o => ({ id: o.id || o.value, value: o.value, label: o.label }))
-                    : undefined,
+                  options: parsedOptions,
                   crossRefConfig: undefined as any
                 };
 
@@ -295,14 +311,31 @@ const WorkflowDesignerPage = () => {
                     base.crossRefConfig = {
                       targetFormId,
                       targetFormName: formRes.data?.name || 'Unknown Form',
-                      targetFormFields: (fieldsRes.data || []).map(tf => ({
-                        id: tf.id,
-                        label: tf.label,
-                        type: tf.field_type,
-                        options: Array.isArray(tf.options)
-                          ? (tf.options as Array<{ id?: string; value: string; label: string }>).map(o => ({ id: o.id || o.value, value: o.value, label: o.label }))
-                          : undefined
-                      }))
+                      targetFormFields: (fieldsRes.data || []).map(tf => {
+                        let tfOpts: Array<{ id: string; value: string; label: string }> | undefined;
+                        try {
+                          const raw = typeof tf.options === 'string' ? JSON.parse(tf.options) : tf.options;
+                          if (Array.isArray(raw)) {
+                            tfOpts = raw.map((o: any, idx: number) => {
+                              if (typeof o === 'string' || typeof o === 'number' || typeof o === 'boolean') {
+                                const s = String(o);
+                                return { id: `opt-${idx}`, value: s, label: s };
+                              }
+                              return {
+                                id: String(o.id || o.value || `opt-${idx}`),
+                                value: String(o.value ?? o.label ?? ''),
+                                label: String(o.label ?? o.value ?? ''),
+                              };
+                            }).filter((o) => o.value || o.label);
+                          }
+                        } catch { tfOpts = undefined; }
+                        return {
+                          id: tf.id,
+                          label: tf.label,
+                          type: tf.field_type,
+                          options: tfOpts,
+                        };
+                      })
                     };
                   }
                 }
@@ -323,10 +356,11 @@ const WorkflowDesignerPage = () => {
       } catch (err) {
         console.error('Error fetching forms for AI:', err);
       }
-    };
-
-    fetchForms();
   }, []);
+
+  useEffect(() => {
+    void refreshAvailableForms();
+  }, [refreshAvailableForms]);
 
 
   if (loading) {
@@ -729,6 +763,7 @@ const WorkflowDesignerPage = () => {
           <AIWorkflowSuggester
             onApply={handleAIWorkflowApply}
             availableForms={availableForms}
+            onFormsRefresh={refreshAvailableForms}
             existingNodes={workflowData.nodes.map(n => ({ id: n.id, type: n.type, label: n.label }))}
             buttonLabel="AI Suggest"
             buttonVariant="outline"
