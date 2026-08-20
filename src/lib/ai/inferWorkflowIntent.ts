@@ -496,12 +496,23 @@ function applyPredicatesToConditionConfig(
   };
 }
 
+function looksLikeFormNameAsField(
+  label: unknown,
+  formName?: string,
+): boolean {
+  const a = String(label || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  const b = String(formName || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  return Boolean(a && b && a === b);
+}
+
 function applyUpdatesToActionConfig(
   config: Record<string, any>,
   updates: InferredFieldUpdate[],
   fields: InferFormField[],
   formId: string,
   formName?: string,
+  /** When true, prompt field/value always replace LLM guesses (form name, Approved, etc.). */
+  promptWins = false,
 ): Record<string, any> {
   if (!updates.length) return config;
   const actionType = String(config.actionType || '').toLowerCase();
@@ -523,46 +534,35 @@ function applyUpdatesToActionConfig(
     valueType: 'static' as const,
     staticValue,
   };
+
+  const existingNameUnusable = isUnusableFieldLabel(config.targetFieldName, config.targetFieldId)
+    || looksLikeFormNameAsField(config.targetFieldName, formName || config.targetFormName);
+
+  // Prompt wins: always use the field/value from "set Priority to High"
+  const targetFieldId = promptWins
+    ? field.id
+    : (isLikelyUuid(config.targetFieldId) ? config.targetFieldId : field.id);
+  const targetFieldName = promptWins || existingNameUnusable
+    ? field.label
+    : (config.targetFieldName || field.label);
+  const nextStaticValue = promptWins
+    ? staticValue
+    : (config.staticValue !== undefined && config.staticValue !== ''
+      ? matchOptionValueByHint(field, config.staticValue)
+      : staticValue);
+
   const next = {
     ...config,
     actionType: 'change_field_value',
     targetFormId: config.targetFormId || formId,
     targetFormName: config.targetFormName || formName || '',
-    // Prefer real UUID from matched field when AI stored a label as targetFieldId
-    targetFieldId: isLikelyUuid(config.targetFieldId) ? config.targetFieldId : field.id,
-    targetFieldName: isUnusableFieldLabel(config.targetFieldName, config.targetFieldId)
-      ? field.label
-      : (config.targetFieldName || field.label),
-    targetFieldType: config.targetFieldType || field.type,
-    targetFieldOptions: config.targetFieldOptions || fieldUpdate.targetFieldOptions,
+    targetFieldId,
+    targetFieldName,
+    targetFieldType: field.type,
+    targetFieldOptions: fieldUpdate.targetFieldOptions,
     valueType: 'static',
-    staticValue: config.staticValue !== undefined && config.staticValue !== ''
-      ? matchOptionValueByHint(field, config.staticValue)
-      : staticValue,
-    fieldUpdates: Array.isArray(config.fieldUpdates) && config.fieldUpdates.length
-      ? config.fieldUpdates.map((u: any, idx: number) => {
-          if (idx !== 0) return u;
-          const matched = matchFormFieldByHint(fields, u.targetFieldName || u.targetFieldId || update.fieldHint)
-            || field;
-          const resolvedValue = matchOptionValueByHint(
-            matched,
-            u.staticValue ?? u.value ?? staticValue,
-          );
-          return {
-            ...u,
-            targetFieldId: matched.id,
-            targetFieldName: isUnusableFieldLabel(u.targetFieldName, u.targetFieldId || matched.id)
-              ? matched.label
-              : (u.targetFieldName || matched.label),
-            targetFieldType: u.targetFieldType || matched.type,
-            targetFieldOptions: u.targetFieldOptions || (Array.isArray(matched.options)
-              ? matched.options.map((o) => ({ label: o.label, value: o.value }))
-              : undefined),
-            valueType: u.valueType || 'static',
-            staticValue: resolvedValue,
-          };
-        })
-      : [fieldUpdate],
+    staticValue: nextStaticValue,
+    fieldUpdates: [fieldUpdate],
   };
   return next;
 }
@@ -762,6 +762,7 @@ export function enrichWorkflowNodesFromPrompt(
   return nodes.map((node) => {
     const type = String(node?.type || '').toLowerCase();
     let config = { ...(node.config || {}) };
+    let label = node.label;
 
     if (type === 'condition' || type === 'branch' || type === 'decision') {
       // Materialize enhancedCondition from flat/nested AI shapes first
@@ -770,10 +771,9 @@ export function enrichWorkflowNodesFromPrompt(
         triggerFormName: formName,
       });
 
-      if (predicates.length && (
-        conditionNeedsEnrichment(config)
-        || predicates.length > (config.enhancedCondition?.conditions?.length || 0)
-      )) {
+      // Prompt wins: LLM often labels "Check if Status is Closed" but stores Approved
+      // because Closed is missing from Status options. Always apply parsed predicates.
+      if (predicates.length) {
         config = applyPredicatesToConditionConfig(config, predicates, fields, formId);
       }
 
@@ -783,11 +783,19 @@ export function enrichWorkflowNodesFromPrompt(
         triggerFormId: formId,
         triggerFormName: formName,
       });
+
+      if (config.fieldLabel && (config.value !== undefined && config.value !== '')) {
+        const op = config.operator || '==';
+        label = `${config.fieldLabel} ${op} ${config.value}`;
+      }
     }
 
     if (type === 'action') {
-      if (updates.length && actionNeedsEnrichment(config)) {
-        config = applyUpdatesToActionConfig(config, updates, fields, formId, formName);
+      if (updates.length) {
+        // Prompt wins for "set Priority to High" even when LLM filled form name / wrong value
+        config = applyUpdatesToActionConfig(config, updates, fields, formId, formName, true);
+      } else if (actionNeedsEnrichment(config)) {
+        config = applyUpdatesToActionConfig(config, updates, fields, formId, formName, false);
       }
       // Always stamp targetFieldType/options so the Action Node value input is visible
       if (String(config.actionType || '').toLowerCase() === 'change_field_value'
@@ -800,8 +808,17 @@ export function enrichWorkflowNodesFromPrompt(
           triggerFormName: formName,
         });
       }
+
+      if (
+        String(config.actionType || '').toLowerCase() === 'change_field_value'
+        && config.targetFieldName
+        && config.staticValue !== undefined
+        && String(config.staticValue).trim() !== ''
+      ) {
+        label = `Set ${config.targetFieldName} to ${config.staticValue}`;
+      }
     }
 
-    return { ...node, config };
+    return { ...node, label, config };
   });
 }
