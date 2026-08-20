@@ -61,6 +61,8 @@ interface WorkflowSuggestion {
 interface AIWorkflowSuggesterProps {
   onApply: (workflow: WorkflowSuggestion) => void;
   availableForms?: WorkflowFormOption[];
+  /** Reload forms/fields from DB after option/field creates so we don't re-ask */
+  onFormsRefresh?: () => void | Promise<void>;
   existingNodes?: Array<{ id: string; type: string; label: string }>;
   buttonLabel?: string;
   buttonVariant?: 'default' | 'outline' | 'ghost' | 'secondary';
@@ -107,6 +109,7 @@ const fieldTypeIcons: Record<string, string> = {
 export function AIWorkflowSuggester({
   onApply,
   availableForms = [],
+  onFormsRefresh,
   existingNodes = [],
   buttonLabel = 'AI Suggest Workflow',
   buttonVariant = 'outline',
@@ -120,6 +123,14 @@ export function AIWorkflowSuggester({
   const { suggestWorkflow, isLoading } = useFormAI();
   const { resolveWorkflowConditionsInteractive, conditionResolutionDialogs } = useConditionResolution();
 
+  // Keep selected forms' field options in sync after creates / parent refresh
+  React.useEffect(() => {
+    if (!selectedForms.length || !availableForms.length) return;
+    setSelectedForms((prev) => prev.map((sf) => {
+      const fresh = availableForms.find((af) => af.id === sf.id);
+      return fresh ? { ...sf, fields: fresh.fields, name: fresh.name } : sf;
+    }));
+  }, [availableForms]);
   const triggerForm = selectedForms.find(f => f.id === triggerFormId) || selectedForms[0];
 
   const handleAddForm = (formId: string) => {
@@ -233,12 +244,20 @@ export function AIWorkflowSuggester({
         defaultFormId: formId || forms[0]?.id,
         mode: 'auto',
         userPrompt: goal || pending.description || pending.name || '',
+        onMetadataChanged: async () => {
+          await onFormsRefresh?.();
+        },
       });
       if (resolved.aborted) {
         toast.message('Cancelled. Workflow suggestion was not applied.');
         return;
       }
       nodes = resolved.nodes;
+      // Refresh local selected form field options so already-created values
+      // are not asked again on the next AI Suggest run.
+      if (onFormsRefresh) {
+        await onFormsRefresh();
+      }
     } catch (e) {
       console.error('Condition resolution failed:', e);
       toast.error('Could not validate condition fields. Applying suggestion as-is.');

@@ -25,7 +25,7 @@ import { sanitizeAiFieldType } from '@/lib/createFormFromAiGeneration';
 import { isOptionBasedFieldType } from '@/utils/conditionOperators';
 import {
   findExistingDecisionOption,
-  isProtectedStatusField,
+  type DecisionKind,
 } from '@/lib/ai/workflowBuilder/decisionOptionResolver';
 
 /** Labels that are command noise, not real form fields (e.g. prompt started with "create"). */
@@ -281,6 +281,38 @@ function uniqueLabels(values: unknown[]): string[] {
 }
 
 /**
+ * Only reuse Approved/Rejected/Pending semantics for labels that actually look like
+ * decision states. Never map arbitrary values like "Closed" or "High" → Completed.
+ */
+function decisionKindForOptionLabel(label: string): DecisionKind | null {
+  const key = String(label || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  if (!key) return null;
+  if (/\b(reject(ed|ion)?|denied|deny|declined|decline|failed|fail|cancelled|canceled)\b/.test(key)) {
+    return 'rejected';
+  }
+  if (/\b(pending|in progress|inprogress|draft|submitted|waiting|open)\b/.test(key)) {
+    return 'pending';
+  }
+  if (/\b(approved|approve|approval|accepted|accept|completed|complete|passed|pass|success|successful|done)\b/.test(key)) {
+    return 'approved';
+  }
+  return null;
+}
+
+function optionAlreadyExists(
+  field: { options?: Array<{ value?: string; label?: string }> },
+  label: string,
+): boolean {
+  const key = String(label || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  if (!key) return false;
+  return (field.options || []).some((o) => {
+    const v = String(o.value || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    const l = String(o.label || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    return (v && v === key) || (l && l === key);
+  });
+}
+
+/**
  * Analyze prompt + nodes and return what would be created (no mutations).
  */
 export function planMissingWorkflowFormAssets(params: {
@@ -318,21 +350,16 @@ export function planMissingWorkflowFormAssets(params: {
 
     if (matched) {
       reusedFields.push(matched.label);
-      // Never create options on the system Status / lifecycle field
-      if (isProtectedStatusField(matched)) continue;
+      // Allow adding missing options on Status too — user confirms before create.
+      // Do not invent new Status fields; only append missing option values.
       if (isOptionBasedFieldType(matched.type)) {
         const opts = matched.options || [];
         for (const label of optionLabels) {
-          const exists = opts.some((o) =>
-            String(o.value).toLowerCase() === label.toLowerCase()
-            || String(o.label).toLowerCase() === label.toLowerCase(),
-          );
-          if (exists) continue;
-          // Semantic reuse: Approved ↔ Completed, Rejected ↔ Archived, etc.
-          const kind = /reject/i.test(label) ? 'rejected' as const
-            : /pend/i.test(label) ? 'pending' as const
-              : 'approved' as const;
-          if (findExistingDecisionOption(matched, kind)) continue;
+          if (optionAlreadyExists(matched, label)) continue;
+          // Semantic reuse only for real decision words (Approved/Rejected/Pending),
+          // never map "Closed" → Completed or "High" → anything.
+          const kind = decisionKindForOptionLabel(label);
+          if (kind && findExistingDecisionOption(matched, kind)) continue;
           // Avoid duplicate planned options
           if (optionsToCreate.some((o) =>
             o.fieldId === matched.id && o.valueLabel.toLowerCase() === label.toLowerCase()
@@ -394,11 +421,10 @@ export function planMissingWorkflowFormAssets(params: {
     } else if (issue.kind === 'missing_value') {
       const issueField = fields.find((f) => f.id === issue.fieldId)
         || { id: issue.fieldId, label: issue.fieldLabel, type: issue.fieldType, options: issue.availableOptions };
-      if (isProtectedStatusField(issueField)) continue;
-      const kind = /reject/i.test(issue.requestedValue) ? 'rejected' as const
-        : /pend/i.test(issue.requestedValue) ? 'pending' as const
-          : 'approved' as const;
-      if (findExistingDecisionOption(issueField as any, kind)) continue;
+      // Allow missing option creates on Status when the value is truly absent
+      if (optionAlreadyExists(issueField, issue.requestedValue)) continue;
+      const kind = decisionKindForOptionLabel(issue.requestedValue);
+      if (kind && findExistingDecisionOption(issueField as any, kind)) continue;
       if (optionsToCreate.some((o) =>
         o.fieldId === issue.fieldId
         && o.valueLabel.toLowerCase() === issue.requestedValue.toLowerCase()
@@ -509,14 +535,9 @@ export async function applyWorkflowAssetPlan(params: {
     const field = fields.find((f) => f.id === optPlan.fieldId)
       || fields.find((f) => f.label.toLowerCase() === optPlan.fieldLabel.toLowerCase());
     if (!field || !isOptionBasedFieldType(field.type)) continue;
-    if (isProtectedStatusField(field)) continue;
     const raw = optPlan.valueLabel.trim();
     if (!raw) continue;
-    const exists = (field.options || []).some((o) =>
-      String(o.value).toLowerCase() === raw.toLowerCase()
-      || String(o.label).toLowerCase() === raw.toLowerCase(),
-    );
-    if (exists) continue;
+    if (optionAlreadyExists(field, raw)) continue;
     try {
       const created = await addConditionFieldOption({
         fieldId: field.id,
