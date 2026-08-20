@@ -567,21 +567,6 @@ function applyUpdatesToActionConfig(
   return next;
 }
 
-function conditionNeedsEnrichment(config: any): boolean {
-  const enhanced = config?.enhancedCondition;
-  const items = enhanced?.conditions;
-  if (!Array.isArray(items) || items.length === 0) {
-    return !(config?.fieldId || config?.fieldLabel);
-  }
-  return items.some((item: any) => {
-    const flc = item?.fieldLevelCondition || item;
-    const hasId = flc?.fieldId && /^[0-9a-f-]{36}$/i.test(String(flc.fieldId));
-    const hasValue = flc?.value !== undefined && flc?.value !== null && String(flc.value).trim() !== '';
-    const noValueOp = ['exists', 'not_exists', 'is_today', 'is_yesterday', 'is_tomorrow'].includes(String(flc?.operator || ''));
-    return !hasId || (!hasValue && !noValueOp);
-  });
-}
-
 function actionNeedsEnrichment(config: any): boolean {
   const actionType = String(config?.actionType || '').toLowerCase();
   if (actionType && actionType !== 'change_field_value') return false;
