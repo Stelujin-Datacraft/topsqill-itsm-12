@@ -8,8 +8,14 @@ import {
   type AIWorkflowDefinition,
   type AIWorkflowType,
   type RejectionRoute,
+  type WorkflowActionSpec,
   type WorkflowLevelSpec,
 } from './types';
+import {
+  describeActionType,
+  inferActionTypeFromPrompt,
+  type InferredWorkflowActionType,
+} from './actionTypeInferrer';
 
 export interface IntentAnalysisResult {
   definition: AIWorkflowDefinition;
@@ -132,6 +138,17 @@ function looksLikeApprovalRequest(text: string): boolean {
   return /\bapprov|\breview workflow|\bmulti[- ]?level|\blevel\s*\d+/i.test(text);
 }
 
+function createEmptyAction(actionType: InferredWorkflowActionType): WorkflowActionSpec {
+  return {
+    actionType,
+    valueType: 'static',
+    recordCount: 1,
+    updateScope: 'all',
+    combinationMode: 'single',
+    configured: false,
+  };
+}
+
 /**
  * Analyze a short NL request into a partial AIWorkflowDefinition.
  */
@@ -142,7 +159,13 @@ export function analyzeWorkflowIntent(
   const text = String(prompt || '').replace(/\s+/g, ' ').trim();
   const extractedKeys: string[] = [];
   const workflowType = detectWorkflowType(text);
-  const levelCount = detectLevelCount(text) || (looksLikeApprovalRequest(text) ? 2 : 1);
+  const isApproval = looksLikeApprovalRequest(text);
+  const inferredAction = inferActionTypeFromPrompt(text);
+
+  // Approval path: multi-level Q&A. Generic path: condition + action field Q&A.
+  const levelCount = isApproval
+    ? (detectLevelCount(text) || 2)
+    : 0;
   const parallel = workflowType === 'parallel_approval';
 
   const levels: WorkflowLevelSpec[] = [];
@@ -185,10 +208,28 @@ export function analyzeWorkflowIntent(
     levels[levels.length - 1].onApprovalNext = 'complete';
   }
 
+  const action = isApproval
+    ? null
+    : createEmptyAction(
+      // Approval-ish notify default is wrong for generic — prefer change_field when ambiguous
+      inferredAction === 'send_notification' && workflowType === 'generic'
+        ? 'change_field_value'
+        : inferredAction,
+    );
+
+  if (action) {
+    extractedKeys.push('action.type');
+    // Default create_record target to the trigger form when known
+    if (action.actionType === 'create_record' && context?.formId) {
+      action.targetFormId = context.formId;
+      action.targetFormName = context.formName;
+    }
+  }
+
   const nameBits = [
     context?.formName,
-    levelCount > 1 ? `${levelCount}-Level` : undefined,
-    /approv/i.test(text) ? 'Approval' : 'Workflow',
+    isApproval && levelCount > 1 ? `${levelCount}-Level` : undefined,
+    isApproval ? 'Approval' : 'Workflow',
   ].filter(Boolean);
 
   const definition = createEmptyWorkflowDefinition({
@@ -196,30 +237,35 @@ export function analyzeWorkflowIntent(
     description: text.slice(0, 240),
     objectId: context?.formId,
     objectName: context?.formName,
-    workflowType,
+    workflowType: isApproval
+      ? (workflowType === 'generic' ? 'approval' : workflowType)
+      : (workflowType === 'approval' ? 'generic' : workflowType),
     trigger: {
       kind: 'form_submission',
       formId: context?.formId,
       formName: context?.formName,
     },
     levels,
+    action,
     parallel,
     defaultRejection: rejectionHints.find((h) => h.fromLevel === 'any')?.route,
   });
 
-  const needsConversation = looksLikeApprovalRequest(text)
-    || workflowType.includes('approval')
-    || levelCount >= 2;
+  // Always conversational for AI Suggest workflows (approval or generic action)
+  const needsConversation = true;
 
-  // Confidence: high if approvers + rejections extracted; medium if only levels; low otherwise
   let confidence: 'high' | 'medium' | 'low' = 'low';
-  if (approverHints.length >= levelCount && rejectionHints.length > 0) confidence = 'high';
-  else if (approverHints.length > 0 || levelCount >= 2) confidence = 'medium';
+  if (isApproval) {
+    if (approverHints.length >= levelCount && rejectionHints.length > 0) confidence = 'high';
+    else if (approverHints.length > 0 || levelCount >= 2) confidence = 'medium';
+  } else if (action) {
+    confidence = action.actionType !== 'change_field_value' ? 'medium' : 'low';
+  }
 
   return { definition, extractedKeys, confidence, needsConversation };
 }
 
-/** True when the prompt should enter the conversational approval builder instead of blind create. */
+/** True when the prompt should enter the conversational builder instead of blind create. */
 export function shouldUseConversationalWorkflowBuilder(prompt: string): boolean {
   const t = String(prompt || '').toLowerCase();
   if (!t.trim()) return false;
@@ -231,5 +277,16 @@ export function shouldUseConversationalWorkflowBuilder(prompt: string): boolean 
   if (/\b(sequential|parallel)\s+approv/.test(t)) return true;
   if (/\bcreate\b.+\bapprov.+\bworkflow\b|\bapprov.+\bworkflow\b/.test(t)) return true;
   if (/\blevel\s*1\b.+\blevel\s*2\b/.test(t) && /\bapprov/.test(t)) return true;
+  // Generic action-style workflow language
+  if (/\b(change|set|update)\b.+\bfield\b/.test(t)) return true;
+  if (/\b(change|set|update)\b.+\bto\b/.test(t)) return true;
+  if (/\bwhen\b.+\b(set|change|update|create)\b/.test(t)) return true;
+  if (/\bif\b.+\bthen\b.+\b(set|change|update|create)\b/.test(t)) return true;
+  if (/\bcreate\s+(?:a\s+)?(?:new\s+)?(?:linked\s+)?record\b/.test(t)) return true;
+  if (/\bupdate\s+linked\b|\blinked\s+record\b|\bcross[- ]?ref/.test(t)) return true;
+  if (/\bcombin(?:e|ation)\b/.test(t)) return true;
+  if (/\bworkflow\b/.test(t) && /\b(if|when|then|create|update|set|change)\b/.test(t)) return true;
   return false;
 }
+
+export { describeActionType, inferActionTypeFromPrompt };

@@ -65,7 +65,14 @@ interface FormWithFields {
   id: string;
   name: string;
   description?: string;
-  fields: Array<{ id: string; label: string; type: string; options?: Array<{ id: string; value: string; label: string }>; required: boolean }>;
+  fields: Array<{
+    id: string;
+    label: string;
+    type: string;
+    options?: Array<{ id: string; value: string; label: string }>;
+    required: boolean;
+    custom_config?: Record<string, unknown> | null;
+  }>;
 }
 
 export const COPILOT_WELCOME = `Hi! 👋 I'm your **AI Copilot** for TopSqill BPM.
@@ -172,7 +179,7 @@ export function useCopilotEngine() {
       const [workflowResult, reportResult, formsResult] = await Promise.all([
         supabase.from('workflows').select('id, name, description').eq('project_id', projectId).order('name'),
         supabase.from('reports').select('id, name, description').eq('project_id', projectId).order('name'),
-        supabase.from('forms').select('id, name, description, form_fields(id, label, field_type, options, required)').eq('project_id', projectId).order('name'),
+        supabase.from('forms').select('id, name, description, form_fields(id, label, field_type, options, custom_config, required)').eq('project_id', projectId).order('name'),
       ]);
 
       if (!workflowResult.error && workflowResult.data) {
@@ -188,7 +195,7 @@ export function useCopilotEngine() {
       if (!formsResult.error && formsResult.data) {
         const formsData = formsResult.data as Array<{
           id: string; name: string; description?: string;
-          form_fields?: Array<{ id: string; label: string; field_type: string; options?: unknown; required?: boolean }>;
+          form_fields?: Array<{ id: string; label: string; field_type: string; options?: unknown; custom_config?: unknown; required?: boolean }>;
         }>;
         setFormsWithFields(formsData.map((f) => ({
           id: f.id,
@@ -198,6 +205,16 @@ export function useCopilotEngine() {
             let parsedOptions: any[] = [];
             if (field.options) {
               try { parsedOptions = typeof field.options === 'string' ? JSON.parse(field.options) : field.options; } catch { parsedOptions = []; }
+            }
+            let customConfig: Record<string, unknown> | null = null;
+            if (field.custom_config) {
+              try {
+                customConfig = typeof field.custom_config === 'string'
+                  ? JSON.parse(field.custom_config)
+                  : field.custom_config;
+              } catch {
+                customConfig = null;
+              }
             }
             return {
               id: field.id,
@@ -215,6 +232,7 @@ export function useCopilotEngine() {
                 };
               }) : [],
               required: field.required || false,
+              custom_config: customConfig,
             };
           }),
         })));
@@ -1500,12 +1518,27 @@ export function useCopilotEngine() {
     };
     setMessages((prev) => [...prev, userMessage]);
 
-    // ── Conversational Workflow Builder (approval / multi-level) ──────────
+    // ── Conversational Workflow Builder (all AI Suggest workflows) ─────────
     // Do NOT blindly create; ask missing questions, validate, preview, then publish.
+    // Action type is inferred from the prompt — never asked.
     const builderFormId = options?.formId || activeFormIdRef.current || undefined;
     const builderForm = builderFormId
       ? formsWithFields.find((f) => f.id === builderFormId)
       : undefined;
+    const mapDiscoveredForm = (f: typeof formsWithFields[number]) => ({
+      id: f.id,
+      name: f.name,
+      fields: (f.fields || []).map((field) => ({
+        id: field.id,
+        label: field.label,
+        type: field.type,
+        options: field.options,
+        required: field.required,
+        custom_config: (field as any).custom_config
+          ?? (field as any).customConfig
+          ?? null,
+      })),
+    });
     const wantsConversationalWorkflow = createType === 'workflow'
       || isBuilderActive
       || shouldInterceptApprovalPrompt(trimmed);
@@ -1513,22 +1546,12 @@ export function useCopilotEngine() {
     if (wantsConversationalWorkflow) {
       const turn = maybeStartOrContinue({
         prompt: trimmed,
-        form: builderForm
-          ? {
-              id: builderForm.id,
-              name: builderForm.name,
-              fields: (builderForm.fields || []).map((field) => ({
-                id: field.id,
-                label: field.label,
-                type: field.type,
-                options: field.options,
-                required: field.required,
-              })),
-            }
-          : undefined,
+        form: builderForm ? mapDiscoveredForm(builderForm) : undefined,
+        formsCatalog: formsWithFields.map(mapDiscoveredForm),
         workflows,
         userId: user?.id,
         projectId: activeProject?.id,
+        forceStart: createType === 'workflow' || isBuilderActive,
       });
 
       if (turn) {

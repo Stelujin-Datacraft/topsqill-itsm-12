@@ -23,6 +23,8 @@ import {
 import { validateWorkflowDefinition, hasBlockingValidationErrors } from './validationEngine';
 import { generateWorkflowPreview, formatPreviewAsMarkdown } from './previewGenerator';
 import { compileWorkflowDefinition } from './nodeCompiler';
+import { isApprovalStyleDefinition } from './types';
+import { describeActionType } from './actionTypeInferrer';
 
 export interface BuilderTurnResult {
   session: WorkflowBuilderSession;
@@ -133,11 +135,12 @@ function permissionConfirmRequirement(
 export function startWorkflowBuilderSession(params: {
   prompt: string;
   form?: DiscoveredForm;
+  formsCatalog?: DiscoveredForm[];
   workflows?: DiscoveredWorkflow[];
   userId?: string;
   projectId?: string;
 }): BuilderTurnResult {
-  const { prompt, form, workflows = [], userId, projectId } = params;
+  const { prompt, form, formsCatalog = [], workflows = [], userId, projectId } = params;
   const analysis = analyzeWorkflowIntent(prompt, {
     formId: form?.id,
     formName: form?.name,
@@ -156,11 +159,23 @@ export function startWorkflowBuilderSession(params: {
   // Existing workflow detection
   const existing = findExistingWorkflowsForForm(workflows, form?.name);
   const intro: string[] = [];
-  intro.push(
-    `I can create a **${analysis.definition.levels.length || 2}-level ${analysis.definition.workflowType.replace(/_/g, ' ')}** workflow`
-    + (form?.name ? ` for **${form.name}**` : '')
-    + '.',
-  );
+  const isApproval = isApprovalStyleDefinition(analysis.definition);
+
+  if (isApproval) {
+    intro.push(
+      `I can create a **${analysis.definition.levels.length || 2}-level ${analysis.definition.workflowType.replace(/_/g, ' ')}** workflow`
+      + (form?.name ? ` for **${form.name}**` : '')
+      + '.',
+    );
+  } else {
+    const actionType = analysis.definition.action?.actionType || 'change_field_value';
+    intro.push(
+      `I'll create a workflow`
+      + (form?.name ? ` for **${form.name}**` : '')
+      + ` with a **${describeActionType(actionType)}** action (inferred from your prompt).`,
+    );
+    intro.push('I will ask for the **condition field** and **action field** separately — I will not ask you to pick an action type.');
+  }
 
   if (existing.length) {
     intro.push('');
@@ -171,25 +186,28 @@ export function startWorkflowBuilderSession(params: {
     );
   }
 
-  // Smart defaults: suggest approver fields if none hinted
-  const suggestions = suggestApproverFields(form);
-  if (suggestions.length && analysis.definition.levels.some((l) => !l.approver.rawHint)) {
-    intro.push('');
-    intro.push(
-      `Detected user/assignee fields on this form: ${suggestions.slice(0, 4).map((f) => `**${f.label}**`).join(', ')}. `
-      + 'I will ask before using them.',
-    );
+  // Smart defaults: suggest approver fields if none hinted (approval only)
+  if (isApproval) {
+    const suggestions = suggestApproverFields(form);
+    if (suggestions.length && analysis.definition.levels.some((l) => !l.approver.rawHint)) {
+      intro.push('');
+      intro.push(
+        `Detected user/assignee fields on this form: ${suggestions.slice(0, 4).map((f) => `**${f.label}**`).join(', ')}. `
+        + 'I will ask before using them.',
+      );
+    }
   }
 
   session.missingInformation = planMissingRequirements(
     session.requirements,
     form,
     [],
+    formsCatalog,
   );
   const nextQ = getNextMissingRequirement(session.missingInformation);
 
   if (!nextQ) {
-    return finalizeOrPreview(session, form);
+    return finalizeOrPreview(session, form, undefined, formsCatalog);
   }
 
   session.lastAssistantMessage = `${intro.join('\n')}\n\n${formatQuestion(nextQ)}`;
@@ -210,8 +228,10 @@ export function continueWorkflowBuilderSession(params: {
   session: WorkflowBuilderSession;
   userMessage: string;
   form?: DiscoveredForm;
+  formsCatalog?: DiscoveredForm[];
 }): BuilderTurnResult {
   let { session, form } = params;
+  const formsCatalog = params.formsCatalog || [];
   const raw = String(params.userMessage || '').trim();
   const lower = raw.toLowerCase();
 
@@ -246,7 +266,7 @@ export function continueWorkflowBuilderSession(params: {
           confirmed: true,
           at: new Date().toISOString(),
         });
-        return finalizeOrPreview(session, form, { createsAllowed: true });
+        return finalizeOrPreview(session, form, { createsAllowed: true }, formsCatalog);
       }
 
       // Deny creates — clear pending create labels so planner re-asks for existing fields
@@ -281,7 +301,7 @@ export function continueWorkflowBuilderSession(params: {
           return next;
         }),
       };
-      session.missingInformation = planMissingRequirements(session.requirements, form, []);
+      session.missingInformation = planMissingRequirements(session.requirements, form, [], formsCatalog);
       const nextQ = getNextMissingRequirement(session.missingInformation);
       const msg = nextQ
         ? `Okay — I will not create new fields. Let's pick from existing ones.\n\n${formatQuestion(nextQ)}`
@@ -342,7 +362,7 @@ export function continueWorkflowBuilderSession(params: {
       session = touch({
         ...session,
         status: 'collecting',
-        missingInformation: planMissingRequirements(session.requirements, form, []),
+        missingInformation: planMissingRequirements(session.requirements, form, [], formsCatalog),
       });
       const nextQ = getNextMissingRequirement(session.missingInformation);
       const msg = nextQ
@@ -360,7 +380,7 @@ export function continueWorkflowBuilderSession(params: {
 
   const unanswered = getNextMissingRequirement(session.missingInformation);
   if (!unanswered) {
-    return finalizeOrPreview(session, form);
+    return finalizeOrPreview(session, form, undefined, formsCatalog);
   }
 
   // Free-text field name → try metadata match for field_select questions
@@ -368,7 +388,10 @@ export function continueWorkflowBuilderSession(params: {
   const isFieldPick = unanswered.inputKind === 'field_select'
     || unanswered.key === 'approver'
     || unanswered.key === 'approval_field'
-    || unanswered.key === 'rejection_field';
+    || unanswered.key === 'rejection_field'
+    || unanswered.key === 'condition_field'
+    || unanswered.key === 'action_field'
+    || unanswered.key === 'action_cross_ref';
 
   if (
     isFieldPick
@@ -380,7 +403,14 @@ export function continueWorkflowBuilderSession(params: {
     && !answer.startsWith('__create_named__:')
     && !unanswered.options?.some((o) => o.value === answer)
   ) {
-    const match = searchFields(form, raw);
+    // Prefer linked form when picking action_field for update_linked_records
+    let lookupForm = form;
+    if (unanswered.key === 'action_field'
+      && session.requirements.action?.actionType === 'update_linked_records'
+      && session.requirements.action.targetFormId) {
+      lookupForm = formsCatalog.find((f) => f.id === session.requirements.action!.targetFormId) || form;
+    }
+    const match = searchFields(lookupForm, raw);
     if (match.matched) {
       answer = match.matched.id;
     } else {
@@ -446,11 +476,13 @@ export function continueWorkflowBuilderSession(params: {
       unanswered,
       answer,
       form,
+      formsCatalog,
     );
     session.missingInformation = planMissingRequirements(
       session.requirements,
       form,
       session.missingInformation.filter((m) => m.id !== unanswered.id && !m.id.endsWith('.create_permission')),
+      formsCatalog,
     );
     const nextQ = getNextMissingRequirement(session.missingInformation);
     const msg = nextQ
@@ -474,6 +506,7 @@ export function continueWorkflowBuilderSession(params: {
     unanswered,
     answer,
     form,
+    formsCatalog,
   );
 
   // Re-plan with updated definition
@@ -481,6 +514,7 @@ export function continueWorkflowBuilderSession(params: {
     session.requirements,
     form,
     session.missingInformation,
+    formsCatalog,
   );
 
   const forceConfirm: string[] = [];
@@ -527,7 +561,7 @@ export function continueWorkflowBuilderSession(params: {
     };
   }
 
-  return finalizeOrPreview(session, form);
+  return finalizeOrPreview(session, form, undefined, formsCatalog);
 }
 
 function buildAck(
@@ -572,6 +606,27 @@ function buildAck(
       ? 'Continuing with existing values.'
       : "I'll add those values after you confirm the final plan.";
   }
+  if (req.key === 'condition_field') {
+    if (field) return `Condition will use **${field.label}**.`;
+    return 'Condition field noted.';
+  }
+  if (req.key === 'condition_value') {
+    return `Condition value set to **${answer}**.`;
+  }
+  if (req.key === 'action_cross_ref') {
+    if (field) return `I'll use cross-reference **${field.label}**.`;
+    return 'Cross-reference field noted.';
+  }
+  if (req.key === 'action_target_form') {
+    return `Target form set to **${answer}**.`;
+  }
+  if (req.key === 'action_field') {
+    if (field) return `Action will update **${field.label}**.`;
+    return 'Action field noted.';
+  }
+  if (req.key === 'action_value') {
+    return `Action value set to **${answer}**.`;
+  }
   return 'Thanks.';
 }
 
@@ -579,6 +634,7 @@ function finalizeOrPreview(
   session: WorkflowBuilderSession,
   form?: DiscoveredForm,
   opts?: { createsAllowed?: boolean },
+  formsCatalog: DiscoveredForm[] = [],
 ): BuilderTurnResult {
   session.pendingActions = mergePendingConfirmation(
     session.pendingActions,
@@ -603,6 +659,7 @@ function finalizeOrPreview(
       session.requirements,
       form,
       session.missingInformation,
+      formsCatalog,
     );
     const nextQ = getNextMissingRequirement(session.missingInformation);
     session = touch({

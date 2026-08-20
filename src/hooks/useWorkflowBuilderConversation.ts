@@ -27,9 +27,12 @@ export function useWorkflowBuilderConversation() {
   const maybeStartOrContinue = useCallback((params: {
     prompt: string;
     form?: DiscoveredForm;
+    formsCatalog?: DiscoveredForm[];
     workflows?: DiscoveredWorkflow[];
     userId?: string;
     projectId?: string;
+    /** When true (e.g. createType === 'workflow'), always start conversational builder */
+    forceStart?: boolean;
   }): BuilderTurnResult | null => {
     const active = sessionRef.current;
     const inFlight = active
@@ -43,20 +46,22 @@ export function useWorkflowBuilderConversation() {
         session: active!,
         userMessage: params.prompt,
         form: params.form,
+        formsCatalog: params.formsCatalog,
       });
       sessionRef.current = result.session;
       setSession(result.session);
       return result;
     }
 
-    // Start only for approval-style intents
-    if (!shouldUseConversationalWorkflowBuilder(params.prompt)) {
+    // Start for all AI Suggest workflows when forced, or for detected intents
+    if (!params.forceStart && !shouldUseConversationalWorkflowBuilder(params.prompt)) {
       return null;
     }
 
     const result = startWorkflowBuilderSession({
       prompt: params.prompt,
       form: params.form,
+      formsCatalog: params.formsCatalog,
       workflows: params.workflows,
       userId: params.userId,
       projectId: params.projectId,
