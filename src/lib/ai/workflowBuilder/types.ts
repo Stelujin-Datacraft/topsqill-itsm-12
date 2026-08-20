@@ -72,6 +72,10 @@ export interface WorkflowConditionSpec {
   operator: string;
   value: unknown;
   resolved: boolean;
+  /** User confirmed creating this value as a new option on the field */
+  pendingOptionCreate?: boolean;
+  /** Raw label the user asked for when option was missing */
+  pendingOptionLabel?: string;
 }
 
 /**
@@ -94,6 +98,9 @@ export interface WorkflowActionSpec {
   targetFieldType?: string;
   valueType?: 'static' | 'dynamic';
   staticValue?: unknown;
+  /** User confirmed creating this value as a new option on the action field */
+  pendingOptionCreate?: boolean;
+  pendingOptionLabel?: string;
   /** Cross-reference field on the trigger form */
   crossReferenceFieldId?: string;
   crossReferenceFieldLabel?: string;

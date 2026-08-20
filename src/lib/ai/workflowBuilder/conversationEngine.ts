@@ -25,6 +25,7 @@ import { generateWorkflowPreview, formatPreviewAsMarkdown } from './previewGener
 import { compileWorkflowDefinition } from './nodeCompiler';
 import { isApprovalStyleDefinition } from './types';
 import { describeActionType } from './actionTypeInferrer';
+import { buildOptionCreatePendingActions } from './pendingOptionActions';
 
 export interface BuilderTurnResult {
   session: WorkflowBuilderSession;
@@ -95,14 +96,15 @@ function mergePendingConfirmation(
 }
 
 /**
- * Workflow AI Suggest never mutates forms — pending CREATE_FIELD / CREATE_FIELD_VALUE
- * actions are intentionally empty. Field/option changes belong in form create/update.
+ * Build pending CREATE_FIELD_VALUE actions for confirmed missing options.
+ * New form fields are still not created from workflow AI Suggest.
  */
 export function buildPendingActions(
-  _session: WorkflowBuilderSession,
-  _form?: DiscoveredForm,
+  session: WorkflowBuilderSession,
+  form?: DiscoveredForm,
+  formsCatalog: DiscoveredForm[] = [],
 ): PendingConfigAction[] {
-  return [];
+  return buildOptionCreatePendingActions(session, form, formsCatalog);
 }
 
 function permissionConfirmRequirement(
@@ -325,7 +327,7 @@ export function continueWorkflowBuilderSession(params: {
       // Block publish if unconfirmed creates remain
       const unconfirmed = (session.pendingActions || []).filter((a) => !a.userConfirmed);
       if (unconfirmed.length) {
-        session.pendingActions = buildPendingActions(session, form);
+        session.pendingActions = buildPendingActions(session, form, formsCatalog);
         const perm = permissionConfirmRequirement(session.pendingActions.filter((a) => !a.userConfirmed));
         session.missingInformation = [perm, ...session.missingInformation];
         const msg = formatQuestion(perm);
@@ -527,7 +529,7 @@ export function continueWorkflowBuilderSession(params: {
 
   session.pendingActions = mergePendingConfirmation(
     session.pendingActions,
-    buildPendingActions(session, form),
+    buildPendingActions(session, form, formsCatalog),
     forceConfirm,
   );
 
@@ -613,6 +615,12 @@ function buildAck(
   if (req.key === 'condition_value') {
     return `Condition value set to **${answer}**.`;
   }
+  if (req.key === 'condition_value_create') {
+    if (answer === '__create_option__' || /^(y|yes)/i.test(answer)) {
+      return "I'll add that option when we publish the workflow.";
+    }
+    return 'Okay — pick an existing option instead.';
+  }
   if (req.key === 'action_cross_ref') {
     if (field) return `I'll use cross-reference **${field.label}**.`;
     return 'Cross-reference field noted.';
@@ -627,6 +635,12 @@ function buildAck(
   if (req.key === 'action_value') {
     return `Action value set to **${answer}**.`;
   }
+  if (req.key === 'action_value_create') {
+    if (answer === '__create_option__' || /^(y|yes)/i.test(answer)) {
+      return "I'll add that option when we publish the workflow.";
+    }
+    return 'Okay — pick an existing option instead.';
+  }
   return 'Thanks.';
 }
 
@@ -638,7 +652,7 @@ function finalizeOrPreview(
 ): BuilderTurnResult {
   session.pendingActions = mergePendingConfirmation(
     session.pendingActions,
-    buildPendingActions(session, form),
+    buildPendingActions(session, form, formsCatalog),
   );
 
   if (opts?.createsAllowed) {

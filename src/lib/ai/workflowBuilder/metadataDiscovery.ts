@@ -146,6 +146,28 @@ export function fieldOptionChoices(
   }));
 }
 
+/** True when the field already has this option (by value or label). */
+export function fieldHasOption(
+  field: DiscoveredFormField | undefined,
+  answer: unknown,
+): boolean {
+  const raw = String(answer ?? '').trim();
+  if (!field || !raw) return false;
+  const opts = field.options || [];
+  if (!opts.length) return false;
+  const key = raw.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  return opts.some((o) => {
+    const v = String(o.value).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    const l = String(o.label).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    return v === key || l === key;
+  });
+}
+
+/** True when the field is option-based and already has at least one option. */
+export function fieldHasSelectableOptions(field: DiscoveredFormField | undefined): boolean {
+  return Boolean(field && Array.isArray(field.options) && field.options.length > 0);
+}
+
 export function getCrossRefTargetForm(field: DiscoveredFormField | undefined): {
   targetFormId?: string;
   targetFormName?: string;

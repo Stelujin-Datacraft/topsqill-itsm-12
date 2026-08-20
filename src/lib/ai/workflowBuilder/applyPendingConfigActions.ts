@@ -1,8 +1,6 @@
 /**
- * Recompile conversational workflow definitions against existing form metadata.
- *
- * Workflow AI Suggest must not mutate forms — this intentionally ignores
- * CREATE_FIELD / CREATE_FIELD_VALUE actions. Field/option changes belong in form AI.
+ * Apply conversational pending CREATE_FIELD_VALUE actions (confirmed missing options).
+ * Does not create new form fields — only appends options the user confirmed.
  */
 import type {
   AIWorkflowDefinition,
@@ -10,6 +8,10 @@ import type {
 } from './types';
 import { compileWorkflowDefinition, type CompiledWorkflowGraph } from './nodeCompiler';
 import type { DecisionFieldMeta } from './decisionOptionResolver';
+import { addConditionFieldOption } from '@/lib/ai/conditionFormMutations';
+import { buildOptionCreatePendingActions } from './pendingOptionActions';
+
+export { buildOptionCreatePendingActions };
 
 export interface AppliedPendingCreatesResult {
   definition: AIWorkflowDefinition;
@@ -20,8 +22,7 @@ export interface AppliedPendingCreatesResult {
 }
 
 /**
- * Recompile the workflow definition against existing form fields.
- * Does NOT create form fields or options.
+ * Create confirmed missing options, then recompile against updated metadata.
  */
 export async function applyPendingConfigActions(params: {
   session: WorkflowBuilderSession;
@@ -29,6 +30,43 @@ export async function applyPendingConfigActions(params: {
   formFields?: DecisionFieldMeta[];
 }): Promise<AppliedPendingCreatesResult> {
   const { session } = params;
+  const formFields: DecisionFieldMeta[] = [...(params.formFields || [])];
+  const createdValues: string[] = [];
+
+  const optionCreates = (session.pendingActions || []).filter(
+    (a) => a.kind === 'CREATE_FIELD_VALUE' && a.userConfirmed,
+  );
+
+  for (const action of optionCreates) {
+    const fieldId = String(action.payload.fieldId || '');
+    const valueLabel = String(action.payload.valueLabel || '').trim();
+    if (!fieldId || !valueLabel) continue;
+
+    const field = formFields.find((f) => f.id === fieldId);
+    const exists = (field?.options || []).some((o) =>
+      String(o.value).toLowerCase() === valueLabel.toLowerCase()
+      || String(o.label).toLowerCase() === valueLabel.toLowerCase(),
+    );
+    if (exists) continue;
+
+    try {
+      const created = await addConditionFieldOption({ fieldId, valueLabel });
+      if (field) {
+        field.options = created.options;
+      } else {
+        formFields.push({
+          id: fieldId,
+          label: String(action.payload.fieldLabel || valueLabel),
+          type: String(action.payload.fieldType || 'select'),
+          options: created.options,
+        });
+      }
+      createdValues.push(`${action.payload.fieldLabel || fieldId}: ${created.label}`);
+    } catch (e) {
+      console.error('applyPendingConfigActions: failed to create option', e);
+    }
+  }
+
   const definition: AIWorkflowDefinition = {
     ...session.requirements,
     levels: session.requirements.levels.map((l) => ({
@@ -38,16 +76,28 @@ export async function applyPendingConfigActions(params: {
       pendingOptionValues: undefined,
       configured: true,
     })),
+    conditions: (session.requirements.conditions || []).map((c) => ({
+      ...c,
+      value: c.pendingOptionLabel || c.value,
+      pendingOptionCreate: false,
+    })),
+    action: session.requirements.action
+      ? {
+          ...session.requirements.action,
+          staticValue: session.requirements.action.pendingOptionLabel
+            || session.requirements.action.staticValue,
+          pendingOptionCreate: false,
+        }
+      : null,
     status: 'READY_TO_PUBLISH',
   };
 
-  const formFields = [...(params.formFields || [])];
   const compiled = compileWorkflowDefinition(definition, { formFields });
   return {
     definition,
     compiled,
     createdFields: [],
-    createdValues: [],
+    createdValues,
     formFields,
   };
 }
