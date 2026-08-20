@@ -968,6 +968,24 @@ export function useCopilotEngine() {
             timestamp: new Date(),
           }]);
         }
+        // Keep in-memory form metadata in sync so the next AI Suggest run
+        // does not ask to create options that already exist.
+        setFormsWithFields((prev) => prev.map((f) => {
+          if (f.id !== triggerFormId) return f;
+          const byId = new Map(liveFieldsForCompile.map((lf) => [lf.id, lf]));
+          return {
+            ...f,
+            fields: (f.fields || []).map((field) => {
+              const live = byId.get(field.id);
+              if (!live) return field;
+              return {
+                ...field,
+                options: live.options || field.options,
+                custom_config: live.custom_config ?? field.custom_config,
+              };
+            }),
+          };
+        }));
       }
 
       // Force-bind condition values to existing option.value before enrich/create

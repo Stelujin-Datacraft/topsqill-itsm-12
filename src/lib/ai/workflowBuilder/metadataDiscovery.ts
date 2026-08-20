@@ -126,14 +126,19 @@ export function resolveFieldOptionValue(
   if (!opts.length) return raw;
   const byValue = opts.find((o) => String(o.value) === raw);
   if (byValue) return String(byValue.value);
-  const key = raw.toLowerCase();
-  const byLabel = opts.find((o) => String(o.label).toLowerCase() === key);
-  if (byLabel) return String(byLabel.value);
-  const fuzzy = opts.find((o) =>
-    String(o.label).toLowerCase().includes(key)
-    || String(o.value).toLowerCase().includes(key)
-    || key.includes(String(o.label).toLowerCase()),
+  const key = raw.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  const byLabel = opts.find((o) =>
+    String(o.label).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim() === key,
   );
+  if (byLabel) return String(byLabel.value);
+  // Safe contains match only when both sides are long enough (avoid "closed" matching "")
+  const fuzzy = opts.find((o) => {
+    const label = String(o.label || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    const value = String(o.value || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    if (label.length >= 3 && (label === key || key === label)) return true;
+    if (value.length >= 3 && (value === key || key === value)) return true;
+    return false;
+  });
   return fuzzy ? String(fuzzy.value) : raw;
 }
 
@@ -146,7 +151,7 @@ export function fieldOptionChoices(
   }));
 }
 
-/** True when the field already has this option (by value or label). */
+/** True when the field already has this option (by value or label). Exact match only. */
 export function fieldHasOption(
   field: DiscoveredFormField | undefined,
   answer: unknown,
@@ -156,16 +161,61 @@ export function fieldHasOption(
   const opts = field.options || [];
   if (!opts.length) return false;
   const key = raw.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  if (!key) return false;
   return opts.some((o) => {
-    const v = String(o.value).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-    const l = String(o.label).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-    return v === key || l === key;
+    const v = String(o.value || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    const l = String(o.label || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    return (v && v === key) || (l && l === key);
   });
+}
+
+/** True when the field is option-based (dropdown/select/radio/etc.). */
+export function fieldNeedsOptionCreateCheck(field: DiscoveredFormField | undefined): boolean {
+  if (!field) return false;
+  return isOptionBasedFieldType(field.type);
 }
 
 /** True when the field is option-based and already has at least one option. */
 export function fieldHasSelectableOptions(field: DiscoveredFormField | undefined): boolean {
   return Boolean(field && Array.isArray(field.options) && field.options.length > 0);
+}
+
+/**
+ * Ensure system Status (and similar) expose selectable options for AI Suggest.
+ * If DB options are empty but the field is option-based Status, hydrate defaults.
+ */
+export function hydrateDiscoveredFieldOptions(field: DiscoveredFormField): DiscoveredFormField {
+  const opts = Array.isArray(field.options) ? field.options.filter((o) =>
+    String(o.value || o.label || '').trim(),
+  ) : [];
+  if (opts.length) {
+    return { ...field, options: opts };
+  }
+  if (!isOptionBasedFieldType(field.type)) return field;
+
+  const label = String(field.label || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  const isStatus = label === 'status' || label === 'lifecycle status' || label === 'record status'
+    || isProtectedStatusField(field);
+  if (!isStatus) return { ...field, options: opts };
+
+  // Lazy import avoided — use shared system defaults via decisionOptionResolver's status check only.
+  // Inline the standard lifecycle options so AI can detect missing ones like Closed.
+  const defaults = [
+    { value: 'Draft', label: 'Draft' },
+    { value: 'Inprogress', label: 'Inprogress' },
+    { value: 'Pending', label: 'Pending' },
+    { value: 'Completed', label: 'Completed' },
+    { value: 'Archived', label: 'Archived' },
+  ];
+  return { ...field, options: defaults };
+}
+
+export function hydrateDiscoveredForm(form: DiscoveredForm | undefined): DiscoveredForm | undefined {
+  if (!form) return undefined;
+  return {
+    ...form,
+    fields: (form.fields || []).map(hydrateDiscoveredFieldOptions),
+  };
 }
 
 export function getCrossRefTargetForm(field: DiscoveredFormField | undefined): {

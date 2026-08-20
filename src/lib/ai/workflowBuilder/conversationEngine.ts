@@ -16,6 +16,7 @@ import {
 import {
   searchFields,
   suggestApproverFields,
+  hydrateDiscoveredForm,
   type DiscoveredForm,
   type DiscoveredWorkflow,
   findExistingWorkflowsForForm,
@@ -142,7 +143,9 @@ export function startWorkflowBuilderSession(params: {
   userId?: string;
   projectId?: string;
 }): BuilderTurnResult {
-  const { prompt, form, formsCatalog = [], workflows = [], userId, projectId } = params;
+  const { prompt, workflows = [], userId, projectId } = params;
+  const form = hydrateDiscoveredForm(params.form);
+  const formsCatalog = (params.formsCatalog || []).map((f) => hydrateDiscoveredForm(f)!).filter(Boolean);
   const analysis = analyzeWorkflowIntent(prompt, {
     formId: form?.id,
     formName: form?.name,
@@ -205,6 +208,7 @@ export function startWorkflowBuilderSession(params: {
     form,
     [],
     formsCatalog,
+    prompt,
   );
   const nextQ = getNextMissingRequirement(session.missingInformation);
 
@@ -232,8 +236,9 @@ export function continueWorkflowBuilderSession(params: {
   form?: DiscoveredForm;
   formsCatalog?: DiscoveredForm[];
 }): BuilderTurnResult {
-  let { session, form } = params;
-  const formsCatalog = params.formsCatalog || [];
+  let { session } = params;
+  const form = hydrateDiscoveredForm(params.form);
+  const formsCatalog = (params.formsCatalog || []).map((f) => hydrateDiscoveredForm(f)!).filter(Boolean);
   const raw = String(params.userMessage || '').trim();
   const lower = raw.toLowerCase();
 
@@ -303,7 +308,7 @@ export function continueWorkflowBuilderSession(params: {
           return next;
         }),
       };
-      session.missingInformation = planMissingRequirements(session.requirements, form, [], formsCatalog);
+      session.missingInformation = planMissingRequirements(session.requirements, form, [], formsCatalog, session.originalRequest);
       const nextQ = getNextMissingRequirement(session.missingInformation);
       const msg = nextQ
         ? `Okay — I will not create new fields. Let's pick from existing ones.\n\n${formatQuestion(nextQ)}`
@@ -364,7 +369,7 @@ export function continueWorkflowBuilderSession(params: {
       session = touch({
         ...session,
         status: 'collecting',
-        missingInformation: planMissingRequirements(session.requirements, form, [], formsCatalog),
+        missingInformation: planMissingRequirements(session.requirements, form, [], formsCatalog, session.originalRequest),
       });
       const nextQ = getNextMissingRequirement(session.missingInformation);
       const msg = nextQ
@@ -485,6 +490,7 @@ export function continueWorkflowBuilderSession(params: {
       form,
       session.missingInformation.filter((m) => m.id !== unanswered.id && !m.id.endsWith('.create_permission')),
       formsCatalog,
+      session.originalRequest,
     );
     const nextQ = getNextMissingRequirement(session.missingInformation);
     const msg = nextQ
@@ -517,6 +523,7 @@ export function continueWorkflowBuilderSession(params: {
     form,
     session.missingInformation,
     formsCatalog,
+    session.originalRequest,
   );
 
   const forceConfirm: string[] = [];
@@ -674,6 +681,7 @@ function finalizeOrPreview(
       form,
       session.missingInformation,
       formsCatalog,
+      session.originalRequest,
     );
     const nextQ = getNextMissingRequirement(session.missingInformation);
     session = touch({
