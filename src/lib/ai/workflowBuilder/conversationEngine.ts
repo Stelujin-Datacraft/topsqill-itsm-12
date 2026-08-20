@@ -20,7 +20,6 @@ import {
   type DiscoveredWorkflow,
   findExistingWorkflowsForForm,
 } from './metadataDiscovery';
-import { isProtectedStatusField } from './decisionOptionResolver';
 import { validateWorkflowDefinition, hasBlockingValidationErrors } from './validationEngine';
 import { generateWorkflowPreview, formatPreviewAsMarkdown } from './previewGenerator';
 import { compileWorkflowDefinition } from './nodeCompiler';
@@ -93,106 +92,15 @@ function mergePendingConfirmation(
   });
 }
 
+/**
+ * Workflow AI Suggest never mutates forms — pending CREATE_FIELD / CREATE_FIELD_VALUE
+ * actions are intentionally empty. Field/option changes belong in form create/update.
+ */
 export function buildPendingActions(
-  session: WorkflowBuilderSession,
-  form?: DiscoveredForm,
+  _session: WorkflowBuilderSession,
+  _form?: DiscoveredForm,
 ): PendingConfigAction[] {
-  const actions: PendingConfigAction[] = [];
-  const formId = form?.id || session.requirements.trigger.formId;
-
-  for (const level of session.requirements.levels) {
-    if (!level.approvalFieldId && level.approvalFieldLabel) {
-      actions.push({
-        id: `create_field_decision_l${level.level}`,
-        kind: 'CREATE_FIELD',
-        description: `${level.approvalFieldLabel} — Choice (Level ${level.level} approval decision)`,
-        payload: {
-          label: level.approvalFieldLabel,
-          type: 'select',
-          formId,
-          role: 'approval_field',
-          level: level.level,
-          options: [
-            `Pending Level ${level.level}`,
-            `Approved Level ${level.level}`,
-            `Rejected Level ${level.level}`,
-          ],
-        },
-        userConfirmed: false,
-      });
-    }
-
-    if (
-      !level.rejectionFieldId
-      && level.rejectionFieldLabel
-      && level.rejectionFieldLabel !== level.approvalFieldLabel
-      && !/^same as approval/i.test(level.rejectionFieldLabel)
-    ) {
-      actions.push({
-        id: `create_field_rejection_l${level.level}`,
-        kind: 'CREATE_FIELD',
-        description: `${level.rejectionFieldLabel} — Choice (Level ${level.level} rejection)`,
-        payload: {
-          label: level.rejectionFieldLabel,
-          type: 'select',
-          formId,
-          role: 'rejection_field',
-          level: level.level,
-          options: [
-            `Pending Level ${level.level}`,
-            `Rejected Level ${level.level}`,
-          ],
-        },
-        userConfirmed: false,
-      });
-    }
-
-    if (
-      level.approver.rawHint
-      && !level.approver.fieldId
-      && level.approver.resolved
-      && level.approver.fieldLabel
-    ) {
-      actions.push({
-        id: `create_field_approver_l${level.level}`,
-        kind: 'CREATE_FIELD',
-        description: `${level.approver.fieldLabel} — User (Level ${level.level} approver)`,
-        payload: {
-          label: level.approver.fieldLabel,
-          type: 'user-picker',
-          formId,
-          role: 'approver',
-          level: level.level,
-        },
-        userConfirmed: false,
-      });
-    }
-
-    if (level.pendingOptionValues?.length && level.approvalFieldId) {
-      // Never plan option creates on Status
-      const decisionField = form?.fields.find((f) => f.id === level.approvalFieldId);
-      if (decisionField && isProtectedStatusField(decisionField)) {
-        continue;
-      }
-      for (const valueLabel of level.pendingOptionValues) {
-        actions.push({
-          id: `create_value_l${level.level}_${valueLabel.replace(/\s+/g, '_').toLowerCase()}`,
-          kind: 'CREATE_FIELD_VALUE',
-          description: `${valueLabel} on ${level.approvalFieldLabel || 'decision field'}`,
-          payload: {
-            fieldId: level.approvalFieldId,
-            fieldLabel: level.approvalFieldLabel,
-            valueLabel,
-            formId,
-            level: level.level,
-          },
-          userConfirmed: true, // user already answered the decision_values confirm
-        });
-      }
-    }
-  }
-
-  return actions;
+  return [];
 }
 
 function permissionConfirmRequirement(
@@ -476,34 +384,27 @@ export function continueWorkflowBuilderSession(params: {
     if (match.matched) {
       answer = match.matched.id;
     } else {
-      // Ask permission to create the named field — do not invent silently
-      const createTypeHint = unanswered.key.includes('approver')
-        ? 'User'
-        : 'Choice';
-      const createPerm: MissingRequirement = {
-        id: `${unanswered.id}.create_permission`,
+      // Workflow AI Suggest never creates form fields — ask user to pick an existing one
+      const existingOpts = unanswered.options?.filter((o) =>
+        !String(o.value).startsWith('__create'),
+      ) || [];
+      const reask: MissingRequirement = {
+        id: unanswered.id,
         scope: unanswered.scope,
         level: unanswered.level,
-        key: unanswered.key.includes('approver')
-          ? 'approver_confirm'
-          : unanswered.key === 'rejection_field'
-            ? 'rejection_field_create'
-            : 'approval_field_create',
-        question: `I couldn't find **${raw.trim()}** on this form. Create it as a new ${createTypeHint} field? (requires your permission)`,
-        inputKind: 'confirm',
-        options: [
-          { value: `__create_named__:${raw.trim()}`, label: `Yes, create "${raw.trim()}"` },
-          { value: '__reask__', label: 'No, choose from existing fields' },
-        ],
+        key: unanswered.key,
+        question: `I couldn't find **${raw.trim()}** on this form. Please choose an existing field (add fields/options in the form builder if needed).`,
+        inputKind: 'field_select',
+        options: existingOpts.length
+          ? existingOpts
+          : undefined,
         answered: false,
       };
-      // Keep original unanswered so __reask__ can fall through to planner
       session.missingInformation = [
-        createPerm,
+        reask,
         ...session.missingInformation.filter((m) => m.id !== unanswered.id),
-        { ...unanswered, answered: false },
       ];
-      const msg = formatQuestion(createPerm);
+      const msg = formatQuestion(reask);
       session = touch({
         ...session,
         status: 'collecting',
@@ -512,7 +413,7 @@ export function continueWorkflowBuilderSession(params: {
       return {
         session,
         assistantMessage: msg,
-        promptControls: createPerm,
+        promptControls: reask,
         readyToPublish: false,
       };
     }

@@ -8,7 +8,6 @@ import {
   type WorkflowLevelSpec,
 } from './types';
 import {
-  findMissingOptionValues,
   isApproverCompatibleFieldType,
   isDecisionCompatibleFieldType,
   searchFields,
@@ -16,10 +15,6 @@ import {
   suggestDecisionFields,
   type DiscoveredForm,
 } from './metadataDiscovery';
-import {
-  isProtectedStatusField,
-  missingDecisionOptionLabels,
-} from './decisionOptionResolver';
 
 function req(
   partial: Omit<MissingRequirement, 'answered'> & { answered?: boolean },
@@ -114,7 +109,6 @@ export function planMissingRequirements(
             options: [
               { value: match.matched.id, label: `Yes, use ${match.matched.label}` },
               { value: '__choose__', label: 'Choose a different field' },
-              { value: '__create__', label: 'Create a new User field' },
             ],
           }));
         } else if (match.candidates.length > 1) {
@@ -136,12 +130,9 @@ export function planMissingRequirements(
             scope: 'level',
             level: level.level,
             key: 'approver',
-            question: `I couldn't find "${level.approver.rawHint}" as an approver field. Which field identifies the Level ${level.level} approver?`,
+            question: `I couldn't find "${level.approver.rawHint}" as an approver field. Which existing field identifies the Level ${level.level} approver? (Add fields in the form builder if needed.)`,
             inputKind: 'field_select',
-            options: [
-              ...approverSuggestions.map((f) => ({ value: f.id, label: `${f.label} (${f.type})` })),
-              { value: '__create__', label: `Create "${level.approver.rawHint}" as User field` },
-            ],
+            options: approverSuggestions.map((f) => ({ value: f.id, label: `${f.label} (${f.type})` })),
           }));
         }
       } else {
@@ -150,12 +141,9 @@ export function planMissingRequirements(
           scope: 'level',
           level: level.level,
           key: 'approver',
-          question: `Which field identifies the Level ${level.level} approver?`,
+          question: `Which existing field identifies the Level ${level.level} approver?`,
           inputKind: 'field_select',
-          options: [
-            ...approverSuggestions.map((f) => ({ value: f.id, label: `${f.label} (${f.type})` })),
-            { value: '__create__', label: 'Create a new User field' },
-          ],
+          options: approverSuggestions.map((f) => ({ value: f.id, label: `${f.label} (${f.type})` })),
         }));
       }
     } else if (level.approver.fieldId && form) {
@@ -173,19 +161,16 @@ export function planMissingRequirements(
       }
     }
 
-    // Approval decision field
+    // Approval decision field — existing fields only (form schema changes belong in form builder)
     if (!level.approvalFieldId && !level.approvalFieldLabel) {
       push(req({
         id: `level.${level.level}.approval_field`,
         scope: 'level',
         level: level.level,
         key: 'approval_field',
-        question: `*Level ${level.level}* — Which field stores the **approval** decision?`,
+        question: `*Level ${level.level}* — Which existing field stores the **approval** decision?`,
         inputKind: 'field_select',
-        options: [
-          ...decisionSuggestions.map((f) => ({ value: f.id, label: `${f.label} (${f.type})` })),
-          { value: '__create__', label: `Create "Level ${level.level} Decision" (Choice) — requires permission` },
-        ],
+        options: decisionSuggestions.map((f) => ({ value: f.id, label: `${f.label} (${f.type})` })),
       }));
     }
 
@@ -200,7 +185,7 @@ export function planMissingRequirements(
         scope: 'level',
         level: level.level,
         key: 'rejection_field',
-        question: `*Level ${level.level}* — Which field stores **rejection**?`,
+        question: `*Level ${level.level}* — Which existing field stores **rejection**?`,
         inputKind: 'field_select',
         options: [
           ...(level.approvalFieldId
@@ -209,7 +194,6 @@ export function planMissingRequirements(
           ...decisionSuggestions
             .filter((f) => f.id !== level.approvalFieldId)
             .map((f) => ({ value: f.id, label: `${f.label} (${f.type})` })),
-          { value: '__create__', label: `Create "Level ${level.level} Rejection" (Choice) — requires permission` },
         ],
       }));
     }
@@ -240,35 +224,8 @@ export function planMissingRequirements(
     }
   }
 
-  // Option values for decision fields — reuse existing; never mutate Status
-  if (form) {
-    for (const level of definition.levels) {
-      if (!level.approvalFieldId) continue;
-      const field = form.fields.find((f) => f.id === level.approvalFieldId);
-      if (!field || !isDecisionCompatibleFieldType(field.type)) continue;
-      if (isProtectedStatusField(field)) continue;
-
-      const missing = missingDecisionOptionLabels(field, level.level);
-      if (!missing.length) continue;
-
-      // Prefer generic Pending/Approved/Rejected when those are what's missing
-      const missingGeneric = findMissingOptionValues(field, ['Pending', 'Approved', 'Rejected']);
-      if (missingGeneric.length === 0) continue;
-
-      push(req({
-        id: `level.${level.level}.decision_values`,
-        scope: 'metadata',
-        level: level.level,
-        key: 'decision_values',
-        question: `**${field.label}** is missing decision values (${missingGeneric.join(', ')}). May I add them?`,
-        inputKind: 'confirm',
-        options: [
-          { value: 'add_generic', label: `Yes, add ${missingGeneric.join(' / ')}` },
-          { value: 'skip', label: 'No, use existing values only' },
-        ],
-      }));
-    }
-  }
+  // Option values: never create/mutate form options during workflow AI Suggest.
+  // Existing decision values are reused at compile/bind time.
 
   // Mark configured flags
   for (const level of definition.levels) {

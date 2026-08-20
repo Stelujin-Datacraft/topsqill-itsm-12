@@ -78,6 +78,11 @@ export interface ResolveWorkflowConditionsInteractiveOptions {
   mode?: 'auto' | 'interactive';
   /** Optional user prompt — used in auto mode to discover fields to create */
   userPrompt?: string;
+  /**
+   * When false, never create/mutate form fields or options — only rebind to existing metadata.
+   * Workflow AI Suggest must keep form schema unchanged (form edits belong in form create/update).
+   */
+  allowFormAssetCreates?: boolean;
 }
 
 /**
@@ -170,6 +175,11 @@ export function useConditionResolution() {
     createdOptions: Array<{ field: string; value: string }>;
   }> => {
     onMetadataChangedRef.current = options.onMetadataChanged;
+
+    // Workflow AI Suggest must not mutate forms — only bind to existing fields/options
+    if (options.allowFormAssetCreates === false) {
+      return finishAutoWithoutCreates(options);
+    }
 
     const plan = planMissingWorkflowFormAssets({
       nodes: options.nodes,
@@ -314,6 +324,12 @@ export function useConditionResolution() {
       return { nodes: result.nodes, aborted: result.aborted, skipped: result.skipped };
     }
 
+    // Even in interactive mode, workflow AI Suggest must not offer form field/option creates
+    if (options.allowFormAssetCreates === false) {
+      const result = await finishAutoWithoutCreates(options);
+      return { nodes: result.nodes, aborted: result.aborted, skipped: result.skipped };
+    }
+
     onMetadataChangedRef.current = options.onMetadataChanged;
     const formFieldsByFormId = buildConditionFieldsByFormId(options.forms);
     const { nodes, issues } = resolveWorkflowConditions(
@@ -335,7 +351,7 @@ export function useConditionResolution() {
         settle,
       });
     });
-  }, [resolveWorkflowConditionsAuto]);
+  }, [finishAutoWithoutCreates, resolveWorkflowConditionsAuto]);
 
   const handleCancelIssue = useCallback(() => {
     if (!session || !currentIssue) return;
