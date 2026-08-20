@@ -1185,22 +1185,23 @@ For change_field_value (use when user says set / change / update a field value):
   "targetFormId": "form_id",
   "targetFormName": "Form Name",
   "targetFieldId": "field_uuid",
-  "targetFieldName": "Field Label",
+  "targetFieldName": "Priority",
   "targetFieldType": "select|text|date|number|...",
   "valueType": "static",
-  "staticValue": "concrete_value_or_option_value",
+  "staticValue": "High",
   "fieldUpdates": [
     {
       "targetFieldId": "field_uuid",
-      "targetFieldName": "Field Label",
+      "targetFieldName": "Priority",
       "targetFieldType": "select|text|date|number|...",
       "valueType": "static",
-      "staticValue": "concrete_value_or_option_value"
+      "staticValue": "High"
     }
   ]
 }
 Rules for change_field_value:
-- DEFAULT valueType is "static". Put the actual value in staticValue (for select/radio/checkbox/toggle use the option's value from form metadata).
+- DEFAULT valueType is "static". Put the actual value from the USER GOAL in staticValue (e.g. "High"). Never invent "approved" as a placeholder.
+- targetFieldName MUST be the field label (e.g. Priority), NEVER the form name.
 - Only use valueType "dynamic" when the user explicitly wants to copy from another field (then set dynamicValuePath to that field UUID).
 - Always include targetFieldType so the designer shows the New Value input.
 - Always include both top-level targetField*/staticValue AND fieldUpdates[] with the same data.
@@ -1287,10 +1288,11 @@ Rules for CONDITION nodes:
 - Field → Operator → Value. ALWAYS inspect the trigger form field list first: use each field's real "type" and, when present, its "options".
 - Operators MUST match the field type:
   * date/datetime: use is_today / is_yesterday / is_tomorrow / after / before / on_or_after / on_or_before / between / last_n_days / next_n_days — NEVER put the literal string "today"/"yesterday" in value with operator "==". NEVER use numeric ">" / "greater_than" on dates — map "greater than" / "after" to operator "after" with ISO YYYY-MM-DD value.
-  * select/radio/checkbox/toggle/dropdown: operator "==" or "!=" and value MUST be one of the field's listed option values (use the option's value, not a guessed label)
+  * select/radio/checkbox/toggle/dropdown: operator "==" or "!=" and value MUST be the EXACT value from the user goal (e.g. user said "Closed" → value "Closed"). Prefer a listed option value when it matches. If the goal value is missing from options, STILL emit that exact value — NEVER substitute a different existing option such as Approved/Completed/Rejected.
   * number/currency/rating/slider: numeric operators and numeric values only
   * text/textarea/email: equals/contains/starts_with/ends_with with a string value
-- Prefer exact fieldId/fieldLabel and option values from form metadata. Do not invent fields or options.
+- Prefer exact fieldId/fieldLabel from form metadata. Do not invent fields. Do invent missing option VALUES that the user explicitly asked for (Closed, High, etc.).
+- Node label MUST match the condition value (e.g. "Status == Closed", not "Check if Status is Closed" while value is Approved).
 - Multiple conditions joined by AND/OR: emit multiple entries in enhancedCondition.conditions with logicalOperatorWithNext set accordingly (default AND).
 - For "today's date" / "is today" on a date field: set operator to "is_today" and value to "" (empty).
 - For "in the future" on a date field: set operator to "after" and value to today's ISO date (YYYY-MM-DD).
@@ -1341,15 +1343,15 @@ ${JSON.stringify(context.existingNodes, null, 2)}` : ''}
 
 IMPORTANT: 
 - Users write SHORT casual prompts — expand synonyms (dob→Date of Birth) and fill Field/Operator/Value from the form metadata yourself. Do not require the user to name operators or ISO dates.
-- Prefer existing fields/options. If a needed field or option is missing, STILL emit the intended fieldLabel/value/type with real formId — the system will create missing assets and complete the workflow.
-- Always return a COMPLETE workflow graph (start, conditions/actions, end) even when fields must be created.
+- Prefer existing fields. If a needed option is missing (e.g. user said Status is Closed but Closed is not listed), STILL emit value "Closed" with the real Status fieldId — NEVER substitute Approved/Completed/Rejected. The system will offer to create the missing option.
+- Always return a COMPLETE workflow graph (start, conditions/actions, end) even when options must be created.
 - Use the ACTUAL field IDs and form IDs from the forms provided above when they exist - DO NOT make up IDs for existing fields
-- Analyze each form field's type before writing a condition: date → relative/date operators; option fields → only listed options; numbers → numeric ops; text → text ops. Do not guess values that are not valid for that type.
-- For condition nodes, reference actual field IDs, labels, and for select/radio/checkbox/toggle fields use ONLY the actual option values from the form metadata
+- Analyze each form field's type before writing a condition: date → relative/date operators; option fields → prefer listed options that match the goal; numbers → numeric ops; text → text ops. Never replace the user's requested value with a different listed option.
+- For condition nodes, reference actual field IDs and labels. Condition value and node label must match the user goal (Closed stays Closed).
 - For date fields requesting "today" / "today's date": use operator "is_today" with empty value — never operator "==" with value "today"
 - For date "greater than" / ">": use operator "after". Year-only "after 2006" → value "2006-12-31". Concrete dates → YYYY-MM-DD.
 - For send_notification actions, use {{field_label}} placeholders matching the actual field labels
-- For change_field_value (set/change/update field): use actionType "change_field_value", valueType "static" by default, real targetFieldId/targetFieldName/targetFieldType, and staticValue from form options/values. Also fill fieldUpdates[] the same way. Only use dynamic when copying from another field.
+- For change_field_value (set/change/update field): use actionType "change_field_value", valueType "static" by default, real targetFieldId, targetFieldName = the FIELD label (never the form name), targetFieldType, and staticValue from the user goal (e.g. High). Also fill fieldUpdates[] the same way. Only use dynamic when copying from another field.
 - For create_record, map source fields to target fields using actual IDs from both forms
 - CROSS-REFERENCE ACTIONS: When fields have "crossRefConfig" property, they are cross-reference fields linked to other forms. USE these to suggest cross-ref actions:
   * create_linked_record: Use when the workflow should create new records in linked forms (use the crossRefConfig.targetFormId and the cross-ref field ID)

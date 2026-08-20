@@ -57,5 +57,7 @@ export function fieldMatchesHint(
   const a = String(field.label || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
   const b = hint.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
   if (!a || !b) return false;
-  return a === b || a.includes(b) || b.includes(a);
+  // Exact / token-equal only. Never let "Status" match "Marital Status"
+  // or "Priority" match "Priority Score" via includes().
+  return a === b;
 }

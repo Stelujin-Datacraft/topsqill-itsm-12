@@ -1310,10 +1310,26 @@ For change_field_value:
 {
   "actionType": "change_field_value",
   "targetFormId": "form_id",
+  "targetFormName": "Form Name",
+  "targetFieldId": "priority_field_uuid",
+  "targetFieldName": "Priority",
+  "targetFieldType": "select",
+  "valueType": "static",
+  "staticValue": "High",
   "fieldUpdates": [
-    { "fieldId": "status_field", "value": "approved", "valueType": "static" }
+    {
+      "targetFieldId": "priority_field_uuid",
+      "targetFieldName": "Priority",
+      "targetFieldType": "select",
+      "valueType": "static",
+      "staticValue": "High"
+    }
   ]
 }
+Rules for change_field_value:
+- Use the EXACT field and value from the user goal (e.g. set Priority to High → targetFieldName Priority, staticValue High).
+- Never use the form name as targetFieldName. Never invent placeholder values like "approved".
+- If the option is missing from metadata, still emit the requested value.
 
 For create_record:
 {
@@ -1383,15 +1399,19 @@ CONDITION NODE config:
           "id": "flc_1",
           "formId": "form_id",
           "fieldId": "field_id",
-          "fieldLabel": "Field Label",
-          "fieldType": "text",
-          "operator": "==" | "!=" | ">" | "<" | "contains" | "not_contains",
-          "value": "comparison_value"
+          "fieldLabel": "Status",
+          "fieldType": "select",
+          "operator": "==",
+          "value": "Closed"
         }
       }
     ]
   }
 }
+Rules for CONDITION nodes:
+- Use the EXACT comparison value from the user goal. If user said "Status is Closed", value MUST be "Closed" — NEVER substitute Approved/Completed because Closed is missing from options.
+- Node label must match the value (e.g. "Status == Closed").
+- Prefer listed option values when they match the goal; otherwise keep the goal value so the system can create the option.
 
 WAIT NODE config:
 {
@@ -1437,9 +1457,10 @@ ${JSON.stringify(context.existingNodes, null, 2)}` : ''}
 
 IMPORTANT: 
 - Use the ACTUAL field IDs and form IDs from the forms provided above - DO NOT make up IDs
-- For condition nodes, reference actual field IDs, labels, and for select/radio fields use the actual option values
+- For condition nodes: use the EXACT value from the user goal (Closed stays Closed). Prefer listed options when they match; if missing, still emit the goal value — NEVER substitute Approved/Completed.
+- Condition node label must match the condition value
 - For send_notification actions, use {{field_label}} placeholders matching the actual field labels
-- For change_field_value, use actual field IDs from the correct form
+- For change_field_value: targetFieldName is the FIELD label (never the form name); staticValue is the exact goal value (e.g. High)
 - For create_record, map source fields to target fields using actual IDs from both forms
 - CROSS-REFERENCE ACTIONS: When fields have "crossRefConfig" property, they are cross-reference fields linked to other forms. USE these to suggest cross-ref actions:
   * create_linked_record: Use when the workflow should create new records in linked forms (use the crossRefConfig.targetFormId and the cross-ref field ID)
