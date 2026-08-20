@@ -14,8 +14,10 @@ import {
 import {
   fieldHasOption,
   fieldHasSelectableOptions,
+  fieldNeedsOptionCreateCheck,
   fieldOptionChoices,
   getCrossRefTargetForm,
+  hydrateDiscoveredForm,
   isApproverCompatibleFieldType,
   isDecisionCompatibleFieldType,
   resolveFieldOptionValue,
@@ -27,7 +29,7 @@ import {
 } from './metadataDiscovery';
 import { describeActionType } from './actionTypeInferrer';
 import { isOptionBasedFieldType } from '@/utils/conditionOperators';
-
+import { extractGenericPromptHints, fieldMatchesHint } from './promptHints';
 function req(
   partial: Omit<MissingRequirement, 'answered'> & { answered?: boolean },
 ): MissingRequirement {
@@ -99,11 +101,15 @@ function planGenericActionRequirements(
   form: DiscoveredForm | undefined,
   previous: MissingRequirement[],
   formsCatalog: DiscoveredForm[] = [],
+  originalRequest = '',
 ): MissingRequirement[] {
   const answered = new Map(
     previous.filter((m) => m.answered).map((m) => [m.id, m]),
   );
   const out: MissingRequirement[] = [];
+  const hints = extractGenericPromptHints(originalRequest || definition.description || '');
+  const hydratedForm = hydrateDiscoveredForm(form);
+  const hydratedCatalog = formsCatalog.map((f) => hydrateDiscoveredForm(f)!).filter(Boolean);
 
   const push = (item: MissingRequirement) => {
     const prev = answered.get(item.id);
@@ -121,7 +127,7 @@ function planGenericActionRequirements(
       key: 'trigger_form',
       question: 'Which form should trigger this workflow?',
       inputKind: 'choice',
-      options: formsCatalog.map((f) => ({ value: f.id, label: f.name })),
+      options: hydratedCatalog.map((f) => ({ value: f.id, label: f.name })),
     }));
   }
 
@@ -132,8 +138,8 @@ function planGenericActionRequirements(
   }
 
   const condition = definition.conditions[0];
-  const allFields = fieldChoices(form);
-  const xrFields = suggestCrossReferenceFields(form);
+  const allFields = fieldChoices(hydratedForm);
+  const xrFields = suggestCrossReferenceFields(hydratedForm);
 
   // ── Condition field (always ask separately) ─────────────────────────────
   if (!condition?.fieldId && !condition?.fieldLabel) {
@@ -152,11 +158,27 @@ function planGenericActionRequirements(
     return mergeUnansweredFirst(out);
   }
 
-  const condField = form?.fields.find((f) =>
+  const condField = hydratedForm?.fields.find((f) =>
     f.id === condition?.fieldId
     || (condition?.fieldLabel
       && f.label.toLowerCase() === String(condition.fieldLabel).toLowerCase()),
   );
+
+  // Auto-fill condition value from prompt when still empty
+  if (
+    condition
+    && (condition.value === undefined || condition.value === null || condition.value === '')
+    && hints.conditionValueHint
+    && (
+      !hints.conditionFieldHint
+      || fieldMatchesHint(condField, hints.conditionFieldHint)
+      || fieldMatchesHint({ label: condition.fieldLabel }, hints.conditionFieldHint)
+    )
+  ) {
+    condition.value = hints.conditionValueHint;
+    condition.pendingOptionLabel = hints.conditionValueHint;
+    condition.pendingOptionCreate = false;
+  }
 
   // ── Condition value ─────────────────────────────────────────────────────
   if (condition && (condition.value === undefined || condition.value === null || condition.value === '')) {
@@ -182,11 +204,22 @@ function planGenericActionRequirements(
     return mergeUnansweredFirst(out);
   }
 
+  // Option already on field (e.g. created earlier) → never re-ask
+  if (
+    condition
+    && condField
+    && fieldHasOption(condField, condition.value)
+  ) {
+    condition.pendingOptionCreate = false;
+    condition.pendingOptionLabel = undefined;
+    condition.value = resolveFieldOptionValue(condField, condition.value);
+  }
+
   // Missing option on condition field → ask permission to create it
   if (
     condition
     && condField
-    && fieldHasSelectableOptions(condField)
+    && fieldNeedsOptionCreateCheck(condField)
     && !fieldHasOption(condField, condition.value)
     && !condition.pendingOptionCreate
   ) {
@@ -259,11 +292,11 @@ function planGenericActionRequirements(
     && !action.targetFieldLabel
   ) {
     const linkedForm = action.targetFormId
-      ? formsCatalog.find((f) => f.id === action.targetFormId)
+      ? hydratedCatalog.find((f) => f.id === action.targetFormId)
       : undefined;
     const fieldSource = action.actionType === 'update_linked_records' && linkedForm
       ? linkedForm
-      : form;
+      : hydratedForm;
     const labelScope = action.actionType === 'update_linked_records'
       ? 'on the **linked form**'
       : 'on this form';
@@ -280,17 +313,33 @@ function planGenericActionRequirements(
     return mergeUnansweredFirst(out);
   }
 
+  // Auto-fill action value from prompt when field known but value empty
+  if (
+    (action.actionType === 'change_field_value' || action.actionType === 'update_linked_records')
+    && (action.targetFieldId || action.targetFieldLabel)
+    && (action.staticValue === undefined || action.staticValue === null || String(action.staticValue) === '')
+    && hints.actionValueHint
+    && (
+      !hints.actionFieldHint
+      || fieldMatchesHint({ label: action.targetFieldLabel }, hints.actionFieldHint)
+    )
+  ) {
+    action.staticValue = hints.actionValueHint;
+    action.pendingOptionLabel = hints.actionValueHint;
+    action.pendingOptionCreate = false;
+  }
+
   // Action value
   if (
     (action.actionType === 'change_field_value' || action.actionType === 'update_linked_records')
     && (action.staticValue === undefined || action.staticValue === null || String(action.staticValue) === '')
   ) {
     const linkedForm = action.targetFormId
-      ? formsCatalog.find((f) => f.id === action.targetFormId)
+      ? hydratedCatalog.find((f) => f.id === action.targetFormId)
       : undefined;
     const fieldSource = action.actionType === 'update_linked_records' && linkedForm
       ? linkedForm
-      : form;
+      : hydratedForm;
     const actionField = fieldSource?.fields.find((f) =>
       f.id === action.targetFieldId
       || (action.targetFieldLabel
@@ -327,17 +376,21 @@ function planGenericActionRequirements(
     && !action.pendingOptionCreate
   ) {
     const linkedForm = action.targetFormId
-      ? formsCatalog.find((f) => f.id === action.targetFormId)
+      ? hydratedCatalog.find((f) => f.id === action.targetFormId)
       : undefined;
     const fieldSource = action.actionType === 'update_linked_records' && linkedForm
       ? linkedForm
-      : form;
+      : hydratedForm;
     const actionField = fieldSource?.fields.find((f) =>
       f.id === action.targetFieldId
       || (action.targetFieldLabel
         && f.label.toLowerCase() === String(action.targetFieldLabel).toLowerCase()),
     );
-    if (actionField && fieldHasSelectableOptions(actionField) && !fieldHasOption(actionField, action.staticValue)) {
+    if (actionField && fieldHasOption(actionField, action.staticValue)) {
+      action.pendingOptionCreate = false;
+      action.pendingOptionLabel = undefined;
+      action.staticValue = resolveFieldOptionValue(actionField, action.staticValue);
+    } else if (actionField && fieldNeedsOptionCreateCheck(actionField) && !fieldHasOption(actionField, action.staticValue)) {
       const wanted = String(action.pendingOptionLabel || action.staticValue || '').trim();
       push(req({
         id: 'action.value_create',
@@ -578,11 +631,12 @@ export function planMissingRequirements(
   form: DiscoveredForm | undefined,
   previous: MissingRequirement[] = [],
   formsCatalog: DiscoveredForm[] = [],
+  originalRequest = '',
 ): MissingRequirement[] {
   if (isApprovalStyleDefinition(definition)) {
     return planApprovalRequirements(definition, form, previous);
   }
-  return planGenericActionRequirements(definition, form, previous, formsCatalog);
+  return planGenericActionRequirements(definition, form, previous, formsCatalog, originalRequest);
 }
 
 /** Next unanswered question (progressive discovery — one logical question). */
@@ -650,19 +704,20 @@ export function applyAnswerToDefinition(
   if (requirement.key === 'condition_value') {
     const cond = next.conditions[0];
     if (cond) {
-      const field = form?.fields.find((f) => f.id === cond.fieldId);
-      const resolved = resolveFieldOptionValue(field, value);
-      cond.value = resolved;
+      const field = hydrateDiscoveredForm(form)?.fields.find((f) => f.id === cond.fieldId);
       cond.resolved = Boolean(cond.fieldId);
       cond.pendingOptionCreate = false;
       cond.pendingOptionLabel = undefined;
-      // Prefer option-based types when known
       if (field && isOptionBasedFieldType(field.type)) {
         cond.fieldType = field.type;
       }
-      // Remember the label user typed when it is not an existing option
-      if (field && fieldHasSelectableOptions(field) && !fieldHasOption(field, resolved)) {
+      // Exact existence check on the raw answer — never fuzzy-map a missing value away
+      if (field && fieldHasOption(field, value)) {
+        cond.value = resolveFieldOptionValue(field, value);
+      } else if (field && fieldNeedsOptionCreateCheck(field)) {
         cond.pendingOptionLabel = value;
+        cond.value = value;
+      } else {
         cond.value = value;
       }
     }
@@ -734,19 +789,21 @@ export function applyAnswerToDefinition(
 
   if (requirement.key === 'action_value' && next.action) {
     const linkedForm = next.action.targetFormId
-      ? formsCatalog.find((f) => f.id === next.action!.targetFormId)
+      ? hydrateDiscoveredForm(formsCatalog.find((f) => f.id === next.action!.targetFormId))
       : undefined;
     const fieldSource = next.action.actionType === 'update_linked_records' && linkedForm
       ? linkedForm
-      : form;
+      : hydrateDiscoveredForm(form);
     const field = fieldSource?.fields.find((f) => f.id === next.action!.targetFieldId);
-    const resolved = resolveFieldOptionValue(field, value);
-    next.action.staticValue = resolved;
     next.action.valueType = 'static';
     next.action.pendingOptionCreate = false;
     next.action.pendingOptionLabel = undefined;
-    if (field && fieldHasSelectableOptions(field) && !fieldHasOption(field, resolved)) {
+    if (field && fieldHasOption(field, value)) {
+      next.action.staticValue = resolveFieldOptionValue(field, value);
+    } else if (field && fieldNeedsOptionCreateCheck(field)) {
       next.action.pendingOptionLabel = value;
+      next.action.staticValue = value;
+    } else {
       next.action.staticValue = value;
     }
     next.action.configured = actionConfigured(next.action);
