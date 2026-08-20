@@ -12,6 +12,8 @@ import {
   type WorkflowLevelSpec,
 } from './types';
 import {
+  fieldHasOption,
+  fieldHasSelectableOptions,
   fieldOptionChoices,
   getCrossRefTargetForm,
   isApproverCompatibleFieldType,
@@ -180,6 +182,33 @@ function planGenericActionRequirements(
     return mergeUnansweredFirst(out);
   }
 
+  // Missing option on condition field → ask permission to create it
+  if (
+    condition
+    && condField
+    && fieldHasSelectableOptions(condField)
+    && !fieldHasOption(condField, condition.value)
+    && !condition.pendingOptionCreate
+  ) {
+    const wanted = String(condition.pendingOptionLabel || condition.value || '').trim();
+    push(req({
+      id: 'condition.value_create',
+      scope: 'condition',
+      key: 'condition_value_create',
+      question: [
+        `**${condField.label}** does not have an option **${wanted}**.`,
+        '',
+        `May I add **${wanted}** as an option on **${condField.label}**?`,
+      ].join('\n'),
+      inputKind: 'confirm',
+      options: [
+        { value: '__create_option__', label: `Yes, add "${wanted}"` },
+        { value: '__pick_existing__', label: 'No — pick an existing option' },
+      ],
+    }));
+    return mergeUnansweredFirst(out);
+  }
+
   // ── Action-type-specific questions (never ask for action type) ──────────
   const needsXr = action.actionType === 'create_linked_record'
     || action.actionType === 'update_linked_records'
@@ -287,6 +316,46 @@ function planGenericActionRequirements(
       }));
     }
     return mergeUnansweredFirst(out);
+  }
+
+  // Missing option on action field → ask permission to create it
+  if (
+    (action.actionType === 'change_field_value' || action.actionType === 'update_linked_records')
+    && action.staticValue !== undefined
+    && action.staticValue !== null
+    && String(action.staticValue) !== ''
+    && !action.pendingOptionCreate
+  ) {
+    const linkedForm = action.targetFormId
+      ? formsCatalog.find((f) => f.id === action.targetFormId)
+      : undefined;
+    const fieldSource = action.actionType === 'update_linked_records' && linkedForm
+      ? linkedForm
+      : form;
+    const actionField = fieldSource?.fields.find((f) =>
+      f.id === action.targetFieldId
+      || (action.targetFieldLabel
+        && f.label.toLowerCase() === String(action.targetFieldLabel).toLowerCase()),
+    );
+    if (actionField && fieldHasSelectableOptions(actionField) && !fieldHasOption(actionField, action.staticValue)) {
+      const wanted = String(action.pendingOptionLabel || action.staticValue || '').trim();
+      push(req({
+        id: 'action.value_create',
+        scope: 'workflow',
+        key: 'action_value_create',
+        question: [
+          `**${actionField.label}** does not have an option **${wanted}**.`,
+          '',
+          `May I add **${wanted}** as an option on **${actionField.label}**?`,
+        ].join('\n'),
+        inputKind: 'confirm',
+        options: [
+          { value: '__create_option__', label: `Yes, add "${wanted}"` },
+          { value: '__pick_existing__', label: 'No — pick an existing option' },
+        ],
+      }));
+      return mergeUnansweredFirst(out);
+    }
   }
 
   // Combination: optional second XR for dual mode is skipped unless prompt hinted dual
@@ -585,9 +654,35 @@ export function applyAnswerToDefinition(
       const resolved = resolveFieldOptionValue(field, value);
       cond.value = resolved;
       cond.resolved = Boolean(cond.fieldId);
+      cond.pendingOptionCreate = false;
+      cond.pendingOptionLabel = undefined;
       // Prefer option-based types when known
       if (field && isOptionBasedFieldType(field.type)) {
         cond.fieldType = field.type;
+      }
+      // Remember the label user typed when it is not an existing option
+      if (field && fieldHasSelectableOptions(field) && !fieldHasOption(field, resolved)) {
+        cond.pendingOptionLabel = value;
+        cond.value = value;
+      }
+    }
+    return next;
+  }
+
+  if (requirement.key === 'condition_value_create') {
+    const cond = next.conditions[0];
+    if (cond) {
+      if (value === '__create_option__' || /^(y|yes|ok|allow|confirm|create|add)\b/i.test(value)) {
+        cond.pendingOptionCreate = true;
+        cond.pendingOptionLabel = cond.pendingOptionLabel || String(cond.value || '');
+        cond.value = cond.pendingOptionLabel;
+        cond.resolved = Boolean(cond.fieldId);
+      } else {
+        // Pick existing — clear value so planner re-asks with option list
+        cond.value = '';
+        cond.pendingOptionCreate = false;
+        cond.pendingOptionLabel = undefined;
+        cond.resolved = false;
       }
     }
     return next;
@@ -645,8 +740,29 @@ export function applyAnswerToDefinition(
       ? linkedForm
       : form;
     const field = fieldSource?.fields.find((f) => f.id === next.action!.targetFieldId);
-    next.action.staticValue = resolveFieldOptionValue(field, value);
+    const resolved = resolveFieldOptionValue(field, value);
+    next.action.staticValue = resolved;
     next.action.valueType = 'static';
+    next.action.pendingOptionCreate = false;
+    next.action.pendingOptionLabel = undefined;
+    if (field && fieldHasSelectableOptions(field) && !fieldHasOption(field, resolved)) {
+      next.action.pendingOptionLabel = value;
+      next.action.staticValue = value;
+    }
+    next.action.configured = actionConfigured(next.action);
+    return next;
+  }
+
+  if (requirement.key === 'action_value_create' && next.action) {
+    if (value === '__create_option__' || /^(y|yes|ok|allow|confirm|create|add)\b/i.test(value)) {
+      next.action.pendingOptionCreate = true;
+      next.action.pendingOptionLabel = next.action.pendingOptionLabel || String(next.action.staticValue || '');
+      next.action.staticValue = next.action.pendingOptionLabel;
+    } else {
+      next.action.staticValue = '';
+      next.action.pendingOptionCreate = false;
+      next.action.pendingOptionLabel = undefined;
+    }
     next.action.configured = actionConfigured(next.action);
     return next;
   }

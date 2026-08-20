@@ -40,6 +40,7 @@ import {
 import { useConditionResolution } from '@/hooks/useConditionResolution';
 import { useWorkflowBuilderConversation } from '@/hooks/useWorkflowBuilderConversation';
 import { shouldUseConversationalWorkflowBuilder, bindConditionNodesToDecisionValues } from '@/lib/ai/workflowBuilder';
+import { applyPendingConfigActions } from '@/lib/ai/workflowBuilder/applyPendingConfigActions';
 import type { FieldRule, FormField } from '@/types/form';
 
 export interface CopilotMessage {
@@ -946,13 +947,31 @@ export function useCopilotEngine() {
         }));
       }
 
-      // Workflow AI Suggest never creates/mutates form fields or options.
-      // Only rebind condition values to existing form metadata.
+      // Create confirmed missing options (e.g. Closed on Status), then rebind
       const builderSession = getBuilderSession();
-      void builderSession;
+      let liveFieldsForCompile = liveFields;
+      if (builderSession?.pendingActions?.some((a) => a.kind === 'CREATE_FIELD_VALUE' && a.userConfirmed)) {
+        const applied = await applyPendingConfigActions({
+          session: builderSession,
+          formId: triggerFormId,
+          formFields: liveFields,
+        });
+        liveFieldsForCompile = applied.formFields;
+        nodes = applied.compiled.nodes;
+        name = applied.compiled.name || name;
+        description = applied.compiled.description || description;
+        if (applied.createdValues.length) {
+          setMessages((prev) => [...prev, {
+            id: `assistant-wfb-opts-${Date.now()}`,
+            role: 'assistant',
+            content: `Added option${applied.createdValues.length > 1 ? 's' : ''}: ${applied.createdValues.map((v) => `**${v}**`).join(', ')}`,
+            timestamp: new Date(),
+          }]);
+        }
+      }
 
       // Force-bind condition values to existing option.value before enrich/create
-      nodes = bindConditionNodesToDecisionValues(nodes, liveFields);
+      nodes = bindConditionNodesToDecisionValues(nodes, liveFieldsForCompile);
 
       // Same normalize + option-value rebind path as standard create_workflow
       let workflowParams = await enrichWorkflowParams(
@@ -967,10 +986,10 @@ export function useCopilotEngine() {
         triggerFormId,
       );
 
-      // Re-bind after enrich using live DB fields
+      // Re-bind after enrich using live DB fields (including newly created options)
       workflowParams = {
         ...workflowParams,
-        nodes: bindConditionNodesToDecisionValues(workflowParams.nodes || nodes, liveFields),
+        nodes: bindConditionNodesToDecisionValues(workflowParams.nodes || nodes, liveFieldsForCompile),
       };
 
       const confirmed = await confirmWorkflowConditionParams(
@@ -987,7 +1006,7 @@ export function useCopilotEngine() {
         }]);
         return;
       }
-      nodes = bindConditionNodesToDecisionValues(confirmed.nodes || nodes, liveFields);
+      nodes = bindConditionNodesToDecisionValues(confirmed.nodes || nodes, liveFieldsForCompile);
       name = confirmed.name || name;
       description = confirmed.description || description;
 
