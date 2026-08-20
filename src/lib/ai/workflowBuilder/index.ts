@@ -11,3 +11,4 @@ export * from './nodeCompiler';
 export * from './conversationEngine';
 export * from './applyPendingConfigActions';
 export * from './decisionOptionResolver';
+export * from './actionTypeInferrer';

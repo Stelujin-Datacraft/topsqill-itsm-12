@@ -16,6 +16,8 @@ export interface DiscoveredFormField {
   type: string;
   options?: Array<{ id?: string; value: string; label: string }>;
   required?: boolean;
+  /** Parsed custom_config — used for cross-reference target form resolution */
+  custom_config?: Record<string, any> | null;
 }
 
 export interface DiscoveredForm {
@@ -104,6 +106,57 @@ export function searchFields(
 
 export function suggestApproverFields(form: DiscoveredForm | undefined): DiscoveredFormField[] {
   return (form?.fields || []).filter((f) => isApproverCompatibleFieldType(f.type));
+}
+
+export function suggestCrossReferenceFields(form: DiscoveredForm | undefined): DiscoveredFormField[] {
+  return (form?.fields || []).filter((f) => {
+    const t = String(f.type || '').toLowerCase().replace(/[_\s]+/g, '-');
+    return t === 'cross-reference' || t === 'child-cross-reference';
+  });
+}
+
+/** Resolve a user answer to a real option.value when the field has options. */
+export function resolveFieldOptionValue(
+  field: DiscoveredFormField | undefined,
+  answer: unknown,
+): string {
+  const raw = String(answer ?? '').trim();
+  if (!field || !raw) return raw;
+  const opts = field.options || [];
+  if (!opts.length) return raw;
+  const byValue = opts.find((o) => String(o.value) === raw);
+  if (byValue) return String(byValue.value);
+  const key = raw.toLowerCase();
+  const byLabel = opts.find((o) => String(o.label).toLowerCase() === key);
+  if (byLabel) return String(byLabel.value);
+  const fuzzy = opts.find((o) =>
+    String(o.label).toLowerCase().includes(key)
+    || String(o.value).toLowerCase().includes(key)
+    || key.includes(String(o.label).toLowerCase()),
+  );
+  return fuzzy ? String(fuzzy.value) : raw;
+}
+
+export function fieldOptionChoices(
+  field: DiscoveredFormField | undefined,
+): Array<{ value: string; label: string }> {
+  return (field?.options || []).map((o) => ({
+    value: String(o.value),
+    label: String(o.label || o.value),
+  }));
+}
+
+export function getCrossRefTargetForm(field: DiscoveredFormField | undefined): {
+  targetFormId?: string;
+  targetFormName?: string;
+} {
+  if (!field) return {};
+  const cfg = field.custom_config || {};
+  const nested = cfg.crossRefConfig || cfg.cross_ref_config || cfg;
+  return {
+    targetFormId: nested.targetFormId || nested.target_form_id || cfg.targetFormId,
+    targetFormName: nested.targetFormName || nested.target_form_name || cfg.targetFormName,
+  };
 }
 
 export function suggestDecisionFields(form: DiscoveredForm | undefined): DiscoveredFormField[] {

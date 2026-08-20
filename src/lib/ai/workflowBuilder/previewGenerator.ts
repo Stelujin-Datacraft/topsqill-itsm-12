@@ -7,6 +7,8 @@ import type {
   WorkflowBuilderPreview,
   WorkflowValidationIssue,
 } from './types';
+import { isApprovalStyleDefinition } from './types';
+import { describeActionType } from './actionTypeInferrer';
 
 function rejectionLabel(level: AIWorkflowDefinition['levels'][number]): string {
   const r = level.onRejection;
@@ -35,18 +37,47 @@ export function generateWorkflowPreview(
     ],
   });
 
-  for (const level of definition.levels) {
-    const lines = [
-      `Approver: ${level.approver.fieldLabel || level.approver.entityLabel || level.approver.rawHint || '(not set)'}`,
-      `Approval field: ${level.approvalFieldLabel || '(not set)'}`,
-      `Rejection field: ${level.rejectionFieldLabel || '(not set)'}`,
-      `On Approval: ${level.onApprovalNext === 'complete' ? 'Workflow Complete' : level.onApprovalNext === 'next_level' ? `Level ${level.level + 1}` : String(level.onApprovalNext || 'Next')}`,
-      `On Rejection: ${rejectionLabel(level)}`,
-    ];
+  if (!isApprovalStyleDefinition(definition) && definition.action) {
+    const cond = definition.conditions[0];
     sections.push({
-      title: level.label || `LEVEL ${level.level}`,
-      lines,
+      title: 'Condition',
+      lines: [
+        cond
+          ? `If **${cond.fieldLabel || '(field)'}** ${cond.operator || '=='} **${String(cond.value ?? '(value)')}**`
+          : '(not set)',
+      ],
     });
+    const a = definition.action;
+    const actionLines = [
+      `Type: ${describeActionType(a.actionType)}`,
+    ];
+    if (a.crossReferenceFieldLabel || a.sourceCrossRefFieldLabel) {
+      actionLines.push(`Cross-reference: ${a.crossReferenceFieldLabel || a.sourceCrossRefFieldLabel}`);
+    }
+    if (a.targetFormName) {
+      actionLines.push(`Target form: ${a.targetFormName}`);
+    }
+    if (a.targetFieldLabel) {
+      actionLines.push(`Field: ${a.targetFieldLabel}`);
+    }
+    if (a.staticValue !== undefined && a.staticValue !== null && String(a.staticValue) !== '') {
+      actionLines.push(`Value: ${String(a.staticValue)}`);
+    }
+    sections.push({ title: 'Action', lines: actionLines });
+  } else {
+    for (const level of definition.levels) {
+      const lines = [
+        `Approver: ${level.approver.fieldLabel || level.approver.entityLabel || level.approver.rawHint || '(not set)'}`,
+        `Approval field: ${level.approvalFieldLabel || '(not set)'}`,
+        `Rejection field: ${level.rejectionFieldLabel || '(not set)'}`,
+        `On Approval: ${level.onApprovalNext === 'complete' ? 'Workflow Complete' : level.onApprovalNext === 'next_level' ? `Level ${level.level + 1}` : String(level.onApprovalNext || 'Next')}`,
+        `On Rejection: ${rejectionLabel(level)}`,
+      ];
+      sections.push({
+        title: level.label || `LEVEL ${level.level}`,
+        lines,
+      });
+    }
   }
 
   const fieldsToCreate = pendingActions

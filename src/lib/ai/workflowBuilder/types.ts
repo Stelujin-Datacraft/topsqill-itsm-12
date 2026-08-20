@@ -74,6 +74,45 @@ export interface WorkflowConditionSpec {
   resolved: boolean;
 }
 
+/**
+ * Non-approval action node spec (Start → Condition → Action → End).
+ * Action type is inferred from the prompt — never asked.
+ */
+export type WorkflowActionType =
+  | 'change_field_value'
+  | 'create_record'
+  | 'create_linked_record'
+  | 'update_linked_records'
+  | 'create_combination_records'
+  | 'send_notification';
+
+export interface WorkflowActionSpec {
+  actionType: WorkflowActionType;
+  /** Field updated on trigger form (change_field_value) or linked form (update_linked) */
+  targetFieldId?: string;
+  targetFieldLabel?: string;
+  targetFieldType?: string;
+  valueType?: 'static' | 'dynamic';
+  staticValue?: unknown;
+  /** Cross-reference field on the trigger form */
+  crossReferenceFieldId?: string;
+  crossReferenceFieldLabel?: string;
+  /** Combination records uses sourceCrossRef* naming in designer config */
+  sourceCrossRefFieldId?: string;
+  sourceCrossRefFieldLabel?: string;
+  secondSourceCrossRefFieldId?: string;
+  secondSourceCrossRefFieldLabel?: string;
+  /** Linked / create target form (may be auto-detected from XR custom_config) */
+  targetFormId?: string;
+  targetFormName?: string;
+  sourceLinkedFormId?: string;
+  sourceLinkedFormName?: string;
+  recordCount?: number;
+  updateScope?: 'all' | 'first' | 'last';
+  combinationMode?: 'single' | 'dual';
+  configured: boolean;
+}
+
 export interface WorkflowLevelSpec {
   level: number;
   label: string;
@@ -144,6 +183,11 @@ export interface AIWorkflowDefinition {
   /** Global rejection default when level-specific missing */
   defaultRejection?: RejectionRoute;
   conditions: WorkflowConditionSpec[];
+  /**
+   * Generic (non-approval) action. When set and levels are empty,
+   * compiler builds Start → Condition → Action → End.
+   */
+  action?: WorkflowActionSpec | null;
   /** Parallel when levels can approve independently */
   parallel: boolean;
   status: 'DRAFT' | 'VALIDATED' | 'READY_TO_PUBLISH' | 'PUBLISHED';
@@ -213,9 +257,27 @@ export function createEmptyWorkflowDefinition(
     levels: partial?.levels || [],
     defaultRejection: partial?.defaultRejection,
     conditions: partial?.conditions || [],
+    action: partial?.action ?? null,
     parallel: partial?.parallel ?? false,
     status: partial?.status || 'DRAFT',
   };
+}
+
+/** True when this definition uses multi-level approval Q&A (not generic action flow). */
+export function isApprovalStyleDefinition(definition: AIWorkflowDefinition): boolean {
+  if (definition.action && !definition.levels.length) return false;
+  if (!definition.levels.length) return false;
+  const t = definition.workflowType;
+  return (
+    t === 'approval'
+    || t === 'sequential_approval'
+    || t === 'parallel_approval'
+    || t === 'conditional_approval'
+    || t === 'escalation'
+    || t === 'review'
+    || t === 'rework'
+    || t === 'multi_stage'
+  );
 }
 
 export function createWorkflowBuilderSession(params: {
