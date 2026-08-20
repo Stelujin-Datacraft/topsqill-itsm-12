@@ -39,9 +39,8 @@ import {
 } from '@/lib/updateFormFromAiGeneration';
 import { useConditionResolution } from '@/hooks/useConditionResolution';
 import { useWorkflowBuilderConversation } from '@/hooks/useWorkflowBuilderConversation';
-import { shouldUseConversationalWorkflowBuilder, applyPendingConfigActions, bindConditionNodesToDecisionValues } from '@/lib/ai/workflowBuilder';
+import { shouldUseConversationalWorkflowBuilder, bindConditionNodesToDecisionValues } from '@/lib/ai/workflowBuilder';
 import type { FieldRule, FormField } from '@/types/form';
-import { isProtectedStatusField } from '@/lib/ai/workflowBuilder/decisionOptionResolver';
 
 export interface CopilotMessage {
   id: string;
@@ -148,7 +147,6 @@ export function useCopilotEngine() {
     clearBuilderSession,
     getCompiledForPublish,
     getBuilderSession,
-    updateBuilderSession,
     markPublished,
     isBuilderActive,
   } = useWorkflowBuilderConversation();
@@ -458,7 +456,7 @@ export function useCopilotEngine() {
 
   /**
    * Resolve AI condition/action field refs against live form metadata.
-   * Auto-creates missing fields/options from the prompt so the workflow can complete.
+   * Workflow AI Suggest only rebinds to existing fields/options — never creates or mutates the form.
    */
   const confirmWorkflowConditionParams = useCallback(async (
     params: Record<string, any>,
@@ -547,6 +545,8 @@ export function useCopilotEngine() {
         defaultFormId: defaultFormId || formsForResolve[0]?.id,
         mode: 'auto',
         userPrompt: userPrompt || params.description || params.name || '',
+        // Workflow creation must never create/change form fields or options
+        allowFormAssetCreates: false,
         onMetadataChanged: async () => {
           await loadContext();
         },
@@ -928,54 +928,10 @@ export function useCopilotEngine() {
         }));
       }
 
-      // Apply confirmed field/option creates from the builder session before create_workflow
+      // Workflow AI Suggest never creates/mutates form fields or options.
+      // Only rebind condition values to existing form metadata.
       const builderSession = getBuilderSession();
-      if (builderSession?.pendingActions?.some((a) => a.userConfirmed)) {
-        // Drop any Status option creates that slipped through
-        const safeSession = {
-          ...builderSession,
-          pendingActions: builderSession.pendingActions.filter((a) => {
-            if (a.kind !== 'CREATE_FIELD_VALUE') return true;
-            const fieldId = String(a.payload.fieldId || '');
-            const field = liveFields.find((f) => f.id === fieldId);
-            return !isProtectedStatusField(field);
-          }),
-        };
-        const applied = await applyPendingConfigActions({
-          session: safeSession,
-          formId: triggerFormId,
-          formFields: liveFields,
-        });
-        updateBuilderSession({
-          ...safeSession,
-          requirements: applied.definition,
-          compiledNodes: applied.compiled.nodes,
-          pendingActions: safeSession.pendingActions.map((a) => ({ ...a, userConfirmed: true })),
-          updatedAt: new Date().toISOString(),
-        });
-        nodes = applied.compiled.nodes;
-        name = applied.compiled.name;
-        description = applied.compiled.description;
-        if (applied.formFields?.length) {
-          liveFields = applied.formFields;
-        }
-        if (applied.createdFields.length || applied.createdValues.length) {
-          const bits: string[] = [];
-          if (applied.createdFields.length) {
-            bits.push(`fields: ${applied.createdFields.join(', ')}`);
-          }
-          if (applied.createdValues.length) {
-            bits.push(`values: ${applied.createdValues.join(', ')}`);
-          }
-          setMessages((prev) => [...prev, {
-            id: `assistant-wfb-assets-${Date.now()}`,
-            role: 'assistant',
-            content: `Created form assets (${bits.join('; ')}). Publishing workflow…`,
-            timestamp: new Date(),
-          }]);
-        }
-        await loadContext();
-      }
+      void builderSession;
 
       // Force-bind condition values to existing option.value before enrich/create
       nodes = bindConditionNodesToDecisionValues(nodes, liveFields);
@@ -993,7 +949,7 @@ export function useCopilotEngine() {
         triggerFormId,
       );
 
-      // Re-bind after enrich (uses possibly stale in-memory fields) using live DB fields
+      // Re-bind after enrich using live DB fields
       workflowParams = {
         ...workflowParams,
         nodes: bindConditionNodesToDecisionValues(workflowParams.nodes || nodes, liveFields),
@@ -1059,7 +1015,6 @@ export function useCopilotEngine() {
     getBuilderSession,
     loadContext,
     markPublished,
-    updateBuilderSession,
   ]);
 
   const runToolCall = useCallback(async (
