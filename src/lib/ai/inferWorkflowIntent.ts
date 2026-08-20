@@ -280,7 +280,12 @@ export function parseConditionPredicates(prompt: string): InferredPredicate[] {
       .replace(/^.*?\b(?:if|when)\b/i, '')
       .replace(/\bthen\b[\s\S]*$/i, '');
   }
-  scope = scope.trim();
+  // Drop trailing action clauses so
+  // "Status is Closed, set Priority to High" → condition value is Closed (not the whole phrase)
+  scope = scope
+    .replace(/[,.]?\s+(?:and\s+)?(?:then\s+)?(?:set|change|update)\s+[A-Za-z][\w\s/-]{0,40}?\s+to\b[\s\S]*$/i, '')
+    .replace(/\s+\bthen\b[\s\S]*$/i, '')
+    .trim();
   if (!scope) return [];
 
   // Split AND/OR clauses so "gender male" works without an explicit operator word
@@ -292,6 +297,13 @@ export function parseConditionPredicates(prompt: string): InferredPredicate[] {
     'i',
   );
 
+  const scrubValueHint = (raw: string): string =>
+    raw
+      .trim()
+      .replace(/[.!]+$/, '')
+      .replace(/[,.]?\s+(?:and\s+)?(?:then\s+)?(?:set|change|update)\s+[A-Za-z][\w\s/-]{0,40}?\s+to\b[\s\S]*$/i, '')
+      .trim();
+
   for (const part of parts) {
     const cleaned = part.replace(/^[,\s]+|[.\s]+$/g, '').trim();
     if (!cleaned) continue;
@@ -300,10 +312,12 @@ export function parseConditionPredicates(prompt: string): InferredPredicate[] {
     if (m) {
       const fieldHint = m[1].replace(/\b(if|when|where)\b/gi, '').trim();
       if (!isUsableFieldHint(fieldHint)) continue;
+      const valueHint = scrubValueHint(m[3]);
+      if (!valueHint) continue;
       predicates.push({
         fieldHint,
         operatorHint: m[2].trim(),
-        valueHint: m[3].trim().replace(/[.!]+$/, '').trim(),
+        valueHint,
       });
       continue;
     }
@@ -315,7 +329,8 @@ export function parseConditionPredicates(prompt: string): InferredPredicate[] {
       const fieldHint = loose[1].trim();
       if (!isUsableFieldHint(fieldHint)) continue;
       // Reject values that look like whole sentences / create-entity leftovers
-      const valueHint = loose[2].trim();
+      const valueHint = scrubValueHint(loose[2]);
+      if (!valueHint) continue;
       if (/\b(?:workflow|form|automation|verification|approval)\b/i.test(valueHint) && valueHint.split(/\s+/).length > 3) {
         continue;
       }

@@ -193,6 +193,38 @@ export function missingDecisionOptionLabels(
 }
 
 /**
+ * Infer approved/rejected/pending ONLY when the text is actually a decision synonym.
+ * Arbitrary lifecycle values like "Closed" or "High" must return null — never default to approved.
+ */
+export function inferDecisionKindFromText(raw: string): DecisionKind | null {
+  const key = norm(raw);
+  if (!key) return null;
+  if (/\b(reject(ed|ion)?|denied|deny|declined|decline|failed|fail|cancelled|canceled|archived)\b/.test(key)) {
+    return 'rejected';
+  }
+  if (/\b(pending|in progress|inprogress|draft|submitted|waiting|open)\b/.test(key)) {
+    return 'pending';
+  }
+  if (/\b(approved|approve|approval|accepted|accept|completed|complete|passed|pass|success|successful|done)\b/.test(key)) {
+    return 'approved';
+  }
+  // Exact token matches for short answers (yes/ok/no) used in approval UIs
+  if (APPROVED_TOKENS.some((t) => key === norm(t) || compact(key) === compact(t))) return 'approved';
+  if (REJECTED_TOKENS.some((t) => key === norm(t) || compact(key) === compact(t))) return 'rejected';
+  if (PENDING_TOKENS.some((t) => key === norm(t) || compact(key) === compact(t))) return 'pending';
+  return null;
+}
+
+/** Strip trailing "set/change Field to …" clauses wrongly glued onto condition values. */
+export function sanitizeConditionValueHint(raw: string): string {
+  return String(raw || '')
+    .replace(/["'`]/g, '')
+    .replace(/[,.]?\s+(?:and\s+)?(?:then\s+)?(?:set|change|update)\s+[A-Za-z][\w\s/-]{0,40}?\s+to\b[\s\S]*$/i, '')
+    .replace(/\s+\bthen\b[\s\S]*$/i, '')
+    .trim();
+}
+
+/**
  * Force-bind condition node values to real option.value strings from live form fields.
  */
 export function bindConditionNodesToDecisionValues(
@@ -213,27 +245,28 @@ export function bindConditionNodesToDecisionValues(
   };
 
   const bindValue = (raw: unknown, field: DecisionFieldMeta | undefined): string => {
-    if (!field) return String(raw ?? '');
-    const existing = findExistingDecisionOption(field, 'approved')
-      || findExistingDecisionOption(field, 'rejected')
-      || findExistingDecisionOption(field, 'pending');
-    // Prefer matching the requested hint first
-    const requested = String(raw ?? '').trim();
-    if (requested) {
-      const asApproved = /approv|complete|accept|pass|yes|success|done/i.test(requested);
-      const asRejected = /reject|deny|fail|cancel|archiv|no|declin/i.test(requested);
-      const asPending = /pend|draft|wait|open|progress|submit/i.test(requested);
-      const kind: DecisionKind = asRejected ? 'rejected' : asPending && !asApproved ? 'pending' : 'approved';
-      const match = findExistingDecisionOption(field, kind)
-        || findExistingDecisionOption(field, 'approved');
+    if (!field) return sanitizeConditionValueHint(String(raw ?? ''));
+    const requested = sanitizeConditionValueHint(String(raw ?? ''));
+    if (!requested) return requested;
+
+    // 1) Exact option match first — keep Closed/High/etc. when they already exist
+    const exact = (field.options || []).find((o) =>
+      norm(o.value) === norm(requested)
+      || norm(o.label) === norm(requested)
+      || compact(o.value) === compact(requested)
+      || compact(o.label) === compact(requested),
+    );
+    if (exact) return String(exact.value);
+
+    // 2) Semantic reuse ONLY for real decision synonyms (Approved/Rejected/Pending).
+    //    Never default unknown values like "Closed" → Approved/Completed.
+    const kind = inferDecisionKindFromText(requested);
+    if (kind) {
+      const match = findExistingDecisionOption(field, kind);
       if (match) return String(match.value);
-      // Exact option match
-      const exact = (field.options || []).find((o) =>
-        norm(o.value) === norm(requested) || norm(o.label) === norm(requested),
-      );
-      if (exact) return String(exact.value);
     }
-    if (existing) return String(existing.value);
+
+    // 3) Keep the requested hint (e.g. Closed) so option-create / UI can use it
     return requested;
   };
 

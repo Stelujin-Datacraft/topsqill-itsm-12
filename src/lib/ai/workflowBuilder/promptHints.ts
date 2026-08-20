@@ -11,10 +11,15 @@ export interface GenericPromptHints {
 }
 
 function cleanHint(raw: string | undefined): string | undefined {
-  const s = String(raw || '').replace(/["'`]/g, '').trim();
+  let s = String(raw || '').replace(/["'`]/g, '').trim();
   if (!s) return undefined;
-  // Stop at common trailing clauses
-  return s.replace(/\s+(?:then|and then|and set|and change|and update)\b.*$/i, '').trim() || undefined;
+  // Stop at common trailing action clauses —
+  // never keep "Closed, set Priority to High" as a single option value
+  s = s
+    .replace(/[,.]?\s+(?:and\s+)?(?:then\s+)?(?:set|change|update)\s+[A-Za-z][\w\s/-]{0,40}?\s+to\b[\s\S]*$/i, '')
+    .replace(/\s+(?:then|and then|and set|and change|and update)\b.*$/i, '')
+    .trim();
+  return s || undefined;
 }
 
 export function extractGenericPromptHints(prompt: string): GenericPromptHints {
