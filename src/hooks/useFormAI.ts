@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { backend as supabase } from '@/services/api';
 import { FormField } from '@/types/form';
 import { toast } from 'sonner';
+import { expandShortWorkflowGoal } from '@/lib/ai/workflowBuilder/goalExpander';
 
 interface AIAutoFillResult {
   [fieldId: string]: any;
@@ -414,9 +415,15 @@ export function useFormAI() {
       additionalForms?: Array<{ id: string; name: string; fields: Array<{ id: string; label: string; type: string; options?: Array<{ id: string; value: string; label: string }> }> }>;
     }
   ): Promise<AIWorkflowSuggestionResult | null> => {
+    // Expand short goals for the LLM only. Keep original goal as userInput so
+    // downstream Closed/High binding still parses the short prompt.
+    const expanded = expandShortWorkflowGoal(workflowGoal, {
+      formId: options?.triggerForm?.id,
+      formName: options?.triggerForm?.name,
+    });
     return callAI('suggest-workflow', {
-      workflowGoal,
-      userInput: workflowGoal,
+      workflowGoal: expanded.llmBrief,
+      userInput: expanded.originalPrompt,
       triggerForm: options?.triggerForm,
       existingNodes: options?.existingNodes,
       additionalForms: options?.additionalForms

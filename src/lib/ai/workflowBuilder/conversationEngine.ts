@@ -168,16 +168,17 @@ export function startWorkflowBuilderSession(params: {
 
   if (isApproval) {
     intro.push(
-      `I can create a **${analysis.definition.levels.length || 2}-level ${analysis.definition.workflowType.replace(/_/g, ' ')}** workflow`
+      `Got it — from your short goal I'll build a **${analysis.definition.levels.length || 2}-level ${analysis.definition.workflowType.replace(/_/g, ' ')}** workflow`
       + (form?.name ? ` for **${form.name}**` : '')
       + '.',
     );
+    intro.push('You do not need to list every node; I will ask only for missing details (approvers, Status field, etc.).');
   } else {
     const actionType = analysis.definition.action?.actionType || 'change_field_value';
     intro.push(
-      `I'll create a workflow`
+      `Got it — I'll create a workflow`
       + (form?.name ? ` for **${form.name}**` : '')
-      + ` with a **${describeActionType(actionType)}** action (inferred from your prompt).`,
+      + ` with a **${describeActionType(actionType)}** action (inferred from your short prompt).`,
     );
     intro.push('I will ask for the **condition field** and **action field** separately — I will not ask you to pick an action type.');
   }
