@@ -26,7 +26,6 @@ import {
   suggestApproverFields,
   suggestCrossReferenceFields,
   suggestDecisionFields,
-  buildLevelStatusFieldOptions,
   levelStatusFieldLabel,
   SUBMISSION_ACCESS_FIELD_LABEL,
   type DiscoveredForm,

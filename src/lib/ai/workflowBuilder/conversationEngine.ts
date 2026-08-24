@@ -584,6 +584,7 @@ export function continueWorkflowBuilderSession(params: {
     orgUsers,
   );
 
+  const forceConfirm: string[] = [];
   if (answer === '__create__' || answer.startsWith('__create_named__:')) {
     if (unanswered.level) forceConfirm.push(`l${unanswered.level}`);
   }
