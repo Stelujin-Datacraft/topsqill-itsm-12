@@ -706,9 +706,9 @@ export function SubmissionFormView({ submissionId, onBack }: SubmissionFormViewP
         </div>
         {/* Row 2: Lifecycle buttons - auto width based on number of buttons */}
        {lifecycleFields.length > 0 && (
-  <div className="w-full mt-2">
+  <div className="w-full mt-4"> {/* Added width full and some top spacing */}
     {lifecycleFields.map((field) => (
-      <div key={field.id} className="w-full">
+      <div key={field.id} className="w-full"> {/* Use w-full here */}
         <LifecycleStatusBar
           field={field}
           value={formData[field.id] || ''}
