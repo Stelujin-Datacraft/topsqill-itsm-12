@@ -40,7 +40,7 @@ const WorkflowDesignerPage = () => {
   const [saving, setSaving] = useState(false);
   const [running, setRunning] = useState(false);
   const [activeTab, setActiveTab] = useState('designer');
-  const [availableForms, setAvailableForms] = useState<Array<{ id: string; name: string; fields?: Array<{ id: string; label: string; type: string; options?: Array<{ id: string; value: string; label: string }>; crossRefConfig?: { targetFormId: string; targetFormName: string; targetFormFields?: Array<{ id: string; label: string; type: string; options?: Array<{ id: string; value: string; label: string }> }> } }> }>>([]);
+  const [availableForms, setAvailableForms] = useState<Array<{ id: string; name: string; fields?: Array<{ id: string; label: string; type: string; options?: Array<{ id: string; value: string; label: string }>; custom_config?: Record<string, unknown> | null; crossRefConfig?: { targetFormId: string; targetFormName: string; targetFormFields?: Array<{ id: string; label: string; type: string; options?: Array<{ id: string; value: string; label: string }> }> } }> }>>([]);
   
   // Enrollment settings state
   const [enrollmentMode, setEnrollmentMode] = useState<'allow_always' | 'once_per_record' | 'cooldown'>('allow_always');
@@ -295,6 +295,16 @@ const WorkflowDesignerPage = () => {
                   label: f.label,
                   type: f.field_type,
                   options: parsedOptions,
+                  custom_config: (() => {
+                    if (!f.custom_config) return null;
+                    try {
+                      return typeof f.custom_config === 'string'
+                        ? JSON.parse(f.custom_config)
+                        : f.custom_config;
+                    } catch {
+                      return null;
+                    }
+                  })(),
                   crossRefConfig: undefined as any
                 };
 
