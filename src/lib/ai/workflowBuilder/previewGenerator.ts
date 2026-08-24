@@ -15,8 +15,8 @@ function rejectionLabel(level: AIWorkflowDefinition['levels'][number]): string {
   if (!r) return '(not set)';
   if (r.action === 'RETURN_TO_REQUESTER') return 'Return to requester';
   if (r.action === 'END_WORKFLOW') return 'End workflow';
-  if (r.action === 'START_OVER') return 'Start over';
-  if (r.action === 'RETURN_TO_LEVEL') return `Return to Level ${r.targetLevel}`;
+  if (r.action === 'START_OVER') return 'Start over from Approver 1';
+  if (r.action === 'RETURN_TO_LEVEL') return `Loop back to Approver ${r.targetLevel}`;
   if (r.action === 'RETURN_TO_STAGE') return r.targetStage || 'Custom stage';
   return r.action;
 }
@@ -78,8 +78,7 @@ export function generateWorkflowPreview(
     for (const level of definition.levels) {
       const lines = [
         `Approver: ${level.approver.entityLabel || level.approver.fieldLabel || level.approver.rawHint || '(not set)'}`,
-        `Approval field: ${level.approvalFieldLabel || '(not set)'}`,
-        `Rejection field: ${level.rejectionFieldLabel || '(not set)'}`,
+        `Decision field: ${level.approvalFieldLabel || '(not set)'} (Approved / Rejected)`,
         `On Approval: ${level.onApprovalNext === 'complete' ? 'Workflow Complete' : level.onApprovalNext === 'next_level' ? `Level ${level.level + 1}` : String(level.onApprovalNext || 'Next')}`,
         `On Rejection: ${rejectionLabel(level)}`,
       ];

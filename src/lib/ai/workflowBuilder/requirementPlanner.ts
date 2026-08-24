@@ -435,6 +435,14 @@ function planGenericActionRequirements(
   return mergeUnansweredFirst(out);
 }
 
+function approverLoopLabel(level: WorkflowLevelSpec): string {
+  const who = level.approver.entityLabel || level.approver.rawHint || level.label;
+  const whoPart = who && !/^level\s*\d+$/i.test(String(who).trim())
+    ? ` (${who.replace(/^Level\s*\d+:\s*/i, '')})`
+    : '';
+  return `Loop back to Approver ${level.level}${whoPart}`;
+}
+
 function planApprovalRequirements(
   definition: AIWorkflowDefinition,
   form: DiscoveredForm | undefined,
@@ -574,57 +582,53 @@ function planApprovalRequirements(
         scope: 'level',
         level: level.level,
         key: 'approval_field',
-        question: `*Level ${level.level}* — Which existing field stores the **approval** decision?`,
+        question: [
+          `*Level ${level.level}* — Which field stores the **decision** (Approved / Rejected)?`,
+          '',
+          'Usually this is **Status**. Approve and reject are values on this same field.',
+        ].join('\n'),
         inputKind: 'field_select',
         options: decisionSuggestions.map((f) => ({ value: f.id, label: `${f.label} (${f.type})` })),
       }));
+      return mergeUnansweredFirst(out);
     }
 
-    if (
-      (level.approvalFieldId || level.approvalFieldLabel)
-      && !level.rejectionFieldId
-      && !level.rejectionFieldLabel
-    ) {
-      push(req({
-        id: `level.${level.level}.rejection_field`,
-        scope: 'level',
-        level: level.level,
-        key: 'rejection_field',
-        question: `*Level ${level.level}* — Which existing field stores **rejection**?`,
-        inputKind: 'field_select',
-        options: [
-          ...(level.approvalFieldId
-            ? [{ value: '__same_as_approval__', label: `Same as approval field (${level.approvalFieldLabel})` }]
-            : [{ value: '__same_as_approval__', label: 'Same as approval decision field' }]),
-          ...decisionSuggestions
-            .filter((f) => f.id !== level.approvalFieldId)
-            .map((f) => ({ value: f.id, label: `${f.label} (${f.type})` })),
-        ],
-      }));
+    // Rejection uses the same decision field (Status) — no separate reject field
+    if (!level.rejectionFieldId && !level.rejectionFieldLabel) {
+      level.rejectionFieldId = level.approvalFieldId;
+      level.rejectionFieldLabel = level.approvalFieldLabel || 'Same as approval field';
     }
 
     if (!level.onRejection) {
-      const priorLevels = definition.levels
+      const loopBackLevels = definition.levels
         .filter((l) => l.level < level.level)
-        .map((l) => ({ value: `level:${l.level}`, label: `Return to Level ${l.level}` }));
-      const otherLevels = definition.levels
-        .filter((l) => l.level !== level.level && l.level > level.level)
-        .map((l) => ({ value: `level:${l.level}`, label: `Return to Level ${l.level}` }));
+        .map((l) => ({
+          value: `level:${l.level}`,
+          label: approverLoopLabel(l),
+        }));
+      const hint = definition.defaultRejection?.action
+        ? `\n_(Your prompt suggested: ${definition.defaultRejection.action.replace(/_/g, ' ').toLowerCase()} — pick below to confirm or change.)_`
+        : '';
       push(req({
         id: `level.${level.level}.rejection`,
         scope: 'routing',
         level: level.level,
         key: 'rejection_route',
-        question: `*Level ${level.level}* — What should happen if Level ${level.level} **rejects**?`,
+        question: [
+          `*Level ${level.level}* — If **Approver ${level.level} rejects** (decision field is not Approved), where should the workflow go?`,
+          hint,
+        ].filter(Boolean).join('\n'),
         inputKind: 'rejection_route',
         options: [
-          { value: 'RETURN_TO_REQUESTER', label: 'Return to requester' },
-          ...priorLevels,
-          ...otherLevels,
-          { value: 'END_WORKFLOW', label: 'End workflow' },
-          { value: 'START_OVER', label: 'Start over' },
+          ...loopBackLevels,
+          { value: 'RETURN_TO_REQUESTER', label: 'Return to requester (submitter)' },
+          ...(level.level > 1
+            ? [{ value: 'START_OVER', label: 'Start over from Approver 1' }]
+            : []),
+          { value: 'END_WORKFLOW', label: 'End workflow (rejected)' },
         ],
       }));
+      return mergeUnansweredFirst(out);
     }
   }
 
@@ -952,6 +956,9 @@ export function applyAnswerToDefinition(
         } else if (field) {
           level.approvalFieldId = value;
           level.approvalFieldLabel = field.label;
+          // Reject uses the same decision field (Approved / Rejected values)
+          level.rejectionFieldId = value;
+          level.rejectionFieldLabel = field.label;
         }
       }
     }

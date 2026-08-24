@@ -188,18 +188,21 @@ export function analyzeWorkflowIntent(
   }
 
   const rejectionHints = extractRejectionHints(text);
+  // Keep as a soft default hint only — always ask the user where reject should
+  // loop (Approver 1 / Approver 2 / requester / end). Do not pre-fill levels.
+  const defaultRejection = rejectionHints.find((h) => h.fromLevel === 'any')?.route
+    || rejectionHints[0]?.route;
+  if (defaultRejection) {
+    extractedKeys.push('routing.default_rejection_hint');
+  }
+  // Level-specific hints from the prompt (e.g. "if Level 2 rejects → Level 1")
+  // still pre-fill that level only when explicit.
   for (const h of rejectionHints) {
-    if (h.fromLevel === 'any') {
-      for (const level of levels) {
-        if (!level.onRejection) level.onRejection = { ...h.route };
-      }
-      extractedKeys.push('routing.default_rejection');
-    } else {
-      const level = levels.find((l) => l.level === h.fromLevel);
-      if (level) {
-        level.onRejection = { ...h.route };
-        extractedKeys.push(`level.${h.fromLevel}.rejection`);
-      }
+    if (h.fromLevel === 'any') continue;
+    const level = levels.find((l) => l.level === h.fromLevel);
+    if (level) {
+      level.onRejection = { ...h.route };
+      extractedKeys.push(`level.${h.fromLevel}.rejection`);
     }
   }
 
@@ -248,7 +251,7 @@ export function analyzeWorkflowIntent(
     levels,
     action,
     parallel,
-    defaultRejection: rejectionHints.find((h) => h.fromLevel === 'any')?.route,
+    defaultRejection: defaultRejection,
   });
 
   // Always conversational for AI Suggest workflows (approval or generic action)
