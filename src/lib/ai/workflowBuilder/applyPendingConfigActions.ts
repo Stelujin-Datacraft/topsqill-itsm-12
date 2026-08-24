@@ -192,6 +192,13 @@ export async function applyPendingConfigActions(params: {
     }
   }
 
+  if (definition.pendingMainStatusOptions?.length) {
+    definition = {
+      ...definition,
+      pendingMainStatusOptions: [],
+    };
+  }
+
   // Merge Level N approver users into SAC allowedUsers (create or reuse)
   if (isApprovalStyleDefinition(definition) && definition.accessFieldId && approverUserIds.length) {
     try {

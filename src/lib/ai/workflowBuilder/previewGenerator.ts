@@ -75,6 +75,21 @@ export function generateWorkflowPreview(
             : 'Field: (not set)',
       ],
     });
+    if (definition.syncMainStatus) {
+      const pendingOpts = definition.pendingMainStatusOptions || [];
+      sections.push({
+        title: 'Main Status sync',
+        lines: [
+          `Field: **${definition.mainStatusFieldLabel || 'Status'}**`,
+          'Waiting on Level N → Pending with Level N',
+          'Level N Approved → Level N Approved',
+          'Level N Rejected → Level N Rejected',
+          ...(pendingOpts.length
+            ? [`Options to add: ${pendingOpts.join(', ')}`]
+            : []),
+        ],
+      });
+    }
     for (const level of definition.levels) {
       const lines = [
         `Approver: ${level.approver.entityLabel || level.approver.fieldLabel || level.approver.rawHint || '(not set)'}`,
