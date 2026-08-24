@@ -526,7 +526,8 @@ function planApprovalRequirements(
     return mergeUnansweredFirst(out);
   }
 
-  const decisionSuggestions = suggestDecisionFields(form);
+  const hydratedForm = hydrateDiscoveredForm(form);
+  const decisionSuggestions = suggestDecisionFields(hydratedForm);
   const userOptions = orgUsers.map((u) => ({
     value: u.id,
     label: u.label || u.email,

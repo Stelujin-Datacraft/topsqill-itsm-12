@@ -244,11 +244,16 @@ export function getCrossRefTargetForm(field: DiscoveredFormField | undefined): {
   };
 }
 
+/**
+ * Fields that can store an approval/rejection decision.
+ * Includes system Status (preferred) — we still never create options on it.
+ */
 export function suggestDecisionFields(form: DiscoveredForm | undefined): DiscoveredFormField[] {
-  return (form?.fields || []).filter((f) =>
-    isDecisionCompatibleFieldType(f.type)
-    && !isProtectedStatusField(f),
-  );
+  const fields = (form?.fields || []).filter((f) => isDecisionCompatibleFieldType(f.type));
+  const status = fields.filter((f) => isProtectedStatusField(f));
+  const others = fields.filter((f) => !isProtectedStatusField(f));
+  // Status first so multi-level approval Q&A surfaces it even when it's the only option
+  return [...status, ...others];
 }
 
 export function findMissingOptionValues(
