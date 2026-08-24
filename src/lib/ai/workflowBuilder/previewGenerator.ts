@@ -13,8 +13,8 @@ import { describeActionType } from './actionTypeInferrer';
 function rejectionLabel(level: AIWorkflowDefinition['levels'][number]): string {
   const r = level.onRejection;
   if (!r) return '(not set)';
-  if (r.action === 'RETURN_TO_REQUESTER') return 'Return to requester';
-  if (r.action === 'END_WORKFLOW') return 'End workflow';
+  if (r.action === 'RETURN_TO_REQUESTER') return 'Notify requester, then stop approval';
+  if (r.action === 'END_WORKFLOW') return 'End workflow (rejected)';
   if (r.action === 'START_OVER') return 'Start over from Approver 1';
   if (r.action === 'RETURN_TO_LEVEL') return `Loop back to Approver ${r.targetLevel}`;
   if (r.action === 'RETURN_TO_STAGE') return r.targetStage || 'Custom stage';

@@ -600,12 +600,16 @@ function planApprovalRequirements(
     }
 
     if (!level.onRejection) {
-      const loopBackLevels = definition.levels
-        .filter((l) => l.level < level.level)
-        .map((l) => ({
-          value: `level:${l.level}`,
-          label: approverLoopLabel(l),
-        }));
+      const loopBackLevels = definition.levels.map((l) => {
+        const base = approverLoopLabel(l);
+        if (l.level === level.level) {
+          return {
+            value: `level:${l.level}`,
+            label: base.replace(/^Loop back to/, 'Retry'),
+          };
+        }
+        return { value: `level:${l.level}`, label: base };
+      });
       const hint = definition.defaultRejection?.action
         ? `\n_(Your prompt suggested: ${definition.defaultRejection.action.replace(/_/g, ' ').toLowerCase()} — pick below to confirm or change.)_`
         : '';
@@ -616,15 +620,17 @@ function planApprovalRequirements(
         key: 'rejection_route',
         question: [
           `*Level ${level.level}* — If **Approver ${level.level} rejects** (decision field is not Approved), where should the workflow go?`,
+          '',
+          'You can loop back to Approver 1, Approver 2, retry this level, return to the requester, or end.',
           hint,
         ].filter(Boolean).join('\n'),
         inputKind: 'rejection_route',
         options: [
           ...loopBackLevels,
-          { value: 'RETURN_TO_REQUESTER', label: 'Return to requester (submitter)' },
-          ...(level.level > 1
-            ? [{ value: 'START_OVER', label: 'Start over from Approver 1' }]
-            : []),
+          {
+            value: 'RETURN_TO_REQUESTER',
+            label: 'Return to requester (notify submitter, then stop approval)',
+          },
           { value: 'END_WORKFLOW', label: 'End workflow (rejected)' },
         ],
       }));

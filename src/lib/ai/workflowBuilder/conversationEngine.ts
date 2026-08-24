@@ -696,7 +696,7 @@ function buildAck(
       return `If Level ${req.level} rejects, I'll **start over from Approver 1**.`;
     }
     if (answer === 'RETURN_TO_REQUESTER') {
-      return `If Level ${req.level} rejects, I'll **return to the requester**.`;
+      return `If Level ${req.level} rejects, I'll **notify the requester and stop the approval**.`;
     }
     if (answer === 'END_WORKFLOW') {
       return `If Level ${req.level} rejects, I'll **end the workflow**.`;

@@ -470,11 +470,49 @@ export function compileWorkflowDefinition(
     connections: [],
   });
 
+  const needsReturnToRequester = definition.levels.some(
+    (l) => l.onRejection?.action === 'RETURN_TO_REQUESTER',
+  );
+  const notifyRequesterId = 'node_notify_requester';
+  const returnedEndId = 'node_end_returned';
+
+  if (needsReturnToRequester) {
+    nodes.push({
+      tempId: notifyRequesterId,
+      type: 'action',
+      label: 'Notify Requester: Returned',
+      description: 'Tell the submitter the request was returned for changes',
+      config: {
+        actionType: 'send_notification',
+        notificationConfig: {
+          type: 'in_app',
+          subject: 'Your submission was returned',
+          message: 'An approver returned this submission. Please review and update it.',
+          recipientConfig: {
+            type: 'form_submitter',
+            emails: [],
+          },
+        },
+        targetFormId: formId,
+        targetFormName: formName,
+      },
+      connections: [{ to: returnedEndId }],
+    });
+    nodes.push({
+      tempId: returnedEndId,
+      type: 'end',
+      label: 'Returned to Requester',
+      description: 'Approval stopped — returned to submitter',
+      config: {},
+      connections: [],
+    });
+  }
+
   nodes.push({
     tempId: rejectedEndId,
     type: 'end',
-    label: 'Rejected / Returned',
-    description: 'Rejected or returned to requester',
+    label: 'Rejected',
+    description: 'Workflow ended — rejected',
     config: {},
     connections: [],
   });
@@ -506,11 +544,14 @@ export function compileWorkflowDefinition(
     let falseTarget = rejectedEndId;
     const rej = level.onRejection;
     if (rej?.action === 'RETURN_TO_LEVEL' && rej.targetLevel && levelNodeIds[rej.targetLevel]) {
+      // Loop / retry that approver level (including same level)
       falseTarget = levelNodeIds[rej.targetLevel].setAccess;
-    } else if (rej?.action === 'END_WORKFLOW' || rej?.action === 'RETURN_TO_REQUESTER') {
-      falseTarget = rejectedEndId;
+    } else if (rej?.action === 'RETURN_TO_REQUESTER' && needsReturnToRequester) {
+      falseTarget = notifyRequesterId;
     } else if (rej?.action === 'START_OVER' && first) {
       falseTarget = levelNodeIds[first.level].setAccess;
+    } else if (rej?.action === 'END_WORKFLOW') {
+      falseTarget = rejectedEndId;
     }
 
     conditionNode.connections = [
