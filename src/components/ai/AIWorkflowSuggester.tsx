@@ -1,11 +1,17 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Sparkles, Loader2, Check, GitBranch, ArrowRight, Lightbulb, Plus, X } from 'lucide-react';
 import { useFormAI } from '@/hooks/useFormAI';
 import { useConditionResolution } from '@/hooks/useConditionResolution';
+import { useWorkflowBuilderConversation } from '@/hooks/useWorkflowBuilderConversation';
+import { useOrganizationUsers } from '@/hooks/useOrganizationUsers';
+import { applyPendingConfigActions } from '@/lib/ai/workflowBuilder/applyPendingConfigActions';
+import { compileWorkflowDefinition } from '@/lib/ai/workflowBuilder/nodeCompiler';
 import { mapAndNormalizeAiWorkflowNodes } from '@/lib/normalizeAiWorkflowNodes';
+import type { MissingRequirement } from '@/lib/ai/workflowBuilder';
 import { toast } from 'sonner';
 import {
   Dialog,
@@ -32,6 +38,7 @@ interface WorkflowFormField {
   label: string;
   type: string;
   options?: Array<{ id: string; value: string; label: string }>;
+  custom_config?: Record<string, unknown> | null;
   crossRefConfig?: CrossRefConfig;
 }
 
@@ -104,7 +111,23 @@ const fieldTypeIcons: Record<string, string> = {
   toggle: '🔀',
   'cross-reference': '🔗',
   'child-cross-reference': '🔗',
+  'submission-access': '👤',
 };
+
+function mapDiscoveredForm(form: WorkflowFormOption) {
+  return {
+    id: form.id,
+    name: form.name,
+    fields: (form.fields || []).map((f) => ({
+      id: f.id,
+      label: f.label,
+      type: f.type,
+      options: f.options,
+      required: false,
+      custom_config: f.custom_config ?? null,
+    })),
+  };
+}
 
 export function AIWorkflowSuggester({
   onApply,
@@ -120,8 +143,29 @@ export function AIWorkflowSuggester({
   const [selectedForms, setSelectedForms] = useState<WorkflowFormOption[]>([]);
   const [triggerFormId, setTriggerFormId] = useState<string>('');
   const [suggestion, setSuggestion] = useState<WorkflowSuggestion | null>(null);
+  const [assistantMessage, setAssistantMessage] = useState<string>('');
+  const [promptControls, setPromptControls] = useState<MissingRequirement | null>(null);
+  const [answerDraft, setAnswerDraft] = useState('');
+  const [builderMode, setBuilderMode] = useState(false);
+  const [builderBusy, setBuilderBusy] = useState(false);
   const { suggestWorkflow, isLoading } = useFormAI();
   const { resolveWorkflowConditionsInteractive, conditionResolutionDialogs } = useConditionResolution();
+  const {
+    maybeStartOrContinue,
+    clearBuilderSession,
+    getBuilderSession,
+    isBuilderActive,
+  } = useWorkflowBuilderConversation();
+  const { users: orgUsersRaw } = useOrganizationUsers();
+
+  const orgUsers = useMemo(() => (orgUsersRaw || []).map((u) => {
+    const name = [u.first_name, u.last_name].filter(Boolean).join(' ').trim();
+    return {
+      id: String(u.id),
+      email: String(u.email || ''),
+      label: name ? `${name} (${u.email})` : String(u.email || u.id),
+    };
+  }), [orgUsersRaw]);
 
   // Keep selected forms' field options in sync after creates / parent refresh
   React.useEffect(() => {
@@ -170,61 +214,253 @@ export function AIWorkflowSuggester({
     }
   };
 
+  const applyTurn = (turn: NonNullable<ReturnType<typeof maybeStartOrContinue>>) => {
+    setBuilderMode(true);
+    setAssistantMessage(turn.assistantMessage);
+    setPromptControls(turn.promptControls || null);
+    setAnswerDraft('');
+
+    const session = turn.session;
+    const formFields = (triggerForm?.fields || []).map((f) => ({
+      id: f.id,
+      label: f.label,
+      type: f.type,
+      options: f.options,
+      custom_config: f.custom_config ?? null,
+    }));
+
+    let compiled = turn.compiled || (
+      session.compiledNodes?.length
+        ? {
+            name: session.requirements.name,
+            description: session.requirements.description || session.requirements.name,
+            nodes: session.compiledNodes,
+          }
+        : null
+    );
+
+    // Preview stage does not always attach compiled nodes — compile for the node list UI
+    if (
+      !compiled?.nodes?.length
+      && (session.status === 'preview' || session.status === 'ready_to_publish' || turn.readyToPublish)
+    ) {
+      compiled = compileWorkflowDefinition(session.requirements, { formFields });
+    }
+
+    if (compiled?.nodes?.length) {
+      setSuggestion({
+        name: compiled.name || session.requirements.name,
+        description: compiled.description || session.preview?.summaryText || session.requirements.description || '',
+        nodes: compiled.nodes.map((n: any) => ({
+          type: n.type,
+          label: n.label,
+          description: n.description,
+          config: n.config || {},
+          tempId: n.tempId,
+          connections: (n.connections || []).map((c: any) => ({
+            to: c.to,
+            condition: c.conditionType || c.condition,
+            conditionType: c.conditionType || c.condition,
+          })),
+        })),
+        suggestions: session.preview?.warnings,
+      });
+      if (session.status === 'preview' || session.status === 'ready_to_publish' || turn.readyToPublish) {
+        toast.success('Workflow plan ready — review and apply');
+      }
+    } else if (!(session.status === 'preview' || session.status === 'ready_to_publish')) {
+      setSuggestion(null);
+    }
+  };
+
+  const runBuilderTurn = (prompt: string, forceStart = false) => {
+    const formsCatalog = (selectedForms.length ? selectedForms : availableForms).map(mapDiscoveredForm);
+    const form = triggerForm ? mapDiscoveredForm(triggerForm) : formsCatalog[0];
+    const turn = maybeStartOrContinue({
+      prompt,
+      form,
+      formsCatalog,
+      orgUsers,
+      forceStart: forceStart || isBuilderActive,
+    });
+    if (turn) applyTurn(turn);
+    return turn;
+  };
+
   const handleGenerate = async () => {
     if (!goal.trim()) {
       toast.error('Please describe your workflow goal');
       return;
     }
 
-    // Build rich context from selected forms
-    const formsContext = selectedForms.map(form => ({
-      id: form.id,
-      name: form.name,
-      fields: (form.fields || []).map(f => ({
-        id: f.id,
-        label: f.label,
-        type: f.type,
-        options: f.options,
-        ...(f.crossRefConfig ? {
-          crossRefConfig: {
-            targetFormId: f.crossRefConfig.targetFormId,
-            targetFormName: f.crossRefConfig.targetFormName,
-            targetFormFields: f.crossRefConfig.targetFormFields
-          }
-        } : {})
-      }))
-    }));
+    clearBuilderSession();
+    setSuggestion(null);
+    setAssistantMessage('');
+    setPromptControls(null);
+    setBuilderMode(false);
+    setBuilderBusy(true);
 
-    const result = await suggestWorkflow(goal, {
-      triggerForm: triggerForm ? {
-        id: triggerForm.id,
-        name: triggerForm.name,
-        fields: triggerForm.fields || []
-      } : undefined,
-      existingNodes: existingNodes.length > 0 ? existingNodes : undefined,
-      additionalForms: formsContext.filter(f => f.id !== triggerForm?.id),
-    });
+    try {
+      // Always use conversational builder in designer AI Suggest
+      // (asks for Submission Access Control + Level N users on approvals).
+      const turn = runBuilderTurn(goal.trim(), true);
+      if (turn) {
+        toast.success('Answer the questions to finish the workflow');
+        return;
+      }
 
-    if (result) {
-      setSuggestion(result);
-      toast.success('Workflow suggestion generated!');
+      // Fallback: legacy LLM suggest (should be rare)
+      const formsContext = selectedForms.map(form => ({
+        id: form.id,
+        name: form.name,
+        fields: (form.fields || []).map(f => ({
+          id: f.id,
+          label: f.label,
+          type: f.type,
+          options: f.options,
+          ...(f.crossRefConfig ? {
+            crossRefConfig: {
+              targetFormId: f.crossRefConfig.targetFormId,
+              targetFormName: f.crossRefConfig.targetFormName,
+              targetFormFields: f.crossRefConfig.targetFormFields
+            }
+          } : {})
+        }))
+      }));
+
+      const result = await suggestWorkflow(goal, {
+        triggerForm: triggerForm ? {
+          id: triggerForm.id,
+          name: triggerForm.name,
+          fields: triggerForm.fields || []
+        } : undefined,
+        existingNodes: existingNodes.length > 0 ? existingNodes : undefined,
+        additionalForms: formsContext.filter(f => f.id !== triggerForm?.id),
+      });
+
+      if (result) {
+        setSuggestion(result);
+        toast.success('Workflow suggestion generated!');
+      }
+    } finally {
+      setBuilderBusy(false);
+    }
+  };
+
+  const handleBuilderAnswer = (raw: string) => {
+    const answer = String(raw || '').trim();
+    if (!answer) return;
+    setBuilderBusy(true);
+    try {
+      const turn = runBuilderTurn(answer, false);
+      if (!turn) toast.error('Conversation ended — click Generate to restart');
+    } finally {
+      setBuilderBusy(false);
     }
   };
 
   const handleApply = async () => {
+    const formId = triggerFormId || triggerForm?.id;
+    const formName = triggerForm?.name;
+    const forms = selectedForms.length > 0 ? selectedForms : availableForms;
+    const builderSession = getBuilderSession();
+
+    // Conversational path: create SAC / merge users / compile, then apply
+    if (builderMode && builderSession) {
+      setIsOpen(false);
+      setBuilderBusy(true);
+      try {
+        let nodes: WorkflowNode[] = [];
+        let name = builderSession.requirements.name;
+        let description = builderSession.requirements.description || name;
+
+        if (formId) {
+          const formFields = (forms.find((f) => f.id === formId)?.fields || []).map((f) => ({
+            id: f.id,
+            label: f.label,
+            type: f.type,
+            options: f.options,
+            custom_config: f.custom_config ?? null,
+          }));
+          const applied = await applyPendingConfigActions({
+            session: builderSession,
+            formId,
+            formFields,
+          });
+          nodes = applied.compiled.nodes.map((n) => ({
+            type: n.type,
+            label: n.label,
+            description: n.description,
+            config: n.config || {},
+            tempId: n.tempId,
+            connections: (n.connections || []).map((c: any) => ({
+              to: c.to,
+              condition: c.conditionType || c.condition,
+              conditionType: c.conditionType || c.condition,
+            })),
+          }));
+          name = applied.compiled.name || name;
+          description = applied.compiled.description || description;
+          if (applied.createdFields.length) {
+            toast.success(`Created: ${applied.createdFields.join(', ')}`);
+          }
+          await onFormsRefresh?.();
+        } else if (suggestion?.nodes?.length) {
+          nodes = suggestion.nodes;
+        }
+
+        if (!nodes.length) {
+          toast.error('Workflow is not ready yet — finish the questions first');
+          setIsOpen(true);
+          return;
+        }
+
+        nodes = mapAndNormalizeAiWorkflowNodes(
+          nodes.map((n) => ({
+            type: n.type,
+            label: n.label,
+            description: n.description,
+            config: n.config,
+            connections: n.connections,
+            tempId: n.tempId,
+          })),
+          { triggerFormId: formId, triggerFormName: formName },
+        ).map((n) => ({
+          type: n.type,
+          label: n.label,
+          description: n.description,
+          config: n.config || {},
+          tempId: n.tempId,
+          connections: (n.connections || []).map((c: any) => ({
+            to: c.to,
+            condition: c.conditionType || c.condition || (c.sourceHandle as string | undefined),
+            conditionType: c.conditionType || c.condition,
+          })),
+        }));
+
+        onApply({ name, description, nodes });
+        clearBuilderSession();
+        resetForm();
+        toast.success('Workflow suggestion applied');
+      } catch (e) {
+        console.error('Failed to apply conversational workflow:', e);
+        toast.error('Could not apply workflow. Please try again.');
+        setIsOpen(true);
+      } finally {
+        setBuilderBusy(false);
+      }
+      return;
+    }
+
     if (!suggestion) return;
 
     const pending = suggestion;
     // Close suggester first so Field/Value dialogs are not nested under it
     setIsOpen(false);
 
-    const formId = triggerFormId || triggerForm?.id;
-    const formName = triggerForm?.name;
     let nodes = pending.nodes;
-    const forms = selectedForms.length > 0 ? selectedForms : availableForms;
 
     // 1) Normalize shapes + connections FIRST (matches Copilot: normalize → enrich → resolve).
-    //    Enrichment needs enhancedCondition / fieldUpdates materialized before label→UUID bind.
     nodes = mapAndNormalizeAiWorkflowNodes(
       nodes.map((n) => ({
         type: n.type,
@@ -253,8 +489,6 @@ export function AIWorkflowSuggester({
         return;
       }
       nodes = resolved.nodes;
-      // Refresh local selected form field options so already-created values
-      // are not asked again on the next AI Suggest run.
       if (onFormsRefresh) {
         await onFormsRefresh();
       }
@@ -263,7 +497,6 @@ export function AIWorkflowSuggester({
       toast.error('Could not validate condition fields. Applying suggestion as-is.');
     }
 
-    // Keep tempId so designer apply can resolve edges after remap.
     nodes = nodes.map((n) => ({
       type: n.type,
       label: n.label,
@@ -287,10 +520,22 @@ export function AIWorkflowSuggester({
     setGoal('');
     setSelectedForms([]);
     setTriggerFormId('');
+    setAssistantMessage('');
+    setPromptControls(null);
+    setAnswerDraft('');
+    setBuilderMode(false);
+    clearBuilderSession();
   };
 
   const unselectedForms = availableForms.filter(
     f => !selectedForms.some(sf => sf.id === f.id)
+  );
+
+  const busy = isLoading || builderBusy;
+  const canApply = Boolean(
+    suggestion?.nodes?.length
+    || (builderMode && getBuilderSession()?.status === 'preview')
+    || (builderMode && getBuilderSession()?.status === 'ready_to_publish'),
   );
 
   return (
@@ -310,7 +555,8 @@ export function AIWorkflowSuggester({
             AI Workflow Suggester
           </DialogTitle>
           <DialogDescription>
-            Select forms to give AI full context of your fields and values for precise workflow creation.
+            Select a trigger form, describe your goal, then answer only the missing details
+            (Submission Access Control, approver users, Status field, etc.).
           </DialogDescription>
         </DialogHeader>
 
@@ -426,9 +672,10 @@ export function AIWorkflowSuggester({
                 onChange={(e) => setGoal(e.target.value)}
                 rows={3}
                 className="resize-none"
+                disabled={builderMode && isBuilderActive}
               />
               <p className="text-xs text-muted-foreground">
-                No need to list every node. AI expands your short goal using this form&apos;s fields and options.
+                For approvals, AI will ask to create/reuse Submission Access Control and which user is Approver 1, 2, …
               </p>
             </div>
 
@@ -442,13 +689,13 @@ export function AIWorkflowSuggester({
 
             <Button
               onClick={handleGenerate}
-              disabled={isLoading || !goal.trim()}
+              disabled={busy || !goal.trim() || (builderMode && isBuilderActive)}
               className="w-full"
             >
-              {isLoading ? (
+              {busy ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Generating Workflow...
+                  Working...
                 </>
               ) : (
                 <>
@@ -466,14 +713,76 @@ export function AIWorkflowSuggester({
             {selectedForms.length === 0 && availableForms.length > 0 && (
               <p className="text-xs text-amber-600 flex items-center gap-1">
                 <Lightbulb className="h-3 w-3" />
-                Tip: Select forms above for AI to use exact field names and values
+                Tip: Select the trigger form above so AI can create/reuse Submission Access Control on it
               </p>
             )}
           </div>
 
-          {/* Right: Preview */}
+          {/* Right: Q&A + Preview */}
           <div className="space-y-4">
-            {suggestion ? (
+            {builderMode && assistantMessage ? (
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Sparkles className="h-4 w-4" />
+                    Setup questions
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <ScrollArea className="h-[220px] pr-3">
+                    <div className="text-sm whitespace-pre-wrap leading-relaxed">
+                      {assistantMessage}
+                    </div>
+                  </ScrollArea>
+
+                  {promptControls?.options && promptControls.options.length > 0 && (
+                    <div className="flex flex-col gap-2 max-h-[180px] overflow-y-auto">
+                      {promptControls.options.map((opt, idx) => (
+                        <Button
+                          key={`${opt.value}-${idx}`}
+                          variant="outline"
+                          className="justify-start h-auto py-2 text-left whitespace-normal"
+                          disabled={busy}
+                          onClick={() => handleBuilderAnswer(String(idx + 1))}
+                        >
+                          <span className="text-muted-foreground mr-2">{idx + 1}.</span>
+                          {opt.label}
+                        </Button>
+                      ))}
+                    </div>
+                  )}
+
+                  {promptControls && (
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder={
+                          promptControls.inputKind === 'user_select'
+                            ? 'Or type a name / email…'
+                            : 'Or type your answer…'
+                        }
+                        value={answerDraft}
+                        onChange={(e) => setAnswerDraft(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleBuilderAnswer(answerDraft);
+                          }
+                        }}
+                        disabled={busy}
+                      />
+                      <Button
+                        disabled={busy || !answerDraft.trim()}
+                        onClick={() => handleBuilderAnswer(answerDraft)}
+                      >
+                        Send
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            ) : null}
+
+            {suggestion && suggestion.nodes.length > 0 ? (
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="flex items-center justify-between text-base">
@@ -485,10 +794,10 @@ export function AIWorkflowSuggester({
                       <Badge variant="outline">{suggestion.estimatedDuration}</Badge>
                     )}
                   </CardTitle>
-                  <p className="text-sm text-muted-foreground">{suggestion.description}</p>
+                  <p className="text-sm text-muted-foreground line-clamp-3">{suggestion.description}</p>
                 </CardHeader>
                 <CardContent>
-                  <ScrollArea className="h-[300px] pr-4">
+                  <ScrollArea className="h-[220px] pr-4">
                     <div className="space-y-2">
                       {suggestion.nodes.map((node, index) => (
                         <div key={index} className="flex items-center gap-2">
@@ -501,15 +810,14 @@ export function AIWorkflowSuggester({
                               {node.description && (
                                 <div className="text-xs opacity-75">{node.description}</div>
                               )}
-                              {/* Show config details */}
-                              {node.config?.triggerFormName && (
+                              {node.config?.actionType === 'change_field_value' && node.config?.targetFieldName && (
                                 <Badge variant="outline" className="text-[10px] mt-1">
-                                  Form: {node.config.triggerFormName}
+                                  Set {node.config.targetFieldName}
                                 </Badge>
                               )}
-                              {node.config?.condition?.fieldLabel && (
+                              {node.config?.notificationConfig?.recipientConfig?.type === 'dynamic' && (
                                 <Badge variant="outline" className="text-[10px] mt-1">
-                                  Field: {node.config.condition.fieldLabel} {node.config.condition.operator} {node.config.condition.value}
+                                  Notify via Submission Access Control
                                 </Badge>
                               )}
                             </div>
@@ -521,39 +829,37 @@ export function AIWorkflowSuggester({
                         </div>
                       ))}
                     </div>
-
-                    {suggestion.suggestions && suggestion.suggestions.length > 0 && (
-                      <div className="mt-4 space-y-2">
-                        <Label className="text-xs flex items-center gap-1">
-                          <Lightbulb className="h-3 w-3" />
-                          Additional Suggestions
-                        </Label>
-                        {suggestion.suggestions.map((tip, index) => (
-                          <div key={index} className="text-xs text-muted-foreground p-2 bg-muted rounded">
-                            {tip}
-                          </div>
-                        ))}
-                      </div>
-                    )}
                   </ScrollArea>
                 </CardContent>
               </Card>
-            ) : (
+            ) : !builderMode ? (
               <div className="h-full flex items-center justify-center border-2 border-dashed rounded-lg p-8">
                 <div className="text-center text-muted-foreground">
                   <GitBranch className="h-8 w-8 mx-auto mb-2 opacity-50" />
                   <p className="text-sm">Your workflow suggestion will appear here</p>
-                  <p className="text-xs mt-1">Select forms → Describe goal → Generate</p>
+                  <p className="text-xs mt-1">Select form → Describe goal → Generate → Answer questions</p>
                 </div>
               </div>
-            )}
+            ) : null}
 
-            {suggestion && (
+            {(suggestion || (builderMode && !promptControls)) && (
               <div className="flex gap-2">
-                <Button variant="outline" onClick={handleGenerate} disabled={isLoading} className="flex-1">
-                  Regenerate
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    clearBuilderSession();
+                    setBuilderMode(false);
+                    setAssistantMessage('');
+                    setPromptControls(null);
+                    setSuggestion(null);
+                    handleGenerate();
+                  }}
+                  disabled={busy}
+                  className="flex-1"
+                >
+                  Restart
                 </Button>
-                <Button onClick={handleApply} className="flex-1">
+                <Button onClick={handleApply} className="flex-1" disabled={busy || (!canApply && !suggestion?.nodes?.length)}>
                   <Check className="h-4 w-4 mr-2" />
                   Apply Workflow
                 </Button>
