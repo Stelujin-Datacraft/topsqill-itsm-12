@@ -41,10 +41,10 @@ function buildApprovalBrief(
 ): string {
   const levels = analysis.definition.levels || [];
   const levelLines = levels.map((l) => {
-    const hint = l.approver?.rawHint || l.approver?.fieldLabel;
+    const hint = l.approver?.rawHint || l.approver?.entityLabel || l.approver?.fieldLabel;
     return hint
-      ? `- Level ${l.level}: notify approver field/hint "${hint}", wait for decision, condition on Status == Approved`
-      : `- Level ${l.level}: notify Level ${l.level} approver, wait for decision, condition on Status == Approved`;
+      ? `- Level ${l.level}: set Submission Access Control to user "${hint}", notify (dynamic SAC), wait, condition on Status == Approved`
+      : `- Level ${l.level}: set Submission Access Control to Level ${l.level} approver user, notify (dynamic SAC), wait, condition on Status == Approved`;
   });
 
   const reject = analysis.definition.defaultRejection?.action
@@ -59,12 +59,13 @@ function buildApprovalBrief(
     `- Type: ${analysis.definition.workflowType.replace(/_/g, ' ')}`,
     formName ? `- Trigger form: ${formName}` : '- Trigger: form submission',
     `- Levels: ${levels.length || 2}`,
+    `- Approver assignment field: Submission Access Control (create if missing; reuse if present)`,
     ...levelLines,
     `- On rejection: ${reject} (notify submitter; do not invent Status values)`,
     `- Final success: END completed`,
     '',
     `Node types allowed: start, action, condition, wait, end only.`,
-    `Action types: send_notification for approver notify; change_field_value only when user asked to set/change a field.`,
+    `Action types: change_field_value to set Submission Access Control users; send_notification with recipientConfig.type=dynamic on that field.`,
     `CRITICAL: Use exact option values from form metadata only.`,
     `Never concatenate the user goal into a single option label. Keep Status values and Priority values as separate short tokens.`,
     `If user mentioned Closed / High / Approved, keep those as separate exact values.`,

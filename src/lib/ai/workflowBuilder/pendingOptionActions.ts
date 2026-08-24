@@ -1,16 +1,21 @@
 /**
- * Pending CREATE_FIELD_VALUE helpers for confirmed missing options.
+ * Pending CREATE_FIELD / CREATE_FIELD_VALUE helpers for confirmed missing assets.
  * Kept free of API imports so conversation/planner can smoke-test without Vite env.
  */
 import type {
   PendingConfigAction,
   WorkflowBuilderSession,
 } from './types';
+import { isApprovalStyleDefinition } from './types';
 import {
   fieldHasPreferredOption,
   isPollutedOptionLabel,
   sanitizeConditionValueHint,
 } from './decisionOptionResolver';
+import {
+  SUBMISSION_ACCESS_FIELD_LABEL,
+  SUBMISSION_ACCESS_FIELD_TYPE,
+} from './metadataDiscovery';
 
 type FieldMeta = {
   id: string;
@@ -19,7 +24,16 @@ type FieldMeta = {
   options?: Array<{ id?: string; value: string; label: string }>;
 };
 
-/** Build pending CREATE_FIELD_VALUE actions from confirmed missing options. */
+/** Collect Level N approver user ids for SAC allowedUsers seeding/merge. */
+export function collectApproverUserIds(session: WorkflowBuilderSession): string[] {
+  return [...new Set(
+    (session.requirements.levels || [])
+      .filter((l) => l.approver?.type === 'user' && l.approver.entityId)
+      .map((l) => String(l.approver.entityId)),
+  )];
+}
+
+/** Build pending CREATE_FIELD / CREATE_FIELD_VALUE actions from confirmed missing assets. */
 export function buildOptionCreatePendingActions(
   session: WorkflowBuilderSession,
   form?: { fields?: FieldMeta[] },
@@ -27,6 +41,26 @@ export function buildOptionCreatePendingActions(
 ): PendingConfigAction[] {
   const actions: PendingConfigAction[] = [];
   const def = session.requirements;
+
+  if (
+    isApprovalStyleDefinition(def)
+    && def.pendingAccessFieldCreate
+    && !def.accessFieldId
+  ) {
+    actions.push({
+      id: 'create_field_submission_access',
+      kind: 'CREATE_FIELD',
+      description: `Create field "${SUBMISSION_ACCESS_FIELD_LABEL}" (${SUBMISSION_ACCESS_FIELD_TYPE})`,
+      payload: {
+        label: SUBMISSION_ACCESS_FIELD_LABEL,
+        fieldType: SUBMISSION_ACCESS_FIELD_TYPE,
+        scope: 'access',
+        allowedUserIds: collectApproverUserIds(session),
+      },
+      // User already confirmed via the ensure question
+      userConfirmed: true,
+    });
+  }
 
   for (const cond of def.conditions || []) {
     if (!cond.pendingOptionCreate || !cond.fieldId) continue;

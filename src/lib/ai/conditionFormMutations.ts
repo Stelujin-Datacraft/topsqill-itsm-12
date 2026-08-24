@@ -58,6 +58,7 @@ export interface CreatedConditionField {
   label: string;
   type: string;
   options: Array<{ id?: string; value: string; label: string }>;
+  custom_config?: Record<string, unknown> | null;
 }
 
 /** Create a form field (user-confirmed) and attach it to the first form page. Prevents duplicates by label. */
@@ -66,6 +67,7 @@ export async function createConditionFormField(params: {
   label: string;
   type?: string;
   initialValue?: unknown;
+  customConfig?: Record<string, unknown> | null;
 }): Promise<CreatedConditionField> {
   const label = params.label.trim();
   if (!label) throw new Error('Field label is required');
@@ -75,18 +77,29 @@ export async function createConditionFormField(params: {
 
   const { data: existingRows, error: existingError } = await supabase
     .from('form_fields')
-    .select('id, label, field_type, options')
+    .select('id, label, field_type, options, custom_config')
     .eq('form_id', params.formId);
 
   if (existingError) throw new Error(existingError.message || 'Failed to load form fields');
 
   const duplicate = (existingRows || []).find((row: any) => labelKey(row.label) === labelKey(label));
   if (duplicate) {
+    let custom_config: Record<string, unknown> | null = null;
+    if (duplicate.custom_config) {
+      try {
+        custom_config = typeof duplicate.custom_config === 'string'
+          ? JSON.parse(duplicate.custom_config)
+          : duplicate.custom_config;
+      } catch {
+        custom_config = null;
+      }
+    }
     return {
       id: duplicate.id,
       label: duplicate.label,
       type: duplicate.field_type,
       options: parseOptions(duplicate.options),
+      custom_config,
     };
   }
 
@@ -113,6 +126,10 @@ export async function createConditionFormField(params: {
     ? (orderRows[0].field_order || 0) + 1
     : 0;
 
+  const customConfig = params.customConfig && Object.keys(params.customConfig).length
+    ? params.customConfig
+    : null;
+
   const { data: inserted, error: insertError } = await supabase
     .from('form_fields')
     .insert({
@@ -132,9 +149,9 @@ export async function createConditionFormField(params: {
       tooltip: '',
       error_message: '',
       field_order: maxOrder,
-      custom_config: null,
+      custom_config: customConfig ? JSON.stringify(customConfig) : null,
     } as any)
-    .select('id, label, field_type, options')
+    .select('id, label, field_type, options, custom_config')
     .single();
 
   if (insertError || !inserted) {
@@ -166,12 +183,76 @@ export async function createConditionFormField(params: {
     }
   }
 
+  let insertedConfig: Record<string, unknown> | null = customConfig;
+  if (inserted.custom_config && !insertedConfig) {
+    try {
+      insertedConfig = typeof inserted.custom_config === 'string'
+        ? JSON.parse(inserted.custom_config)
+        : inserted.custom_config;
+    } catch {
+      insertedConfig = null;
+    }
+  }
+
   return {
     id: inserted.id,
     label: inserted.label,
     type: inserted.field_type,
     options: parseOptions(inserted.options),
+    custom_config: insertedConfig,
   };
+}
+
+/**
+ * Ensure Submission Access Control allowedUsers includes the given user ids
+ * so change_field_value validation accepts them at runtime.
+ */
+export async function mergeSubmissionAccessAllowedUsers(params: {
+  fieldId: string;
+  userIds: string[];
+}): Promise<Record<string, unknown>> {
+  const userIds = [...new Set((params.userIds || []).map((id) => String(id || '').trim()).filter(Boolean))];
+  if (!params.fieldId) throw new Error('Field id is required');
+
+  const { data: field, error } = await supabase
+    .from('form_fields')
+    .select('id, custom_config')
+    .eq('id', params.fieldId)
+    .single();
+
+  if (error || !field) throw new Error(error?.message || 'Field not found');
+
+  let config: Record<string, any> = {};
+  if (field.custom_config) {
+    try {
+      config = typeof field.custom_config === 'string'
+        ? JSON.parse(field.custom_config)
+        : { ...field.custom_config };
+    } catch {
+      config = {};
+    }
+  }
+
+  const existingUsers = Array.isArray(config.allowedUsers) ? config.allowedUsers.map(String) : [];
+  const existingGroups = Array.isArray(config.allowedGroups) ? config.allowedGroups.map(String) : [];
+  const mergedUsers = [...new Set([...existingUsers, ...userIds])];
+
+  const nextConfig = {
+    ...config,
+    allowedUsers: mergedUsers,
+    allowedGroups: existingGroups,
+    accessLevel: config.accessLevel || 'edit',
+    allowMultiple: config.allowMultiple !== false,
+  };
+
+  const { error: updateError } = await supabase
+    .from('form_fields')
+    .update({ custom_config: JSON.stringify(nextConfig) })
+    .eq('id', params.fieldId);
+
+  if (updateError) throw new Error(updateError.message || 'Failed to update Submission Access Control');
+
+  return nextConfig;
 }
 
 /** Append an option to a dropdown/radio/checkbox/toggle field. Prevents duplicates. */

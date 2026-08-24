@@ -9,6 +9,7 @@ import {
   type BuilderTurnResult,
   type DiscoveredForm,
   type DiscoveredWorkflow,
+  type OrgUserChoice,
   type WorkflowBuilderSession,
 } from '@/lib/ai/workflowBuilder';
 import { compileWorkflowDefinition } from '@/lib/ai/workflowBuilder/nodeCompiler';
@@ -31,6 +32,7 @@ export function useWorkflowBuilderConversation() {
     workflows?: DiscoveredWorkflow[];
     userId?: string;
     projectId?: string;
+    orgUsers?: OrgUserChoice[];
     /** When true (e.g. createType === 'workflow'), always start conversational builder */
     forceStart?: boolean;
   }): BuilderTurnResult | null => {
@@ -47,6 +49,7 @@ export function useWorkflowBuilderConversation() {
         userMessage: params.prompt,
         form: params.form,
         formsCatalog: params.formsCatalog,
+        orgUsers: params.orgUsers,
       });
       sessionRef.current = result.session;
       setSession(result.session);
@@ -65,6 +68,7 @@ export function useWorkflowBuilderConversation() {
       workflows: params.workflows,
       userId: params.userId,
       projectId: params.projectId,
+      orgUsers: params.orgUsers,
     });
     sessionRef.current = result.session;
     setSession(result.session);

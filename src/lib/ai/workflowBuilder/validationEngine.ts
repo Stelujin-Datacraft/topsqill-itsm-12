@@ -131,6 +131,14 @@ export function validateWorkflowDefinition(
     return issues;
   }
 
+  if (!definition.accessFieldId && !definition.pendingAccessFieldCreate) {
+    issues.push({
+      severity: 'error',
+      code: 'MISSING_ACCESS_FIELD',
+      message: 'Submission Access Control field is not set for approver assignment.',
+    });
+  }
+
   for (const level of definition.levels) {
     const hasApprover = Boolean(
       level.approver.fieldId
