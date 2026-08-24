@@ -632,8 +632,8 @@ export function FormViewLayoutRenderer({
             
             {/* Lifecycle / Status — visible immediately; read-only mirror of Status dropdown */}
             {lifecycleFields.length > 0 && (
-              <div className="px-4 py-3 bg-white dark:bg-gray-950 border-b border-slate-100 dark:border-slate-800">
-                <div className="max-w-5xl mx-auto space-y-3">
+              <div className="px-4 py-1.5 bg-white dark:bg-gray-950 border-b border-slate-100 dark:border-slate-800">
+                <div className="max-w-5xl mx-auto space-y-1.5">
                   {lifecycleFields.map((field) => (
                     <LifecycleStatusBar
                       key={field.id}
