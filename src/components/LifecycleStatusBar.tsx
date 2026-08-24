@@ -75,6 +75,8 @@ export function LifecycleStatusBar({
   const { user } = useAuth();
   const { toast } = useToast();
   const initialHistoryCreated = useRef(false);
+  const selectedStageRef = useRef<HTMLButtonElement | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   
   const { 
     history, 
@@ -133,6 +135,16 @@ export function LifecycleStatusBar({
     };
     createInitialHistory();
   }, [submissionId, value, historyLoading, history.length, user, addHistoryEntry, refetchHistory]);
+
+  // Keep the current Status option visible when the bar overflows to the right
+  useEffect(() => {
+    if (!selectedStageRef.current) return;
+    selectedStageRef.current.scrollIntoView({
+      behavior: 'smooth',
+      inline: 'nearest',
+      block: 'nearest',
+    });
+  }, [value, options.length]);
 
   const sendStageChangeNotification = async (fromStage: string | null, toStage: string) => {
     if (!submissionId) return;
@@ -231,85 +243,92 @@ export function LifecycleStatusBar({
   return (
     <TooltipProvider>
       <div className="w-full space-y-1">
-        {/* Stage Progress Bar */}
-        <div className="flex items-center w-full rounded-xl border border-border bg-card shadow-sm overflow-hidden">
-          {options.map((option: any, index: number) => {
-            const optionValue = getOptionValue(option);
-            const optionLabel = getOptionLabel(option);
-            const isSelected = value === optionValue;
-            const isPast = index < currentIndex;
-            const isFuture = index > currentIndex;
-            const color = getStageColor(option, index);
-            const canTransition = isTransitionAllowed(value, optionValue);
-            const isLast = index === options.length - 1;
-            
-            return (
-              <Tooltip key={optionValue}>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    onClick={() => handleOptionClick(optionValue)}
-                    disabled={readOnly || disabled || !isEditing || isSelected}
-                    className={`
-                      relative flex items-center justify-center gap-1.5 py-2.5 px-3 flex-1
-                      text-xs font-medium transition-all duration-200
-                      ${!isLast ? 'border-r border-border/50' : ''}
-                      ${interactive && !isSelected && canTransition ? 'cursor-pointer' : 'cursor-default'}
-                      ${!canTransition && interactive && !isSelected ? 'opacity-50 cursor-not-allowed' : ''}
-                      ${isSelected ? 'font-semibold' : ''}
-                      ${isFuture && !interactive ? 'opacity-60' : ''}
-                    `}
-                    style={{
-                      backgroundColor: color.bg,
-                      color: '#ffffff',
-                      opacity: isFuture && !interactive ? 0.55 : 1,
-                    }}
-                  >
-                    {/* Icon */}
-                    <span className="flex-shrink-0">
-                      {isPast ? (
-                        <span className="flex items-center justify-center w-4 h-4 rounded-full bg-white/30">
-                          <Check className="h-3 w-3 text-white" />
-                        </span>
-                      ) : isSelected ? (
-                        <span className="flex items-center justify-center w-4 h-4 rounded-full bg-white/30">
-                          <Circle className="h-2.5 w-2.5 fill-white text-white" />
-                        </span>
-                      ) : (
-                        <span className="flex items-center justify-center w-4 h-4 rounded-full border-2 border-white/40">
-                          <Circle className="h-2 w-2 text-white/40" />
+        {/* Stage Progress Bar — scroll horizontally when many Status options */}
+        <div
+          ref={scrollContainerRef}
+          className="w-full overflow-x-auto rounded-xl border border-border bg-card shadow-sm"
+        >
+          <div className="flex items-stretch min-w-full w-max">
+            {options.map((option: any, index: number) => {
+              const optionValue = getOptionValue(option);
+              const optionLabel = getOptionLabel(option);
+              const isSelected = value === optionValue;
+              const isPast = index < currentIndex;
+              const isFuture = index > currentIndex;
+              const color = getStageColor(option, index);
+              const canTransition = isTransitionAllowed(value, optionValue);
+              const isLast = index === options.length - 1;
+
+              return (
+                <Tooltip key={optionValue}>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      ref={isSelected ? selectedStageRef : undefined}
+                      onClick={() => handleOptionClick(optionValue)}
+                      disabled={readOnly || disabled || !isEditing || isSelected}
+                      className={`
+                        relative flex items-center justify-center gap-1.5 py-2.5 px-3
+                        flex-1 basis-0 min-w-[7.5rem]
+                        text-xs font-medium transition-all duration-200
+                        ${!isLast ? 'border-r border-border/50' : ''}
+                        ${interactive && !isSelected && canTransition ? 'cursor-pointer' : 'cursor-default'}
+                        ${!canTransition && interactive && !isSelected ? 'opacity-50 cursor-not-allowed' : ''}
+                        ${isSelected ? 'font-semibold' : ''}
+                        ${isFuture && !interactive ? 'opacity-60' : ''}
+                      `}
+                      style={{
+                        backgroundColor: color.bg,
+                        color: '#ffffff',
+                        opacity: isFuture && !interactive ? 0.55 : 1,
+                      }}
+                    >
+                      {/* Icon */}
+                      <span className="flex-shrink-0">
+                        {isPast ? (
+                          <span className="flex items-center justify-center w-4 h-4 rounded-full bg-white/30">
+                            <Check className="h-3 w-3 text-white" />
+                          </span>
+                        ) : isSelected ? (
+                          <span className="flex items-center justify-center w-4 h-4 rounded-full bg-white/30">
+                            <Circle className="h-2.5 w-2.5 fill-white text-white" />
+                          </span>
+                        ) : (
+                          <span className="flex items-center justify-center w-4 h-4 rounded-full border-2 border-white/40">
+                            <Circle className="h-2 w-2 text-white/40" />
+                          </span>
+                        )}
+                      </span>
+
+                      {/* Label — keep full text readable; scroll bar when crowded */}
+                      <span className="whitespace-nowrap">{optionLabel}</span>
+
+                      {/* Time indicator for current stage */}
+                      {isSelected && timeInStage && (
+                        <span className="text-[10px] opacity-80 whitespace-nowrap ml-0.5">
+                          ({timeInStage})
                         </span>
                       )}
-                    </span>
-
-                    {/* Label */}
-                    <span className="truncate">{optionLabel}</span>
-
-                    {/* Time indicator for current stage */}
-                    {isSelected && timeInStage && (
-                      <span className="text-[10px] opacity-80 whitespace-nowrap ml-0.5">
-                        ({timeInStage})
-                      </span>
-                    )}
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom">
-                  <div className="text-center">
-                    <p className="font-medium">{optionLabel}</p>
-                    {isSelected && <p className="text-xs opacity-70">Current stage</p>}
-                    {isPast && <p className="text-xs opacity-70">Completed</p>}
-                    {isFuture && <p className="text-xs opacity-70">Upcoming</p>}
-                    {!canTransition && interactive && !isSelected && (
-                      <p className="text-xs text-destructive">Transition not allowed</p>
-                    )}
-                    {readOnly && isSelected && (
-                      <p className="text-xs opacity-70">Change via Status field</p>
-                    )}
-                  </div>
-                </TooltipContent>
-              </Tooltip>
-            );
-          })}
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">
+                    <div className="text-center">
+                      <p className="font-medium">{optionLabel}</p>
+                      {isSelected && <p className="text-xs opacity-70">Current stage</p>}
+                      {isPast && <p className="text-xs opacity-70">Completed</p>}
+                      {isFuture && <p className="text-xs opacity-70">Upcoming</p>}
+                      {!canTransition && interactive && !isSelected && (
+                        <p className="text-xs text-destructive">Transition not allowed</p>
+                      )}
+                      {readOnly && isSelected && (
+                        <p className="text-xs opacity-70">Change via Status field</p>
+                      )}
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              );
+            })}
+          </div>
         </div>
 
         {/* History Button - only if not hidden */}
