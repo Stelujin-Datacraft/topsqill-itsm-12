@@ -75,8 +75,6 @@ export function LifecycleStatusBar({
   const { user } = useAuth();
   const { toast } = useToast();
   const initialHistoryCreated = useRef(false);
-  const selectedStageRef = useRef<HTMLButtonElement | null>(null);
-  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   
   const { 
     history, 
@@ -135,16 +133,6 @@ export function LifecycleStatusBar({
     };
     createInitialHistory();
   }, [submissionId, value, historyLoading, history.length, user, addHistoryEntry, refetchHistory]);
-
-  // Keep the current Status option visible when the bar overflows to the right
-  useEffect(() => {
-    if (!selectedStageRef.current) return;
-    selectedStageRef.current.scrollIntoView({
-      behavior: 'smooth',
-      inline: 'nearest',
-      block: 'nearest',
-    });
-  }, [value, options.length]);
 
   const sendStageChangeNotification = async (fromStage: string | null, toStage: string) => {
     if (!submissionId) return;
@@ -243,12 +231,9 @@ export function LifecycleStatusBar({
   return (
     <TooltipProvider>
       <div className="w-full space-y-1">
-        {/* Stage Progress Bar — scroll horizontally when many Status options */}
-        <div
-          ref={scrollContainerRef}
-          className="w-full overflow-x-auto rounded-xl border border-border bg-card shadow-sm"
-        >
-          <div className="flex items-stretch min-w-full w-max">
+        {/* Snake wrap — all Status options visible without horizontal scroll */}
+        <div className="w-full rounded-xl border border-border bg-card shadow-sm p-1.5">
+          <div className="flex flex-wrap gap-1.5">
             {options.map((option: any, index: number) => {
               const optionValue = getOptionValue(option);
               const optionLabel = getOptionLabel(option);
@@ -257,24 +242,20 @@ export function LifecycleStatusBar({
               const isFuture = index > currentIndex;
               const color = getStageColor(option, index);
               const canTransition = isTransitionAllowed(value, optionValue);
-              const isLast = index === options.length - 1;
 
               return (
                 <Tooltip key={optionValue}>
                   <TooltipTrigger asChild>
                     <button
                       type="button"
-                      ref={isSelected ? selectedStageRef : undefined}
                       onClick={() => handleOptionClick(optionValue)}
                       disabled={readOnly || disabled || !isEditing || isSelected}
                       className={`
-                        relative flex items-center justify-center gap-1.5 py-2.5 px-3
-                        flex-1 basis-0 min-w-[7.5rem]
-                        text-xs font-medium transition-all duration-200
-                        ${!isLast ? 'border-r border-border/50' : ''}
-                        ${interactive && !isSelected && canTransition ? 'cursor-pointer' : 'cursor-default'}
+                        inline-flex items-center justify-center gap-1.5 py-1.5 px-2.5
+                        rounded-md text-xs font-medium transition-all duration-200
+                        ${interactive && !isSelected && canTransition ? 'cursor-pointer hover:brightness-110' : 'cursor-default'}
                         ${!canTransition && interactive && !isSelected ? 'opacity-50 cursor-not-allowed' : ''}
-                        ${isSelected ? 'font-semibold' : ''}
+                        ${isSelected ? 'font-semibold ring-2 ring-offset-1 ring-white/40' : ''}
                         ${isFuture && !interactive ? 'opacity-60' : ''}
                       `}
                       style={{
@@ -283,7 +264,6 @@ export function LifecycleStatusBar({
                         opacity: isFuture && !interactive ? 0.55 : 1,
                       }}
                     >
-                      {/* Icon */}
                       <span className="flex-shrink-0">
                         {isPast ? (
                           <span className="flex items-center justify-center w-4 h-4 rounded-full bg-white/30">
@@ -300,10 +280,8 @@ export function LifecycleStatusBar({
                         )}
                       </span>
 
-                      {/* Label — keep full text readable; scroll bar when crowded */}
                       <span className="whitespace-nowrap">{optionLabel}</span>
 
-                      {/* Time indicator for current stage */}
                       {isSelected && timeInStage && (
                         <span className="text-[10px] opacity-80 whitespace-nowrap ml-0.5">
                           ({timeInStage})
