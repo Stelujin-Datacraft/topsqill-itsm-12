@@ -27,6 +27,8 @@ import {
   suggestCrossReferenceFields,
   suggestDecisionFields,
   levelStatusFieldLabel,
+  findMainStatusField,
+  missingMainStatusSyncOptions,
   SUBMISSION_ACCESS_FIELD_LABEL,
   type DiscoveredForm,
   type OrgUserChoice,
@@ -659,6 +661,54 @@ function planApprovalRequirements(
     level.configured = levelConfigured(level);
   }
 
+  // Main Status sync: Pending with Level N / Level N Approved / Level N Rejected
+  const mainStatus = findMainStatusField(form);
+  if (mainStatus) {
+    if (!definition.mainStatusFieldId) {
+      definition.mainStatusFieldId = mainStatus.id;
+      definition.mainStatusFieldLabel = mainStatus.label || 'Status';
+    }
+    if (definition.syncMainStatus == null) {
+      const missing = missingMainStatusSyncOptions(form, definition.levels.length);
+      if (missing.length) {
+        push(req({
+          id: 'workflow.main_status_sync',
+          scope: 'workflow',
+          key: 'main_status_sync',
+          question: [
+            'As each level decides, I can update the main **Status** field from that level\'s Status:',
+            '',
+            '• Waiting on Level N → **Pending with Level N**',
+            '• Level N Approved → **Level N Approved**',
+            '• Level N Rejected → **Level N Rejected**',
+            '',
+            'These Status options are not on the form yet:',
+            ...missing.map((label) => `• ${label}`),
+            '',
+            'Add them and sync Status this way?',
+          ].join('\n'),
+          inputKind: 'confirm',
+          options: [
+            {
+              value: '__sync_main_status__',
+              label: 'Yes — add missing options and sync Status',
+            },
+            {
+              value: '__skip_main_status_sync__',
+              label: 'No — leave main Status unchanged',
+            },
+          ],
+        }));
+        return mergeUnansweredFirst(out);
+      }
+      // Options already exist — enable sync without asking
+      definition.syncMainStatus = true;
+      definition.pendingMainStatusOptions = [];
+    }
+  } else if (definition.syncMainStatus == null) {
+    definition.syncMainStatus = false;
+  }
+
   return mergeUnansweredFirst(out);
 }
 
@@ -716,6 +766,25 @@ export function applyAnswerToDefinition(
       next.pendingAccessFieldCreate = false;
       next.accessFieldId = undefined;
       next.accessFieldLabel = undefined;
+    }
+    return next;
+  }
+
+  if (requirement.key === 'main_status_sync') {
+    const yes = value === '__sync_main_status__'
+      || /^(y|yes|ok|allow|confirm|add|sync)\b/i.test(value);
+    const main = findMainStatusField(form);
+    if (yes) {
+      next.syncMainStatus = true;
+      next.mainStatusFieldId = main?.id || next.mainStatusFieldId;
+      next.mainStatusFieldLabel = main?.label || next.mainStatusFieldLabel || 'Status';
+      next.pendingMainStatusOptions = missingMainStatusSyncOptions(
+        form,
+        next.levels.length,
+      );
+    } else {
+      next.syncMainStatus = false;
+      next.pendingMainStatusOptions = [];
     }
     return next;
   }

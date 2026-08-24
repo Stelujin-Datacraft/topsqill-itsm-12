@@ -17,6 +17,7 @@ import { describeActionType } from './actionTypeInferrer';
 import {
   SUBMISSION_ACCESS_FIELD_LABEL,
   SUBMISSION_ACCESS_FIELD_TYPE,
+  mainStatusSyncLabelsForLevel,
 } from './metadataDiscovery';
 
 export interface CompiledWorkflowGraph {
@@ -55,6 +56,61 @@ function findField(
     );
   }
   return undefined;
+}
+
+function resolveExactOptionValue(
+  field: DecisionFieldMeta | undefined,
+  label: string,
+): string {
+  if (!field?.options?.length) return label;
+  const key = label.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  const hit = field.options.find((o) => {
+    const v = String(o.value || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    const l = String(o.label || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    return (v && v === key) || (l && l === key);
+  });
+  return hit ? String(hit.value) : label;
+}
+
+function buildChangeFieldValueNode(params: {
+  tempId: string;
+  label: string;
+  description: string;
+  formId: string;
+  formName: string;
+  fieldId: string;
+  fieldLabel: string;
+  fieldType: string;
+  fieldOptions?: DecisionFieldMeta['options'];
+  staticValue: unknown;
+  nextTo: string;
+}): CompiledWorkflowGraph['nodes'][number] {
+  return {
+    tempId: params.tempId,
+    type: 'action',
+    label: params.label,
+    description: params.description,
+    config: {
+      actionType: 'change_field_value',
+      targetFormId: params.formId,
+      targetFormName: params.formName,
+      valueType: 'static',
+      targetFieldId: params.fieldId,
+      targetFieldName: params.fieldLabel,
+      targetFieldType: params.fieldType,
+      targetFieldOptions: params.fieldOptions,
+      staticValue: params.staticValue,
+      fieldUpdates: [{
+        targetFieldId: params.fieldId,
+        targetFieldName: params.fieldLabel,
+        targetFieldType: params.fieldType,
+        targetFieldOptions: params.fieldOptions,
+        valueType: 'static',
+        staticValue: params.staticValue,
+      }],
+    },
+    connections: [{ to: params.nextTo }],
+  };
 }
 
 function buildActionNodeConfig(
@@ -309,7 +365,15 @@ export function compileWorkflowDefinition(
     connections: [],
   });
 
-  const levelNodeIds: Record<number, { setAccess: string; notify: string; wait: string; condition: string }> = {};
+  const levelNodeIds: Record<number, {
+    setAccess: string;
+    setPendingStatus?: string;
+    notify: string;
+    wait: string;
+    condition: string;
+    setApprovedStatus?: string;
+    setRejectedStatus?: string;
+  }> = {};
 
   const accessMeta = findField(
     formFields,
@@ -322,16 +386,42 @@ export function compileWorkflowDefinition(
     || SUBMISSION_ACCESS_FIELD_LABEL;
   const accessFieldType = accessMeta?.type || SUBMISSION_ACCESS_FIELD_TYPE;
 
+  const syncMainStatus = definition.syncMainStatus === true;
+  const mainStatusMeta = syncMainStatus
+    ? findField(
+      formFields,
+      definition.mainStatusFieldId,
+      definition.mainStatusFieldLabel || 'Status',
+    )
+    : undefined;
+  const mainStatusFieldId = mainStatusMeta?.id || definition.mainStatusFieldId || '';
+  const mainStatusFieldLabel = mainStatusMeta?.label
+    || definition.mainStatusFieldLabel
+    || 'Status';
+  const mainStatusFieldType = mainStatusMeta?.type || 'status';
+
   for (const level of definition.levels) {
     const setAccessId = `node_l${level.level}_set_access`;
+    const setPendingStatusId = syncMainStatus
+      ? `node_l${level.level}_set_pending_status`
+      : undefined;
     const notifyId = `node_l${level.level}_notify`;
     const waitId = `node_l${level.level}_wait`;
     const conditionId = `node_l${level.level}_decision`;
+    const setApprovedStatusId = syncMainStatus
+      ? `node_l${level.level}_set_approved_status`
+      : undefined;
+    const setRejectedStatusId = syncMainStatus
+      ? `node_l${level.level}_set_rejected_status`
+      : undefined;
     levelNodeIds[level.level] = {
       setAccess: setAccessId,
+      setPendingStatus: setPendingStatusId,
       notify: notifyId,
       wait: waitId,
       condition: conditionId,
+      setApprovedStatus: setApprovedStatusId,
+      setRejectedStatus: setRejectedStatusId,
     };
 
     const decisionField = findField(
@@ -360,6 +450,9 @@ export function compileWorkflowDefinition(
       groups: [] as string[],
     };
 
+    const syncLabels = mainStatusSyncLabelsForLevel(level.level);
+    const afterAccess = setPendingStatusId || notifyId;
+
     // 1) Set Submission Access Control to this level's approver user
     nodes.push({
       tempId: setAccessId,
@@ -383,8 +476,25 @@ export function compileWorkflowDefinition(
           staticValue: sacValue,
         }],
       },
-      connections: [{ to: notifyId }],
+      connections: [{ to: afterAccess }],
     });
+
+    // 1b) Waiting on this level → main Status = Pending with Level N
+    if (syncMainStatus && setPendingStatusId) {
+      nodes.push(buildChangeFieldValueNode({
+        tempId: setPendingStatusId,
+        label: `Set Status: ${syncLabels.pending}`,
+        description: `Set ${mainStatusFieldLabel} to ${syncLabels.pending}`,
+        formId,
+        formName,
+        fieldId: mainStatusFieldId,
+        fieldLabel: mainStatusFieldLabel,
+        fieldType: mainStatusFieldType,
+        fieldOptions: mainStatusMeta?.options,
+        staticValue: resolveExactOptionValue(mainStatusMeta, syncLabels.pending),
+        nextTo: notifyId,
+      }));
+    }
 
     // 2) Notify via dynamic recipients from Submission Access Control
     nodes.push({
@@ -540,6 +650,7 @@ export function compileWorkflowDefinition(
     const ids = levelNodeIds[level.level];
     const conditionNode = nodes.find((n) => n.tempId === ids.condition)!;
     const nextLevel = definition.levels[i + 1];
+    const syncLabels = mainStatusSyncLabelsForLevel(level.level);
 
     let trueTarget = approvedEndId;
     if (level.onApprovalNext === 'complete' || !nextLevel) {
@@ -561,10 +672,48 @@ export function compileWorkflowDefinition(
       falseTarget = rejectedEndId;
     }
 
-    conditionNode.connections = [
-      { to: trueTarget, conditionType: 'true', sourceHandle: 'true' },
-      { to: falseTarget, conditionType: 'false', sourceHandle: 'false' },
-    ];
+    if (
+      syncMainStatus
+      && ids.setApprovedStatus
+      && ids.setRejectedStatus
+      && mainStatusFieldId
+    ) {
+      nodes.push(buildChangeFieldValueNode({
+        tempId: ids.setApprovedStatus,
+        label: `Set Status: ${syncLabels.approved}`,
+        description: `Set ${mainStatusFieldLabel} to ${syncLabels.approved}`,
+        formId,
+        formName,
+        fieldId: mainStatusFieldId,
+        fieldLabel: mainStatusFieldLabel,
+        fieldType: mainStatusFieldType,
+        fieldOptions: mainStatusMeta?.options,
+        staticValue: resolveExactOptionValue(mainStatusMeta, syncLabels.approved),
+        nextTo: trueTarget,
+      }));
+      nodes.push(buildChangeFieldValueNode({
+        tempId: ids.setRejectedStatus,
+        label: `Set Status: ${syncLabels.rejected}`,
+        description: `Set ${mainStatusFieldLabel} to ${syncLabels.rejected}`,
+        formId,
+        formName,
+        fieldId: mainStatusFieldId,
+        fieldLabel: mainStatusFieldLabel,
+        fieldType: mainStatusFieldType,
+        fieldOptions: mainStatusMeta?.options,
+        staticValue: resolveExactOptionValue(mainStatusMeta, syncLabels.rejected),
+        nextTo: falseTarget,
+      }));
+      conditionNode.connections = [
+        { to: ids.setApprovedStatus, conditionType: 'true', sourceHandle: 'true' },
+        { to: ids.setRejectedStatus, conditionType: 'false', sourceHandle: 'false' },
+      ];
+    } else {
+      conditionNode.connections = [
+        { to: trueTarget, conditionType: 'true', sourceHandle: 'true' },
+        { to: falseTarget, conditionType: 'false', sourceHandle: 'false' },
+      ];
+    }
   }
 
   return {

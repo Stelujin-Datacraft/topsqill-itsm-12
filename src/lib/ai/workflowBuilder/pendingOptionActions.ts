@@ -19,6 +19,10 @@ import {
   levelStatusFieldLabel,
 } from './metadataDiscovery';
 
+function slugOptionId(label: string): string {
+  return label.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+}
+
 type FieldMeta = {
   id: string;
   label: string;
@@ -83,6 +87,35 @@ export function buildOptionCreatePendingActions(
         },
         userConfirmed: true,
       });
+    }
+
+    // Main Status sync labels (user already confirmed via main_status_sync)
+    if (
+      def.syncMainStatus
+      && def.mainStatusFieldId
+      && (def.pendingMainStatusOptions || []).length
+    ) {
+      const mainField = form?.fields?.find((f) => f.id === def.mainStatusFieldId);
+      for (const label of def.pendingMainStatusOptions || []) {
+        const clean = sanitizeConditionValueHint(String(label || ''));
+        if (!clean || isPollutedOptionLabel(clean)) continue;
+        if (fieldHasPreferredOption(mainField, clean)) continue;
+        actions.push({
+          id: `create_value_main_status_${slugOptionId(clean)}`,
+          kind: 'CREATE_FIELD_VALUE',
+          description: `Add option "${clean}" on ${def.mainStatusFieldLabel || 'Status'}`,
+          payload: {
+            fieldId: def.mainStatusFieldId,
+            fieldLabel: def.mainStatusFieldLabel || 'Status',
+            fieldType: mainField?.type || 'status',
+            valueLabel: clean,
+            scope: 'main_status_sync',
+            allowOnStatus: true,
+          },
+          // Dedicated sync question already confirmed these creates
+          userConfirmed: true,
+        });
+      }
     }
   }
 

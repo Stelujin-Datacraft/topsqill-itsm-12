@@ -198,6 +198,16 @@ export interface AIWorkflowDefinition {
   accessFieldLabel?: string;
   /** User confirmed creating Submission Access Control when missing */
   pendingAccessFieldCreate?: boolean;
+  /**
+   * Main form Status field — updated from each Level N Status
+   * (Pending with Level N / Level N Approved / Level N Rejected).
+   */
+  mainStatusFieldId?: string;
+  mainStatusFieldLabel?: string;
+  /** null = not asked yet; true = sync + create missing options; false = skip sync */
+  syncMainStatus?: boolean | null;
+  /** Option labels to add on main Status after user permission */
+  pendingMainStatusOptions?: string[];
   /** Global rejection default when level-specific missing */
   defaultRejection?: RejectionRoute;
   conditions: WorkflowConditionSpec[];
@@ -276,6 +286,10 @@ export function createEmptyWorkflowDefinition(
     accessFieldId: partial?.accessFieldId,
     accessFieldLabel: partial?.accessFieldLabel,
     pendingAccessFieldCreate: partial?.pendingAccessFieldCreate,
+    mainStatusFieldId: partial?.mainStatusFieldId,
+    mainStatusFieldLabel: partial?.mainStatusFieldLabel,
+    syncMainStatus: partial?.syncMainStatus,
+    pendingMainStatusOptions: partial?.pendingMainStatusOptions,
     defaultRejection: partial?.defaultRejection,
     conditions: partial?.conditions || [],
     action: partial?.action ?? null,

@@ -713,6 +713,12 @@ function buildAck(
     }
     return `Rejection routing for Level ${req.level} saved.`;
   }
+  if (req.key === 'main_status_sync') {
+    if (answer === '__sync_main_status__' || /^(y|yes|ok|allow|confirm|add|sync)\b/i.test(answer)) {
+      return 'Got it — I\'ll sync the main **Status** from each Level N Status and add any missing options when we publish.';
+    }
+    return 'Okay — I\'ll leave the main Status field unchanged by the approval workflow.';
+  }
   if (req.key === 'decision_values') {
     return answer === 'skip'
       ? 'Continuing with existing values.'

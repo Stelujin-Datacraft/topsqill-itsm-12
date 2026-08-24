@@ -307,6 +307,51 @@ export function levelStatusFieldLabel(level: number): string {
   return `Level ${level} Status`;
 }
 
+/** Main Status option labels driven by each Level N Status decision. */
+export function mainStatusSyncLabelsForLevel(level: number): {
+  pending: string;
+  approved: string;
+  rejected: string;
+} {
+  return {
+    pending: `Pending with Level ${level}`,
+    approved: `Level ${level} Approved`,
+    rejected: `Level ${level} Rejected`,
+  };
+}
+
+export function allMainStatusSyncLabels(levelCount: number): string[] {
+  const out: string[] = [];
+  for (let i = 1; i <= levelCount; i++) {
+    const s = mainStatusSyncLabelsForLevel(i);
+    out.push(s.pending, s.approved, s.rejected);
+  }
+  return out;
+}
+
+/** Find the main system Status field on the form. */
+export function findMainStatusField(
+  form: DiscoveredForm | undefined,
+): DiscoveredFormField | undefined {
+  const hydrated = hydrateDiscoveredForm(form);
+  return (hydrated?.fields || []).find((f) => isProtectedStatusField(f))
+    || (hydrated?.fields || []).find((f) => {
+      const label = String(f.label || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+      return label === 'status';
+    });
+}
+
+/** Sync labels that are not yet options on the main Status field. */
+export function missingMainStatusSyncOptions(
+  form: DiscoveredForm | undefined,
+  levelCount: number,
+): string[] {
+  const field = findMainStatusField(form);
+  const needed = allMainStatusSyncLabels(levelCount);
+  if (!field) return needed;
+  return needed.filter((label) => !fieldHasOption(field, label));
+}
+
 export function findMissingOptionValues(
   field: DiscoveredFormField | undefined,
   requiredLabels: string[],
