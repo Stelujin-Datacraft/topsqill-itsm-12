@@ -30,6 +30,7 @@ import {
 import { describeActionType } from './actionTypeInferrer';
 import { isOptionBasedFieldType } from '@/utils/conditionOperators';
 import { extractGenericPromptHints, fieldMatchesHint } from './promptHints';
+import { sanitizeConditionValueHint } from './decisionOptionResolver';
 function req(
   partial: Omit<MissingRequirement, 'answered'> & { answered?: boolean },
 ): MissingRequirement {
@@ -175,8 +176,8 @@ function planGenericActionRequirements(
       || fieldMatchesHint({ label: condition.fieldLabel }, hints.conditionFieldHint)
     )
   ) {
-    condition.value = hints.conditionValueHint;
-    condition.pendingOptionLabel = hints.conditionValueHint;
+    condition.value = sanitizeConditionValueHint(hints.conditionValueHint);
+    condition.pendingOptionLabel = sanitizeConditionValueHint(hints.conditionValueHint);
     condition.pendingOptionCreate = false;
   }
 
@@ -223,7 +224,7 @@ function planGenericActionRequirements(
     && !fieldHasOption(condField, condition.value)
     && !condition.pendingOptionCreate
   ) {
-    const wanted = String(condition.pendingOptionLabel || condition.value || '').trim();
+    const wanted = sanitizeConditionValueHint(String(condition.pendingOptionLabel || condition.value || ''));
     push(req({
       id: 'condition.value_create',
       scope: 'condition',
@@ -324,8 +325,8 @@ function planGenericActionRequirements(
       || fieldMatchesHint({ label: action.targetFieldLabel }, hints.actionFieldHint)
     )
   ) {
-    action.staticValue = hints.actionValueHint;
-    action.pendingOptionLabel = hints.actionValueHint;
+    action.staticValue = sanitizeConditionValueHint(hints.actionValueHint);
+    action.pendingOptionLabel = sanitizeConditionValueHint(hints.actionValueHint);
     action.pendingOptionCreate = false;
   }
 
@@ -391,7 +392,7 @@ function planGenericActionRequirements(
       action.pendingOptionLabel = undefined;
       action.staticValue = resolveFieldOptionValue(actionField, action.staticValue);
     } else if (actionField && fieldNeedsOptionCreateCheck(actionField) && !fieldHasOption(actionField, action.staticValue)) {
-      const wanted = String(action.pendingOptionLabel || action.staticValue || '').trim();
+      const wanted = sanitizeConditionValueHint(String(action.pendingOptionLabel || action.staticValue || ''));
       push(req({
         id: 'action.value_create',
         scope: 'workflow',

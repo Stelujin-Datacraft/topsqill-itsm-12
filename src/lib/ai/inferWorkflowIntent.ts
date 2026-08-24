@@ -13,6 +13,10 @@ import {
 } from '@/utils/conditionOperators';
 import { normalizeAiWorkflowNodeConfig } from '@/lib/normalizeAiWorkflowNodes';
 import { isLikelyUuid, isUnusableFieldLabel } from '@/lib/changeFieldValueDisplay';
+import {
+  resolvePreferredOptionValue,
+  sanitizeConditionValueHint,
+} from '@/lib/ai/workflowBuilder/decisionOptionResolver';
 import { bindConditionToFormFields } from '@/lib/bindConditionToFormFields';
 
 export interface InferFormField {
@@ -119,34 +123,16 @@ function expandOptionQuery(raw: string): string[] {
   return [...out];
 }
 
-/** Resolve option text to the field's real option.value (fuzzy + synonyms). */
+/** Resolve option text to the field's real option.value (sanitize + prefer existing clean options). */
 export function matchOptionValueByHint(
   field: InferFormField | undefined,
   requested: unknown,
 ): string {
   if (requested === undefined || requested === null) return '';
-  const raw = String(requested).trim();
-  if (!raw) return '';
-  if (!field || !isOptionBasedFieldType(field.type)) return raw;
-
-  const options = Array.isArray(field.options) ? field.options : [];
-  if (!options.length) return raw;
-
-  const queries = expandOptionQuery(raw);
-  for (const q of queries) {
-    const exact = options.find((o) =>
-      normKey(o.value) === q || normKey(o.label) === q || normKey(String(o.id || '')) === q,
-    );
-    if (exact) return String(exact.value);
-  }
-  // Unique partial match
-  const partials = options.filter((o) => {
-    const v = normKey(o.value);
-    const l = normKey(o.label);
-    return queries.some((q) => v.includes(q) || l.includes(q) || q.includes(v) || q.includes(l));
-  });
-  if (partials.length === 1) return String(partials[0].value);
-  return raw;
+  // Always sanitize so "Closed, Set Priority To High" binds to existing Closed
+  const preferred = resolvePreferredOptionValue(field, requested);
+  if (preferred) return preferred;
+  return sanitizeConditionValueHint(String(requested));
 }
 
 const OPERATOR_WORDS =

@@ -8,6 +8,9 @@ import {
   hasExistingDecisionOption,
   isProtectedStatusField,
   missingDecisionOptionLabels,
+  resolvePreferredOptionValue,
+  fieldHasPreferredOption,
+  sanitizeConditionValueHint,
 } from './decisionOptionResolver';
 
 export interface DiscoveredFormField {
@@ -120,26 +123,8 @@ export function resolveFieldOptionValue(
   field: DiscoveredFormField | undefined,
   answer: unknown,
 ): string {
-  const raw = String(answer ?? '').trim();
-  if (!field || !raw) return raw;
-  const opts = field.options || [];
-  if (!opts.length) return raw;
-  const byValue = opts.find((o) => String(o.value) === raw);
-  if (byValue) return String(byValue.value);
-  const key = raw.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-  const byLabel = opts.find((o) =>
-    String(o.label).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim() === key,
-  );
-  if (byLabel) return String(byLabel.value);
-  // Safe contains match only when both sides are long enough (avoid "closed" matching "")
-  const fuzzy = opts.find((o) => {
-    const label = String(o.label || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-    const value = String(o.value || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-    if (label.length >= 3 && (label === key || key === label)) return true;
-    if (value.length >= 3 && (value === key || key === value)) return true;
-    return false;
-  });
-  return fuzzy ? String(fuzzy.value) : raw;
+  // Sanitize first — never lock onto "Closed, Set Priority To High" when Closed exists
+  return resolvePreferredOptionValue(field, answer);
 }
 
 export function fieldOptionChoices(
@@ -151,18 +136,18 @@ export function fieldOptionChoices(
   }));
 }
 
-/** True when the field already has this option (by value or label). Exact match only. */
+/** True when the field already has this option (by value or label). Exact match after sanitize. */
 export function fieldHasOption(
   field: DiscoveredFormField | undefined,
   answer: unknown,
 ): boolean {
-  const raw = String(answer ?? '').trim();
-  if (!field || !raw) return false;
-  const opts = field.options || [];
-  if (!opts.length) return false;
-  const key = raw.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-  if (!key) return false;
-  return opts.some((o) => {
+  // "Closed, Set Priority To High" → treat as Closed if that option exists
+  if (fieldHasPreferredOption(field, answer)) return true;
+  const sanitized = sanitizeConditionValueHint(String(answer ?? ''));
+  if (!sanitized || !field) return false;
+  // Fallback: exact match on sanitized text against any option (including legacy)
+  const key = sanitized.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  return (field.options || []).some((o) => {
     const v = String(o.value || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
     const l = String(o.label || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
     return (v && v === key) || (l && l === key);
