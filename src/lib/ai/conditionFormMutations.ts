@@ -67,6 +67,8 @@ export async function createConditionFormField(params: {
   label: string;
   type?: string;
   initialValue?: unknown;
+  /** Full option list for select/dropdown/radio fields */
+  options?: Array<{ value: string; label: string }>;
   customConfig?: Record<string, unknown> | null;
 }): Promise<CreatedConditionField> {
   const label = params.label.trim();
@@ -104,7 +106,15 @@ export async function createConditionFormField(params: {
   }
 
   let options: Array<{ id: string; value: string; label: string }> | null = null;
-  if (isOptionBasedFieldType(fieldType) && params.initialValue != null && String(params.initialValue).trim()) {
+  if (isOptionBasedFieldType(fieldType) && Array.isArray(params.options) && params.options.length) {
+    options = params.options
+      .map((o, idx) => ({
+        id: `opt_${Date.now()}_${idx}`,
+        value: String(o.value || o.label || '').trim(),
+        label: String(o.label || o.value || '').trim(),
+      }))
+      .filter((o) => o.value);
+  } else if (isOptionBasedFieldType(fieldType) && params.initialValue != null && String(params.initialValue).trim()) {
     const valueLabel = String(params.initialValue).trim();
     options = [{
       id: `opt_${Date.now()}`,

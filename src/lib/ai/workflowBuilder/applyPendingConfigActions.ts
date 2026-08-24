@@ -90,10 +90,14 @@ export async function applyPendingConfigActions(params: {
     if (!params.formId || !label) continue;
 
     try {
+      const payloadOptions = Array.isArray(action.payload.options)
+        ? (action.payload.options as Array<{ value: string; label: string }>)
+        : undefined;
       const created = await createConditionFormField({
         formId: params.formId,
         label,
         type: fieldType,
+        options: payloadOptions,
         customConfig: fieldType === SUBMISSION_ACCESS_FIELD_TYPE || fieldType === 'submission-access'
           ? {
               allowedUsers: allowedUserIds,
@@ -129,6 +133,25 @@ export async function applyPendingConfigActions(params: {
             fieldLabel: created.label,
           },
         }));
+      }
+
+      const levelNum = Number(action.payload.level);
+      if (
+        action.payload.scope === 'level_status'
+        && Number.isFinite(levelNum)
+        && levelNum > 0
+      ) {
+        definition.levels = definition.levels.map((l) => {
+          if (l.level !== levelNum) return l;
+          return {
+            ...l,
+            approvalFieldId: created.id,
+            approvalFieldLabel: created.label,
+            rejectionFieldId: created.id,
+            rejectionFieldLabel: created.label,
+            pendingDecisionFieldCreate: false,
+          };
+        });
       }
     } catch (e) {
       console.error('applyPendingConfigActions: failed to create field', e);

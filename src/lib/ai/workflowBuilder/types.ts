@@ -136,6 +136,8 @@ export interface WorkflowLevelSpec {
   onRejection: RejectionRoute | null;
   /** Option labels to add on publish after user permission */
   pendingOptionValues?: string[];
+  /** User confirmed creating Level N Status dropdown for this level's decision */
+  pendingDecisionFieldCreate?: boolean;
   /** Optional gate before this level runs */
   entryCondition?: WorkflowConditionSpec | null;
   configured: boolean;

@@ -153,7 +153,7 @@ export function validateWorkflowDefinition(
         message: `Level ${level.level} has no approver.`,
       });
     }
-    if (!level.approvalFieldId && !level.approvalFieldLabel) {
+    if (!level.approvalFieldId && !level.approvalFieldLabel && !level.pendingDecisionFieldCreate) {
       issues.push({
         severity: 'error',
         code: 'MISSING_APPROVAL_FIELD',
