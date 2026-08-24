@@ -688,6 +688,19 @@ function buildAck(
     return `Noted for Level ${req.level} rejection field.`;
   }
   if (req.key === 'rejection_route') {
+    if (answer.startsWith('level:') || /^level:\d+$/i.test(answer)) {
+      const n = answer.split(':')[1];
+      return `If Level ${req.level} rejects, I'll **loop back to Approver ${n}**.`;
+    }
+    if (answer === 'START_OVER') {
+      return `If Level ${req.level} rejects, I'll **start over from Approver 1**.`;
+    }
+    if (answer === 'RETURN_TO_REQUESTER') {
+      return `If Level ${req.level} rejects, I'll **return to the requester**.`;
+    }
+    if (answer === 'END_WORKFLOW') {
+      return `If Level ${req.level} rejects, I'll **end the workflow**.`;
+    }
     return `Rejection routing for Level ${req.level} saved.`;
   }
   if (req.key === 'decision_values') {
