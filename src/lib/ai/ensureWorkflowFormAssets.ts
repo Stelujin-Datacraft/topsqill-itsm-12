@@ -28,6 +28,8 @@ import {
   inferDecisionKindFromText,
   type DecisionKind,
   sanitizeConditionValueHint,
+  isPollutedOptionLabel,
+  fieldHasPreferredOption,
 } from '@/lib/ai/workflowBuilder/decisionOptionResolver';
 
 /** Labels that are command noise, not real form fields (e.g. prompt started with "create"). */
@@ -277,8 +279,9 @@ function uniqueLabels(values: unknown[]): string[] {
   for (const v of values) {
     const raw = sanitizeConditionValueHint(String(v ?? ''));
     if (!raw) continue;
-    // Reject sentence-like option labels (e.g. leftover "Closed Set Priority High")
-    if (/\b(set|change|update)\b/i.test(raw) && raw.split(/\s+/).length > 2) continue;
+    // Never plan glued prompt junk / generated opt ids as new options
+    if (isPollutedOptionLabel(raw)) continue;
+    if (/^opt_\d+$/i.test(raw)) continue;
     const key = raw.toLowerCase();
     if (seen.has(key)) continue;
     seen.add(key);
@@ -296,12 +299,17 @@ function decisionKindForOptionLabel(label: string): DecisionKind | null {
 }
 
 function optionAlreadyExists(
-  field: { options?: Array<{ value?: string; label?: string }> },
+  field: { type?: string; options?: Array<{ value?: string; label?: string }> },
   label: string,
 ): boolean {
-  const key = String(label || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  // Sanitize so "Closed, Set Priority To High" counts as Closed when Closed exists
+  if (fieldHasPreferredOption(field as any, label)) return true;
+  const key = sanitizeConditionValueHint(label).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
   if (!key) return false;
   return (field.options || []).some((o) => {
+    if (isPollutedOptionLabel(String(o.label || '')) || isPollutedOptionLabel(String(o.value || ''))) {
+      return false;
+    }
     const v = String(o.value || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
     const l = String(o.label || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
     return (v && v === key) || (l && l === key);

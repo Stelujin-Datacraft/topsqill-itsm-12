@@ -7,6 +7,7 @@ import {
   normalizeRelativeDateCondition,
 } from '@/utils/conditionOperators';
 import { sanitizeAiFieldType } from '@/lib/createFormFromAiGeneration';
+import { resolvePreferredOptionValue } from '@/lib/ai/workflowBuilder/decisionOptionResolver';
 
 export interface ConditionFormFieldMeta {
   id: string;
@@ -80,52 +81,21 @@ function findOptionMatch(
   requested: unknown,
 ): { id?: string; value: string; label: string } | undefined {
   if (requested === undefined || requested === null || requested === '') return undefined;
-  const raw = String(requested).trim();
-  const lower = raw.toLowerCase();
-  const compact = lower.replace(/[^a-z0-9]+/g, '');
-  const synonyms: Record<string, string[]> = {
-    male: ['m', 'man', 'boy'],
-    female: ['f', 'woman', 'girl'],
-    married: ['marriage', 'wed'],
-    single: ['unmarried'],
-    yes: ['y', 'true', 'on'],
-    no: ['n', 'false', 'off'],
-    approved: ['approve', 'accepted', 'accept', 'completed', 'complete', 'passed', 'pass', 'success', 'ok', 'done'],
-    rejected: ['reject', 'denied', 'deny', 'failed', 'fail', 'cancelled', 'canceled', 'declined', 'archived'],
-    pending: ['inprogress', 'in progress', 'draft', 'submitted', 'waiting', 'open'],
-    completed: ['complete', 'approved', 'approve', 'done', 'success'],
-  };
-  const queries = new Set<string>([lower, compact]);
-  for (const [canonical, alts] of Object.entries(synonyms)) {
-    if (
-      lower === canonical
-      || alts.includes(lower)
-      || alts.includes(compact)
-      || compact === canonical.replace(/[^a-z0-9]+/g, '')
-    ) {
-      queries.add(canonical);
-      alts.forEach((a) => queries.add(a));
-    }
-  }
-
-  for (const q of queries) {
-    const exact = options.find((o) =>
-      String(o.value).toLowerCase() === q
-      || String(o.label).toLowerCase() === q
-      || String(o.id || '').toLowerCase() === q
-      || String(o.value).toLowerCase().replace(/[^a-z0-9]+/g, '') === q
-      || String(o.label).toLowerCase().replace(/[^a-z0-9]+/g, '') === q,
-    );
-    if (exact) return exact;
-  }
-
-  const partials = options.filter((o) => {
-    const v = String(o.value).toLowerCase();
-    const l = String(o.label).toLowerCase();
-    return [...queries].some((q) => q.length >= 2 && (v.includes(q) || l.includes(q)));
+  // Prefer sanitized Closed over existing polluted "Closed, Set Priority To High"
+  const preferred = resolvePreferredOptionValue(
+    { type: 'select', options },
+    requested,
+  );
+  if (!preferred) return undefined;
+  const key = preferred.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  const compact = key.replace(/\s+/g, '');
+  return options.find((o) => {
+    const v = String(o.value || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    const l = String(o.label || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    const vc = v.replace(/\s+/g, '');
+    const lc = l.replace(/\s+/g, '');
+    return (v && v === key) || (l && l === key) || (vc && vc === compact) || (lc && lc === compact);
   });
-  if (partials.length === 1) return partials[0];
-  return undefined;
 }
 
 function ensureFieldLevelShape(flc: any, formId: string): FieldLevelCondition & { fieldLabel?: string } {

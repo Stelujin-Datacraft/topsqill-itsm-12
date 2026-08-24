@@ -219,9 +219,94 @@ export function inferDecisionKindFromText(raw: string): DecisionKind | null {
 export function sanitizeConditionValueHint(raw: string): string {
   return String(raw || '')
     .replace(/["'`]/g, '')
+    // "Closed, set Priority to High" / "Closed Set Priority To High"
     .replace(/[,.]?\s+(?:and\s+)?(?:then\s+)?(?:set|change|update)\s+[A-Za-z][\w\s/-]{0,40}?\s+to\b[\s\S]*$/i, '')
+    // "Closed, set Priority High" (missing "to")
+    .replace(/[,.]?\s+(?:and\s+)?(?:then\s+)?(?:set|change|update)\s+[A-Za-z][\w\s/-]{0,60}$/i, '')
     .replace(/\s+\bthen\b[\s\S]*$/i, '')
+    // Leading "if/when" leftovers: "If Closed"
+    .replace(/^(?:if|when)\s+/i, '')
     .trim();
+}
+
+/** True when a label looks like a glued prompt, not a real option name. */
+export function isPollutedOptionLabel(raw: string): boolean {
+  const s = String(raw || '').trim();
+  if (!s) return false;
+  if (sanitizeConditionValueHint(s) !== s && sanitizeConditionValueHint(s).length > 0) return true;
+  if (/\b(set|change|update)\b/i.test(s) && s.split(/\s+/).length > 2) return true;
+  if (/^opt_\d+$/i.test(s)) return true;
+  return false;
+}
+
+/**
+ * Resolve requested text to an existing option.value.
+ * Always sanitize first so "Closed, Set Priority To High" → prefer existing "Closed".
+ * Never lock onto a polluted option when a clean match exists.
+ */
+export function resolvePreferredOptionValue(
+  field: { type?: string; options?: DecisionFieldOption[] } | undefined,
+  requested: unknown,
+): string {
+  const sanitized = sanitizeConditionValueHint(String(requested ?? ''));
+  if (!sanitized) return '';
+  if (!field) return sanitized;
+
+  const options = Array.isArray(field.options)
+    ? field.options.filter((o) => String(o.value || o.label || '').trim())
+    : [];
+  if (!options.length) return sanitized;
+
+  const findExact = (hint: string): DecisionFieldOption | undefined => {
+    const key = norm(hint);
+    const keyC = compact(hint);
+    if (!key) return undefined;
+    // Prefer non-polluted options when multiple could match
+    const matches = options.filter((o) =>
+      norm(o.value) === key
+      || norm(o.label) === key
+      || compact(o.value) === keyC
+      || compact(o.label) === keyC,
+    );
+    if (!matches.length) return undefined;
+    const clean = matches.find((o) => !isPollutedOptionLabel(o.label) && !isPollutedOptionLabel(o.value));
+    return clean || matches[0];
+  };
+
+  const exact = findExact(sanitized);
+  if (exact) return String(exact.value);
+
+  const kind = inferDecisionKindFromText(sanitized);
+  if (kind) {
+    const match = findExistingDecisionOption(field as DecisionFieldMeta, kind);
+    if (match) return String(match.value);
+  }
+
+  // Do not return the raw polluted string — keep sanitized for create/bind UI
+  return sanitized;
+}
+
+/** True when the field already has an option for this hint (after sanitizing). */
+export function fieldHasPreferredOption(
+  field: { type?: string; options?: DecisionFieldOption[] } | undefined,
+  requested: unknown,
+): boolean {
+  const sanitized = sanitizeConditionValueHint(String(requested ?? ''));
+  if (!sanitized || !field) return false;
+  const options = Array.isArray(field.options) ? field.options : [];
+  if (!options.length) return false;
+  const key = norm(sanitized);
+  const keyC = compact(sanitized);
+  return options.some((o) => {
+    if (isPollutedOptionLabel(String(o.label || '')) || isPollutedOptionLabel(String(o.value || ''))) {
+      // Polluted options do not count as satisfying a clean request like "Closed"
+      return false;
+    }
+    return norm(o.value) === key
+      || norm(o.label) === key
+      || compact(o.value) === keyC
+      || compact(o.label) === keyC;
+  });
 }
 
 /**
@@ -245,29 +330,7 @@ export function bindConditionNodesToDecisionValues(
   };
 
   const bindValue = (raw: unknown, field: DecisionFieldMeta | undefined): string => {
-    if (!field) return sanitizeConditionValueHint(String(raw ?? ''));
-    const requested = sanitizeConditionValueHint(String(raw ?? ''));
-    if (!requested) return requested;
-
-    // 1) Exact option match first — keep Closed/High/etc. when they already exist
-    const exact = (field.options || []).find((o) =>
-      norm(o.value) === norm(requested)
-      || norm(o.label) === norm(requested)
-      || compact(o.value) === compact(requested)
-      || compact(o.label) === compact(requested),
-    );
-    if (exact) return String(exact.value);
-
-    // 2) Semantic reuse ONLY for real decision synonyms (Approved/Rejected/Pending).
-    //    Never default unknown values like "Closed" → Approved/Completed.
-    const kind = inferDecisionKindFromText(requested);
-    if (kind) {
-      const match = findExistingDecisionOption(field, kind);
-      if (match) return String(match.value);
-    }
-
-    // 3) Keep the requested hint (e.g. Closed) so option-create / UI can use it
-    return requested;
+    return resolvePreferredOptionValue(field, raw);
   };
 
   return nodes.map((node) => {

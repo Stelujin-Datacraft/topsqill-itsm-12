@@ -6,6 +6,11 @@ import type {
   PendingConfigAction,
   WorkflowBuilderSession,
 } from './types';
+import {
+  fieldHasPreferredOption,
+  isPollutedOptionLabel,
+  sanitizeConditionValueHint,
+} from './decisionOptionResolver';
 
 type FieldMeta = {
   id: string;
@@ -25,8 +30,15 @@ export function buildOptionCreatePendingActions(
 
   for (const cond of def.conditions || []) {
     if (!cond.pendingOptionCreate || !cond.fieldId) continue;
-    const label = String(cond.pendingOptionLabel || cond.value || '').trim();
-    if (!label) continue;
+    const label = sanitizeConditionValueHint(String(cond.pendingOptionLabel || cond.value || ''));
+    if (!label || isPollutedOptionLabel(label)) continue;
+    const field = form?.fields?.find((f) => f.id === cond.fieldId)
+      || form?.fields?.find((f) =>
+        cond.fieldLabel
+        && f.label.toLowerCase() === String(cond.fieldLabel).toLowerCase(),
+      );
+    // Already present (e.g. Closed exists) → do not create again
+    if (fieldHasPreferredOption(field, label)) continue;
     actions.push({
       id: `create_value_cond_${cond.fieldId}`,
       kind: 'CREATE_FIELD_VALUE',
@@ -44,8 +56,8 @@ export function buildOptionCreatePendingActions(
 
   const action = def.action;
   if (action?.pendingOptionCreate && (action.targetFieldId || action.targetFieldLabel)) {
-    const label = String(action.pendingOptionLabel || action.staticValue || '').trim();
-    if (label) {
+    const label = sanitizeConditionValueHint(String(action.pendingOptionLabel || action.staticValue || ''));
+    if (label && !isPollutedOptionLabel(label)) {
       const linkedForm = action.targetFormId
         ? formsCatalog.find((f) => f.id === action.targetFormId)
         : undefined;
@@ -57,19 +69,21 @@ export function buildOptionCreatePendingActions(
         || (action.targetFieldLabel
           && f.label.toLowerCase() === String(action.targetFieldLabel).toLowerCase()),
       );
-      actions.push({
-        id: `create_value_action_${action.targetFieldId || action.targetFieldLabel}`,
-        kind: 'CREATE_FIELD_VALUE',
-        description: `Add option "${label}" on ${action.targetFieldLabel || 'action field'}`,
-        payload: {
-          fieldId: field?.id || action.targetFieldId,
-          fieldLabel: action.targetFieldLabel,
-          fieldType: action.targetFieldType || field?.type,
-          valueLabel: label,
-          scope: 'action',
-        },
-        userConfirmed: true,
-      });
+      if (!fieldHasPreferredOption(field, label)) {
+        actions.push({
+          id: `create_value_action_${action.targetFieldId || action.targetFieldLabel}`,
+          kind: 'CREATE_FIELD_VALUE',
+          description: `Add option "${label}" on ${action.targetFieldLabel || 'action field'}`,
+          payload: {
+            fieldId: field?.id || action.targetFieldId,
+            fieldLabel: action.targetFieldLabel,
+            fieldType: action.targetFieldType || field?.type,
+            valueLabel: label,
+            scope: 'action',
+          },
+          userConfirmed: true,
+        });
+      }
     }
   }
 
