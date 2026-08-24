@@ -523,12 +523,17 @@ function planApprovalRequirements(
       id: 'workflow.levels',
       scope: 'workflow',
       key: 'level_count',
-      question: 'How many approval levels do you need?',
+      question: 'How many approval levels do you need? (1–8)',
       inputKind: 'choice',
       options: [
         { value: '1', label: '1 level' },
         { value: '2', label: '2 levels' },
         { value: '3', label: '3 levels' },
+        { value: '4', label: '4 levels' },
+        { value: '5', label: '5 levels' },
+        { value: '6', label: '6 levels' },
+        { value: '7', label: '7 levels' },
+        { value: '8', label: '8 levels' },
       ],
     }));
     return mergeUnansweredFirst(out);
@@ -713,7 +718,7 @@ export function applyAnswerToDefinition(
   }
 
   if (requirement.key === 'level_count') {
-    const count = Math.max(1, Math.min(5, Number(value) || 2));
+    const count = Math.max(1, Math.min(8, Number(value) || 2));
     next.levels = Array.from({ length: count }, (_, i) => createEmptyLevel(i + 1));
     next.levels[next.levels.length - 1].onApprovalNext = 'complete';
     return next;
