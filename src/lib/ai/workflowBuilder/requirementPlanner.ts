@@ -26,6 +26,7 @@ import {
   suggestApproverFields,
   suggestCrossReferenceFields,
   suggestDecisionFields,
+  levelStatusFieldLabel,
   SUBMISSION_ACCESS_FIELD_LABEL,
   type DiscoveredForm,
   type OrgUserChoice,
@@ -52,7 +53,11 @@ function levelConfigured(level: WorkflowLevelSpec): boolean {
       || level.approver.fieldLabel
     ),
   );
-  const hasApprovalField = Boolean(level.approvalFieldId || level.approvalFieldLabel);
+  const hasApprovalField = Boolean(
+    level.approvalFieldId
+    || level.approvalFieldLabel
+    || level.pendingDecisionFieldCreate,
+  );
   // Explicit rejection field (including "same as approval") — never implied
   const hasRejectionField = Boolean(level.rejectionFieldId || level.rejectionFieldLabel);
   return hasApprover && hasApprovalField && hasRejectionField && Boolean(level.onRejection);
@@ -581,24 +586,31 @@ function planApprovalRequirements(
       return mergeUnansweredFirst(out);
     }
 
-    if (!level.approvalFieldId && !level.approvalFieldLabel) {
+    if (!level.approvalFieldId && !level.approvalFieldLabel && !level.pendingDecisionFieldCreate) {
+      const statusLabel = levelStatusFieldLabel(level.level);
       push(req({
         id: `level.${level.level}.approval_field`,
         scope: 'level',
         level: level.level,
         key: 'approval_field',
         question: [
-          `*Level ${level.level}* — Which field stores the **decision** (Approved / Rejected)?`,
+          `*Level ${level.level}* — Approver ${level.level} needs a **Status** dropdown for their decision.`,
           '',
-          'Usually this is **Status**. Approve and reject are values on this same field.',
+          `Create **${statusLabel}** (same options as the main Status field, including Pending / Approved / Rejected), or pick an existing field?`,
         ].join('\n'),
         inputKind: 'field_select',
-        options: decisionSuggestions.map((f) => ({ value: f.id, label: `${f.label} (${f.type})` })),
+        options: [
+          {
+            value: '__create_level_status__',
+            label: `Create "${statusLabel}" dropdown`,
+          },
+          ...decisionSuggestions.map((f) => ({ value: f.id, label: `Use existing: ${f.label} (${f.type})` })),
+        ],
       }));
       return mergeUnansweredFirst(out);
     }
 
-    // Rejection uses the same decision field (Status) — no separate reject field
+    // Rejection uses the same decision field — no separate reject field
     if (!level.rejectionFieldId && !level.rejectionFieldLabel) {
       level.rejectionFieldId = level.approvalFieldId;
       level.rejectionFieldLabel = level.approvalFieldLabel || 'Same as approval field';
@@ -953,20 +965,30 @@ export function applyAnswerToDefinition(
       if (value === '__reask__') {
         level.approvalFieldId = undefined;
         level.approvalFieldLabel = undefined;
-      } else if (value === '__create__' || value.startsWith('__create_named__:')) {
+        level.pendingDecisionFieldCreate = false;
+      } else if (
+        value === '__create_level_status__'
+        || value === '__create__'
+        || value.startsWith('__create_named__:')
+      ) {
         const named = value.startsWith('__create_named__:')
           ? value.slice('__create_named__:'.length).trim()
           : '';
-        level.approvalFieldLabel = named || `Level ${level.level} Decision`;
+        level.approvalFieldLabel = named || levelStatusFieldLabel(level.level);
         level.approvalFieldId = undefined;
+        level.pendingDecisionFieldCreate = true;
+        level.rejectionFieldId = undefined;
+        level.rejectionFieldLabel = level.approvalFieldLabel;
       } else {
         const field = form?.fields.find((f) => f.id === value);
         if (field && !isDecisionCompatibleFieldType(field.type)) {
           level.approvalFieldId = undefined;
           level.approvalFieldLabel = undefined;
+          level.pendingDecisionFieldCreate = false;
         } else if (field) {
           level.approvalFieldId = value;
           level.approvalFieldLabel = field.label;
+          level.pendingDecisionFieldCreate = false;
           // Reject uses the same decision field (Approved / Rejected values)
           level.rejectionFieldId = value;
           level.rejectionFieldLabel = field.label;

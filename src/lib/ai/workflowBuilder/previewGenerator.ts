@@ -78,7 +78,11 @@ export function generateWorkflowPreview(
     for (const level of definition.levels) {
       const lines = [
         `Approver: ${level.approver.entityLabel || level.approver.fieldLabel || level.approver.rawHint || '(not set)'}`,
-        `Decision field: ${level.approvalFieldLabel || '(not set)'} (Approved / Rejected)`,
+        `Decision field: ${
+          level.pendingDecisionFieldCreate
+            ? `${level.approvalFieldLabel || `Level ${level.level} Status`} (will be created)`
+            : (level.approvalFieldLabel || '(not set)')
+        }`,
         `On Approval: ${level.onApprovalNext === 'complete' ? 'Workflow Complete' : level.onApprovalNext === 'next_level' ? `Level ${level.level + 1}` : String(level.onApprovalNext || 'Next')}`,
         `On Rejection: ${rejectionLabel(level)}`,
       ];

@@ -311,6 +311,7 @@ export function continueWorkflowBuilderSession(params: {
             ...level,
             approver: { ...level.approver },
             pendingOptionValues: undefined,
+            pendingDecisionFieldCreate: false,
           };
           if (!next.approver.fieldId && next.approver.fieldLabel && next.approver.type !== 'user') {
             next.approver = {
@@ -458,6 +459,7 @@ export function continueWorkflowBuilderSession(params: {
     isFieldPick
     && form
     && answer !== '__create__'
+    && answer !== '__create_level_status__'
     && answer !== '__same_as_approval__'
     && answer !== '__choose__'
     && answer !== '__reask__'
@@ -586,6 +588,9 @@ export function continueWorkflowBuilderSession(params: {
   if (answer === '__create__' || answer.startsWith('__create_named__:')) {
     if (unanswered.level) forceConfirm.push(`l${unanswered.level}`);
   }
+  if (answer === '__create_level_status__') {
+    if (unanswered.level) forceConfirm.push(`create_field_level_status_l${unanswered.level}`);
+  }
   if (answer === 'add_generic' || answer === 'add_leveled') {
     if (unanswered.level) forceConfirm.push(`create_value_l${unanswered.level}`);
   }
@@ -601,14 +606,19 @@ export function continueWorkflowBuilderSession(params: {
 
   // Choosing create marks the matching pending field action as user-intent-confirmed
   // (batch permission still required before preview if any remain unconfirmed — see finalize)
-  if (answer === '__create__' || answer.startsWith('__create_named__:') || answer === '__create_sac__') {
+  if (answer === '__create__' || answer.startsWith('__create_named__:') || answer === '__create_sac__' || answer === '__create_level_status__') {
     session.pendingActions = session.pendingActions.map((a) => {
       if (a.id === 'create_field_submission_access' && answer === '__create_sac__') {
         return { ...a, userConfirmed: true };
       }
+      if (
+        answer === '__create_level_status__'
+        && unanswered.level
+        && a.id === `create_field_level_status_l${unanswered.level}`
+      ) {
+        return { ...a, userConfirmed: true };
+      }
       if (unanswered.level && a.id.includes(`l${unanswered.level}`) && a.kind === 'CREATE_FIELD') {
-        // Still require explicit batch permission unless we treat per-question as enough.
-        // Per-question "Create … — requires permission" already asked; mark confirmed.
         return { ...a, userConfirmed: true };
       }
       return a;
@@ -671,11 +681,11 @@ function buildAck(
     return `Got it for Level ${req.level}.`;
   }
   if (req.key === 'approval_field' || req.key === 'approval_field_create') {
-    if (field) return `I'll use **${field.label}** to store Level ${req.level} approvals.`;
-    if (answer === '__create__' || named) {
-      return `Okay — I'll create **${named || `Level ${req.level} Decision`}** after you confirm.`;
+    if (answer === '__create_level_status__' || answer === '__create__' || named) {
+      return `Okay — I'll create **${named || `Level ${req.level} Status`}** (Pending / Approved / Rejected) when we publish.`;
     }
-    return `Noted for Level ${req.level} approval field.`;
+    if (field) return `I'll use **${field.label}** for Level ${req.level} decisions (Approved / Rejected).`;
+    return `Noted for Level ${req.level} decision field.`;
   }
   if (req.key === 'rejection_field' || req.key === 'rejection_field_create') {
     if (answer === '__same_as_approval__') {

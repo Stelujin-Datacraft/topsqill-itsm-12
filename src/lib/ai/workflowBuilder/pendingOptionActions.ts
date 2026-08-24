@@ -15,6 +15,8 @@ import {
 import {
   SUBMISSION_ACCESS_FIELD_LABEL,
   SUBMISSION_ACCESS_FIELD_TYPE,
+  buildLevelStatusFieldOptions,
+  levelStatusFieldLabel,
 } from './metadataDiscovery';
 
 type FieldMeta = {
@@ -60,6 +62,28 @@ export function buildOptionCreatePendingActions(
       // User already confirmed via the ensure question
       userConfirmed: true,
     });
+  }
+
+  // Per-level Status dropdowns (copy options from main Status)
+  if (isApprovalStyleDefinition(def)) {
+    const statusOptions = buildLevelStatusFieldOptions(form as any);
+    for (const level of def.levels || []) {
+      if (!level.pendingDecisionFieldCreate || level.approvalFieldId) continue;
+      const label = level.approvalFieldLabel || levelStatusFieldLabel(level.level);
+      actions.push({
+        id: `create_field_level_status_l${level.level}`,
+        kind: 'CREATE_FIELD',
+        description: `Create dropdown "${label}" (Pending / Approved / Rejected + Status options)`,
+        payload: {
+          label,
+          fieldType: 'select',
+          scope: 'level_status',
+          level: level.level,
+          options: statusOptions,
+        },
+        userConfirmed: true,
+      });
+    }
   }
 
   for (const cond of def.conditions || []) {

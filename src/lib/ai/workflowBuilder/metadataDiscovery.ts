@@ -256,6 +256,57 @@ export function suggestDecisionFields(form: DiscoveredForm | undefined): Discove
   return [...status, ...others];
 }
 
+/**
+ * Options for a per-level Status dropdown: copy main Status options and ensure
+ * Pending / Approved / Rejected exist so decision conditions can resolve.
+ */
+export function buildLevelStatusFieldOptions(
+  form: DiscoveredForm | undefined,
+): Array<{ value: string; label: string }> {
+  const hydrated = hydrateDiscoveredForm(form);
+  const mainStatus = (hydrated?.fields || []).find((f) => isProtectedStatusField(f));
+  const fromMain = (mainStatus?.options || [])
+    .map((o) => ({
+      value: String(o.value || o.label || '').trim(),
+      label: String(o.label || o.value || '').trim(),
+    }))
+    .filter((o) => o.value);
+
+  const required = [
+    { value: 'Pending', label: 'Pending' },
+    { value: 'Approved', label: 'Approved' },
+    { value: 'Rejected', label: 'Rejected' },
+  ];
+
+  const out: Array<{ value: string; label: string }> = [];
+  const seen = new Set<string>();
+  const push = (o: { value: string; label: string }) => {
+    const key = o.value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    out.push(o);
+  };
+
+  fromMain.forEach(push);
+  required.forEach(push);
+
+  if (!out.length) {
+    [
+      { value: 'Draft', label: 'Draft' },
+      { value: 'Inprogress', label: 'Inprogress' },
+      ...required,
+      { value: 'Completed', label: 'Completed' },
+      { value: 'Archived', label: 'Archived' },
+    ].forEach(push);
+  }
+
+  return out;
+}
+
+export function levelStatusFieldLabel(level: number): string {
+  return `Level ${level} Status`;
+}
+
 export function findMissingOptionValues(
   field: DiscoveredFormField | undefined,
   requiredLabels: string[],
