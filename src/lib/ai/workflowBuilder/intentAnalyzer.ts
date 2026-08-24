@@ -267,16 +267,16 @@ export function analyzeWorkflowIntent(
 
 /** True when the prompt should enter the conversational builder instead of blind create. */
 export function shouldUseConversationalWorkflowBuilder(prompt: string): boolean {
-  const t = String(prompt || '').toLowerCase();
-  if (!t.trim()) return false;
-  // Explicit approval / multi-level language
-  if (/\b(\d+|two|three|four|five)\s*[- ]?\s*levels?\b/.test(t) && /\bapprov|review|workflow\b/.test(t)) {
-    return true;
-  }
-  if (/\bmulti[- ]?level\b.*\bapprov|\bapprov.*\bmulti[- ]?level\b/.test(t)) return true;
+  const t = String(prompt || '').toLowerCase().trim();
+  if (!t) return false;
+  // Explicit approval / multi-level language (short goals welcome)
+  if (/\b(\d+|two|three|four|five)\s*[- ]?\s*levels?\b/.test(t)) return true;
+  if (/\bmulti[- ]?level\b/.test(t) && /\bapprov|review|workflow\b/.test(t)) return true;
   if (/\b(sequential|parallel)\s+approv/.test(t)) return true;
-  if (/\bcreate\b.+\bapprov.+\bworkflow\b|\bapprov.+\bworkflow\b/.test(t)) return true;
-  if (/\blevel\s*1\b.+\blevel\s*2\b/.test(t) && /\bapprov/.test(t)) return true;
+  if (/\bapprov/.test(t) && /\b(workflow|manager|director|level|review)\b/.test(t)) return true;
+  if (/\bcreate\b.+\bapprov|\bapprov.+\bworkflow\b/.test(t)) return true;
+  if (/\blevel\s*1\b.+\blevel\s*2\b/.test(t)) return true;
+  if (/\bmanager\b.+\bdirector\b.+\bapprov|\bapprov.+\bmanager\b.+\bdirector\b/.test(t)) return true;
   // Generic action-style workflow language
   if (/\b(change|set|update)\b.+\bfield\b/.test(t)) return true;
   if (/\b(change|set|update)\b.+\bto\b/.test(t)) return true;
@@ -285,7 +285,9 @@ export function shouldUseConversationalWorkflowBuilder(prompt: string): boolean 
   if (/\bcreate\s+(?:a\s+)?(?:new\s+)?(?:linked\s+)?record\b/.test(t)) return true;
   if (/\bupdate\s+linked\b|\blinked\s+record\b|\bcross[- ]?ref/.test(t)) return true;
   if (/\bcombin(?:e|ation)\b/.test(t)) return true;
-  if (/\bworkflow\b/.test(t) && /\b(if|when|then|create|update|set|change)\b/.test(t)) return true;
+  if (/\bworkflow\b/.test(t) && /\b(if|when|then|create|update|set|change|approv)\b/.test(t)) return true;
+  // Very short workflow-ish goals
+  if (t.split(/\s+/).length <= 12 && /\b(approv|workflow|escalat|notif)/.test(t)) return true;
   return false;
 }
 

@@ -14,3 +14,4 @@ export * from './decisionOptionResolver';
 export * from './actionTypeInferrer';
 export * from './pendingOptionActions';
 export * from './promptHints';
+export * from './goalExpander';

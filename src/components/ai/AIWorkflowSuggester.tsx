@@ -418,15 +418,18 @@ export function AIWorkflowSuggester({
             <div className="space-y-2">
               <Label>What do you want to automate?</Label>
               <Textarea
-                placeholder={selectedForms.length > 0 
-                  ? `e.g., When "${selectedForms[0]?.name}" is submitted, check the priority field. If high, notify the manager via email. Create a follow-up task...`
-                  : "e.g., When a new support ticket is submitted, notify the support team..."
+                placeholder={selectedForms.length > 0
+                  ? `Short is fine — e.g. "2-level approval: Manager then Director" or "When Status is Closed, set Priority to High"`
+                  : 'Short is fine — e.g. "2-level approval" or "When Status is Closed, set Priority to High"'
                 }
                 value={goal}
                 onChange={(e) => setGoal(e.target.value)}
-                rows={4}
+                rows={3}
                 className="resize-none"
               />
+              <p className="text-xs text-muted-foreground">
+                No need to list every node. AI expands your short goal using this form&apos;s fields and options.
+              </p>
             </div>
 
             {existingNodes.length > 0 && (
