@@ -65,9 +65,19 @@ export function generateWorkflowPreview(
     }
     sections.push({ title: 'Action', lines: actionLines });
   } else {
+    sections.push({
+      title: 'Approver assignment',
+      lines: [
+        definition.accessFieldLabel || definition.accessFieldId
+          ? `Field: **${definition.accessFieldLabel || definition.accessFieldId}**`
+          : definition.pendingAccessFieldCreate
+            ? `Field: **Submission Access Control** (will be created)`
+            : 'Field: (not set)',
+      ],
+    });
     for (const level of definition.levels) {
       const lines = [
-        `Approver: ${level.approver.fieldLabel || level.approver.entityLabel || level.approver.rawHint || '(not set)'}`,
+        `Approver: ${level.approver.entityLabel || level.approver.fieldLabel || level.approver.rawHint || '(not set)'}`,
         `Approval field: ${level.approvalFieldLabel || '(not set)'}`,
         `Rejection field: ${level.rejectionFieldLabel || '(not set)'}`,
         `On Approval: ${level.onApprovalNext === 'complete' ? 'Workflow Complete' : level.onApprovalNext === 'next_level' ? `Level ${level.level + 1}` : String(level.onApprovalNext || 'Next')}`,

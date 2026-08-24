@@ -14,6 +14,10 @@ import {
   type DecisionFieldMeta,
 } from './decisionOptionResolver';
 import { describeActionType } from './actionTypeInferrer';
+import {
+  SUBMISSION_ACCESS_FIELD_LABEL,
+  SUBMISSION_ACCESS_FIELD_TYPE,
+} from './metadataDiscovery';
 
 export interface CompiledWorkflowGraph {
   name: string;
@@ -305,13 +309,30 @@ export function compileWorkflowDefinition(
     connections: [],
   });
 
-  const levelNodeIds: Record<number, { notify: string; wait: string; condition: string }> = {};
+  const levelNodeIds: Record<number, { setAccess: string; notify: string; wait: string; condition: string }> = {};
+
+  const accessMeta = findField(
+    formFields,
+    definition.accessFieldId,
+    definition.accessFieldLabel || SUBMISSION_ACCESS_FIELD_LABEL,
+  );
+  const accessFieldId = accessMeta?.id || definition.accessFieldId || '';
+  const accessFieldLabel = accessMeta?.label
+    || definition.accessFieldLabel
+    || SUBMISSION_ACCESS_FIELD_LABEL;
+  const accessFieldType = accessMeta?.type || SUBMISSION_ACCESS_FIELD_TYPE;
 
   for (const level of definition.levels) {
+    const setAccessId = `node_l${level.level}_set_access`;
     const notifyId = `node_l${level.level}_notify`;
     const waitId = `node_l${level.level}_wait`;
     const conditionId = `node_l${level.level}_decision`;
-    levelNodeIds[level.level] = { notify: notifyId, wait: waitId, condition: conditionId };
+    levelNodeIds[level.level] = {
+      setAccess: setAccessId,
+      notify: notifyId,
+      wait: waitId,
+      condition: conditionId,
+    };
 
     const decisionField = findField(
       formFields,
@@ -329,7 +350,43 @@ export function compileWorkflowDefinition(
     const fieldId = decisionField?.id || level.approvalFieldId || '';
     const fieldLabel = decisionField?.label || level.approvalFieldLabel || '';
 
-    const approverLabel = level.approver.fieldLabel || level.approver.rawHint || `Level ${level.level} Approver`;
+    const approverLabel = level.approver.entityLabel
+      || level.approver.fieldLabel
+      || level.approver.rawHint
+      || `Level ${level.level} Approver`;
+    const userId = level.approver.type === 'user' ? (level.approver.entityId || '') : '';
+    const sacValue = {
+      users: userId ? [userId] : [],
+      groups: [] as string[],
+    };
+
+    // 1) Set Submission Access Control to this level's approver user
+    nodes.push({
+      tempId: setAccessId,
+      type: 'action',
+      label: `Set Level ${level.level} Approver`,
+      description: `Set ${accessFieldLabel} to ${approverLabel}`,
+      config: {
+        actionType: 'change_field_value',
+        targetFormId: formId,
+        targetFormName: formName,
+        valueType: 'static',
+        targetFieldId: accessFieldId,
+        targetFieldName: accessFieldLabel,
+        targetFieldType: accessFieldType,
+        staticValue: sacValue,
+        fieldUpdates: [{
+          targetFieldId: accessFieldId,
+          targetFieldName: accessFieldLabel,
+          targetFieldType: accessFieldType,
+          valueType: 'static',
+          staticValue: sacValue,
+        }],
+      },
+      connections: [{ to: notifyId }],
+    });
+
+    // 2) Notify via dynamic recipients from Submission Access Control
     nodes.push({
       tempId: notifyId,
       type: 'action',
@@ -341,10 +398,10 @@ export function compileWorkflowDefinition(
           type: 'in_app',
           subject: `Level ${level.level} approval required`,
           message: `Please review and set ${fieldLabel || 'approval decision'} for this submission.`,
-          recipientConfig: level.approver.fieldId
+          recipientConfig: accessFieldId
             ? {
-                type: 'field_value',
-                dynamicFieldPath: level.approver.fieldId,
+                type: 'dynamic',
+                dynamicFieldPath: accessFieldId,
                 emails: [],
               }
             : {
@@ -422,11 +479,11 @@ export function compileWorkflowDefinition(
     connections: [],
   });
 
-  // Wire start → first level
+  // Wire start → first level set-access
   const first = definition.levels[0];
   if (first) {
     const start = nodes.find((n) => n.tempId === startId)!;
-    start.connections = [{ to: levelNodeIds[first.level].notify }];
+    start.connections = [{ to: levelNodeIds[first.level].setAccess }];
   } else {
     const start = nodes.find((n) => n.tempId === startId)!;
     start.connections = [{ to: approvedEndId }];
@@ -443,17 +500,17 @@ export function compileWorkflowDefinition(
     if (level.onApprovalNext === 'complete' || !nextLevel) {
       trueTarget = approvedEndId;
     } else if (nextLevel) {
-      trueTarget = levelNodeIds[nextLevel.level].notify;
+      trueTarget = levelNodeIds[nextLevel.level].setAccess;
     }
 
     let falseTarget = rejectedEndId;
     const rej = level.onRejection;
     if (rej?.action === 'RETURN_TO_LEVEL' && rej.targetLevel && levelNodeIds[rej.targetLevel]) {
-      falseTarget = levelNodeIds[rej.targetLevel].notify;
+      falseTarget = levelNodeIds[rej.targetLevel].setAccess;
     } else if (rej?.action === 'END_WORKFLOW' || rej?.action === 'RETURN_TO_REQUESTER') {
       falseTarget = rejectedEndId;
     } else if (rej?.action === 'START_OVER' && first) {
-      falseTarget = levelNodeIds[first.level].notify;
+      falseTarget = levelNodeIds[first.level].setAccess;
     }
 
     conditionNode.connections = [

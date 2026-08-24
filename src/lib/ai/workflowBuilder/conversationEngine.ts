@@ -17,8 +17,11 @@ import {
   searchFields,
   suggestApproverFields,
   hydrateDiscoveredForm,
+  findSubmissionAccessField,
+  SUBMISSION_ACCESS_FIELD_LABEL,
   type DiscoveredForm,
   type DiscoveredWorkflow,
+  type OrgUserChoice,
   findExistingWorkflowsForForm,
 } from './metadataDiscovery';
 import { validateWorkflowDefinition, hasBlockingValidationErrors } from './validationEngine';
@@ -142,10 +145,12 @@ export function startWorkflowBuilderSession(params: {
   workflows?: DiscoveredWorkflow[];
   userId?: string;
   projectId?: string;
+  orgUsers?: OrgUserChoice[];
 }): BuilderTurnResult {
   const { prompt, workflows = [], userId, projectId } = params;
   const form = hydrateDiscoveredForm(params.form);
   const formsCatalog = (params.formsCatalog || []).map((f) => hydrateDiscoveredForm(f)!).filter(Boolean);
+  const orgUsers = params.orgUsers || [];
   const analysis = analyzeWorkflowIntent(prompt, {
     formId: form?.id,
     formName: form?.name,
@@ -172,7 +177,10 @@ export function startWorkflowBuilderSession(params: {
       + (form?.name ? ` for **${form.name}**` : '')
       + '.',
     );
-    intro.push('You do not need to list every node; I will ask only for missing details (approvers, Status field, etc.).');
+    intro.push(
+      'You do not need to list every node; I will ask only for missing details '
+      + `(${SUBMISSION_ACCESS_FIELD_LABEL}, Level N approver users, Status field, etc.).`,
+    );
   } else {
     const actionType = analysis.definition.action?.actionType || 'change_field_value';
     intro.push(
@@ -192,15 +200,24 @@ export function startWorkflowBuilderSession(params: {
     );
   }
 
-  // Smart defaults: suggest approver fields if none hinted (approval only)
+  // Smart defaults: mention existing Submission Access Control when present
   if (isApproval) {
-    const suggestions = suggestApproverFields(form);
-    if (suggestions.length && analysis.definition.levels.some((l) => !l.approver.rawHint)) {
+    const sac = findSubmissionAccessField(form);
+    if (sac) {
       intro.push('');
       intro.push(
-        `Detected user/assignee fields on this form: ${suggestions.slice(0, 4).map((f) => `**${f.label}**`).join(', ')}. `
-        + 'I will ask before using them.',
+        `This form already has **${sac.label || SUBMISSION_ACCESS_FIELD_LABEL}** — `
+        + 'I will reuse it to assign each level\'s approver before notifying them.',
       );
+    } else {
+      const suggestions = suggestApproverFields(form);
+      if (suggestions.length) {
+        intro.push('');
+        intro.push(
+          `Detected access/user fields on this form: ${suggestions.slice(0, 4).map((f) => `**${f.label}**`).join(', ')}. `
+          + 'I will ask before using them.',
+        );
+      }
     }
   }
 
@@ -210,11 +227,12 @@ export function startWorkflowBuilderSession(params: {
     [],
     formsCatalog,
     prompt,
+    orgUsers,
   );
   const nextQ = getNextMissingRequirement(session.missingInformation);
 
   if (!nextQ) {
-    return finalizeOrPreview(session, form, undefined, formsCatalog);
+    return finalizeOrPreview(session, form, undefined, formsCatalog, orgUsers);
   }
 
   session.lastAssistantMessage = `${intro.join('\n')}\n\n${formatQuestion(nextQ)}`;
@@ -236,10 +254,12 @@ export function continueWorkflowBuilderSession(params: {
   userMessage: string;
   form?: DiscoveredForm;
   formsCatalog?: DiscoveredForm[];
+  orgUsers?: OrgUserChoice[];
 }): BuilderTurnResult {
   let { session } = params;
   const form = hydrateDiscoveredForm(params.form);
   const formsCatalog = (params.formsCatalog || []).map((f) => hydrateDiscoveredForm(f)!).filter(Boolean);
+  const orgUsers = params.orgUsers || [];
   const raw = String(params.userMessage || '').trim();
   const lower = raw.toLowerCase();
 
@@ -274,20 +294,25 @@ export function continueWorkflowBuilderSession(params: {
           confirmed: true,
           at: new Date().toISOString(),
         });
-        return finalizeOrPreview(session, form, { createsAllowed: true }, formsCatalog);
+        return finalizeOrPreview(session, form, { createsAllowed: true }, formsCatalog, orgUsers);
       }
 
       // Deny creates — clear pending create labels so planner re-asks for existing fields
       session.pendingActions = [];
       session.requirements = {
         ...session.requirements,
+        pendingAccessFieldCreate: false,
+        accessFieldId: session.requirements.accessFieldId,
+        accessFieldLabel: session.requirements.accessFieldId
+          ? session.requirements.accessFieldLabel
+          : undefined,
         levels: session.requirements.levels.map((level) => {
           const next = {
             ...level,
             approver: { ...level.approver },
             pendingOptionValues: undefined,
           };
-          if (!next.approver.fieldId && next.approver.fieldLabel) {
+          if (!next.approver.fieldId && next.approver.fieldLabel && next.approver.type !== 'user') {
             next.approver = {
               type: 'unresolved',
               resolved: false,
@@ -309,7 +334,14 @@ export function continueWorkflowBuilderSession(params: {
           return next;
         }),
       };
-      session.missingInformation = planMissingRequirements(session.requirements, form, [], formsCatalog, session.originalRequest);
+      session.missingInformation = planMissingRequirements(
+        session.requirements,
+        form,
+        [],
+        formsCatalog,
+        session.originalRequest,
+        orgUsers,
+      );
       const nextQ = getNextMissingRequirement(session.missingInformation);
       const msg = nextQ
         ? `Okay — I will not create new fields. Let's pick from existing ones.\n\n${formatQuestion(nextQ)}`
@@ -370,7 +402,14 @@ export function continueWorkflowBuilderSession(params: {
       session = touch({
         ...session,
         status: 'collecting',
-        missingInformation: planMissingRequirements(session.requirements, form, [], formsCatalog, session.originalRequest),
+        missingInformation: planMissingRequirements(
+          session.requirements,
+          form,
+          [],
+          formsCatalog,
+          session.originalRequest,
+          orgUsers,
+        ),
       });
       const nextQ = getNextMissingRequirement(session.missingInformation);
       const msg = nextQ
@@ -388,7 +427,7 @@ export function continueWorkflowBuilderSession(params: {
 
   const unanswered = getNextMissingRequirement(session.missingInformation);
   if (!unanswered) {
-    return finalizeOrPreview(session, form, undefined, formsCatalog);
+    return finalizeOrPreview(session, form, undefined, formsCatalog, orgUsers);
   }
 
   // Free-text field name → try metadata match for field_select questions
@@ -399,7 +438,21 @@ export function continueWorkflowBuilderSession(params: {
     || unanswered.key === 'rejection_field'
     || unanswered.key === 'condition_field'
     || unanswered.key === 'action_field'
-    || unanswered.key === 'action_cross_ref';
+    || unanswered.key === 'action_cross_ref'
+    || unanswered.key === 'access_field_pick';
+
+  // Free-text user email / name for Level N approver
+  if (
+    (unanswered.inputKind === 'user_select' || unanswered.key === 'approver_user')
+    && unanswered.options?.length
+    && !unanswered.options.some((o) => o.value === answer)
+  ) {
+    const key = raw.toLowerCase().trim();
+    const byEmail = unanswered.options.find((o) =>
+      o.label.toLowerCase().includes(key) || o.value.toLowerCase() === key,
+    );
+    if (byEmail) answer = byEmail.value;
+  }
 
   if (
     isFieldPick
@@ -492,6 +545,7 @@ export function continueWorkflowBuilderSession(params: {
       session.missingInformation.filter((m) => m.id !== unanswered.id && !m.id.endsWith('.create_permission')),
       formsCatalog,
       session.originalRequest,
+      orgUsers,
     );
     const nextQ = getNextMissingRequirement(session.missingInformation);
     const msg = nextQ
@@ -525,6 +579,7 @@ export function continueWorkflowBuilderSession(params: {
     session.missingInformation,
     formsCatalog,
     session.originalRequest,
+    orgUsers,
   );
 
   const forceConfirm: string[] = [];
@@ -533,6 +588,9 @@ export function continueWorkflowBuilderSession(params: {
   }
   if (answer === 'add_generic' || answer === 'add_leveled') {
     if (unanswered.level) forceConfirm.push(`create_value_l${unanswered.level}`);
+  }
+  if (answer === '__create_sac__') {
+    forceConfirm.push('create_field_submission_access');
   }
 
   session.pendingActions = mergePendingConfirmation(
@@ -543,8 +601,11 @@ export function continueWorkflowBuilderSession(params: {
 
   // Choosing create marks the matching pending field action as user-intent-confirmed
   // (batch permission still required before preview if any remain unconfirmed — see finalize)
-  if (answer === '__create__' || answer.startsWith('__create_named__:')) {
+  if (answer === '__create__' || answer.startsWith('__create_named__:') || answer === '__create_sac__') {
     session.pendingActions = session.pendingActions.map((a) => {
+      if (a.id === 'create_field_submission_access' && answer === '__create_sac__') {
+        return { ...a, userConfirmed: true };
+      }
       if (unanswered.level && a.id.includes(`l${unanswered.level}`) && a.kind === 'CREATE_FIELD') {
         // Still require explicit batch permission unless we treat per-question as enough.
         // Per-question "Create … — requires permission" already asked; mark confirmed.
@@ -556,7 +617,7 @@ export function continueWorkflowBuilderSession(params: {
 
   const nextQ = getNextMissingRequirement(session.missingInformation);
   if (nextQ) {
-    const ack = buildAck(unanswered, answer, form);
+    const ack = buildAck(unanswered, answer, form, orgUsers);
     const msg = `${ack}\n\n${formatQuestion(nextQ)}`;
     session = touch({
       ...session,
@@ -571,18 +632,36 @@ export function continueWorkflowBuilderSession(params: {
     };
   }
 
-  return finalizeOrPreview(session, form, undefined, formsCatalog);
+  return finalizeOrPreview(session, form, undefined, formsCatalog, orgUsers);
 }
 
 function buildAck(
   req: MissingRequirement,
   answer: string,
   form?: DiscoveredForm,
+  orgUsers: OrgUserChoice[] = [],
 ): string {
   const field = form?.fields.find((f) => f.id === answer);
   const named = answer.startsWith('__create_named__:')
     ? answer.slice('__create_named__:'.length).trim()
     : '';
+  const user = orgUsers.find((u) => u.id === answer)
+    || orgUsers.find((u) => u.email.toLowerCase() === answer.toLowerCase());
+
+  if (req.key === 'access_field_ensure') {
+    if (answer === '__create_sac__' || /^(y|yes)/i.test(answer)) {
+      return `Okay — I'll create **${SUBMISSION_ACCESS_FIELD_LABEL}** when we publish.`;
+    }
+    return 'Okay — pick an existing access/user field instead.';
+  }
+  if (req.key === 'access_field_pick') {
+    if (field) return `I'll assign approvers on **${field.label}**.`;
+    return `Access field noted.`;
+  }
+  if (req.key === 'approver_user') {
+    const label = user?.label || user?.email || answer;
+    return `Level ${req.level} approver set to **${label}** (via ${SUBMISSION_ACCESS_FIELD_LABEL}).`;
+  }
 
   if (req.key.includes('approver')) {
     if (field) return `Got it. I'll use **${field.label}** for Level ${req.level} approval.`;
@@ -657,6 +736,7 @@ function finalizeOrPreview(
   form?: DiscoveredForm,
   opts?: { createsAllowed?: boolean },
   formsCatalog: DiscoveredForm[] = [],
+  orgUsers: OrgUserChoice[] = [],
 ): BuilderTurnResult {
   session.pendingActions = mergePendingConfirmation(
     session.pendingActions,
@@ -683,6 +763,7 @@ function finalizeOrPreview(
       session.missingInformation,
       formsCatalog,
       session.originalRequest,
+      orgUsers,
     );
     const nextQ = getNextMissingRequirement(session.missingInformation);
     session = touch({

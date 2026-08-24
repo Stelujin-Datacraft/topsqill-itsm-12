@@ -16,6 +16,7 @@ import {
   fieldHasSelectableOptions,
   fieldNeedsOptionCreateCheck,
   fieldOptionChoices,
+  findSubmissionAccessField,
   getCrossRefTargetForm,
   hydrateDiscoveredForm,
   isApproverCompatibleFieldType,
@@ -25,12 +26,15 @@ import {
   suggestApproverFields,
   suggestCrossReferenceFields,
   suggestDecisionFields,
+  SUBMISSION_ACCESS_FIELD_LABEL,
   type DiscoveredForm,
+  type OrgUserChoice,
 } from './metadataDiscovery';
 import { describeActionType } from './actionTypeInferrer';
 import { isOptionBasedFieldType } from '@/utils/conditionOperators';
 import { extractGenericPromptHints, fieldMatchesHint } from './promptHints';
 import { sanitizeConditionValueHint } from './decisionOptionResolver';
+
 function req(
   partial: Omit<MissingRequirement, 'answered'> & { answered?: boolean },
 ): MissingRequirement {
@@ -435,6 +439,7 @@ function planApprovalRequirements(
   definition: AIWorkflowDefinition,
   form: DiscoveredForm | undefined,
   previous: MissingRequirement[],
+  orgUsers: OrgUserChoice[] = [],
 ): MissingRequirement[] {
   const answered = new Map(
     previous.filter((m) => m.answered).map((m) => [m.id, m]),
@@ -458,6 +463,51 @@ function planApprovalRequirements(
       question: 'Which form should trigger this workflow?',
       inputKind: 'choice',
     }));
+    return mergeUnansweredFirst(out);
+  }
+
+  // Auto-bind existing Submission Access Control when present
+  const sacField = findSubmissionAccessField(form);
+  if (sacField && !definition.accessFieldId) {
+    definition.accessFieldId = sacField.id;
+    definition.accessFieldLabel = sacField.label || SUBMISSION_ACCESS_FIELD_LABEL;
+    definition.pendingAccessFieldCreate = false;
+  }
+
+  // Ensure Submission Access Control exists (create if missing, or pick existing)
+  if (!definition.accessFieldId && definition.pendingAccessFieldCreate !== true) {
+    if (definition.pendingAccessFieldCreate === false) {
+      // User declined create — must pick an existing compatible field
+      const accessChoices = (form?.fields || [])
+        .filter((f) => isApproverCompatibleFieldType(f.type))
+        .map((f) => ({ value: f.id, label: `${f.label} (${f.type})` }));
+      push(req({
+        id: 'access.field.pick',
+        scope: 'workflow',
+        key: 'access_field_pick',
+        question: `Which existing field should store the current approver (preferably ${SUBMISSION_ACCESS_FIELD_LABEL})?`,
+        inputKind: 'field_select',
+        options: accessChoices,
+      }));
+      return mergeUnansweredFirst(out);
+    }
+
+    push(req({
+      id: 'access.field.ensure',
+      scope: 'workflow',
+      key: 'access_field_ensure',
+      question: [
+        `Approval workflows assign each level's approver on **${SUBMISSION_ACCESS_FIELD_LABEL}**.`,
+        '',
+        `This form does not have that field yet. May I create **${SUBMISSION_ACCESS_FIELD_LABEL}**?`,
+      ].join('\n'),
+      inputKind: 'confirm',
+      options: [
+        { value: '__create_sac__', label: `Yes, create ${SUBMISSION_ACCESS_FIELD_LABEL}` },
+        { value: '__pick_existing_access__', label: 'No — pick an existing access/user field' },
+      ],
+    }));
+    return mergeUnansweredFirst(out);
   }
 
   if (!definition.levels.length) {
@@ -476,80 +526,47 @@ function planApprovalRequirements(
     return mergeUnansweredFirst(out);
   }
 
-  const approverSuggestions = suggestApproverFields(form);
   const decisionSuggestions = suggestDecisionFields(form);
+  const userOptions = orgUsers.map((u) => ({
+    value: u.id,
+    label: u.label || u.email,
+  }));
 
   for (const level of definition.levels) {
-    // Approver
-    if (!level.approver.resolved) {
-      // Try metadata match from raw hint
-      if (level.approver.rawHint && form) {
-        const match = searchFields(form, level.approver.rawHint);
-        if (match.matched && isApproverCompatibleFieldType(match.matched.type)) {
-          // Suggest confirm instead of free text
-          push(req({
-            id: `level.${level.level}.approver.confirm`,
-            scope: 'level',
-            level: level.level,
-            key: 'approver_confirm',
-            question: `I found **${match.matched.label}** (${match.matched.type}) on this form. Use it as Level ${level.level} approver?`,
-            inputKind: 'confirm',
-            options: [
-              { value: match.matched.id, label: `Yes, use ${match.matched.label}` },
-              { value: '__choose__', label: 'Choose a different field' },
-            ],
-          }));
-        } else if (match.candidates.length > 1) {
-          push(req({
-            id: `level.${level.level}.approver.disambiguate`,
-            scope: 'level',
-            level: level.level,
-            key: 'approver_disambiguate',
-            question: `I found multiple possible fields for "${level.approver.rawHint}" at Level ${level.level}. Which should I use?`,
-            inputKind: 'field_select',
-            options: match.candidates.map((c) => ({
-              value: c.id,
-              label: `${c.label} (${c.type})`,
-            })),
-          }));
-        } else {
-          push(req({
-            id: `level.${level.level}.approver`,
-            scope: 'level',
-            level: level.level,
-            key: 'approver',
-            question: `I couldn't find "${level.approver.rawHint}" as an approver field. Which existing field identifies the Level ${level.level} approver? (Add fields in the form builder if needed.)`,
-            inputKind: 'field_select',
-            options: approverSuggestions.map((f) => ({ value: f.id, label: `${f.label} (${f.type})` })),
-          }));
-        }
+    const hasUser = level.approver.type === 'user' && Boolean(level.approver.entityId) && level.approver.resolved;
+    if (!hasUser) {
+      const hint = level.approver.rawHint ? ` (${level.approver.rawHint})` : '';
+      if (userOptions.length) {
+        push(req({
+          id: `level.${level.level}.approver.user`,
+          scope: 'level',
+          level: level.level,
+          key: 'approver_user',
+          question: [
+            `Who should be **Level ${level.level} approver**${hint}?`,
+            '',
+            `I will set this user on **${definition.accessFieldLabel || SUBMISSION_ACCESS_FIELD_LABEL}** before notifying them.`,
+          ].join('\n'),
+          inputKind: 'user_select',
+          options: userOptions,
+        }));
       } else {
         push(req({
-          id: `level.${level.level}.approver`,
+          id: `level.${level.level}.approver.user`,
           scope: 'level',
           level: level.level,
-          key: 'approver',
-          question: `Which existing field identifies the Level ${level.level} approver?`,
-          inputKind: 'field_select',
-          options: approverSuggestions.map((f) => ({ value: f.id, label: `${f.label} (${f.type})` })),
+          key: 'approver_user',
+          question: [
+            `Who should be **Level ${level.level} approver**${hint}?`,
+            '',
+            'Reply with the user **email** (organization users could not be loaded as a list).',
+          ].join('\n'),
+          inputKind: 'text',
         }));
       }
-    } else if (level.approver.fieldId && form) {
-      const field = form.fields.find((f) => f.id === level.approver.fieldId);
-      if (field && !isApproverCompatibleFieldType(field.type)) {
-        push(req({
-          id: `level.${level.level}.approver.invalid_type`,
-          scope: 'level',
-          level: level.level,
-          key: 'approver_invalid',
-          question: `**${field.label}** is a ${field.type} field and cannot be used as an approver. Please select a User, Group, Role, or Assignee field.`,
-          inputKind: 'field_select',
-          options: approverSuggestions.map((f) => ({ value: f.id, label: `${f.label} (${f.type})` })),
-        }));
-      }
+      return mergeUnansweredFirst(out);
     }
 
-    // Approval decision field — existing fields only (form schema changes belong in form builder)
     if (!level.approvalFieldId && !level.approvalFieldLabel) {
       push(req({
         id: `level.${level.level}.approval_field`,
@@ -562,7 +579,6 @@ function planApprovalRequirements(
       }));
     }
 
-    // Rejection field (may reuse approval decision field)
     if (
       (level.approvalFieldId || level.approvalFieldLabel)
       && !level.rejectionFieldId
@@ -586,7 +602,6 @@ function planApprovalRequirements(
       }));
     }
 
-    // Rejection routing
     if (!level.onRejection) {
       const priorLevels = definition.levels
         .filter((l) => l.level < level.level)
@@ -612,10 +627,6 @@ function planApprovalRequirements(
     }
   }
 
-  // Option values: never create/mutate form options during workflow AI Suggest.
-  // Existing decision values are reused at compile/bind time.
-
-  // Mark configured flags
   for (const level of definition.levels) {
     level.configured = levelConfigured(level);
   }
@@ -633,9 +644,10 @@ export function planMissingRequirements(
   previous: MissingRequirement[] = [],
   formsCatalog: DiscoveredForm[] = [],
   originalRequest = '',
+  orgUsers: OrgUserChoice[] = [],
 ): MissingRequirement[] {
   if (isApprovalStyleDefinition(definition)) {
-    return planApprovalRequirements(definition, form, previous);
+    return planApprovalRequirements(definition, form, previous, orgUsers);
   }
   return planGenericActionRequirements(definition, form, previous, formsCatalog, originalRequest);
 }
@@ -666,6 +678,28 @@ export function applyAnswerToDefinition(
   };
 
   const value = String(answer ?? '').trim();
+
+  if (requirement.key === 'access_field_ensure') {
+    if (value === '__create_sac__' || /^(y|yes|ok|allow|confirm|create|add)\b/i.test(value)) {
+      next.pendingAccessFieldCreate = true;
+      next.accessFieldLabel = SUBMISSION_ACCESS_FIELD_LABEL;
+      next.accessFieldId = undefined;
+    } else {
+      next.pendingAccessFieldCreate = false;
+      next.accessFieldId = undefined;
+      next.accessFieldLabel = undefined;
+    }
+    return next;
+  }
+
+  if (requirement.key === 'access_field_pick') {
+    const field = form?.fields.find((f) => f.id === value)
+      || searchFields(form, value).matched;
+    next.accessFieldId = field?.id;
+    next.accessFieldLabel = field?.label || value;
+    next.pendingAccessFieldCreate = false;
+    return next;
+  }
 
   if (requirement.key === 'level_count') {
     const count = Math.max(1, Math.min(5, Number(value) || 2));
@@ -828,6 +862,26 @@ export function applyAnswerToDefinition(
   if (requirement.level) {
     const level = next.levels.find((l) => l.level === requirement.level);
     if (!level) return next;
+
+    if (requirement.key === 'approver_user') {
+      const fromOpt = requirement.options?.find((o) =>
+        o.value === value
+        || o.label.toLowerCase() === value.toLowerCase()
+        || o.label.toLowerCase().includes(value.toLowerCase()),
+      );
+      const entityId = fromOpt?.value || value;
+      const entityLabel = fromOpt?.label || value;
+      level.approver = {
+        type: 'user',
+        entityId,
+        entityLabel,
+        rawHint: level.approver.rawHint || entityLabel,
+        // Notify reads Submission Access Control after we set the user there
+        fieldId: next.accessFieldId,
+        fieldLabel: next.accessFieldLabel || SUBMISSION_ACCESS_FIELD_LABEL,
+        resolved: Boolean(entityId),
+      };
+    }
 
     if (requirement.key === 'approver' || requirement.key === 'approver_disambiguate' || requirement.key === 'approver_invalid') {
       if (value === '__create__' || value.startsWith('__create_named__:')) {

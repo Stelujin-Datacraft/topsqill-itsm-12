@@ -947,10 +947,20 @@ export function useCopilotEngine() {
         }));
       }
 
-      // Create confirmed missing options (e.g. Closed on Status), then rebind
+      // Create confirmed missing fields/options (SAC, Closed on Status), merge SAC users, then rebind
       const builderSession = getBuilderSession();
       let liveFieldsForCompile = liveFields;
-      if (builderSession?.pendingActions?.some((a) => a.kind === 'CREATE_FIELD_VALUE' && a.userConfirmed)) {
+      const needsPendingApply = Boolean(
+        builderSession?.pendingActions?.some((a) =>
+          (a.kind === 'CREATE_FIELD_VALUE' || a.kind === 'CREATE_FIELD') && a.userConfirmed,
+        )
+        || (
+          builderSession
+          && (builderSession.requirements.accessFieldId || builderSession.requirements.pendingAccessFieldCreate)
+          && builderSession.requirements.levels?.some((l) => l.approver?.type === 'user' && l.approver.entityId)
+        ),
+      );
+      if (builderSession && needsPendingApply) {
         const applied = await applyPendingConfigActions({
           session: builderSession,
           formId: triggerFormId,
@@ -960,6 +970,14 @@ export function useCopilotEngine() {
         nodes = applied.compiled.nodes;
         name = applied.compiled.name || name;
         description = applied.compiled.description || description;
+        if (applied.createdFields.length) {
+          setMessages((prev) => [...prev, {
+            id: `assistant-wfb-fields-${Date.now()}`,
+            role: 'assistant',
+            content: `Created field${applied.createdFields.length > 1 ? 's' : ''}: ${applied.createdFields.map((v) => `**${v}**`).join(', ')}`,
+            timestamp: new Date(),
+          }]);
+        }
         if (applied.createdValues.length) {
           setMessages((prev) => [...prev, {
             id: `assistant-wfb-opts-${Date.now()}`,
@@ -969,22 +987,33 @@ export function useCopilotEngine() {
           }]);
         }
         // Keep in-memory form metadata in sync so the next AI Suggest run
-        // does not ask to create options that already exist.
+        // does not ask to create options/fields that already exist.
         setFormsWithFields((prev) => prev.map((f) => {
           if (f.id !== triggerFormId) return f;
           const byId = new Map(liveFieldsForCompile.map((lf) => [lf.id, lf]));
-          return {
-            ...f,
-            fields: (f.fields || []).map((field) => {
-              const live = byId.get(field.id);
-              if (!live) return field;
-              return {
-                ...field,
-                options: live.options || field.options,
-                custom_config: live.custom_config ?? field.custom_config,
-              };
-            }),
-          };
+          const existingIds = new Set((f.fields || []).map((field) => field.id));
+          const mergedFields = (f.fields || []).map((field) => {
+            const live = byId.get(field.id);
+            if (!live) return field;
+            return {
+              ...field,
+              options: live.options || field.options,
+              custom_config: live.custom_config ?? field.custom_config,
+            };
+          });
+          for (const live of liveFieldsForCompile) {
+            if (!existingIds.has(live.id)) {
+              mergedFields.push({
+                id: live.id,
+                label: live.label,
+                type: live.type,
+                options: live.options || [],
+                required: false,
+                custom_config: live.custom_config ?? null,
+              });
+            }
+          }
+          return { ...f, fields: mergedFields };
         }));
       }
 
@@ -1581,6 +1610,24 @@ export function useCopilotEngine() {
       || shouldInterceptApprovalPrompt(trimmed);
 
     if (wantsConversationalWorkflow) {
+      let orgUsers: Array<{ id: string; email: string; label: string }> = [];
+      if (activeProject?.organization_id) {
+        try {
+          const { data: orgUserRows } = await supabase
+            .rpc('get_organization_users', { org_id: activeProject.organization_id });
+          orgUsers = (orgUserRows || []).map((u: any) => {
+            const name = [u.first_name, u.last_name].filter(Boolean).join(' ').trim();
+            return {
+              id: String(u.id),
+              email: String(u.email || ''),
+              label: name ? `${name} (${u.email})` : String(u.email || u.id),
+            };
+          });
+        } catch (e) {
+          console.error('Failed to load organization users for approval workflow:', e);
+        }
+      }
+
       const turn = maybeStartOrContinue({
         prompt: trimmed,
         form: builderForm ? mapDiscoveredForm(builderForm) : undefined,
@@ -1588,6 +1635,7 @@ export function useCopilotEngine() {
         workflows,
         userId: user?.id,
         projectId: activeProject?.id,
+        orgUsers,
         forceStart: createType === 'workflow' || isBuilderActive,
       });
 

@@ -165,6 +165,7 @@ export interface MissingRequirement {
   inputKind:
     | 'text'
     | 'field_select'
+    | 'user_select'
     | 'approver_source'
     | 'rejection_route'
     | 'choice'
@@ -187,6 +188,14 @@ export interface AIWorkflowDefinition {
     formName?: string;
   };
   levels: WorkflowLevelSpec[];
+  /**
+   * Shared Submission Access Control field used by approval workflows
+   * to assign the current level's approver user(s).
+   */
+  accessFieldId?: string;
+  accessFieldLabel?: string;
+  /** User confirmed creating Submission Access Control when missing */
+  pendingAccessFieldCreate?: boolean;
   /** Global rejection default when level-specific missing */
   defaultRejection?: RejectionRoute;
   conditions: WorkflowConditionSpec[];
@@ -262,6 +271,9 @@ export function createEmptyWorkflowDefinition(
     workflowType: partial?.workflowType || 'approval',
     trigger: partial?.trigger || { kind: 'form_submission' },
     levels: partial?.levels || [],
+    accessFieldId: partial?.accessFieldId,
+    accessFieldLabel: partial?.accessFieldLabel,
+    pendingAccessFieldCreate: partial?.pendingAccessFieldCreate,
     defaultRejection: partial?.defaultRejection,
     conditions: partial?.conditions || [],
     action: partial?.action ?? null,

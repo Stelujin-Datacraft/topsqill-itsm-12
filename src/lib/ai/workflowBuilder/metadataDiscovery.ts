@@ -23,6 +23,13 @@ export interface DiscoveredFormField {
   custom_config?: Record<string, any> | null;
 }
 
+/** Org user choice for approval Level N assignee questions */
+export interface OrgUserChoice {
+  id: string;
+  email: string;
+  label: string;
+}
+
 export interface DiscoveredForm {
   id: string;
   name: string;
@@ -105,6 +112,27 @@ export function searchFields(
   }).slice(0, 5);
 
   return { query: q, matched: matchedFull, candidates };
+}
+
+export const SUBMISSION_ACCESS_FIELD_LABEL = 'Submission Access Control';
+export const SUBMISSION_ACCESS_FIELD_TYPE = 'submission-access';
+
+export function isSubmissionAccessFieldType(type: string | undefined | null): boolean {
+  const t = String(type || '').toLowerCase().replace(/[_\s]+/g, '-');
+  return t === 'submission-access' || t === 'submissionaccess';
+}
+
+/** Find existing Submission Access Control field on a form (by type, then by label). */
+export function findSubmissionAccessField(
+  form: DiscoveredForm | undefined,
+): DiscoveredFormField | undefined {
+  if (!form?.fields?.length) return undefined;
+  const byType = form.fields.find((f) => isSubmissionAccessFieldType(f.type));
+  if (byType) return byType;
+  const key = SUBMISSION_ACCESS_FIELD_LABEL.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  return form.fields.find((f) =>
+    String(f.label || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim() === key
+  );
 }
 
 export function suggestApproverFields(form: DiscoveredForm | undefined): DiscoveredFormField[] {
