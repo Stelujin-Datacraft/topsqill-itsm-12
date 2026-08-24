@@ -473,9 +473,14 @@ export function compileWorkflowDefinition(
   const needsReturnToRequester = definition.levels.some(
     (l) => l.onRejection?.action === 'RETURN_TO_REQUESTER',
   );
+  const needsRejectedEnd = definition.levels.some(
+    (l) => l.onRejection?.action === 'END_WORKFLOW',
+  );
   const notifyRequesterId = 'node_notify_requester';
   const returnedEndId = 'node_end_returned';
 
+  // Only create return-to-requester / rejected ends when a level actually uses them
+  // (avoids orphan End nodes on the canvas).
   if (needsReturnToRequester) {
     nodes.push({
       tempId: notifyRequesterId,
@@ -508,14 +513,16 @@ export function compileWorkflowDefinition(
     });
   }
 
-  nodes.push({
-    tempId: rejectedEndId,
-    type: 'end',
-    label: 'Rejected',
-    description: 'Workflow ended — rejected',
-    config: {},
-    connections: [],
-  });
+  if (needsRejectedEnd) {
+    nodes.push({
+      tempId: rejectedEndId,
+      type: 'end',
+      label: 'Rejected',
+      description: 'Workflow ended — rejected',
+      config: {},
+      connections: [],
+    });
+  }
 
   // Wire start → first level set-access
   const first = definition.levels[0];
@@ -541,16 +548,16 @@ export function compileWorkflowDefinition(
       trueTarget = levelNodeIds[nextLevel.level].setAccess;
     }
 
-    let falseTarget = rejectedEndId;
+    // Default: retry this level (never point at a missing orphan End)
+    let falseTarget = ids.setAccess;
     const rej = level.onRejection;
     if (rej?.action === 'RETURN_TO_LEVEL' && rej.targetLevel && levelNodeIds[rej.targetLevel]) {
-      // Loop / retry that approver level (including same level)
       falseTarget = levelNodeIds[rej.targetLevel].setAccess;
     } else if (rej?.action === 'RETURN_TO_REQUESTER' && needsReturnToRequester) {
       falseTarget = notifyRequesterId;
     } else if (rej?.action === 'START_OVER' && first) {
       falseTarget = levelNodeIds[first.level].setAccess;
-    } else if (rej?.action === 'END_WORKFLOW') {
+    } else if (rej?.action === 'END_WORKFLOW' && needsRejectedEnd) {
       falseTarget = rejectedEndId;
     }
 
