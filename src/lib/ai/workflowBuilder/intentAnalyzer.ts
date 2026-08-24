@@ -25,19 +25,27 @@ export interface IntentAnalysisResult {
   needsConversation: boolean;
 }
 
+const MAX_APPROVAL_LEVELS = 8;
+
 function detectLevelCount(text: string): number | null {
   const m = text.match(/\b(\d+)\s*[- ]?\s*levels?\b/i)
-    || text.match(/\b(two|three|four|five|one)\s*[- ]?\s*levels?\b/i)
-    || text.match(/\b(2|3|4|5)\s*level\b/i);
+    || text.match(/\b(two|three|four|five|six|seven|eight|one)\s*[- ]?\s*levels?\b/i)
+    || text.match(/\b([2-8])\s*level\b/i);
   if (!m) {
     // "Level 1 and Level 2" style
     const levels = [...text.matchAll(/\blevel\s*(\d+)\b/gi)].map((x) => Number(x[1]));
-    if (levels.length) return Math.max(...levels);
+    if (levels.length) {
+      return Math.min(MAX_APPROVAL_LEVELS, Math.max(...levels));
+    }
     return null;
   }
   const raw = m[1].toLowerCase();
-  const words: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, five: 5 };
-  return words[raw] || Number(raw) || null;
+  const words: Record<string, number> = {
+    one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8,
+  };
+  const n = words[raw] || Number(raw) || null;
+  if (!n || !Number.isFinite(n)) return null;
+  return Math.max(1, Math.min(MAX_APPROVAL_LEVELS, n));
 }
 
 function detectWorkflowType(text: string): AIWorkflowType {
@@ -273,7 +281,7 @@ export function shouldUseConversationalWorkflowBuilder(prompt: string): boolean 
   const t = String(prompt || '').toLowerCase().trim();
   if (!t) return false;
   // Explicit approval / multi-level language (short goals welcome)
-  if (/\b(\d+|two|three|four|five)\s*[- ]?\s*levels?\b/.test(t)) return true;
+  if (/\b(\d+|two|three|four|five|six|seven|eight)\s*[- ]?\s*levels?\b/.test(t)) return true;
   if (/\bmulti[- ]?level\b/.test(t) && /\bapprov|review|workflow\b/.test(t)) return true;
   if (/\b(sequential|parallel)\s+approv/.test(t)) return true;
   if (/\bapprov/.test(t) && /\b(workflow|manager|director|level|review)\b/.test(t)) return true;
