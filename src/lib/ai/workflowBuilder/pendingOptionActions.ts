@@ -152,7 +152,11 @@ export function buildOptionCreatePendingActions(
       const linkedForm = action.targetFormId
         ? formsCatalog.find((f) => f.id === action.targetFormId)
         : undefined;
-      const fieldSource = action.actionType === 'update_linked_records' && linkedForm
+      const fieldSource = (
+        action.actionType === 'update_linked_records'
+        || action.actionType === 'create_record'
+        || action.actionType === 'create_linked_record'
+      ) && linkedForm
         ? linkedForm
         : form;
       const field = fieldSource?.fields?.find((f) =>
@@ -176,6 +180,34 @@ export function buildOptionCreatePendingActions(
         });
       }
     }
+  }
+
+  for (const fv of action?.createFieldValues || []) {
+    if (!fv.pendingOptionCreate || !(fv.fieldId || fv.fieldLabel)) continue;
+    const label = sanitizeConditionValueHint(String(fv.pendingOptionLabel || fv.staticValue || ''));
+    if (!label || isPollutedOptionLabel(label)) continue;
+    const linkedForm = action?.targetFormId
+      ? formsCatalog.find((f) => f.id === action.targetFormId)
+      : undefined;
+    const fieldSource = linkedForm || form;
+    const field = fieldSource?.fields?.find((f) =>
+      f.id === fv.fieldId
+      || (fv.fieldLabel && f.label.toLowerCase() === String(fv.fieldLabel).toLowerCase()),
+    );
+    if (fieldHasPreferredOption(field, label)) continue;
+    actions.push({
+      id: `create_value_create_field_${fv.fieldId || fv.fieldLabel}`,
+      kind: 'CREATE_FIELD_VALUE',
+      description: `Add option "${label}" on ${fv.fieldLabel || 'create field'}`,
+      payload: {
+        fieldId: field?.id || fv.fieldId,
+        fieldLabel: fv.fieldLabel,
+        fieldType: fv.fieldType || field?.type,
+        valueLabel: label,
+        scope: 'create_record',
+      },
+      userConfirmed: true,
+    });
   }
 
   return actions;

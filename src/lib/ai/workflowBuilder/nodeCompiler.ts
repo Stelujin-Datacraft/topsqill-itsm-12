@@ -154,63 +154,53 @@ function buildActionNodeConfig(
         }],
       };
     case 'create_record': {
-      const createField = findField(formFields, action.targetFieldId, action.targetFieldLabel);
-      const createFieldId = createField?.id || action.targetFieldId || '';
-      const createFieldLabel = createField?.label || action.targetFieldLabel || '';
-      const createFieldType = createField?.type || action.targetFieldType || 'text';
-      const createFieldOptions = Array.isArray(createField?.options) ? createField!.options : undefined;
-      const hasStatic = !action.skipCreateFieldValues
-        && createFieldId
-        && action.staticValue !== undefined
-        && action.staticValue !== null
-        && String(action.staticValue) !== '';
+      const values = (!action.skipCreateFieldValues ? (action.createFieldValues || []) : [])
+        .filter((f) => f.fieldId || f.fieldLabel)
+        .map((f) => {
+          const createField = findField(formFields, f.fieldId, f.fieldLabel);
+          return {
+            fieldId: createField?.id || f.fieldId || '',
+            fieldName: createField?.label || f.fieldLabel || '',
+            fieldType: createField?.type || f.fieldType || 'text',
+            fieldOptions: Array.isArray(createField?.options) ? createField!.options : undefined,
+            valueType: 'static' as const,
+            staticValue: f.staticValue,
+          };
+        })
+        .filter((f) => f.fieldId && f.staticValue !== undefined && String(f.staticValue) !== '');
       return {
         ...base,
         recordCount: action.recordCount || 1,
-        fieldValues: hasStatic
-          ? [{
-              fieldId: createFieldId,
-              fieldName: createFieldLabel,
-              fieldType: createFieldType,
-              fieldOptions: createFieldOptions,
-              valueType: 'static',
-              staticValue: action.staticValue,
-            }]
-          : [],
+        fieldValues: values,
         fieldMappings: [],
-        fieldConfigMode: hasStatic ? 'field_values' : 'none',
+        fieldConfigMode: values.length ? 'field_values' : 'none',
         setSubmittedBy: 'trigger_submitter',
         initialStatus: 'pending',
       };
     }
     case 'create_linked_record': {
-      const createField = findField(formFields, action.targetFieldId, action.targetFieldLabel);
-      const createFieldId = createField?.id || action.targetFieldId || '';
-      const createFieldLabel = createField?.label || action.targetFieldLabel || '';
-      const createFieldType = createField?.type || action.targetFieldType || 'text';
-      const createFieldOptions = Array.isArray(createField?.options) ? createField!.options : undefined;
-      const hasStatic = !action.skipCreateFieldValues
-        && createFieldId
-        && action.staticValue !== undefined
-        && action.staticValue !== null
-        && String(action.staticValue) !== '';
+      const values = (!action.skipCreateFieldValues ? (action.createFieldValues || []) : [])
+        .filter((f) => f.fieldId || f.fieldLabel)
+        .map((f) => {
+          const createField = findField(formFields, f.fieldId, f.fieldLabel);
+          return {
+            fieldId: createField?.id || f.fieldId || '',
+            fieldName: createField?.label || f.fieldLabel || '',
+            fieldType: createField?.type || f.fieldType || 'text',
+            fieldOptions: Array.isArray(createField?.options) ? createField!.options : undefined,
+            valueType: 'static' as const,
+            staticValue: f.staticValue,
+          };
+        })
+        .filter((f) => f.fieldId && f.staticValue !== undefined && String(f.staticValue) !== '');
       return {
         ...base,
         crossReferenceFieldId: action.crossReferenceFieldId,
         crossReferenceFieldName: action.crossReferenceFieldLabel,
         recordCount: action.recordCount || 1,
-        fieldValues: hasStatic
-          ? [{
-              fieldId: createFieldId,
-              fieldName: createFieldLabel,
-              fieldType: createFieldType,
-              fieldOptions: createFieldOptions,
-              valueType: 'static',
-              staticValue: action.staticValue,
-            }]
-          : [],
+        fieldValues: values,
         fieldMappings: [],
-        fieldConfigMode: hasStatic ? 'field_values' : 'none',
+        fieldConfigMode: values.length ? 'field_values' : 'none',
         setSubmittedBy: 'trigger_submitter',
         autoLinkBack: true,
       };
