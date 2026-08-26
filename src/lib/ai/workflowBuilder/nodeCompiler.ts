@@ -11,6 +11,7 @@ import {
 } from './types';
 import {
   resolveDecisionOptionValue,
+  resolvePreferredOptionValue,
   type DecisionFieldMeta,
 } from './decisionOptionResolver';
 import { describeActionType } from './actionTypeInferrer';
@@ -35,8 +36,13 @@ export interface CompiledWorkflowGraph {
 }
 
 export interface CompileWorkflowOptions {
-  /** Live form fields — used to bind condition values to real option.value strings */
+  /** Live trigger-form fields — used to bind condition values to real option.value strings */
   formFields?: DecisionFieldMeta[];
+  /**
+   * Target-form fields for create_record / create_linked_record.
+   * When set, create field values resolve against this list instead of the trigger form.
+   */
+  targetFormFields?: DecisionFieldMeta[];
 }
 
 function findField(
@@ -113,11 +119,46 @@ function buildChangeFieldValueNode(params: {
   };
 }
 
+function resolveCreateFieldValue(
+  f: NonNullable<WorkflowActionSpec['createFieldValues']>[number],
+  lookupFields?: DecisionFieldMeta[],
+): {
+  fieldId: string;
+  fieldName: string;
+  fieldType: string;
+  fieldOptions?: DecisionFieldMeta['options'];
+  valueType: 'static';
+  staticValue: unknown;
+} {
+  // Prefer the planner's exact field id when present — never remap a target-form
+  // UUID onto a different form by label.
+  const byId = f.fieldId && lookupFields?.length
+    ? lookupFields.find((field) => field.id === f.fieldId)
+    : undefined;
+  const createField = byId || findField(lookupFields, f.fieldId, f.fieldLabel);
+  const fieldId = f.fieldId || createField?.id || '';
+  const fieldName = createField?.label || f.fieldLabel || '';
+  const fieldType = createField?.type || f.fieldType || 'text';
+  const fieldOptions = Array.isArray(createField?.options) ? createField!.options : undefined;
+  const staticValue = createField
+    ? resolvePreferredOptionValue(createField, f.staticValue)
+    : f.staticValue;
+  return {
+    fieldId,
+    fieldName,
+    fieldType,
+    fieldOptions,
+    valueType: 'static',
+    staticValue,
+  };
+}
+
 function buildActionNodeConfig(
   action: WorkflowActionSpec,
   formId: string,
   formName: string,
   formFields?: DecisionFieldMeta[],
+  targetFormFields?: DecisionFieldMeta[],
 ): Record<string, any> {
   const targetField = findField(formFields, action.targetFieldId, action.targetFieldLabel);
   const fieldId = targetField?.id || action.targetFieldId || '';
@@ -131,6 +172,10 @@ function buildActionNodeConfig(
     targetFormId: action.targetFormId || formId,
     targetFormName: action.targetFormName || formName,
   };
+
+  const createLookupFields = targetFormFields?.length
+    ? targetFormFields
+    : (action.targetFormId && action.targetFormId !== formId ? undefined : formFields);
 
   switch (action.actionType) {
     case 'change_field_value':
@@ -156,20 +201,13 @@ function buildActionNodeConfig(
     case 'create_record': {
       const values = (!action.skipCreateFieldValues ? (action.createFieldValues || []) : [])
         .filter((f) => f.fieldId || f.fieldLabel)
-        .map((f) => {
-          const createField = findField(formFields, f.fieldId, f.fieldLabel);
-          return {
-            fieldId: createField?.id || f.fieldId || '',
-            fieldName: createField?.label || f.fieldLabel || '',
-            fieldType: createField?.type || f.fieldType || 'text',
-            fieldOptions: Array.isArray(createField?.options) ? createField!.options : undefined,
-            valueType: 'static' as const,
-            staticValue: f.staticValue,
-          };
-        })
+        .map((f) => resolveCreateFieldValue(f, createLookupFields))
         .filter((f) => f.fieldId && f.staticValue !== undefined && String(f.staticValue) !== '');
       return {
         ...base,
+        // Prefer planner target form — do not silently fall back when named explicitly
+        targetFormId: action.targetFormId || formId,
+        targetFormName: action.targetFormName || formName,
         recordCount: action.recordCount || 1,
         fieldValues: values,
         fieldMappings: [],
@@ -181,20 +219,12 @@ function buildActionNodeConfig(
     case 'create_linked_record': {
       const values = (!action.skipCreateFieldValues ? (action.createFieldValues || []) : [])
         .filter((f) => f.fieldId || f.fieldLabel)
-        .map((f) => {
-          const createField = findField(formFields, f.fieldId, f.fieldLabel);
-          return {
-            fieldId: createField?.id || f.fieldId || '',
-            fieldName: createField?.label || f.fieldLabel || '',
-            fieldType: createField?.type || f.fieldType || 'text',
-            fieldOptions: Array.isArray(createField?.options) ? createField!.options : undefined,
-            valueType: 'static' as const,
-            staticValue: f.staticValue,
-          };
-        })
+        .map((f) => resolveCreateFieldValue(f, createLookupFields))
         .filter((f) => f.fieldId && f.staticValue !== undefined && String(f.staticValue) !== '');
       return {
         ...base,
+        targetFormId: action.targetFormId || formId,
+        targetFormName: action.targetFormName || formName,
         crossReferenceFieldId: action.crossReferenceFieldId,
         crossReferenceFieldName: action.crossReferenceFieldLabel,
         recordCount: action.recordCount || 1,
@@ -289,7 +319,8 @@ function compileGenericActionGraph(
   const fieldLabel = condField?.label || cond?.fieldLabel || '';
   const fieldType = condField?.type || cond?.fieldType || 'text';
   const operator = cond?.operator || '==';
-  const value = cond?.value ?? '';
+  // Bind label/synonym → real option.value so runtime == matches submission_data
+  const value = resolvePreferredOptionValue(condField, cond?.value ?? '');
 
   nodes.push({
     tempId: conditionId,
@@ -332,7 +363,13 @@ function compileGenericActionGraph(
     type: 'action',
     label: describeActionType(action.actionType).split(' (')[0],
     description: describeActionType(action.actionType),
-    config: buildActionNodeConfig(action, formId, formName, formFields),
+    config: buildActionNodeConfig(
+      action,
+      formId,
+      formName,
+      formFields,
+      options?.targetFormFields,
+    ),
     connections: [{ to: endTrueId }],
   });
 

@@ -70,6 +70,28 @@ export class WorkflowsService {
     }
 
     if (trigger_ref) {
+      // Prefer refreshing a pending item for the same workflow+submission with latest data
+      if (submission_id) {
+        const { data: existingPending } = await supabase
+          .from('workflow_queue')
+          .select('id')
+          .eq('workflow_id', workflow_id)
+          .eq('submission_id', submission_id)
+          .eq('status', 'pending')
+          .maybeSingle();
+        if (existingPending) {
+          await supabase
+            .from('workflow_queue')
+            .update({
+              trigger_data,
+              trigger_ref,
+              priority: priority || 5,
+            })
+            .eq('id', existingPending.id);
+          return { success: true, deduplicated: true, queue_id: existingPending.id };
+        }
+      }
+
       const { data: existing } = await supabase
         .from('workflow_queue')
         .select('id')
@@ -81,6 +103,20 @@ export class WorkflowsService {
       if (existing) {
         return { success: true, deduplicated: true, queue_id: existing.id };
       }
+    }
+
+    // Supersede waiting executions so Draft→Closed resubmits re-evaluate cleanly
+    if (submission_id && workflow_id) {
+      await supabase
+        .from('workflow_executions')
+        .update({
+          status: 'cancelled',
+          completed_at: new Date().toISOString(),
+          error_message: 'Superseded by a newer form submission / update',
+        })
+        .eq('workflow_id', workflow_id)
+        .eq('trigger_submission_id', submission_id)
+        .eq('status', 'waiting');
     }
 
     const { data: queueItem, error } = await supabase

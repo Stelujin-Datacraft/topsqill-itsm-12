@@ -9,12 +9,16 @@ import type {
 } from './types';
 import { isApprovalStyleDefinition } from './types';
 import { compileWorkflowDefinition, type CompiledWorkflowGraph } from './nodeCompiler';
-import type { DecisionFieldMeta } from './decisionOptionResolver';
+import {
+  bindConditionNodesToDecisionValues,
+  type DecisionFieldMeta,
+} from './decisionOptionResolver';
 import {
   addConditionFieldOption,
   createConditionFormField,
   mergeSubmissionAccessAllowedUsers,
 } from '@/lib/ai/conditionFormMutations';
+import { backend as supabase } from '@/services/api';
 import {
   buildOptionCreatePendingActions,
   collectApproverUserIds,
@@ -215,7 +219,17 @@ export async function applyPendingConfigActions(params: {
     }
   }
 
-  const compiled = compileWorkflowDefinition(definition, { formFields });
+  const compiledBase = compileWorkflowDefinition(definition, {
+    formFields,
+    targetFormFields: await loadTargetFormFields(definition, formFields),
+  });
+
+  // Force-bind condition values to live option.value (same as Copilot publish path)
+  const compiled: CompiledWorkflowGraph = {
+    ...compiledBase,
+    nodes: bindConditionNodesToDecisionValues(compiledBase.nodes, formFields),
+  };
+
   return {
     definition,
     compiled,
@@ -223,4 +237,39 @@ export async function applyPendingConfigActions(params: {
     createdValues,
     formFields,
   };
+}
+
+/** Load target-form fields when create_record / linked actions point at another form. */
+async function loadTargetFormFields(
+  definition: AIWorkflowDefinition,
+  triggerFields: DecisionFieldMeta[],
+): Promise<DecisionFieldMeta[] | undefined> {
+  const action = definition.action;
+  if (!action?.targetFormId) return undefined;
+  const triggerFormId = definition.trigger.formId || definition.objectId || '';
+  if (action.targetFormId === triggerFormId) return triggerFields;
+
+  try {
+    const { data, error } = await supabase
+      .from('form_fields')
+      .select('id, label, field_type, options, custom_config')
+      .eq('form_id', action.targetFormId);
+    if (error || !data?.length) return undefined;
+    return data.map((row: any) => {
+      let options = row.options;
+      if (typeof options === 'string') {
+        try { options = JSON.parse(options); } catch { options = []; }
+      }
+      return {
+        id: row.id,
+        label: row.label,
+        type: row.field_type || 'text',
+        options: Array.isArray(options) ? options : [],
+        custom_config: row.custom_config ?? null,
+      } as DecisionFieldMeta;
+    });
+  } catch (e) {
+    console.error('applyPendingConfigActions: failed to load target form fields', e);
+    return undefined;
+  }
 }
