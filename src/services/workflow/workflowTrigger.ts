@@ -2,6 +2,11 @@
 import { backend as supabase } from '@/services/api';
 import { getApiBaseUrl } from '@/services/api/apiClient';
 import { parseNodeConfig } from './utils';
+import {
+  isFormSubmissionTriggerType,
+  resolveStartTriggerFormId,
+  startNodeMatchesFormSubmission,
+} from './triggerMatch';
 
 // Queue configuration
 const QUEUE_ENABLED = true; // Feature flag for easy rollback
@@ -9,6 +14,8 @@ const QUEUE_FUNCTION_URL = `${getApiBaseUrl()}/workflows/enqueue`;
 
 export class WorkflowTrigger {
   static async findMatchingWorkflows(formId: string, submissionData: any) {
+    if (!formId) return [];
+
     const { data: form, error: formError } = await supabase
       .from('forms')
       .select('project_id')
@@ -16,6 +23,10 @@ export class WorkflowTrigger {
       .maybeSingle();
 
     if (formError || !form?.project_id) {
+      console.warn('[WorkflowTrigger] Form missing or has no project_id — no workflows matched', {
+        formId,
+        formError,
+      });
       return [];
     }
 
@@ -27,19 +38,34 @@ export class WorkflowTrigger {
       .limit(500);
 
     if (workflowError || !workflows?.length) {
+      console.log('[WorkflowTrigger] No active workflows in project', form.project_id);
       return [];
     }
 
     const workflowIds = workflows.map((w) => w.id);
-    const { data: startNodes, error: nodesError } = await supabase
-      .from('workflow_nodes')
-      .select('*')
-      .in('workflow_id', workflowIds)
-      .eq('node_type', 'start');
+    const [{ data: startNodes, error: nodesError }, { data: triggerRows }] = await Promise.all([
+      supabase
+        .from('workflow_nodes')
+        .select('*')
+        .in('workflow_id', workflowIds)
+        .eq('node_type', 'start'),
+      supabase
+        .from('workflow_triggers')
+        .select('target_workflow_id, source_form_id, is_active, trigger_type')
+        .eq('source_form_id', formId)
+        .in('target_workflow_id', workflowIds),
+    ]);
 
     if (nodesError || !startNodes?.length) {
+      console.warn('[WorkflowTrigger] No start nodes for active workflows', nodesError);
       return [];
     }
+
+    const triggerLinkedWorkflowIds = new Set(
+      (triggerRows || [])
+        .filter((t) => t.is_active !== false && t.source_form_id === formId)
+        .map((t) => t.target_workflow_id),
+    );
 
     const nodesByWorkflow = new Map<string, typeof startNodes>();
     for (const node of startNodes) {
@@ -52,12 +78,25 @@ export class WorkflowTrigger {
 
     for (const workflow of workflows) {
       const nodes = nodesByWorkflow.get(workflow.id) || [];
-      const matchingNode = nodes.find((node) => {
-        const config = parseNodeConfig(node.config);
-        const triggerType = config.triggerType || 'form_submission';
-        return (triggerType === 'form_submission' || triggerType === 'form_completion')
-          && config.triggerFormId === formId;
-      });
+      let matchingNode = nodes.find((node) =>
+        startNodeMatchesFormSubmission(parseNodeConfig(node.config), formId),
+      );
+
+      // Fallback: Start config missing triggerFormId but workflow_triggers links this form
+      // (common after AI apply / hydrate-only designer display).
+      if (!matchingNode && triggerLinkedWorkflowIds.has(workflow.id)) {
+        matchingNode = nodes.find((node) => {
+          const config = parseNodeConfig(node.config);
+          const boundFormId = resolveStartTriggerFormId(config);
+          // Accept empty or matching form id; skip if bound to a different form
+          return isFormSubmissionTriggerType(config.triggerType)
+            && (!boundFormId || boundFormId === formId);
+        }) || nodes[0];
+        console.log(
+          '[WorkflowTrigger] Matched via workflow_triggers fallback',
+          { workflowId: workflow.id, formId },
+        );
+      }
 
       if (matchingNode) {
         triggeredWorkflows.push({
@@ -66,6 +105,18 @@ export class WorkflowTrigger {
           matchingConfig: parseNodeConfig(matchingNode.config),
         });
       }
+    }
+
+    if (!triggeredWorkflows.length) {
+      console.log('[WorkflowTrigger] No matching workflows for form', {
+        formId,
+        activeWorkflowCount: workflows.length,
+        startNodeFormIds: startNodes.map((n) => ({
+          workflowId: n.workflow_id,
+          triggerFormId: resolveStartTriggerFormId(parseNodeConfig(n.config)),
+          triggerType: parseNodeConfig(n.config).triggerType,
+        })),
+      });
     }
 
     return triggeredWorkflows;
@@ -138,6 +189,15 @@ export class WorkflowExecutionService {
       }
 
       const result = await response.json();
+      if (result?.success === false || result?.enrollment_blocked) {
+        console.warn('[WorkflowExecutionService] Enqueue rejected:', result);
+        return {
+          success: false,
+          queueId: result.queue_id,
+          error: result.error || result.enrollment_reason || 'Enqueue rejected',
+        };
+      }
+
       console.log('[WorkflowExecutionService] ✅ Workflow enqueued:', result);
       
       return { 
@@ -188,42 +248,51 @@ export class WorkflowExecutionService {
         };
 
         if (useQueue) {
-          // NEW: Server-side queue execution (reliable, browser-independent)
+          // Server-side queue execution (reliable, browser-independent)
           const enqueueResult = await this.enqueueWorkflow(
             workflow.id,
             submissionId,
             triggerData,
             triggerSource
           );
-          
-          executionResults.push({
-            workflowId: workflow.id,
-            workflowName: workflow.name,
-            queueId: enqueueResult.queueId,
-            success: enqueueResult.success,
-            queued: true,
-            error: enqueueResult.error
-          });
-        } else {
-          // LEGACY: Direct browser-side execution (fallback)
-          const { WorkflowOrchestrator } = await import('./workflowOrchestrator');
-          const executionResult = await WorkflowOrchestrator.executeWorkflow(
-            workflow.id,
-            matchingNode.id,
-            triggerData,
-            submissionId,
-            submitterId,
-            formOwnerId
+
+          if (enqueueResult.success) {
+            executionResults.push({
+              workflowId: workflow.id,
+              workflowName: workflow.name,
+              queueId: enqueueResult.queueId,
+              success: true,
+              queued: true,
+            });
+            continue;
+          }
+
+          console.warn(
+            '[WorkflowExecutionService] Queue enqueue failed — falling back to direct execution',
+            enqueueResult.error,
           );
-          
-          executionResults.push({
-            workflowId: workflow.id,
-            workflowName: workflow.name,
-            executionId: executionResult.executionId,
-            success: executionResult.success,
-            queued: false
-          });
         }
+
+        // Direct browser-side execution (legacy path + queue fallback)
+        const { WorkflowOrchestrator } = await import('./workflowOrchestrator');
+        const executionResult = await WorkflowOrchestrator.executeWorkflow(
+          workflow.id,
+          matchingNode.id,
+          triggerData,
+          submissionId,
+          submitterId,
+          formOwnerId
+        );
+
+        executionResults.push({
+          workflowId: workflow.id,
+          workflowName: workflow.name,
+          executionId: executionResult.executionId,
+          success: executionResult.success,
+          queued: false,
+          error: executionResult.success ? undefined : (executionResult as any).error,
+          fellBackFromQueue: useQueue || undefined,
+        });
       } catch (error) {
         executionResults.push({
           workflowId: workflow.id,

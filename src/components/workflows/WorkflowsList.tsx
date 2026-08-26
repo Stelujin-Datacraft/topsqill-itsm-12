@@ -20,6 +20,11 @@ import { useToast } from '@/hooks/use-toast';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { useNavigate } from 'react-router-dom';
 import { useUnifiedAccessControl } from '@/hooks/useUnifiedAccessControl';
+import { backend as supabase } from '@/services/api';
+import {
+  parseWorkflowNodeConfig,
+  resolveStartTriggerFormId,
+} from '@/services/workflow/triggerMatch';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,6 +36,49 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 
+/** Ensure Start node has triggerFormId before activate so form submit can match. */
+async function healWorkflowStartTriggerForm(workflowId: string): Promise<void> {
+  const { data: startNodes } = await supabase
+    .from('workflow_nodes')
+    .select('id, config')
+    .eq('workflow_id', workflowId)
+    .eq('node_type', 'start');
+
+  if (!startNodes?.length) return;
+
+  let fallbackFormId = '';
+  const { data: triggers } = await supabase
+    .from('workflow_triggers')
+    .select('source_form_id')
+    .eq('target_workflow_id', workflowId)
+    .eq('is_active', true)
+    .order('created_at', { ascending: false })
+    .limit(1);
+  fallbackFormId = triggers?.[0]?.source_form_id || '';
+
+  for (const node of startNodes) {
+    const config = parseWorkflowNodeConfig(node.config);
+    const resolved = resolveStartTriggerFormId(config) || fallbackFormId;
+    if (!resolved) continue;
+
+    const next = {
+      ...config,
+      triggerType: config.triggerType || 'form_submission',
+      triggerFormId: resolved,
+      formId: config.formId || resolved,
+      sourceFormId: config.sourceFormId || resolved,
+    };
+
+    const alreadyOk = config.triggerFormId === resolved
+      && config.formId === resolved;
+    if (alreadyOk) continue;
+
+    await supabase
+      .from('workflow_nodes')
+      .update({ config: next })
+      .eq('id', node.id);
+  }
+}
 export interface WorkflowsListProps {
   workflows: Workflow[];
   onView: (workflow: Workflow) => void;
@@ -69,6 +117,9 @@ export function WorkflowsList({ workflows, onEdit, onDelete, onView, getPermissi
     }
 
     try {
+      // Stamp Start.triggerFormId from aliases / workflow_triggers before going live
+      await healWorkflowStartTriggerForm(workflow.id);
+
       await updateWorkflow({
         ...workflow,
         status: 'active'

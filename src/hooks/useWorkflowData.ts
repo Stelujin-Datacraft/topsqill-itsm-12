@@ -245,6 +245,21 @@ export function useWorkflowData() {
           if (!node.id || !node.type || !node.label) {
             throw new Error(`Invalid node data: missing required fields for node ${node.id}`);
           }
+
+          let config = node.data?.config || {};
+          // Persist Start triggerFormId aliases so runtime matching always works
+          if (node.type === 'start') {
+            const triggerFormId = config.triggerFormId || config.formId || config.sourceFormId;
+            if (triggerFormId) {
+              config = {
+                ...config,
+                triggerType: config.triggerType || 'form_submission',
+                triggerFormId,
+                formId: config.formId || triggerFormId,
+                sourceFormId: config.sourceFormId || triggerFormId,
+              };
+            }
+          }
           
           return {
             id: node.id,
@@ -253,7 +268,7 @@ export function useWorkflowData() {
             label: node.label,
             position_x: Math.round(Number(node.position.x) || 0),
             position_y: Math.round(Number(node.position.y) || 0),
-            config: node.data?.config || {}
+            config,
           };
         });
 

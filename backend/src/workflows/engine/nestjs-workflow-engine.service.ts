@@ -73,7 +73,8 @@ export class NestjsWorkflowEngineService {
       if (formId && startNodes?.length) {
         const match = startNodes.find((n) => {
           const cfg = typeof n.config === 'string' ? JSON.parse(n.config) : n.config;
-          return cfg?.triggerFormId === formId;
+          const boundFormId = cfg?.triggerFormId || cfg?.formId || cfg?.sourceFormId;
+          return boundFormId === formId;
         });
         startNodeId = match?.id;
       }

@@ -3,6 +3,11 @@
 import { backend as supabase } from '@/services/api';
 import { getApiBaseUrl } from '@/services/api/apiClient';
 import { parseNodeConfig } from './utils';
+import {
+  isFormSubmissionTriggerType,
+  resolveStartTriggerFormId,
+  startNodeMatchesFormSubmission,
+} from './triggerMatch';
 
 // Queue configuration
 const QUEUE_ENABLED = true; // Feature flag for easy rollback
@@ -10,6 +15,8 @@ const QUEUE_FUNCTION_URL = `${getApiBaseUrl()}/workflows/enqueue`;
 
 export class WorkflowTrigger {
   static async findMatchingWorkflows(formId: string, submissionData: any) {
+    if (!formId) return [];
+
     const { data: form, error: formError } = await supabase
       .from('forms')
       .select('project_id')
@@ -32,17 +39,30 @@ export class WorkflowTrigger {
     }
 
     const workflowIds = workflows.map((w) => w.id);
-    const { data: startNodes, error: nodesError } = await supabase
-      .from('workflow_nodes')
-      .select('*')
-      .in('workflow_id', workflowIds)
-      .eq('node_type', 'start');
+    const [{ data: startNodes, error: nodesError }, { data: triggerRows }] = await Promise.all([
+      supabase
+        .from('workflow_nodes')
+        .select('*')
+        .in('workflow_id', workflowIds)
+        .eq('node_type', 'start'),
+      supabase
+        .from('workflow_triggers')
+        .select('target_workflow_id, source_form_id, is_active, trigger_type')
+        .eq('source_form_id', formId)
+        .in('target_workflow_id', workflowIds),
+    ]);
 
     if (nodesError || !startNodes?.length) {
       return [];
     }
 
-    const nodesByWorkflow = new Map<string, typeof startNodes>();
+    const triggerLinkedWorkflowIds = new Set(
+      (triggerRows || [])
+        .filter((t) => t.is_active !== false && t.source_form_id === formId)
+        .map((t) => t.target_workflow_id),
+    );
+
+    const nodesByWorkflow = new Map();
     for (const node of startNodes) {
       const list = nodesByWorkflow.get(node.workflow_id) || [];
       list.push(node);
@@ -53,12 +73,18 @@ export class WorkflowTrigger {
 
     for (const workflow of workflows) {
       const nodes = nodesByWorkflow.get(workflow.id) || [];
-      const matchingNode = nodes.find((node) => {
-        const config = parseNodeConfig(node.config);
-        const triggerType = config.triggerType || 'form_submission';
-        return (triggerType === 'form_submission' || triggerType === 'form_completion')
-          && config.triggerFormId === formId;
-      });
+      let matchingNode = nodes.find((node) =>
+        startNodeMatchesFormSubmission(parseNodeConfig(node.config), formId),
+      );
+
+      if (!matchingNode && triggerLinkedWorkflowIds.has(workflow.id)) {
+        matchingNode = nodes.find((node) => {
+          const config = parseNodeConfig(node.config);
+          const boundFormId = resolveStartTriggerFormId(config);
+          return isFormSubmissionTriggerType(config.triggerType)
+            && (!boundFormId || boundFormId === formId);
+        }) || nodes[0];
+      }
 
       if (matchingNode) {
         triggeredWorkflows.push({

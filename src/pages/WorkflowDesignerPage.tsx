@@ -24,7 +24,7 @@ const WorkflowDesignerPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { loadWorkflowNodes, saveWorkflowNodes, workflows } = useWorkflowData();
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
   const { toast } = useToast();
   
   // Simple local state for workflow data
@@ -758,11 +758,64 @@ const WorkflowDesignerPage = () => {
 
     // Update local state
     setWorkflowData({ nodes: newNodes, connections: newConnections });
-    
-    toast({
-      title: "AI Workflow Applied",
-      description: `Created ${newNodes.length} nodes with ${newConnections.length} connections. Configure each node as needed.`,
-    });
+
+    // Persist immediately — otherwise Activate/submit still see the old Start config
+    // and Execution History stays empty.
+    if (id) {
+      void (async () => {
+        try {
+          const success = await saveWorkflowNodes(id, newNodes, newConnections);
+          if (success) {
+            // Ensure workflow_triggers row exists for form matching fallback
+            const start = newNodes.find((n) => n.type === 'start');
+            const cfg = start?.data?.config;
+            if (cfg?.triggerFormId && userProfile?.organization_id) {
+              const triggerId = `${id}_onFormSubmit_${cfg.triggerFormId}`;
+              const { data: existing } = await supabase
+                .from('workflow_triggers')
+                .select('id')
+                .eq('target_workflow_id', id)
+                .eq('trigger_id', triggerId)
+                .limit(1);
+              if (!existing?.length) {
+                await supabase.from('workflow_triggers').insert({
+                  organization_id: userProfile.organization_id,
+                  trigger_id: triggerId,
+                  target_workflow_id: id,
+                  trigger_type: 'onFormSubmit',
+                  source_form_id: cfg.triggerFormId,
+                  metadata: { nodeId: start?.id, nodeType: 'start', source: 'ai_apply' },
+                  created_by: userProfile.id,
+                  is_active: true,
+                });
+              }
+            }
+            toast({
+              title: "AI Workflow Applied & Saved",
+              description: `Created ${newNodes.length} nodes. Activate the workflow, then submit the form to run it.`,
+            });
+          } else {
+            toast({
+              title: "AI Workflow Applied",
+              description: "Nodes were applied locally but save failed — click Save before activating.",
+              variant: "destructive",
+            });
+          }
+        } catch (e) {
+          console.error('AI apply auto-save failed:', e);
+          toast({
+            title: "AI Workflow Applied",
+            description: "Click Save before activating so the trigger form is stored.",
+            variant: "destructive",
+          });
+        }
+      })();
+    } else {
+      toast({
+        title: "AI Workflow Applied",
+        description: `Created ${newNodes.length} nodes with ${newConnections.length} connections. Configure each node as needed.`,
+      });
+    }
   };
 
   return (
