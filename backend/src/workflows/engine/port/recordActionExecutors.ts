@@ -859,9 +859,10 @@ export class RecordActionExecutors {
       // Build base submission data for the new child records
       const childSubmissionData: Record<string, any> = {};
 
-      // Apply field values if configured
-      if (config.fieldConfigMode === 'field_mapping' && config.fieldMappings) {
-        for (const mapping of config.fieldMappings) {
+      // Apply field mappings then static/dynamic field values (both can coexist)
+      const fieldMappings = Array.isArray(config.fieldMappings) ? config.fieldMappings : [];
+      if (fieldMappings.length > 0) {
+        for (const mapping of fieldMappings) {
           if (mapping.sourceFieldId && mapping.targetFieldId) {
             const sourceValue = triggerSubmissionData[mapping.sourceFieldId];
             if (sourceValue !== undefined && sourceValue !== null && sourceValue !== '') {
@@ -869,7 +870,9 @@ export class RecordActionExecutors {
             }
           }
         }
-      } else if (config.fieldValues && config.fieldValues.length > 0) {
+      }
+
+      if (config.fieldValues && config.fieldValues.length > 0) {
         for (const fieldValue of config.fieldValues) {
           if (!fieldValue.fieldId) continue;
 

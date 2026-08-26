@@ -119,18 +119,13 @@ export function validateWorkflowDefinition(
           });
         }
         if (action.actionType === 'update_linked_records') {
-          if (!action.targetFieldId && !action.targetFieldLabel) {
+          const hasUpdates = (action.createFieldValues || []).length > 0
+            || (action.createFieldMappings || []).length > 0;
+          if (!action.createFieldsDone || !hasUpdates) {
             issues.push({
               severity: 'error',
-              code: 'MISSING_ACTION_FIELD',
-              message: 'Linked update field is not set.',
-            });
-          }
-          if (action.staticValue === undefined || action.staticValue === null || String(action.staticValue) === '') {
-            issues.push({
-              severity: 'error',
-              code: 'MISSING_ACTION_VALUE',
-              message: 'Linked update value is not set.',
+              code: 'MISSING_UPDATE_FIELDS',
+              message: 'Add at least one static value or trigger-form mapping for the linked update, then choose Done.',
             });
           }
         }

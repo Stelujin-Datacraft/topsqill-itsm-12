@@ -117,14 +117,19 @@ function actionConfigured(action: WorkflowActionSpec | null | undefined): boolea
           || action.createFieldsDone === true
         );
     }
-    case 'update_linked_records':
+    case 'update_linked_records': {
+      const hasStaticDraft = Boolean(action.targetFieldId || action.targetFieldLabel);
+      const hasMapDraft = action.createDraftKind === 'map'
+        || Boolean(action.createMapTargetFieldId || action.createMapTargetFieldLabel);
+      const hasUpdates = (action.createFieldValues || []).length > 0
+        || (action.createFieldMappings || []).length > 0;
       return Boolean(action.crossReferenceFieldId || action.crossReferenceFieldLabel)
         && Boolean(action.targetFormId || action.targetFormName)
-        && Boolean(action.targetFieldId || action.targetFieldLabel)
-        && action.staticValue !== undefined
-        && action.staticValue !== null
-        && String(action.staticValue) !== '';
-    case 'create_combination_records':
+        && !hasStaticDraft
+        && !hasMapDraft
+        && action.createFieldsDone === true
+        && hasUpdates;
+    }    case 'create_combination_records':
       return Boolean(action.sourceCrossRefFieldId || action.sourceCrossRefFieldLabel)
         && Boolean(action.targetFormId || action.targetFormName);
     case 'send_notification':
@@ -339,11 +344,16 @@ function planGenericActionRequirements(
 
   if (needsXr && !action.crossReferenceFieldId && !action.crossReferenceFieldLabel
     && !action.sourceCrossRefFieldId && !action.sourceCrossRefFieldLabel) {
+    const xrQuestion = action.actionType === 'update_linked_records'
+      ? 'Which **cross-reference** field points to the linked records to update?'
+      : action.actionType === 'create_linked_record'
+        ? 'Which **cross-reference** field links to the form where the new record should be created?'
+        : 'Which **cross-reference** field links to the related form?';
     push(req({
       id: 'action.cross_ref',
       scope: 'workflow',
       key: 'action_cross_ref',
-      question: 'Which **cross-reference** field links to the related form?',
+      question: xrQuestion,
       inputKind: 'field_select',
       options: xrFields.length
         ? xrFields.map((f) => ({ value: f.id, label: `${f.label} (${f.type})` }))
@@ -403,9 +413,11 @@ function planGenericActionRequirements(
     }
   }
 
-  // ── Create record field values + trigger mappings (multi until user stops) ─
+  // ── Create / linked-create / linked-update field values + mappings ─────
+  const isUpdateLinked = action.actionType === 'update_linked_records';
   const isCreateAction = action.actionType === 'create_record'
-    || action.actionType === 'create_linked_record';
+    || action.actionType === 'create_linked_record'
+    || isUpdateLinked;
 
   if (isCreateAction && !action.skipCreateFieldValues && !action.createFieldsDone) {
     if (!action.createFieldValues) action.createFieldValues = [];
@@ -422,6 +434,17 @@ function planGenericActionRequirements(
     ]);
     const availableTargetFields = (fieldChoices(fieldSource).length ? fieldChoices(fieldSource) : allFields)
       .filter((f) => !usedTargetIds.has(f.value));
+
+    const recordNoun = isUpdateLinked
+      ? (action.targetFormName || 'linked record')
+      : (action.targetFormName || 'record');
+    const actionVerb = isUpdateLinked ? 'update' : 'create';
+    const targetFieldPrompt = isUpdateLinked
+      ? `Which **field on the linked ${recordNoun}** should receive a value from the trigger form?`
+      : `Which **field on the new ${recordNoun}** should receive a value from the trigger form?`;
+    const staticValuePrompt = (label: string) => isUpdateLinked
+      ? `What **static value** should **${label}** be set to on the linked record?`
+      : `What **static value** should **${label}** be set to on the new record?`;
 
     const clearStaticDraft = () => {
       action.targetFieldId = undefined;
@@ -485,7 +508,7 @@ function planGenericActionRequirements(
         scope: 'workflow',
         key: 'action_map_target_field',
         question: [
-          `Which **field on the new ${action.targetFormName || 'record'}** should receive a value from the trigger form?`,
+          targetFieldPrompt,
           '',
           'Only data fields are listed. Next you will pick a compatible trigger-form field to map from.',
         ].join('\n'),
@@ -534,7 +557,7 @@ function planGenericActionRequirements(
         scope: 'workflow',
         key: 'action_map_source_field',
         question: [
-          `Map **which trigger-form field** → **${action.createMapTargetFieldLabel}** on the new record?`,
+          `Map **which trigger-form field** → **${action.createMapTargetFieldLabel}** on the ${isUpdateLinked ? 'linked' : 'new'} record?`,
           '',
           `Only fields compatible with type **${targetType}** are shown.`,
         ].join('\n'),
@@ -585,7 +608,7 @@ function planGenericActionRequirements(
           id: `action.create_value_${action.createFieldValues.length}`,
           scope: 'workflow',
           key: 'action_value',
-          question: `What **static value** should **${draftField?.label || action.targetFieldLabel}** be set to on the new record?`,
+          question: staticValuePrompt(String(draftField?.label || action.targetFieldLabel)),
           inputKind: 'choice',
           options: opts,
         }));
@@ -594,7 +617,7 @@ function planGenericActionRequirements(
           id: `action.create_value_${action.createFieldValues.length}`,
           scope: 'workflow',
           key: 'action_value',
-          question: `What **static value** should **${draftField?.label || action.targetFieldLabel || 'the field'}** be set to on the new record?`,
+          question: staticValuePrompt(String(draftField?.label || action.targetFieldLabel || 'the field')),
           inputKind: 'text',
         }));
       }
@@ -671,17 +694,25 @@ function planGenericActionRequirements(
         key: 'action_field',
         question: [
           added
-            ? `Add another field on the new **${action.targetFormName || 'record'}**?`
-            : `How should fields be set while creating the new **${action.targetFormName || 'record'}**?`,
+            ? `Add another field to ${actionVerb} on **${recordNoun}**?`
+            : isUpdateLinked
+              ? `How should fields be set while updating the linked **${recordNoun}**?`
+              : `How should fields be set while creating the new **${recordNoun}**?`,
           summaryParts.length ? summaryParts.join(' · ') : '',
           '',
-          'Pick a field for a **static value**, choose **Map Field from trigger form**, or finish.',
+          isUpdateLinked
+            ? (added
+              ? 'Pick another field for a **static value**, **Map Field from trigger form**, or **Done**.'
+              : 'Pick a field for a **static value** or **Map Field from trigger form** (at least one update is required).')
+            : 'Pick a field for a **static value**, choose **Map Field from trigger form**, or finish.',
         ].filter(Boolean).join('\n'),
         inputKind: 'field_select',
         options: [
           ...(added
             ? [{ value: '__done_create_fields__', label: 'Done — stop adding fields' }]
-            : [{ value: '__skip_create_field_values__', label: 'Skip — create with empty/default values' }]),
+            : (isUpdateLinked
+              ? []
+              : [{ value: '__skip_create_field_values__', label: 'Skip — create with empty/default values' }])),
           { value: '__map_from_trigger__', label: 'Map Field from trigger form' },
           ...availableTargetFields,
         ],
@@ -690,32 +721,22 @@ function planGenericActionRequirements(
     }
   }
 
-  // Action field (change_field_value on trigger form, or update_linked on linked form)
-  const needsActionField = action.actionType === 'change_field_value'
-    || action.actionType === 'update_linked_records';
+  // Action field (change_field_value on trigger form only)
+  const needsActionField = action.actionType === 'change_field_value';
 
   if (
     needsActionField
     && !action.targetFieldId
     && !action.targetFieldLabel
   ) {
-    const linkedForm = action.targetFormId
-      ? hydratedCatalog.find((f) => f.id === action.targetFormId)
-      : undefined;
-    const fieldSource = action.actionType === 'update_linked_records' && linkedForm
-      ? linkedForm
-      : hydratedForm;
-    const labelScope = action.actionType === 'update_linked_records'
-      ? 'on the **linked form**'
-      : 'on this form';
     push(req({
       id: 'action.field',
       scope: 'workflow',
       key: 'action_field',
-      question: `Which **field** should the action update ${labelScope}?`,
+      question: 'Which **field** should the action update on this form?',
       inputKind: 'field_select',
-      options: fieldChoices(fieldSource).length
-        ? fieldChoices(fieldSource)
+      options: fieldChoices(hydratedForm).length
+        ? fieldChoices(hydratedForm)
         : allFields,
     }));
     return mergeUnansweredFirst(out);
@@ -1301,8 +1322,14 @@ export function applyAnswerToDefinition(
 
   if (requirement.key === 'action_field' && next.action) {
     const isCreate = next.action.actionType === 'create_record'
-      || next.action.actionType === 'create_linked_record';
-    if (value === '__skip_create_field_values__' || (isCreate && /^skip\b/i.test(value))) {
+      || next.action.actionType === 'create_linked_record'
+      || next.action.actionType === 'update_linked_records';
+    const isUpdateLinked = next.action.actionType === 'update_linked_records';
+    if (value === '__skip_create_field_values__' || (isCreate && !isUpdateLinked && /^skip\b/i.test(value))) {
+      if (isUpdateLinked) {
+        // Update Linked requires at least one field change — ignore skip
+        return next;
+      }
       next.action.skipCreateFieldValues = true;
       next.action.createFieldsDone = true;
       next.action.createFieldValues = next.action.createFieldValues || [];
@@ -1324,9 +1351,13 @@ export function applyAnswerToDefinition(
       return next;
     }
     if (value === '__done_create_fields__' || (isCreate && /^done\b/i.test(value))) {
-      next.action.createFieldsDone = true;
       const hasStatic = (next.action.createFieldValues || []).length > 0;
       const hasMaps = (next.action.createFieldMappings || []).length > 0;
+      if (isUpdateLinked && !hasStatic && !hasMaps) {
+        // Must add at least one update — leave createFieldsDone false
+        return next;
+      }
+      next.action.createFieldsDone = true;
       if (!hasStatic && !hasMaps) {
         next.action.skipCreateFieldValues = true;
       }

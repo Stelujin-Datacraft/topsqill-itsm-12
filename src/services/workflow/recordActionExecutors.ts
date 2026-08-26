@@ -859,9 +859,10 @@ export class RecordActionExecutors {
       // Build base submission data for the new child records
       const childSubmissionData: Record<string, any> = {};
 
-      // Apply field values if configured
-      if (config.fieldConfigMode === 'field_mapping' && config.fieldMappings) {
-        for (const mapping of config.fieldMappings) {
+      // Apply field mappings then static/dynamic field values (both can coexist)
+      const fieldMappings = Array.isArray(config.fieldMappings) ? config.fieldMappings : [];
+      if (fieldMappings.length > 0) {
+        for (const mapping of fieldMappings) {
           if (mapping.sourceFieldId && mapping.targetFieldId) {
             const sourceValue = triggerSubmissionData[mapping.sourceFieldId];
             if (sourceValue !== undefined && sourceValue !== null && sourceValue !== '') {
@@ -869,7 +870,9 @@ export class RecordActionExecutors {
             }
           }
         }
-      } else if (config.fieldValues && config.fieldValues.length > 0) {
+      }
+
+      if (config.fieldValues && config.fieldValues.length > 0) {
         for (const fieldValue of config.fieldValues) {
           if (!fieldValue.fieldId) continue;
 
@@ -1075,8 +1078,14 @@ export class RecordActionExecutors {
       const fieldMappings = Array.isArray(config.fieldMappings) ? config.fieldMappings : [];
       const fieldValues = Array.isArray(config.fieldValues) ? config.fieldValues : [];
       const mode = config.fieldConfigMode || 'field_mapping';
-      const useMappings = mode === 'field_mapping' || mode === 'both' || (!config.fieldConfigMode && fieldMappings.length > 0);
-      const useValues = mode === 'field_values' || mode === 'both';
+      // Honor explicit mode, but always apply whichever arrays are populated
+      // (AI builder may emit both static values and trigger mappings together).
+      const useMappings = fieldMappings.length > 0 && (
+        mode === 'field_mapping' || mode === 'both' || !config.fieldConfigMode || mode === 'field_values'
+      );
+      const useValues = fieldValues.length > 0 && (
+        mode === 'field_values' || mode === 'both' || !config.fieldConfigMode || mode === 'field_mapping'
+      );
 
       if (fieldMappings.length === 0 && fieldValues.length === 0) {
         return {
