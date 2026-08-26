@@ -294,6 +294,9 @@ export function shouldUseConversationalWorkflowBuilder(prompt: string): boolean 
   if (/\bwhen\b.+\b(set|change|update|create)\b/.test(t)) return true;
   if (/\bif\b.+\bthen\b.+\b(set|change|update|create)\b/.test(t)) return true;
   if (/\bcreate\s+(?:a\s+)?(?:new\s+)?(?:linked\s+)?record\b/.test(t)) return true;
+  if (/\bcreate\s+(?:an?\s+)?(?:new\s+)?[\w][\w\s/-]{0,40}?\s+records?\b/.test(t)) return true;
+  if (/\bcreate\s+(?:an?\s+)?(?:new\s+)?[\w][\w\s/-]{0,40}?\s+(?:ticket|submission|entry)\b/.test(t)) return true;
+  if (/\bcreate\s+(?:an?\s+)?new\s+[\w][\w/-]+\b/.test(t)) return true;
   if (/\bupdate\s+linked\b|\blinked\s+record\b|\bcross[- ]?ref/.test(t)) return true;
   if (/\bcombin(?:e|ation)\b/.test(t)) return true;
   if (/\bworkflow\b/.test(t) && /\b(if|when|then|create|update|set|change|approv)\b/.test(t)) return true;
