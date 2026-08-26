@@ -463,15 +463,31 @@ export function continueWorkflowBuilderSession(params: {
     && answer !== '__same_as_approval__'
     && answer !== '__choose__'
     && answer !== '__reask__'
+    && answer !== '__skip_create_field_values__'
+    && answer !== '__done_create_fields__'
+    && answer !== '__map_from_trigger__'
+    && answer !== '__cancel_map__'
     && !answer.startsWith('__create_named__:')
     && !unanswered.options?.some((o) => o.value === answer)
   ) {
-    // Prefer linked form when picking action_field for update_linked_records
+    // Prefer linked/target form when picking create/update target fields
     let lookupForm = form;
-    if (unanswered.key === 'action_field'
-      && session.requirements.action?.actionType === 'update_linked_records'
-      && session.requirements.action.targetFormId) {
-      lookupForm = formsCatalog.find((f) => f.id === session.requirements.action!.targetFormId) || form;
+    const action = session.requirements.action;
+    if (
+      (unanswered.key === 'action_field' || unanswered.key === 'action_map_target_field')
+      && action
+      && (
+        action.actionType === 'update_linked_records'
+        || action.actionType === 'create_record'
+        || action.actionType === 'create_linked_record'
+      )
+      && action.targetFormId
+    ) {
+      lookupForm = formsCatalog.find((f) => f.id === action.targetFormId) || form;
+    }
+    // Map source is always from the trigger form
+    if (unanswered.key === 'action_map_source_field') {
+      lookupForm = form;
     }
     const match = searchFields(lookupForm, raw);
     if (match.matched) {
@@ -749,10 +765,27 @@ function buildAck(
       return 'Okay — I\'ll create the record with empty/default field values.';
     }
     if (answer === '__done_create_fields__' || /^done\b/i.test(answer)) {
-      return 'Got it — I\'ll stop adding static fields for the new record.';
+      return 'Got it — I\'ll stop adding fields for the new record.';
+    }
+    if (answer === '__map_from_trigger__' || /^map\b/i.test(answer)) {
+      return 'Okay — we\'ll map a field from the trigger form. Pick the field on the new record first.';
     }
     if (field) return `Action will update **${field.label}**.`;
     return 'Action field noted.';
+  }
+  if (req.key === 'action_map_target_field') {
+    if (answer === '__cancel_map__' || /^cancel\b/i.test(answer)) {
+      return 'Mapping cancelled.';
+    }
+    if (field) return `New-record field **${field.label}** will receive the mapped value.`;
+    return 'Target field for mapping noted.';
+  }
+  if (req.key === 'action_map_source_field') {
+    if (answer === '__cancel_map__' || /^cancel\b/i.test(answer)) {
+      return 'Mapping cancelled.';
+    }
+    if (field) return `I'll copy **${field.label}** from the trigger form into the new record.`;
+    return 'Trigger field for mapping noted.';
   }
   if (req.key === 'action_value') {
     return `Action value set to **${answer}**.`;

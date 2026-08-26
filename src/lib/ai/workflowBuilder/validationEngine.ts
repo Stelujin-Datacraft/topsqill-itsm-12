@@ -80,7 +80,7 @@ export function validateWorkflowDefinition(
           issues.push({
             severity: 'error',
             code: 'MISSING_CREATE_FIELDS',
-            message: 'Add static field values for the new record, or choose Done/Skip.',
+            message: 'Add static values and/or map fields from the trigger form, or choose Done/Skip.',
           });
         }
         break;
@@ -115,7 +115,7 @@ export function validateWorkflowDefinition(
           issues.push({
             severity: 'error',
             code: 'MISSING_CREATE_FIELDS',
-            message: 'Add static field values for the linked record, or choose Done/Skip.',
+            message: 'Add static values and/or map fields from the trigger form, or choose Done/Skip.',
           });
         }
         if (action.actionType === 'update_linked_records') {
