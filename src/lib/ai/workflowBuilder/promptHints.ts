@@ -17,7 +17,8 @@ function cleanHint(raw: string | undefined): string | undefined {
   // never keep "Closed, set Priority to High" as a single option value
   s = s
     .replace(/[,.]?\s+(?:and\s+)?(?:then\s+)?(?:set|change|update)\s+[A-Za-z][\w\s/-]{0,40}?\s+to\b[\s\S]*$/i, '')
-    .replace(/\s+(?:then|and then|and set|and change|and update)\b.*$/i, '')
+    .replace(/[,.]?\s+(?:and\s+)?(?:then\s+)?create\b[\s\S]*$/i, '')
+    .replace(/\s+(?:then|and then|and set|and change|and update|and create)\b.*$/i, '')
     .trim();
   return s || undefined;
 }
@@ -30,7 +31,7 @@ export function extractGenericPromptHints(prompt: string): GenericPromptHints {
 
   // when/if <field> is/equals/= <value>
   const cond = text.match(
-    /\b(?:when|if)\s+([A-Za-z][\w\s/-]{0,40}?)\s+(?:is|equals|=|==)\s+([A-Za-z0-9][\w\s/-]{0,40}?)(?=\s*(?:,|\.|$|then\b|set\b|change\b|update\b|and\b))/i,
+    /\b(?:when|if)\s+([A-Za-z][\w\s/-]{0,40}?)\s+(?:is|equals|=|==)\s+([A-Za-z0-9][\w\s/-]{0,40}?)(?=\s*(?:,|\.|$|then\b|set\b|change\b|update\b|create\b|and\b))/i,
   );
   if (cond) {
     out.conditionFieldHint = cleanHint(cond[1]);
@@ -39,7 +40,7 @@ export function extractGenericPromptHints(prompt: string): GenericPromptHints {
 
   // set/change/update <field> to <value>
   const action = text.match(
-    /\b(?:set|change|update)\s+([A-Za-z][\w\s/-]{0,40}?)\s+to\s+([A-Za-z0-9][\w\s/-]{0,40}?)(?=\s*(?:,|\.|$|when\b|if\b|and\b))/i,
+    /\b(?:set|change|update)\s+([A-Za-z][\w\s/-]{0,40}?)\s+to\s+([A-Za-z0-9][\w\s/-]{0,40}?)(?=\s*(?:,|\.|$|when\b|if\b|and\b|create\b))/i,
   );
   if (action) {
     out.actionFieldHint = cleanHint(action[1]);
@@ -47,6 +48,30 @@ export function extractGenericPromptHints(prompt: string): GenericPromptHints {
   }
 
   return out;
+}
+
+/** Form name hint from "create a new Incident record" / "create an Incident". */
+export function extractCreateTargetFormHint(prompt: string): string | undefined {
+  const text = String(prompt || '').replace(/\s+/g, ' ').trim();
+  if (!text) return undefined;
+  const named = text.match(
+    /\bcreate\s+(?:an?\s+)?(?:new\s+)?([A-Za-z][\w\s/-]{0,40}?)\s+(?:records?|tickets?|submissions?|entries)\b/i,
+  );
+  if (named?.[1]) {
+    const hint = cleanHint(named[1]);
+    if (hint && !/^(?:linked|child|cross[- ]?ref(?:erence)?)$/i.test(hint)) return hint;
+  }
+  const short = text.match(/\bcreate\s+(?:an?\s+)?(?:new\s+)?([A-Za-z][\w/-]{1,40})\b/i);
+  if (short?.[1]) {
+    const hint = cleanHint(short[1]);
+    if (
+      hint
+      && !/^(?:a|an|new|linked|child|record|records|ticket|submission|field|form|workflow)$/i.test(hint)
+    ) {
+      return hint;
+    }
+  }
+  return undefined;
 }
 
 export function fieldMatchesHint(

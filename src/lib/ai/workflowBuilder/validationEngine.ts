@@ -73,6 +73,28 @@ export function validateWorkflowDefinition(
             message: 'Create Record needs a target form.',
           });
         }
+        if (
+          !action.skipCreateFieldValues
+          && !action.targetFieldId
+          && !action.targetFieldLabel
+        ) {
+          issues.push({
+            severity: 'error',
+            code: 'MISSING_CREATE_FIELD',
+            message: 'Choose a static field to set on the new record, or skip field values.',
+          });
+        }
+        if (
+          !action.skipCreateFieldValues
+          && (action.targetFieldId || action.targetFieldLabel)
+          && (action.staticValue === undefined || action.staticValue === null || String(action.staticValue) === '')
+        ) {
+          issues.push({
+            severity: 'error',
+            code: 'MISSING_CREATE_VALUE',
+            message: 'Create Record field value is not set.',
+          });
+        }
         break;
       case 'create_linked_record':
       case 'update_linked_records':
@@ -95,6 +117,30 @@ export function validateWorkflowDefinition(
             severity: 'error',
             code: 'MISSING_TARGET_FORM',
             message: 'Target / linked form is not set.',
+          });
+        }
+        if (
+          action.actionType === 'create_linked_record'
+          && !action.skipCreateFieldValues
+          && !action.targetFieldId
+          && !action.targetFieldLabel
+        ) {
+          issues.push({
+            severity: 'error',
+            code: 'MISSING_CREATE_FIELD',
+            message: 'Choose a static field to set on the linked record, or skip field values.',
+          });
+        }
+        if (
+          action.actionType === 'create_linked_record'
+          && !action.skipCreateFieldValues
+          && (action.targetFieldId || action.targetFieldLabel)
+          && (action.staticValue === undefined || action.staticValue === null || String(action.staticValue) === '')
+        ) {
+          issues.push({
+            severity: 'error',
+            code: 'MISSING_CREATE_VALUE',
+            message: 'Create Linked Record field value is not set.',
           });
         }
         if (action.actionType === 'update_linked_records') {
