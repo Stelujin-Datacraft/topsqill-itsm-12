@@ -10,6 +10,11 @@ export type InferredWorkflowActionType =
   | 'create_combination_records'
   | 'send_notification';
 
+/** Phrases that mean "create something" but not a form record. */
+function looksLikeNonRecordCreate(t: string): boolean {
+  return /\bcreate\s+(?:an?\s+)?(?:new\s+)?(?:field|option|value|workflow|form|level|approver|user|role|group|status|dropdown|email|notification|rule)\b/.test(t);
+}
+
 export function inferActionTypeFromPrompt(prompt: string): InferredWorkflowActionType {
   const t = String(prompt || '').toLowerCase().replace(/\s+/g, ' ').trim();
   if (!t) return 'change_field_value';
@@ -45,10 +50,20 @@ export function inferActionTypeFromPrompt(prompt: string): InferredWorkflowActio
   }
 
   // Create record (new submission on a form)
+  // Allow form/object names between "new" and "record":
+  // e.g. "create a new Incident record", "create an Incident ticket"
   if (
-    /\bcreate\s+(?:a\s+)?(?:new\s+)?record\b/.test(t)
-    || /\bnew\s+record\b/.test(t)
-    || /\bcreate\s+(?:a\s+)?submission\b/.test(t)
+    !looksLikeNonRecordCreate(t)
+    && (
+      /\bcreate\s+(?:an?\s+)?(?:new\s+)?record\b/.test(t)
+      || /\bcreate\s+(?:an?\s+)?(?:new\s+)?[\w][\w\s/-]{0,40}?\s+records?\b/.test(t)
+      || /\bnew\s+record\b/.test(t)
+      || /\bcreate\s+(?:an?\s+)?submission\b/.test(t)
+      || /\bcreate\s+(?:an?\s+)?(?:new\s+)?[\w][\w\s/-]{0,40}?\s+(?:ticket|submission|entry)\b/.test(t)
+      || /\bcreate\s+(?:an?\s+)?new\s+[\w][\w/-]+\b/.test(t)
+      // "create an Incident" / "create a Task" (form-like noun, not "create a field")
+      || /\bcreate\s+(?:an?\s+)(?!new\b)[a-z][\w/-]{1,40}\b/.test(t)
+    )
   ) {
     return 'create_record';
   }
