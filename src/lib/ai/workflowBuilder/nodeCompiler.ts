@@ -259,7 +259,9 @@ function buildActionNodeConfig(
       const hasValues = values.length > 0;
       const hasMaps = mappings.length > 0;
       let fieldConfigMode: 'field_values' | 'field_mapping' | 'none' = 'none';
-      if (hasMaps) fieldConfigMode = 'field_mapping';
+      // Prefer field_mapping when maps exist; runtime still applies fieldValues after maps
+      if (hasMaps && hasValues) fieldConfigMode = 'field_mapping';
+      else if (hasMaps) fieldConfigMode = 'field_mapping';
       else if (hasValues) fieldConfigMode = 'field_values';
       return {
         ...base,
@@ -275,25 +277,60 @@ function buildActionNodeConfig(
         autoLinkBack: true,
       };
     }
-    case 'update_linked_records':
+    case 'update_linked_records': {
+      const values = (!action.skipCreateFieldValues ? (action.createFieldValues || []) : [])
+        .filter((f) => f.fieldId || f.fieldLabel)
+        .map((f) => resolveCreateFieldValue(f, createLookupFields))
+        .filter((f) => f.fieldId && f.staticValue !== undefined && String(f.staticValue) !== '');
+      // Legacy single-field fallback when older sessions only set targetField*/staticValue
+      if (
+        !values.length
+        && (action.targetFieldId || action.targetFieldLabel)
+        && action.staticValue !== undefined
+        && action.staticValue !== null
+        && String(action.staticValue) !== ''
+      ) {
+        const legacy = resolveCreateFieldValue({
+          fieldId: action.targetFieldId,
+          fieldLabel: action.targetFieldLabel,
+          fieldType: action.targetFieldType,
+          staticValue: action.staticValue,
+        }, createLookupFields);
+        if (legacy.fieldId) values.push(legacy);
+      }
+      const mappings = (!action.skipCreateFieldValues ? (action.createFieldMappings || []) : [])
+        .filter((m) => (m.targetFieldId || m.targetFieldLabel) && (m.sourceFieldId || m.sourceFieldLabel))
+        .map((m) => {
+          const target = findField(createLookupFields, m.targetFieldId, m.targetFieldLabel);
+          const source = findField(formFields, m.sourceFieldId, m.sourceFieldLabel);
+          return {
+            sourceFieldId: m.sourceFieldId || source?.id || '',
+            sourceFieldName: source?.label || m.sourceFieldLabel || '',
+            sourceFieldType: source?.type || m.sourceFieldType || '',
+            targetFieldId: m.targetFieldId || target?.id || '',
+            targetFieldName: target?.label || m.targetFieldLabel || '',
+            targetFieldType: target?.type || m.targetFieldType || '',
+          };
+        })
+        .filter((m) => m.sourceFieldId && m.targetFieldId);
+      const hasValues = values.length > 0;
+      const hasMaps = mappings.length > 0;
+      let fieldConfigMode: 'field_values' | 'field_mapping' | 'both' = 'field_values';
+      if (hasMaps && hasValues) fieldConfigMode = 'both';
+      else if (hasMaps) fieldConfigMode = 'field_mapping';
+      else fieldConfigMode = 'field_values';
       return {
         ...base,
+        targetFormId: action.targetFormId || formId,
+        targetFormName: action.targetFormName || formName,
         crossReferenceFieldId: action.crossReferenceFieldId,
         crossReferenceFieldName: action.crossReferenceFieldLabel,
         updateScope: action.updateScope || 'all',
-        fieldConfigMode: 'field_values',
-        fieldMappings: [],
-        fieldValues: fieldId
-          ? [{
-              fieldId,
-              fieldName: fieldLabel,
-              fieldType,
-              fieldOptions,
-              valueType: 'static',
-              staticValue,
-            }]
-          : [],
+        fieldConfigMode,
+        fieldMappings: mappings,
+        fieldValues: values,
       };
+    }
     case 'create_combination_records':
       return {
         ...base,

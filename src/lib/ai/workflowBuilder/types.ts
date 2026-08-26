@@ -137,15 +137,16 @@ export interface WorkflowActionSpec {
   updateScope?: 'all' | 'first' | 'last';
   combinationMode?: 'single' | 'dual';
   /**
-   * For create_record / create_linked_record:
-   * user chose not to set any static field values or mappings on the new record.
+   * For create_record / create_linked_record / update_linked_records:
+   * user chose not to set any static field values or mappings on the new/linked record.
+   * (Update Linked ignores skip — at least one field change is required.)
    */
   skipCreateFieldValues?: boolean;
-  /** Completed static field/value pairs for create_* actions */
+  /** Completed static field/value pairs for create_* and update_linked actions */
   createFieldValues?: WorkflowCreateFieldValue[];
-  /** Completed trigger→target field mappings for create_* actions */
+  /** Completed trigger→target field mappings for create_* and update_linked actions */
   createFieldMappings?: WorkflowCreateFieldMapping[];
-  /** User finished adding create field values / mappings */
+  /** User finished adding create/update field values / mappings */
   createFieldsDone?: boolean;
   /**
    * In-progress create draft: static value on a target field, or map from trigger.
