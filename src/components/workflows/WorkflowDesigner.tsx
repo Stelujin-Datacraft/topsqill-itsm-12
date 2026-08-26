@@ -583,7 +583,21 @@ function WorkflowDesignerInner({ workflowId, projectId, initialNodes, initialCon
     if (!workflowId || !userProfile?.organization_id) return;
 
     const startNode = nodes.find(n => n.type === 'start');
-    const startConfig = startNode?.data?.config;
+    const startConfig = { ...(startNode?.data?.config || {}) };
+    // Heal aliases → triggerFormId before sync/persist
+    const resolvedFormId = startConfig.triggerFormId
+      || startConfig.formId
+      || startConfig.sourceFormId;
+    if (resolvedFormId && !startConfig.triggerFormId) {
+      startConfig.triggerFormId = resolvedFormId;
+      startConfig.formId = startConfig.formId || resolvedFormId;
+      if (startNode) {
+        startNode.data = {
+          ...startNode.data,
+          config: startConfig,
+        };
+      }
+    }
     
     // Manual triggers don't need to be synced to workflow_triggers table
     if (!startConfig?.triggerType || startConfig.triggerType === 'manual') {

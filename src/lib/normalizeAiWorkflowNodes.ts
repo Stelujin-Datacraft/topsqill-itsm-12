@@ -362,10 +362,25 @@ function normalizeStartConfig(
   if (triggerFormName) {
     next.triggerFormName = triggerFormName;
   }
-  const rawType = String(next.triggerType || 'form_submission').toLowerCase();
-  next.triggerType = rawType === 'trigger' || rawType === 'form' || !rawType
-    ? 'form_submission'
-    : next.triggerType || 'form_submission';
+  const rawType = String(next.triggerType || 'form_submission').toLowerCase().replace(/[\s-]+/g, '_');
+  if (
+    rawType === 'trigger'
+    || rawType === 'form'
+    || rawType === 'submission'
+    || rawType === 'onformsubmit'
+    || !rawType
+  ) {
+    next.triggerType = 'form_submission';
+  } else if (rawType === 'onformcompletion') {
+    next.triggerType = 'form_completion';
+  } else {
+    next.triggerType = next.triggerType || 'form_submission';
+  }
+  // Always stamp aliases so runtime matching and designer stay in sync
+  if (next.triggerFormId) {
+    next.formId = next.formId || next.triggerFormId;
+    next.sourceFormId = next.sourceFormId || next.triggerFormId;
+  }
   return next;
 }
 
