@@ -308,9 +308,12 @@ const WorkflowDesignerPage = () => {
                   crossRefConfig: undefined as any
                 };
 
-                if ((f.field_type === 'cross-reference' || f.field_type === 'child-cross-reference') && f.custom_config) {
-                  const config = f.custom_config as any;
-                  const targetFormId = config?.targetFormId;
+                if ((f.field_type === 'cross-reference' || f.field_type === 'child-cross-reference') && base.custom_config) {
+                  const config = base.custom_config as any;
+                  const targetFormId = config?.targetFormId
+                    || config?.target_form_id
+                    || config?.crossRefConfig?.targetFormId
+                    || config?.cross_ref_config?.targetFormId;
                   if (targetFormId) {
                     // Fetch linked form name and fields
                     const [formRes, fieldsRes] = await Promise.all([
@@ -320,7 +323,7 @@ const WorkflowDesignerPage = () => {
                     
                     base.crossRefConfig = {
                       targetFormId,
-                      targetFormName: formRes.data?.name || 'Unknown Form',
+                      targetFormName: formRes.data?.name || config?.targetFormName || 'Unknown Form',
                       targetFormFields: (fieldsRes.data || []).map(tf => {
                         let tfOpts: Array<{ id: string; value: string; label: string }> | undefined;
                         try {
@@ -347,6 +350,14 @@ const WorkflowDesignerPage = () => {
                         };
                       })
                     };
+                    // Keep targetFormId on custom_config for getCrossRefTargetForm
+                    if (!config.targetFormId) {
+                      base.custom_config = {
+                        ...config,
+                        targetFormId,
+                        targetFormName: base.crossRefConfig.targetFormName,
+                      };
+                    }
                   }
                 }
 

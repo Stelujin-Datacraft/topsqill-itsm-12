@@ -39,7 +39,7 @@ interface WorkflowFormField {
   label: string;
   type: string;
   options?: Array<{ id: string; value: string; label: string }>;
-  custom_config?: Record<string, unknown> | null;
+  custom_config?: Record<string, unknown> | string | null;
   crossRefConfig?: CrossRefConfig;
 }
 
@@ -119,14 +119,32 @@ function mapDiscoveredForm(form: WorkflowFormOption) {
   return {
     id: form.id,
     name: form.name,
-    fields: (form.fields || []).map((f) => ({
-      id: f.id,
-      label: f.label,
-      type: f.type,
-      options: f.options,
-      required: false,
-      custom_config: f.custom_config ?? null,
-    })),
+    fields: (form.fields || []).map((f) => {
+      let custom: Record<string, unknown> = {};
+      if (typeof f.custom_config === 'string') {
+        try {
+          const parsed = JSON.parse(f.custom_config);
+          if (parsed && typeof parsed === 'object') custom = { ...parsed };
+        } catch { /* ignore */ }
+      } else if (f.custom_config && typeof f.custom_config === 'object') {
+        custom = { ...(f.custom_config as Record<string, unknown>) };
+      }
+      // Preserve XR target form from enrichment so planner can resolve child form fields
+      if (f.crossRefConfig?.targetFormId) {
+        custom.targetFormId = custom.targetFormId || f.crossRefConfig.targetFormId;
+        custom.targetFormName = custom.targetFormName || f.crossRefConfig.targetFormName;
+        custom.crossRefConfig = f.crossRefConfig;
+      }
+      return {
+        id: f.id,
+        label: f.label,
+        type: f.type,
+        options: f.options,
+        required: false,
+        custom_config: Object.keys(custom).length ? custom : (f.custom_config ?? null),
+        crossRefConfig: f.crossRefConfig,
+      };
+    }),
   };
 }
 
