@@ -35,6 +35,43 @@ export class ConditionEvaluator {
     return false;
   }
 
+  /**
+   * System Status defaults to "Draft". Treat that default as "not yet set" when the
+   * condition expects a different lifecycle value (e.g. Closed) so the workflow waits
+   * instead of immediately taking the false/Skipped branch.
+   */
+  private static isUnsetLifecycleDefault(
+    fieldValue: any,
+    expectedValue: any,
+    fieldType?: string,
+    fieldLabel?: string,
+  ): boolean {
+    const type = String(fieldType || '').toLowerCase();
+    const label = String(fieldLabel || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    const isLifecycle = type === 'status'
+      || label === 'status'
+      || label === 'lifecycle status'
+      || label === 'record status';
+    if (!isLifecycle) return false;
+
+    const actual = (() => {
+      if (fieldValue && typeof fieldValue === 'object' && 'value' in fieldValue) {
+        return String((fieldValue as any).value || '').toLowerCase().trim();
+      }
+      return String(fieldValue ?? '').toLowerCase().trim();
+    })();
+    const expected = (() => {
+      if (expectedValue && typeof expectedValue === 'object' && 'value' in expectedValue) {
+        return String((expectedValue as any).value || '').toLowerCase().trim();
+      }
+      return String(expectedValue ?? '').toLowerCase().trim();
+    })();
+
+    if (!actual || !expected) return false;
+    // Only Draft (the seeded default) counts as unset — not Inprogress/Pending/etc.
+    return actual === 'draft' && expected !== 'draft';
+  }
+
   // Check if operator should bypass waiting logic (exists/not_exists are checking for emptiness intentionally)
   private static shouldBypassWaiting(operator: ComparisonOperator): boolean {
     return ['exists', 'not_exists'].includes(operator);
@@ -232,7 +269,7 @@ export class ConditionEvaluator {
       console.log(`⏳ Field "${condition.fieldId}" has empty value, should wait for actual value`);
       return { result: false, waiting: true, waitingField: condition.fieldId };
     }
-    
+
     // Parse expected value if it's a JSON string (for multi-select/submission-access conditions)
     let parsedExpectedValue = condition.value;
     if (typeof condition.value === 'string' && (condition.value.startsWith('[') || condition.value.startsWith('{'))) {
@@ -241,6 +278,22 @@ export class ConditionEvaluator {
       } catch {
         // Keep as string if not valid JSON
       }
+    }
+
+    // Status default Draft + expected Closed/etc. → wait (do not Skipped End)
+    if (
+      !this.shouldBypassWaiting(condition.operator)
+      && this.isUnsetLifecycleDefault(
+        fieldValue,
+        parsedExpectedValue,
+        condition.fieldType,
+        condition.fieldLabel,
+      )
+    ) {
+      console.log(
+        `⏳ Field "${condition.fieldLabel || condition.fieldId}" is still Draft (default); waiting for ${parsedExpectedValue}`,
+      );
+      return { result: false, waiting: true, waitingField: condition.fieldId };
     }
     
     return { result: this.compareValues(fieldValue, parsedExpectedValue, condition.operator), waiting: false };

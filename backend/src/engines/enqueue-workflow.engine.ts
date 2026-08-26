@@ -200,7 +200,63 @@ export async function enqueueWorkflow(
       }
     }
 
-     // Check for duplicate if trigger_ref is provided
+     // Cancel stale waiting executions for this record so a later Status change
+     // (e.g. Draft → Closed) runs a fresh evaluation instead of racing an old wait.
+     if (body.submission_id && body.workflow_id) {
+       const { data: waitingRows } = await supabase
+         .from('workflow_executions')
+         .select('id')
+         .eq('workflow_id', body.workflow_id)
+         .eq('trigger_submission_id', body.submission_id)
+         .eq('status', 'waiting');
+       if (waitingRows?.length) {
+         const ids = waitingRows.map((r: { id: string }) => r.id);
+         await supabase
+           .from('workflow_executions')
+           .update({
+             status: 'cancelled',
+             completed_at: new Date().toISOString(),
+             error_message: 'Superseded by a newer form submission / update',
+           })
+           .in('id', ids);
+         console.log(`[enqueue-workflow] Cancelled ${ids.length} waiting execution(s) for resubmit`);
+       }
+     }
+
+     // Dedup pending queue items for same workflow+submission; refresh trigger_data
+     // so Draft→Closed updates are not evaluated against stale submission data.
+     if (body.workflow_id && body.submission_id) {
+       const { data: existingPending } = await supabase
+         .from('workflow_queue')
+         .select('id, status')
+         .eq('workflow_id', body.workflow_id)
+         .eq('submission_id', body.submission_id)
+         .eq('status', 'pending')
+         .maybeSingle();
+
+       if (existingPending) {
+         await supabase
+           .from('workflow_queue')
+           .update({
+             trigger_data: body.trigger_data || {},
+             trigger_ref: body.trigger_ref || null,
+             priority: Math.min(10, Math.max(1, body.priority || 5)),
+           })
+           .eq('id', existingPending.id);
+         console.log(`[enqueue-workflow] Refreshed pending queue item ${existingPending.id} with latest trigger_data`);
+         return new Response(JSON.stringify({
+           success: true,
+           queue_id: existingPending.id,
+           message: 'Workflow already queued — trigger data refreshed',
+           deduplicated: true
+         } as EnqueueResponse), {
+           status: 200,
+           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+         });
+       }
+     }
+
+     // Check for duplicate if trigger_ref is provided (legacy / non-submission triggers)
      if (body.trigger_ref) {
        const { data: existing } = await supabase
          .from('workflow_queue')

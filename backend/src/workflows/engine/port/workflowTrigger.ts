@@ -127,7 +127,7 @@ export class WorkflowExecutionService {
           submission_id: submissionId,
           trigger_data: triggerData,
           trigger_source: triggerSource,
-          trigger_ref: `${workflowId}-${submissionId}`, // Deduplication key
+          trigger_ref: `${workflowId}-${submissionId}-${Date.now()}`, // Unique per submit so Closed updates re-enqueue after completed Draft runs
           priority: 5
         })
       });

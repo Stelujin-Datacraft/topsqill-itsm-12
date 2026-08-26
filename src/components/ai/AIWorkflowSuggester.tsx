@@ -10,6 +10,7 @@ import { useWorkflowBuilderConversation } from '@/hooks/useWorkflowBuilderConver
 import { useOrganizationUsers } from '@/hooks/useOrganizationUsers';
 import { applyPendingConfigActions } from '@/lib/ai/workflowBuilder/applyPendingConfigActions';
 import { compileWorkflowDefinition } from '@/lib/ai/workflowBuilder/nodeCompiler';
+import { bindConditionNodesToDecisionValues } from '@/lib/ai/workflowBuilder/decisionOptionResolver';
 import { mapAndNormalizeAiWorkflowNodes } from '@/lib/normalizeAiWorkflowNodes';
 import type { MissingRequirement } from '@/lib/ai/workflowBuilder';
 import { toast } from 'sonner';
@@ -374,6 +375,14 @@ export function AIWorkflowSuggester({
         let name = builderSession.requirements.name;
         let description = builderSession.requirements.description || name;
 
+        let liveFieldsForBind: Array<{
+          id: string;
+          label: string;
+          type: string;
+          options?: Array<{ id?: string; value: string; label: string }>;
+          custom_config?: unknown;
+        }> = [];
+
         if (formId) {
           const formFields = (forms.find((f) => f.id === formId)?.fields || []).map((f) => ({
             id: f.id,
@@ -387,6 +396,7 @@ export function AIWorkflowSuggester({
             formId,
             formFields,
           });
+          liveFieldsForBind = applied.formFields;
           nodes = applied.compiled.nodes.map((n) => ({
             type: n.type,
             label: n.label,
@@ -437,6 +447,11 @@ export function AIWorkflowSuggester({
             conditionType: c.conditionType || c.condition,
           })),
         }));
+
+        // Re-bind after normalize (options may have been created during apply)
+        if (liveFieldsForBind.length) {
+          nodes = bindConditionNodesToDecisionValues(nodes, liveFieldsForBind);
+        }
 
         onApply({ name, description, nodes });
         clearBuilderSession();
