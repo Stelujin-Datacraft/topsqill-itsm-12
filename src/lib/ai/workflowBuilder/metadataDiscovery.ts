@@ -21,6 +21,17 @@ export interface DiscoveredFormField {
   required?: boolean;
   /** Parsed custom_config — used for cross-reference target form resolution */
   custom_config?: Record<string, any> | null;
+  /** Enriched XR target (AI Suggest / designer) — preferred for child-form field lists */
+  crossRefConfig?: {
+    targetFormId?: string;
+    targetFormName?: string;
+    targetFormFields?: Array<{
+      id: string;
+      label: string;
+      type: string;
+      options?: Array<{ id?: string; value: string; label: string }>;
+    }>;
+  };
 }
 
 /** Org user choice for approval Level N assignee questions */
@@ -236,11 +247,67 @@ export function getCrossRefTargetForm(field: DiscoveredFormField | undefined): {
   targetFormName?: string;
 } {
   if (!field) return {};
-  const cfg = field.custom_config || {};
-  const nested = cfg.crossRefConfig || cfg.cross_ref_config || cfg;
+  let cfg: Record<string, any> = {};
+  const raw = field.custom_config;
+  if (typeof raw === 'string') {
+    try { cfg = JSON.parse(raw) || {}; } catch { cfg = {}; }
+  } else if (raw && typeof raw === 'object') {
+    cfg = raw as Record<string, any>;
+  }
+  // Also accept crossRefConfig attached beside custom_config (AI Suggest enrichment)
+  const side = field.crossRefConfig;
+  const nested = cfg.crossRefConfig || cfg.cross_ref_config || side || cfg;
+  const targetFormId = String(
+    nested?.targetFormId
+    || nested?.target_form_id
+    || cfg.targetFormId
+    || cfg.target_form_id
+    || side?.targetFormId
+    || '',
+  ).trim() || undefined;
+  const targetFormName = String(
+    nested?.targetFormName
+    || nested?.target_form_name
+    || cfg.targetFormName
+    || cfg.target_form_name
+    || side?.targetFormName
+    || '',
+  ).trim() || undefined;
+  return { targetFormId, targetFormName };
+}
+
+/**
+ * Build a DiscoveredForm for the XR child/target form.
+ * Prefer the live catalog entry; fall back to fields embedded on the XR field.
+ */
+export function resolveCrossRefChildForm(
+  xrField: DiscoveredFormField | undefined,
+  formsCatalog: DiscoveredForm[] = [],
+  preferredFormId?: string,
+): DiscoveredForm | undefined {
+  const target = getCrossRefTargetForm(xrField);
+  const formId = preferredFormId || target.targetFormId;
+  if (formId) {
+    const fromCatalog = formsCatalog.find((f) => f.id === formId);
+    if (fromCatalog) return fromCatalog;
+  }
+
+  const side = xrField?.crossRefConfig;
+  const nestedFields = side?.targetFormFields
+    || (xrField?.custom_config as any)?.crossRefConfig?.targetFormFields
+    || (xrField?.custom_config as any)?.targetFormFields;
+  const id = formId || side?.targetFormId;
+  if (!id || !Array.isArray(nestedFields) || !nestedFields.length) return undefined;
+
   return {
-    targetFormId: nested.targetFormId || nested.target_form_id || cfg.targetFormId,
-    targetFormName: nested.targetFormName || nested.target_form_name || cfg.targetFormName,
+    id,
+    name: String(target.targetFormName || side?.targetFormName || 'Linked form'),
+    fields: nestedFields.map((tf: any) => ({
+      id: String(tf.id),
+      label: String(tf.label || tf.id),
+      type: String(tf.type || tf.field_type || 'text'),
+      options: Array.isArray(tf.options) ? tf.options : undefined,
+    })),
   };
 }
 

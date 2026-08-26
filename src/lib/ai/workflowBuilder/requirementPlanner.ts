@@ -21,6 +21,7 @@ import {
   hydrateDiscoveredForm,
   isApproverCompatibleFieldType,
   isDecisionCompatibleFieldType,
+  resolveCrossRefChildForm,
   resolveFieldOptionValue,
   searchFields,
   suggestApproverFields,
@@ -31,6 +32,7 @@ import {
   missingMainStatusSyncOptions,
   SUBMISSION_ACCESS_FIELD_LABEL,
   type DiscoveredForm,
+  type DiscoveredFormField,
   type OrgUserChoice,
 } from './metadataDiscovery';
 import { describeActionType } from './actionTypeInferrer';
@@ -415,37 +417,135 @@ function planGenericActionRequirements(
 
   // ── Create / linked-create / linked-update field values + mappings ─────
   const isUpdateLinked = action.actionType === 'update_linked_records';
+  const isLinkedAction = action.actionType === 'create_linked_record' || isUpdateLinked;
   const isCreateAction = action.actionType === 'create_record'
     || action.actionType === 'create_linked_record'
     || isUpdateLinked;
+
+  const findXrField = (): DiscoveredFormField | undefined => {
+    if (!hydratedForm?.fields?.length) return undefined;
+    return hydratedForm.fields.find((f) =>
+      f.id === action.crossReferenceFieldId
+      || (action.crossReferenceFieldLabel
+        && f.label.toLowerCase() === String(action.crossReferenceFieldLabel).toLowerCase()),
+    );
+  };
+
+  // For linked actions: if XR is known but target form missing, resolve from XR field config
+  if (
+    isLinkedAction
+    && (action.crossReferenceFieldId || action.crossReferenceFieldLabel)
+    && !action.targetFormId
+  ) {
+    const xrField = findXrField();
+    const target = getCrossRefTargetForm(xrField);
+    if (target.targetFormId) {
+      action.targetFormId = target.targetFormId;
+      const named = hydratedCatalog.find((f) => f.id === target.targetFormId)?.name;
+      action.targetFormName = target.targetFormName || named || action.targetFormName;
+      action.sourceLinkedFormId = action.sourceLinkedFormId || target.targetFormId;
+      action.sourceLinkedFormName = action.sourceLinkedFormName || action.targetFormName;
+    }
+  }
 
   if (isCreateAction && !action.skipCreateFieldValues && !action.createFieldsDone) {
     if (!action.createFieldValues) action.createFieldValues = [];
     if (!action.createFieldMappings) action.createFieldMappings = [];
 
-    const linkedForm = action.targetFormId
-      ? hydratedCatalog.find((f) => f.id === action.targetFormId)
-      : undefined;
-    const fieldSource = linkedForm || hydratedForm;
+    // Child/linked form: catalog first, then XR-embedded targetFormFields (never parent).
+    const linkedForm = isLinkedAction
+      ? resolveCrossRefChildForm(findXrField(), hydratedCatalog, action.targetFormId)
+        || (action.targetFormId
+          ? hydratedCatalog.find((f) => f.id === action.targetFormId)
+          : undefined)
+      : (action.targetFormId
+        ? hydratedCatalog.find((f) => f.id === action.targetFormId)
+        : undefined);
+
+    if (isLinkedAction && linkedForm) {
+      action.targetFormId = action.targetFormId || linkedForm.id;
+      action.targetFormName = action.targetFormName || linkedForm.name;
+      action.sourceLinkedFormId = action.sourceLinkedFormId || linkedForm.id;
+      action.sourceLinkedFormName = action.sourceLinkedFormName || linkedForm.name;
+    }
+
+    // Linked create/update MUST use the child (cross-ref target) form fields — never parent.
+    if (isLinkedAction && (!action.targetFormId || !linkedForm)) {
+      push(req({
+        id: 'action.target_form',
+        scope: 'workflow',
+        key: 'action_target_form',
+        question: [
+          'Which **linked / child form** should fields be taken from?',
+          '',
+          'Pick the form that the cross-reference points to (not the trigger/parent form).',
+        ].join('\n'),
+        inputKind: 'choice',
+        options: hydratedCatalog
+          .filter((f) => f.id !== hydratedForm?.id)
+          .map((f) => ({ value: f.id, label: f.name })),
+      }));
+      return mergeUnansweredFirst(out);
+    }
+
+    // create_record may target another form; otherwise use trigger form
+    const fieldSource = isLinkedAction
+      ? linkedForm
+      : (linkedForm || hydratedForm);
+    const childFieldChoices = fieldChoices(fieldSource);
+    // Never fall back to parent allFields for linked actions
+    const availableTargetFields = (
+      childFieldChoices.length
+        ? childFieldChoices
+        : (isLinkedAction ? [] : allFields)
+    ).filter((f) => {
+      const usedTargetIds = new Set([
+        ...(action.createFieldValues || []).map((x) => x.fieldId).filter(Boolean) as string[],
+        ...(action.createFieldMappings || []).map((x) => x.targetFieldId).filter(Boolean) as string[],
+      ]);
+      return !usedTargetIds.has(f.value);
+    });
+
+    if (isLinkedAction && !availableTargetFields.length && !action.createFieldValues?.length && !action.createFieldMappings?.length) {
+      push(req({
+        id: 'action.target_form_retry',
+        scope: 'workflow',
+        key: 'action_target_form',
+        question: [
+          `**${action.targetFormName || 'Linked form'}** has no usable data fields in the catalog.`,
+          '',
+          'Pick another linked/child form, or add the form in the AI Suggest form list and try again.',
+        ].join('\n'),
+        inputKind: 'choice',
+        options: hydratedCatalog
+          .filter((f) => f.id !== hydratedForm?.id)
+          .map((f) => ({ value: f.id, label: f.name })),
+      }));
+      return mergeUnansweredFirst(out);
+    }
+
     const triggerFields = (hydratedForm?.fields || []).filter((f) => isWorkflowValueField(f.type));
-    const usedTargetIds = new Set([
-      ...(action.createFieldValues || []).map((f) => f.fieldId).filter(Boolean) as string[],
-      ...(action.createFieldMappings || []).map((f) => f.targetFieldId).filter(Boolean) as string[],
-    ]);
-    const availableTargetFields = (fieldChoices(fieldSource).length ? fieldChoices(fieldSource) : allFields)
-      .filter((f) => !usedTargetIds.has(f.value));
 
     const recordNoun = isUpdateLinked
       ? (action.targetFormName || 'linked record')
       : (action.targetFormName || 'record');
     const actionVerb = isUpdateLinked ? 'update' : 'create';
-    const targetFieldPrompt = isUpdateLinked
-      ? `Which **field on the linked ${recordNoun}** should receive a value from the trigger form?`
-      : `Which **field on the new ${recordNoun}** should receive a value from the trigger form?`;
-    const staticValuePrompt = (label: string) => isUpdateLinked
-      ? `What **static value** should **${label}** be set to on the linked record?`
-      : `What **static value** should **${label}** be set to on the new record?`;
-
+    const formScopeLabel = isLinkedAction
+      ? `linked form **${action.targetFormName || recordNoun}**`
+      : `form **${action.targetFormName || hydratedForm?.name || 'record'}**`;
+    const targetFieldPrompt =
+      `Which **field on ${formScopeLabel}** should receive a value from the trigger form?`;
+    const staticValuePrompt = (label: string) => isLinkedAction
+      ? `What **static value** should **${label}** be set to on ${formScopeLabel}?`
+      : `What **static value** should **${label}** be set to on the new **${action.targetFormName || 'record'}**?`;
+    const staticFieldAskPrompt = isLinkedAction
+      ? (isUpdateLinked
+        ? `How should fields be set while updating **${action.targetFormName || 'linked records'}**?`
+        : `How should fields be set while creating a linked **${action.targetFormName || 'record'}**?`)
+      : `How should fields be set while creating the new **${action.targetFormName || 'record'}**?`;
+    const staticFieldAskHint = isLinkedAction
+      ? `Fields listed are from the **child/linked form** (${action.targetFormName || 'target'}), not the parent/trigger form.`
+      : 'Pick a field for a **static value**, choose **Map Field from trigger form**, or finish.';
     const clearStaticDraft = () => {
       action.targetFieldId = undefined;
       action.targetFieldLabel = undefined;
@@ -557,9 +657,9 @@ function planGenericActionRequirements(
         scope: 'workflow',
         key: 'action_map_source_field',
         question: [
-          `Map **which trigger-form field** → **${action.createMapTargetFieldLabel}** on the ${isUpdateLinked ? 'linked' : 'new'} record?`,
+          `Map **which trigger-form field** → **${action.createMapTargetFieldLabel}** on ${formScopeLabel}?`,
           '',
-          `Only fields compatible with type **${targetType}** are shown.`,
+          `Only parent/trigger fields compatible with type **${targetType}** are shown.`,
         ].join('\n'),
         inputKind: 'field_select',
         options: [
@@ -694,17 +794,15 @@ function planGenericActionRequirements(
         key: 'action_field',
         question: [
           added
-            ? `Add another field to ${actionVerb} on **${recordNoun}**?`
-            : isUpdateLinked
-              ? `How should fields be set while updating the linked **${recordNoun}**?`
-              : `How should fields be set while creating the new **${recordNoun}**?`,
+            ? `Add another field to ${actionVerb} on ${formScopeLabel}?`
+            : staticFieldAskPrompt,
           summaryParts.length ? summaryParts.join(' · ') : '',
           '',
           isUpdateLinked
             ? (added
-              ? 'Pick another field for a **static value**, **Map Field from trigger form**, or **Done**.'
-              : 'Pick a field for a **static value** or **Map Field from trigger form** (at least one update is required).')
-            : 'Pick a field for a **static value**, choose **Map Field from trigger form**, or finish.',
+              ? 'Pick another **child-form** field for a **static value**, **Map Field from trigger form**, or **Done**.'
+              : `${staticFieldAskHint} At least one update is required.`)
+            : staticFieldAskHint,
         ].filter(Boolean).join('\n'),
         inputKind: 'field_select',
         options: [
@@ -1399,10 +1497,25 @@ export function applyAnswerToDefinition(
     const linkedForm = next.action.targetFormId
       ? formsCatalog.find((f) => f.id === next.action!.targetFormId)
       : undefined;
-    const useTargetForm = next.action.actionType === 'update_linked_records'
-      || next.action.actionType === 'create_record'
+    const isLinked = next.action.actionType === 'update_linked_records'
       || next.action.actionType === 'create_linked_record';
-    const fieldSource = useTargetForm && linkedForm ? linkedForm : form;
+    const xrField = form?.fields.find((f) =>
+      f.id === next.action!.crossReferenceFieldId
+      || (next.action!.crossReferenceFieldLabel
+        && f.label.toLowerCase() === String(next.action!.crossReferenceFieldLabel).toLowerCase()),
+    );
+    const childForm = isLinked
+      ? (resolveCrossRefChildForm(xrField, formsCatalog, next.action.targetFormId) || linkedForm)
+      : linkedForm;
+    const useTargetForm = isLinked
+      || next.action.actionType === 'create_record';
+    // Linked actions: child form only — never fall back to parent/trigger fields
+    const fieldSource = useTargetForm
+      ? (isLinked ? childForm : (childForm || form))
+      : form;
+    if (isLinked && !fieldSource) {
+      return next;
+    }
     const field = fieldSource?.fields.find((f) => f.id === value)
       || searchFields(fieldSource, value).matched;
     next.action.skipCreateFieldValues = false;
@@ -1434,7 +1547,21 @@ export function applyAnswerToDefinition(
     const linkedForm = next.action.targetFormId
       ? formsCatalog.find((f) => f.id === next.action!.targetFormId)
       : undefined;
-    const fieldSource = linkedForm || form;
+    const isLinked = next.action.actionType === 'update_linked_records'
+      || next.action.actionType === 'create_linked_record';
+    const xrField = form?.fields.find((f) =>
+      f.id === next.action!.crossReferenceFieldId
+      || (next.action!.crossReferenceFieldLabel
+        && f.label.toLowerCase() === String(next.action!.crossReferenceFieldLabel).toLowerCase()),
+    );
+    const childForm = isLinked
+      ? (resolveCrossRefChildForm(xrField, formsCatalog, next.action.targetFormId) || linkedForm)
+      : linkedForm;
+    // Map target is always on the destination form; linked → child only
+    const fieldSource = isLinked ? childForm : (childForm || form);
+    if (isLinked && !fieldSource) {
+      return next;
+    }
     const field = fieldSource?.fields.find((f) => f.id === value)
       || searchFields(fieldSource, value).matched;
     next.action.createDraftKind = 'map';
@@ -1503,11 +1630,21 @@ export function applyAnswerToDefinition(
     const linkedForm = next.action.targetFormId
       ? hydrateDiscoveredForm(formsCatalog.find((f) => f.id === next.action!.targetFormId))
       : undefined;
-    const useTargetForm = next.action.actionType === 'update_linked_records'
-      || next.action.actionType === 'create_record'
+    const isLinked = next.action.actionType === 'update_linked_records'
       || next.action.actionType === 'create_linked_record';
-    const fieldSource = useTargetForm && linkedForm
-      ? linkedForm
+    const xrField = form?.fields.find((f) =>
+      f.id === next.action!.crossReferenceFieldId
+      || (next.action!.crossReferenceFieldLabel
+        && f.label.toLowerCase() === String(next.action!.crossReferenceFieldLabel).toLowerCase()),
+    );
+    const childForm = isLinked
+      ? hydrateDiscoveredForm(
+        resolveCrossRefChildForm(xrField, formsCatalog, next.action.targetFormId) || linkedForm,
+      )
+      : linkedForm;
+    const useTargetForm = isLinked || next.action.actionType === 'create_record';
+    const fieldSource = useTargetForm
+      ? (isLinked ? childForm : (childForm || hydrateDiscoveredForm(form)))
       : hydrateDiscoveredForm(form);
     const field = fieldSource?.fields.find((f) => f.id === next.action!.targetFieldId);
     next.action.valueType = 'static';
