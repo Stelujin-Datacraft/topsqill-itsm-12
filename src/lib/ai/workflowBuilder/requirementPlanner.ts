@@ -38,6 +38,11 @@ import { isOptionBasedFieldType } from '@/utils/conditionOperators';
 import { extractGenericPromptHints, extractCreateTargetFormHint, fieldMatchesHint } from './promptHints';
 import { matchFormFieldByHint } from '@/lib/ai/inferWorkflowIntent';
 import { sanitizeConditionValueHint } from './decisionOptionResolver';
+import {
+  areTypesCompatible,
+  filterCompatibleFields,
+  isWorkflowValueField,
+} from '@/utils/workflowFieldFiltering';
 
 function req(
   partial: Omit<MissingRequirement, 'answered'> & { answered?: boolean },
@@ -88,19 +93,25 @@ function actionConfigured(action: WorkflowActionSpec | null | undefined): boolea
         && action.staticValue !== null
         && String(action.staticValue) !== '';
     case 'create_record': {
-      const hasDraft = Boolean(action.targetFieldId || action.targetFieldLabel);
+      const hasStaticDraft = Boolean(action.targetFieldId || action.targetFieldLabel);
+      const hasMapDraft = action.createDraftKind === 'map'
+        || Boolean(action.createMapTargetFieldId || action.createMapTargetFieldLabel);
       return Boolean(action.targetFormId || action.targetFormName)
-        && !hasDraft
+        && !hasStaticDraft
+        && !hasMapDraft
         && (
           action.skipCreateFieldValues === true
           || action.createFieldsDone === true
         );
     }
     case 'create_linked_record': {
-      const hasDraft = Boolean(action.targetFieldId || action.targetFieldLabel);
+      const hasStaticDraft = Boolean(action.targetFieldId || action.targetFieldLabel);
+      const hasMapDraft = action.createDraftKind === 'map'
+        || Boolean(action.createMapTargetFieldId || action.createMapTargetFieldLabel);
       return Boolean(action.crossReferenceFieldId || action.crossReferenceFieldLabel)
         && Boolean(action.targetFormId || action.targetFormName)
-        && !hasDraft
+        && !hasStaticDraft
+        && !hasMapDraft
         && (
           action.skipCreateFieldValues === true
           || action.createFieldsDone === true
@@ -392,24 +403,45 @@ function planGenericActionRequirements(
     }
   }
 
-  // ── Create record field values (multi until user stops) ─────────────────
+  // ── Create record field values + trigger mappings (multi until user stops) ─
   const isCreateAction = action.actionType === 'create_record'
     || action.actionType === 'create_linked_record';
 
   if (isCreateAction && !action.skipCreateFieldValues && !action.createFieldsDone) {
     if (!action.createFieldValues) action.createFieldValues = [];
+    if (!action.createFieldMappings) action.createFieldMappings = [];
 
     const linkedForm = action.targetFormId
       ? hydratedCatalog.find((f) => f.id === action.targetFormId)
       : undefined;
     const fieldSource = linkedForm || hydratedForm;
-    const usedIds = new Set(
-      (action.createFieldValues || [])
-        .map((f) => f.fieldId)
-        .filter(Boolean) as string[],
-    );
-    const availableFields = (fieldChoices(fieldSource).length ? fieldChoices(fieldSource) : allFields)
-      .filter((f) => !usedIds.has(f.value));
+    const triggerFields = (hydratedForm?.fields || []).filter((f) => isWorkflowValueField(f.type));
+    const usedTargetIds = new Set([
+      ...(action.createFieldValues || []).map((f) => f.fieldId).filter(Boolean) as string[],
+      ...(action.createFieldMappings || []).map((f) => f.targetFieldId).filter(Boolean) as string[],
+    ]);
+    const availableTargetFields = (fieldChoices(fieldSource).length ? fieldChoices(fieldSource) : allFields)
+      .filter((f) => !usedTargetIds.has(f.value));
+
+    const clearStaticDraft = () => {
+      action.targetFieldId = undefined;
+      action.targetFieldLabel = undefined;
+      action.targetFieldType = undefined;
+      action.staticValue = undefined;
+      action.pendingOptionCreate = false;
+      action.pendingOptionLabel = undefined;
+      if (action.createDraftKind === 'static') action.createDraftKind = undefined;
+    };
+
+    const clearMapDraft = () => {
+      action.createMapTargetFieldId = undefined;
+      action.createMapTargetFieldLabel = undefined;
+      action.createMapTargetFieldType = undefined;
+      action.createMapSourceFieldId = undefined;
+      action.createMapSourceFieldLabel = undefined;
+      action.createMapSourceFieldType = undefined;
+      if (action.createDraftKind === 'map') action.createDraftKind = undefined;
+    };
 
     const commitDraftCreateField = () => {
       if (!action.targetFieldId && !action.targetFieldLabel) return;
@@ -422,17 +454,124 @@ function planGenericActionRequirements(
         pendingOptionCreate: action.pendingOptionCreate || false,
         pendingOptionLabel: action.pendingOptionLabel,
       });
-      action.targetFieldId = undefined;
-      action.targetFieldLabel = undefined;
-      action.targetFieldType = undefined;
-      action.staticValue = undefined;
-      action.pendingOptionCreate = false;
-      action.pendingOptionLabel = undefined;
+      clearStaticDraft();
     };
 
-    // Draft value missing → ask value
+    const commitDraftCreateMapping = () => {
+      if (
+        !(action.createMapTargetFieldId || action.createMapTargetFieldLabel)
+        || !(action.createMapSourceFieldId || action.createMapSourceFieldLabel)
+      ) return;
+      action.createFieldMappings = action.createFieldMappings || [];
+      action.createFieldMappings.push({
+        targetFieldId: action.createMapTargetFieldId,
+        targetFieldLabel: action.createMapTargetFieldLabel,
+        targetFieldType: action.createMapTargetFieldType,
+        sourceFieldId: action.createMapSourceFieldId,
+        sourceFieldLabel: action.createMapSourceFieldLabel,
+        sourceFieldType: action.createMapSourceFieldType,
+      });
+      clearMapDraft();
+    };
+
+    // ── Map draft: need target field on new record ────────────────────────
     if (
-      (action.targetFieldId || action.targetFieldLabel)
+      action.createDraftKind === 'map'
+      && !action.createMapTargetFieldId
+      && !action.createMapTargetFieldLabel
+    ) {
+      push(req({
+        id: `action.create_map_target_${action.createFieldMappings.length}`,
+        scope: 'workflow',
+        key: 'action_map_target_field',
+        question: [
+          `Which **field on the new ${action.targetFormName || 'record'}** should receive a value from the trigger form?`,
+          '',
+          'Only data fields are listed. Next you will pick a compatible trigger-form field to map from.',
+        ].join('\n'),
+        inputKind: 'field_select',
+        options: [
+          { value: '__cancel_map__', label: 'Cancel mapping — go back' },
+          ...availableTargetFields,
+        ],
+      }));
+      return mergeUnansweredFirst(out);
+    }
+
+    // ── Map draft: need compatible source field on trigger form ───────────
+    if (
+      action.createDraftKind === 'map'
+      && (action.createMapTargetFieldId || action.createMapTargetFieldLabel)
+      && !action.createMapSourceFieldId
+      && !action.createMapSourceFieldLabel
+    ) {
+      const targetType = action.createMapTargetFieldType || 'text';
+      const compatible = filterCompatibleFields(triggerFields, targetType)
+        .filter((f) => f.id !== action.createMapTargetFieldId);
+      const sourceOpts = compatible.map((f) => ({
+        value: f.id,
+        label: `${f.label} (${f.type})`,
+      }));
+      if (!sourceOpts.length) {
+        push(req({
+          id: `action.create_map_source_none_${action.createFieldMappings.length}`,
+          scope: 'workflow',
+          key: 'action_map_source_field',
+          question: [
+            `No **compatible** fields on the trigger form can map to **${action.createMapTargetFieldLabel || 'that field'}** (${targetType}).`,
+            '',
+            'Cancel this mapping and pick a different target field, or set a static value instead.',
+          ].join('\n'),
+          inputKind: 'choice',
+          options: [
+            { value: '__cancel_map__', label: 'Cancel mapping' },
+          ],
+        }));
+        return mergeUnansweredFirst(out);
+      }
+      push(req({
+        id: `action.create_map_source_${action.createFieldMappings.length}`,
+        scope: 'workflow',
+        key: 'action_map_source_field',
+        question: [
+          `Map **which trigger-form field** → **${action.createMapTargetFieldLabel}** on the new record?`,
+          '',
+          `Only fields compatible with type **${targetType}** are shown.`,
+        ].join('\n'),
+        inputKind: 'field_select',
+        options: [
+          { value: '__cancel_map__', label: 'Cancel mapping' },
+          ...sourceOpts,
+        ],
+      }));
+      return mergeUnansweredFirst(out);
+    }
+
+    // ── Map draft complete → commit ───────────────────────────────────────
+    if (
+      action.createDraftKind === 'map'
+      && (action.createMapTargetFieldId || action.createMapTargetFieldLabel)
+      && (action.createMapSourceFieldId || action.createMapSourceFieldLabel)
+    ) {
+      // Soft-check compatibility (should already be filtered)
+      if (
+        action.createMapSourceFieldType
+        && action.createMapTargetFieldType
+        && !areTypesCompatible(action.createMapSourceFieldType, action.createMapTargetFieldType)
+      ) {
+        action.createMapSourceFieldId = undefined;
+        action.createMapSourceFieldLabel = undefined;
+        action.createMapSourceFieldType = undefined;
+        // re-ask source on next plan pass
+      } else {
+        commitDraftCreateMapping();
+      }
+    }
+
+    // Draft static value missing → ask value
+    if (
+      action.createDraftKind !== 'map'
+      && (action.targetFieldId || action.targetFieldLabel)
       && (action.staticValue === undefined || action.staticValue === null || String(action.staticValue) === '')
     ) {
       const draftField = fieldSource?.fields.find((f) =>
@@ -462,9 +601,10 @@ function planGenericActionRequirements(
       return mergeUnansweredFirst(out);
     }
 
-    // Draft value present → resolve option / ask create / commit
+    // Draft static value present → resolve option / ask create / commit
     if (
-      (action.targetFieldId || action.targetFieldLabel)
+      action.createDraftKind !== 'map'
+      && (action.targetFieldId || action.targetFieldLabel)
       && action.staticValue !== undefined
       && action.staticValue !== null
       && String(action.staticValue) !== ''
@@ -502,32 +642,48 @@ function planGenericActionRequirements(
       }
     }
 
-    // Ask for next field (or done/skip)
-    if (!action.targetFieldId && !action.targetFieldLabel) {
-      const added = action.createFieldValues.length;
-      const summary = added
-        ? `Already set: ${action.createFieldValues.map((f) => `**${f.fieldLabel}**=${String(f.staticValue)}`).join(', ')}`
+    // Ask for next static field, mapping, or done/skip
+    if (
+      !action.targetFieldId
+      && !action.targetFieldLabel
+      && action.createDraftKind !== 'map'
+      && !action.createMapTargetFieldId
+      && !action.createMapTargetFieldLabel
+    ) {
+      const staticCount = action.createFieldValues.length;
+      const mapCount = action.createFieldMappings.length;
+      const added = staticCount + mapCount;
+      const staticSummary = staticCount
+        ? action.createFieldValues.map((f) => `**${f.fieldLabel}**=${String(f.staticValue)}`).join(', ')
         : '';
+      const mapSummary = mapCount
+        ? action.createFieldMappings
+          .map((m) => `**${m.targetFieldLabel}**←${m.sourceFieldLabel}`)
+          .join(', ')
+        : '';
+      const summaryParts = [
+        staticSummary ? `Static: ${staticSummary}` : '',
+        mapSummary ? `Mapped: ${mapSummary}` : '',
+      ].filter(Boolean);
       push(req({
         id: `action.create_field_${added}`,
         scope: 'workflow',
         key: 'action_field',
         question: [
           added
-            ? `Add another **static field** on the new **${action.targetFormName || 'record'}**?`
-            : `Which **static field** should be set while creating the new **${action.targetFormName || 'record'}**?`,
-          summary,
+            ? `Add another field on the new **${action.targetFormName || 'record'}**?`
+            : `How should fields be set while creating the new **${action.targetFormName || 'record'}**?`,
+          summaryParts.length ? summaryParts.join(' · ') : '',
           '',
-          added
-            ? 'Pick another field, or choose **Done** to stop.'
-            : 'Pick a field, or skip if the record should be created with empty/default values.',
+          'Pick a field for a **static value**, choose **Map Field from trigger form**, or finish.',
         ].filter(Boolean).join('\n'),
         inputKind: 'field_select',
         options: [
           ...(added
             ? [{ value: '__done_create_fields__', label: 'Done — stop adding fields' }]
             : [{ value: '__skip_create_field_values__', label: 'Skip — create with empty/default values' }]),
-          ...availableFields,
+          { value: '__map_from_trigger__', label: 'Map Field from trigger form' },
+          ...availableTargetFields,
         ],
       }));
       return mergeUnansweredFirst(out);
@@ -1150,27 +1306,63 @@ export function applyAnswerToDefinition(
       next.action.skipCreateFieldValues = true;
       next.action.createFieldsDone = true;
       next.action.createFieldValues = next.action.createFieldValues || [];
+      next.action.createFieldMappings = next.action.createFieldMappings || [];
+      next.action.createDraftKind = undefined;
       next.action.targetFieldId = undefined;
       next.action.targetFieldLabel = undefined;
       next.action.targetFieldType = undefined;
       next.action.staticValue = undefined;
       next.action.pendingOptionCreate = false;
       next.action.pendingOptionLabel = undefined;
+      next.action.createMapTargetFieldId = undefined;
+      next.action.createMapTargetFieldLabel = undefined;
+      next.action.createMapTargetFieldType = undefined;
+      next.action.createMapSourceFieldId = undefined;
+      next.action.createMapSourceFieldLabel = undefined;
+      next.action.createMapSourceFieldType = undefined;
       next.action.configured = actionConfigured(next.action);
       return next;
     }
     if (value === '__done_create_fields__' || (isCreate && /^done\b/i.test(value))) {
       next.action.createFieldsDone = true;
-      if (!(next.action.createFieldValues || []).length) {
+      const hasStatic = (next.action.createFieldValues || []).length > 0;
+      const hasMaps = (next.action.createFieldMappings || []).length > 0;
+      if (!hasStatic && !hasMaps) {
         next.action.skipCreateFieldValues = true;
       }
+      next.action.createDraftKind = undefined;
       next.action.targetFieldId = undefined;
       next.action.targetFieldLabel = undefined;
       next.action.targetFieldType = undefined;
       next.action.staticValue = undefined;
       next.action.pendingOptionCreate = false;
       next.action.pendingOptionLabel = undefined;
+      next.action.createMapTargetFieldId = undefined;
+      next.action.createMapTargetFieldLabel = undefined;
+      next.action.createMapTargetFieldType = undefined;
+      next.action.createMapSourceFieldId = undefined;
+      next.action.createMapSourceFieldLabel = undefined;
+      next.action.createMapSourceFieldType = undefined;
       next.action.configured = actionConfigured(next.action);
+      return next;
+    }
+    if (value === '__map_from_trigger__' || (isCreate && /^map\b/i.test(value))) {
+      next.action.skipCreateFieldValues = false;
+      next.action.createFieldsDone = false;
+      next.action.createDraftKind = 'map';
+      next.action.createFieldMappings = next.action.createFieldMappings || [];
+      next.action.targetFieldId = undefined;
+      next.action.targetFieldLabel = undefined;
+      next.action.targetFieldType = undefined;
+      next.action.staticValue = undefined;
+      next.action.pendingOptionCreate = false;
+      next.action.pendingOptionLabel = undefined;
+      next.action.createMapTargetFieldId = undefined;
+      next.action.createMapTargetFieldLabel = undefined;
+      next.action.createMapTargetFieldType = undefined;
+      next.action.createMapSourceFieldId = undefined;
+      next.action.createMapSourceFieldLabel = undefined;
+      next.action.createMapSourceFieldType = undefined;
       return next;
     }
     const linkedForm = next.action.targetFormId
@@ -1184,7 +1376,9 @@ export function applyAnswerToDefinition(
       || searchFields(fieldSource, value).matched;
     next.action.skipCreateFieldValues = false;
     next.action.createFieldsDone = false;
+    next.action.createDraftKind = isCreate ? 'static' : undefined;
     next.action.createFieldValues = next.action.createFieldValues || [];
+    next.action.createFieldMappings = next.action.createFieldMappings || [];
     next.action.targetFieldId = field?.id;
     next.action.targetFieldLabel = field?.label || value;
     next.action.targetFieldType = field?.type;
@@ -1192,6 +1386,85 @@ export function applyAnswerToDefinition(
     next.action.staticValue = undefined;
     next.action.pendingOptionCreate = false;
     next.action.pendingOptionLabel = undefined;
+    return next;
+  }
+
+  if (requirement.key === 'action_map_target_field' && next.action) {
+    if (value === '__cancel_map__' || /^cancel\b/i.test(value)) {
+      next.action.createDraftKind = undefined;
+      next.action.createMapTargetFieldId = undefined;
+      next.action.createMapTargetFieldLabel = undefined;
+      next.action.createMapTargetFieldType = undefined;
+      next.action.createMapSourceFieldId = undefined;
+      next.action.createMapSourceFieldLabel = undefined;
+      next.action.createMapSourceFieldType = undefined;
+      return next;
+    }
+    const linkedForm = next.action.targetFormId
+      ? formsCatalog.find((f) => f.id === next.action!.targetFormId)
+      : undefined;
+    const fieldSource = linkedForm || form;
+    const field = fieldSource?.fields.find((f) => f.id === value)
+      || searchFields(fieldSource, value).matched;
+    next.action.createDraftKind = 'map';
+    next.action.createMapTargetFieldId = field?.id;
+    next.action.createMapTargetFieldLabel = field?.label || value;
+    next.action.createMapTargetFieldType = field?.type;
+    next.action.createMapSourceFieldId = undefined;
+    next.action.createMapSourceFieldLabel = undefined;
+    next.action.createMapSourceFieldType = undefined;
+    return next;
+  }
+
+  if (requirement.key === 'action_map_source_field' && next.action) {
+    if (value === '__cancel_map__' || /^cancel\b/i.test(value)) {
+      next.action.createDraftKind = undefined;
+      next.action.createMapTargetFieldId = undefined;
+      next.action.createMapTargetFieldLabel = undefined;
+      next.action.createMapTargetFieldType = undefined;
+      next.action.createMapSourceFieldId = undefined;
+      next.action.createMapSourceFieldLabel = undefined;
+      next.action.createMapSourceFieldType = undefined;
+      return next;
+    }
+    const field = form?.fields.find((f) => f.id === value)
+      || searchFields(form, value).matched;
+    const sourceType = field?.type || '';
+    const targetType = next.action.createMapTargetFieldType || '';
+    if (sourceType && targetType && !areTypesCompatible(sourceType, targetType)) {
+      // Reject incompatible pick — leave source empty so planner re-asks
+      next.action.createMapSourceFieldId = undefined;
+      next.action.createMapSourceFieldLabel = undefined;
+      next.action.createMapSourceFieldType = undefined;
+      return next;
+    }
+    next.action.createDraftKind = 'map';
+    next.action.createMapSourceFieldId = field?.id;
+    next.action.createMapSourceFieldLabel = field?.label || value;
+    next.action.createMapSourceFieldType = field?.type;
+    // Commit immediately so configured() sees a clean action
+    if (
+      (next.action.createMapTargetFieldId || next.action.createMapTargetFieldLabel)
+      && (next.action.createMapSourceFieldId || next.action.createMapSourceFieldLabel)
+    ) {
+      next.action.createFieldMappings = next.action.createFieldMappings || [];
+      next.action.createFieldMappings.push({
+        targetFieldId: next.action.createMapTargetFieldId,
+        targetFieldLabel: next.action.createMapTargetFieldLabel,
+        targetFieldType: next.action.createMapTargetFieldType,
+        sourceFieldId: next.action.createMapSourceFieldId,
+        sourceFieldLabel: next.action.createMapSourceFieldLabel,
+        sourceFieldType: next.action.createMapSourceFieldType,
+      });
+      next.action.createDraftKind = undefined;
+      next.action.createMapTargetFieldId = undefined;
+      next.action.createMapTargetFieldLabel = undefined;
+      next.action.createMapTargetFieldType = undefined;
+      next.action.createMapSourceFieldId = undefined;
+      next.action.createMapSourceFieldLabel = undefined;
+      next.action.createMapSourceFieldType = undefined;
+    }
+    next.action.configured = actionConfigured(next.action);
     return next;
   }
 

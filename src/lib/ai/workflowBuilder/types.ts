@@ -99,6 +99,16 @@ export interface WorkflowCreateFieldValue {
   pendingOptionLabel?: string;
 }
 
+/** Map a trigger-form field → create-record target field (type-compatible). */
+export interface WorkflowCreateFieldMapping {
+  sourceFieldId?: string;
+  sourceFieldLabel?: string;
+  sourceFieldType?: string;
+  targetFieldId?: string;
+  targetFieldLabel?: string;
+  targetFieldType?: string;
+}
+
 export interface WorkflowActionSpec {
   actionType: WorkflowActionType;
   /** Field updated on trigger form (change_field_value) or linked form (update_linked) */
@@ -128,13 +138,28 @@ export interface WorkflowActionSpec {
   combinationMode?: 'single' | 'dual';
   /**
    * For create_record / create_linked_record:
-   * user chose not to set any static field values on the new record.
+   * user chose not to set any static field values or mappings on the new record.
    */
   skipCreateFieldValues?: boolean;
   /** Completed static field/value pairs for create_* actions */
   createFieldValues?: WorkflowCreateFieldValue[];
-  /** User finished adding create field values */
+  /** Completed trigger→target field mappings for create_* actions */
+  createFieldMappings?: WorkflowCreateFieldMapping[];
+  /** User finished adding create field values / mappings */
   createFieldsDone?: boolean;
+  /**
+   * In-progress create draft: static value on a target field, or map from trigger.
+   * Cleared when the pair is committed to createFieldValues / createFieldMappings.
+   */
+  createDraftKind?: 'static' | 'map';
+  /** Draft map: field on the new (target) record */
+  createMapTargetFieldId?: string;
+  createMapTargetFieldLabel?: string;
+  createMapTargetFieldType?: string;
+  /** Draft map: field on the trigger form */
+  createMapSourceFieldId?: string;
+  createMapSourceFieldLabel?: string;
+  createMapSourceFieldType?: string;
   configured: boolean;
 }
 

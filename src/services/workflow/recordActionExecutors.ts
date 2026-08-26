@@ -562,15 +562,14 @@ export class RecordActionExecutors {
         // Build submission data from field values
         const submissionData: Record<string, any> = {};
 
-        // If fieldConfigMode is 'field_mapping', use field mappings from trigger form
-        if (config.fieldConfigMode === 'field_mapping' && triggerSubmissionData) {
-          const fieldMappings = config.fieldMappings || [];
-          
+        // Apply field mappings from trigger form whenever mappings are present
+        // (static fieldValues below still override).
+        const fieldMappings = Array.isArray(config.fieldMappings) ? config.fieldMappings : [];
+        if (fieldMappings.length > 0 && triggerSubmissionData) {
           for (const mapping of fieldMappings) {
             if (mapping.sourceFieldId && mapping.targetFieldId) {
               const sourceValue = triggerSubmissionData[mapping.sourceFieldId];
               if (sourceValue !== undefined && sourceValue !== null && sourceValue !== '') {
-                // Check if this is a submission-access field and validate the value
                 const accessConfig = submissionAccessFieldConfigs[mapping.targetFieldId];
                 if (accessConfig) {
                   const validatedValue = this.validateSubmissionAccessValue(sourceValue, accessConfig);

@@ -203,15 +203,35 @@ function buildActionNodeConfig(
         .filter((f) => f.fieldId || f.fieldLabel)
         .map((f) => resolveCreateFieldValue(f, createLookupFields))
         .filter((f) => f.fieldId && f.staticValue !== undefined && String(f.staticValue) !== '');
+      const mappings = (!action.skipCreateFieldValues ? (action.createFieldMappings || []) : [])
+        .filter((m) => (m.targetFieldId || m.targetFieldLabel) && (m.sourceFieldId || m.sourceFieldLabel))
+        .map((m) => {
+          const target = findField(createLookupFields, m.targetFieldId, m.targetFieldLabel);
+          // Prefer exact source id from trigger form; never remap by label onto target form
+          const source = findField(formFields, m.sourceFieldId, m.sourceFieldLabel);
+          return {
+            sourceFieldId: m.sourceFieldId || source?.id || '',
+            sourceFieldName: source?.label || m.sourceFieldLabel || '',
+            sourceFieldType: source?.type || m.sourceFieldType || '',
+            targetFieldId: m.targetFieldId || target?.id || '',
+            targetFieldName: target?.label || m.targetFieldLabel || '',
+            targetFieldType: target?.type || m.targetFieldType || '',
+          };
+        })
+        .filter((m) => m.sourceFieldId && m.targetFieldId);
+      const hasValues = values.length > 0;
+      const hasMaps = mappings.length > 0;
+      let fieldConfigMode: 'field_values' | 'field_mapping' | 'none' = 'none';
+      if (hasMaps) fieldConfigMode = 'field_mapping';
+      else if (hasValues) fieldConfigMode = 'field_values';
       return {
         ...base,
-        // Prefer planner target form — do not silently fall back when named explicitly
         targetFormId: action.targetFormId || formId,
         targetFormName: action.targetFormName || formName,
         recordCount: action.recordCount || 1,
         fieldValues: values,
-        fieldMappings: [],
-        fieldConfigMode: values.length ? 'field_values' : 'none',
+        fieldMappings: mappings,
+        fieldConfigMode,
         setSubmittedBy: 'trigger_submitter',
         initialStatus: 'pending',
       };
@@ -221,6 +241,26 @@ function buildActionNodeConfig(
         .filter((f) => f.fieldId || f.fieldLabel)
         .map((f) => resolveCreateFieldValue(f, createLookupFields))
         .filter((f) => f.fieldId && f.staticValue !== undefined && String(f.staticValue) !== '');
+      const mappings = (!action.skipCreateFieldValues ? (action.createFieldMappings || []) : [])
+        .filter((m) => (m.targetFieldId || m.targetFieldLabel) && (m.sourceFieldId || m.sourceFieldLabel))
+        .map((m) => {
+          const target = findField(createLookupFields, m.targetFieldId, m.targetFieldLabel);
+          const source = findField(formFields, m.sourceFieldId, m.sourceFieldLabel);
+          return {
+            sourceFieldId: m.sourceFieldId || source?.id || '',
+            sourceFieldName: source?.label || m.sourceFieldLabel || '',
+            sourceFieldType: source?.type || m.sourceFieldType || '',
+            targetFieldId: m.targetFieldId || target?.id || '',
+            targetFieldName: target?.label || m.targetFieldLabel || '',
+            targetFieldType: target?.type || m.targetFieldType || '',
+          };
+        })
+        .filter((m) => m.sourceFieldId && m.targetFieldId);
+      const hasValues = values.length > 0;
+      const hasMaps = mappings.length > 0;
+      let fieldConfigMode: 'field_values' | 'field_mapping' | 'none' = 'none';
+      if (hasMaps) fieldConfigMode = 'field_mapping';
+      else if (hasValues) fieldConfigMode = 'field_values';
       return {
         ...base,
         targetFormId: action.targetFormId || formId,
@@ -229,8 +269,8 @@ function buildActionNodeConfig(
         crossReferenceFieldName: action.crossReferenceFieldLabel,
         recordCount: action.recordCount || 1,
         fieldValues: values,
-        fieldMappings: [],
-        fieldConfigMode: values.length ? 'field_values' : 'none',
+        fieldMappings: mappings,
+        fieldConfigMode,
         setSubmittedBy: 'trigger_submitter',
         autoLinkBack: true,
       };
