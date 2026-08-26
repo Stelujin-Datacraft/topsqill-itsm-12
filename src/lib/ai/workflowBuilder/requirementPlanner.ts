@@ -87,29 +87,25 @@ function actionConfigured(action: WorkflowActionSpec | null | undefined): boolea
         && action.staticValue !== undefined
         && action.staticValue !== null
         && String(action.staticValue) !== '';
-    case 'create_record':
+    case 'create_record': {
+      const hasDraft = Boolean(action.targetFieldId || action.targetFieldLabel);
       return Boolean(action.targetFormId || action.targetFormName)
+        && !hasDraft
         && (
           action.skipCreateFieldValues === true
-          || (
-            Boolean(action.targetFieldId || action.targetFieldLabel)
-            && action.staticValue !== undefined
-            && action.staticValue !== null
-            && String(action.staticValue) !== ''
-          )
+          || action.createFieldsDone === true
         );
-    case 'create_linked_record':
+    }
+    case 'create_linked_record': {
+      const hasDraft = Boolean(action.targetFieldId || action.targetFieldLabel);
       return Boolean(action.crossReferenceFieldId || action.crossReferenceFieldLabel)
         && Boolean(action.targetFormId || action.targetFormName)
+        && !hasDraft
         && (
           action.skipCreateFieldValues === true
-          || (
-            Boolean(action.targetFieldId || action.targetFieldLabel)
-            && action.staticValue !== undefined
-            && action.staticValue !== null
-            && String(action.staticValue) !== ''
-          )
+          || action.createFieldsDone === true
         );
+    }
     case 'update_linked_records':
       return Boolean(action.crossReferenceFieldId || action.crossReferenceFieldLabel)
         && Boolean(action.targetFormId || action.targetFormName)
@@ -396,56 +392,175 @@ function planGenericActionRequirements(
     }
   }
 
-  // Action field (change_field_value on trigger form, update_linked / create_* on target form)
-  const needsActionField = action.actionType === 'change_field_value'
-    || action.actionType === 'update_linked_records'
-    || action.actionType === 'create_record'
+  // ── Create record field values (multi until user stops) ─────────────────
+  const isCreateAction = action.actionType === 'create_record'
     || action.actionType === 'create_linked_record';
+
+  if (isCreateAction && !action.skipCreateFieldValues && !action.createFieldsDone) {
+    if (!action.createFieldValues) action.createFieldValues = [];
+
+    const linkedForm = action.targetFormId
+      ? hydratedCatalog.find((f) => f.id === action.targetFormId)
+      : undefined;
+    const fieldSource = linkedForm || hydratedForm;
+    const usedIds = new Set(
+      (action.createFieldValues || [])
+        .map((f) => f.fieldId)
+        .filter(Boolean) as string[],
+    );
+    const availableFields = (fieldChoices(fieldSource).length ? fieldChoices(fieldSource) : allFields)
+      .filter((f) => !usedIds.has(f.value));
+
+    const commitDraftCreateField = () => {
+      if (!action.targetFieldId && !action.targetFieldLabel) return;
+      action.createFieldValues = action.createFieldValues || [];
+      action.createFieldValues.push({
+        fieldId: action.targetFieldId,
+        fieldLabel: action.targetFieldLabel,
+        fieldType: action.targetFieldType,
+        staticValue: action.pendingOptionLabel || action.staticValue,
+        pendingOptionCreate: action.pendingOptionCreate || false,
+        pendingOptionLabel: action.pendingOptionLabel,
+      });
+      action.targetFieldId = undefined;
+      action.targetFieldLabel = undefined;
+      action.targetFieldType = undefined;
+      action.staticValue = undefined;
+      action.pendingOptionCreate = false;
+      action.pendingOptionLabel = undefined;
+    };
+
+    // Draft value missing → ask value
+    if (
+      (action.targetFieldId || action.targetFieldLabel)
+      && (action.staticValue === undefined || action.staticValue === null || String(action.staticValue) === '')
+    ) {
+      const draftField = fieldSource?.fields.find((f) =>
+        f.id === action.targetFieldId
+        || (action.targetFieldLabel
+          && f.label.toLowerCase() === String(action.targetFieldLabel).toLowerCase()),
+      );
+      const opts = fieldOptionChoices(draftField);
+      if (opts.length) {
+        push(req({
+          id: `action.create_value_${action.createFieldValues.length}`,
+          scope: 'workflow',
+          key: 'action_value',
+          question: `What **static value** should **${draftField?.label || action.targetFieldLabel}** be set to on the new record?`,
+          inputKind: 'choice',
+          options: opts,
+        }));
+      } else {
+        push(req({
+          id: `action.create_value_${action.createFieldValues.length}`,
+          scope: 'workflow',
+          key: 'action_value',
+          question: `What **static value** should **${draftField?.label || action.targetFieldLabel || 'the field'}** be set to on the new record?`,
+          inputKind: 'text',
+        }));
+      }
+      return mergeUnansweredFirst(out);
+    }
+
+    // Draft value present → resolve option / ask create / commit
+    if (
+      (action.targetFieldId || action.targetFieldLabel)
+      && action.staticValue !== undefined
+      && action.staticValue !== null
+      && String(action.staticValue) !== ''
+    ) {
+      const draftField = fieldSource?.fields.find((f) =>
+        f.id === action.targetFieldId
+        || (action.targetFieldLabel
+          && f.label.toLowerCase() === String(action.targetFieldLabel).toLowerCase()),
+      );
+      if (action.pendingOptionCreate) {
+        commitDraftCreateField();
+      } else if (draftField && fieldHasOption(draftField, action.staticValue)) {
+        action.staticValue = resolveFieldOptionValue(draftField, action.staticValue);
+        commitDraftCreateField();
+      } else if (draftField && fieldNeedsOptionCreateCheck(draftField) && !fieldHasOption(draftField, action.staticValue)) {
+        const wanted = sanitizeConditionValueHint(String(action.pendingOptionLabel || action.staticValue || ''));
+        push(req({
+          id: `action.create_value_create_${action.createFieldValues.length}`,
+          scope: 'workflow',
+          key: 'action_value_create',
+          question: [
+            `**${draftField.label}** does not have an option **${wanted}**.`,
+            '',
+            `May I add **${wanted}** as an option on **${draftField.label}**?`,
+          ].join('\n'),
+          inputKind: 'confirm',
+          options: [
+            { value: '__create_option__', label: `Yes, add "${wanted}"` },
+            { value: '__pick_existing__', label: 'No — pick an existing option' },
+          ],
+        }));
+        return mergeUnansweredFirst(out);
+      } else {
+        commitDraftCreateField();
+      }
+    }
+
+    // Ask for next field (or done/skip)
+    if (!action.targetFieldId && !action.targetFieldLabel) {
+      const added = action.createFieldValues.length;
+      const summary = added
+        ? `Already set: ${action.createFieldValues.map((f) => `**${f.fieldLabel}**=${String(f.staticValue)}`).join(', ')}`
+        : '';
+      push(req({
+        id: `action.create_field_${added}`,
+        scope: 'workflow',
+        key: 'action_field',
+        question: [
+          added
+            ? `Add another **static field** on the new **${action.targetFormName || 'record'}**?`
+            : `Which **static field** should be set while creating the new **${action.targetFormName || 'record'}**?`,
+          summary,
+          '',
+          added
+            ? 'Pick another field, or choose **Done** to stop.'
+            : 'Pick a field, or skip if the record should be created with empty/default values.',
+        ].filter(Boolean).join('\n'),
+        inputKind: 'field_select',
+        options: [
+          ...(added
+            ? [{ value: '__done_create_fields__', label: 'Done — stop adding fields' }]
+            : [{ value: '__skip_create_field_values__', label: 'Skip — create with empty/default values' }]),
+          ...availableFields,
+        ],
+      }));
+      return mergeUnansweredFirst(out);
+    }
+  }
+
+  // Action field (change_field_value on trigger form, or update_linked on linked form)
+  const needsActionField = action.actionType === 'change_field_value'
+    || action.actionType === 'update_linked_records';
 
   if (
     needsActionField
-    && !action.skipCreateFieldValues
     && !action.targetFieldId
     && !action.targetFieldLabel
   ) {
     const linkedForm = action.targetFormId
       ? hydratedCatalog.find((f) => f.id === action.targetFormId)
       : undefined;
-    const fieldSource = (
-      action.actionType === 'update_linked_records'
-      || action.actionType === 'create_record'
-      || action.actionType === 'create_linked_record'
-    ) && linkedForm
+    const fieldSource = action.actionType === 'update_linked_records' && linkedForm
       ? linkedForm
-      : (
-        action.actionType === 'create_record' || action.actionType === 'create_linked_record'
-          ? (linkedForm || hydratedForm)
-          : hydratedForm
-      );
-    const isCreate = action.actionType === 'create_record' || action.actionType === 'create_linked_record';
+      : hydratedForm;
     const labelScope = action.actionType === 'update_linked_records'
       ? 'on the **linked form**'
-      : isCreate
-        ? `on the new **${action.targetFormName || 'record'}**`
-        : 'on this form';
+      : 'on this form';
     push(req({
       id: 'action.field',
       scope: 'workflow',
       key: 'action_field',
-      question: isCreate
-        ? [
-            `Which **static field** should be set while creating the new record ${labelScope}?`,
-            '',
-            'Pick a field, or skip if the record should be created with empty/default values.',
-          ].join('\n')
-        : `Which **field** should the action update ${labelScope}?`,
+      question: `Which **field** should the action update ${labelScope}?`,
       inputKind: 'field_select',
-      options: [
-        ...(isCreate
-          ? [{ value: '__skip_create_field_values__', label: 'Skip — create with empty/default values' }]
-          : []),
-        ...(fieldChoices(fieldSource).length ? fieldChoices(fieldSource) : allFields),
-      ],
+      options: fieldChoices(fieldSource).length
+        ? fieldChoices(fieldSource)
+        : allFields,
     }));
     return mergeUnansweredFirst(out);
   }
@@ -453,7 +568,6 @@ function planGenericActionRequirements(
   // Auto-fill action value from prompt when field known but value empty
   if (
     needsActionField
-    && !action.skipCreateFieldValues
     && (action.targetFieldId || action.targetFieldLabel)
     && (action.staticValue === undefined || action.staticValue === null || String(action.staticValue) === '')
     && hints.actionValueHint
@@ -470,17 +584,12 @@ function planGenericActionRequirements(
   // Action value
   if (
     needsActionField
-    && !action.skipCreateFieldValues
     && (action.staticValue === undefined || action.staticValue === null || String(action.staticValue) === '')
   ) {
     const linkedForm = action.targetFormId
       ? hydratedCatalog.find((f) => f.id === action.targetFormId)
       : undefined;
-    const fieldSource = (
-      action.actionType === 'update_linked_records'
-      || action.actionType === 'create_record'
-      || action.actionType === 'create_linked_record'
-    ) && linkedForm
+    const fieldSource = action.actionType === 'update_linked_records' && linkedForm
       ? linkedForm
       : hydratedForm;
     const actionField = fieldSource?.fields.find((f) =>
@@ -489,15 +598,12 @@ function planGenericActionRequirements(
         && f.label.toLowerCase() === String(action.targetFieldLabel).toLowerCase()),
     );
     const opts = fieldOptionChoices(actionField);
-    const isCreate = action.actionType === 'create_record' || action.actionType === 'create_linked_record';
     if (opts.length) {
       push(req({
         id: 'action.value',
         scope: 'workflow',
         key: 'action_value',
-        question: isCreate
-          ? `What **static value** should **${actionField?.label || action.targetFieldLabel}** be set to on the new record?`
-          : `What **value** should **${actionField?.label || action.targetFieldLabel}** be set to?`,
+        question: `What **value** should **${actionField?.label || action.targetFieldLabel}** be set to?`,
         inputKind: 'choice',
         options: opts,
       }));
@@ -506,9 +612,7 @@ function planGenericActionRequirements(
         id: 'action.value',
         scope: 'workflow',
         key: 'action_value',
-        question: isCreate
-          ? `What **static value** should **${actionField?.label || action.targetFieldLabel || 'the field'}** be set to on the new record?`
-          : `What **value** should **${actionField?.label || action.targetFieldLabel || 'the field'}** be set to?`,
+        question: `What **value** should **${actionField?.label || action.targetFieldLabel || 'the field'}** be set to?`,
         inputKind: 'text',
       }));
     }
@@ -518,7 +622,6 @@ function planGenericActionRequirements(
   // Missing option on action field → ask permission to create it
   if (
     needsActionField
-    && !action.skipCreateFieldValues
     && action.staticValue !== undefined
     && action.staticValue !== null
     && String(action.staticValue) !== ''
@@ -527,11 +630,7 @@ function planGenericActionRequirements(
     const linkedForm = action.targetFormId
       ? hydratedCatalog.find((f) => f.id === action.targetFormId)
       : undefined;
-    const fieldSource = (
-      action.actionType === 'update_linked_records'
-      || action.actionType === 'create_record'
-      || action.actionType === 'create_linked_record'
-    ) && linkedForm
+    const fieldSource = action.actionType === 'update_linked_records' && linkedForm
       ? linkedForm
       : hydratedForm;
     const actionField = fieldSource?.fields.find((f) =>
@@ -1045,10 +1144,29 @@ export function applyAnswerToDefinition(
   }
 
   if (requirement.key === 'action_field' && next.action) {
-    if (value === '__skip_create_field_values__' || /^skip\b/i.test(value)) {
+    const isCreate = next.action.actionType === 'create_record'
+      || next.action.actionType === 'create_linked_record';
+    if (value === '__skip_create_field_values__' || (isCreate && /^skip\b/i.test(value))) {
       next.action.skipCreateFieldValues = true;
+      next.action.createFieldsDone = true;
+      next.action.createFieldValues = next.action.createFieldValues || [];
       next.action.targetFieldId = undefined;
       next.action.targetFieldLabel = undefined;
+      next.action.targetFieldType = undefined;
+      next.action.staticValue = undefined;
+      next.action.pendingOptionCreate = false;
+      next.action.pendingOptionLabel = undefined;
+      next.action.configured = actionConfigured(next.action);
+      return next;
+    }
+    if (value === '__done_create_fields__' || (isCreate && /^done\b/i.test(value))) {
+      next.action.createFieldsDone = true;
+      if (!(next.action.createFieldValues || []).length) {
+        next.action.skipCreateFieldValues = true;
+      }
+      next.action.targetFieldId = undefined;
+      next.action.targetFieldLabel = undefined;
+      next.action.targetFieldType = undefined;
       next.action.staticValue = undefined;
       next.action.pendingOptionCreate = false;
       next.action.pendingOptionLabel = undefined;
@@ -1065,10 +1183,15 @@ export function applyAnswerToDefinition(
     const field = fieldSource?.fields.find((f) => f.id === value)
       || searchFields(fieldSource, value).matched;
     next.action.skipCreateFieldValues = false;
+    next.action.createFieldsDone = false;
+    next.action.createFieldValues = next.action.createFieldValues || [];
     next.action.targetFieldId = field?.id;
     next.action.targetFieldLabel = field?.label || value;
     next.action.targetFieldType = field?.type;
     next.action.valueType = 'static';
+    next.action.staticValue = undefined;
+    next.action.pendingOptionCreate = false;
+    next.action.pendingOptionLabel = undefined;
     return next;
   }
 

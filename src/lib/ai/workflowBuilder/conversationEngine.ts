@@ -748,6 +748,9 @@ function buildAck(
     if (answer === '__skip_create_field_values__' || /^skip\b/i.test(answer)) {
       return 'Okay — I\'ll create the record with empty/default field values.';
     }
+    if (answer === '__done_create_fields__' || /^done\b/i.test(answer)) {
+      return 'Got it — I\'ll stop adding static fields for the new record.';
+    }
     if (field) return `Action will update **${field.label}**.`;
     return 'Action field noted.';
   }

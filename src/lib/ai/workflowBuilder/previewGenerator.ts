@@ -59,16 +59,19 @@ export function generateWorkflowPreview(
     }
     if (a.skipCreateFieldValues) {
       actionLines.push('Field values: empty/default');
+    } else if ((a.createFieldValues || []).length) {
+      for (const fv of a.createFieldValues || []) {
+        actionLines.push(`Set ${fv.fieldLabel || fv.fieldId}: ${String(fv.staticValue ?? '')}`);
+      }
     } else if (a.targetFieldLabel) {
       actionLines.push(`Field: ${a.targetFieldLabel}`);
-    }
-    if (
-      !a.skipCreateFieldValues
-      && a.staticValue !== undefined
-      && a.staticValue !== null
-      && String(a.staticValue) !== ''
-    ) {
-      actionLines.push(`Value: ${String(a.staticValue)}`);
+      if (
+        a.staticValue !== undefined
+        && a.staticValue !== null
+        && String(a.staticValue) !== ''
+      ) {
+        actionLines.push(`Value: ${String(a.staticValue)}`);
+      }
     }
     sections.push({ title: 'Action', lines: actionLines });
   } else {

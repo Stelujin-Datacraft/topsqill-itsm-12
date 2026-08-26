@@ -90,6 +90,15 @@ export type WorkflowActionType =
   | 'create_combination_records'
   | 'send_notification';
 
+export interface WorkflowCreateFieldValue {
+  fieldId?: string;
+  fieldLabel?: string;
+  fieldType?: string;
+  staticValue?: unknown;
+  pendingOptionCreate?: boolean;
+  pendingOptionLabel?: string;
+}
+
 export interface WorkflowActionSpec {
   actionType: WorkflowActionType;
   /** Field updated on trigger form (change_field_value) or linked form (update_linked) */
@@ -122,6 +131,10 @@ export interface WorkflowActionSpec {
    * user chose not to set any static field values on the new record.
    */
   skipCreateFieldValues?: boolean;
+  /** Completed static field/value pairs for create_* actions */
+  createFieldValues?: WorkflowCreateFieldValue[];
+  /** User finished adding create field values */
+  createFieldsDone?: boolean;
   configured: boolean;
 }
 
