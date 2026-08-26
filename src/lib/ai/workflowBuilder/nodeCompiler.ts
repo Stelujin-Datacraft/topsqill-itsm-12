@@ -153,28 +153,68 @@ function buildActionNodeConfig(
           staticValue,
         }],
       };
-    case 'create_record':
+    case 'create_record': {
+      const createField = findField(formFields, action.targetFieldId, action.targetFieldLabel);
+      const createFieldId = createField?.id || action.targetFieldId || '';
+      const createFieldLabel = createField?.label || action.targetFieldLabel || '';
+      const createFieldType = createField?.type || action.targetFieldType || 'text';
+      const createFieldOptions = Array.isArray(createField?.options) ? createField!.options : undefined;
+      const hasStatic = !action.skipCreateFieldValues
+        && createFieldId
+        && action.staticValue !== undefined
+        && action.staticValue !== null
+        && String(action.staticValue) !== '';
       return {
         ...base,
         recordCount: action.recordCount || 1,
-        fieldValues: [],
+        fieldValues: hasStatic
+          ? [{
+              fieldId: createFieldId,
+              fieldName: createFieldLabel,
+              fieldType: createFieldType,
+              fieldOptions: createFieldOptions,
+              valueType: 'static',
+              staticValue: action.staticValue,
+            }]
+          : [],
         fieldMappings: [],
-        fieldConfigMode: 'field_values',
+        fieldConfigMode: hasStatic ? 'field_values' : 'none',
         setSubmittedBy: 'trigger_submitter',
         initialStatus: 'pending',
       };
-    case 'create_linked_record':
+    }
+    case 'create_linked_record': {
+      const createField = findField(formFields, action.targetFieldId, action.targetFieldLabel);
+      const createFieldId = createField?.id || action.targetFieldId || '';
+      const createFieldLabel = createField?.label || action.targetFieldLabel || '';
+      const createFieldType = createField?.type || action.targetFieldType || 'text';
+      const createFieldOptions = Array.isArray(createField?.options) ? createField!.options : undefined;
+      const hasStatic = !action.skipCreateFieldValues
+        && createFieldId
+        && action.staticValue !== undefined
+        && action.staticValue !== null
+        && String(action.staticValue) !== '';
       return {
         ...base,
         crossReferenceFieldId: action.crossReferenceFieldId,
         crossReferenceFieldName: action.crossReferenceFieldLabel,
         recordCount: action.recordCount || 1,
-        fieldValues: [],
+        fieldValues: hasStatic
+          ? [{
+              fieldId: createFieldId,
+              fieldName: createFieldLabel,
+              fieldType: createFieldType,
+              fieldOptions: createFieldOptions,
+              valueType: 'static',
+              staticValue: action.staticValue,
+            }]
+          : [],
         fieldMappings: [],
-        fieldConfigMode: 'none',
+        fieldConfigMode: hasStatic ? 'field_values' : 'none',
         setSubmittedBy: 'trigger_submitter',
         autoLinkBack: true,
       };
+    }
     case 'update_linked_records':
       return {
         ...base,

@@ -75,6 +75,50 @@ function expandFieldQuery(query: string): string[] {
   return [...out];
 }
 
+/** Small edit-distance for typos like "Stauts" → "Status". */
+function editDistance(a: string, b: string): number {
+  if (a === b) return 0;
+  if (!a.length) return b.length;
+  if (!b.length) return a.length;
+  const rows = a.length + 1;
+  const cols = b.length + 1;
+  const dp = Array.from({ length: rows }, () => new Array<number>(cols).fill(0));
+  for (let i = 0; i < rows; i++) dp[i][0] = i;
+  for (let j = 0; j < cols; j++) dp[0][j] = j;
+  for (let i = 1; i < rows; i++) {
+    for (let j = 1; j < cols; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      dp[i][j] = Math.min(
+        dp[i - 1][j] + 1,
+        dp[i][j - 1] + 1,
+        dp[i - 1][j - 1] + cost,
+      );
+    }
+  }
+  return dp[a.length][b.length];
+}
+
+function fuzzyFieldMatch(
+  fields: InferFormField[],
+  hint: string,
+): InferFormField | undefined {
+  const key = normKey(hint);
+  if (!key || key.length < 3) return undefined;
+  let best: InferFormField | undefined;
+  let bestDist = Number.POSITIVE_INFINITY;
+  for (const field of fields) {
+    const label = normKey(field.label);
+    if (!label) continue;
+    const dist = editDistance(key, label);
+    const maxAllowed = Math.max(1, Math.floor(Math.min(key.length, label.length) / 3));
+    if (dist <= maxAllowed && dist < bestDist) {
+      best = field;
+      bestDist = dist;
+    }
+  }
+  return bestDist <= 2 ? best : undefined;
+}
+
 /** Match a user/AI field hint to a real form field (synonyms + fuzzy label). */
 export function matchFormFieldByHint(
   fields: InferFormField[],
@@ -94,7 +138,7 @@ export function matchFormFieldByHint(
     });
     if (partial) return partial;
   }
-  return undefined;
+  return fuzzyFieldMatch(fields, hint);
 }
 
 const OPTION_SYNONYMS: Record<string, string[]> = {

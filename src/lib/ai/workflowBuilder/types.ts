@@ -117,6 +117,11 @@ export interface WorkflowActionSpec {
   recordCount?: number;
   updateScope?: 'all' | 'first' | 'last';
   combinationMode?: 'single' | 'dual';
+  /**
+   * For create_record / create_linked_record:
+   * user chose not to set any static field values on the new record.
+   */
+  skipCreateFieldValues?: boolean;
   configured: boolean;
 }
 

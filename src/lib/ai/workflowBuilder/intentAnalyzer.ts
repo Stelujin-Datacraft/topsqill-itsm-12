@@ -16,6 +16,7 @@ import {
   inferActionTypeFromPrompt,
   type InferredWorkflowActionType,
 } from './actionTypeInferrer';
+import { extractCreateTargetFormHint } from './promptHints';
 
 export interface IntentAnalysisResult {
   definition: AIWorkflowDefinition;
@@ -230,10 +231,17 @@ export function analyzeWorkflowIntent(
 
   if (action) {
     extractedKeys.push('action.type');
-    // Default create_record target to the trigger form when known
-    if (action.actionType === 'create_record' && context?.formId) {
-      action.targetFormId = context.formId;
-      action.targetFormName = context.formName;
+    // Default create_record target to the trigger form only when prompt
+    // does not name another form (e.g. "create a new Incident record").
+    if (action.actionType === 'create_record') {
+      const formHint = extractCreateTargetFormHint(text);
+      if (formHint) {
+        action.targetFormName = formHint;
+        // id resolved later against forms catalog in the planner
+      } else if (context?.formId) {
+        action.targetFormId = context.formId;
+        action.targetFormName = context.formName;
+      }
     }
   }
 

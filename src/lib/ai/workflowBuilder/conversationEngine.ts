@@ -745,6 +745,9 @@ function buildAck(
     return `Target form set to **${answer}**.`;
   }
   if (req.key === 'action_field') {
+    if (answer === '__skip_create_field_values__' || /^skip\b/i.test(answer)) {
+      return 'Okay — I\'ll create the record with empty/default field values.';
+    }
     if (field) return `Action will update **${field.label}**.`;
     return 'Action field noted.';
   }

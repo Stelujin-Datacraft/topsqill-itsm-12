@@ -57,10 +57,17 @@ export function generateWorkflowPreview(
     if (a.targetFormName) {
       actionLines.push(`Target form: ${a.targetFormName}`);
     }
-    if (a.targetFieldLabel) {
+    if (a.skipCreateFieldValues) {
+      actionLines.push('Field values: empty/default');
+    } else if (a.targetFieldLabel) {
       actionLines.push(`Field: ${a.targetFieldLabel}`);
     }
-    if (a.staticValue !== undefined && a.staticValue !== null && String(a.staticValue) !== '') {
+    if (
+      !a.skipCreateFieldValues
+      && a.staticValue !== undefined
+      && a.staticValue !== null
+      && String(a.staticValue) !== ''
+    ) {
       actionLines.push(`Value: ${String(a.staticValue)}`);
     }
     sections.push({ title: 'Action', lines: actionLines });
