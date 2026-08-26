@@ -668,7 +668,7 @@ function WorkflowDesignerInner({ workflowId, projectId, initialNodes, initialCon
 
     const { error } = await supabase
       .from('workflow_triggers')
-      .insert(triggerPayload);
+      .insert({ ...triggerPayload, is_active: true });
 
     if (error) {
       console.error('❌ Error creating trigger:', error);
