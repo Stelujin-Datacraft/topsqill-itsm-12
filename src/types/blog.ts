@@ -13,7 +13,13 @@ export type BlogPostRecord = {
   created_by: string | null;
   created_at: string;
   updated_at: string;
+  /** Present in Blog admin only — demo seed vs saved CMS post */
+  origin?: 'cms' | 'demo';
 };
+
+export function isDemoBlogId(id: string | undefined | null): boolean {
+  return Boolean(id && String(id).startsWith('demo:'));
+}
 
 /** Unified shape for public /blog rendering (DB + static). */
 export type DisplayBlogPost = {

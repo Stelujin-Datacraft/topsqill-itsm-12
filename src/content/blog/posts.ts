@@ -19,6 +19,58 @@ export const BLOG_POSTS = postsJson as BlogPost[];
 /** Repo path for the static seed posts shown on the marketing /blog page. */
 export const STATIC_BLOG_POSTS_PATH = 'src/content/blog/posts.json';
 
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+/** Convert a built-in seed post into a CMS-shaped record for Blog admin editing. */
+export function staticToRecord(post: BlogPost): BlogPostRecord {
+  const publishedAt = `${post.publishedAt}T12:00:00.000Z`;
+  const modifiedAt = `${post.modifiedAt}T12:00:00.000Z`;
+  return {
+    id: `demo:${post.slug}`,
+    slug: post.slug,
+    title: post.title,
+    description: post.description,
+    content_html: (post.body || []).map((p) => `<p>${escapeHtml(p)}</p>`).join('\n'),
+    cover_image_url: null,
+    author_name: post.authorName || 'TopSqill Team',
+    author_title: post.authorTitle || null,
+    tags: post.tags || [],
+    published: true,
+    published_at: publishedAt,
+    created_by: null,
+    created_at: publishedAt,
+    updated_at: modifiedAt,
+    origin: 'demo',
+  };
+}
+
+export function getDemoBlogRecords(): BlogPostRecord[] {
+  return BLOG_POSTS.map(staticToRecord);
+}
+
+/**
+ * Merge CMS rows with demo seeds. CMS wins on slug; demos fill gaps so they
+ * appear (and are editable) in Blog admin.
+ */
+export function mergeAdminBlogPosts(cmsRows: BlogPostRecord[]): BlogPostRecord[] {
+  const bySlug = new Map<string, BlogPostRecord>();
+  for (const row of cmsRows) {
+    bySlug.set(row.slug, { ...row, origin: row.origin || 'cms' });
+  }
+  for (const demo of getDemoBlogRecords()) {
+    if (!bySlug.has(demo.slug)) bySlug.set(demo.slug, demo);
+  }
+  return [...bySlug.values()].sort((a, b) =>
+    String(b.updated_at || b.published_at || '').localeCompare(String(a.updated_at || a.published_at || '')),
+  );
+}
+
 export function getPost(slug: string | undefined): BlogPost | undefined {
   if (!slug) return undefined;
   return BLOG_POSTS.find((p) => p.slug === slug);

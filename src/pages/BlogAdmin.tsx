@@ -30,7 +30,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useBlogAdmin } from '@/hooks/useBlogPosts';
 import type { BlogPostRecord } from '@/types/blog';
-import { slugifyTitle } from '@/types/blog';
+import { isDemoBlogId, slugifyTitle } from '@/types/blog';
 import { ExternalLink, FileUp, Loader2, Pencil, Plus, Trash2, Wrench } from 'lucide-react';
 import { toast } from 'sonner';
 import { STATIC_BLOG_POSTS_PATH } from '@/content/blog/posts';
@@ -45,6 +45,7 @@ type Draft = {
   author_title: string;
   tags: string;
   published: boolean;
+  origin?: 'cms' | 'demo';
 };
 
 const emptyDraft = (): Draft => ({
@@ -71,6 +72,7 @@ function recordToDraft(row: BlogPostRecord): Draft {
     author_title: row.author_title || '',
     tags: (row.tags || []).join(', '),
     published: row.published,
+    origin: row.origin || (isDemoBlogId(row.id) ? 'demo' : 'cms'),
   };
 }
 
@@ -270,14 +272,14 @@ export default function BlogAdmin() {
           </CardHeader>
           <CardContent className="space-y-3 text-sm text-muted-foreground">
             <p>
-              <span className="font-medium text-foreground">Built-in articles</span>
-              {' '}live in the repo at{' '}
+              <span className="font-medium text-foreground">Demo articles</span>
+              {' '}from{' '}
               <code className="text-xs text-foreground">{STATIC_BLOG_POSTS_PATH}</code>
-              {' '}(shipped with the site). They show until you publish a CMS post with the same URL slug.
+              {' '}are listed below with a Demo badge. Edit → Save to convert them into CMS posts (same /blog URL).
             </p>
             <p>
               <span className="font-medium text-foreground">CMS posts</span>
-              {' '}(this page) are stored in Supabase
+              {' '}are stored in Supabase
               {cmsMode === 'table' ? ' table blog_posts' : ' Storage (blog/cms-posts.json)'}
               {' '}and appear on /blog when Published is on.
             </p>
@@ -289,10 +291,10 @@ export default function BlogAdmin() {
 
         <Card>
             <CardHeader>
-              <CardTitle className="text-base">All CMS posts</CardTitle>
+              <CardTitle className="text-base">All posts</CardTitle>
               <CardDescription>
-                Drafts stay private on the public site. Published posts appear immediately on /blog.
-                {cmsMode === 'storage' ? ' Using storage fallback until the blog_posts migration is applied.' : ''}
+                Demo + CMS posts. Edit a Demo post and Save to customize it on /blog.
+                {cmsMode === 'storage' ? ' Storage fallback is active until the blog_posts migration is applied.' : ''}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -302,15 +304,22 @@ export default function BlogAdmin() {
                 </div>
               ) : sorted.length === 0 ? (
                 <p className="text-sm text-muted-foreground py-8 text-center">
-                  No CMS posts yet. Create one or import JSON. Static seed posts still show on /blog until replaced.
+                  No posts found.
                 </p>
               ) : (
                 <ul className="divide-y divide-border">
-                  {sorted.map((row) => (
+                  {sorted.map((row) => {
+                    const isDemo = row.origin === 'demo' || isDemoBlogId(row.id);
+                    return (
                     <li key={row.id} className="py-4 flex flex-wrap items-center gap-3 justify-between">
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                           <p className="font-medium truncate">{row.title}</p>
+                          {isDemo ? (
+                            <Badge variant="outline">Demo</Badge>
+                          ) : (
+                            <Badge variant="secondary">CMS</Badge>
+                          )}
                           <Badge variant={row.published ? 'default' : 'secondary'}>
                             {row.published ? 'Published' : 'Draft'}
                           </Badge>
@@ -332,12 +341,19 @@ export default function BlogAdmin() {
                           <Pencil className="h-4 w-4 mr-1" />
                           Edit
                         </Button>
-                        <Button size="sm" variant="ghost" onClick={() => setDeleteId(row.id)}>
-                          <Trash2 className="h-4 w-4 text-destructive" />
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          disabled={isDemo}
+                          title={isDemo ? 'Demo posts cannot be deleted — edit & save to convert to CMS first' : 'Delete'}
+                          onClick={() => setDeleteId(row.id)}
+                        >
+                          <Trash2 className={`h-4 w-4 ${isDemo ? 'text-muted-foreground' : 'text-destructive'}`} />
                         </Button>
                       </div>
                     </li>
-                  ))}
+                    );
+                  })}
                 </ul>
               )}
             </CardContent>
@@ -346,9 +362,17 @@ export default function BlogAdmin() {
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogContent className="max-w-3xl max-h-[92vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>{draft.id ? 'Edit post' : 'New blog post'}</DialogTitle>
+              <DialogTitle>
+                {draft.origin === 'demo'
+                  ? 'Edit demo post'
+                  : draft.id
+                    ? 'Edit post'
+                    : 'New blog post'}
+              </DialogTitle>
               <DialogDescription>
-                Use headings, images, and formatting in the editor. Toggle Publish when ready.
+                {draft.origin === 'demo'
+                  ? 'This is a built-in demo article. Saving converts it into a CMS post you fully control (same /blog URL).'
+                  : 'Use headings, images, and formatting in the editor. Toggle Publish when ready.'}
               </DialogDescription>
             </DialogHeader>
 
@@ -477,7 +501,7 @@ export default function BlogAdmin() {
               <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
               <Button onClick={() => void save()} disabled={saving}>
                 {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                Save
+                {draft.origin === 'demo' ? 'Save to CMS' : 'Save'}
               </Button>
             </DialogFooter>
           </DialogContent>
