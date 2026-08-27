@@ -8,11 +8,12 @@ import {
   createStorageBlogPost,
   deleteStorageBlogPost,
   formatBlogError,
-  getPublishedStorageBlogPost,
   invalidateBlogTableProbe,
   isMissingRelationError,
-  listPublishedStorageBlogPosts,
   listStorageBlogPosts,
+  loadAllPublishedBlogPosts,
+  loadPublishedBlogPostBySlug,
+  mirrorPostToStorageAndLocal,
   probeBlogTable,
   updateStorageBlogPost,
   uploadBlogCover,
@@ -35,23 +36,10 @@ async function ensureBlogBucketViaApi(): Promise<void> {
 export function usePublishedBlogPosts() {
   return useQuery({
     queryKey: PUBLIC_KEY,
-    queryFn: async () => {
-      const tableOk = await probeBlogTable();
-      if (tableOk) {
-        const { data, error } = await rawSupabase
-          .from('blog_posts')
-          .select('*')
-          .eq('published', true)
-          .order('published_at', { ascending: false });
-        if (!error) return (data || []) as BlogPostRecord[];
-        if (!isMissingRelationError(error)) {
-          console.warn('[blog] published fetch failed:', error.message);
-        }
-        invalidateBlogTableProbe();
-      }
-      return listPublishedStorageBlogPosts();
-    },
-    staleTime: 60_000,
+    queryFn: () => loadAllPublishedBlogPosts(),
+    staleTime: 5_000,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -61,23 +49,10 @@ export function usePublishedBlogPost(slug: string | undefined) {
     enabled: Boolean(slug),
     queryFn: async () => {
       if (!slug) return null;
-      const tableOk = await probeBlogTable();
-      if (tableOk) {
-        const { data, error } = await rawSupabase
-          .from('blog_posts')
-          .select('*')
-          .eq('slug', slug)
-          .eq('published', true)
-          .maybeSingle();
-        if (!error) return (data as BlogPostRecord) || null;
-        if (!isMissingRelationError(error)) {
-          console.warn('[blog] post fetch failed:', error.message);
-        }
-        invalidateBlogTableProbe();
-      }
-      return getPublishedStorageBlogPost(slug);
+      return loadPublishedBlogPostBySlug(slug);
     },
-    staleTime: 60_000,
+    staleTime: 5_000,
+    refetchOnMount: 'always',
   });
 }
 
@@ -100,19 +75,47 @@ export function useBlogAdmin() {
     queryKey: ADMIN_KEY,
     enabled: isAdmin,
     queryFn: async () => {
+      const lists: BlogPostRecord[][] = [];
       const tableOk = await probeBlogTable();
       if (tableOk) {
         const { data, error } = await rawSupabase
           .from('blog_posts')
           .select('*')
           .order('updated_at', { ascending: false });
-        if (!error) return (data || []) as BlogPostRecord[];
-        if (!isMissingRelationError(error)) throw new Error(formatBlogError(error));
-        invalidateBlogTableProbe();
+        if (!error && data) lists.push(data as BlogPostRecord[]);
+        else if (error && isMissingRelationError(error)) invalidateBlogTableProbe();
+        else if (error) console.warn('[blog] admin table list failed:', error.message);
       }
-      return listStorageBlogPosts();
+      try {
+        lists.push(await listStorageBlogPosts());
+      } catch (err) {
+        console.warn('[blog] admin storage list failed:', (err as Error)?.message);
+      }
+      // Dedupe by slug preferring newest
+      const bySlug = new Map<string, BlogPostRecord>();
+      for (const list of lists) {
+        for (const row of list) {
+          const prev = bySlug.get(row.slug);
+          if (!prev) {
+            bySlug.set(row.slug, row);
+            continue;
+          }
+          const prevTs = Date.parse(prev.updated_at || '') || 0;
+          const nextTs = Date.parse(row.updated_at || '') || 0;
+          if (nextTs >= prevTs) bySlug.set(row.slug, row);
+        }
+      }
+      return [...bySlug.values()].sort((a, b) =>
+        String(b.updated_at).localeCompare(String(a.updated_at)),
+      );
     },
   });
+
+  const bustPublicCache = () => {
+    queryClient.invalidateQueries({ queryKey: ADMIN_KEY });
+    queryClient.invalidateQueries({ queryKey: PUBLIC_KEY });
+    queryClient.invalidateQueries({ queryKey: MODE_KEY });
+  };
 
   const createPost = useMutation({
     mutationFn: async (input: BlogPostInput) => {
@@ -132,17 +135,22 @@ export function useBlogAdmin() {
           }])
           .select()
           .single();
-        if (!error) return data as BlogPostRecord;
-        if (!isMissingRelationError(error)) throw new Error(formatBlogError(error));
-        invalidateBlogTableProbe();
+        if (!error && data) {
+          await mirrorPostToStorageAndLocal(data as BlogPostRecord);
+          return data as BlogPostRecord;
+        }
+        if (error && !isMissingRelationError(error)) {
+          // Still try storage so publish is not blocked by RLS
+          console.warn('[blog] table insert failed, falling back to storage:', error.message);
+        } else if (error) {
+          invalidateBlogTableProbe();
+        }
       }
       return createStorageBlogPost(input, user?.id);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ADMIN_KEY });
-      queryClient.invalidateQueries({ queryKey: PUBLIC_KEY });
-      queryClient.invalidateQueries({ queryKey: MODE_KEY });
-      toast.success('Blog post saved');
+    onSuccess: (row) => {
+      bustPublicCache();
+      toast.success(row.published ? 'Published — visible on /blog' : 'Draft saved');
     },
     onError: (err: Error) => toast.error(formatBlogError(err, 'Failed to save post')),
   });
@@ -161,17 +169,21 @@ export function useBlogAdmin() {
           .eq('id', id)
           .select()
           .single();
-        if (!error) return data as BlogPostRecord;
-        if (!isMissingRelationError(error)) throw new Error(formatBlogError(error));
-        invalidateBlogTableProbe();
+        if (!error && data) {
+          await mirrorPostToStorageAndLocal(data as BlogPostRecord);
+          return data as BlogPostRecord;
+        }
+        if (error && !isMissingRelationError(error)) {
+          console.warn('[blog] table update failed, falling back to storage:', error.message);
+        } else if (error) {
+          invalidateBlogTableProbe();
+        }
       }
       return updateStorageBlogPost(id, input);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ADMIN_KEY });
-      queryClient.invalidateQueries({ queryKey: PUBLIC_KEY });
-      queryClient.invalidateQueries({ queryKey: MODE_KEY });
-      toast.success('Blog post updated');
+    onSuccess: (row) => {
+      bustPublicCache();
+      toast.success(row.published ? 'Published — visible on /blog' : 'Draft updated');
     },
     onError: (err: Error) => toast.error(formatBlogError(err, 'Failed to update post')),
   });
@@ -181,22 +193,22 @@ export function useBlogAdmin() {
       const tableOk = await probeBlogTable();
       if (tableOk) {
         const { error } = await rawSupabase.from('blog_posts').delete().eq('id', id);
-        if (!error) return;
-        if (!isMissingRelationError(error)) throw new Error(formatBlogError(error));
-        invalidateBlogTableProbe();
+        if (error && !isMissingRelationError(error)) {
+          console.warn('[blog] table delete failed:', error.message);
+        } else if (error) {
+          invalidateBlogTableProbe();
+        }
       }
       await deleteStorageBlogPost(id);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ADMIN_KEY });
-      queryClient.invalidateQueries({ queryKey: PUBLIC_KEY });
+      bustPublicCache();
       toast.success('Blog post deleted');
     },
     onError: (err: Error) => toast.error(formatBlogError(err, 'Failed to delete post')),
   });
 
   const uploadCover = async (file: File): Promise<{ url: string; via: 'storage' | 'data-url'; bucket?: string }> => {
-    // Best-effort: create blog-media via Nest service role before first attempt
     await ensureBlogBucketViaApi();
     try {
       return await uploadBlogCover(file);
@@ -221,8 +233,7 @@ export function useBlogAdmin() {
     }>('/blog/ensure', { method: 'POST' });
     if (res.error) throw new Error(res.error.message);
     invalidateBlogTableProbe();
-    await queryClient.invalidateQueries({ queryKey: MODE_KEY });
-    await queryClient.invalidateQueries({ queryKey: ADMIN_KEY });
+    bustPublicCache();
     return res.data;
   };
 

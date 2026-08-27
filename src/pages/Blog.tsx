@@ -10,8 +10,9 @@ export default function Blog() {
   const { pathname } = useLocation();
   const { market } = stripMarketPrefix(pathname);
   const base = market ? `/${market}` : '';
-  const { data: dbPosts, isLoading } = usePublishedBlogPosts();
+  const { data: dbPosts, isLoading, isFetching, refetch } = usePublishedBlogPosts();
   const posts = mergeBlogPosts(dbPosts);
+  const cmsCount = (dbPosts || []).length;
 
   return (
     <PublicPageLayout
@@ -20,6 +21,20 @@ export default function Blog() {
       description="Practical articles from the TopSqill team — unique metadata, authors, and publish dates on every post."
       contentClassName="max-w-3xl mx-auto"
     >
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+        <span>
+          {isFetching ? 'Refreshing…' : `${posts.length} post${posts.length === 1 ? '' : 's'}`}
+          {cmsCount > 0 ? ` · ${cmsCount} from CMS` : ''}
+        </span>
+        <button
+          type="button"
+          className="underline underline-offset-4 hover:text-foreground"
+          onClick={() => void refetch()}
+        >
+          Refresh
+        </button>
+      </div>
+
       {isLoading && posts.length === 0 ? (
         <p className="text-sm text-muted-foreground">Loading posts…</p>
       ) : (
@@ -41,6 +56,7 @@ export default function Blog() {
                 {post.tags.map((tag) => (
                   <Badge key={tag} variant="secondary">{tag}</Badge>
                 ))}
+                {post.source === 'db' && <Badge variant="outline">CMS</Badge>}
               </div>
               <h2 className="text-2xl font-semibold tracking-tight">
                 <Link to={`${base}/blog/${post.slug}`} className="hover:text-primary transition-colors">

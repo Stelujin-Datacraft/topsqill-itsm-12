@@ -465,6 +465,12 @@ export default function BlogAdmin() {
                   onCheckedChange={(published) => setDraft((d) => ({ ...d, published }))}
                 />
               </div>
+              {draft.published && (
+                <p className="text-xs text-muted-foreground">
+                  After save, open <a className="underline" href={`/blog/${draft.slug || 'your-slug'}`} target="_blank" rel="noreferrer">/blog/{draft.slug || '…'}</a>
+                  {' '}(use Refresh on /blog if it does not appear immediately).
+                </p>
+              )}
             </div>
 
             <DialogFooter>
