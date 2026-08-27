@@ -5,7 +5,9 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { HelmetProvider } from "react-helmet-async";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { RouteSeo } from "@/components/RouteSeo";
 import { OrganizationProvider } from "@/contexts/OrganizationContext";
 import { ProjectProvider } from "@/contexts/ProjectContext";
 import { FormProvider } from "@/contexts/FormContext";
@@ -74,6 +76,12 @@ const Contact = lazyWithRetry(() => import("./pages/Contact"));
 const About = lazyWithRetry(() => import("./pages/About"));
 const Privacy = lazyWithRetry(() => import("./pages/Privacy"));
 const Terms = lazyWithRetry(() => import("./pages/Terms"));
+const Pricing = lazyWithRetry(() => import("./pages/Pricing"));
+const Blog = lazyWithRetry(() => import("./pages/Blog"));
+const BlogPost = lazyWithRetry(() => import("./pages/BlogPost"));
+const MarketHome = lazyWithRetry(() => import("./pages/MarketHome"));
+import { SiteAnalytics } from "@/components/SiteAnalytics";
+import { MARKET_CODES } from "@/content/markets";
 
 // Forms feature
 const FormBuilder = lazyWithRetry(() => import("./pages/FormBuilder"));
@@ -176,6 +184,7 @@ const ChatbotGate = () => {
 };
 
 const App = () => (
+  <HelmetProvider>
   <QueryClientProvider client={queryClient}>
     <ThemeProvider>
     <AuthProvider>
@@ -192,6 +201,8 @@ const App = () => (
                   <ImpersonationBanner />
                   <DelegationBanner />
                   <BrowserRouter>
+                    <RouteSeo />
+                    <SiteAnalytics />
                     <PasswordExpiryWarning />
                     <Routes>
                       {/* Public routes - eagerly loaded */}
@@ -235,6 +246,40 @@ const App = () => (
                           <Terms />
                         </Suspense>
                       } />
+                      <Route path="/pricing" element={
+                        <Suspense fallback={<RouteLoader />}>
+                          <Pricing />
+                        </Suspense>
+                      } />
+                      <Route path="/blog" element={
+                        <Suspense fallback={<RouteLoader />}>
+                          <Blog />
+                        </Suspense>
+                      } />
+                      <Route path="/blog/:slug" element={
+                        <Suspense fallback={<RouteLoader />}>
+                          <BlogPost />
+                        </Suspense>
+                      } />
+                      {/* Market hubs — static paths so they never steal /auth, /forgot-password, etc. */}
+                      {MARKET_CODES.map((code) => (
+                        <Route key={code} path={`/${code}`} element={
+                          <Suspense fallback={<RouteLoader />}>
+                            <MarketHome />
+                          </Suspense>
+                        } />
+                      ))}
+                      {MARKET_CODES.flatMap((code) => ([
+                        <Route key={`${code}-solutions`} path={`/${code}/solutions`} element={<Suspense fallback={<RouteLoader />}><Solutions /></Suspense>} />,
+                        <Route key={`${code}-pricing`} path={`/${code}/pricing`} element={<Suspense fallback={<RouteLoader />}><Pricing /></Suspense>} />,
+                        <Route key={`${code}-about`} path={`/${code}/about`} element={<Suspense fallback={<RouteLoader />}><About /></Suspense>} />,
+                        <Route key={`${code}-contact`} path={`/${code}/contact`} element={<Suspense fallback={<RouteLoader />}><Contact /></Suspense>} />,
+                        <Route key={`${code}-blog`} path={`/${code}/blog`} element={<Suspense fallback={<RouteLoader />}><Blog /></Suspense>} />,
+                        <Route key={`${code}-blog-slug`} path={`/${code}/blog/:slug`} element={<Suspense fallback={<RouteLoader />}><BlogPost /></Suspense>} />,
+                        <Route key={`${code}-docs`} path={`/${code}/docs`} element={<Suspense fallback={<RouteLoader />}><Documentation /></Suspense>} />,
+                        <Route key={`${code}-privacy`} path={`/${code}/privacy`} element={<Suspense fallback={<RouteLoader />}><Privacy /></Suspense>} />,
+                        <Route key={`${code}-terms`} path={`/${code}/terms`} element={<Suspense fallback={<RouteLoader />}><Terms /></Suspense>} />,
+                      ]))}
                       {/* Legacy direct links redirect into the tabbed Solutions page */}
                       <Route path="/solutions/employee-onboarding" element={<Navigate to="/solutions?tab=onboarding" replace />} />
                       <Route path="/solutions/grc" element={<Navigate to="/solutions?tab=grc" replace />} />
@@ -356,6 +401,7 @@ const App = () => (
     </AuthProvider>
     </ThemeProvider>
   </QueryClientProvider>
+  </HelmetProvider>
 );
 
 export default App;

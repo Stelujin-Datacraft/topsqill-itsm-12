@@ -1,0 +1,5 @@
+# www → apex (Netlify / compatible static hosts)
+https://www.topsqill.com/*  https://topsqill.com/:splat  301!
+
+# SPA fallback for known app shell (does not create true 404 — use Cloudflare worker for that)
+/*    /index.html   200

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -786,10 +786,6 @@ console.log(data.data.count); // e.g., 150`,
 const Documentation = () => {
   const [activeSection, setActiveSection] = useState('introduction');
   const [sidebarOpen, setSidebarOpen] = useState(false);
-
-  useEffect(() => {
-    document.title = 'API Documentation - Topsqill';
-  }, []);
 
   const scrollToSection = (id: string) => {
     setActiveSection(id);

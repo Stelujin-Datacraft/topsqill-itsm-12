@@ -1,0 +1,50 @@
+[
+  {
+    "slug": "enterprise-forms-vs-spreadsheets",
+    "title": "Why enterprise teams outgrow spreadsheets for intake and approvals",
+    "description": "How governed forms and workflows replace fragile spreadsheet handoffs — with audit trails, roles, and SQL reporting.",
+    "authorName": "TopSqill Team",
+    "authorTitle": "Product",
+    "publishedAt": "2026-06-12",
+    "modifiedAt": "2026-06-12",
+    "tags": ["forms", "operations", "governance"],
+    "body": [
+      "Spreadsheets start as a convenience and end as an operational liability. Version conflicts, missing approvals, and no reliable audit trail make them a poor system of record for enterprise intake.",
+      "A governed form platform captures structured data once, routes it through explicit workflow steps, and keeps every change attributable. Managers get dashboards; auditors get history.",
+      "TopSqill combines form building, visual workflows, and SQL on submission data so teams do not need a separate BI project just to answer basic operational questions.",
+      "If your process still lives in email attachments and shared drives, start by modeling the intake fields and the approval path — then automate the notifications and record updates."
+    ]
+  },
+  {
+    "slug": "workflow-automation-for-itsm-and-hr",
+    "title": "Connecting ITSM and HR workflows on one data model",
+    "description": "Onboarding, access requests, and asset assignment should share identity and status — not three disconnected tools.",
+    "authorName": "TopSqill Team",
+    "authorTitle": "Solutions",
+    "publishedAt": "2026-07-03",
+    "modifiedAt": "2026-07-08",
+    "tags": ["ITSM", "HR", "workflows"],
+    "body": [
+      "Employee onboarding fails when HR, IT, and facilities each run a private checklist. The hire is “done” in one system and invisible in another.",
+      "When forms, assets, and workflows share a data model, a single status change can provision access, assign hardware, and trigger acknowledgements in the knowledge base.",
+      "TopSqill solution scenarios for ITSM and HR show how cross-references and automations keep those handoffs inside one governed platform.",
+      "Start with the moments that create tickets today — access requests, device returns, policy acknowledgements — and encode them as reusable workflows."
+    ]
+  },
+  {
+    "slug": "sql-on-form-data-without-a-warehouse",
+    "title": "SQL on form data without waiting on a warehouse project",
+    "description": "Operational questions should not require a six-month analytics program. Query submissions where they live.",
+    "authorName": "TopSqill Team",
+    "authorTitle": "Engineering",
+    "publishedAt": "2026-08-01",
+    "modifiedAt": "2026-08-01",
+    "tags": ["SQL", "analytics", "forms"],
+    "body": [
+      "Most teams export CSVs because their form tool cannot answer joins and filters. That creates shadow databases and stale decisions.",
+      "TopSqill includes a SQL editor over form submissions so operations and analytics stakeholders can explore live data with familiar syntax.",
+      "Combine that with role-based access and you get governed self-serve reporting — without copying sensitive records into another store by default.",
+      "Use SQL for exception lists, SLA breach hunts, and cross-form reconciliations; use dashboards for the KPIs leadership checks weekly."
+    ]
+  }
+]

@@ -1,3 +1,4 @@
+import { OptimizedImage } from '@/components/OptimizedImage';
 import { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -35,9 +36,13 @@ export default function PublicPageLayout({
         <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-primary/60 via-accent/40 to-transparent" />
         <div className="container relative mx-auto px-4 py-3 flex items-center justify-between gap-4">
           <Link to="/" className="flex items-center gap-2.5">
-            <img
+            <OptimizedImage
               src="/lovable-uploads/7355d9d6-30ec-4b86-9922-9058a15f6cca.png"
+              webpSrc="/lovable-uploads/7355d9d6-30ec-4b86-9922-9058a15f6cca.webp"
               alt="TopSqill"
+              width={32}
+              height={32}
+              priority
               className="h-8 w-8 object-contain"
             />
             <span className="text-lg font-semibold tracking-tight text-foreground">TopSqill</span>
@@ -45,6 +50,8 @@ export default function PublicPageLayout({
 
           <nav className="hidden md:flex items-center gap-6 text-sm font-medium">
             <Link to="/solutions" className="text-muted-foreground hover:text-primary transition-colors">Solutions</Link>
+            <Link to="/pricing" className="text-muted-foreground hover:text-primary transition-colors">Pricing</Link>
+            <Link to="/blog" className="text-muted-foreground hover:text-primary transition-colors">Blog</Link>
             <Link to="/about" className="text-muted-foreground hover:text-primary transition-colors">About Us</Link>
             <Link to="/contact" className="text-muted-foreground hover:text-primary transition-colors">Contact</Link>
           </nav>
@@ -104,9 +111,12 @@ export default function PublicPageLayout({
           <div className="grid gap-10 lg:grid-cols-2">
             <div>
               <div className="flex items-center gap-3 mb-4">
-                <img
+                <OptimizedImage
                   src="/lovable-uploads/7355d9d6-30ec-4b86-9922-9058a15f6cca.png"
+                  webpSrc="/lovable-uploads/7355d9d6-30ec-4b86-9922-9058a15f6cca.webp"
                   alt="TopSqill"
+                  width={36}
+                  height={36}
                   className="h-9 w-9 object-contain"
                 />
                 <span className="text-xl font-bold tracking-tight text-brand-deep-foreground">TopSqill</span>
@@ -116,8 +126,12 @@ export default function PublicPageLayout({
               </p>
               <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
                 <Link to="/solutions" className="text-brand-deep-muted hover:text-brand-deep-foreground transition-colors">Solutions</Link>
+                <Link to="/pricing" className="text-brand-deep-muted hover:text-brand-deep-foreground transition-colors">Pricing</Link>
+                <Link to="/blog" className="text-brand-deep-muted hover:text-brand-deep-foreground transition-colors">Blog</Link>
                 <Link to="/about" className="text-brand-deep-muted hover:text-brand-deep-foreground transition-colors">About Us</Link>
                 <Link to="/contact" className="text-brand-deep-muted hover:text-brand-deep-foreground transition-colors">Contact</Link>
+                <Link to="/in" className="text-brand-deep-muted hover:text-brand-deep-foreground transition-colors">India</Link>
+                <Link to="/ae" className="text-brand-deep-muted hover:text-brand-deep-foreground transition-colors">UAE</Link>
               </div>
             </div>
 

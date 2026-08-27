@@ -1,0 +1,47 @@
+[
+  {
+    "code": "in",
+    "hreflang": "en-IN",
+    "name": "India",
+    "currencyNote": "INR pricing available",
+    "headline": "TopSqill for India",
+    "lede": "Enterprise forms, workflows, and SQL analytics for teams across India — with INR list pricing and local onboarding support.",
+    "localeHint": "Serving organizations from Noida, Bengaluru, Hyderabad, Mumbai, and remote-first teams nationwide."
+  },
+  {
+    "code": "ae",
+    "hreflang": "en-AE",
+    "name": "United Arab Emirates",
+    "currencyNote": "USD pricing · Gulf enterprise rollout",
+    "headline": "TopSqill for the UAE",
+    "lede": "Governed automation for UAE enterprises — forms, approvals, GRC, and ITSM on one platform.",
+    "localeHint": "Built for multi-entity groups operating in Dubai, Abu Dhabi, and the wider GCC."
+  },
+  {
+    "code": "sa",
+    "hreflang": "en-SA",
+    "name": "Saudi Arabia",
+    "currencyNote": "USD pricing · KSA enterprise rollout",
+    "headline": "TopSqill for Saudi Arabia",
+    "lede": "Digitize onboarding, vendor controls, and service workflows for organizations across the Kingdom.",
+    "localeHint": "Aligned with enterprise security, auditability, and multi-project governance needs in KSA."
+  },
+  {
+    "code": "sg",
+    "hreflang": "en-SG",
+    "name": "Singapore",
+    "currencyNote": "USD pricing · APAC hub",
+    "headline": "TopSqill for Singapore",
+    "lede": "A connected operations platform for Singapore and APAC teams that need forms, workflows, and SQL in one place.",
+    "localeHint": "Ideal for regional HQs coordinating processes across markets."
+  },
+  {
+    "code": "ar",
+    "hreflang": "ar",
+    "name": "Arabic",
+    "currencyNote": "واجهة عربية · Arabic-ready experience",
+    "headline": "TopSqill بالعربية",
+    "lede": "منصة أتمتة للمؤسسات للنماذج وسير العمل والتحليلات — مع تجربة عربية ودعم للأسواق في المنطقة.",
+    "localeHint": "Arabic UI language is available in-product; this market hub highlights regional go-to-market."
+  }
+]

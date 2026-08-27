@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
@@ -51,6 +51,9 @@ const Timeline: React.FC<{ steps: SolutionStep[] }> = ({ steps }) => (
                     src={step.image}
                     alt={step.alt}
                     loading="lazy"
+                    decoding="async"
+                    width={1280}
+                    height={720}
                     className="w-full h-auto block transition-transform duration-500 group-"
                   />
                   <div className="absolute inset-0 ring-1 ring-inset ring-white/10 pointer-events-none rounded-xl" />
@@ -71,18 +74,6 @@ const Solutions: React.FC = () => {
   const initialTab = searchParams.get('tab');
   const validIds = solutions.map((s) => s.id);
   const activeTab = initialTab && validIds.includes(initialTab) ? initialTab : 'onboarding';
-
-  useEffect(() => {
-    document.title = t('solutionsPage.metaTitle');
-    const desc = t('solutionsPage.metaDescription');
-    let meta = document.querySelector('meta[name="description"]');
-    if (!meta) {
-      meta = document.createElement('meta');
-      meta.setAttribute('name', 'description');
-      document.head.appendChild(meta);
-    }
-    meta.setAttribute('content', desc);
-  }, [t]);
 
   const handleTabChange = (value: string) => {
     setSearchParams({ tab: value }, { replace: true });

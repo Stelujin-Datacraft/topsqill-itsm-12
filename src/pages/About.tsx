@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import PublicPageLayout from '@/components/layout/PublicPageLayout';
@@ -85,19 +84,6 @@ const principles = [
 ];
 
 export default function About() {
-  useEffect(() => {
-    document.title = 'About TopSqill — Enterprise automation platform';
-    const desc =
-      'Learn about TopSqill: an enterprise platform for forms, workflows, SQL analytics, knowledge, IT assets, and governed business automation.';
-    let meta = document.querySelector('meta[name="description"]');
-    if (!meta) {
-      meta = document.createElement('meta');
-      meta.setAttribute('name', 'description');
-      document.head.appendChild(meta);
-    }
-    meta.setAttribute('content', desc);
-  }, []);
-
   return (
     <PublicPageLayout bare>
         <section className="container mx-auto px-4 pt-16 pb-14 md:pt-20 md:pb-16 text-center">

@@ -1,0 +1,19 @@
+name = "topsqill-seo-edge"
+main = "src/worker.js"
+compatibility_date = "2025-01-15"
+workers_dev = true
+
+# IMPORTANT: routes must appear BEFORE [[ any tables ]] if you add bindings later.
+# Uncomment and set account_id / zone after Cloudflare setup (see docs/SEO_EDGE_SETUP.md):
+# account_id = "YOUR_CLOUDFLARE_ACCOUNT_ID"
+# workers_dev = false
+# routes = [
+#   { pattern = "topsqill.com/*", zone_name = "topsqill.com" },
+#   { pattern = "www.topsqill.com/*", zone_name = "topsqill.com" }
+# ]
+
+[assets]
+directory = "./prerender"
+binding = "ASSETS"
+# Do not auto-serve assets for every path — worker decides.
+run_worker_first = true

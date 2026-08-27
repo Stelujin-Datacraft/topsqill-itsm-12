@@ -1,5 +1,5 @@
 
-import React, { useEffect, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
@@ -25,11 +25,13 @@ import WorkflowPreview from '@/components/landing/WorkflowPreview';
 import FutureRoadmap from '@/components/landing/FutureRoadmap';
 import InvestorSection from '@/components/landing/InvestorSection';
 import FAQSection from '@/components/landing/FAQSection';
+import PricingSection from '@/components/landing/PricingSection';
 import AnnouncementHistory from '@/components/landing/AnnouncementHistory';
 import DataTablePreview from '@/components/landing/DataTablePreview';
 import TestimonialsSection from '@/components/landing/TestimonialsSection';
 import IntegrationsSection from '@/components/landing/IntegrationsSection';
 import { AppIcon } from '@/components/icons';
+import { OptimizedImage } from '@/components/OptimizedImage';
 import TrustLogosSection from '@/components/landing/TrustLogosSection';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -42,10 +44,6 @@ const Index = () => {
     const fullName = [userProfile?.first_name, userProfile?.last_name].filter(Boolean).join(' ').trim();
     return fullName || userProfile?.email || user?.email || 'Account';
   }, [userProfile, user]);
-
-  useEffect(() => {
-    document.title = t('landing.title');
-  }, [t]);
 
   const handleSignOut = async () => {
     await signOut();
@@ -60,9 +58,13 @@ const Index = () => {
           <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-primary/60 via-accent/40 to-transparent" />
           <div className="container relative mx-auto px-4 py-3 sm:py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex items-center space-x-3">
-              <img 
-                src="/lovable-uploads/7355d9d6-30ec-4b86-9922-9058a15f6cca.png" 
-                alt="TopSqill" 
+              <OptimizedImage
+                src="/lovable-uploads/7355d9d6-30ec-4b86-9922-9058a15f6cca.png"
+                webpSrc="/lovable-uploads/7355d9d6-30ec-4b86-9922-9058a15f6cca.webp"
+                alt="TopSqill"
+                width={36}
+                height={36}
+                priority
                 className="w-9 h-9 object-contain"
               />
               <span className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground">
@@ -73,6 +75,8 @@ const Index = () => {
               <a href="#features" className="text-muted-foreground hover:text-foreground transition-colors">{t('nav.features')}</a>
               <a href="#showcase" className="text-muted-foreground hover:text-foreground transition-colors">{t('nav.showcase')}</a>
               <Link to="/solutions" className="text-muted-foreground hover:text-foreground transition-colors">{t('nav.solutions')}</Link>
+              <Link to="/pricing" className="text-muted-foreground hover:text-foreground transition-colors">{t('nav.pricing')}</Link>
+              <Link to="/blog" className="text-muted-foreground hover:text-foreground transition-colors">Blog</Link>
               <a href="#roadmap" className="text-muted-foreground hover:text-foreground transition-colors">{t('nav.roadmap')}</a>
               <a href="#investors" className="text-muted-foreground hover:text-foreground transition-colors">{t('nav.investors')}</a>
               <a href="#faq" className="text-muted-foreground hover:text-foreground transition-colors">{t('nav.faq')}</a>
@@ -282,10 +286,11 @@ const Index = () => {
             <AnnouncementHistory />
           </section>
 
+          {/* Pricing */}
+          <PricingSection />
+
           {/* FAQ Section */}
-          <section id="faq">
-            <FAQSection />
-          </section>
+          <FAQSection />
 
         </main>
 
@@ -296,9 +301,12 @@ const Index = () => {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16">
               <div>
                 <div className="flex items-center gap-3 mb-4">
-                  <img
+                  <OptimizedImage
                     src="/lovable-uploads/7355d9d6-30ec-4b86-9922-9058a15f6cca.png"
+                    webpSrc="/lovable-uploads/7355d9d6-30ec-4b86-9922-9058a15f6cca.webp"
                     alt="TopSqill Logo"
+                    width={36}
+                    height={36}
                     className="size-9 object-contain"
                   />
                   <span className="text-xl font-bold tracking-tight text-brand-deep-foreground">TopSqill</span>
