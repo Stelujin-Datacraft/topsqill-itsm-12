@@ -29,6 +29,50 @@
       "changefreq": "weekly"
     },
     {
+      "path": "/pricing",
+      "title": "Pricing — TopSqill plans in USD & INR",
+      "description": "Transparent TopSqill pricing: Starter, Professional, Business, and Enterprise tiers with USD and INR list prices, inclusions, and a contact-us enterprise option.",
+      "h1": "Simple, transparent pricing",
+      "lede": "Named tiers with per-seat list prices in USD and INR. Start free, scale to Business, or talk to us for Enterprise.",
+      "sections": [
+        {
+          "heading": "Starter",
+          "body": "Free forever for small teams — up to 5 forms and 100 submissions/month."
+        },
+        {
+          "heading": "Professional — $49 / ₹3,999 per seat / month",
+          "body": "Unlimited forms, workflows, SQL, API access, and priority support."
+        },
+        {
+          "heading": "Business — $149 / ₹11,999 per seat / month",
+          "body": "Advanced roles, data feeds, audit logs, and higher submission volume."
+        },
+        {
+          "heading": "Enterprise — contact us",
+          "body": "SSO, custom SLA, dedicated success, and private deployment options."
+        }
+      ],
+      "sitemap": true,
+      "priority": "0.9",
+      "changefreq": "weekly"
+    },
+    {
+      "path": "/blog",
+      "title": "Blog — TopSqill insights on forms, workflows & operations",
+      "description": "Articles on enterprise forms, workflow automation, ITSM/HR operations, and SQL on form data from the TopSqill team.",
+      "h1": "TopSqill Blog",
+      "lede": "Practical guidance on governed forms, automation, and operational analytics.",
+      "sections": [
+        {
+          "heading": "What you will find",
+          "body": "Product thinking, solution patterns, and how teams replace spreadsheet chaos with auditable workflows."
+        }
+      ],
+      "sitemap": true,
+      "priority": "0.8",
+      "changefreq": "weekly"
+    },
+    {
       "path": "/about",
       "title": "About TopSqill — Enterprise automation platform",
       "description": "Learn about TopSqill: an enterprise platform for forms, workflows, SQL analytics, knowledge, IT assets, and governed business automation.",

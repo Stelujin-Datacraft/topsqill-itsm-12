@@ -1,6 +1,8 @@
 /** Site-wide SEO helpers — route copy lives in seo/public-routes.json */
 
 import publicRoutes from '@/seo/public-routes.json';
+import { BLOG_POSTS } from '@/content/blog/posts';
+import { MARKETS, isMarketCode, type MarketCode } from '@/content/markets';
 
 export const SITE_ORIGIN = publicRoutes.siteOrigin as string;
 export const APEX_DOMAIN = publicRoutes.apexDomain as string;
@@ -38,13 +40,50 @@ export type PublicSeoEntry = {
   sitemap?: boolean;
 };
 
+function buildPublicSeoMap(): Record<string, PublicSeoEntry> {
+  const map: Record<string, PublicSeoEntry> = Object.fromEntries(
+    PUBLIC_ROUTES.map((r) => [
+      r.path,
+      { title: r.title, description: r.description, sitemap: r.sitemap !== false },
+    ]),
+  );
+
+  for (const post of BLOG_POSTS) {
+    map[`/blog/${post.slug}`] = {
+      title: `${post.title} | TopSqill Blog`,
+      description: post.description,
+      sitemap: true,
+    };
+  }
+
+  for (const market of MARKETS) {
+    map[`/${market.code}`] = {
+      title: `${market.headline} | TopSqill`,
+      description: market.lede,
+      sitemap: true,
+    };
+    for (const r of PUBLIC_ROUTES) {
+      if (r.path === '/') continue;
+      map[`/${market.code}${r.path}`] = {
+        title: `${r.title} (${market.name})`,
+        description: r.description,
+        sitemap: true,
+      };
+    }
+    for (const post of BLOG_POSTS) {
+      map[`/${market.code}/blog/${post.slug}`] = {
+        title: `${post.title} | TopSqill Blog`,
+        description: post.description,
+        sitemap: true,
+      };
+    }
+  }
+
+  return map;
+}
+
 /** Indexable public marketing pages — path → metadata. */
-export const PUBLIC_ROUTE_SEO: Record<string, PublicSeoEntry> = Object.fromEntries(
-  PUBLIC_ROUTES.map((r) => [
-    r.path,
-    { title: r.title, description: r.description, sitemap: r.sitemap !== false },
-  ]),
-);
+export const PUBLIC_ROUTE_SEO: Record<string, PublicSeoEntry> = buildPublicSeoMap();
 
 /** Auth / invite flows — crawlable URL but should not rank. */
 const NOINDEX_EXACT = new Set([
@@ -130,10 +169,41 @@ export function isKnownPublicPath(pathname: string): boolean {
   return Object.prototype.hasOwnProperty.call(PUBLIC_ROUTE_SEO, pathname);
 }
 
+export type ResolvedPublicSeo = {
+  title: string;
+  description: string;
+  /** Path without market prefix — used for hreflang pairing */
+  hreflangPath: string;
+  market?: MarketCode;
+};
+
+export function stripMarketPrefix(pathname: string): { market?: MarketCode; rest: string } {
+  const parts = pathname.split('/').filter(Boolean);
+  if (parts.length && isMarketCode(parts[0])) {
+    const restParts = parts.slice(1);
+    const rest = restParts.length ? `/${restParts.join('/')}` : '/';
+    return { market: parts[0], rest };
+  }
+  return { rest: pathname.replace(/\/$/, '') || '/' };
+}
+
+export function resolvePublicSeo(pathname: string): ResolvedPublicSeo | null {
+  const normalized = pathname.replace(/\/$/, '') || '/';
+  const entry = PUBLIC_ROUTE_SEO[normalized];
+  if (!entry) return null;
+  const { market, rest } = stripMarketPrefix(normalized);
+  return {
+    title: entry.title,
+    description: entry.description,
+    hreflangPath: rest,
+    market,
+  };
+}
+
 export function sitemapPaths(): string[] {
-  return PUBLIC_ROUTES
-    .filter((r) => r.sitemap !== false)
-    .map((r) => r.path)
+  return Object.entries(PUBLIC_ROUTE_SEO)
+    .filter(([, e]) => e.sitemap !== false)
+    .map(([path]) => path)
     .sort((a, b) => {
       if (a === '/') return -1;
       if (b === '/') return 1;
@@ -146,6 +216,8 @@ export function isValidSpaPath(pathname: string): boolean {
   if (isKnownPublicPath(pathname)) return true;
   if (NOINDEX_EXACT.has(pathname)) return true;
   if (pathname.startsWith('/solutions/')) return true;
+  if (pathname.startsWith('/blog')) return true;
+  if (/^\/(in|ae|sa|sg|ar)(\/|$)/.test(pathname)) return true;
   if (pathname === '/sitemap.xml' || pathname === '/robots.txt' || pathname === '/llms.txt') {
     return true;
   }

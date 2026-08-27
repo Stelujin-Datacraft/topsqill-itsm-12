@@ -56,9 +56,13 @@ function buildBody(route) {
       <ul>
         <li><a href="/">Home</a></li>
         <li><a href="/solutions">Solutions</a></li>
+        <li><a href="/pricing">Pricing</a></li>
+        <li><a href="/blog">Blog</a></li>
         <li><a href="/about">About</a></li>
         <li><a href="/contact">Contact</a></li>
         <li><a href="/docs">Docs</a></li>
+        <li><a href="/in">India</a></li>
+        <li><a href="/ae">UAE</a></li>
       </ul>
     </nav>
   </main>`;
@@ -150,11 +154,82 @@ function writeFile(filePath, contents) {
   fs.writeFileSync(filePath, contents, 'utf8');
 }
 
-function buildSitemapXml(cfg) {
-  const urls = cfg.routes
+function expandRoutes(cfg) {
+  const posts = JSON.parse(
+    fs.readFileSync(path.join(root, 'src/content/blog/posts.json'), 'utf8'),
+  );
+  const markets = JSON.parse(
+    fs.readFileSync(path.join(root, 'src/content/markets.json'), 'utf8'),
+  );
+
+  const expanded = [...cfg.routes];
+
+  for (const post of posts) {
+    expanded.push({
+      path: `/blog/${post.slug}`,
+      title: `${post.title} | TopSqill Blog`,
+      description: post.description,
+      h1: post.title,
+      lede: post.description,
+      sections: post.body.map((p, i) => ({
+        heading: i === 0 ? `By ${post.authorName}` : `Section ${i + 1}`,
+        body: p,
+      })),
+      sitemap: true,
+      priority: '0.6',
+      changefreq: 'monthly',
+    });
+  }
+
+  for (const market of markets) {
+    expanded.push({
+      path: `/${market.code}`,
+      title: `${market.headline} | TopSqill`,
+      description: market.lede,
+      h1: market.headline,
+      lede: market.lede,
+      sections: [
+        { heading: market.name, body: market.localeHint },
+        { heading: 'Pricing', body: market.currencyNote },
+      ],
+      sitemap: true,
+      priority: '0.8',
+      changefreq: 'weekly',
+    });
+    for (const base of cfg.routes) {
+      if (base.path === '/') continue;
+      expanded.push({
+        ...base,
+        path: `/${market.code}${base.path}`,
+        title: `${base.title} (${market.name})`,
+      });
+    }
+    for (const post of posts) {
+      expanded.push({
+        path: `/${market.code}/blog/${post.slug}`,
+        title: `${post.title} | TopSqill Blog`,
+        description: post.description,
+        h1: post.title,
+        lede: post.description,
+        sections: post.body.map((p, i) => ({
+          heading: i === 0 ? `By ${post.authorName}` : `Section ${i + 1}`,
+          body: p,
+        })),
+        sitemap: true,
+        priority: '0.5',
+        changefreq: 'monthly',
+      });
+    }
+  }
+
+  return expanded;
+}
+
+function buildSitemapXml(routes, siteOrigin) {
+  const urls = routes
     .filter((r) => r.sitemap !== false)
     .map((r) => {
-      const loc = absoluteUrl(cfg.siteOrigin, r.path);
+      const loc = absoluteUrl(siteOrigin, r.path);
       return `  <url>
     <loc>${loc}</loc>
     <changefreq>${r.changefreq || 'monthly'}</changefreq>
@@ -189,6 +264,7 @@ function build404Html(template, cfg) {
 
 function main() {
   const cfg = loadRoutes();
+  const routes = expandRoutes(cfg);
   const hasDist = fs.existsSync(distDir);
   const templatePath = hasDist
     ? path.join(distDir, 'index.html')
@@ -202,7 +278,7 @@ function main() {
   const template = fs.readFileSync(templatePath, 'utf8');
   fs.mkdirSync(workerPrerenderDir, { recursive: true });
 
-  for (const route of cfg.routes) {
+  for (const route of routes) {
     const canonical = absoluteUrl(cfg.siteOrigin, route.path);
     let html = applyMeta(template, {
       title: route.title,
@@ -212,7 +288,6 @@ function main() {
     });
     html = injectRootContent(html, buildBody(route));
 
-    // Worker asset key: index.html or about.html etc.
     const workerKey = route.path === '/' ? 'index.html' : `${route.path.replace(/^\//, '')}.html`;
     writeFile(path.join(workerPrerenderDir, workerKey), html);
 
@@ -224,20 +299,20 @@ function main() {
         writeFile(path.join(distDir, rel, 'index.html'), html);
       }
     }
-    console.log(`[seo] prerender ${route.path} → ${workerKey}`);
+    console.log(`[seo] prerender ${route.path}`);
   }
 
+  const sitemap = buildSitemapXml(routes, cfg.siteOrigin);
   const notFound = build404Html(template, cfg);
   writeFile(path.join(workerPrerenderDir, '404.html'), notFound);
+  writeFile(path.join(workerPrerenderDir, 'sitemap.xml'), sitemap);
+  writeFile(path.join(root, 'public/sitemap.xml'), sitemap);
   if (hasDist) {
     writeFile(path.join(distDir, '404.html'), notFound);
-    writeFile(path.join(distDir, 'sitemap.xml'), buildSitemapXml(cfg));
+    writeFile(path.join(distDir, 'sitemap.xml'), sitemap);
   }
-  // Always refresh public/sitemap.xml source of truth for Lovable static publish
-  writeFile(path.join(root, 'public/sitemap.xml'), buildSitemapXml(cfg));
-  writeFile(path.join(workerPrerenderDir, 'sitemap.xml'), buildSitemapXml(cfg));
 
-  console.log('[seo] Wrote 404.html, sitemap.xml, and edge-worker prerender assets.');
+  console.log(`[seo] Wrote ${routes.length} prerender pages, 404.html, sitemap.xml.`);
 }
 
 main();

@@ -38,6 +38,8 @@ export default function PublicPageLayout({
             <img
               src="/lovable-uploads/7355d9d6-30ec-4b86-9922-9058a15f6cca.png"
               alt="TopSqill"
+              width={32}
+              height={32}
               className="h-8 w-8 object-contain"
             />
             <span className="text-lg font-semibold tracking-tight text-foreground">TopSqill</span>
@@ -45,6 +47,8 @@ export default function PublicPageLayout({
 
           <nav className="hidden md:flex items-center gap-6 text-sm font-medium">
             <Link to="/solutions" className="text-muted-foreground hover:text-primary transition-colors">Solutions</Link>
+            <Link to="/pricing" className="text-muted-foreground hover:text-primary transition-colors">Pricing</Link>
+            <Link to="/blog" className="text-muted-foreground hover:text-primary transition-colors">Blog</Link>
             <Link to="/about" className="text-muted-foreground hover:text-primary transition-colors">About Us</Link>
             <Link to="/contact" className="text-muted-foreground hover:text-primary transition-colors">Contact</Link>
           </nav>
@@ -116,8 +120,12 @@ export default function PublicPageLayout({
               </p>
               <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
                 <Link to="/solutions" className="text-brand-deep-muted hover:text-brand-deep-foreground transition-colors">Solutions</Link>
+                <Link to="/pricing" className="text-brand-deep-muted hover:text-brand-deep-foreground transition-colors">Pricing</Link>
+                <Link to="/blog" className="text-brand-deep-muted hover:text-brand-deep-foreground transition-colors">Blog</Link>
                 <Link to="/about" className="text-brand-deep-muted hover:text-brand-deep-foreground transition-colors">About Us</Link>
                 <Link to="/contact" className="text-brand-deep-muted hover:text-brand-deep-foreground transition-colors">Contact</Link>
+                <Link to="/in" className="text-brand-deep-muted hover:text-brand-deep-foreground transition-colors">India</Link>
+                <Link to="/ae" className="text-brand-deep-muted hover:text-brand-deep-foreground transition-colors">UAE</Link>
               </div>
             </div>
 

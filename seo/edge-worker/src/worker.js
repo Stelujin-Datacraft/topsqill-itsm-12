@@ -31,8 +31,16 @@ const PUBLIC_PATHS = new Set([
   '/docs',
   '/privacy',
   '/terms',
+  '/pricing',
+  '/blog',
 ]);
 
+function isPublicOrMarketPath(pathname) {
+  if (PUBLIC_PATHS.has(pathname)) return true;
+  if (pathname.startsWith('/blog/')) return true;
+  if (/^\/(in|ae|sa|sg|ar)(\/|$)/.test(pathname)) return true;
+  return false;
+}
 const SPA_EXACT = new Set([
   '/auth',
   '/login',
@@ -120,7 +128,7 @@ function isAssetPath(pathname) {
 }
 
 function isValidSpaPath(pathname) {
-  if (PUBLIC_PATHS.has(pathname)) return true;
+  if (isPublicOrMarketPath(pathname)) return true;
   if (SPA_EXACT.has(pathname)) return true;
   if (pathname === '/sitemap.xml' || pathname === '/robots.txt' || pathname === '/llms.txt') {
     return true;
@@ -281,9 +289,9 @@ export default {
       });
     }
 
-    // Bots on public marketing pages → prerendered HTML
+    // Bots on public / market / blog pages → prerendered HTML
     const ua = request.headers.get('user-agent') || '';
-    if (isBot(ua) && PUBLIC_PATHS.has(pathname)) {
+    if (isBot(ua) && isPublicOrMarketPath(pathname)) {
       const key = pathToPrerenderKey(pathname);
       const prerendered = await serveAsset(env, key, 'text/html; charset=utf-8');
       if (prerendered) return prerendered;

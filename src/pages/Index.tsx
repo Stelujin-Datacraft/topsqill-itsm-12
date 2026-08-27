@@ -25,6 +25,7 @@ import WorkflowPreview from '@/components/landing/WorkflowPreview';
 import FutureRoadmap from '@/components/landing/FutureRoadmap';
 import InvestorSection from '@/components/landing/InvestorSection';
 import FAQSection from '@/components/landing/FAQSection';
+import PricingSection from '@/components/landing/PricingSection';
 import AnnouncementHistory from '@/components/landing/AnnouncementHistory';
 import DataTablePreview from '@/components/landing/DataTablePreview';
 import TestimonialsSection from '@/components/landing/TestimonialsSection';
@@ -59,6 +60,10 @@ const Index = () => {
               <img 
                 src="/lovable-uploads/7355d9d6-30ec-4b86-9922-9058a15f6cca.png" 
                 alt="TopSqill" 
+                width={36}
+                height={36}
+                fetchPriority="high"
+                decoding="async"
                 className="w-9 h-9 object-contain"
               />
               <span className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground">
@@ -69,6 +74,8 @@ const Index = () => {
               <a href="#features" className="text-muted-foreground hover:text-foreground transition-colors">{t('nav.features')}</a>
               <a href="#showcase" className="text-muted-foreground hover:text-foreground transition-colors">{t('nav.showcase')}</a>
               <Link to="/solutions" className="text-muted-foreground hover:text-foreground transition-colors">{t('nav.solutions')}</Link>
+              <Link to="/pricing" className="text-muted-foreground hover:text-foreground transition-colors">{t('nav.pricing')}</Link>
+              <Link to="/blog" className="text-muted-foreground hover:text-foreground transition-colors">Blog</Link>
               <a href="#roadmap" className="text-muted-foreground hover:text-foreground transition-colors">{t('nav.roadmap')}</a>
               <a href="#investors" className="text-muted-foreground hover:text-foreground transition-colors">{t('nav.investors')}</a>
               <a href="#faq" className="text-muted-foreground hover:text-foreground transition-colors">{t('nav.faq')}</a>
@@ -278,10 +285,11 @@ const Index = () => {
             <AnnouncementHistory />
           </section>
 
+          {/* Pricing */}
+          <PricingSection />
+
           {/* FAQ Section */}
-          <section id="faq">
-            <FAQSection />
-          </section>
+          <FAQSection />
 
         </main>
 
