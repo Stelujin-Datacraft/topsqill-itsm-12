@@ -53,6 +53,7 @@ export class BlogService {
     await this.assertAdmin(userId);
     const supabase = this.supabaseService.getServiceClient();
 
+    // Prefer creating blog-media; also accept report-media as the working bucket.
     let bucket = 'blog-media';
     const { data: existing, error: getBucketErr } = await supabase.storage.getBucket('blog-media');
     if (getBucketErr || !existing) {
@@ -62,13 +63,23 @@ export class BlogService {
       });
       if (createErr && !/already exists/i.test(createErr.message)) {
         this.logger.warn(`createBucket blog-media: ${createErr.message}`);
-        // Fall back — report-media is known to exist in this project
         bucket = 'report-media';
+        // Ensure report-media exists too
+        const { data: reportBucket } = await supabase.storage.getBucket('report-media');
+        if (!reportBucket) {
+          const { error: reportCreateErr } = await supabase.storage.createBucket('report-media', {
+            public: true,
+            fileSizeLimit: 10 * 1024 * 1024,
+          });
+          if (reportCreateErr && !/already exists/i.test(reportCreateErr.message)) {
+            this.logger.warn(`createBucket report-media: ${reportCreateErr.message}`);
+          }
+        }
       }
     }
 
-    // Ensure public read + admin write policies via storage API is limited;
-    // bucket create with public:true is enough for public URLs.
+    // Make sure public read works for blog-media objects (idempotent policy create is hard;
+    // public bucket flag is the important part for getPublicUrl).
 
     let table = false;
     const { error: probeErr } = await supabase.from('blog_posts').select('id').limit(1);

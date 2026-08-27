@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import type { BlogPostInput, BlogPostRecord } from '@/types/blog';
 import {
+  clearBlogBucketCache,
   createStorageBlogPost,
   deleteStorageBlogPost,
   formatBlogError,
@@ -194,13 +195,15 @@ export function useBlogAdmin() {
     onError: (err: Error) => toast.error(formatBlogError(err, 'Failed to delete post')),
   });
 
-  const uploadCover = async (file: File): Promise<string> => {
+  const uploadCover = async (file: File): Promise<{ url: string; via: 'storage' | 'data-url'; bucket?: string }> => {
+    // Best-effort: create blog-media via Nest service role before first attempt
+    await ensureBlogBucketViaApi();
     try {
       return await uploadBlogCover(file);
     } catch (err) {
-      // Best-effort: ask Nest (service role) to create blog-media, then retry once
-      await ensureBlogBucketViaApi();
+      clearBlogBucketCache();
       invalidateBlogTableProbe();
+      await ensureBlogBucketViaApi();
       try {
         return await uploadBlogCover(file);
       } catch (retryErr) {
@@ -210,6 +213,7 @@ export function useBlogAdmin() {
   };
 
   const ensureSetup = async () => {
+    clearBlogBucketCache();
     const res = await request<{
       bucket?: string;
       table?: boolean;
