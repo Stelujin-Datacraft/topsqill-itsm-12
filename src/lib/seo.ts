@@ -142,6 +142,7 @@ const APP_PREFIXES = [
   '/it-assets',
   '/project-performance',
   '/public/form',
+  '/blog-admin',
 ];
 
 export function absoluteUrl(path: string): string {
