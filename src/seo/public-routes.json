@@ -1,0 +1,144 @@
+{
+  "siteOrigin": "https://topsqill.com",
+  "apexDomain": "topsqill.com",
+  "lovableOrigin": "https://topsqill-itsm-12.lovable.app",
+  "defaultOgImage": "https://topsqill.com/lovable-uploads/7355d9d6-30ec-4b86-9922-9058a15f6cca.png",
+  "routes": [
+    {
+      "path": "/",
+      "title": "TopSqill BPM - Enterprise Form Platform with AI & Workflow Automation",
+      "description": "Build, automate, and analyze enterprise forms with advanced workflows, SQL querying, and AI-powered insights. Trusted by 500+ organizations worldwide.",
+      "h1": "Create Your Own Portal",
+      "lede": "Build intelligent forms, automate complex workflows, and query data with SQL. A platform designed to scale from growing teams to global enterprises.",
+      "sections": [
+        {
+          "heading": "Enterprise forms & workflows",
+          "body": "Design structured intake, approvals, and automations with drag-and-drop builders, cross-references, and governed access."
+        },
+        {
+          "heading": "SQL on your form data",
+          "body": "Query submissions directly with SQL, join across forms, and export results without waiting on custom reports."
+        },
+        {
+          "heading": "AI-assisted building",
+          "body": "Describe what you need and TopSqill helps generate forms and related assets faster, while keeping humans in control."
+        }
+      ],
+      "sitemap": true,
+      "priority": "1.0",
+      "changefreq": "weekly"
+    },
+    {
+      "path": "/about",
+      "title": "About TopSqill — Enterprise automation platform",
+      "description": "Learn about TopSqill: an enterprise platform for forms, workflows, SQL analytics, knowledge, IT assets, and governed business automation.",
+      "h1": "About TopSqill",
+      "lede": "TopSqill is an enterprise automation platform for forms, workflows, SQL analytics, knowledge, IT assets, and governed business processes.",
+      "sections": [
+        {
+          "heading": "What we build",
+          "body": "Forms & data collection, visual workflow automation, SQL on form data, reports & dashboards, knowledge base, and IT asset management."
+        },
+        {
+          "heading": "Built for organizations",
+          "body": "Multi-tenant architecture with organization isolation, projects, roles, groups, and permission models that scale from a single team to a large enterprise."
+        }
+      ],
+      "sitemap": true,
+      "priority": "0.8",
+      "changefreq": "monthly"
+    },
+    {
+      "path": "/contact",
+      "title": "Contact TopSqill — Talk to our team",
+      "description": "Get in touch with the TopSqill team by email or LinkedIn for demos, partnerships and enterprise support.",
+      "h1": "Contact us",
+      "lede": "Questions about the platform, a demo, or an enterprise rollout? Reach out and we will get back to you.",
+      "sections": [
+        {
+          "heading": "Email",
+          "body": "contact@topsqill.com — we usually reply within one business day."
+        },
+        {
+          "heading": "LinkedIn",
+          "body": "Follow TopSqill Pvt Ltd on LinkedIn for product updates and company news."
+        }
+      ],
+      "sitemap": true,
+      "priority": "0.7",
+      "changefreq": "monthly"
+    },
+    {
+      "path": "/solutions",
+      "title": "Solutions | TopSqill",
+      "description": "Explore TopSqill solutions: Employee Onboarding, GRC, ITSM, Vendor Management, Information Security, and HR — all on one connected platform.",
+      "h1": "Solutions for enterprise operations",
+      "lede": "Explore TopSqill solutions: Employee Onboarding, GRC, ITSM, Vendor Management, Information Security, and HR — all on one connected platform.",
+      "sections": [
+        {
+          "heading": "Employee onboarding",
+          "body": "Automate hire-to-productive workflows with forms, approvals, IT provisioning, and knowledge acknowledgements."
+        },
+        {
+          "heading": "ITSM, GRC & security",
+          "body": "Run service requests, risk controls, audits, and security operations on shared data with full audit trails."
+        },
+        {
+          "heading": "Vendor & HR",
+          "body": "Manage contracts, vendors, and HR lifecycle processes without stitching together disconnected tools."
+        }
+      ],
+      "sitemap": true,
+      "priority": "0.9",
+      "changefreq": "weekly"
+    },
+    {
+      "path": "/docs",
+      "title": "API Documentation — TopSqill",
+      "description": "TopSqill API documentation: authenticate, manage forms, submissions, workflows, and integrate enterprise automation with your stack.",
+      "h1": "API Documentation",
+      "lede": "Authenticate, manage forms, submissions, workflows, and integrate TopSqill with your stack.",
+      "sections": [
+        {
+          "heading": "Getting started",
+          "body": "Use API keys and documented endpoints to create forms, submit records, and trigger workflows programmatically."
+        }
+      ],
+      "sitemap": true,
+      "priority": "0.6",
+      "changefreq": "monthly"
+    },
+    {
+      "path": "/privacy",
+      "title": "Privacy Policy — TopSqill",
+      "description": "How TopSqill collects, uses, stores and protects personal and organizational data across its enterprise automation platform.",
+      "h1": "Privacy Policy",
+      "lede": "How TopSqill collects, uses, stores and protects personal and organizational data across the platform.",
+      "sections": [
+        {
+          "heading": "Overview",
+          "body": "We process account, organization, and platform usage data to provide and secure the TopSqill service. See the full policy on this page after the app loads."
+        }
+      ],
+      "sitemap": true,
+      "priority": "0.3",
+      "changefreq": "yearly"
+    },
+    {
+      "path": "/terms",
+      "title": "Terms & Conditions — TopSqill",
+      "description": "The terms that govern use of the TopSqill enterprise automation platform, including accounts, acceptable use, data ownership and liability.",
+      "h1": "Terms & Conditions",
+      "lede": "The terms that govern use of the TopSqill enterprise automation platform.",
+      "sections": [
+        {
+          "heading": "Overview",
+          "body": "By using TopSqill you agree to the account, acceptable use, data ownership, and liability terms described on this page."
+        }
+      ],
+      "sitemap": true,
+      "priority": "0.3",
+      "changefreq": "yearly"
+    }
+  ]
+}
