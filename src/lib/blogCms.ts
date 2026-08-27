@@ -1,12 +1,23 @@
 import { rawSupabase, SUPABASE_URL } from '@/integrations/supabase/rawClient';
 import type { BlogPostInput, BlogPostRecord } from '@/types/blog';
 
-/** Prefer dedicated bucket; fall back to existing public media bucket. */
-export const BLOG_BUCKET_CANDIDATES = ['blog-media', 'report-media'] as const;
+/**
+ * Prefer buckets that already exist in production.
+ * `blog-media` is last because its migration may not be applied yet.
+ */
+export const BLOG_BUCKET_CANDIDATES = [
+  'report-media',
+  'form-attachments',
+  'organization-logos',
+  'blog-media',
+] as const;
+
 export const BLOG_CMS_FILE = 'blog/cms-posts.json';
 export const BLOG_COVER_PREFIX = 'blog/covers';
 
 const TABLE_PROBE_KEY = 'topsqill_blog_table_ok';
+const BUCKET_CACHE_KEY = 'topsqill_blog_bucket';
+const MAX_DATA_URL_BYTES = 1_500_000;
 
 export function isMissingRelationError(error: { message?: string; code?: string } | null | undefined): boolean {
   if (!error) return false;
@@ -22,10 +33,16 @@ export function isMissingRelationError(error: { message?: string; code?: string 
   );
 }
 
-export function isMissingBucketError(error: { message?: string; statusCode?: string; error?: string } | null | undefined): boolean {
+export function isMissingBucketError(error: { message?: string; statusCode?: string; error?: string; status?: number } | null | undefined): boolean {
   if (!error) return false;
-  const msg = `${error.message || ''} ${error.error || ''}`.toLowerCase();
-  return msg.includes('bucket not found') || (msg.includes('not found') && msg.includes('bucket'));
+  const msg = `${error.message || ''} ${(error as any).error || ''}`.toLowerCase();
+  const status = String((error as any).statusCode || (error as any).status || '');
+  return (
+    msg.includes('bucket not found')
+    || msg.includes('no such bucket')
+    || (msg.includes('not found') && msg.includes('bucket'))
+    || status === '404'
+  );
 }
 
 export function formatBlogError(error: unknown, fallback = 'Blog operation failed'): string {
@@ -35,10 +52,10 @@ export function formatBlogError(error: unknown, fallback = 'Blog operation faile
     return 'Blog database table is missing. Posts will be saved to storage instead — retry save. Or apply migration 20260827120000_blog_posts.sql in Supabase.';
   }
   if (isMissingBucketError(err)) {
-    return 'Storage bucket missing. Retrying with report-media. If this persists, create a public bucket named blog-media in Supabase Storage.';
+    return 'Could not upload to Supabase Storage. The cover was not saved — paste an image URL, or create a public bucket (report-media / blog-media) in Supabase.';
   }
-  if (/row-level security|rls|permission denied|403/i.test(message)) {
-    return 'Permission denied — blog publishing requires an organization admin account.';
+  if (/row-level security|rls|permission denied|403|unauthorized|jwt/i.test(message)) {
+    return 'Permission denied — sign in as an organization admin and ensure Storage upload policies allow authenticated users.';
   }
   return message;
 }
@@ -74,28 +91,38 @@ export function invalidateBlogTableProbe() {
   }
 }
 
-async function bucketExists(name: string): Promise<boolean> {
-  // list is auth-gated; a zero-byte upsert probe is heavier — use getBucket when available
-  const { data, error } = await rawSupabase.storage.getBucket(name);
-  if (!error && data) return true;
-  // getBucket may be forbidden for non-service users; fall through to listBuckets
-  const { data: buckets } = await rawSupabase.storage.listBuckets();
-  if (Array.isArray(buckets) && buckets.some((b) => b.name === name || b.id === name)) {
-    return true;
+function cachedBucket(): string | null {
+  try {
+    return sessionStorage.getItem(BUCKET_CACHE_KEY);
+  } catch {
+    return null;
   }
-  // Last resort: try listing root (empty list ≠ missing bucket)
-  const { error: listError } = await rawSupabase.storage.from(name).list('', { limit: 1 });
-  if (!listError) return true;
-  return !isMissingBucketError(listError as any);
 }
 
-/** Pick a writable public bucket for blog assets. */
-export async function resolveBlogBucket(): Promise<string> {
-  for (const name of BLOG_BUCKET_CANDIDATES) {
-    if (await bucketExists(name)) return name;
+function rememberBucket(name: string) {
+  try {
+    sessionStorage.setItem(BUCKET_CACHE_KEY, name);
+  } catch {
+    /* ignore */
   }
-  // Default: attempt blog-media first (caller may create via Nest ensure)
-  return BLOG_BUCKET_CANDIDATES[0];
+}
+
+export function clearBlogBucketCache() {
+  try {
+    sessionStorage.removeItem(BUCKET_CACHE_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Ordered bucket list with last-known-good first. */
+function bucketAttemptOrder(): string[] {
+  const cached = cachedBucket();
+  const base = [...BLOG_BUCKET_CANDIDATES];
+  if (cached && base.includes(cached as any)) {
+    return [cached, ...base.filter((b) => b !== cached)];
+  }
+  return base;
 }
 
 export function publicObjectUrl(bucket: string, path: string): string {
@@ -104,25 +131,71 @@ export function publicObjectUrl(bucket: string, path: string): string {
   return `${SUPABASE_URL}/storage/v1/object/public/${bucket}/${path}`;
 }
 
-export async function uploadBlogCover(file: File): Promise<string> {
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    if (file.size > MAX_DATA_URL_BYTES) {
+      reject(new Error(`Image is too large for inline fallback (${Math.round(file.size / 1024)}KB). Use a file under ~1.5MB or an image URL.`));
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(new Error('Could not read image file'));
+    reader.readAsDataURL(file);
+  });
+}
+
+/**
+ * Upload a cover image. Tries known public buckets; if Storage is unavailable,
+ * embeds a data-URL so the post can still be saved.
+ */
+export async function uploadBlogCover(file: File): Promise<{ url: string; via: 'storage' | 'data-url'; bucket?: string }> {
   const ext = (file.name.split('.').pop() || 'png').toLowerCase().replace(/[^a-z0-9]/g, '') || 'png';
   const path = `${BLOG_COVER_PREFIX}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-  let lastError: unknown;
+  const errors: string[] = [];
 
-  for (const bucket of BLOG_BUCKET_CANDIDATES) {
+  for (const bucket of bucketAttemptOrder()) {
     const { error } = await rawSupabase.storage.from(bucket).upload(path, file, {
       upsert: false,
-      contentType: file.type || undefined,
+      contentType: file.type || `image/${ext === 'jpg' ? 'jpeg' : ext}`,
     });
-    if (!error) return publicObjectUrl(bucket, path);
-    lastError = error;
-    if (!isMissingBucketError(error as any)) {
-      // Permission / other errors — still try next bucket
-      console.warn(`[blog] cover upload to ${bucket} failed:`, error.message);
+    if (!error) {
+      rememberBucket(bucket);
+      return { url: publicObjectUrl(bucket, path), via: 'storage', bucket };
     }
+    errors.push(`${bucket}: ${error.message}`);
+    console.warn(`[blog] cover upload to ${bucket} failed:`, error.message);
   }
 
-  throw new Error(formatBlogError(lastError, 'Cover upload failed'));
+  // Last resort: inline data URL (no bucket required)
+  try {
+    const url = await fileToDataUrl(file);
+    console.warn('[blog] using data-URL cover; Storage uploads failed:', errors.join(' | '));
+    return { url, via: 'data-url' };
+  } catch (dataErr) {
+    throw new Error(
+      formatBlogError(
+        { message: errors[errors.length - 1] || (dataErr as Error).message },
+        'Cover upload failed',
+      ),
+    );
+  }
+}
+
+/** Pick a writable bucket for CMS JSON (probe by tiny upload upsert of empty list if needed). */
+export async function resolveBlogBucket(): Promise<string> {
+  const cached = cachedBucket();
+  if (cached) return cached;
+
+  for (const bucket of bucketAttemptOrder()) {
+    // Probe with list — missing bucket → 404/bucket not found
+    const { error } = await rawSupabase.storage.from(bucket).list('blog', { limit: 1 });
+    if (!error || !isMissingBucketError(error as any)) {
+      // Permission errors on empty prefix still mean the bucket exists
+      rememberBucket(bucket);
+      return bucket;
+    }
+  }
+  return bucketAttemptOrder()[0];
 }
 
 async function downloadCmsJson(bucket: string): Promise<BlogPostRecord[]> {
@@ -132,7 +205,6 @@ async function downloadCmsJson(bucket: string): Promise<BlogPostRecord[]> {
     if (msg.includes('not found') || msg.includes('404') || (error as any).statusCode === '404') {
       return [];
     }
-    // Missing bucket → try next
     throw error;
   }
   const text = await data.text();
@@ -148,17 +220,20 @@ async function uploadCmsJson(bucket: string, posts: BlogPostRecord[]): Promise<v
     contentType: 'application/json',
   });
   if (error) throw error;
+  rememberBucket(bucket);
 }
 
 /** Load CMS posts from storage JSON (works without blog_posts table). */
 export async function listStorageBlogPosts(): Promise<BlogPostRecord[]> {
   let lastError: unknown;
-  for (const bucket of BLOG_BUCKET_CANDIDATES) {
+  for (const bucket of bucketAttemptOrder()) {
     try {
-      if (!(await bucketExists(bucket))) continue;
-      return await downloadCmsJson(bucket);
+      const rows = await downloadCmsJson(bucket);
+      rememberBucket(bucket);
+      return rows;
     } catch (err) {
       lastError = err;
+      if (isMissingBucketError(err as any)) continue;
       console.warn(`[blog] storage list via ${bucket} failed:`, (err as Error)?.message);
     }
   }
@@ -168,7 +243,7 @@ export async function listStorageBlogPosts(): Promise<BlogPostRecord[]> {
 
 /** Public published posts from storage (fetch public URL — no auth required). */
 export async function listPublishedStorageBlogPosts(): Promise<BlogPostRecord[]> {
-  for (const bucket of BLOG_BUCKET_CANDIDATES) {
+  for (const bucket of bucketAttemptOrder()) {
     const url = publicObjectUrl(bucket, BLOG_CMS_FILE);
     try {
       const res = await fetch(url, { cache: 'no-store' });
@@ -194,74 +269,94 @@ function newId(): string {
   return `blog-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
+async function withBucketWrite<T>(fn: (bucket: string) => Promise<T>): Promise<T> {
+  let lastError: unknown;
+  for (const bucket of bucketAttemptOrder()) {
+    try {
+      const result = await fn(bucket);
+      rememberBucket(bucket);
+      return result;
+    } catch (err) {
+      lastError = err;
+      if (isMissingBucketError(err as any)) continue;
+      // Other errors (e.g. conflict) should surface unless every bucket fails
+      console.warn(`[blog] write via ${bucket} failed:`, (err as Error)?.message);
+    }
+  }
+  throw new Error(formatBlogError(lastError, 'Could not write blog post to storage'));
+}
+
 export async function createStorageBlogPost(
   input: BlogPostInput,
   createdBy: string | null | undefined,
 ): Promise<BlogPostRecord> {
-  const bucket = await resolveBlogBucket();
-  const existing = await downloadCmsJson(bucket).catch(() => [] as BlogPostRecord[]);
-  if (existing.some((p) => p.slug === input.slug)) {
-    throw new Error(`A post with slug “${input.slug}” already exists`);
-  }
-  const now = new Date().toISOString();
-  const row: BlogPostRecord = {
-    id: newId(),
-    slug: input.slug,
-    title: input.title,
-    description: input.description ?? null,
-    content_html: input.content_html || '',
-    cover_image_url: input.cover_image_url ?? null,
-    author_name: input.author_name || 'TopSqill Team',
-    author_title: input.author_title ?? null,
-    tags: input.tags || [],
-    published: Boolean(input.published),
-    published_at: input.published ? (input.published_at || now) : null,
-    created_by: createdBy || null,
-    created_at: now,
-    updated_at: now,
-  };
-  await uploadCmsJson(bucket, [row, ...existing]);
-  return row;
+  return withBucketWrite(async (bucket) => {
+    const existing = await downloadCmsJson(bucket).catch(() => [] as BlogPostRecord[]);
+    if (existing.some((p) => p.slug === input.slug)) {
+      throw new Error(`A post with slug “${input.slug}” already exists`);
+    }
+    const now = new Date().toISOString();
+    const row: BlogPostRecord = {
+      id: newId(),
+      slug: input.slug,
+      title: input.title,
+      description: input.description ?? null,
+      content_html: input.content_html || '',
+      cover_image_url: input.cover_image_url ?? null,
+      author_name: input.author_name || 'TopSqill Team',
+      author_title: input.author_title ?? null,
+      tags: input.tags || [],
+      published: Boolean(input.published),
+      published_at: input.published ? (input.published_at || now) : null,
+      created_by: createdBy || null,
+      created_at: now,
+      updated_at: now,
+    };
+    await uploadCmsJson(bucket, [row, ...existing]);
+    return row;
+  });
 }
 
 export async function updateStorageBlogPost(
   id: string,
   input: BlogPostInput,
 ): Promise<BlogPostRecord> {
-  const bucket = await resolveBlogBucket();
-  const existing = await downloadCmsJson(bucket);
-  const idx = existing.findIndex((p) => p.id === id);
-  if (idx < 0) throw new Error('Post not found');
-  if (existing.some((p) => p.slug === input.slug && p.id !== id)) {
-    throw new Error(`A post with slug “${input.slug}” already exists`);
-  }
-  const prev = existing[idx];
-  const now = new Date().toISOString();
-  const published = Boolean(input.published);
-  const row: BlogPostRecord = {
-    ...prev,
-    slug: input.slug,
-    title: input.title,
-    description: input.description ?? null,
-    content_html: input.content_html || '',
-    cover_image_url: input.cover_image_url ?? null,
-    author_name: input.author_name || prev.author_name || 'TopSqill Team',
-    author_title: input.author_title ?? null,
-    tags: input.tags || [],
-    published,
-    published_at: published
-      ? (input.published_at || prev.published_at || now)
-      : prev.published_at,
-    updated_at: now,
-  };
-  const next = [...existing];
-  next[idx] = row;
-  await uploadCmsJson(bucket, next);
-  return row;
+  return withBucketWrite(async (bucket) => {
+    const existing = await downloadCmsJson(bucket);
+    const idx = existing.findIndex((p) => p.id === id);
+    if (idx < 0) throw new Error('Post not found');
+    if (existing.some((p) => p.slug === input.slug && p.id !== id)) {
+      throw new Error(`A post with slug “${input.slug}” already exists`);
+    }
+    const prev = existing[idx];
+    const now = new Date().toISOString();
+    const published = Boolean(input.published);
+    const row: BlogPostRecord = {
+      ...prev,
+      slug: input.slug,
+      title: input.title,
+      description: input.description ?? null,
+      content_html: input.content_html || '',
+      cover_image_url: input.cover_image_url ?? null,
+      author_name: input.author_name || prev.author_name || 'TopSqill Team',
+      author_title: input.author_title ?? null,
+      tags: input.tags || [],
+      published,
+      published_at: published
+        ? (input.published_at || prev.published_at || now)
+        : prev.published_at,
+      updated_at: now,
+    };
+    const next = [...existing];
+    next[idx] = row;
+    await uploadCmsJson(bucket, next);
+    return row;
+  });
 }
 
 export async function deleteStorageBlogPost(id: string): Promise<void> {
-  const bucket = await resolveBlogBucket();
-  const existing = await downloadCmsJson(bucket);
-  await uploadCmsJson(bucket, existing.filter((p) => p.id !== id));
+  await withBucketWrite(async (bucket) => {
+    const existing = await downloadCmsJson(bucket);
+    await uploadCmsJson(bucket, existing.filter((p) => p.id !== id));
+  });
 }

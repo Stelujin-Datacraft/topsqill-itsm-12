@@ -176,9 +176,13 @@ export default function BlogAdmin() {
     if (!file) return;
     try {
       setUploading(true);
-      const url = await uploadCover(file);
-      setDraft((d) => ({ ...d, cover_image_url: url }));
-      toast.success('Cover image uploaded');
+      const result = await uploadCover(file);
+      setDraft((d) => ({ ...d, cover_image_url: result.url }));
+      if (result.via === 'data-url') {
+        toast.success('Cover embedded in the post (Storage buckets unavailable)');
+      } else {
+        toast.success(`Cover uploaded${result.bucket ? ` to ${result.bucket}` : ''}`);
+      }
     } catch (err: any) {
       toast.error(err?.message || 'Upload failed');
     } finally {
