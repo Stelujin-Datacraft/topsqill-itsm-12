@@ -79,6 +79,7 @@ const Terms = lazyWithRetry(() => import("./pages/Terms"));
 const Pricing = lazyWithRetry(() => import("./pages/Pricing"));
 const Blog = lazyWithRetry(() => import("./pages/Blog"));
 const BlogPost = lazyWithRetry(() => import("./pages/BlogPost"));
+const BlogAdmin = lazyWithRetry(() => import("./pages/BlogAdmin"));
 const MarketHome = lazyWithRetry(() => import("./pages/MarketHome"));
 import { SiteAnalytics } from "@/components/SiteAnalytics";
 import { MARKET_CODES } from "@/content/markets";
@@ -381,6 +382,11 @@ const App = () => (
                         <Route path="/sla-management" element={<SLAManagementPage />} />
                         <Route path="/record-delegations" element={<RecordDelegations />} />
                         <Route path="/api-integration" element={<ApiIntegration />} />
+                        <Route path="/blog-admin" element={
+                          <Suspense fallback={<RouteLoader />}>
+                            <BlogAdmin />
+                          </Suspense>
+                        } />
                         <Route path="/api-docs" element={<ApiDocs />} />
                         <Route path="/it-assets" element={<ITAssets />} />
                         <Route path="/project-performance" element={<ProjectPerformance />} />

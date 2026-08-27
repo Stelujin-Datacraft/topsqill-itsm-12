@@ -14,6 +14,57 @@ export type Database = {
   }
   public: {
     Tables: {
+      blog_posts: {
+        Row: {
+          id: string
+          slug: string
+          title: string
+          description: string | null
+          content_html: string
+          cover_image_url: string | null
+          author_name: string
+          author_title: string | null
+          tags: string[]
+          published: boolean
+          published_at: string | null
+          created_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          slug: string
+          title: string
+          description?: string | null
+          content_html?: string
+          cover_image_url?: string | null
+          author_name?: string
+          author_title?: string | null
+          tags?: string[]
+          published?: boolean
+          published_at?: string | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          slug?: string
+          title?: string
+          description?: string | null
+          content_html?: string
+          cover_image_url?: string | null
+          author_name?: string
+          author_title?: string | null
+          tags?: string[]
+          published?: boolean
+          published_at?: string | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       api_keys: {
         Row: {
           allowed_ips: string[] | null

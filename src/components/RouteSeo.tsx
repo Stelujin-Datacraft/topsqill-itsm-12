@@ -106,6 +106,19 @@ export function RouteSeo() {
     );
   }
 
+  // CMS / dynamic blog slugs — page sets full SEO after fetch; avoid soft-404 noindex
+  if (/^(\/(in|ae|sa|sg|ar))?\/blog\/[^/]+\/?$/.test(pathname)) {
+    return (
+      <Seo
+        title="Blog | TopSqill"
+        description="TopSqill blog article"
+        path={pathname}
+        hreflang={false}
+        jsonLd={[organizationJsonLd()]}
+      />
+    );
+  }
+
   return (
     <Seo
       title="Page Not Found — TopSqill"
