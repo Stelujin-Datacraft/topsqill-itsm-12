@@ -1,14 +1,7 @@
-import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import PublicPageLayout from '@/components/layout/PublicPageLayout';
 
 export default function Terms() {
-  useEffect(() => {
-    document.title = 'Terms & Conditions — TopSqill';
-    const desc = document.querySelector('meta[name="description"]');
-    if (desc) desc.setAttribute('content', 'The terms that govern use of the TopSqill enterprise automation platform, including accounts, acceptable use, data ownership and liability.');
-  }, []);
-
   return (
     <PublicPageLayout
       eyebrow="Legal"

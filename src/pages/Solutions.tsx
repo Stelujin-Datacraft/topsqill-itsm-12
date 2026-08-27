@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
@@ -71,18 +71,6 @@ const Solutions: React.FC = () => {
   const initialTab = searchParams.get('tab');
   const validIds = solutions.map((s) => s.id);
   const activeTab = initialTab && validIds.includes(initialTab) ? initialTab : 'onboarding';
-
-  useEffect(() => {
-    document.title = t('solutionsPage.metaTitle');
-    const desc = t('solutionsPage.metaDescription');
-    let meta = document.querySelector('meta[name="description"]');
-    if (!meta) {
-      meta = document.createElement('meta');
-      meta.setAttribute('name', 'description');
-      document.head.appendChild(meta);
-    }
-    meta.setAttribute('content', desc);
-  }, [t]);
 
   const handleTabChange = (value: string) => {
     setSearchParams({ tab: value }, { replace: true });

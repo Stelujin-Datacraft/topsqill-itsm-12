@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Mail, Linkedin, MapPin } from 'lucide-react';
@@ -8,12 +7,6 @@ const EMAIL = 'contact@topsqill.com';
 const LINKEDIN = 'https://www.linkedin.com/company/topsqill-pvt-ltd/posts/?feedView=all';
 
 export default function Contact() {
-  useEffect(() => {
-    document.title = 'Contact TopSqill — Talk to our team';
-    const desc = document.querySelector('meta[name="description"]');
-    if (desc) desc.setAttribute('content', 'Get in touch with the TopSqill team by email or LinkedIn for demos, partnerships and enterprise support.');
-  }, []);
-
   return (
     <PublicPageLayout
       eyebrow="Get in touch"

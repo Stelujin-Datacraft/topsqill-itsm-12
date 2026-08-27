@@ -12,3 +12,6 @@ Allow: /
 
 User-agent: *
 Allow: /
+
+# Preferred host is non-www (https://topsqill.com). Configure a 301 from www at the CDN/DNS.
+Sitemap: https://topsqill.com/sitemap.xml

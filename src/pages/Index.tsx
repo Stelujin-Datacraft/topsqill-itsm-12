@@ -1,5 +1,5 @@
 
-import React, { useEffect, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
@@ -42,10 +42,6 @@ const Index = () => {
     const fullName = [userProfile?.first_name, userProfile?.last_name].filter(Boolean).join(' ').trim();
     return fullName || userProfile?.email || user?.email || 'Account';
   }, [userProfile, user]);
-
-  useEffect(() => {
-    document.title = t('landing.title');
-  }, [t]);
 
   const handleSignOut = async () => {
     await signOut();

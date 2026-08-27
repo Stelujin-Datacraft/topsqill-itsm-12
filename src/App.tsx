@@ -5,7 +5,9 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { HelmetProvider } from "react-helmet-async";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { RouteSeo } from "@/components/RouteSeo";
 import { OrganizationProvider } from "@/contexts/OrganizationContext";
 import { ProjectProvider } from "@/contexts/ProjectContext";
 import { FormProvider } from "@/contexts/FormContext";
@@ -176,6 +178,7 @@ const ChatbotGate = () => {
 };
 
 const App = () => (
+  <HelmetProvider>
   <QueryClientProvider client={queryClient}>
     <ThemeProvider>
     <AuthProvider>
@@ -192,6 +195,7 @@ const App = () => (
                   <ImpersonationBanner />
                   <DelegationBanner />
                   <BrowserRouter>
+                    <RouteSeo />
                     <PasswordExpiryWarning />
                     <Routes>
                       {/* Public routes - eagerly loaded */}
@@ -356,6 +360,7 @@ const App = () => (
     </AuthProvider>
     </ThemeProvider>
   </QueryClientProvider>
+  </HelmetProvider>
 );
 
 export default App;

@@ -1,14 +1,7 @@
-import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import PublicPageLayout from '@/components/layout/PublicPageLayout';
 
 export default function Privacy() {
-  useEffect(() => {
-    document.title = 'Privacy Policy — TopSqill';
-    const desc = document.querySelector('meta[name="description"]');
-    if (desc) desc.setAttribute('content', 'How TopSqill collects, uses, stores and protects personal and organizational data across its enterprise automation platform.');
-  }, []);
-
   return (
     <PublicPageLayout
       eyebrow="Legal"
