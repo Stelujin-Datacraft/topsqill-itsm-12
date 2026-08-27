@@ -18,6 +18,8 @@ import {
   updateStorageBlogPost,
   uploadBlogCover,
 } from '@/lib/blogCms';
+import { mergeAdminBlogPosts } from '@/content/blog/posts';
+import { isDemoBlogId } from '@/types/blog';
 import { request } from '@/services/api/apiClient';
 
 const ADMIN_KEY = ['blog_posts_admin'] as const;
@@ -105,8 +107,8 @@ export function useBlogAdmin() {
           if (nextTs >= prevTs) bySlug.set(row.slug, row);
         }
       }
-      return [...bySlug.values()].sort((a, b) =>
-        String(b.updated_at).localeCompare(String(a.updated_at)),
+      return mergeAdminBlogPosts(
+        [...bySlug.values()].map((row) => ({ ...row, origin: 'cms' as const })),
       );
     },
   });
@@ -117,37 +119,38 @@ export function useBlogAdmin() {
     queryClient.invalidateQueries({ queryKey: MODE_KEY });
   };
 
-  const createPost = useMutation({
-    mutationFn: async (input: BlogPostInput) => {
-      const tableOk = await probeBlogTable();
-      if (tableOk) {
-        const { data, error } = await rawSupabase
-          .from('blog_posts')
-          .insert([{
-            ...input,
-            created_by: user?.id,
-            tags: input.tags || [],
-            content_html: input.content_html || '',
-            published: Boolean(input.published),
-            published_at: input.published
-              ? (input.published_at || new Date().toISOString())
-              : null,
-          }])
-          .select()
-          .single();
-        if (!error && data) {
-          await mirrorPostToStorageAndLocal(data as BlogPostRecord);
-          return data as BlogPostRecord;
-        }
-        if (error && !isMissingRelationError(error)) {
-          // Still try storage so publish is not blocked by RLS
-          console.warn('[blog] table insert failed, falling back to storage:', error.message);
-        } else if (error) {
-          invalidateBlogTableProbe();
-        }
+  const persistNewPost = async (input: BlogPostInput): Promise<BlogPostRecord> => {
+    const tableOk = await probeBlogTable();
+    if (tableOk) {
+      const { data, error } = await rawSupabase
+        .from('blog_posts')
+        .insert([{
+          ...input,
+          created_by: user?.id,
+          tags: input.tags || [],
+          content_html: input.content_html || '',
+          published: Boolean(input.published),
+          published_at: input.published
+            ? (input.published_at || new Date().toISOString())
+            : null,
+        }])
+        .select()
+        .single();
+      if (!error && data) {
+        await mirrorPostToStorageAndLocal(data as BlogPostRecord);
+        return data as BlogPostRecord;
       }
-      return createStorageBlogPost(input, user?.id);
-    },
+      if (error && !isMissingRelationError(error)) {
+        console.warn('[blog] table insert failed, falling back to storage:', error.message);
+      } else if (error) {
+        invalidateBlogTableProbe();
+      }
+    }
+    return createStorageBlogPost(input, user?.id);
+  };
+
+  const createPost = useMutation({
+    mutationFn: persistNewPost,
     onSuccess: (row) => {
       bustPublicCache();
       toast.success(row.published ? 'Published — visible on /blog' : 'Draft saved');
@@ -157,6 +160,41 @@ export function useBlogAdmin() {
 
   const updatePost = useMutation({
     mutationFn: async ({ id, ...input }: BlogPostInput & { id: string }) => {
+      // Demo seed posts are not in CMS yet — saving creates a CMS override
+      if (isDemoBlogId(id)) {
+        const tableOk = await probeBlogTable();
+        if (tableOk) {
+          const { data: existingRow } = await rawSupabase
+            .from('blog_posts')
+            .select('id')
+            .eq('slug', input.slug)
+            .maybeSingle();
+          if (existingRow?.id) {
+            const { data, error } = await rawSupabase
+              .from('blog_posts')
+              .update({
+                ...input,
+                published_at: input.published
+                  ? (input.published_at || new Date().toISOString())
+                  : null,
+              })
+              .eq('id', existingRow.id)
+              .select()
+              .single();
+            if (!error && data) {
+              await mirrorPostToStorageAndLocal(data as BlogPostRecord);
+              return data as BlogPostRecord;
+            }
+          }
+        }
+        const existingCms = (await listStorageBlogPosts()).find(
+          (p) => p.slug === input.slug && !isDemoBlogId(p.id),
+        );
+        if (existingCms) {
+          return updateStorageBlogPost(existingCms.id, input);
+        }
+        return persistNewPost(input);
+      }
       const tableOk = await probeBlogTable();
       if (tableOk) {
         const payload: Record<string, unknown> = { ...input };
@@ -190,6 +228,9 @@ export function useBlogAdmin() {
 
   const deletePost = useMutation({
     mutationFn: async (id: string) => {
+      if (isDemoBlogId(id)) {
+        throw new Error('Demo posts ship with the app. Edit & save to convert to a CMS post, or change the slug to replace them on /blog.');
+      }
       const tableOk = await probeBlogTable();
       if (tableOk) {
         const { error } = await rawSupabase.from('blog_posts').delete().eq('id', id);
