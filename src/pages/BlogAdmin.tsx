@@ -31,9 +31,9 @@ import {
 import { useBlogAdmin } from '@/hooks/useBlogPosts';
 import type { BlogPostRecord } from '@/types/blog';
 import { slugifyTitle } from '@/types/blog';
-import { ExternalLink, FileUp, Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
+import { ExternalLink, FileUp, Loader2, Pencil, Plus, Trash2, Wrench } from 'lucide-react';
 import { toast } from 'sonner';
-
+import { STATIC_BLOG_POSTS_PATH } from '@/content/blog/posts';
 type Draft = {
   id?: string;
   title: string;
@@ -83,6 +83,9 @@ export default function BlogAdmin() {
     updatePost,
     deletePost,
     uploadCover,
+    cmsMode,
+    ensureSetup,
+    listError,
   } = useBlogAdmin();
 
   const [open, setOpen] = useState(false);
@@ -92,6 +95,7 @@ export default function BlogAdmin() {
   const [importOpen, setImportOpen] = useState(false);
   const [importText, setImportText] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [ensuring, setEnsuring] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const saving = createPost.isPending || updatePost.isPending;
@@ -219,12 +223,28 @@ export default function BlogAdmin() {
     }
   };
 
+  const runEnsure = async () => {
+    try {
+      setEnsuring(true);
+      const data = await ensureSetup();
+      toast.success(data?.message || 'Blog storage checked');
+    } catch (err: any) {
+      toast.error(err?.message || 'Could not ensure blog storage (backend may be offline — uploads still fall back to report-media)');
+    } finally {
+      setEnsuring(false);
+    }
+  };
+
   return (
     <PageContent
       title="Blog admin"
       description="Create and publish posts for the public /blog page. Admins only."
       actions={
         <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={() => void runEnsure()} disabled={ensuring}>
+            {ensuring ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Wrench className="h-4 w-4 mr-2" />}
+            Fix storage
+          </Button>
           <Button variant="outline" onClick={() => setImportOpen(true)}>
             <FileUp className="h-4 w-4 mr-2" />
             Import JSON
@@ -238,10 +258,37 @@ export default function BlogAdmin() {
     >
       <div className="flex flex-col gap-6">
         <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Where posts come from</CardTitle>
+            <CardDescription>
+              The landing <code className="text-xs">/blog</code> page merges two sources.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm text-muted-foreground">
+            <p>
+              <span className="font-medium text-foreground">Built-in articles</span>
+              {' '}live in the repo at{' '}
+              <code className="text-xs text-foreground">{STATIC_BLOG_POSTS_PATH}</code>
+              {' '}(shipped with the site). They show until you publish a CMS post with the same URL slug.
+            </p>
+            <p>
+              <span className="font-medium text-foreground">CMS posts</span>
+              {' '}(this page) are stored in Supabase
+              {cmsMode === 'table' ? ' table blog_posts' : ' Storage (blog/cms-posts.json)'}
+              {' '}and appear on /blog when Published is on.
+            </p>
+            {listError && (
+              <p className="text-destructive text-sm">{listError}</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
             <CardHeader>
-              <CardTitle className="text-base">All posts</CardTitle>
+              <CardTitle className="text-base">All CMS posts</CardTitle>
               <CardDescription>
-                Drafts stay private. Published posts appear immediately on /blog.
+                Drafts stay private on the public site. Published posts appear immediately on /blog.
+                {cmsMode === 'storage' ? ' Using storage fallback until the blog_posts migration is applied.' : ''}
               </CardDescription>
             </CardHeader>
             <CardContent>

@@ -24,6 +24,7 @@ import { FormApiModule } from './form-api/form-api.module';
 import { EnginesModule } from './engines/engines.module';
 import { CronModule } from './cron/cron.module';
 import { QueueModule } from './queue/queue.module';
+import { BlogModule } from './blog/blog.module';
 import { HealthController } from './health.controller';
 import { resolve } from 'path';
 
@@ -76,6 +77,7 @@ const envFilePath = [
     EnginesModule,
     CronModule,
     QueueModule,
+    BlogModule,
   ],
   controllers: [HealthController],
   providers: [

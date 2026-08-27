@@ -16,6 +16,9 @@ export type BlogPost = {
 
 export const BLOG_POSTS = postsJson as BlogPost[];
 
+/** Repo path for the static seed posts shown on the marketing /blog page. */
+export const STATIC_BLOG_POSTS_PATH = 'src/content/blog/posts.json';
+
 export function getPost(slug: string | undefined): BlogPost | undefined {
   if (!slug) return undefined;
   return BLOG_POSTS.find((p) => p.slug === slug);
