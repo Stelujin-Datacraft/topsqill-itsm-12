@@ -2,12 +2,17 @@ import deloitteLogo from "@/assets/partners/deloitte.png";
 import tclLogo from "@/assets/partners/tcl.png";
 import techcoralLogo from "@/assets/partners/techcoral.png";
 import inspiraLogo from "@/assets/partners/inspira.png";
+import deloitteWebp from "@/assets/partners/deloitte.webp";
+import tclWebp from "@/assets/partners/tcl.webp";
+import techcoralWebp from "@/assets/partners/techcoral.webp";
+import inspiraWebp from "@/assets/partners/inspira.webp";
+import { OptimizedImage } from "@/components/OptimizedImage";
 
 const partners = [
-  { name: "Deloitte", logo: deloitteLogo, subtitle: "Professional services" },
-  { name: "TCL", logo: tclLogo, subtitle: "Technology" },
-  { name: "Techcoral", logo: techcoralLogo, subtitle: "Digital solutions" },
-  { name: "Inspira", logo: inspiraLogo, subtitle: "Enterprise IT" },
+  { name: "Deloitte", logo: deloitteLogo, webp: deloitteWebp, subtitle: "Professional services" },
+  { name: "TCL", logo: tclLogo, webp: tclWebp, subtitle: "Technology" },
+  { name: "Techcoral", logo: techcoralLogo, webp: techcoralWebp, subtitle: "Digital solutions" },
+  { name: "Inspira", logo: inspiraLogo, webp: inspiraWebp, subtitle: "Enterprise IT" },
 ];
 
 export default function TrustLogosSection() {
@@ -29,10 +34,12 @@ export default function TrustLogosSection() {
               className="group flex flex-col items-center justify-center rounded-2xl border border-border/60 bg-card/80 px-4 py-6 sm:px-6 sm:py-8 text-center shadow-sm transition-all duration-300 hover:border-primary/30 hover:shadow-md"
             >
               <div className="mb-3 flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-xl bg-background shadow-sm transition-transform duration-300 group-hover:scale-105">
-                <img
+                <OptimizedImage
                   src={partner.logo}
+                  webpSrc={partner.webp}
                   alt={`${partner.name} logo`}
-                  loading="lazy"
+                  width={40}
+                  height={40}
                   className="h-8 w-8 sm:h-10 sm:w-10 object-contain"
                 />
               </div>

@@ -1,3 +1,4 @@
+import { OptimizedImage } from '@/components/OptimizedImage';
 import { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -35,11 +36,13 @@ export default function PublicPageLayout({
         <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-primary/60 via-accent/40 to-transparent" />
         <div className="container relative mx-auto px-4 py-3 flex items-center justify-between gap-4">
           <Link to="/" className="flex items-center gap-2.5">
-            <img
+            <OptimizedImage
               src="/lovable-uploads/7355d9d6-30ec-4b86-9922-9058a15f6cca.png"
+              webpSrc="/lovable-uploads/7355d9d6-30ec-4b86-9922-9058a15f6cca.webp"
               alt="TopSqill"
               width={32}
               height={32}
+              priority
               className="h-8 w-8 object-contain"
             />
             <span className="text-lg font-semibold tracking-tight text-foreground">TopSqill</span>
@@ -108,9 +111,12 @@ export default function PublicPageLayout({
           <div className="grid gap-10 lg:grid-cols-2">
             <div>
               <div className="flex items-center gap-3 mb-4">
-                <img
+                <OptimizedImage
                   src="/lovable-uploads/7355d9d6-30ec-4b86-9922-9058a15f6cca.png"
+                  webpSrc="/lovable-uploads/7355d9d6-30ec-4b86-9922-9058a15f6cca.webp"
                   alt="TopSqill"
+                  width={36}
+                  height={36}
                   className="h-9 w-9 object-contain"
                 />
                 <span className="text-xl font-bold tracking-tight text-brand-deep-foreground">TopSqill</span>

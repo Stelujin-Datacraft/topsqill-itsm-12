@@ -8,13 +8,17 @@ export function organizationJsonLd() {
   return {
     '@context': 'https://schema.org',
     '@type': 'Organization',
+    '@id': `${SITE_ORIGIN}/#organization`,
     name: 'TopSqill',
     legalName: 'TopSqill Pvt Ltd',
     url: SITE_ORIGIN,
     logo: DEFAULT_OG_IMAGE,
     email: 'contact@topsqill.com',
+    description:
+      'Enterprise BPM platform for forms, workflow automation, SQL analytics, and governed operations — not an education-only brand.',
     sameAs: [
       'https://www.linkedin.com/company/topsqill-pvt-ltd/',
+      // Add G2 / Capterra / Crunchbase profile URLs here once published (off-page SEO).
     ],
     address: {
       '@type': 'PostalAddress',
@@ -23,6 +27,19 @@ export function organizationJsonLd() {
       postalCode: '201313',
       addressCountry: 'IN',
     },
+    // Clarify entity graph vs academy.topsqill.com (education subdomain)
+    subOrganization: [
+      {
+        '@type': 'Organization',
+        '@id': 'https://academy.topsqill.com/#organization',
+        name: 'TopSqill Academy',
+        url: 'https://academy.topsqill.com',
+        description: 'Training and academy content from TopSqill Pvt Ltd.',
+        parentOrganization: {
+          '@id': `${SITE_ORIGIN}/#organization`,
+        },
+      },
+    ],
   };
 }
 

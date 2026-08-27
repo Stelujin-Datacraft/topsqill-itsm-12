@@ -51,6 +51,9 @@ const Timeline: React.FC<{ steps: SolutionStep[] }> = ({ steps }) => (
                     src={step.image}
                     alt={step.alt}
                     loading="lazy"
+                    decoding="async"
+                    width={1280}
+                    height={720}
                     className="w-full h-auto block transition-transform duration-500 group-"
                   />
                   <div className="absolute inset-0 ring-1 ring-inset ring-white/10 pointer-events-none rounded-xl" />

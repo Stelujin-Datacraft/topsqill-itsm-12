@@ -14,6 +14,12 @@ This repo is a **Vite SPA published via Lovable**. Search crawlers that do not r
 | GA4 / GSC / Bing verification | Env-driven (`SiteAnalytics`) | Set secrets + GSC/Bing UI |
 | Full Next.js SSR + WebP pipeline | Partial (prerender + lazy routes + font/LCP preload) | Optional later |
 
+## Off-page / ops (not in app code)
+
+- Create G2 + Capterra profiles and collect 10+ reviews; then add those URLs to `sameAs` in `src/lib/structuredData.ts`.
+- Point `topsqill.com` through Cloudflare (India + Gulf PoPs) for image CDN after the edge worker is live.
+- `llms.txt`: optional; Google does not require it — pricing/content quality matter more.
+
 ## Env vars (frontend)
 
 ```bash

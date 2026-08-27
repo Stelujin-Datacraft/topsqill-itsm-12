@@ -180,34 +180,28 @@ async function serveAsset(env, key, contentType, status = 200) {
 }
 
 function robotsTxt() {
-  return `User-agent: Googlebot
-Allow: /
-
-User-agent: Bingbot
-Allow: /
-
-User-agent: Twitterbot
-Allow: /
-
-User-agent: facebookexternalhit
-Allow: /
-
-User-agent: GPTBot
-Allow: /
-
-User-agent: ChatGPT-User
-Allow: /
-
-User-agent: ClaudeBot
-Allow: /
-
-User-agent: PerplexityBot
-Allow: /
-
+  return `# TopSqill — single UA block; AI crawlers allowed.
 User-agent: *
 Allow: /
 
-# Preferred host is non-www.
+Disallow: /dashboard
+Disallow: /build
+Disallow: /forms
+Disallow: /form-builder
+Disallow: /workflows
+Disallow: /reports
+Disallow: /settings
+Disallow: /users
+Disallow: /projects
+Disallow: /organizations
+Disallow: /api/
+Disallow: /auth
+Disallow: /login
+Disallow: /forgot-password
+Disallow: /accept-invitation
+Disallow: /change-password
+Disallow: /signup-success
+
 Sitemap: https://${APEX_DOMAIN}/sitemap.xml
 `;
 }

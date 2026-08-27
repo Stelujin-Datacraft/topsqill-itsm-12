@@ -31,6 +31,7 @@ import DataTablePreview from '@/components/landing/DataTablePreview';
 import TestimonialsSection from '@/components/landing/TestimonialsSection';
 import IntegrationsSection from '@/components/landing/IntegrationsSection';
 import { AppIcon } from '@/components/icons';
+import { OptimizedImage } from '@/components/OptimizedImage';
 import TrustLogosSection from '@/components/landing/TrustLogosSection';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -57,13 +58,13 @@ const Index = () => {
           <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-primary/60 via-accent/40 to-transparent" />
           <div className="container relative mx-auto px-4 py-3 sm:py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex items-center space-x-3">
-              <img 
-                src="/lovable-uploads/7355d9d6-30ec-4b86-9922-9058a15f6cca.png" 
-                alt="TopSqill" 
+              <OptimizedImage
+                src="/lovable-uploads/7355d9d6-30ec-4b86-9922-9058a15f6cca.png"
+                webpSrc="/lovable-uploads/7355d9d6-30ec-4b86-9922-9058a15f6cca.webp"
+                alt="TopSqill"
                 width={36}
                 height={36}
-                fetchPriority="high"
-                decoding="async"
+                priority
                 className="w-9 h-9 object-contain"
               />
               <span className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground">
@@ -300,9 +301,12 @@ const Index = () => {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16">
               <div>
                 <div className="flex items-center gap-3 mb-4">
-                  <img
+                  <OptimizedImage
                     src="/lovable-uploads/7355d9d6-30ec-4b86-9922-9058a15f6cca.png"
+                    webpSrc="/lovable-uploads/7355d9d6-30ec-4b86-9922-9058a15f6cca.webp"
                     alt="TopSqill Logo"
+                    width={36}
+                    height={36}
                     className="size-9 object-contain"
                   />
                   <span className="text-xl font-bold tracking-tight text-brand-deep-foreground">TopSqill</span>
