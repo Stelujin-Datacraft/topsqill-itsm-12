@@ -37,7 +37,7 @@ import {
 } from './metadataDiscovery';
 import { describeActionType } from './actionTypeInferrer';
 import { isOptionBasedFieldType } from '@/utils/conditionOperators';
-import { extractGenericPromptHints, extractCreateTargetFormHint, fieldMatchesHint } from './promptHints';
+import { extractGenericPromptHints, extractCreateTargetFormHint, fieldMatchesHint, inferCombinationModeFromPrompt } from './promptHints';
 import { matchFormFieldByHint } from '@/lib/ai/inferWorkflowIntent';
 import { sanitizeConditionValueHint } from './decisionOptionResolver';
 import {
@@ -131,9 +131,25 @@ function actionConfigured(action: WorkflowActionSpec | null | undefined): boolea
         && !hasMapDraft
         && action.createFieldsDone === true
         && hasUpdates;
-    }    case 'create_combination_records':
-      return Boolean(action.sourceCrossRefFieldId || action.sourceCrossRefFieldLabel)
-        && Boolean(action.targetFormId || action.targetFormName);
+    }
+    case 'create_combination_records': {
+      const hasSource = Boolean(action.sourceCrossRefFieldId || action.sourceCrossRefFieldLabel);
+      const hasLinked = Boolean(action.sourceLinkedFormId || action.sourceLinkedFormName);
+      const hasTarget = Boolean(action.targetFormId || action.targetFormName);
+      const targetDistinct = !(
+        action.targetFormId
+        && action.sourceLinkedFormId
+        && action.targetFormId === action.sourceLinkedFormId
+      );
+      const dualOk = action.combinationMode !== 'dual'
+        || Boolean(action.secondSourceCrossRefFieldId || action.secondSourceCrossRefFieldLabel);
+      return hasSource
+        && hasLinked
+        && hasTarget
+        && targetDistinct
+        && dualOk
+        && action.comboConfirmDone === true;
+    }
     case 'send_notification':
       return true;
     default:
@@ -340,17 +356,196 @@ function planGenericActionRequirements(
   }
 
   // ── Action-type-specific questions (never ask for action type) ──────────
+
+  // Combination uses a dedicated path: source XR ≠ destination form
+  if (action.actionType === 'create_combination_records') {
+    if (!action.combinationMode) {
+      action.combinationMode = inferCombinationModeFromPrompt(originalRequest || definition.description || '');
+    }
+
+    // Optional mode confirm when prompt did not clearly imply dual
+    if (
+      action.combinationMode === 'single'
+      && !answered.has('action.combo_mode')
+      && /\bcross[- ]?ref/i.test(originalRequest || definition.description || '')
+      && /\b(?:two|2|both|and)\b/i.test(originalRequest || definition.description || '')
+      && !/\bdual\b|\bcartesian\b/i.test(originalRequest || definition.description || '')
+    ) {
+      push(req({
+        id: 'action.combo_mode',
+        scope: 'workflow',
+        key: 'action_combo_mode',
+        question: [
+          'Should this create combinations from **one** cross-reference field (single), or from **two** cross-reference fields (dual / Cartesian)?',
+        ].join('\n'),
+        inputKind: 'choice',
+        options: [
+          { value: 'single', label: 'Single — trigger × one cross-ref' },
+          { value: 'dual', label: 'Dual — cross-ref × cross-ref' },
+        ],
+      }));
+      return mergeUnansweredFirst(out);
+    }
+
+    if (!action.sourceCrossRefFieldId && !action.sourceCrossRefFieldLabel) {
+      push(req({
+        id: 'action.cross_ref',
+        scope: 'workflow',
+        key: 'action_cross_ref',
+        question: [
+          'Which **cross-reference** field on the trigger form holds the linked records to expand?',
+          '',
+          'Example: Entities on a Risk form → one new record per linked Entity.',
+        ].join('\n'),
+        inputKind: 'field_select',
+        options: xrFields.length
+          ? xrFields.map((f) => ({ value: f.id, label: `${f.label} (${f.type})` }))
+          : allFields,
+      }));
+      return mergeUnansweredFirst(out);
+    }
+
+    // Resolve source linked form from XR (never treat it as destination)
+    if (!action.sourceLinkedFormId) {
+      const xrField = hydratedForm?.fields?.find((f) =>
+        f.id === action.sourceCrossRefFieldId
+        || (action.sourceCrossRefFieldLabel
+          && f.label.toLowerCase() === String(action.sourceCrossRefFieldLabel).toLowerCase()),
+      );
+      const linked = getCrossRefTargetForm(xrField);
+      if (linked.targetFormId) {
+        action.sourceLinkedFormId = linked.targetFormId;
+        const named = hydratedCatalog.find((f) => f.id === linked.targetFormId)?.name;
+        action.sourceLinkedFormName = linked.targetFormName || named || action.sourceLinkedFormName;
+        // Clear mistaken destination = linked form from older sessions
+        if (action.targetFormId && action.targetFormId === linked.targetFormId) {
+          action.targetFormId = undefined;
+          action.targetFormName = undefined;
+        }
+      }
+    }
+
+    if (
+      action.combinationMode === 'dual'
+      && !action.secondSourceCrossRefFieldId
+      && !action.secondSourceCrossRefFieldLabel
+    ) {
+      const usedId = action.sourceCrossRefFieldId;
+      const secondOpts = (xrFields.length ? xrFields : []).filter((f) => f.id !== usedId);
+      push(req({
+        id: 'action.second_cross_ref',
+        scope: 'workflow',
+        key: 'action_second_cross_ref',
+        question: [
+          'Which **second cross-reference** field should pair with the first (dual / Cartesian combinations)?',
+        ].join('\n'),
+        inputKind: 'field_select',
+        options: (secondOpts.length ? secondOpts : xrFields).map((f) => ({
+          value: f.id,
+          label: `${f.label} (${f.type})`,
+        })),
+      }));
+      return mergeUnansweredFirst(out);
+    }
+
+    if (action.combinationMode === 'dual' && !action.secondSourceLinkedFormId) {
+      const xrField = hydratedForm?.fields?.find((f) =>
+        f.id === action.secondSourceCrossRefFieldId
+        || (action.secondSourceCrossRefFieldLabel
+          && f.label.toLowerCase() === String(action.secondSourceCrossRefFieldLabel).toLowerCase()),
+      );
+      const linked = getCrossRefTargetForm(xrField);
+      if (linked.targetFormId) {
+        action.secondSourceLinkedFormId = linked.targetFormId;
+        const named = hydratedCatalog.find((f) => f.id === linked.targetFormId)?.name;
+        action.secondSourceLinkedFormName = linked.targetFormName || named || action.secondSourceLinkedFormName;
+      }
+    }
+
+    // Destination form for new combination records (must be separate from source linked form)
+    const targetSameAsLinked = Boolean(
+      action.targetFormId
+      && action.sourceLinkedFormId
+      && action.targetFormId === action.sourceLinkedFormId,
+    );
+    if ((!action.targetFormId && !action.targetFormName) || targetSameAsLinked) {
+      if (targetSameAsLinked) {
+        action.targetFormId = undefined;
+        action.targetFormName = undefined;
+      }
+      // Resolve name hint from catalog
+      if (!action.targetFormId && action.targetFormName && hydratedCatalog.length) {
+        const key = action.targetFormName.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+        const matchedForm = hydratedCatalog.find((f) => {
+          const name = String(f.name || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+          return name === key || name.includes(key) || key.includes(name);
+        });
+        if (matchedForm && matchedForm.id !== action.sourceLinkedFormId) {
+          action.targetFormId = matchedForm.id;
+          action.targetFormName = matchedForm.name;
+        }
+      }
+      if (!action.targetFormId) {
+        const formOpts = hydratedCatalog
+          .filter((f) => f.id !== hydratedForm?.id && f.id !== action.sourceLinkedFormId)
+          .map((f) => ({ value: f.id, label: f.name }));
+        push(req({
+          id: 'action.target_form',
+          scope: 'workflow',
+          key: 'action_target_form',
+          question: [
+            'Which **form** should the new combination records be created on?',
+            '',
+            action.sourceLinkedFormName
+              ? `This is the **destination** form (not ${action.sourceLinkedFormName}, which is the linked source).`
+              : 'This is the destination form where each combination creates a new record.',
+          ].join('\n'),
+          inputKind: formOpts.length ? 'choice' : 'text',
+          options: formOpts.length ? formOpts : undefined,
+        }));
+        return mergeUnansweredFirst(out);
+      }
+    }
+
+    if (!action.comboConfirmDone) {
+      const modeLabel = action.combinationMode === 'dual' ? 'Dual (cross-ref × cross-ref)' : 'Single (trigger × one cross-ref)';
+      const lines = [
+        `Mode: **${modeLabel}**`,
+        `Source cross-ref: **${action.sourceCrossRefFieldLabel || action.sourceCrossRefFieldId}**`,
+        action.sourceLinkedFormName ? `Source linked form: **${action.sourceLinkedFormName}**` : null,
+        action.combinationMode === 'dual'
+          ? `Second cross-ref: **${action.secondSourceCrossRefFieldLabel || action.secondSourceCrossRefFieldId}**`
+          : null,
+        `Create records on: **${action.targetFormName || action.targetFormId}**`,
+        '',
+        'Auto-link matching cross-ref fields on the target form and skip duplicates by default. Continue?',
+      ].filter(Boolean) as string[];
+      push(req({
+        id: 'action.combo_confirm',
+        scope: 'workflow',
+        key: 'action_combo_confirm',
+        question: lines.join('\n'),
+        inputKind: 'confirm',
+        options: [
+          { value: '__confirm_combo__', label: 'Yes, create this combination action' },
+          { value: '__redo_combo_target__', label: 'Pick a different destination form' },
+        ],
+      }));
+      return mergeUnansweredFirst(out);
+    }
+
+    action.configured = actionConfigured(action);
+    return mergeUnansweredFirst(out);
+  }
+
   const needsXr = action.actionType === 'create_linked_record'
-    || action.actionType === 'update_linked_records'
-    || action.actionType === 'create_combination_records';
+    || action.actionType === 'update_linked_records';
 
   if (needsXr && !action.crossReferenceFieldId && !action.crossReferenceFieldLabel
     && !action.sourceCrossRefFieldId && !action.sourceCrossRefFieldLabel) {
     const xrQuestion = action.actionType === 'update_linked_records'
       ? 'Which **cross-reference** field points to the linked records to update?'
-      : action.actionType === 'create_linked_record'
-        ? 'Which **cross-reference** field links to the form where the new record should be created?'
-        : 'Which **cross-reference** field links to the related form?';
+      : 'Which **cross-reference** field links to the form where the new record should be created?';
     push(req({
       id: 'action.cross_ref',
       scope: 'workflow',
@@ -364,11 +559,10 @@ function planGenericActionRequirements(
     return mergeUnansweredFirst(out);
   }
 
-  // Target form for linked / combo / create_record — ask if not auto-detected
+  // Target form for linked / create_record — ask if not auto-detected
   const needsTargetForm = action.actionType === 'create_record'
     || action.actionType === 'create_linked_record'
-    || action.actionType === 'update_linked_records'
-    || action.actionType === 'create_combination_records';
+    || action.actionType === 'update_linked_records';
 
   if (needsTargetForm && !action.targetFormId && !action.targetFormName) {
     const formOpts = formsCatalog.length
@@ -938,18 +1132,6 @@ function planGenericActionRequirements(
     }
   }
 
-  // Combination: optional second XR for dual mode is skipped unless prompt hinted dual
-  // Mapping note — for combination we ask a confirm that XR→target mapping is OK
-  if (
-    action.actionType === 'create_combination_records'
-    && action.sourceCrossRefFieldId
-    && action.targetFormId
-    && !answered.has('action.combo_confirm')
-  ) {
-    // Mark configured via a soft confirm only if nothing else missing
-    // (no extra question — target form + XR is enough)
-  }
-
   if (action) {
     action.configured = actionConfigured(action);
   }
@@ -1398,12 +1580,62 @@ export function applyAnswerToDefinition(
     next.action.crossReferenceFieldLabel = field?.label || value;
     next.action.sourceCrossRefFieldId = field?.id;
     next.action.sourceCrossRefFieldLabel = field?.label || value;
-    if (target.targetFormId) {
+    if (next.action.actionType === 'create_combination_records') {
+      // XR child form is the *source* of combinations — not the destination
+      if (target.targetFormId) {
+        next.action.sourceLinkedFormId = target.targetFormId;
+        next.action.sourceLinkedFormName = target.targetFormName;
+        if (next.action.targetFormId === target.targetFormId) {
+          next.action.targetFormId = undefined;
+          next.action.targetFormName = undefined;
+        }
+      }
+      next.action.comboConfirmDone = false;
+    } else if (target.targetFormId) {
       next.action.targetFormId = target.targetFormId;
       next.action.targetFormName = target.targetFormName;
       next.action.sourceLinkedFormId = target.targetFormId;
       next.action.sourceLinkedFormName = target.targetFormName;
     }
+    return next;
+  }
+
+  if (requirement.key === 'action_second_cross_ref' && next.action) {
+    const field = form?.fields.find((f) => f.id === value)
+      || searchFields(form, value).matched;
+    const target = getCrossRefTargetForm(field || undefined);
+    next.action.secondSourceCrossRefFieldId = field?.id;
+    next.action.secondSourceCrossRefFieldLabel = field?.label || value;
+    if (target.targetFormId) {
+      next.action.secondSourceLinkedFormId = target.targetFormId;
+      next.action.secondSourceLinkedFormName = target.targetFormName;
+    }
+    next.action.comboConfirmDone = false;
+    return next;
+  }
+
+  if (requirement.key === 'action_combo_mode' && next.action) {
+    next.action.combinationMode = value === 'dual' ? 'dual' : 'single';
+    if (next.action.combinationMode === 'single') {
+      next.action.secondSourceCrossRefFieldId = undefined;
+      next.action.secondSourceCrossRefFieldLabel = undefined;
+      next.action.secondSourceLinkedFormId = undefined;
+      next.action.secondSourceLinkedFormName = undefined;
+    }
+    next.action.comboConfirmDone = false;
+    return next;
+  }
+
+  if (requirement.key === 'action_combo_confirm' && next.action) {
+    if (value === '__redo_combo_target__' || /^pick\b/i.test(value)) {
+      next.action.targetFormId = undefined;
+      next.action.targetFormName = undefined;
+      next.action.comboConfirmDone = false;
+      return next;
+    }
+    next.action.comboConfirmDone = true;
+    next.action.skipComboMappings = true;
+    next.action.configured = actionConfigured(next.action);
     return next;
   }
 
@@ -1413,8 +1645,13 @@ export function applyAnswerToDefinition(
       || (form?.id === value ? form : undefined);
     next.action.targetFormId = matched?.id || value;
     next.action.targetFormName = matched?.name || value;
-    next.action.sourceLinkedFormId = next.action.sourceLinkedFormId || next.action.targetFormId;
-    next.action.sourceLinkedFormName = next.action.sourceLinkedFormName || next.action.targetFormName;
+    if (next.action.actionType === 'create_combination_records') {
+      // Do not overwrite sourceLinkedFormId — destination is independent
+      next.action.comboConfirmDone = false;
+    } else {
+      next.action.sourceLinkedFormId = next.action.sourceLinkedFormId || next.action.targetFormId;
+      next.action.sourceLinkedFormName = next.action.sourceLinkedFormName || next.action.targetFormName;
+    }
     return next;
   }
 

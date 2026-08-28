@@ -440,6 +440,7 @@ export function continueWorkflowBuilderSession(params: {
     || unanswered.key === 'condition_field'
     || unanswered.key === 'action_field'
     || unanswered.key === 'action_cross_ref'
+    || unanswered.key === 'action_second_cross_ref'
     || unanswered.key === 'access_field_pick';
 
   // Free-text user email / name for Level N approver
@@ -754,11 +755,26 @@ function buildAck(
     return 'Okay — pick an existing option instead.';
   }
   if (req.key === 'action_cross_ref') {
-    if (field) return `I'll use cross-reference **${field.label}**.`;
+    if (field) return `I'll use cross-reference **${field.label}** as the combination source.`;
     return 'Cross-reference field noted.';
   }
+  if (req.key === 'action_second_cross_ref') {
+    if (field) return `Second cross-reference set to **${field.label}**.`;
+    return 'Second cross-reference field noted.';
+  }
+  if (req.key === 'action_combo_mode') {
+    return answer === 'dual'
+      ? 'Dual mode — combinations from two cross-reference fields.'
+      : 'Single mode — one new record per linked item in the source cross-ref.';
+  }
+  if (req.key === 'action_combo_confirm') {
+    if (answer === '__redo_combo_target__' || /^pick\b/i.test(answer)) {
+      return 'Okay — pick a different destination form.';
+    }
+    return 'Combination action confirmed.';
+  }
   if (req.key === 'action_target_form') {
-    return `Target form set to **${answer}**.`;
+    return `Destination form set to **${answer}**.`;
   }
   if (req.key === 'action_field') {
     if (answer === '__skip_create_field_values__' || /^skip\b/i.test(answer)) {

@@ -128,6 +128,8 @@ export interface WorkflowActionSpec {
   sourceCrossRefFieldLabel?: string;
   secondSourceCrossRefFieldId?: string;
   secondSourceCrossRefFieldLabel?: string;
+  secondSourceLinkedFormId?: string;
+  secondSourceLinkedFormName?: string;
   /** Linked / create target form (may be auto-detected from XR custom_config) */
   targetFormId?: string;
   targetFormName?: string;
@@ -136,6 +138,13 @@ export interface WorkflowActionSpec {
   recordCount?: number;
   updateScope?: 'all' | 'first' | 'last';
   combinationMode?: 'single' | 'dual';
+  /**
+   * Combination: user confirmed the XR + destination form summary.
+   * (Mappings / auto-link fields are compiled with sensible defaults.)
+   */
+  comboConfirmDone?: boolean;
+  /** Combination: skip optional mapping customization (defaults only). */
+  skipComboMappings?: boolean;
   /**
    * For create_record / create_linked_record / update_linked_records:
    * user chose not to set any static field values or mappings on the new/linked record.

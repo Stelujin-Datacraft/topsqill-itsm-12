@@ -16,7 +16,7 @@ import {
   inferActionTypeFromPrompt,
   type InferredWorkflowActionType,
 } from './actionTypeInferrer';
-import { extractCreateTargetFormHint } from './promptHints';
+import { extractCreateTargetFormHint, inferCombinationModeFromPrompt } from './promptHints';
 
 export interface IntentAnalysisResult {
   definition: AIWorkflowDefinition;
@@ -241,6 +241,15 @@ export function analyzeWorkflowIntent(
       } else if (context?.formId) {
         action.targetFormId = context.formId;
         action.targetFormName = context.formName;
+      }
+    }
+    if (action.actionType === 'create_combination_records') {
+      action.combinationMode = inferCombinationModeFromPrompt(text);
+      extractedKeys.push('action.combo_mode');
+      // Destination form hint e.g. "create combination Control records"
+      const formHint = extractCreateTargetFormHint(text);
+      if (formHint) {
+        action.targetFormName = formHint;
       }
     }
   }

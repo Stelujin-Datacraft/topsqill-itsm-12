@@ -85,8 +85,7 @@ export function validateWorkflowDefinition(
         }
         break;
       case 'create_linked_record':
-      case 'update_linked_records':
-      case 'create_combination_records': {
+      case 'update_linked_records': {
         const hasXr = Boolean(
           action.crossReferenceFieldId
           || action.crossReferenceFieldLabel
@@ -128,6 +127,59 @@ export function validateWorkflowDefinition(
               message: 'Add at least one static value or trigger-form mapping for the linked update, then choose Done.',
             });
           }
+        }
+        break;
+      }
+      case 'create_combination_records': {
+        if (!action.sourceCrossRefFieldId && !action.sourceCrossRefFieldLabel) {
+          issues.push({
+            severity: 'error',
+            code: 'MISSING_CROSS_REF',
+            message: 'A source cross-reference field is required for Create Combination Records.',
+          });
+        }
+        if (!action.sourceLinkedFormId && !action.sourceLinkedFormName) {
+          issues.push({
+            severity: 'error',
+            code: 'MISSING_SOURCE_LINKED_FORM',
+            message: 'Could not resolve the form linked by the source cross-reference field.',
+          });
+        }
+        if (!action.targetFormId && !action.targetFormName) {
+          issues.push({
+            severity: 'error',
+            code: 'MISSING_TARGET_FORM',
+            message: 'Destination form for new combination records is not set.',
+          });
+        }
+        if (
+          action.targetFormId
+          && action.sourceLinkedFormId
+          && action.targetFormId === action.sourceLinkedFormId
+        ) {
+          issues.push({
+            severity: 'error',
+            code: 'COMBO_TARGET_SAME_AS_SOURCE',
+            message: 'Destination form must be different from the source linked form.',
+          });
+        }
+        if (
+          action.combinationMode === 'dual'
+          && !action.secondSourceCrossRefFieldId
+          && !action.secondSourceCrossRefFieldLabel
+        ) {
+          issues.push({
+            severity: 'error',
+            code: 'MISSING_SECOND_CROSS_REF',
+            message: 'Dual combination mode requires a second cross-reference field.',
+          });
+        }
+        if (!action.comboConfirmDone) {
+          issues.push({
+            severity: 'error',
+            code: 'MISSING_COMBO_CONFIRM',
+            message: 'Confirm the combination action summary before publishing.',
+          });
         }
         break;
       }

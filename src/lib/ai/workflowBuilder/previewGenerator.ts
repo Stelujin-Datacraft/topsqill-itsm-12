@@ -51,35 +51,52 @@ export function generateWorkflowPreview(
     const actionLines = [
       `Type: ${describeActionType(a.actionType)}`,
     ];
-    if (a.crossReferenceFieldLabel || a.sourceCrossRefFieldLabel) {
-      actionLines.push(`Cross-reference: ${a.crossReferenceFieldLabel || a.sourceCrossRefFieldLabel}`);
-    }
-    if (a.targetFormName) {
-      actionLines.push(`Target form: ${a.targetFormName}`);
-    }
-    if (a.skipCreateFieldValues) {
-      actionLines.push('Field values: empty/default');
+    if (a.actionType === 'create_combination_records') {
+      actionLines.push(`Mode: ${a.combinationMode === 'dual' ? 'Dual (XR × XR)' : 'Single (trigger × XR)'}`);
+      if (a.sourceCrossRefFieldLabel || a.sourceCrossRefFieldId) {
+        actionLines.push(`Source cross-ref: ${a.sourceCrossRefFieldLabel || a.sourceCrossRefFieldId}`);
+      }
+      if (a.sourceLinkedFormName) {
+        actionLines.push(`Source linked form: ${a.sourceLinkedFormName}`);
+      }
+      if (a.combinationMode === 'dual' && (a.secondSourceCrossRefFieldLabel || a.secondSourceCrossRefFieldId)) {
+        actionLines.push(`Second cross-ref: ${a.secondSourceCrossRefFieldLabel || a.secondSourceCrossRefFieldId}`);
+      }
+      if (a.targetFormName || a.targetFormId) {
+        actionLines.push(`Create records on: ${a.targetFormName || a.targetFormId}`);
+      }
+      actionLines.push('Duplicates: skipped by default · auto-link matching XR fields');
     } else {
-      for (const fv of a.createFieldValues || []) {
-        actionLines.push(`Set ${fv.fieldLabel || fv.fieldId}: ${String(fv.staticValue ?? '')}`);
+      if (a.crossReferenceFieldLabel || a.sourceCrossRefFieldLabel) {
+        actionLines.push(`Cross-reference: ${a.crossReferenceFieldLabel || a.sourceCrossRefFieldLabel}`);
       }
-      for (const m of a.createFieldMappings || []) {
-        actionLines.push(
-          `Map ${m.targetFieldLabel || m.targetFieldId} ← ${m.sourceFieldLabel || m.sourceFieldId} (trigger)`,
-        );
+      if (a.targetFormName) {
+        actionLines.push(`Target form: ${a.targetFormName}`);
       }
-      if (
-        !(a.createFieldValues || []).length
-        && !(a.createFieldMappings || []).length
-        && a.targetFieldLabel
-      ) {
-        actionLines.push(`Field: ${a.targetFieldLabel}`);
+      if (a.skipCreateFieldValues) {
+        actionLines.push('Field values: empty/default');
+      } else {
+        for (const fv of a.createFieldValues || []) {
+          actionLines.push(`Set ${fv.fieldLabel || fv.fieldId}: ${String(fv.staticValue ?? '')}`);
+        }
+        for (const m of a.createFieldMappings || []) {
+          actionLines.push(
+            `Map ${m.targetFieldLabel || m.targetFieldId} ← ${m.sourceFieldLabel || m.sourceFieldId} (trigger)`,
+          );
+        }
         if (
-          a.staticValue !== undefined
-          && a.staticValue !== null
-          && String(a.staticValue) !== ''
+          !(a.createFieldValues || []).length
+          && !(a.createFieldMappings || []).length
+          && a.targetFieldLabel
         ) {
-          actionLines.push(`Value: ${String(a.staticValue)}`);
+          actionLines.push(`Field: ${a.targetFieldLabel}`);
+          if (
+            a.staticValue !== undefined
+            && a.staticValue !== null
+            && String(a.staticValue) !== ''
+          ) {
+            actionLines.push(`Value: ${String(a.staticValue)}`);
+          }
         }
       }
     }
