@@ -222,20 +222,20 @@ export function CreateCombinationRecordsConfig({
           <div className="flex items-center space-x-2">
             <RadioGroupItem value="single" id="mode-single" />
             <Label htmlFor="mode-single" className="font-normal text-sm">
-              Trigger × One Cross-Ref
+              Single — exactly 1 cross-ref
             </Label>
           </div>
           <div className="flex items-center space-x-2">
             <RadioGroupItem value="dual" id="mode-dual" />
             <Label htmlFor="mode-dual" className="font-normal text-sm">
-              Cross-Ref × Cross-Ref (Cartesian)
+              Dual — exactly 2 cross-refs
             </Label>
           </div>
         </RadioGroup>
         <p className="text-xs text-muted-foreground">
           {combinationMode === 'single' 
-            ? 'Creates one record for each linked record in the selected cross-reference field'
-            : 'Creates records for every combination of records from two cross-reference fields (Cartesian product)'
+            ? 'One new record for each linked item in a single cross-reference field (trigger × that XR).'
+            : 'One new record for every pair from exactly two cross-reference fields (XR₁ × XR₂). Not more than two.'
           }
         </p>
       </div>
