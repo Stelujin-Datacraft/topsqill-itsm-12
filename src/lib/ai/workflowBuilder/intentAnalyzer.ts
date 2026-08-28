@@ -245,7 +245,6 @@ export function analyzeWorkflowIntent(
     }
     if (action.actionType === 'create_combination_records') {
       action.combinationMode = inferCombinationModeFromPrompt(text);
-      action.skipComboMappings = true;
       extractedKeys.push('action.combo_mode');
       // Destination form hint e.g. "create combination Control records"
       const formHint = extractCreateTargetFormHint(text);

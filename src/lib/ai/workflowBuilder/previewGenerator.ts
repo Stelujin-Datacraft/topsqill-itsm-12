@@ -65,7 +65,40 @@ export function generateWorkflowPreview(
       if (a.targetFormName || a.targetFormId) {
         actionLines.push(`Create records on: ${a.targetFormName || a.targetFormId}`);
       }
-      actionLines.push('Field mappings: optional (none set — edit in designer if needed)');
+      const triggerMaps = a.createFieldMappings || [];
+      const linkedMaps = a.linkedFormFieldMappings || [];
+      const secondMaps = a.secondLinkedFormFieldMappings || [];
+      if (a.combinationMode !== 'dual') {
+        if (triggerMaps.length) {
+          for (const m of triggerMaps) {
+            actionLines.push(
+              `Map ${m.targetFieldLabel || m.targetFieldId} ← ${m.sourceFieldLabel || m.sourceFieldId} (trigger)`,
+            );
+          }
+        } else {
+          actionLines.push('Trigger→target mappings: none');
+        }
+      }
+      if (linkedMaps.length) {
+        for (const m of linkedMaps) {
+          actionLines.push(
+            `Map ${m.targetFieldLabel || m.targetFieldId} ← ${m.sourceFieldLabel || m.sourceFieldId} (linked)`,
+          );
+        }
+      } else {
+        actionLines.push('Linked→target mappings: none');
+      }
+      if (a.combinationMode === 'dual') {
+        if (secondMaps.length) {
+          for (const m of secondMaps) {
+            actionLines.push(
+              `Map ${m.targetFieldLabel || m.targetFieldId} ← ${m.sourceFieldLabel || m.sourceFieldId} (2nd linked)`,
+            );
+          }
+        } else {
+          actionLines.push('Second-linked→target mappings: none');
+        }
+      }
       actionLines.push('Duplicates: skipped by default · auto-link matching XR fields');
     } else {
       if (a.crossReferenceFieldLabel || a.sourceCrossRefFieldLabel) {

@@ -467,6 +467,9 @@ export function continueWorkflowBuilderSession(params: {
     && answer !== '__skip_create_field_values__'
     && answer !== '__done_create_fields__'
     && answer !== '__map_from_trigger__'
+    && answer !== '__map_combo__'
+    && answer !== '__skip_combo_maps__'
+    && answer !== '__done_combo_maps__'
     && answer !== '__cancel_map__'
     && !answer.startsWith('__create_named__:')
     && !unanswered.options?.some((o) => o.value === answer)
@@ -481,14 +484,23 @@ export function continueWorkflowBuilderSession(params: {
         action.actionType === 'update_linked_records'
         || action.actionType === 'create_record'
         || action.actionType === 'create_linked_record'
+        || action.actionType === 'create_combination_records'
       )
       && action.targetFormId
     ) {
       lookupForm = formsCatalog.find((f) => f.id === action.targetFormId) || form;
     }
-    // Map source is always from the trigger form
+    // Map source: trigger by default; combo may use linked / second linked form
     if (unanswered.key === 'action_map_source_field') {
       lookupForm = form;
+      if (action?.actionType === 'create_combination_records') {
+        const phase = action.comboMapPhase || 'trigger';
+        if (phase === 'linked' && action.sourceLinkedFormId) {
+          lookupForm = formsCatalog.find((f) => f.id === action.sourceLinkedFormId) || form;
+        } else if (phase === 'second' && action.secondSourceLinkedFormId) {
+          lookupForm = formsCatalog.find((f) => f.id === action.secondSourceLinkedFormId) || form;
+        }
+      }
     }
     const match = searchFields(lookupForm, raw);
     if (match.matched) {
@@ -771,7 +783,22 @@ function buildAck(
     if (answer === '__redo_combo_target__' || /^pick\b/i.test(answer)) {
       return 'Okay — pick a different destination form.';
     }
-    return 'Combination action confirmed. Field mappings stay optional — you can add them later in the designer.';
+    if (answer === '__redo_combo_maps__' || /^change\b/i.test(answer)) {
+      return 'Okay — we\'ll go back and set field mappings again.';
+    }
+    return 'Combination action confirmed — including any field mappings you set.';
+  }
+  if (req.key === 'action_combo_map_menu') {
+    if (answer === '__skip_combo_maps__' || /^skip\b/i.test(answer)) {
+      return 'Okay — skipping mappings from this source.';
+    }
+    if (answer === '__done_combo_maps__' || /^done\b/i.test(answer)) {
+      return 'Got it — continuing with the mappings you set.';
+    }
+    if (answer === '__map_combo__' || /^map\b/i.test(answer)) {
+      return 'Okay — pick the destination field first, then the source field to copy from.';
+    }
+    return 'Mapping choice noted.';
   }
   if (req.key === 'action_target_form') {
     return `Destination form set to **${answer}**.`;
@@ -800,8 +827,8 @@ function buildAck(
     if (answer === '__cancel_map__' || /^cancel\b/i.test(answer)) {
       return 'Mapping cancelled.';
     }
-    if (field) return `I'll copy **${field.label}** from the trigger form into the new record.`;
-    return 'Trigger field for mapping noted.';
+    if (field) return `I'll copy **${field.label}** into the new combination record.`;
+    return 'Source field for mapping noted.';
   }
   if (req.key === 'action_value') {
     return `Action value set to **${answer}**.`;

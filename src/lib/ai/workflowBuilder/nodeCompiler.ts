@@ -396,25 +396,41 @@ function buildActionNodeConfig(
         }
       }
 
-      const mappings = (!action.skipComboMappings && !action.skipCreateFieldValues
-        ? (action.createFieldMappings || [])
-        : [])
+      const mapEntry = (m: {
+        targetFieldId?: string;
+        targetFieldLabel?: string;
+        targetFieldType?: string;
+        sourceFieldId?: string;
+        sourceFieldLabel?: string;
+        sourceFieldType?: string;
+      }, sourceFields?: DecisionFieldMeta[]) => {
+        const target = findField(createLookupFields, m.targetFieldId, m.targetFieldLabel);
+        const source = findField(sourceFields || formFields, m.sourceFieldId, m.sourceFieldLabel);
+        return {
+          sourceFieldId: m.sourceFieldId || source?.id || '',
+          sourceFieldName: source?.label || m.sourceFieldLabel || '',
+          sourceFieldType: source?.type || m.sourceFieldType || '',
+          targetFieldId: m.targetFieldId || target?.id || '',
+          targetFieldName: target?.label || m.targetFieldLabel || '',
+          targetFieldType: target?.type || m.targetFieldType || '',
+        };
+      };
+
+      const mappings = (action.createFieldMappings || [])
         .filter((m) => (m.targetFieldId || m.targetFieldLabel) && (m.sourceFieldId || m.sourceFieldLabel))
-        .map((m) => {
-          const target = findField(createLookupFields, m.targetFieldId, m.targetFieldLabel);
-          const source = findField(formFields, m.sourceFieldId, m.sourceFieldLabel);
-          return {
-            sourceFieldId: m.sourceFieldId || source?.id || '',
-            sourceFieldName: source?.label || m.sourceFieldLabel || '',
-            sourceFieldType: source?.type || m.sourceFieldType || '',
-            targetFieldId: m.targetFieldId || target?.id || '',
-            targetFieldName: target?.label || m.targetFieldLabel || '',
-            targetFieldType: target?.type || m.targetFieldType || '',
-          };
-        })
+        .map((m) => mapEntry(m, formFields))
         .filter((m) => m.sourceFieldId && m.targetFieldId);
 
-      // Both mapping sections are optional — empty arrays are valid designer config
+      const linkedMappings = (action.linkedFormFieldMappings || [])
+        .filter((m) => (m.targetFieldId || m.targetFieldLabel) && (m.sourceFieldId || m.sourceFieldLabel))
+        .map((m) => mapEntry(m))
+        .filter((m) => m.sourceFieldId && m.targetFieldId);
+
+      const secondLinkedMappings = (action.secondLinkedFormFieldMappings || [])
+        .filter((m) => (m.targetFieldId || m.targetFieldLabel) && (m.sourceFieldId || m.sourceFieldLabel))
+        .map((m) => mapEntry(m))
+        .filter((m) => m.sourceFieldId && m.targetFieldId);
+
       return {
         ...base,
         combinationMode: mode,
@@ -433,8 +449,8 @@ function buildActionNodeConfig(
         initialStatus: 'pending',
         preventDuplicates: true,
         fieldMappings: mode === 'single' ? mappings : [],
-        linkedFormFieldMappings: [],
-        secondLinkedFormFieldMappings: [],
+        linkedFormFieldMappings: linkedMappings,
+        secondLinkedFormFieldMappings: mode === 'dual' ? secondLinkedMappings : [],
       };
     }
     case 'send_notification':
