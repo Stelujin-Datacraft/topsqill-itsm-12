@@ -771,7 +771,7 @@ function buildAck(
     if (answer === '__redo_combo_target__' || /^pick\b/i.test(answer)) {
       return 'Okay — pick a different destination form.';
     }
-    return 'Combination action confirmed.';
+    return 'Combination action confirmed. Field mappings stay optional — you can add them later in the designer.';
   }
   if (req.key === 'action_target_form') {
     return `Destination form set to **${answer}**.`;

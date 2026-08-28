@@ -396,7 +396,9 @@ function buildActionNodeConfig(
         }
       }
 
-      const mappings = (!action.skipCreateFieldValues ? (action.createFieldMappings || []) : [])
+      const mappings = (!action.skipComboMappings && !action.skipCreateFieldValues
+        ? (action.createFieldMappings || [])
+        : [])
         .filter((m) => (m.targetFieldId || m.targetFieldLabel) && (m.sourceFieldId || m.sourceFieldLabel))
         .map((m) => {
           const target = findField(createLookupFields, m.targetFieldId, m.targetFieldLabel);
@@ -412,6 +414,7 @@ function buildActionNodeConfig(
         })
         .filter((m) => m.sourceFieldId && m.targetFieldId);
 
+      // Both mapping sections are optional — empty arrays are valid designer config
       return {
         ...base,
         combinationMode: mode,
