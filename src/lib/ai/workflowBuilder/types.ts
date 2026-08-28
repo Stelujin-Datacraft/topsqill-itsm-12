@@ -139,14 +139,25 @@ export interface WorkflowActionSpec {
   updateScope?: 'all' | 'first' | 'last';
   combinationMode?: 'single' | 'dual';
   /**
-   * Combination: user confirmed the XR + destination form summary.
-   * Trigger→target and linked→target field mappings are optional and left empty
-   * unless the user configures them later in the designer.
+   * Combination: user confirmed the XR + destination + mappings summary
+   * before the workflow is created.
    */
   comboConfirmDone?: boolean;
   /**
-   * Combination: leave both mapping sections empty (designer sections 5 & 6).
-   * Always true for AI Suggest — mappings are optional.
+   * Combination mapping phase in AI Suggest:
+   * - trigger: map trigger form → destination (single mode only, designer §5)
+   * - linked: map first linked form → destination (designer §6)
+   * - second: map second linked form → destination (dual, designer §7)
+   */
+  comboMapPhase?: 'trigger' | 'linked' | 'second';
+  /** Finished (or skipped) trigger→destination mappings */
+  comboTriggerMapsDone?: boolean;
+  /** Finished (or skipped) linked→destination mappings */
+  comboLinkedMapsDone?: boolean;
+  /** Finished (or skipped) second-linked→destination mappings (dual) */
+  comboSecondLinkedMapsDone?: boolean;
+  /**
+   * @deprecated Prefer per-phase done flags. Kept for older sessions.
    */
   skipComboMappings?: boolean;
   /**
@@ -157,8 +168,12 @@ export interface WorkflowActionSpec {
   skipCreateFieldValues?: boolean;
   /** Completed static field/value pairs for create_* and update_linked actions */
   createFieldValues?: WorkflowCreateFieldValue[];
-  /** Completed trigger→target field mappings for create_* and update_linked actions */
+  /** Completed trigger→target field mappings (create_* / update_linked / combo §5) */
   createFieldMappings?: WorkflowCreateFieldMapping[];
+  /** Combination: linked-form → destination field mappings (designer §6) */
+  linkedFormFieldMappings?: WorkflowCreateFieldMapping[];
+  /** Combination dual: second linked-form → destination mappings (designer §7) */
+  secondLinkedFormFieldMappings?: WorkflowCreateFieldMapping[];
   /** User finished adding create/update field values / mappings */
   createFieldsDone?: boolean;
   /**

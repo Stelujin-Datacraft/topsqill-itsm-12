@@ -143,11 +143,22 @@ function actionConfigured(action: WorkflowActionSpec | null | undefined): boolea
       );
       const dualOk = action.combinationMode !== 'dual'
         || Boolean(action.secondSourceCrossRefFieldId || action.secondSourceCrossRefFieldLabel);
+      const triggerMapsOk = action.combinationMode === 'dual'
+        || action.comboTriggerMapsDone === true
+        || action.skipComboMappings === true;
+      const linkedMapsOk = action.comboLinkedMapsDone === true
+        || action.skipComboMappings === true;
+      const secondMapsOk = action.combinationMode !== 'dual'
+        || action.comboSecondLinkedMapsDone === true
+        || action.skipComboMappings === true;
       return hasSource
         && hasLinked
         && hasTarget
         && targetDistinct
         && dualOk
+        && triggerMapsOk
+        && linkedMapsOk
+        && secondMapsOk
         && action.comboConfirmDone === true;
     }
     case 'send_notification':
@@ -507,9 +518,249 @@ function planGenericActionRequirements(
       }
     }
 
+    // ── Field mappings (ask before confirm / create) ─────────────────────
+    // Designer: §5 trigger→target (single), §6 linked→target, §7 second (dual)
+    if (!action.createFieldMappings) action.createFieldMappings = [];
+    if (!action.linkedFormFieldMappings) action.linkedFormFieldMappings = [];
+    if (!action.secondLinkedFormFieldMappings) action.secondLinkedFormFieldMappings = [];
+
+    const destForm = action.targetFormId
+      ? hydratedCatalog.find((f) => f.id === action.targetFormId)
+      : undefined;
+    const linkedSrcForm = action.sourceLinkedFormId
+      ? hydratedCatalog.find((f) => f.id === action.sourceLinkedFormId)
+      : undefined;
+    const secondSrcForm = action.secondSourceLinkedFormId
+      ? hydratedCatalog.find((f) => f.id === action.secondSourceLinkedFormId)
+      : undefined;
+
+    const clearComboMapDraft = () => {
+      action.createDraftKind = undefined;
+      action.createMapTargetFieldId = undefined;
+      action.createMapTargetFieldLabel = undefined;
+      action.createMapTargetFieldType = undefined;
+      action.createMapSourceFieldId = undefined;
+      action.createMapSourceFieldLabel = undefined;
+      action.createMapSourceFieldType = undefined;
+    };
+
+    const commitComboMapDraft = () => {
+      if (
+        !(action.createMapTargetFieldId || action.createMapTargetFieldLabel)
+        || !(action.createMapSourceFieldId || action.createMapSourceFieldLabel)
+      ) return;
+      const entry = {
+        targetFieldId: action.createMapTargetFieldId,
+        targetFieldLabel: action.createMapTargetFieldLabel,
+        targetFieldType: action.createMapTargetFieldType,
+        sourceFieldId: action.createMapSourceFieldId,
+        sourceFieldLabel: action.createMapSourceFieldLabel,
+        sourceFieldType: action.createMapSourceFieldType,
+      };
+      const phase = action.comboMapPhase || 'trigger';
+      if (phase === 'linked') {
+        action.linkedFormFieldMappings = action.linkedFormFieldMappings || [];
+        action.linkedFormFieldMappings.push(entry);
+      } else if (phase === 'second') {
+        action.secondLinkedFormFieldMappings = action.secondLinkedFormFieldMappings || [];
+        action.secondLinkedFormFieldMappings.push(entry);
+      } else {
+        action.createFieldMappings = action.createFieldMappings || [];
+        action.createFieldMappings.push(entry);
+      }
+      clearComboMapDraft();
+    };
+
+    // Resolve which mapping phase to run next
+    if (action.skipComboMappings) {
+      action.comboTriggerMapsDone = true;
+      action.comboLinkedMapsDone = true;
+      action.comboSecondLinkedMapsDone = true;
+    } else {
+      if (action.combinationMode === 'dual') {
+        action.comboTriggerMapsDone = true; // designer hides §5 in dual
+      }
+      if (!action.comboTriggerMapsDone) {
+        action.comboMapPhase = 'trigger';
+      } else if (!action.comboLinkedMapsDone) {
+        action.comboMapPhase = 'linked';
+      } else if (action.combinationMode === 'dual' && !action.comboSecondLinkedMapsDone) {
+        action.comboMapPhase = 'second';
+      } else {
+        action.comboMapPhase = undefined;
+      }
+    }
+
+    const mapsStillNeeded = Boolean(action.comboMapPhase)
+      && !action.skipComboMappings;
+
+    if (mapsStillNeeded && action.comboMapPhase) {
+      const phase = action.comboMapPhase;
+      const phaseList = phase === 'linked'
+        ? (action.linkedFormFieldMappings || [])
+        : phase === 'second'
+          ? (action.secondLinkedFormFieldMappings || [])
+          : (action.createFieldMappings || []);
+      const sourceForm = phase === 'linked'
+        ? linkedSrcForm
+        : phase === 'second'
+          ? secondSrcForm
+          : hydratedForm;
+      const sourceFormName = phase === 'linked'
+        ? (action.sourceLinkedFormName || 'linked form')
+        : phase === 'second'
+          ? (action.secondSourceLinkedFormName || 'second linked form')
+          : (hydratedForm?.name || 'trigger form');
+      const destName = action.targetFormName || 'destination form';
+      const phaseTitle = phase === 'linked'
+        ? `Map fields from **${sourceFormName}** → **${destName}** (linked → new record)`
+        : phase === 'second'
+          ? `Map fields from **${sourceFormName}** → **${destName}** (second linked → new record)`
+          : `Map fields from **${sourceFormName}** → **${destName}** (trigger → new record)`;
+
+      const usedTargetIds = new Set(
+        phaseList.map((x) => x.targetFieldId).filter(Boolean) as string[],
+      );
+      const availableTargetFields = fieldChoices(destForm).filter((f) => !usedTargetIds.has(f.value));
+      const sourceFields = (sourceForm?.fields || []).filter((f) => isWorkflowValueField(f.type));
+
+      // Draft: pick destination field
+      if (
+        action.createDraftKind === 'map'
+        && !action.createMapTargetFieldId
+        && !action.createMapTargetFieldLabel
+      ) {
+        push(req({
+          id: `action.combo_map_target_${phase}_${phaseList.length}`,
+          scope: 'workflow',
+          key: 'action_map_target_field',
+          question: [
+            `Which **field on ${destName}** should receive a value from **${sourceFormName}**?`,
+            '',
+            'Next you will pick a compatible source field to map from.',
+          ].join('\n'),
+          inputKind: 'field_select',
+          options: [
+            { value: '__cancel_map__', label: 'Cancel mapping — go back' },
+            ...availableTargetFields,
+          ],
+        }));
+        return mergeUnansweredFirst(out);
+      }
+
+      // Draft: pick source field
+      if (
+        action.createDraftKind === 'map'
+        && (action.createMapTargetFieldId || action.createMapTargetFieldLabel)
+        && !action.createMapSourceFieldId
+        && !action.createMapSourceFieldLabel
+      ) {
+        const targetType = action.createMapTargetFieldType || 'text';
+        const compatible = filterCompatibleFields(sourceFields, targetType)
+          .filter((f) => f.id !== action.createMapTargetFieldId);
+        const sourceOpts = compatible.map((f) => ({
+          value: f.id,
+          label: `${f.label} (${f.type})`,
+        }));
+        if (!sourceOpts.length) {
+          push(req({
+            id: `action.combo_map_source_none_${phase}_${phaseList.length}`,
+            scope: 'workflow',
+            key: 'action_map_source_field',
+            question: [
+              `No **compatible** fields on **${sourceFormName}** can map to **${action.createMapTargetFieldLabel || 'that field'}** (${targetType}).`,
+              '',
+              'Cancel this mapping and pick a different target field.',
+            ].join('\n'),
+            inputKind: 'choice',
+            options: [
+              { value: '__cancel_map__', label: 'Cancel mapping' },
+            ],
+          }));
+          return mergeUnansweredFirst(out);
+        }
+        push(req({
+          id: `action.combo_map_source_${phase}_${phaseList.length}`,
+          scope: 'workflow',
+          key: 'action_map_source_field',
+          question: [
+            `Map **which field on ${sourceFormName}** → **${action.createMapTargetFieldLabel}** on **${destName}**?`,
+            '',
+            `Only fields compatible with type **${targetType}** are shown.`,
+          ].join('\n'),
+          inputKind: 'field_select',
+          options: [
+            { value: '__cancel_map__', label: 'Cancel mapping' },
+            ...sourceOpts,
+          ],
+        }));
+        return mergeUnansweredFirst(out);
+      }
+
+      // Draft complete → commit
+      if (
+        action.createDraftKind === 'map'
+        && (action.createMapTargetFieldId || action.createMapTargetFieldLabel)
+        && (action.createMapSourceFieldId || action.createMapSourceFieldLabel)
+      ) {
+        if (
+          action.createMapSourceFieldType
+          && action.createMapTargetFieldType
+          && !areTypesCompatible(action.createMapSourceFieldType, action.createMapTargetFieldType)
+        ) {
+          action.createMapSourceFieldId = undefined;
+          action.createMapSourceFieldLabel = undefined;
+          action.createMapSourceFieldType = undefined;
+          // Re-ask source on next plan pass
+          return mergeUnansweredFirst(out);
+        }
+        commitComboMapDraft();
+      }
+
+      // Still mid-draft (should have returned above) — do not skip to confirm
+      if (action.createDraftKind === 'map') {
+        return mergeUnansweredFirst(out);
+      }
+
+      // Menu: add map / done / skip
+      {
+        const mapCount = phaseList.length;
+        const mapSummary = mapCount
+          ? phaseList.map((m) => `**${m.targetFieldLabel}**←${m.sourceFieldLabel}`).join(', ')
+          : '';
+        push(req({
+          id: `action.combo_map_menu_${phase}_${mapCount}`,
+          scope: 'workflow',
+          key: 'action_combo_map_menu',
+          question: [
+            phaseTitle,
+            mapSummary ? `Mapped so far: ${mapSummary}` : 'No mappings yet for this source.',
+            '',
+            mapCount
+              ? 'Add another mapping, or **Done** to continue.'
+              : 'Mappings copy values onto each new combination record. You can **Skip** if none are needed.',
+          ].filter(Boolean).join('\n'),
+          inputKind: 'choice',
+          options: [
+            ...(mapCount
+              ? [{ value: '__done_combo_maps__', label: 'Done — continue' }]
+              : [{ value: '__skip_combo_maps__', label: 'Skip — no mappings from this source' }]),
+            { value: '__map_combo__', label: `Map a field from ${sourceFormName}` },
+          ],
+        }));
+        return mergeUnansweredFirst(out);
+      }
+    }
+
     if (!action.comboConfirmDone) {
       const modeLabel = action.combinationMode === 'dual' ? 'Dual (cross-ref × cross-ref)' : 'Single (trigger × one cross-ref)';
-      const lines = [
+      const triggerMaps = action.createFieldMappings || [];
+      const linkedMaps = action.linkedFormFieldMappings || [];
+      const secondMaps = action.secondLinkedFormFieldMappings || [];
+      const fmtMaps = (list: typeof triggerMaps, from: string) => (list.length
+        ? list.map((m) => `· ${from}: **${m.sourceFieldLabel}** → **${m.targetFieldLabel}**`).join('\n')
+        : `· ${from}: _(none)_`);
+      const cleanLines = [
         `Mode: **${modeLabel}**`,
         `Source cross-ref: **${action.sourceCrossRefFieldLabel || action.sourceCrossRefFieldId}**`,
         action.sourceLinkedFormName ? `Source linked form: **${action.sourceLinkedFormName}**` : null,
@@ -518,25 +769,32 @@ function planGenericActionRequirements(
           : null,
         `Create records on: **${action.targetFormName || action.targetFormId}**`,
         '',
-        'Field mappings from the trigger form and from the linked form are **optional** — none will be set now (you can add them later in the designer).',
-        'Auto-link matching cross-ref fields on the target form and skip duplicates by default. Continue?',
+        '**Field mappings:**',
+        action.combinationMode !== 'dual'
+          ? fmtMaps(triggerMaps, hydratedForm?.name || 'Trigger form')
+          : null,
+        fmtMaps(linkedMaps, action.sourceLinkedFormName || 'Linked form'),
+        action.combinationMode === 'dual'
+          ? fmtMaps(secondMaps, action.secondSourceLinkedFormName || 'Second linked')
+          : null,
+        '',
+        'Auto-link matching cross-ref fields on the target form and skip duplicates by default. Create this combination action?',
       ].filter(Boolean) as string[];
       push(req({
         id: 'action.combo_confirm',
         scope: 'workflow',
         key: 'action_combo_confirm',
-        question: lines.join('\n'),
+        question: cleanLines.join('\n'),
         inputKind: 'confirm',
         options: [
           { value: '__confirm_combo__', label: 'Yes, create this combination action' },
           { value: '__redo_combo_target__', label: 'Pick a different destination form' },
+          { value: '__redo_combo_maps__', label: 'Change field mappings' },
         ],
       }));
       return mergeUnansweredFirst(out);
     }
 
-    // Mappings are always optional — never ask; leave empty for designer
-    action.skipComboMappings = true;
     action.configured = actionConfigured(action);
     return mergeUnansweredFirst(out);
   }
@@ -1594,6 +1852,14 @@ export function applyAnswerToDefinition(
         }
       }
       next.action.comboConfirmDone = false;
+      next.action.comboTriggerMapsDone = undefined;
+      next.action.comboLinkedMapsDone = undefined;
+      next.action.comboSecondLinkedMapsDone = undefined;
+      next.action.comboMapPhase = undefined;
+      next.action.skipComboMappings = undefined;
+      next.action.createFieldMappings = [];
+      next.action.linkedFormFieldMappings = [];
+      next.action.secondLinkedFormFieldMappings = [];
     } else if (target.targetFormId) {
       next.action.targetFormId = target.targetFormId;
       next.action.targetFormName = target.targetFormName;
@@ -1614,6 +1880,14 @@ export function applyAnswerToDefinition(
       next.action.secondSourceLinkedFormName = target.targetFormName;
     }
     next.action.comboConfirmDone = false;
+    next.action.comboTriggerMapsDone = undefined;
+    next.action.comboLinkedMapsDone = undefined;
+    next.action.comboSecondLinkedMapsDone = undefined;
+    next.action.comboMapPhase = undefined;
+    next.action.skipComboMappings = undefined;
+    next.action.createFieldMappings = [];
+    next.action.linkedFormFieldMappings = [];
+    next.action.secondLinkedFormFieldMappings = [];
     return next;
   }
 
@@ -1624,8 +1898,14 @@ export function applyAnswerToDefinition(
       next.action.secondSourceCrossRefFieldLabel = undefined;
       next.action.secondSourceLinkedFormId = undefined;
       next.action.secondSourceLinkedFormName = undefined;
+      next.action.secondLinkedFormFieldMappings = [];
+      next.action.comboSecondLinkedMapsDone = undefined;
     }
     next.action.comboConfirmDone = false;
+    next.action.comboTriggerMapsDone = undefined;
+    next.action.comboLinkedMapsDone = undefined;
+    next.action.comboMapPhase = undefined;
+    next.action.skipComboMappings = undefined;
     return next;
   }
 
@@ -1634,14 +1914,85 @@ export function applyAnswerToDefinition(
       next.action.targetFormId = undefined;
       next.action.targetFormName = undefined;
       next.action.comboConfirmDone = false;
+      next.action.comboTriggerMapsDone = undefined;
+      next.action.comboLinkedMapsDone = undefined;
+      next.action.comboSecondLinkedMapsDone = undefined;
+      next.action.comboMapPhase = undefined;
+      next.action.skipComboMappings = undefined;
+      next.action.createFieldMappings = [];
+      next.action.linkedFormFieldMappings = [];
+      next.action.secondLinkedFormFieldMappings = [];
+      next.action.createDraftKind = undefined;
+      return next;
+    }
+    if (value === '__redo_combo_maps__' || /^change\b/i.test(value)) {
+      next.action.comboConfirmDone = false;
+      next.action.comboTriggerMapsDone = undefined;
+      next.action.comboLinkedMapsDone = undefined;
+      next.action.comboSecondLinkedMapsDone = undefined;
+      next.action.comboMapPhase = undefined;
+      next.action.skipComboMappings = undefined;
+      next.action.createFieldMappings = [];
+      next.action.linkedFormFieldMappings = [];
+      next.action.secondLinkedFormFieldMappings = [];
+      next.action.createDraftKind = undefined;
+      next.action.createMapTargetFieldId = undefined;
+      next.action.createMapTargetFieldLabel = undefined;
+      next.action.createMapTargetFieldType = undefined;
+      next.action.createMapSourceFieldId = undefined;
+      next.action.createMapSourceFieldLabel = undefined;
+      next.action.createMapSourceFieldType = undefined;
       return next;
     }
     next.action.comboConfirmDone = true;
-    next.action.skipComboMappings = true;
-    // Optional designer sections — leave empty (trigger→target and linked→target)
-    next.action.createFieldMappings = [];
-    next.action.createFieldValues = [];
     next.action.configured = actionConfigured(next.action);
+    return next;
+  }
+
+  if (requirement.key === 'action_combo_map_menu' && next.action) {
+    const clearDraft = () => {
+      next.action!.createDraftKind = undefined;
+      next.action!.createMapTargetFieldId = undefined;
+      next.action!.createMapTargetFieldLabel = undefined;
+      next.action!.createMapTargetFieldType = undefined;
+      next.action!.createMapSourceFieldId = undefined;
+      next.action!.createMapSourceFieldLabel = undefined;
+      next.action!.createMapSourceFieldType = undefined;
+    };
+    const finishPhase = () => {
+      clearDraft();
+      const phase = next.action!.comboMapPhase || 'trigger';
+      if (phase === 'trigger') {
+        next.action!.comboTriggerMapsDone = true;
+        next.action!.comboMapPhase = 'linked';
+      } else if (phase === 'linked') {
+        next.action!.comboLinkedMapsDone = true;
+        next.action!.comboMapPhase = next.action!.combinationMode === 'dual' ? 'second' : undefined;
+      } else {
+        next.action!.comboSecondLinkedMapsDone = true;
+        next.action!.comboMapPhase = undefined;
+      }
+      next.action!.comboConfirmDone = false;
+    };
+    if (value === '__map_combo__' || /^map\b/i.test(value)) {
+      next.action.skipComboMappings = false;
+      next.action.createDraftKind = 'map';
+      next.action.createMapTargetFieldId = undefined;
+      next.action.createMapTargetFieldLabel = undefined;
+      next.action.createMapTargetFieldType = undefined;
+      next.action.createMapSourceFieldId = undefined;
+      next.action.createMapSourceFieldLabel = undefined;
+      next.action.createMapSourceFieldType = undefined;
+      return next;
+    }
+    if (value === '__skip_combo_maps__' || /^skip\b/i.test(value)) {
+      finishPhase();
+      return next;
+    }
+    if (value === '__done_combo_maps__' || /^done\b/i.test(value)) {
+      finishPhase();
+      return next;
+    }
     return next;
   }
 
@@ -1654,6 +2005,14 @@ export function applyAnswerToDefinition(
     if (next.action.actionType === 'create_combination_records') {
       // Do not overwrite sourceLinkedFormId — destination is independent
       next.action.comboConfirmDone = false;
+      next.action.comboTriggerMapsDone = undefined;
+      next.action.comboLinkedMapsDone = undefined;
+      next.action.comboSecondLinkedMapsDone = undefined;
+      next.action.comboMapPhase = undefined;
+      next.action.skipComboMappings = undefined;
+      next.action.createFieldMappings = [];
+      next.action.linkedFormFieldMappings = [];
+      next.action.secondLinkedFormFieldMappings = [];
     } else {
       next.action.sourceLinkedFormId = next.action.sourceLinkedFormId || next.action.targetFormId;
       next.action.sourceLinkedFormName = next.action.sourceLinkedFormName || next.action.targetFormName;
@@ -1787,6 +2146,7 @@ export function applyAnswerToDefinition(
       next.action.createMapSourceFieldType = undefined;
       return next;
     }
+    const isCombo = next.action.actionType === 'create_combination_records';
     const linkedForm = next.action.targetFormId
       ? formsCatalog.find((f) => f.id === next.action!.targetFormId)
       : undefined;
@@ -1800,9 +2160,11 @@ export function applyAnswerToDefinition(
     const childForm = isLinked
       ? (resolveCrossRefChildForm(xrField, formsCatalog, next.action.targetFormId) || linkedForm)
       : linkedForm;
-    // Map target is always on the destination form; linked → child only
-    const fieldSource = isLinked ? childForm : (childForm || form);
-    if (isLinked && !fieldSource) {
+    // Combo + create_record: map target is on the destination form
+    const fieldSource = isCombo
+      ? (linkedForm || formsCatalog.find((f) => f.id === next.action!.targetFormId))
+      : (isLinked ? childForm : (childForm || form));
+    if ((isLinked || isCombo) && !fieldSource) {
       return next;
     }
     const field = fieldSource?.fields.find((f) => f.id === value)
@@ -1828,8 +2190,18 @@ export function applyAnswerToDefinition(
       next.action.createMapSourceFieldType = undefined;
       return next;
     }
-    const field = form?.fields.find((f) => f.id === value)
-      || searchFields(form, value).matched;
+    const isCombo = next.action.actionType === 'create_combination_records';
+    let sourceForm = form;
+    if (isCombo) {
+      const phase = next.action.comboMapPhase || 'trigger';
+      if (phase === 'linked' && next.action.sourceLinkedFormId) {
+        sourceForm = formsCatalog.find((f) => f.id === next.action!.sourceLinkedFormId) || form;
+      } else if (phase === 'second' && next.action.secondSourceLinkedFormId) {
+        sourceForm = formsCatalog.find((f) => f.id === next.action!.secondSourceLinkedFormId) || form;
+      }
+    }
+    const field = sourceForm?.fields.find((f) => f.id === value)
+      || searchFields(sourceForm, value).matched;
     const sourceType = field?.type || '';
     const targetType = next.action.createMapTargetFieldType || '';
     if (sourceType && targetType && !areTypesCompatible(sourceType, targetType)) {
@@ -1848,15 +2220,24 @@ export function applyAnswerToDefinition(
       (next.action.createMapTargetFieldId || next.action.createMapTargetFieldLabel)
       && (next.action.createMapSourceFieldId || next.action.createMapSourceFieldLabel)
     ) {
-      next.action.createFieldMappings = next.action.createFieldMappings || [];
-      next.action.createFieldMappings.push({
+      const entry = {
         targetFieldId: next.action.createMapTargetFieldId,
         targetFieldLabel: next.action.createMapTargetFieldLabel,
         targetFieldType: next.action.createMapTargetFieldType,
         sourceFieldId: next.action.createMapSourceFieldId,
         sourceFieldLabel: next.action.createMapSourceFieldLabel,
         sourceFieldType: next.action.createMapSourceFieldType,
-      });
+      };
+      if (isCombo && next.action.comboMapPhase === 'linked') {
+        next.action.linkedFormFieldMappings = next.action.linkedFormFieldMappings || [];
+        next.action.linkedFormFieldMappings.push(entry);
+      } else if (isCombo && next.action.comboMapPhase === 'second') {
+        next.action.secondLinkedFormFieldMappings = next.action.secondLinkedFormFieldMappings || [];
+        next.action.secondLinkedFormFieldMappings.push(entry);
+      } else {
+        next.action.createFieldMappings = next.action.createFieldMappings || [];
+        next.action.createFieldMappings.push(entry);
+      }
       next.action.createDraftKind = undefined;
       next.action.createMapTargetFieldId = undefined;
       next.action.createMapTargetFieldLabel = undefined;
