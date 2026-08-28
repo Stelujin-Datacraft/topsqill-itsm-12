@@ -140,10 +140,14 @@ export interface WorkflowActionSpec {
   combinationMode?: 'single' | 'dual';
   /**
    * Combination: user confirmed the XR + destination form summary.
-   * (Mappings / auto-link fields are compiled with sensible defaults.)
+   * Trigger→target and linked→target field mappings are optional and left empty
+   * unless the user configures them later in the designer.
    */
   comboConfirmDone?: boolean;
-  /** Combination: skip optional mapping customization (defaults only). */
+  /**
+   * Combination: leave both mapping sections empty (designer sections 5 & 6).
+   * Always true for AI Suggest — mappings are optional.
+   */
   skipComboMappings?: boolean;
   /**
    * For create_record / create_linked_record / update_linked_records:

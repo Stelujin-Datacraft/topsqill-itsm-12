@@ -518,6 +518,7 @@ function planGenericActionRequirements(
           : null,
         `Create records on: **${action.targetFormName || action.targetFormId}**`,
         '',
+        'Field mappings from the trigger form and from the linked form are **optional** — none will be set now (you can add them later in the designer).',
         'Auto-link matching cross-ref fields on the target form and skip duplicates by default. Continue?',
       ].filter(Boolean) as string[];
       push(req({
@@ -534,6 +535,8 @@ function planGenericActionRequirements(
       return mergeUnansweredFirst(out);
     }
 
+    // Mappings are always optional — never ask; leave empty for designer
+    action.skipComboMappings = true;
     action.configured = actionConfigured(action);
     return mergeUnansweredFirst(out);
   }
@@ -1635,6 +1638,9 @@ export function applyAnswerToDefinition(
     }
     next.action.comboConfirmDone = true;
     next.action.skipComboMappings = true;
+    // Optional designer sections — leave empty (trigger→target and linked→target)
+    next.action.createFieldMappings = [];
+    next.action.createFieldValues = [];
     next.action.configured = actionConfigured(next.action);
     return next;
   }

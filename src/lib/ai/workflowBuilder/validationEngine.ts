@@ -181,6 +181,7 @@ export function validateWorkflowDefinition(
             message: 'Confirm the combination action summary before publishing.',
           });
         }
+        // fieldMappings / linkedFormFieldMappings / secondLinkedFormFieldMappings are optional
         break;
       }
       default:

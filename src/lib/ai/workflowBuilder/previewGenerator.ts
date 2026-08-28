@@ -65,6 +65,7 @@ export function generateWorkflowPreview(
       if (a.targetFormName || a.targetFormId) {
         actionLines.push(`Create records on: ${a.targetFormName || a.targetFormId}`);
       }
+      actionLines.push('Field mappings: optional (none set — edit in designer if needed)');
       actionLines.push('Duplicates: skipped by default · auto-link matching XR fields');
     } else {
       if (a.crossReferenceFieldLabel || a.sourceCrossRefFieldLabel) {
