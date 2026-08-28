@@ -74,6 +74,22 @@ export function extractCreateTargetFormHint(prompt: string): string | undefined 
   return undefined;
 }
 
+/** Detect dual/cartesian combination mode from the prompt. */
+export function inferCombinationModeFromPrompt(prompt: string): 'single' | 'dual' {
+  const t = String(prompt || '').toLowerCase().replace(/\s+/g, ' ').trim();
+  if (
+    /\bdual\b/.test(t)
+    || /\bcartesian\b/.test(t)
+    || /\btwo\s+cross[- ]?ref/.test(t)
+    || /\b2\s+cross[- ]?ref/.test(t)
+    || /\bcross[- ]?ref.+\bcross[- ]?ref/.test(t)
+    || /\bcombin(?:e|ation).+\b(?:and|with)\b.+\bcross[- ]?ref/.test(t)
+  ) {
+    return 'dual';
+  }
+  return 'single';
+}
+
 export function fieldMatchesHint(
   field: { id?: string; label?: string } | undefined,
   hint?: string,

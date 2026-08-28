@@ -331,19 +331,109 @@ function buildActionNodeConfig(
         fieldValues: values,
       };
     }
-    case 'create_combination_records':
+    case 'create_combination_records': {
+      const sourceXrId = action.sourceCrossRefFieldId || action.crossReferenceFieldId || '';
+      const sourceXrName = action.sourceCrossRefFieldLabel || action.crossReferenceFieldLabel || '';
+      const sourceLinkedId = action.sourceLinkedFormId || '';
+      const sourceLinkedName = action.sourceLinkedFormName || '';
+      const targetId = action.targetFormId || '';
+      const targetName = action.targetFormName || '';
+      const mode = action.combinationMode || 'single';
+
+      // Auto-link: XR fields on the destination form that point at the source linked form
+      // or the trigger form.
+      const targetLinkFields: Array<{
+        targetFieldId: string;
+        targetFieldName?: string;
+        linkTo: 'first_source' | 'second_source';
+        linkedFormId?: string;
+        linkedFormName?: string;
+      }> = [];
+      const linkFields = createLookupFields || [];
+      for (const f of linkFields) {
+        const t = String(f.type || '').toLowerCase();
+        if (t !== 'cross-reference' && t !== 'child-cross-reference') continue;
+        let cfg: Record<string, any> = {};
+        const raw = (f as any).custom_config;
+        if (typeof raw === 'string') {
+          try { cfg = JSON.parse(raw) || {}; } catch { cfg = {}; }
+        } else if (raw && typeof raw === 'object') {
+          cfg = raw;
+        }
+        const nested = cfg.crossRefConfig || cfg.cross_ref_config || cfg;
+        const pointsTo = String(
+          nested?.targetFormId || nested?.target_form_id || cfg.targetFormId || cfg.target_form_id || '',
+        ).trim();
+        if (sourceLinkedId && pointsTo === sourceLinkedId) {
+          targetLinkFields.push({
+            targetFieldId: f.id,
+            targetFieldName: f.label,
+            linkTo: 'first_source',
+            linkedFormId: sourceLinkedId,
+            linkedFormName: sourceLinkedName,
+          });
+        } else if (formId && pointsTo === formId) {
+          // Prefer linking back to trigger when XR points at trigger form
+          targetLinkFields.push({
+            targetFieldId: f.id,
+            targetFieldName: f.label,
+            linkTo: 'first_source',
+            linkedFormId: formId,
+            linkedFormName: formName,
+          });
+        } else if (
+          mode === 'dual'
+          && action.secondSourceLinkedFormId
+          && pointsTo === action.secondSourceLinkedFormId
+        ) {
+          targetLinkFields.push({
+            targetFieldId: f.id,
+            targetFieldName: f.label,
+            linkTo: 'second_source',
+            linkedFormId: action.secondSourceLinkedFormId,
+            linkedFormName: action.secondSourceLinkedFormName,
+          });
+        }
+      }
+
+      const mappings = (!action.skipCreateFieldValues ? (action.createFieldMappings || []) : [])
+        .filter((m) => (m.targetFieldId || m.targetFieldLabel) && (m.sourceFieldId || m.sourceFieldLabel))
+        .map((m) => {
+          const target = findField(createLookupFields, m.targetFieldId, m.targetFieldLabel);
+          const source = findField(formFields, m.sourceFieldId, m.sourceFieldLabel);
+          return {
+            sourceFieldId: m.sourceFieldId || source?.id || '',
+            sourceFieldName: source?.label || m.sourceFieldLabel || '',
+            sourceFieldType: source?.type || m.sourceFieldType || '',
+            targetFieldId: m.targetFieldId || target?.id || '',
+            targetFieldName: target?.label || m.targetFieldLabel || '',
+            targetFieldType: target?.type || m.targetFieldType || '',
+          };
+        })
+        .filter((m) => m.sourceFieldId && m.targetFieldId);
+
       return {
         ...base,
-        combinationMode: action.combinationMode || 'single',
-        sourceCrossRefFieldId: action.sourceCrossRefFieldId || action.crossReferenceFieldId,
-        sourceCrossRefFieldName: action.sourceCrossRefFieldLabel || action.crossReferenceFieldLabel,
-        sourceLinkedFormId: action.sourceLinkedFormId || action.targetFormId,
-        sourceLinkedFormName: action.sourceLinkedFormName || action.targetFormName,
+        combinationMode: mode,
+        sourceCrossRefFieldId: sourceXrId,
+        sourceCrossRefFieldName: sourceXrName,
+        sourceLinkedFormId: sourceLinkedId,
+        sourceLinkedFormName: sourceLinkedName,
         secondSourceCrossRefFieldId: action.secondSourceCrossRefFieldId,
         secondSourceCrossRefFieldName: action.secondSourceCrossRefFieldLabel,
+        secondSourceLinkedFormId: action.secondSourceLinkedFormId,
+        secondSourceLinkedFormName: action.secondSourceLinkedFormName,
+        targetFormId: targetId,
+        targetFormName: targetName,
+        targetLinkFields,
         setSubmittedBy: 'trigger_submitter',
-        fieldMappings: [],
+        initialStatus: 'pending',
+        preventDuplicates: true,
+        fieldMappings: mode === 'single' ? mappings : [],
+        linkedFormFieldMappings: [],
+        secondLinkedFormFieldMappings: [],
       };
+    }
     case 'send_notification':
       return {
         ...base,

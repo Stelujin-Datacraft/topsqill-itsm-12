@@ -24,6 +24,7 @@ export function inferActionTypeFromPrompt(prompt: string): InferredWorkflowActio
     /\bcombin(?:e|ation|ations)\b/.test(t)
     || /\bcreate\s+combination\b/.test(t)
     || /\bcombination\s+record/.test(t)
+    || /\bcartesian\b/.test(t)
     || /\bparent\b.+\bcross[- ]?ref|\bcross[- ]?ref.+\bparent\b/.test(t)
   ) {
     return 'create_combination_records';
@@ -102,7 +103,7 @@ export function describeActionType(actionType: InferredWorkflowActionType): stri
     case 'update_linked_records':
       return 'Update Linked Record (update a field on the linked cross-reference form)';
     case 'create_combination_records':
-      return 'Create Combination Record (combine parent + cross-reference values into a new record)';
+      return 'Create Combination Records (fan-out new records from cross-reference links on the trigger form)';
     case 'send_notification':
       return 'Send Notification';
     default:
