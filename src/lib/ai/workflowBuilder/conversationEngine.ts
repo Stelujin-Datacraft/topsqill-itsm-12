@@ -490,6 +490,17 @@ export function continueWorkflowBuilderSession(params: {
     ) {
       lookupForm = formsCatalog.find((f) => f.id === action.targetFormId) || form;
     }
+    // Combo map menu: FROM field is on trigger / linked / second linked
+    if (unanswered.key === 'action_combo_map_menu' && action?.actionType === 'create_combination_records') {
+      const phase = action.comboMapPhase || 'trigger';
+      if (phase === 'linked' && action.sourceLinkedFormId) {
+        lookupForm = formsCatalog.find((f) => f.id === action.sourceLinkedFormId) || form;
+      } else if (phase === 'second' && action.secondSourceLinkedFormId) {
+        lookupForm = formsCatalog.find((f) => f.id === action.secondSourceLinkedFormId) || form;
+      } else {
+        lookupForm = form;
+      }
+    }
     // Map source: trigger by default; combo may use linked / second linked form
     if (unanswered.key === 'action_map_source_field') {
       lookupForm = form;
@@ -681,6 +692,7 @@ function buildAck(
   orgUsers: OrgUserChoice[] = [],
 ): string {
   const field = form?.fields.find((f) => f.id === answer);
+  const optionLabel = req.options?.find((o) => o.value === answer)?.label;
   const named = answer.startsWith('__create_named__:')
     ? answer.slice('__create_named__:'.length).trim()
     : '';
@@ -776,8 +788,8 @@ function buildAck(
   }
   if (req.key === 'action_combo_mode') {
     return answer === 'dual'
-      ? 'Dual mode — combinations from two cross-reference fields.'
-      : 'Single mode — one new record per linked item in the source cross-ref.';
+      ? 'Dual — exactly **two** cross-reference fields (every pair from XR₁ × XR₂).'
+      : 'Single — exactly **one** cross-reference field (trigger × each linked record).';
   }
   if (req.key === 'action_combo_confirm') {
     if (answer === '__redo_combo_target__' || /^pick\b/i.test(answer)) {
@@ -795,10 +807,13 @@ function buildAck(
     if (answer === '__done_combo_maps__' || /^done\b/i.test(answer)) {
       return 'Got it — continuing with the mappings you set.';
     }
-    if (answer === '__map_combo__' || /^map\b/i.test(answer)) {
-      return 'Okay — pick the destination field first, then the source field to copy from.';
+    const fromName = field?.label
+      || (optionLabel ? optionLabel.replace(/^FROM\s+[^:]+:\s*/i, '').replace(/\s*\([^)]+\)\s*$/, '') : '')
+      || answer;
+    if (fromName && !String(fromName).startsWith('__')) {
+      return `FROM **${fromName}** selected. Now pick the **TO** field on the new record.`;
     }
-    return 'Mapping choice noted.';
+    return 'FROM field noted — next pick the TO field.';
   }
   if (req.key === 'action_target_form') {
     return `Destination form set to **${answer}**.`;
@@ -820,15 +835,20 @@ function buildAck(
     if (answer === '__cancel_map__' || /^cancel\b/i.test(answer)) {
       return 'Mapping cancelled.';
     }
-    if (field) return `New-record field **${field.label}** will receive the mapped value.`;
-    return 'Target field for mapping noted.';
+    const toName = field?.label
+      || (optionLabel ? optionLabel.replace(/^TO\s+[^:]+:\s*/i, '').replace(/\s*\([^)]+\)\s*$/, '') : '')
+      || answer;
+    if (toName && !String(toName).startsWith('__')) {
+      return `Mapped TO **${toName}** on the new record.`;
+    }
+    return 'TO field for mapping noted.';
   }
   if (req.key === 'action_map_source_field') {
     if (answer === '__cancel_map__' || /^cancel\b/i.test(answer)) {
       return 'Mapping cancelled.';
     }
-    if (field) return `I'll copy **${field.label}** into the new combination record.`;
-    return 'Source field for mapping noted.';
+    if (field) return `I'll copy FROM **${field.label}** into the new combination record.`;
+    return 'FROM field for mapping noted.';
   }
   if (req.key === 'action_value') {
     return `Action value set to **${answer}**.`;

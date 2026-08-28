@@ -370,44 +370,56 @@ function planGenericActionRequirements(
 
   // Combination uses a dedicated path: source XR ≠ destination form
   if (action.actionType === 'create_combination_records') {
-    if (!action.combinationMode) {
-      action.combinationMode = inferCombinationModeFromPrompt(originalRequest || definition.description || '');
-    }
-
-    // Optional mode confirm when prompt did not clearly imply dual
-    if (
-      action.combinationMode === 'single'
-      && !answered.has('action.combo_mode')
-      && /\bcross[- ]?ref/i.test(originalRequest || definition.description || '')
-      && /\b(?:two|2|both|and)\b/i.test(originalRequest || definition.description || '')
-      && !/\bdual\b|\bcartesian\b/i.test(originalRequest || definition.description || '')
-    ) {
+    // Always confirm mode: Single = exactly 1 XR, Dual = exactly 2 XRs (not 3+)
+    if (!answered.has('action.combo_mode')) {
+      const inferred = inferCombinationModeFromPrompt(originalRequest || definition.description || '');
+      if (!action.combinationMode) action.combinationMode = inferred;
       push(req({
         id: 'action.combo_mode',
         scope: 'workflow',
         key: 'action_combo_mode',
         question: [
-          'Should this create combinations from **one** cross-reference field (single), or from **two** cross-reference fields (dual / Cartesian)?',
+          'How many **cross-reference** fields on the trigger form should this combination use?',
+          '',
+          '**Single** = exactly **one** cross-ref (trigger record × each linked record in that field).',
+          '**Dual** = exactly **two** cross-refs (every pair from XR₁ × XR₂ — Cartesian). Not more than two.',
         ].join('\n'),
         inputKind: 'choice',
         options: [
-          { value: 'single', label: 'Single — trigger × one cross-ref' },
-          { value: 'dual', label: 'Dual — cross-ref × cross-ref' },
+          {
+            value: 'single',
+            label: 'Single — exactly 1 cross-ref (trigger × linked records)',
+          },
+          {
+            value: 'dual',
+            label: 'Dual — exactly 2 cross-refs (XR × XR pairs)',
+          },
         ],
       }));
       return mergeUnansweredFirst(out);
     }
 
+    if (!action.combinationMode) {
+      action.combinationMode = inferCombinationModeFromPrompt(originalRequest || definition.description || '');
+    }
+
     if (!action.sourceCrossRefFieldId && !action.sourceCrossRefFieldLabel) {
+      const single = action.combinationMode !== 'dual';
       push(req({
         id: 'action.cross_ref',
         scope: 'workflow',
         key: 'action_cross_ref',
-        question: [
-          'Which **cross-reference** field on the trigger form holds the linked records to expand?',
-          '',
-          'Example: Entities on a Risk form → one new record per linked Entity.',
-        ].join('\n'),
+        question: single
+          ? [
+            'Which **one** cross-reference field on the trigger form should expand into new records?',
+            '',
+            'Example: **Entities** on Risk → one new destination record per linked Entity.',
+          ].join('\n')
+          : [
+            'Dual uses **exactly two** cross-refs. Which is the **first** cross-reference field?',
+            '',
+            'Next you will pick the second. Combinations = every pair from first × second.',
+          ].join('\n'),
         inputKind: 'field_select',
         options: xrFields.length
           ? xrFields.map((f) => ({ value: f.id, label: `${f.label} (${f.type})` }))
@@ -448,7 +460,10 @@ function planGenericActionRequirements(
         scope: 'workflow',
         key: 'action_second_cross_ref',
         question: [
-          'Which **second cross-reference** field should pair with the first (dual / Cartesian combinations)?',
+          'Which is the **second** cross-reference field? (Dual = exactly these **two** — not more.)',
+          '',
+          `First cross-ref is **${action.sourceCrossRefFieldLabel || action.sourceCrossRefFieldId}**.`,
+          'New records = every pair from first × second.',
         ].join('\n'),
         inputKind: 'field_select',
         options: (secondOpts.length ? secondOpts : xrFields).map((f) => ({
@@ -613,91 +628,75 @@ function planGenericActionRequirements(
           : (hydratedForm?.name || 'trigger form');
       const destName = action.targetFormName || 'destination form';
       const phaseTitle = phase === 'linked'
-        ? `Map fields from **${sourceFormName}** → **${destName}** (linked → new record)`
+        ? `Field mapping: **FROM ${sourceFormName}** → **TO ${destName}** (linked form)`
         : phase === 'second'
-          ? `Map fields from **${sourceFormName}** → **${destName}** (second linked → new record)`
-          : `Map fields from **${sourceFormName}** → **${destName}** (trigger → new record)`;
+          ? `Field mapping: **FROM ${sourceFormName}** → **TO ${destName}** (second linked form)`
+          : `Field mapping: **FROM ${sourceFormName}** → **TO ${destName}** (trigger form)`;
 
       const usedTargetIds = new Set(
         phaseList.map((x) => x.targetFieldId).filter(Boolean) as string[],
       );
+      const usedSourceIds = new Set(
+        phaseList.map((x) => x.sourceFieldId).filter(Boolean) as string[],
+      );
       const availableTargetFields = fieldChoices(destForm).filter((f) => !usedTargetIds.has(f.value));
+      const sourceFieldChoices = (sourceForm?.fields || [])
+        .filter((f) => isWorkflowValueField(f.type) && !usedSourceIds.has(f.id))
+        .map((f) => ({ value: f.id, label: `FROM ${sourceFormName}: ${f.label} (${f.type})` }));
       const sourceFields = (sourceForm?.fields || []).filter((f) => isWorkflowValueField(f.type));
 
-      // Draft: pick destination field
+      // Draft: FROM field known → pick TO field on destination
       if (
         action.createDraftKind === 'map'
+        && (action.createMapSourceFieldId || action.createMapSourceFieldLabel)
         && !action.createMapTargetFieldId
         && !action.createMapTargetFieldLabel
       ) {
-        push(req({
-          id: `action.combo_map_target_${phase}_${phaseList.length}`,
-          scope: 'workflow',
-          key: 'action_map_target_field',
-          question: [
-            `Which **field on ${destName}** should receive a value from **${sourceFormName}**?`,
-            '',
-            'Next you will pick a compatible source field to map from.',
-          ].join('\n'),
-          inputKind: 'field_select',
-          options: [
-            { value: '__cancel_map__', label: 'Cancel mapping — go back' },
-            ...availableTargetFields,
-          ],
-        }));
-        return mergeUnansweredFirst(out);
-      }
-
-      // Draft: pick source field
-      if (
-        action.createDraftKind === 'map'
-        && (action.createMapTargetFieldId || action.createMapTargetFieldLabel)
-        && !action.createMapSourceFieldId
-        && !action.createMapSourceFieldLabel
-      ) {
-        const targetType = action.createMapTargetFieldType || 'text';
-        const compatible = filterCompatibleFields(sourceFields, targetType)
-          .filter((f) => f.id !== action.createMapTargetFieldId);
-        const sourceOpts = compatible.map((f) => ({
-          value: f.id,
-          label: `${f.label} (${f.type})`,
-        }));
-        if (!sourceOpts.length) {
+        const sourceType = action.createMapSourceFieldType || 'text';
+        const compatibleTargets = availableTargetFields.filter((opt) => {
+          const field = destForm?.fields?.find((f) => f.id === opt.value);
+          if (!field) return true;
+          return areTypesCompatible(sourceType, field.type || 'text');
+        });
+        if (!compatibleTargets.length) {
           push(req({
-            id: `action.combo_map_source_none_${phase}_${phaseList.length}`,
+            id: `action.combo_map_target_none_${phase}_${phaseList.length}`,
             scope: 'workflow',
-            key: 'action_map_source_field',
+            key: 'action_map_target_field',
             question: [
-              `No **compatible** fields on **${sourceFormName}** can map to **${action.createMapTargetFieldLabel || 'that field'}** (${targetType}).`,
+              `No **compatible** fields on **${destName}** can receive **${action.createMapSourceFieldLabel}** (${sourceType}) from **${sourceFormName}**.`,
               '',
-              'Cancel this mapping and pick a different target field.',
+              'Cancel and pick a different **FROM** field.',
             ].join('\n'),
             inputKind: 'choice',
             options: [
-              { value: '__cancel_map__', label: 'Cancel mapping' },
+              { value: '__cancel_map__', label: 'Cancel — pick a different FROM field' },
             ],
           }));
           return mergeUnansweredFirst(out);
         }
         push(req({
-          id: `action.combo_map_source_${phase}_${phaseList.length}`,
+          id: `action.combo_map_target_${phase}_${phaseList.length}`,
           scope: 'workflow',
-          key: 'action_map_source_field',
+          key: 'action_map_target_field',
           question: [
-            `Map **which field on ${sourceFormName}** → **${action.createMapTargetFieldLabel}** on **${destName}**?`,
+            `**FROM → TO:** Copy **${action.createMapSourceFieldLabel}** from **${sourceFormName}** → **which field on ${destName}**?`,
             '',
-            `Only fields compatible with type **${targetType}** are shown.`,
+            `Only destination fields compatible with type **${sourceType}** are listed.`,
           ].join('\n'),
           inputKind: 'field_select',
           options: [
-            { value: '__cancel_map__', label: 'Cancel mapping' },
-            ...sourceOpts,
+            { value: '__cancel_map__', label: 'Cancel — pick a different FROM field' },
+            ...compatibleTargets.map((f) => ({
+              value: f.value,
+              label: `TO ${destName}: ${f.label}`,
+            })),
           ],
         }));
         return mergeUnansweredFirst(out);
       }
 
-      // Draft complete → commit
+      // Draft complete (FROM + TO) → commit
       if (
         action.createDraftKind === 'map'
         && (action.createMapTargetFieldId || action.createMapTargetFieldLabel)
@@ -708,44 +707,50 @@ function planGenericActionRequirements(
           && action.createMapTargetFieldType
           && !areTypesCompatible(action.createMapSourceFieldType, action.createMapTargetFieldType)
         ) {
-          action.createMapSourceFieldId = undefined;
-          action.createMapSourceFieldLabel = undefined;
-          action.createMapSourceFieldType = undefined;
-          // Re-ask source on next plan pass
+          action.createMapTargetFieldId = undefined;
+          action.createMapTargetFieldLabel = undefined;
+          action.createMapTargetFieldType = undefined;
           return mergeUnansweredFirst(out);
         }
         commitComboMapDraft();
       }
 
-      // Still mid-draft (should have returned above) — do not skip to confirm
+      // Mid-draft without TO yet should have returned above
       if (action.createDraftKind === 'map') {
         return mergeUnansweredFirst(out);
       }
 
-      // Menu: add map / done / skip
+      // Menu: list FROM fields directly (from which → to which)
       {
         const mapCount = phaseList.length;
         const mapSummary = mapCount
-          ? phaseList.map((m) => `**${m.targetFieldLabel}**←${m.sourceFieldLabel}`).join(', ')
+          ? phaseList.map((m) => `**${m.sourceFieldLabel}** → **${m.targetFieldLabel}**`).join(', ')
           : '';
+        const fromOpts = sourceFieldChoices.length
+          ? sourceFieldChoices
+          : sourceFields.map((f) => ({
+            value: f.id,
+            label: `FROM ${sourceFormName}: ${f.label} (${f.type})`,
+          }));
         push(req({
           id: `action.combo_map_menu_${phase}_${mapCount}`,
           scope: 'workflow',
           key: 'action_combo_map_menu',
           question: [
             phaseTitle,
-            mapSummary ? `Mapped so far: ${mapSummary}` : 'No mappings yet for this source.',
+            mapSummary ? `Mapped so far: ${mapSummary}` : 'No mappings yet.',
             '',
+            'Pick a **FROM** field (source). Next you will pick the **TO** field on the new record.',
             mapCount
-              ? 'Add another mapping, or **Done** to continue.'
-              : 'Mappings copy values onto each new combination record. You can **Skip** if none are needed.',
+              ? 'Or choose **Done** to continue.'
+              : 'Or **Skip** if you do not need mappings from this form.',
           ].filter(Boolean).join('\n'),
-          inputKind: 'choice',
+          inputKind: 'field_select',
           options: [
             ...(mapCount
               ? [{ value: '__done_combo_maps__', label: 'Done — continue' }]
               : [{ value: '__skip_combo_maps__', label: 'Skip — no mappings from this source' }]),
-            { value: '__map_combo__', label: `Map a field from ${sourceFormName}` },
+            ...fromOpts,
           ],
         }));
         return mergeUnansweredFirst(out);
@@ -753,7 +758,9 @@ function planGenericActionRequirements(
     }
 
     if (!action.comboConfirmDone) {
-      const modeLabel = action.combinationMode === 'dual' ? 'Dual (cross-ref × cross-ref)' : 'Single (trigger × one cross-ref)';
+      const modeLabel = action.combinationMode === 'dual'
+        ? 'Dual — exactly 2 cross-refs (XR × XR)'
+        : 'Single — exactly 1 cross-ref (trigger × linked)';
       const triggerMaps = action.createFieldMappings || [];
       const linkedMaps = action.linkedFormFieldMappings || [];
       const secondMaps = action.secondLinkedFormFieldMappings || [];
@@ -769,7 +776,7 @@ function planGenericActionRequirements(
           : null,
         `Create records on: **${action.targetFormName || action.targetFormId}**`,
         '',
-        '**Field mappings:**',
+        '**Field mappings (FROM → TO):**',
         action.combinationMode !== 'dual'
           ? fmtMaps(triggerMaps, hydratedForm?.name || 'Trigger form')
           : null,
@@ -1974,17 +1981,6 @@ export function applyAnswerToDefinition(
       }
       next.action!.comboConfirmDone = false;
     };
-    if (value === '__map_combo__' || /^map\b/i.test(value)) {
-      next.action.skipComboMappings = false;
-      next.action.createDraftKind = 'map';
-      next.action.createMapTargetFieldId = undefined;
-      next.action.createMapTargetFieldLabel = undefined;
-      next.action.createMapTargetFieldType = undefined;
-      next.action.createMapSourceFieldId = undefined;
-      next.action.createMapSourceFieldLabel = undefined;
-      next.action.createMapSourceFieldType = undefined;
-      return next;
-    }
     if (value === '__skip_combo_maps__' || /^skip\b/i.test(value)) {
       finishPhase();
       return next;
@@ -1993,6 +1989,24 @@ export function applyAnswerToDefinition(
       finishPhase();
       return next;
     }
+    // Any other value = FROM field on the current source form
+    next.action.skipComboMappings = false;
+    const phase = next.action.comboMapPhase || 'trigger';
+    let sourceForm = form;
+    if (phase === 'linked' && next.action.sourceLinkedFormId) {
+      sourceForm = formsCatalog.find((f) => f.id === next.action!.sourceLinkedFormId) || form;
+    } else if (phase === 'second' && next.action.secondSourceLinkedFormId) {
+      sourceForm = formsCatalog.find((f) => f.id === next.action!.secondSourceLinkedFormId) || form;
+    }
+    const field = sourceForm?.fields.find((f) => f.id === value)
+      || searchFields(sourceForm, value).matched;
+    next.action.createDraftKind = 'map';
+    next.action.createMapSourceFieldId = field?.id || value;
+    next.action.createMapSourceFieldLabel = field?.label || value;
+    next.action.createMapSourceFieldType = field?.type;
+    next.action.createMapTargetFieldId = undefined;
+    next.action.createMapTargetFieldLabel = undefined;
+    next.action.createMapTargetFieldType = undefined;
     return next;
   }
 
@@ -2173,6 +2187,49 @@ export function applyAnswerToDefinition(
     next.action.createMapTargetFieldId = field?.id;
     next.action.createMapTargetFieldLabel = field?.label || value;
     next.action.createMapTargetFieldType = field?.type;
+    // Combo maps FROM→TO: source already chosen — keep it and commit
+    if (isCombo) {
+      if (
+        (next.action.createMapSourceFieldId || next.action.createMapSourceFieldLabel)
+        && (next.action.createMapTargetFieldId || next.action.createMapTargetFieldLabel)
+      ) {
+        const sourceType = next.action.createMapSourceFieldType || '';
+        const targetType = next.action.createMapTargetFieldType || '';
+        if (sourceType && targetType && !areTypesCompatible(sourceType, targetType)) {
+          next.action.createMapTargetFieldId = undefined;
+          next.action.createMapTargetFieldLabel = undefined;
+          next.action.createMapTargetFieldType = undefined;
+          return next;
+        }
+        const entry = {
+          targetFieldId: next.action.createMapTargetFieldId,
+          targetFieldLabel: next.action.createMapTargetFieldLabel,
+          targetFieldType: next.action.createMapTargetFieldType,
+          sourceFieldId: next.action.createMapSourceFieldId,
+          sourceFieldLabel: next.action.createMapSourceFieldLabel,
+          sourceFieldType: next.action.createMapSourceFieldType,
+        };
+        if (next.action.comboMapPhase === 'linked') {
+          next.action.linkedFormFieldMappings = next.action.linkedFormFieldMappings || [];
+          next.action.linkedFormFieldMappings.push(entry);
+        } else if (next.action.comboMapPhase === 'second') {
+          next.action.secondLinkedFormFieldMappings = next.action.secondLinkedFormFieldMappings || [];
+          next.action.secondLinkedFormFieldMappings.push(entry);
+        } else {
+          next.action.createFieldMappings = next.action.createFieldMappings || [];
+          next.action.createFieldMappings.push(entry);
+        }
+        next.action.createDraftKind = undefined;
+        next.action.createMapTargetFieldId = undefined;
+        next.action.createMapTargetFieldLabel = undefined;
+        next.action.createMapTargetFieldType = undefined;
+        next.action.createMapSourceFieldId = undefined;
+        next.action.createMapSourceFieldLabel = undefined;
+        next.action.createMapSourceFieldType = undefined;
+      }
+      return next;
+    }
+    // Create-record style: target first, then source
     next.action.createMapSourceFieldId = undefined;
     next.action.createMapSourceFieldLabel = undefined;
     next.action.createMapSourceFieldType = undefined;

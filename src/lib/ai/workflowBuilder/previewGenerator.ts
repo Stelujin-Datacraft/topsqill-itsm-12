@@ -52,7 +52,7 @@ export function generateWorkflowPreview(
       `Type: ${describeActionType(a.actionType)}`,
     ];
     if (a.actionType === 'create_combination_records') {
-      actionLines.push(`Mode: ${a.combinationMode === 'dual' ? 'Dual (XR × XR)' : 'Single (trigger × XR)'}`);
+      actionLines.push(`Mode: ${a.combinationMode === 'dual' ? 'Dual (exactly 2 cross-refs)' : 'Single (exactly 1 cross-ref)'}`);
       if (a.sourceCrossRefFieldLabel || a.sourceCrossRefFieldId) {
         actionLines.push(`Source cross-ref: ${a.sourceCrossRefFieldLabel || a.sourceCrossRefFieldId}`);
       }
