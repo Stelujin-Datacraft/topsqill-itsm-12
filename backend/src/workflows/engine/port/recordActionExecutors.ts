@@ -1314,7 +1314,7 @@ export class RecordActionExecutors {
     console.log('🔗✨ EXECUTING CREATE COMBINATION RECORDS ACTION');
     console.log('📋 Context:', JSON.stringify(context, null, 2));
 
-    const config = context.config;
+    const config = { ...context.config };
     const combinationMode = config.combinationMode || 'single';
     const actionDetails = {
       actionType: 'create_combination_records',
@@ -1351,8 +1351,34 @@ export class RecordActionExecutors {
         };
       }
 
+      // Resolve linked form IDs from XR field custom_config when missing
+      // (nested crossRefConfig.targetFormId is often not flattened into config)
+      if (!config.sourceLinkedFormId && config.sourceCrossRefFieldId) {
+        const resolved = await this.resolveLinkedFormFromCrossRefField(config.sourceCrossRefFieldId);
+        if (resolved.targetFormId) {
+          config.sourceLinkedFormId = resolved.targetFormId;
+          config.sourceLinkedFormName = resolved.targetFormName || config.sourceLinkedFormName;
+          console.log('✅ Resolved sourceLinkedFormId at runtime:', config.sourceLinkedFormId);
+        }
+      }
+      if (
+        combinationMode === 'dual'
+        && !config.secondSourceLinkedFormId
+        && config.secondSourceCrossRefFieldId
+      ) {
+        const resolved = await this.resolveLinkedFormFromCrossRefField(config.secondSourceCrossRefFieldId);
+        if (resolved.targetFormId) {
+          config.secondSourceLinkedFormId = resolved.targetFormId;
+          config.secondSourceLinkedFormName = resolved.targetFormName || config.secondSourceLinkedFormName;
+          console.log('✅ Resolved secondSourceLinkedFormId at runtime:', config.secondSourceLinkedFormId);
+        }
+      }
+
       // Get trigger data
-      const triggerSubmissionData = context.triggerData?.submissionData || context.triggerData || {};
+      const triggerSubmissionData = context.triggerData?.submissionData
+        || context.triggerData?.submission_data
+        || context.triggerData
+        || {};
       const triggerSubmissionId = context.submissionId;
       const triggerFormId = context.triggerData?.formId;
 
@@ -1386,16 +1412,29 @@ export class RecordActionExecutors {
           return crossRefValue
             .map(v => {
               if (typeof v === 'string') return { refId: v, formId: defaultFormId };
-              if (v && typeof v === 'object' && v.submission_ref_id) {
-                return { refId: v.submission_ref_id, formId: v.form_id || defaultFormId };
+              if (v && typeof v === 'object') {
+                const refId = v.submission_ref_id || v.submissionRefId || v.ref_id || v.refId || v.id;
+                if (refId) {
+                  return { refId: String(refId), formId: v.form_id || v.formId || defaultFormId };
+                }
               }
               return null;
             })
             .filter((v): v is LinkedRecord => v !== null && !!v.refId);
         } else if (typeof crossRefValue === 'string') {
           return [{ refId: crossRefValue, formId: defaultFormId }];
-        } else if (crossRefValue && typeof crossRefValue === 'object' && crossRefValue.submission_ref_id) {
-          return [{ refId: crossRefValue.submission_ref_id, formId: crossRefValue.form_id || defaultFormId }];
+        } else if (crossRefValue && typeof crossRefValue === 'object') {
+          const refId = crossRefValue.submission_ref_id
+            || crossRefValue.submissionRefId
+            || crossRefValue.ref_id
+            || crossRefValue.refId
+            || crossRefValue.id;
+          if (refId) {
+            return [{
+              refId: String(refId),
+              formId: crossRefValue.form_id || crossRefValue.formId || defaultFormId,
+            }];
+          }
         }
         return [];
       };
@@ -1789,15 +1828,64 @@ export class RecordActionExecutors {
     if (Array.isArray(value)) {
       const first = value[0];
       if (typeof first === 'string') return first;
-      if (first && typeof first === 'object' && first.submission_ref_id) {
-        return first.submission_ref_id;
+      if (first && typeof first === 'object') {
+        return first.submission_ref_id || first.submissionRefId || first.ref_id || first.refId || first.id || null;
       }
     }
     
-    if (typeof value === 'object' && value.submission_ref_id) {
-      return value.submission_ref_id;
+    if (typeof value === 'object') {
+      return value.submission_ref_id || value.submissionRefId || value.ref_id || value.refId || value.id || null;
     }
     
     return null;
+  }
+
+  /** Resolve linked/target form id from a cross-ref field's custom_config (incl. nested crossRefConfig). */
+  private static async resolveLinkedFormFromCrossRefField(fieldId: string): Promise<{
+    targetFormId?: string;
+    targetFormName?: string;
+  }> {
+    try {
+      const { data, error } = await engineDb()
+        .from('form_fields')
+        .select('custom_config, field_type')
+        .eq('id', fieldId)
+        .maybeSingle();
+      if (error || !data) return {};
+
+      let cfg: Record<string, any> = {};
+      const raw = data.custom_config;
+      if (typeof raw === 'string') {
+        try { cfg = JSON.parse(raw) || {}; } catch { cfg = {}; }
+      } else if (raw && typeof raw === 'object') {
+        cfg = raw as Record<string, any>;
+      }
+      const nested = cfg.crossRefConfig || cfg.cross_ref_config || cfg;
+      const isChildRef = String(data.field_type || '').toLowerCase() === 'child-cross-reference';
+      const targetFormId = String(
+        nested?.targetFormId
+          || nested?.target_form_id
+          || cfg.targetFormId
+          || cfg.target_form_id
+          || (isChildRef
+            ? (nested?.parentFormId || nested?.parent_form_id || cfg.parentFormId || cfg.parent_form_id)
+            : '')
+          || '',
+      ).trim() || undefined;
+      const targetFormName = String(
+        nested?.targetFormName
+          || nested?.target_form_name
+          || cfg.targetFormName
+          || cfg.target_form_name
+          || (isChildRef
+            ? (nested?.parentFormName || nested?.parent_form_name || cfg.parentFormName || cfg.parent_form_name)
+            : '')
+          || '',
+      ).trim() || undefined;
+      return { targetFormId, targetFormName };
+    } catch (e) {
+      console.warn('⚠️ Failed to resolve linked form from cross-ref field:', e);
+      return {};
+    }
   }
 }

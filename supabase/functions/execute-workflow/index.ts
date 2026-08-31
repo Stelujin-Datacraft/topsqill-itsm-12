@@ -796,12 +796,56 @@ async function executeCreateCombinationRecords(
   console.log('🔗✨ Executing create_combination_records action')
 
   const combinationMode = config.combinationMode || 'single'
-  const triggerSubmissionData = triggerData?.submissionData || {}
+  const triggerSubmissionData = triggerData?.submissionData || triggerData?.submission_data || {}
   const triggerSubmissionId = triggerData?.submissionId || submissionId
   const triggerFormId = triggerData?.formId
 
-  if (!config.targetFormId || !config.sourceCrossRefFieldId || !config.sourceLinkedFormId) {
-    return { success: false, error: 'Missing required configuration for combination records' }
+  if (!config.targetFormId || !config.sourceCrossRefFieldId) {
+    return { success: false, error: 'Missing required configuration for combination records (targetFormId / sourceCrossRefFieldId)' }
+  }
+
+  // Resolve linked form IDs when missing (nested crossRefConfig.targetFormId)
+  const resolveLinkedForm = async (fieldId: string) => {
+    const { data } = await supabase
+      .from('form_fields')
+      .select('custom_config, field_type')
+      .eq('id', fieldId)
+      .maybeSingle()
+    if (!data) return {}
+    let cfg: any = data.custom_config || {}
+    if (typeof cfg === 'string') {
+      try { cfg = JSON.parse(cfg) || {} } catch { cfg = {} }
+    }
+    const nested = cfg.crossRefConfig || cfg.cross_ref_config || cfg
+    const isChild = String(data.field_type || '').toLowerCase() === 'child-cross-reference'
+    const targetFormId = String(
+      nested?.targetFormId || nested?.target_form_id || cfg.targetFormId || cfg.target_form_id
+      || (isChild ? (nested?.parentFormId || nested?.parent_form_id || cfg.parentFormId) : '')
+      || ''
+    ).trim() || undefined
+    const targetFormName = String(
+      nested?.targetFormName || nested?.target_form_name || cfg.targetFormName || cfg.target_form_name
+      || (isChild ? (nested?.parentFormName || nested?.parent_form_name || cfg.parentFormName) : '')
+      || ''
+    ).trim() || undefined
+    return { targetFormId, targetFormName }
+  }
+
+  if (!config.sourceLinkedFormId) {
+    const resolved = await resolveLinkedForm(config.sourceCrossRefFieldId)
+    if (resolved.targetFormId) {
+      config.sourceLinkedFormId = resolved.targetFormId
+      config.sourceLinkedFormName = resolved.targetFormName || config.sourceLinkedFormName
+      console.log('✅ Resolved sourceLinkedFormId at runtime:', config.sourceLinkedFormId)
+    }
+  }
+  if (combinationMode === 'dual' && config.secondSourceCrossRefFieldId && !config.secondSourceLinkedFormId) {
+    const resolved = await resolveLinkedForm(config.secondSourceCrossRefFieldId)
+    if (resolved.targetFormId) {
+      config.secondSourceLinkedFormId = resolved.targetFormId
+      config.secondSourceLinkedFormName = resolved.targetFormName || config.secondSourceLinkedFormName
+      console.log('✅ Resolved secondSourceLinkedFormId at runtime:', config.secondSourceLinkedFormId)
+    }
   }
 
   // Fetch trigger submission_ref_id (needed for legacy targetTriggerCrossRefFieldId link)
@@ -822,13 +866,19 @@ async function executeCreateCombinationRecords(
     if (!value) return []
     if (Array.isArray(value)) {
       return value
-        .map((item: any) => typeof item === 'string'
-          ? { submission_ref_id: item }
-          : { submission_ref_id: item?.submission_ref_id, form_id: item?.form_id })
-        .filter((item: any) => item.submission_ref_id)
+        .map((item: any) => {
+          if (typeof item === 'string') return { submission_ref_id: item }
+          const ref = item?.submission_ref_id || item?.submissionRefId || item?.ref_id || item?.refId || item?.id
+          if (!ref) return null
+          return { submission_ref_id: String(ref), form_id: item?.form_id || item?.formId }
+        })
+        .filter((item: any) => item?.submission_ref_id)
     }
     if (typeof value === 'string') return [{ submission_ref_id: value }]
-    if (value?.submission_ref_id) return [{ submission_ref_id: value.submission_ref_id, form_id: value.form_id }]
+    if (value && typeof value === 'object') {
+      const ref = value.submission_ref_id || value.submissionRefId || value.ref_id || value.refId || value.id
+      if (ref) return [{ submission_ref_id: String(ref), form_id: value.form_id || value.formId }]
+    }
     return []
   }
 
@@ -837,8 +887,20 @@ async function executeCreateCombinationRecords(
     ? normalizeRefs(secondSourceRefsRaw)
     : [{ submission_ref_id: '', form_id: undefined as string | undefined }]
 
-  if (firstSourceRefs.length === 0 || secondSourceRefs.length === 0) {
-    return { success: true, createdCount: 0, message: 'No linked records available for combination' }
+  if (firstSourceRefs.length === 0 || (combinationMode === 'dual' && secondSourceRefs.length === 0)) {
+    console.warn('⚠️ No linked records for combination', {
+      firstCount: firstSourceRefs.length,
+      secondCount: secondSourceRefs.length,
+      firstRaw: firstSourceRefsRaw,
+      secondRaw: secondSourceRefsRaw,
+    })
+    return {
+      success: true,
+      createdCount: 0,
+      message: 'No linked records available for combination',
+      sourceCrossRefFieldId: config.sourceCrossRefFieldId,
+      secondSourceCrossRefFieldId: config.secondSourceCrossRefFieldId,
+    }
   }
 
   // Pre-fetch linked-form submission data for field mappings
