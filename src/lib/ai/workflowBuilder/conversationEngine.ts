@@ -470,6 +470,7 @@ export function continueWorkflowBuilderSession(params: {
     && answer !== '__map_combo__'
     && answer !== '__skip_combo_maps__'
     && answer !== '__done_combo_maps__'
+    && answer !== '__skip_combo_link_back__'
     && answer !== '__cancel_map__'
     && !answer.startsWith('__create_named__:')
     && !unanswered.options?.some((o) => o.value === answer)
@@ -788,8 +789,17 @@ function buildAck(
   }
   if (req.key === 'action_combo_mode') {
     return answer === 'dual'
-      ? 'Dual — exactly **two** cross-reference fields (every pair from XR₁ × XR₂).'
-      : 'Single — exactly **one** cross-reference field (trigger × each linked record).';
+      ? 'Dual — exactly **two** cross-reference fields on the parent form (XR₁ × XR₂).'
+      : 'Single — **parent form** × **one cross-ref (child) form**.';
+  }
+  if (req.key === 'action_combo_link_back') {
+    if (answer === '__skip_combo_link_back__' || /^skip\b/i.test(answer)) {
+      return 'Okay — no auto-link back to a parent cross-ref field.';
+    }
+    if (field) {
+      return `New records will be linked back into **${field.label}** on the parent form.`;
+    }
+    return 'Auto-link back field noted.';
   }
   if (req.key === 'action_combo_confirm') {
     if (answer === '__redo_combo_target__' || /^pick\b/i.test(answer)) {

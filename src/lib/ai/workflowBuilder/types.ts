@@ -174,6 +174,16 @@ export interface WorkflowActionSpec {
   linkedFormFieldMappings?: WorkflowCreateFieldMapping[];
   /** Combination dual: second linked-form → destination mappings (designer §7) */
   secondLinkedFormFieldMappings?: WorkflowCreateFieldMapping[];
+  /**
+   * Combination: auto-link new records back into a cross-ref field on the trigger/parent form
+   * (designer Advanced → Auto-Link Back to Trigger Form).
+   */
+  updateTriggerCrossRefFieldId?: string;
+  updateTriggerCrossRefFieldName?: string;
+  /** User answered the link-back question (or skipped). */
+  comboLinkBackDone?: boolean;
+  /** User chose not to auto-link back to a trigger cross-ref field. */
+  skipComboLinkBack?: boolean;
   /** User finished adding create/update field values / mappings */
   createFieldsDone?: boolean;
   /**

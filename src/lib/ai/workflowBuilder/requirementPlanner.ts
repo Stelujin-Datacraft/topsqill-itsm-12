@@ -136,11 +136,6 @@ function actionConfigured(action: WorkflowActionSpec | null | undefined): boolea
       const hasSource = Boolean(action.sourceCrossRefFieldId || action.sourceCrossRefFieldLabel);
       const hasLinked = Boolean(action.sourceLinkedFormId || action.sourceLinkedFormName);
       const hasTarget = Boolean(action.targetFormId || action.targetFormName);
-      const targetDistinct = !(
-        action.targetFormId
-        && action.sourceLinkedFormId
-        && action.targetFormId === action.sourceLinkedFormId
-      );
       const dualOk = action.combinationMode !== 'dual'
         || Boolean(action.secondSourceCrossRefFieldId || action.secondSourceCrossRefFieldLabel);
       const triggerMapsOk = action.combinationMode === 'dual'
@@ -151,14 +146,16 @@ function actionConfigured(action: WorkflowActionSpec | null | undefined): boolea
       const secondMapsOk = action.combinationMode !== 'dual'
         || action.comboSecondLinkedMapsDone === true
         || action.skipComboMappings === true;
+      const linkBackOk = action.comboLinkBackDone === true
+        || action.skipComboLinkBack === true;
       return hasSource
         && hasLinked
         && hasTarget
-        && targetDistinct
         && dualOk
         && triggerMapsOk
         && linkedMapsOk
         && secondMapsOk
+        && linkBackOk
         && action.comboConfirmDone === true;
     }
     case 'send_notification':
@@ -368,9 +365,9 @@ function planGenericActionRequirements(
 
   // ── Action-type-specific questions (never ask for action type) ──────────
 
-  // Combination uses a dedicated path: source XR ≠ destination form
+  // Combination: parent/trigger form × cross-ref (child) → create on a target form
   if (action.actionType === 'create_combination_records') {
-    // Always confirm mode: Single = exactly 1 XR, Dual = exactly 2 XRs (not 3+)
+    // Always confirm mode: Single = parent × 1 child XR, Dual = exactly 2 XRs
     if (!answered.has('action.combo_mode')) {
       const inferred = inferCombinationModeFromPrompt(originalRequest || definition.description || '');
       if (!action.combinationMode) action.combinationMode = inferred;
@@ -379,20 +376,22 @@ function planGenericActionRequirements(
         scope: 'workflow',
         key: 'action_combo_mode',
         question: [
-          'How many **cross-reference** fields on the trigger form should this combination use?',
+          '**Single combination** uses the **parent (trigger) form** and **one cross-reference (child) form**.',
           '',
-          '**Single** = exactly **one** cross-ref (trigger record × each linked record in that field).',
-          '**Dual** = exactly **two** cross-refs (every pair from XR₁ × XR₂ — Cartesian). Not more than two.',
+          'Which mode?',
+          '',
+          '**Single** = parent record × each linked record in **one** cross-ref field.',
+          '**Dual** = every pair from **exactly two** cross-ref fields (XR₁ × XR₂).',
         ].join('\n'),
         inputKind: 'choice',
         options: [
           {
             value: 'single',
-            label: 'Single — exactly 1 cross-ref (trigger × linked records)',
+            label: 'Single — parent form × one cross-ref (child) form',
           },
           {
             value: 'dual',
-            label: 'Dual — exactly 2 cross-refs (XR × XR pairs)',
+            label: 'Dual — exactly two cross-ref fields (XR × XR)',
           },
         ],
       }));
@@ -411,12 +410,12 @@ function planGenericActionRequirements(
         key: 'action_cross_ref',
         question: single
           ? [
-            'Which **one** cross-reference field on the trigger form should expand into new records?',
+            'Which **cross-reference** field on the **parent (trigger) form** points at the child records to expand?',
             '',
-            'Example: **Entities** on Risk → one new destination record per linked Entity.',
+            'Example: **References from Cross ref 2** on Employee Personal Info → one new record per linked child.',
           ].join('\n')
           : [
-            'Dual uses **exactly two** cross-refs. Which is the **first** cross-reference field?',
+            'Dual uses **exactly two** cross-refs on the parent form. Which is the **first**?',
             '',
             'Next you will pick the second. Combinations = every pair from first × second.',
           ].join('\n'),
@@ -428,7 +427,7 @@ function planGenericActionRequirements(
       return mergeUnansweredFirst(out);
     }
 
-    // Resolve source linked form from XR (never treat it as destination)
+    // Resolve cross-ref child form (source of expansion — not necessarily the create destination)
     if (!action.sourceLinkedFormId) {
       const xrField = hydratedForm?.fields?.find((f) =>
         f.id === action.sourceCrossRefFieldId
@@ -440,11 +439,6 @@ function planGenericActionRequirements(
         action.sourceLinkedFormId = linked.targetFormId;
         const named = hydratedCatalog.find((f) => f.id === linked.targetFormId)?.name;
         action.sourceLinkedFormName = linked.targetFormName || named || action.sourceLinkedFormName;
-        // Clear mistaken destination = linked form from older sessions
-        if (action.targetFormId && action.targetFormId === linked.targetFormId) {
-          action.targetFormId = undefined;
-          action.targetFormName = undefined;
-        }
       }
     }
 
@@ -460,10 +454,9 @@ function planGenericActionRequirements(
         scope: 'workflow',
         key: 'action_second_cross_ref',
         question: [
-          'Which is the **second** cross-reference field? (Dual = exactly these **two** — not more.)',
+          'Which is the **second** cross-reference field on the parent form? (Dual = exactly these **two**.)',
           '',
           `First cross-ref is **${action.sourceCrossRefFieldLabel || action.sourceCrossRefFieldId}**.`,
-          'New records = every pair from first × second.',
         ].join('\n'),
         inputKind: 'field_select',
         options: (secondOpts.length ? secondOpts : xrFields).map((f) => ({
@@ -488,49 +481,63 @@ function planGenericActionRequirements(
       }
     }
 
-    // Destination form for new combination records (must be separate from source linked form)
-    const targetSameAsLinked = Boolean(
-      action.targetFormId
-      && action.sourceLinkedFormId
-      && action.targetFormId === action.sourceLinkedFormId,
-    );
-    if ((!action.targetFormId && !action.targetFormName) || targetSameAsLinked) {
-      if (targetSameAsLinked) {
-        action.targetFormId = undefined;
-        action.targetFormName = undefined;
+    // Destination = where new records are created.
+    // May be the parent/trigger form itself, the cross-ref child form, or another form.
+    if (!action.targetFormId && action.targetFormName) {
+      const key = action.targetFormName.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+      const matchedForm = hydratedCatalog.find((f) => {
+        const name = String(f.name || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+        return name === key || name.includes(key) || key.includes(name);
+      });
+      if (matchedForm) {
+        action.targetFormId = matchedForm.id;
+        action.targetFormName = matchedForm.name;
+      } else if (
+        hydratedForm
+        && String(hydratedForm.name || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim() === key
+      ) {
+        action.targetFormId = hydratedForm.id;
+        action.targetFormName = hydratedForm.name;
       }
-      // Resolve name hint from catalog
-      if (!action.targetFormId && action.targetFormName && hydratedCatalog.length) {
-        const key = action.targetFormName.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-        const matchedForm = hydratedCatalog.find((f) => {
-          const name = String(f.name || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-          return name === key || name.includes(key) || key.includes(name);
-        });
-        if (matchedForm && matchedForm.id !== action.sourceLinkedFormId) {
-          action.targetFormId = matchedForm.id;
-          action.targetFormName = matchedForm.name;
-        }
-      }
-      if (!action.targetFormId) {
-        const formOpts = hydratedCatalog
-          .filter((f) => f.id !== hydratedForm?.id && f.id !== action.sourceLinkedFormId)
-          .map((f) => ({ value: f.id, label: f.name }));
-        push(req({
-          id: 'action.target_form',
-          scope: 'workflow',
-          key: 'action_target_form',
-          question: [
-            'Which **form** should the new combination records be created on?',
-            '',
-            action.sourceLinkedFormName
-              ? `This is the **destination** form (not ${action.sourceLinkedFormName}, which is the linked source).`
-              : 'This is the destination form where each combination creates a new record.',
-          ].join('\n'),
-          inputKind: formOpts.length ? 'choice' : 'text',
-          options: formOpts.length ? formOpts : undefined,
-        }));
-        return mergeUnansweredFirst(out);
-      }
+    }
+    if (!action.targetFormId && !action.targetFormName) {
+      const parentOpt = hydratedForm
+        ? [{
+          value: hydratedForm.id,
+          label: `${hydratedForm.name} (parent / trigger form)`,
+        }]
+        : [];
+      const childOpt = action.sourceLinkedFormId
+        ? [{
+          value: action.sourceLinkedFormId,
+          label: `${action.sourceLinkedFormName || 'Cross-ref form'} (cross-ref / child form)`,
+        }]
+        : [];
+      const otherOpts = hydratedCatalog
+        .filter((f) => f.id !== hydratedForm?.id && f.id !== action.sourceLinkedFormId)
+        .map((f) => ({ value: f.id, label: f.name }));
+      const seen = new Set<string>();
+      const formOpts = [...parentOpt, ...childOpt, ...otherOpts].filter((o) => {
+        if (seen.has(o.value)) return false;
+        seen.add(o.value);
+        return true;
+      });
+      push(req({
+        id: 'action.target_form',
+        scope: 'workflow',
+        key: 'action_target_form',
+        question: [
+          'Which **form** should the **new combination records** be created on?',
+          '',
+          'Often this is the **parent (trigger) form**. It can also be the cross-ref child form or another form.',
+          action.sourceLinkedFormName
+            ? `Cross-ref source form: **${action.sourceLinkedFormName}** (used for expansion / mapping).`
+            : '',
+        ].filter(Boolean).join('\n'),
+        inputKind: formOpts.length ? 'choice' : 'text',
+        options: formOpts.length ? formOpts : undefined,
+      }));
+      return mergeUnansweredFirst(out);
     }
 
     // ── Field mappings (ask before confirm / create) ─────────────────────
@@ -539,11 +546,18 @@ function planGenericActionRequirements(
     if (!action.linkedFormFieldMappings) action.linkedFormFieldMappings = [];
     if (!action.secondLinkedFormFieldMappings) action.secondLinkedFormFieldMappings = [];
 
-    const destForm = action.targetFormId
-      ? hydratedCatalog.find((f) => f.id === action.targetFormId)
-      : undefined;
+    const destForm = (
+      action.targetFormId
+      && hydratedForm
+      && action.targetFormId === hydratedForm.id
+    )
+      ? hydratedForm
+      : (action.targetFormId
+        ? (hydratedCatalog.find((f) => f.id === action.targetFormId) || hydratedForm)
+        : undefined);
     const linkedSrcForm = action.sourceLinkedFormId
-      ? hydratedCatalog.find((f) => f.id === action.sourceLinkedFormId)
+      ? (hydratedCatalog.find((f) => f.id === action.sourceLinkedFormId)
+        || (hydratedForm?.id === action.sourceLinkedFormId ? hydratedForm : undefined))
       : undefined;
     const secondSrcForm = action.secondSourceLinkedFormId
       ? hydratedCatalog.find((f) => f.id === action.secondSourceLinkedFormId)
@@ -627,11 +641,24 @@ function planGenericActionRequirements(
           ? (action.secondSourceLinkedFormName || 'second linked form')
           : (hydratedForm?.name || 'trigger form');
       const destName = action.targetFormName || 'destination form';
+      const parentName = hydratedForm?.name || 'parent / trigger form';
       const phaseTitle = phase === 'linked'
-        ? `Field mapping: **FROM ${sourceFormName}** → **TO ${destName}** (linked form)`
+        ? [
+          `**§6 — Map cross-ref (child) → destination**`,
+          `Copy fields **FROM ${sourceFormName}** (cross-ref / child) → **TO ${destName}** (new record).`,
+        ].join('\n')
         : phase === 'second'
-          ? `Field mapping: **FROM ${sourceFormName}** → **TO ${destName}** (second linked form)`
-          : `Field mapping: **FROM ${sourceFormName}** → **TO ${destName}** (trigger form)`;
+          ? [
+            `**§7 — Map second cross-ref → destination**`,
+            `Copy fields **FROM ${sourceFormName}** → **TO ${destName}**.`,
+          ].join('\n')
+          : [
+            `**§5 — Map parent → destination**`,
+            `Copy fields **FROM ${parentName}** (parent / trigger) → **TO ${destName}** (new record).`,
+            parentName === destName
+              ? 'Destination is the parent form — map parent fields onto each new parent record.'
+              : '',
+          ].filter(Boolean).join('\n');
 
       const usedTargetIds = new Set(
         phaseList.map((x) => x.targetFieldId).filter(Boolean) as string[],
@@ -757,35 +784,79 @@ function planGenericActionRequirements(
       }
     }
 
+    // Auto-link back to a cross-ref on the parent/trigger form (designer Advanced)
+    if (!action.comboLinkBackDone && !action.skipComboLinkBack) {
+      const xrOpts = (hydratedForm?.fields || [])
+        .filter((f) => {
+          const t = String(f.type || '').toLowerCase();
+          return t === 'cross-reference' || t === 'child-cross-reference';
+        })
+        .map((f) => ({
+          value: f.id,
+          label: `${f.label} (${f.type})${
+            f.id === action.sourceCrossRefFieldId ? ' — source cross-ref' : ''
+          }`,
+        }));
+      push(req({
+        id: 'action.combo_link_back',
+        scope: 'workflow',
+        key: 'action_combo_link_back',
+        question: [
+          '**Auto-link back to parent?**',
+          '',
+          `After each new record is created on **${action.targetFormName || 'the destination'}**, should it be linked into a **cross-reference field on the parent form** (${hydratedForm?.name || 'trigger'})?`,
+          '',
+          'This matches designer → Advanced → Auto-Link Back to Trigger Form.',
+          'Pick the parent cross-ref field, or skip.',
+        ].join('\n'),
+        inputKind: 'field_select',
+        options: [
+          { value: '__skip_combo_link_back__', label: 'Skip — do not auto-link back' },
+          ...(action.sourceCrossRefFieldId
+            ? [{
+              value: action.sourceCrossRefFieldId,
+              label: `Use source field: ${action.sourceCrossRefFieldLabel || action.sourceCrossRefFieldId}`,
+            }]
+            : []),
+          ...xrOpts.filter((o) => o.value !== action.sourceCrossRefFieldId),
+        ],
+      }));
+      return mergeUnansweredFirst(out);
+    }
+
     if (!action.comboConfirmDone) {
       const modeLabel = action.combinationMode === 'dual'
         ? 'Dual — exactly 2 cross-refs (XR × XR)'
-        : 'Single — exactly 1 cross-ref (trigger × linked)';
+        : 'Single — parent form × one cross-ref (child)';
       const triggerMaps = action.createFieldMappings || [];
       const linkedMaps = action.linkedFormFieldMappings || [];
       const secondMaps = action.secondLinkedFormFieldMappings || [];
       const fmtMaps = (list: typeof triggerMaps, from: string) => (list.length
         ? list.map((m) => `· ${from}: **${m.sourceFieldLabel}** → **${m.targetFieldLabel}**`).join('\n')
         : `· ${from}: _(none)_`);
+      const linkBackLabel = action.skipComboLinkBack
+        ? '_(none)_'
+        : (action.updateTriggerCrossRefFieldName || action.updateTriggerCrossRefFieldId || '_(none)_');
       const cleanLines = [
         `Mode: **${modeLabel}**`,
-        `Source cross-ref: **${action.sourceCrossRefFieldLabel || action.sourceCrossRefFieldId}**`,
-        action.sourceLinkedFormName ? `Source linked form: **${action.sourceLinkedFormName}**` : null,
+        `Parent cross-ref: **${action.sourceCrossRefFieldLabel || action.sourceCrossRefFieldId}**`,
+        action.sourceLinkedFormName ? `Cross-ref (child) form: **${action.sourceLinkedFormName}**` : null,
         action.combinationMode === 'dual'
           ? `Second cross-ref: **${action.secondSourceCrossRefFieldLabel || action.secondSourceCrossRefFieldId}**`
           : null,
         `Create records on: **${action.targetFormName || action.targetFormId}**`,
+        `Auto-link back on parent: **${linkBackLabel}**`,
         '',
         '**Field mappings (FROM → TO):**',
         action.combinationMode !== 'dual'
-          ? fmtMaps(triggerMaps, hydratedForm?.name || 'Trigger form')
+          ? fmtMaps(triggerMaps, `${hydratedForm?.name || 'Parent'} (parent)`)
           : null,
-        fmtMaps(linkedMaps, action.sourceLinkedFormName || 'Linked form'),
+        fmtMaps(linkedMaps, `${action.sourceLinkedFormName || 'Cross-ref'} (child)`),
         action.combinationMode === 'dual'
           ? fmtMaps(secondMaps, action.secondSourceLinkedFormName || 'Second linked')
           : null,
         '',
-        'Auto-link matching cross-ref fields on the target form and skip duplicates by default. Create this combination action?',
+        'Auto-link matching XR fields on the destination form when present, and skip duplicates by default. Create this combination action?',
       ].filter(Boolean) as string[];
       push(req({
         id: 'action.combo_confirm',
@@ -1849,14 +1920,10 @@ export function applyAnswerToDefinition(
     next.action.sourceCrossRefFieldId = field?.id;
     next.action.sourceCrossRefFieldLabel = field?.label || value;
     if (next.action.actionType === 'create_combination_records') {
-      // XR child form is the *source* of combinations — not the destination
+      // XR child form is the expansion source; destination is chosen separately (may be parent)
       if (target.targetFormId) {
         next.action.sourceLinkedFormId = target.targetFormId;
         next.action.sourceLinkedFormName = target.targetFormName;
-        if (next.action.targetFormId === target.targetFormId) {
-          next.action.targetFormId = undefined;
-          next.action.targetFormName = undefined;
-        }
       }
       next.action.comboConfirmDone = false;
       next.action.comboTriggerMapsDone = undefined;
@@ -1864,6 +1931,10 @@ export function applyAnswerToDefinition(
       next.action.comboSecondLinkedMapsDone = undefined;
       next.action.comboMapPhase = undefined;
       next.action.skipComboMappings = undefined;
+      next.action.comboLinkBackDone = undefined;
+      next.action.skipComboLinkBack = undefined;
+      next.action.updateTriggerCrossRefFieldId = undefined;
+      next.action.updateTriggerCrossRefFieldName = undefined;
       next.action.createFieldMappings = [];
       next.action.linkedFormFieldMappings = [];
       next.action.secondLinkedFormFieldMappings = [];
@@ -1926,6 +1997,10 @@ export function applyAnswerToDefinition(
       next.action.comboSecondLinkedMapsDone = undefined;
       next.action.comboMapPhase = undefined;
       next.action.skipComboMappings = undefined;
+      next.action.comboLinkBackDone = undefined;
+      next.action.skipComboLinkBack = undefined;
+      next.action.updateTriggerCrossRefFieldId = undefined;
+      next.action.updateTriggerCrossRefFieldName = undefined;
       next.action.createFieldMappings = [];
       next.action.linkedFormFieldMappings = [];
       next.action.secondLinkedFormFieldMappings = [];
@@ -1939,6 +2014,10 @@ export function applyAnswerToDefinition(
       next.action.comboSecondLinkedMapsDone = undefined;
       next.action.comboMapPhase = undefined;
       next.action.skipComboMappings = undefined;
+      next.action.comboLinkBackDone = undefined;
+      next.action.skipComboLinkBack = undefined;
+      next.action.updateTriggerCrossRefFieldId = undefined;
+      next.action.updateTriggerCrossRefFieldName = undefined;
       next.action.createFieldMappings = [];
       next.action.linkedFormFieldMappings = [];
       next.action.secondLinkedFormFieldMappings = [];
@@ -1953,6 +2032,25 @@ export function applyAnswerToDefinition(
     }
     next.action.comboConfirmDone = true;
     next.action.configured = actionConfigured(next.action);
+    return next;
+  }
+
+  if (requirement.key === 'action_combo_link_back' && next.action) {
+    if (value === '__skip_combo_link_back__' || /^skip\b/i.test(value)) {
+      next.action.skipComboLinkBack = true;
+      next.action.comboLinkBackDone = true;
+      next.action.updateTriggerCrossRefFieldId = undefined;
+      next.action.updateTriggerCrossRefFieldName = undefined;
+      next.action.comboConfirmDone = false;
+      return next;
+    }
+    const field = form?.fields.find((f) => f.id === value)
+      || searchFields(form, value).matched;
+    next.action.updateTriggerCrossRefFieldId = field?.id || value;
+    next.action.updateTriggerCrossRefFieldName = field?.label || value;
+    next.action.skipComboLinkBack = false;
+    next.action.comboLinkBackDone = true;
+    next.action.comboConfirmDone = false;
     return next;
   }
 
@@ -2024,6 +2122,10 @@ export function applyAnswerToDefinition(
       next.action.comboSecondLinkedMapsDone = undefined;
       next.action.comboMapPhase = undefined;
       next.action.skipComboMappings = undefined;
+      next.action.comboLinkBackDone = undefined;
+      next.action.skipComboLinkBack = undefined;
+      next.action.updateTriggerCrossRefFieldId = undefined;
+      next.action.updateTriggerCrossRefFieldName = undefined;
       next.action.createFieldMappings = [];
       next.action.linkedFormFieldMappings = [];
       next.action.secondLinkedFormFieldMappings = [];
