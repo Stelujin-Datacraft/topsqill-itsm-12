@@ -10,6 +10,7 @@ import { CreateCombinationRecordsConfig as ConfigType, TargetLinkFieldConfig, Fi
 import { Trash2, Plus, Link } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { resolveCrossRefLinkedForm } from '@/utils/crossRefConfig';
 
 interface CreateCombinationRecordsConfigProps {
   config: Partial<ConfigType>;
@@ -54,18 +55,16 @@ export function CreateCombinationRecordsConfig({
           return;
         }
         
-        let customConfig: { targetFormId?: string; targetFormName?: string } | null = null;
-        if (typeof data.custom_config === 'string') {
-          try { customConfig = JSON.parse(data.custom_config); } catch {}
-        } else {
-          customConfig = data.custom_config as { targetFormId?: string; targetFormName?: string } | null;
+        let customConfig: unknown = data.custom_config;
+        if (typeof customConfig === 'string') {
+          try { customConfig = JSON.parse(customConfig); } catch { customConfig = null; }
         }
-        
-        if (customConfig?.targetFormId) {
+        const linked = resolveCrossRefLinkedForm(customConfig);
+        if (linked.targetFormId) {
           onConfigChange({
             ...config,
-            sourceLinkedFormId: customConfig.targetFormId,
-            sourceLinkedFormName: customConfig.targetFormName || 'Unknown Form'
+            sourceLinkedFormId: linked.targetFormId,
+            sourceLinkedFormName: linked.targetFormName || 'Unknown Form'
           });
         }
         setLinkedFormLoading(false);
@@ -101,18 +100,16 @@ export function CreateCombinationRecordsConfig({
           return;
         }
         
-        let customConfig: { targetFormId?: string; targetFormName?: string } | null = null;
-        if (typeof data.custom_config === 'string') {
-          try { customConfig = JSON.parse(data.custom_config); } catch {}
-        } else {
-          customConfig = data.custom_config as { targetFormId?: string; targetFormName?: string } | null;
+        let customConfig: unknown = data.custom_config;
+        if (typeof customConfig === 'string') {
+          try { customConfig = JSON.parse(customConfig); } catch { customConfig = null; }
         }
-        
-        if (customConfig?.targetFormId) {
+        const linked = resolveCrossRefLinkedForm(customConfig);
+        if (linked.targetFormId) {
           onConfigChange({
             ...config,
-            secondSourceLinkedFormId: customConfig.targetFormId,
-            secondSourceLinkedFormName: customConfig.targetFormName || 'Unknown Form'
+            secondSourceLinkedFormId: linked.targetFormId,
+            secondSourceLinkedFormName: linked.targetFormName || 'Unknown Form'
           });
         }
         setSecondLinkedFormLoading(false);
@@ -136,18 +133,17 @@ export function CreateCombinationRecordsConfig({
         .from('form_fields')
         .select('id, label, field_type, custom_config')
         .eq('form_id', config.targetFormId)
-        .eq('field_type', 'cross-reference');
+        .in('field_type', ['cross-reference', 'child-cross-reference']);
 
       if (!error && data) {
         const fields = data.map(f => {
-          let targetFormId: string | undefined;
-          let targetFormName: string | undefined;
-          if (f.custom_config) {
-            const cc = typeof f.custom_config === 'string' ? JSON.parse(f.custom_config) : f.custom_config;
-            targetFormId = cc?.targetFormId;
-            targetFormName = cc?.targetFormName;
-          }
-          return { id: f.id, label: f.label, targetFormId, targetFormName };
+          const linked = resolveCrossRefLinkedForm(f.custom_config, f.field_type);
+          return {
+            id: f.id,
+            label: f.label,
+            targetFormId: linked.targetFormId,
+            targetFormName: linked.targetFormName,
+          };
         });
         setTargetFormCrossRefFields(fields);
       }
@@ -253,15 +249,13 @@ export function CreateCombinationRecordsConfig({
           formId={triggerFormId}
           value={config.sourceCrossRefFieldId || ''}
           onValueChange={(fieldId, fieldName, fieldType, fieldOptions, customConfig) => {
-            let cfg = customConfig || {};
-            if (typeof cfg === 'string') { try { cfg = JSON.parse(cfg); } catch { cfg = {}; } }
-            const isChildRef = fieldType === 'child-cross-reference';
+            const linked = resolveCrossRefLinkedForm(customConfig, fieldType);
             onConfigChange({
               ...config,
               sourceCrossRefFieldId: fieldId,
               sourceCrossRefFieldName: fieldName,
-              sourceLinkedFormId: isChildRef ? (cfg?.parentFormId || cfg?.targetFormId) : cfg?.targetFormId,
-              sourceLinkedFormName: isChildRef ? (cfg?.parentFormName || cfg?.targetFormName) : cfg?.targetFormName
+              sourceLinkedFormId: linked.targetFormId,
+              sourceLinkedFormName: linked.targetFormName
             });
           }}
           placeholder="Select cross-reference field"
@@ -291,15 +285,13 @@ export function CreateCombinationRecordsConfig({
             formId={triggerFormId}
             value={config.secondSourceCrossRefFieldId || ''}
             onValueChange={(fieldId, fieldName, fieldType, fieldOptions, customConfig) => {
-              let cfg = customConfig || {};
-              if (typeof cfg === 'string') { try { cfg = JSON.parse(cfg); } catch { cfg = {}; } }
-              const isChildRef = fieldType === 'child-cross-reference';
+              const linked = resolveCrossRefLinkedForm(customConfig, fieldType);
               onConfigChange({
                 ...config,
                 secondSourceCrossRefFieldId: fieldId,
                 secondSourceCrossRefFieldName: fieldName,
-                secondSourceLinkedFormId: isChildRef ? (cfg?.parentFormId || cfg?.targetFormId) : cfg?.targetFormId,
-                secondSourceLinkedFormName: isChildRef ? (cfg?.parentFormName || cfg?.targetFormName) : cfg?.targetFormName
+                secondSourceLinkedFormId: linked.targetFormId,
+                secondSourceLinkedFormName: linked.targetFormName
               });
             }}
             placeholder="Select second cross-reference field"

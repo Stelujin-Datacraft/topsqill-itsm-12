@@ -18,6 +18,7 @@ import { FormFieldSelector } from './FormFieldSelector';
 import { DynamicFieldSelector } from './DynamicFieldSelector';
 import { WorkflowEmailTemplateSelector } from './WorkflowEmailTemplateSelector';
 import { EnhancedConditionBuilder } from './conditions/EnhancedConditionBuilder';
+import { resolveCrossRefLinkedForm } from '@/utils/crossRefConfig';
 import { FormRuleSelector } from './FormRuleSelector';
 import { DynamicValueInput } from './conditions/DynamicValueInput';
 import { CreateRecordFieldsConfig } from './CreateRecordFieldsConfig';
@@ -209,7 +210,7 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
       try {
         const { data, error } = await supabase
           .from('form_fields')
-          .select('custom_config')
+          .select('custom_config, field_type')
           .eq('id', sourceCrossRefFieldId)
           .maybeSingle();
         
@@ -222,24 +223,24 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
         }
         
         // Handle case where custom_config might be a string (JSON) or already an object
-        let customConfig: { targetFormId?: string; targetFormName?: string } | null = null;
-        if (typeof data.custom_config === 'string') {
+        let customConfig: unknown = data.custom_config;
+        if (typeof customConfig === 'string') {
           try {
-            customConfig = JSON.parse(data.custom_config);
+            customConfig = JSON.parse(customConfig);
           } catch (e) {
             console.log('❌ Failed to parse custom_config:', e);
+            customConfig = null;
           }
-        } else {
-          customConfig = data.custom_config as { targetFormId?: string; targetFormName?: string } | null;
         }
         console.log('📋 Custom config:', customConfig);
+        const linked = resolveCrossRefLinkedForm(customConfig, data.field_type);
         
-        if (customConfig?.targetFormId) {
-          console.log('✅ Setting sourceLinkedFormId:', customConfig.targetFormId);
+        if (linked.targetFormId) {
+          console.log('✅ Setting sourceLinkedFormId:', linked.targetFormId);
           setLocalConfig((prev: any) => ({
             ...prev,
-            sourceLinkedFormId: customConfig.targetFormId,
-            sourceLinkedFormName: customConfig.targetFormName || 'Unknown Form'
+            sourceLinkedFormId: linked.targetFormId,
+            sourceLinkedFormName: linked.targetFormName || 'Unknown Form'
           }));
         }
         setLinkedFormLoading(false);
