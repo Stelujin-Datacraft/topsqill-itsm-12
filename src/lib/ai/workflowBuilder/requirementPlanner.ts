@@ -383,10 +383,21 @@ function planGenericActionRequirements(
     }
 
     // Skip mode ask when prompt already says single/dual clearly
-    const modeClear = action.combinationMode === 'dual'
-      || /\bsingle\b/.test(promptText.toLowerCase())
-      || /\bone\s+cross[- ]?ref/.test(promptText.toLowerCase())
-      || /\bparent\b.+\bcross[- ]?ref|\bcross[- ]?ref.+\bparent\b/i.test(promptText);
+    const tMode = promptText.toLowerCase();
+    const explicitDual = /\bdual\b/.test(tMode)
+      || /\bcartesian\b/.test(tMode)
+      || /\btwo\s+cross[- ]?ref/.test(tMode)
+      || /\b2\s+cross[- ]?ref/.test(tMode)
+      || /\bboth\s+cross[- ]?ref/.test(tMode);
+    const explicitSingle = /\bsingle\b/.test(tMode)
+      || /\bone\s+cross[- ]?ref/.test(tMode)
+      || (/\bparent\b/i.test(promptText) && /\bcross[- ]?ref/i.test(promptText) && !explicitDual);
+    if (explicitSingle && !explicitDual) {
+      action.combinationMode = 'single';
+    } else if (explicitDual) {
+      action.combinationMode = 'dual';
+    }
+    const modeClear = explicitSingle || explicitDual;
     if (!answered.has('action.combo_mode') && !modeClear) {
       push(req({
         id: 'action.combo_mode',
