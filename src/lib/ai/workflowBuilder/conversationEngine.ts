@@ -190,9 +190,10 @@ export function startWorkflowBuilderSession(params: {
     );
     if (actionType === 'create_combination_records') {
       intro.push(
-        '**Single combination flow:** pick **one cross-ref** on the parent → '
-        + 'optional **parent→parent** field mappings → optional **cross-ref→parent** mappings '
-        + '(Skip or map until Done). Auto-link is asked only if destination is the cross-ref form. '
+        '**Single combination flow:** pick **one cross-ref** → '
+        + '**Mapping 1** parent→parent (Skip or Done) → '
+        + '**Mapping 2** cross-ref→parent (Skip or Done). '
+        + 'New records are created on the **parent** form. '
         + 'Set the **Condition** node later in the designer.',
       );
     } else {
@@ -811,7 +812,10 @@ function buildAck(
     return 'Auto-link back field noted.';
   }
   if (req.key === 'action_combo_confirm') {
-    if (answer === '__redo_combo_target__' || /^pick\b/i.test(answer)) {
+    if (answer === '__redo_combo_xr__') {
+      return 'Okay — pick a different cross-ref field.';
+    }
+    if (answer === '__redo_combo_target__' || /^pick\s+a\s+different\s+destination\b/i.test(answer)) {
       return 'Okay — pick a different destination form.';
     }
     if (answer === '__redo_combo_maps__' || /^change\b/i.test(answer)) {
@@ -821,10 +825,10 @@ function buildAck(
   }
   if (req.key === 'action_combo_map_menu') {
     if (answer === '__skip_combo_maps__' || /^skip\b/i.test(answer)) {
-      return 'Okay — skipping mappings from this source.';
+      return 'Okay — skipped. Continuing to the next mapping step.';
     }
     if (answer === '__done_combo_maps__' || /^done\b/i.test(answer)) {
-      return 'Got it — continuing with the mappings you set.';
+      return 'Got it — continuing to the next mapping step.';
     }
     const fromName = field?.label
       || (optionLabel ? optionLabel.replace(/^FROM\s+[^:]+:\s*/i, '').replace(/\s*\([^)]+\)\s*$/, '') : '')

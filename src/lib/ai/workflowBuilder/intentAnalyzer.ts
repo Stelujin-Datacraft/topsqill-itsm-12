@@ -246,18 +246,15 @@ export function analyzeWorkflowIntent(
     if (action.actionType === 'create_combination_records') {
       action.combinationMode = inferCombinationModeFromPrompt(text);
       extractedKeys.push('action.combo_mode');
-      const formHint = extractCreateTargetFormHint(text);
-      const t = text.toLowerCase();
-      const wantsParentDest = /\bon\s+this\s+parent\s+form\b/.test(t)
-        || /\bon\s+this\s+form\b/.test(t)
-        || /\bon\s+the\s+parent\s+form\b/.test(t)
-        || /\bnew\s+record\s+on\s+this\b/.test(t)
-        || /\bsingle\b/.test(t);
-      if (formHint) {
-        action.targetFormName = formHint;
-      } else if (wantsParentDest && context?.formId) {
+      // Single combination always creates on the parent form (parent→parent + XR→parent maps)
+      if (context?.formId && action.combinationMode !== 'dual') {
         action.targetFormId = context.formId;
         action.targetFormName = context.formName;
+      } else {
+        const formHint = extractCreateTargetFormHint(text);
+        if (formHint) {
+          action.targetFormName = formHint;
+        }
       }
     }
   }
