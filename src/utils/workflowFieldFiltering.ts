@@ -123,10 +123,10 @@ const TYPE_COMPATIBILITY_GROUPS: Record<string, string[]> = {
   'toggle-switch': ['toggle', 'switch', 'checkbox', 'yes-no', 'toggle-switch'],
   
   // Select/Option fields
-  select: ['select', 'radio', 'dropdown', 'multi-select', 'dynamic-dropdown'],
-  radio: ['select', 'radio', 'dropdown'],
-  dropdown: ['select', 'radio', 'dropdown', 'dynamic-dropdown'],
-  'dynamic-dropdown': ['select', 'radio', 'dropdown', 'dynamic-dropdown'],
+  select: ['select', 'radio', 'dropdown', 'multi-select', 'dynamic-dropdown', 'status'],
+  radio: ['select', 'radio', 'dropdown', 'status'],
+  dropdown: ['select', 'radio', 'dropdown', 'dynamic-dropdown', 'status'],
+  'dynamic-dropdown': ['select', 'radio', 'dropdown', 'dynamic-dropdown', 'status'],
   'multi-select': ['multi-select', 'checkbox', 'tags'],
   checkbox: ['checkbox', 'multi-select', 'toggle', 'switch', 'yes-no'],
   
@@ -135,6 +135,9 @@ const TYPE_COMPATIBILITY_GROUPS: Record<string, string[]> = {
   
   // Country
   country: ['country', 'select', 'dropdown', 'text'],
+  
+  // Status (approval / lifecycle) — compatible with select-like fields
+  status: ['status', 'select', 'radio', 'dropdown', 'dynamic-dropdown', 'text', 'short-answer'],
   
   // User/Access fields
   'user-picker': ['user-picker', 'email', 'submission-access', 'assignee'],

@@ -499,15 +499,28 @@ function planGenericActionRequirements(
     }
 
     // Destination = where new records are created.
+    // Drop bogus names like "combination" left from older prompt parsing.
+    if (
+      action.targetFormName
+      && !action.targetFormId
+      && /^(?:combination|combinations|dual|single|combo)$/i.test(
+        String(action.targetFormName).replace(/[^a-z0-9]+/gi, ' ').trim(),
+      )
+    ) {
+      action.targetFormName = undefined;
+    }
     // Default to parent/trigger when prompt says create on this/parent form.
-    if (!action.targetFormId && !action.targetFormName && hydratedForm) {
+    if (!action.targetFormId && hydratedForm) {
       const t = promptText.toLowerCase();
       if (
-        /\bon\s+this\s+parent\s+form\b/.test(t)
-        || /\bon\s+this\s+form\b/.test(t)
-        || /\bon\s+the\s+parent\s+form\b/.test(t)
-        || /\bnew\s+record\s+on\s+this\s+parent\b/.test(t)
-        || /\bcreate\s+(?:a\s+)?new\s+record\s+on\s+this\b/.test(t)
+        !action.targetFormName
+        && (
+          /\bon\s+this\s+parent\s+form\b/.test(t)
+          || /\bon\s+this\s+form\b/.test(t)
+          || /\bon\s+the\s+parent\s+form\b/.test(t)
+          || /\bnew\s+record\s+on\s+this\s+parent\b/.test(t)
+          || /\bcreate\s+(?:a\s+)?new\s+record\s+on\s+this\b/.test(t)
+        )
       ) {
         action.targetFormId = hydratedForm.id;
         action.targetFormName = hydratedForm.name;
@@ -528,6 +541,9 @@ function planGenericActionRequirements(
       ) {
         action.targetFormId = hydratedForm.id;
         action.targetFormName = hydratedForm.name;
+      } else {
+        // Unknown name — clear so we ask properly instead of mapping with empty dest
+        action.targetFormName = undefined;
       }
     }
     if (!action.targetFormId && !action.targetFormName) {
@@ -696,11 +712,22 @@ function planGenericActionRequirements(
       const usedSourceIds = new Set(
         phaseList.map((x) => x.sourceFieldId).filter(Boolean) as string[],
       );
-      const availableTargetFields = fieldChoices(destForm).filter((f) => !usedTargetIds.has(f.value));
+      const availableTargetFields = fieldChoices(destForm).filter((f) => {
+        if (usedTargetIds.has(f.value)) return false;
+        const field = destForm?.fields?.find((x) => x.id === f.value);
+        const t = String(field?.type || '').toLowerCase();
+        return t !== 'cross-reference' && t !== 'child-cross-reference';
+      });
+      const isMappable = (type?: string) => {
+        const t = String(type || '').toLowerCase();
+        return isWorkflowValueField(t)
+          && t !== 'cross-reference'
+          && t !== 'child-cross-reference';
+      };
       const sourceFieldChoices = (sourceForm?.fields || [])
-        .filter((f) => isWorkflowValueField(f.type) && !usedSourceIds.has(f.id))
+        .filter((f) => isMappable(f.type) && !usedSourceIds.has(f.id))
         .map((f) => ({ value: f.id, label: `FROM ${sourceFormName}: ${f.label} (${f.type})` }));
-      const sourceFields = (sourceForm?.fields || []).filter((f) => isWorkflowValueField(f.type));
+      const sourceFields = (sourceForm?.fields || []).filter((f) => isMappable(f.type));
 
       // Draft: FROM field known → pick TO field on destination
       if (
@@ -716,18 +743,34 @@ function planGenericActionRequirements(
           return areTypesCompatible(sourceType, field.type || 'text');
         });
         if (!compatibleTargets.length) {
+          // Do not dead-end — clear this FROM pick and keep mapping until Done
+          const skippedLabel = action.createMapSourceFieldLabel || 'that field';
+          const skippedId = action.createMapSourceFieldId;
+          clearComboMapDraft();
+          const mapCount = phaseList.length;
+          const mapSummary = mapCount
+            ? phaseList.map((m) => `**${m.sourceFieldLabel}** → **${m.targetFieldLabel}**`).join(', ')
+            : '';
+          const fromOpts = sourceFieldChoices.filter((o) => o.value !== skippedId);
           push(req({
-            id: `action.combo_map_target_none_${phase}_${phaseList.length}`,
+            id: `action.combo_map_menu_${phase}_${mapCount}_retry`,
             scope: 'workflow',
-            key: 'action_map_target_field',
+            key: 'action_combo_map_menu',
             question: [
-              `No **compatible** fields on **${destName}** can receive **${action.createMapSourceFieldLabel}** (${sourceType}) from **${sourceFormName}**.`,
+              phaseTitle,
+              `**${skippedLabel}** (${sourceType}) has no compatible **TO** field on **${destName}** — skipped.`,
+              mapSummary ? `Mapped so far: ${mapSummary}` : 'No mappings yet.',
               '',
-              'Cancel and pick a different **FROM** field.',
-            ].join('\n'),
-            inputKind: 'choice',
+              'Pick another **FROM** field, or **Done** / **Skip** to continue.',
+            ].filter(Boolean).join('\n'),
+            inputKind: 'field_select',
             options: [
-              { value: '__cancel_map__', label: 'Cancel — pick a different FROM field' },
+              ...(mapCount
+                ? [{ value: '__done_combo_maps__', label: 'Done — continue' }]
+                : [{ value: '__skip_combo_maps__', label: 'Skip — no mappings from this source' }]),
+              ...(fromOpts.length
+                ? fromOpts
+                : [{ value: '__done_combo_maps__', label: 'Done — no other fields to map' }]),
             ],
           }));
           return mergeUnansweredFirst(out);
