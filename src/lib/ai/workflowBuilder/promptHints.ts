@@ -54,16 +54,25 @@ export function extractGenericPromptHints(prompt: string): GenericPromptHints {
 export function extractCreateTargetFormHint(prompt: string): string | undefined {
   const text = String(prompt || '').replace(/\s+/g, ' ').trim();
   if (!text) return undefined;
+  const isActionNoise = (hint: string) => {
+    const h = hint.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    if (!h) return true;
+    // Reject action-type phrases mistaken for form names
+    // e.g. "create single combination records" → "single combination"
+    if (/^(?:linked|child|cross\s*ref(?:erence)?|combination|combinations|dual|single|combo)$/i.test(h)) {
+      return true;
+    }
+    if (/\b(?:combination|combinations|dual|single|combo)\b/.test(h) && !/\bform\b/.test(h)) {
+      return true;
+    }
+    return false;
+  };
   const named = text.match(
     /\bcreate\s+(?:an?\s+)?(?:new\s+)?([A-Za-z][\w\s/-]{0,40}?)\s+(?:records?|tickets?|submissions?|entries)\b/i,
   );
   if (named?.[1]) {
     const hint = cleanHint(named[1]);
-    // Never treat action-type words as a form name ("create combination records")
-    if (
-      hint
-      && !/^(?:linked|child|cross[- ]?ref(?:erence)?|combination|combinations|dual|single|combo)$/i.test(hint)
-    ) {
+    if (hint && !isActionNoise(hint)) {
       return hint;
     }
   }
@@ -72,7 +81,8 @@ export function extractCreateTargetFormHint(prompt: string): string | undefined 
     const hint = cleanHint(short[1]);
     if (
       hint
-      && !/^(?:a|an|new|linked|child|record|records|ticket|submission|field|form|workflow|combination|combinations|dual|single|combo)$/i.test(hint)
+      && !/^(?:a|an|new|linked|child|record|records|ticket|submission|field|form|workflow)$/i.test(hint)
+      && !isActionNoise(hint)
     ) {
       return hint;
     }
