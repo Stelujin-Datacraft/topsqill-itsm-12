@@ -519,23 +519,15 @@ function compileGenericActionGraph(
     && !fieldId
     && !fieldLabel;
 
-  nodes.push({
-    tempId: conditionId,
-    type: 'condition',
-    label: conditionDeferred
-      ? 'Condition (set in designer)'
-      : (fieldLabel ? `${fieldLabel} ${operator} ${value}` : 'Condition'),
-    description: conditionDeferred
-      ? 'Configure this condition node in the workflow designer'
-      : `${fieldLabel} ${operator} ${value}`,
-    config: {
-      formId,
-      fieldId,
-      fieldLabel,
-      fieldType,
-      operator,
-      value,
-      enhancedCondition: {
+  // Deferred combo conditions must evaluate true at runtime (no field bound yet).
+  // Use an empty conditions list so enhanced evaluation short-circuits to true.
+  const enhancedCondition = conditionDeferred
+    ? {
+        systemType: 'field_level',
+        logicalOperator: 'AND',
+        conditions: [] as Array<Record<string, unknown>>,
+      }
+    : {
         systemType: 'field_level',
         logicalOperator: 'AND',
         conditions: [{
@@ -550,7 +542,25 @@ function compileGenericActionGraph(
             value,
           },
         }],
-      },
+      };
+
+  nodes.push({
+    tempId: conditionId,
+    type: 'condition',
+    label: conditionDeferred
+      ? 'Condition (set in designer)'
+      : (fieldLabel ? `${fieldLabel} ${operator} ${value}` : 'Condition'),
+    description: conditionDeferred
+      ? 'Configure this condition node in the workflow designer'
+      : `${fieldLabel} ${operator} ${value}`,
+    config: {
+      formId,
+      fieldId: conditionDeferred ? '' : fieldId,
+      fieldLabel: conditionDeferred ? '' : fieldLabel,
+      fieldType: conditionDeferred ? 'text' : fieldType,
+      operator: conditionDeferred ? '==' : operator,
+      value: conditionDeferred ? '' : value,
+      enhancedCondition,
     },
     connections: [
       { to: actionId, conditionType: 'true', sourceHandle: 'true' },

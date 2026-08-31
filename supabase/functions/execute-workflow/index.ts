@@ -2056,9 +2056,11 @@ async function evaluateCondition(supabase: any, node: WorkflowNode, triggerData:
     const operator = flc?.operator
     const expectedValue = flc?.value
     
-    if (!fieldId) {
-      console.log(`⚠️ No fieldId in field-level condition`)
-      return false
+    // Empty/deferred conditions (e.g. AI Suggest Combination — configure later in designer)
+    // must pass through so the action still runs.
+    if (!fieldId || String(fieldId).trim() === '') {
+      console.log(`ℹ️ No fieldId in field-level condition — treating as always-true (deferred/unset)`)
+      return true
     }
     
     const actualValue = submissionData[fieldId]
