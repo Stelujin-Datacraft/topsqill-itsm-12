@@ -59,14 +59,20 @@ export function extractCreateTargetFormHint(prompt: string): string | undefined 
   );
   if (named?.[1]) {
     const hint = cleanHint(named[1]);
-    if (hint && !/^(?:linked|child|cross[- ]?ref(?:erence)?)$/i.test(hint)) return hint;
+    // Never treat action-type words as a form name ("create combination records")
+    if (
+      hint
+      && !/^(?:linked|child|cross[- ]?ref(?:erence)?|combination|combinations|dual|single|combo)$/i.test(hint)
+    ) {
+      return hint;
+    }
   }
   const short = text.match(/\bcreate\s+(?:an?\s+)?(?:new\s+)?([A-Za-z][\w/-]{1,40})\b/i);
   if (short?.[1]) {
     const hint = cleanHint(short[1]);
     if (
       hint
-      && !/^(?:a|an|new|linked|child|record|records|ticket|submission|field|form|workflow)$/i.test(hint)
+      && !/^(?:a|an|new|linked|child|record|records|ticket|submission|field|form|workflow|combination|combinations|dual|single|combo)$/i.test(hint)
     ) {
       return hint;
     }
