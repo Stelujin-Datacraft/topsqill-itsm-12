@@ -190,9 +190,10 @@ export function startWorkflowBuilderSession(params: {
     );
     if (actionType === 'create_combination_records') {
       intro.push(
-        'Next I will ask for the **cross-reference (child)** field, optional **field mappings** '
-        + '(parent → destination and child → destination), and **link-back**. '
-        + 'You can set the **Condition** node later in the designer — I will not ask for a condition field here.',
+        '**Single combination flow:** pick **one cross-ref** on the parent → '
+        + 'optional **parent→parent** field mappings → optional **cross-ref→parent** mappings '
+        + '(Skip or map until Done). Auto-link is asked only if destination is the cross-ref form. '
+        + 'Set the **Condition** node later in the designer.',
       );
     } else {
       intro.push('I will ask for the **condition field** and **action field** separately — I will not ask you to pick an action type.');
