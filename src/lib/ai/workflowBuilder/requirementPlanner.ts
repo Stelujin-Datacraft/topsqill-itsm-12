@@ -521,12 +521,12 @@ function planGenericActionRequirements(
     }
 
     // ── Destination ───────────────────────────────────────────────────────
-    // Single: default = parent form (parent→parent + XR→parent mappings).
-    // May also choose the cross-ref form (then auto-link is offered).
+    // Single: parent OR the selected cross-ref (child) form.
+    // Auto-link back is offered ONLY when destination === cross-ref child form.
     if (
       action.targetFormName
       && !action.targetFormId
-      && /^(?:combination|combinations|dual|single|combo)$/i.test(
+      && /^(?:combination|combinations|dual|single|combo)(?:\s+(?:combination|combinations|dual|single|combo|record|records))?$/i.test(
         String(action.targetFormName).replace(/[^a-z0-9]+/gi, ' ').trim(),
       )
     ) {
@@ -534,21 +534,27 @@ function planGenericActionRequirements(
     }
 
     if (isSingle && hydratedForm && !action.targetFormId) {
-      // Single default destination = parent (matches parent→parent / XR→parent mapping steps)
       const t = promptText.toLowerCase();
-      const wantsChildDest = action.sourceLinkedFormId && (
+      const wantsChildDest = Boolean(action.sourceLinkedFormId) && (
         /\bon\s+(?:the\s+)?(?:cross[- ]?ref|child)\s+form\b/.test(t)
+        || /\bcreate\s+(?:each\s+)?(?:new\s+)?records?\s+on\s+(?:the\s+)?(?:cross[- ]?ref|child)\b/.test(t)
         || (action.sourceLinkedFormName
           && t.includes(String(action.sourceLinkedFormName).toLowerCase())
           && /\bcreate\b.+\bon\b/.test(t))
       );
+      const wantsParentDest = /\bon\s+this\s+parent\s+form\b/.test(t)
+        || /\bon\s+this\s+form\b/.test(t)
+        || /\bon\s+the\s+parent\s+form\b/.test(t)
+        || /\bnew\s+record\s+on\s+this\b/.test(t)
+        || /\bcreate\s+(?:each\s+)?(?:new\s+)?records?\s+on\s+(?:this\s+)?parent\b/.test(t);
       if (wantsChildDest && action.sourceLinkedFormId) {
         action.targetFormId = action.sourceLinkedFormId;
         action.targetFormName = action.sourceLinkedFormName;
-      } else if (!action.targetFormName || /\bparent\b|\bthis\s+form\b/.test(t)) {
+      } else if (wantsParentDest && !wantsChildDest) {
         action.targetFormId = hydratedForm.id;
         action.targetFormName = hydratedForm.name;
       }
+      // else: ask parent vs cross-ref child below
     }
 
     if (!action.targetFormId && action.targetFormName) {
@@ -573,16 +579,16 @@ function planGenericActionRequirements(
 
     if (!action.targetFormId && !action.targetFormName) {
       if (isSingle && hydratedForm) {
-        // Single: only parent or the selected cross-ref form
+        // Single: parent OR the selected cross-ref (child) form
         const formOpts = [
           {
             value: hydratedForm.id,
-            label: `${hydratedForm.name} (parent form) — recommended`,
+            label: `${hydratedForm.name} (parent form)`,
           },
           ...(action.sourceLinkedFormId
             ? [{
               value: action.sourceLinkedFormId,
-              label: `${action.sourceLinkedFormName || 'Cross-ref form'} (cross-ref / child form)`,
+              label: `${action.sourceLinkedFormName || 'Cross-ref form'} (child cross-ref form) — enables Auto-Link Back`,
             }]
             : []),
         ];
@@ -593,8 +599,9 @@ function planGenericActionRequirements(
           question: [
             'Where should **new combination records** be created?',
             '',
-            '**Parent form** — map parent→parent and cross-ref→parent fields.',
-            '**Cross-ref form** — create on the child form (auto-link back will be offered next).',
+            '**Parent form** — Mapping 1 parent→parent, Mapping 2 cross-ref→parent. No auto-link back.',
+            '**Child cross-ref form** — create on the selected cross-ref form, then you can **Auto-Link Back** '
+              + 'into a parent cross-ref field (same as designer Advanced Options).',
           ].join('\n'),
           inputKind: 'choice',
           options: formOpts,
@@ -891,14 +898,15 @@ function planGenericActionRequirements(
       }
     }
 
-    // Auto-link: Single — only when destination is the cross-ref (child) form
+    // Auto-Link Back to Trigger Form — ONLY when target is the child cross-ref form
+    // (designer Advanced Options → updateTriggerCrossRefFieldId).
     const destIsCrossRefForm = Boolean(
       action.targetFormId
       && action.sourceLinkedFormId
       && action.targetFormId === action.sourceLinkedFormId,
     );
     if (isSingle && !destIsCrossRefForm) {
-      // Creating on parent (or other form) — no auto-link ask
+      // Creating on parent (or other form) — do not offer auto-link back
       if (!action.comboLinkBackDone) {
         action.skipComboLinkBack = true;
         action.comboLinkBackDone = true;
@@ -922,12 +930,13 @@ function planGenericActionRequirements(
         scope: 'workflow',
         key: 'action_combo_link_back',
         question: [
-          '**Auto-link** (destination is the cross-ref form)',
+          '**Auto-Link Back to Trigger Form** (optional)',
           '',
-          `New records are created on **${action.targetFormName || 'the cross-ref form'}**.`,
-          `Link each new record back into a **cross-reference field on the parent** (${hydratedForm?.name || 'trigger'})?`,
+          `Target is the **child cross-ref form** (**${action.targetFormName || 'cross-ref form'}**), `
+            + `so new records can be written back into a cross-reference field on `
+            + `**${hydratedForm?.name || 'the parent / trigger form'}**.`,
           '',
-          'Pick the parent cross-ref field, or skip.',
+          'Select the parent cross-reference field to update, or skip.',
         ].join('\n'),
         inputKind: 'field_select',
         options: [
