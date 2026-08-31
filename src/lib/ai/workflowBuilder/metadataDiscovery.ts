@@ -257,12 +257,17 @@ export function getCrossRefTargetForm(field: DiscoveredFormField | undefined): {
   // Also accept crossRefConfig attached beside custom_config (AI Suggest enrichment)
   const side = field.crossRefConfig;
   const nested = cfg.crossRefConfig || cfg.cross_ref_config || side || cfg;
+  const isChildRef = String(field.type || '').toLowerCase() === 'child-cross-reference';
+  // Prefer targetFormId (designer fetch path). For child-cross-ref also accept parentFormId.
   const targetFormId = String(
     nested?.targetFormId
     || nested?.target_form_id
     || cfg.targetFormId
     || cfg.target_form_id
     || side?.targetFormId
+    || (isChildRef
+      ? (nested?.parentFormId || nested?.parent_form_id || cfg.parentFormId || cfg.parent_form_id)
+      : '')
     || '',
   ).trim() || undefined;
   const targetFormName = String(
@@ -271,6 +276,9 @@ export function getCrossRefTargetForm(field: DiscoveredFormField | undefined): {
     || cfg.targetFormName
     || cfg.target_form_name
     || side?.targetFormName
+    || (isChildRef
+      ? (nested?.parentFormName || nested?.parent_form_name || cfg.parentFormName || cfg.parent_form_name)
+      : '')
     || '',
   ).trim() || undefined;
   return { targetFormId, targetFormName };

@@ -52,18 +52,25 @@ export function generateWorkflowPreview(
       `Type: ${describeActionType(a.actionType)}`,
     ];
     if (a.actionType === 'create_combination_records') {
-      actionLines.push(`Mode: ${a.combinationMode === 'dual' ? 'Dual (exactly 2 cross-refs)' : 'Single (exactly 1 cross-ref)'}`);
+      actionLines.push(`Mode: ${a.combinationMode === 'dual' ? 'Dual (exactly 2 cross-refs)' : 'Single (parent × one cross-ref child)'}`);
       if (a.sourceCrossRefFieldLabel || a.sourceCrossRefFieldId) {
-        actionLines.push(`Source cross-ref: ${a.sourceCrossRefFieldLabel || a.sourceCrossRefFieldId}`);
+        actionLines.push(`Parent cross-ref: ${a.sourceCrossRefFieldLabel || a.sourceCrossRefFieldId}`);
       }
       if (a.sourceLinkedFormName) {
-        actionLines.push(`Source linked form: ${a.sourceLinkedFormName}`);
+        actionLines.push(`Cross-ref (child) form: ${a.sourceLinkedFormName}`);
       }
       if (a.combinationMode === 'dual' && (a.secondSourceCrossRefFieldLabel || a.secondSourceCrossRefFieldId)) {
         actionLines.push(`Second cross-ref: ${a.secondSourceCrossRefFieldLabel || a.secondSourceCrossRefFieldId}`);
       }
       if (a.targetFormName || a.targetFormId) {
         actionLines.push(`Create records on: ${a.targetFormName || a.targetFormId}`);
+      }
+      if (a.updateTriggerCrossRefFieldName || a.updateTriggerCrossRefFieldId) {
+        actionLines.push(
+          `Auto-link back on parent: ${a.updateTriggerCrossRefFieldName || a.updateTriggerCrossRefFieldId}`,
+        );
+      } else if (a.skipComboLinkBack || a.comboLinkBackDone) {
+        actionLines.push('Auto-link back on parent: none');
       }
       const triggerMaps = a.createFieldMappings || [];
       const linkedMaps = a.linkedFormFieldMappings || [];

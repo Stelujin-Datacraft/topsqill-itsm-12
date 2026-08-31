@@ -451,6 +451,14 @@ function buildActionNodeConfig(
         fieldMappings: mode === 'single' ? mappings : [],
         linkedFormFieldMappings: linkedMappings,
         secondLinkedFormFieldMappings: mode === 'dual' ? secondLinkedMappings : [],
+        ...(action.updateTriggerCrossRefFieldId
+          ? {
+            updateTriggerCrossRefFieldId: action.updateTriggerCrossRefFieldId,
+            updateTriggerCrossRefFieldName: action.updateTriggerCrossRefFieldName
+              || findField(formFields, action.updateTriggerCrossRefFieldId)?.label
+              || '',
+          }
+          : {}),
       };
     }
     case 'send_notification':

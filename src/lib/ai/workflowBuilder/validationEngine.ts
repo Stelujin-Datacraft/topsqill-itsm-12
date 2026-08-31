@@ -153,17 +153,6 @@ export function validateWorkflowDefinition(
           });
         }
         if (
-          action.targetFormId
-          && action.sourceLinkedFormId
-          && action.targetFormId === action.sourceLinkedFormId
-        ) {
-          issues.push({
-            severity: 'error',
-            code: 'COMBO_TARGET_SAME_AS_SOURCE',
-            message: 'Destination form must be different from the source linked form.',
-          });
-        }
-        if (
           action.combinationMode === 'dual'
           && !action.secondSourceCrossRefFieldId
           && !action.secondSourceCrossRefFieldLabel
