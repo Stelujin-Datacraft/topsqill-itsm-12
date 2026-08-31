@@ -225,6 +225,12 @@ export class ConditionEvaluator {
     condition: FieldLevelCondition,
     context: ConditionEvaluationContext
   ): InternalConditionResult {
+    // Empty/deferred conditions (AI Suggest Combination — set later in designer) pass through
+    if (!condition.fieldId || String(condition.fieldId).trim() === '') {
+      console.log('ℹ️ No fieldId in field-level condition — treating as always-true (deferred/unset)');
+      return { result: true, waiting: false };
+    }
+
     // Get the field value from form data
     const fieldValue = context.formData[condition.fieldId];
     

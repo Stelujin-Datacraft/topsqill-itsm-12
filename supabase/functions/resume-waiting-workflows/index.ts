@@ -2232,9 +2232,10 @@ Deno.serve(async (req) => {
                 const expectedValue = flc?.value
                 const fieldType = flc?.fieldType
                 
-                if (!fieldId) {
-                  console.log(`⚠️ No fieldId in field-level condition`)
-                  return { result: false, waiting: false }
+                // Empty/deferred conditions (e.g. AI Suggest Combination) pass through
+                if (!fieldId || String(fieldId).trim() === '') {
+                  console.log(`ℹ️ No fieldId in field-level condition — treating as always-true (deferred/unset)`)
+                  return { result: true, waiting: false }
                 }
                 
                 // Get field value from submission data using field ID
