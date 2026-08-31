@@ -46,7 +46,7 @@ export function CreateCombinationRecordsConfig({
       try {
         const { data, error } = await supabase
           .from('form_fields')
-          .select('custom_config')
+          .select('custom_config, field_type')
           .eq('id', sourceCrossRefFieldId)
           .maybeSingle();
         
@@ -59,7 +59,7 @@ export function CreateCombinationRecordsConfig({
         if (typeof customConfig === 'string') {
           try { customConfig = JSON.parse(customConfig); } catch { customConfig = null; }
         }
-        const linked = resolveCrossRefLinkedForm(customConfig);
+        const linked = resolveCrossRefLinkedForm(customConfig, data.field_type);
         if (linked.targetFormId) {
           onConfigChange({
             ...config,
@@ -91,7 +91,7 @@ export function CreateCombinationRecordsConfig({
       try {
         const { data, error } = await supabase
           .from('form_fields')
-          .select('custom_config')
+          .select('custom_config, field_type')
           .eq('id', secondSourceCrossRefFieldId)
           .maybeSingle();
         
@@ -104,7 +104,7 @@ export function CreateCombinationRecordsConfig({
         if (typeof customConfig === 'string') {
           try { customConfig = JSON.parse(customConfig); } catch { customConfig = null; }
         }
-        const linked = resolveCrossRefLinkedForm(customConfig);
+        const linked = resolveCrossRefLinkedForm(customConfig, data.field_type);
         if (linked.targetFormId) {
           onConfigChange({
             ...config,
