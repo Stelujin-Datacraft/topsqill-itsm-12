@@ -230,147 +230,164 @@ function planGenericActionRequirements(
   let condition = definition.conditions[0];
   const allFields = fieldChoices(hydratedForm);
   const xrFields = suggestCrossReferenceFields(hydratedForm);
+  const isCombination = action.actionType === 'create_combination_records';
 
-  // Auto-bind condition field (+ value) from prompt hints before asking
-  if (!condition?.fieldId && !condition?.fieldLabel && hints.conditionFieldHint && hydratedForm) {
-    const matched = searchFields(hydratedForm, hints.conditionFieldHint).matched
-      || matchFormFieldByHint(
-        (hydratedForm.fields || []).map((f) => ({ id: f.id, label: f.label, type: f.type, options: f.options })),
-        hints.conditionFieldHint,
-      );
-    const matchedFull = matched
-      ? hydratedForm.fields.find((f) => f.id === matched.id) || null
-      : null;
-    if (matchedFull) {
-      definition.conditions = [{
-        fieldId: matchedFull.id,
-        fieldLabel: matchedFull.label,
-        fieldType: matchedFull.type,
-        operator: '==',
-        value: hints.conditionValueHint
-          ? sanitizeConditionValueHint(hints.conditionValueHint)
-          : '',
-        resolved: true,
-        pendingOptionLabel: hints.conditionValueHint
-          ? sanitizeConditionValueHint(hints.conditionValueHint)
-          : undefined,
-        pendingOptionCreate: false,
-      }];
-      condition = definition.conditions[0];
+  // Combination: Condition is configured on the Condition node in the designer.
+  // Do not ask for condition field/value during AI Suggest — leave empty for later.
+  if (!isCombination) {
+    // Auto-bind condition field (+ value) from prompt hints before asking
+    if (!condition?.fieldId && !condition?.fieldLabel && hints.conditionFieldHint && hydratedForm) {
+      const matched = searchFields(hydratedForm, hints.conditionFieldHint).matched
+        || matchFormFieldByHint(
+          (hydratedForm.fields || []).map((f) => ({ id: f.id, label: f.label, type: f.type, options: f.options })),
+          hints.conditionFieldHint,
+        );
+      const matchedFull = matched
+        ? hydratedForm.fields.find((f) => f.id === matched.id) || null
+        : null;
+      if (matchedFull) {
+        definition.conditions = [{
+          fieldId: matchedFull.id,
+          fieldLabel: matchedFull.label,
+          fieldType: matchedFull.type,
+          operator: '==',
+          value: hints.conditionValueHint
+            ? sanitizeConditionValueHint(hints.conditionValueHint)
+            : '',
+          resolved: true,
+          pendingOptionLabel: hints.conditionValueHint
+            ? sanitizeConditionValueHint(hints.conditionValueHint)
+            : undefined,
+          pendingOptionCreate: false,
+        }];
+        condition = definition.conditions[0];
+      }
     }
-  }
 
-  // ── Condition field (always ask separately) ─────────────────────────────
-  if (!condition?.fieldId && !condition?.fieldLabel) {
-    push(req({
-      id: 'condition.field',
-      scope: 'condition',
-      key: 'condition_field',
-      question: [
-        `I'll set up a **${describeActionType(action.actionType)}** action (inferred from your prompt).`,
-        '',
-        hints.conditionFieldHint
-          ? `I couldn't confidently match **${hints.conditionFieldHint}** — which **condition** field should gate this action?`
-          : 'Which **condition** field should gate this action?',
-      ].join('\n'),
-      inputKind: 'field_select',
-      options: allFields,
-    }));
-    return mergeUnansweredFirst(out);
-  }
-
-  const condField = hydratedForm?.fields.find((f) =>
-    f.id === condition?.fieldId
-    || (condition?.fieldLabel
-      && f.label.toLowerCase() === String(condition.fieldLabel).toLowerCase()),
-  );
-
-  // Auto-fill condition value from prompt when still empty
-  if (
-    condition
-    && (condition.value === undefined || condition.value === null || condition.value === '')
-    && hints.conditionValueHint
-    && (
-      !hints.conditionFieldHint
-      || fieldMatchesHint(condField, hints.conditionFieldHint)
-      || fieldMatchesHint({ label: condition.fieldLabel }, hints.conditionFieldHint)
-    )
-  ) {
-    condition.value = sanitizeConditionValueHint(hints.conditionValueHint);
-    condition.pendingOptionLabel = sanitizeConditionValueHint(hints.conditionValueHint);
-    condition.pendingOptionCreate = false;
-  }
-
-  // ── Condition value ─────────────────────────────────────────────────────
-  if (condition && (condition.value === undefined || condition.value === null || condition.value === '')) {
-    const opts = fieldOptionChoices(condField);
-    if (opts.length) {
+    // ── Condition field (always ask separately) ─────────────────────────────
+    if (!condition?.fieldId && !condition?.fieldLabel) {
       push(req({
-        id: 'condition.value',
+        id: 'condition.field',
         scope: 'condition',
-        key: 'condition_value',
-        question: `What **value** of **${condField?.label || condition.fieldLabel}** should trigger the action?`,
-        inputKind: 'choice',
-        options: opts,
+        key: 'condition_field',
+        question: [
+          `I'll set up a **${describeActionType(action.actionType)}** action (inferred from your prompt).`,
+          '',
+          hints.conditionFieldHint
+            ? `I couldn't confidently match **${hints.conditionFieldHint}** — which **condition** field should gate this action?`
+            : 'Which **condition** field should gate this action?',
+        ].join('\n'),
+        inputKind: 'field_select',
+        options: allFields,
       }));
-    } else {
-      push(req({
-        id: 'condition.value',
-        scope: 'condition',
-        key: 'condition_value',
-        question: `What **value** should **${condField?.label || condition.fieldLabel}** equal to run the action?`,
-        inputKind: 'text',
-      }));
+      return mergeUnansweredFirst(out);
     }
-    return mergeUnansweredFirst(out);
-  }
 
-  // Option already on field (e.g. created earlier) → never re-ask
-  if (
-    condition
-    && condField
-    && fieldHasOption(condField, condition.value)
-  ) {
-    condition.pendingOptionCreate = false;
-    condition.pendingOptionLabel = undefined;
-    condition.value = resolveFieldOptionValue(condField, condition.value);
-  }
+    const condField = hydratedForm?.fields.find((f) =>
+      f.id === condition?.fieldId
+      || (condition?.fieldLabel
+        && f.label.toLowerCase() === String(condition.fieldLabel).toLowerCase()),
+    );
 
-  // Missing option on condition field → ask permission to create it
-  if (
-    condition
-    && condField
-    && fieldNeedsOptionCreateCheck(condField)
-    && !fieldHasOption(condField, condition.value)
-    && !condition.pendingOptionCreate
-  ) {
-    const wanted = sanitizeConditionValueHint(String(condition.pendingOptionLabel || condition.value || ''));
-    push(req({
-      id: 'condition.value_create',
-      scope: 'condition',
-      key: 'condition_value_create',
-      question: [
-        `**${condField.label}** does not have an option **${wanted}**.`,
-        '',
-        `May I add **${wanted}** as an option on **${condField.label}**?`,
-      ].join('\n'),
-      inputKind: 'confirm',
-      options: [
-        { value: '__create_option__', label: `Yes, add "${wanted}"` },
-        { value: '__pick_existing__', label: 'No — pick an existing option' },
-      ],
-    }));
-    return mergeUnansweredFirst(out);
+    // Auto-fill condition value from prompt when still empty
+    if (
+      condition
+      && (condition.value === undefined || condition.value === null || condition.value === '')
+      && hints.conditionValueHint
+      && (
+        !hints.conditionFieldHint
+        || fieldMatchesHint(condField, hints.conditionFieldHint)
+        || fieldMatchesHint({ label: condition.fieldLabel }, hints.conditionFieldHint)
+      )
+    ) {
+      condition.value = sanitizeConditionValueHint(hints.conditionValueHint);
+      condition.pendingOptionLabel = sanitizeConditionValueHint(hints.conditionValueHint);
+      condition.pendingOptionCreate = false;
+    }
+
+    // ── Condition value ─────────────────────────────────────────────────────
+    if (condition && (condition.value === undefined || condition.value === null || condition.value === '')) {
+      const opts = fieldOptionChoices(condField);
+      if (opts.length) {
+        push(req({
+          id: 'condition.value',
+          scope: 'condition',
+          key: 'condition_value',
+          question: `What **value** of **${condField?.label || condition.fieldLabel}** should trigger the action?`,
+          inputKind: 'choice',
+          options: opts,
+        }));
+      } else {
+        push(req({
+          id: 'condition.value',
+          scope: 'condition',
+          key: 'condition_value',
+          question: `What **value** should **${condField?.label || condition.fieldLabel}** equal to run the action?`,
+          inputKind: 'text',
+        }));
+      }
+      return mergeUnansweredFirst(out);
+    }
+
+    // Option already on field (e.g. created earlier) → never re-ask
+    if (
+      condition
+      && condField
+      && fieldHasOption(condField, condition.value)
+    ) {
+      condition.pendingOptionCreate = false;
+      condition.pendingOptionLabel = undefined;
+      condition.value = resolveFieldOptionValue(condField, condition.value);
+    }
+
+    // Missing option on condition field → ask permission to create it
+    if (
+      condition
+      && condField
+      && fieldNeedsOptionCreateCheck(condField)
+      && !fieldHasOption(condField, condition.value)
+      && !condition.pendingOptionCreate
+    ) {
+      const wanted = sanitizeConditionValueHint(String(condition.pendingOptionLabel || condition.value || ''));
+      push(req({
+        id: 'condition.value_create',
+        scope: 'condition',
+        key: 'condition_value_create',
+        question: [
+          `**${condField.label}** does not have an option **${wanted}**.`,
+          '',
+          `May I add **${wanted}** as an option on **${condField.label}**?`,
+        ].join('\n'),
+        inputKind: 'confirm',
+        options: [
+          { value: '__create_option__', label: `Yes, add "${wanted}"` },
+          { value: '__pick_existing__', label: 'No — pick an existing option' },
+        ],
+      }));
+      return mergeUnansweredFirst(out);
+    }
+  } else {
+    // Ensure conditions array exists but stays empty for designer Condition node
+    if (!definition.conditions?.length) {
+      definition.conditions = [];
+    }
   }
 
   // ── Action-type-specific questions (never ask for action type) ──────────
 
   // Combination: parent/trigger form × cross-ref (child) → create on a target form
   if (action.actionType === 'create_combination_records') {
-    // Always confirm mode: Single = parent × 1 child XR, Dual = exactly 2 XRs
-    if (!answered.has('action.combo_mode')) {
-      const inferred = inferCombinationModeFromPrompt(originalRequest || definition.description || '');
-      if (!action.combinationMode) action.combinationMode = inferred;
+    const promptText = originalRequest || definition.description || '';
+    if (!action.combinationMode) {
+      action.combinationMode = inferCombinationModeFromPrompt(promptText);
+    }
+
+    // Skip mode ask when prompt already says single/dual clearly
+    const modeClear = action.combinationMode === 'dual'
+      || /\bsingle\b/.test(promptText.toLowerCase())
+      || /\bone\s+cross[- ]?ref/.test(promptText.toLowerCase())
+      || /\bparent\b.+\bcross[- ]?ref|\bcross[- ]?ref.+\bparent\b/i.test(promptText);
+    if (!answered.has('action.combo_mode') && !modeClear) {
       push(req({
         id: 'action.combo_mode',
         scope: 'workflow',
@@ -397,9 +414,9 @@ function planGenericActionRequirements(
       }));
       return mergeUnansweredFirst(out);
     }
-
-    if (!action.combinationMode) {
-      action.combinationMode = inferCombinationModeFromPrompt(originalRequest || definition.description || '');
+    // Treat as answered when inferred from clear prompt
+    if (!answered.has('action.combo_mode') && modeClear) {
+      // Keep combinationMode from inference; no need to ask
     }
 
     if (!action.sourceCrossRefFieldId && !action.sourceCrossRefFieldLabel) {
@@ -482,7 +499,20 @@ function planGenericActionRequirements(
     }
 
     // Destination = where new records are created.
-    // May be the parent/trigger form itself, the cross-ref child form, or another form.
+    // Default to parent/trigger when prompt says create on this/parent form.
+    if (!action.targetFormId && !action.targetFormName && hydratedForm) {
+      const t = promptText.toLowerCase();
+      if (
+        /\bon\s+this\s+parent\s+form\b/.test(t)
+        || /\bon\s+this\s+form\b/.test(t)
+        || /\bon\s+the\s+parent\s+form\b/.test(t)
+        || /\bnew\s+record\s+on\s+this\s+parent\b/.test(t)
+        || /\bcreate\s+(?:a\s+)?new\s+record\s+on\s+this\b/.test(t)
+      ) {
+        action.targetFormId = hydratedForm.id;
+        action.targetFormName = hydratedForm.name;
+      }
+    }
     if (!action.targetFormId && action.targetFormName) {
       const key = action.targetFormName.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
       const matchedForm = hydratedCatalog.find((f) => {

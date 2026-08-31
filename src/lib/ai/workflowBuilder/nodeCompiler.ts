@@ -515,12 +515,19 @@ function compileGenericActionGraph(
   const operator = cond?.operator || '==';
   // Bind label/synonym → real option.value so runtime == matches submission_data
   const value = resolvePreferredOptionValue(condField, cond?.value ?? '');
+  const conditionDeferred = definition.action?.actionType === 'create_combination_records'
+    && !fieldId
+    && !fieldLabel;
 
   nodes.push({
     tempId: conditionId,
     type: 'condition',
-    label: fieldLabel ? `${fieldLabel} ${operator} ${value}` : 'Condition',
-    description: `${fieldLabel} ${operator} ${value}`,
+    label: conditionDeferred
+      ? 'Condition (set in designer)'
+      : (fieldLabel ? `${fieldLabel} ${operator} ${value}` : 'Condition'),
+    description: conditionDeferred
+      ? 'Configure this condition node in the workflow designer'
+      : `${fieldLabel} ${operator} ${value}`,
     config: {
       formId,
       fieldId,

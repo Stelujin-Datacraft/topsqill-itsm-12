@@ -188,7 +188,15 @@ export function startWorkflowBuilderSession(params: {
       + (form?.name ? ` for **${form.name}**` : '')
       + ` with a **${describeActionType(actionType)}** action (inferred from your short prompt).`,
     );
-    intro.push('I will ask for the **condition field** and **action field** separately — I will not ask you to pick an action type.');
+    if (actionType === 'create_combination_records') {
+      intro.push(
+        'Next I will ask for the **cross-reference (child)** field, optional **field mappings** '
+        + '(parent → destination and child → destination), and **link-back**. '
+        + 'You can set the **Condition** node later in the designer — I will not ask for a condition field here.',
+      );
+    } else {
+      intro.push('I will ask for the **condition field** and **action field** separately — I will not ask you to pick an action type.');
+    }
   }
 
   if (existing.length) {
