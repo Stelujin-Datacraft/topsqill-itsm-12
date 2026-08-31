@@ -248,22 +248,17 @@ export function analyzeWorkflowIntent(
       extractedKeys.push('action.combo_mode');
       const formHint = extractCreateTargetFormHint(text);
       const t = text.toLowerCase();
-      // Do NOT treat bare "single" as parent destination — user must pick parent vs
-      // cross-ref child (auto-link is only offered when dest is the child XR form).
       const wantsParentDest = /\bon\s+this\s+parent\s+form\b/.test(t)
         || /\bon\s+this\s+form\b/.test(t)
         || /\bon\s+the\s+parent\s+form\b/.test(t)
         || /\bnew\s+record\s+on\s+this\b/.test(t)
-        || /\bcreate\s+(?:each\s+)?(?:new\s+)?records?\s+on\s+(?:this\s+)?parent\b/.test(t);
-      const wantsChildDest = /\bon\s+(?:the\s+)?(?:cross[- ]?ref|child)\s+form\b/.test(t)
-        || /\bcreate\s+(?:each\s+)?(?:new\s+)?records?\s+on\s+(?:the\s+)?(?:cross[- ]?ref|child)\b/.test(t);
+        || /\bsingle\b/.test(t);
       if (formHint) {
         action.targetFormName = formHint;
-      } else if (wantsParentDest && !wantsChildDest && context?.formId) {
+      } else if (wantsParentDest && context?.formId) {
         action.targetFormId = context.formId;
         action.targetFormName = context.formName;
       }
-      // Child dest is resolved in the planner after the XR field is known
     }
   }
 
