@@ -144,6 +144,11 @@ export interface WorkflowActionSpec {
    */
   comboConfirmDone?: boolean;
   /**
+   * Single combination: user confirmed (or changed) the destination form
+   * after Mapping 1/2. Defaults to parent until this is set.
+   */
+  comboDestConfirmed?: boolean;
+  /**
    * Combination mapping phase in AI Suggest:
    * - trigger: map trigger form → destination (single mode only, designer §5)
    * - linked: map first linked form → destination (designer §6)

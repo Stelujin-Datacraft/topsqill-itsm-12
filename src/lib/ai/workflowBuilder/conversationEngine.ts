@@ -191,9 +191,9 @@ export function startWorkflowBuilderSession(params: {
     if (actionType === 'create_combination_records') {
       intro.push(
         '**Single combination flow:** pick **one cross-ref** → '
-        + '**Mapping 1** parent→parent (Skip or Done) → '
-        + '**Mapping 2** cross-ref→parent (Skip or Done). '
-        + 'New records are created on the **parent** form. '
+        + '**Mapping 1** parent→parent (Skip/Done) → '
+        + '**Mapping 2** cross-ref→parent (Skip/Done; already-mapped TO fields hidden) → '
+        + 'confirm or change **target form** → **Auto-Link Back** only if target is the cross-ref child. '
         + 'Set the **Condition** node later in the designer.',
       );
     } else {
@@ -815,6 +815,9 @@ function buildAck(
     if (answer === '__redo_combo_xr__') {
       return 'Okay — pick a different cross-ref field.';
     }
+    if (answer === '__redo_combo_dest__') {
+      return 'Okay — choose the target form again.';
+    }
     if (answer === '__redo_combo_target__' || /^pick\s+a\s+different\s+destination\b/i.test(answer)) {
       return 'Okay — pick a different destination form.';
     }
@@ -822,6 +825,9 @@ function buildAck(
       return 'Okay — we\'ll go back and set field mappings again.';
     }
     return 'Combination action confirmed — including any field mappings you set.';
+  }
+  if (req.key === 'action_combo_dest') {
+    return `Target form set to **${optionLabel || answer}**.`;
   }
   if (req.key === 'action_combo_map_menu') {
     if (answer === '__skip_combo_maps__' || /^skip\b/i.test(answer)) {
