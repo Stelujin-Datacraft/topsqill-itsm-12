@@ -680,9 +680,6 @@ function planGenericActionRequirements(
           : (hydratedForm?.name || 'trigger form');
       const destName = action.targetFormName || 'destination form';
       const parentName = hydratedForm?.name || 'parent form';
-      const destIsParent = Boolean(
-        hydratedForm?.id && action.targetFormId && action.targetFormId === hydratedForm.id,
-      );
       const phaseTitle = phase === 'linked'
         ? [
           isSingle
@@ -941,11 +938,6 @@ function planGenericActionRequirements(
       const fmtMaps = (list: typeof triggerMaps, from: string) => (list.length
         ? list.map((m) => `· ${from}: **${m.sourceFieldLabel}** → **${m.targetFieldLabel}**`).join('\n')
         : `· ${from}: _(none)_`);
-      const destIsXr = Boolean(
-        action.targetFormId
-        && action.sourceLinkedFormId
-        && action.targetFormId === action.sourceLinkedFormId,
-      );
       const linkBackLabel = isSingle
         ? '_(n/a — Single creates on parent)_'
         : action.skipComboLinkBack
