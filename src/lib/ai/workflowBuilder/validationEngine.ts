@@ -32,19 +32,23 @@ export function validateWorkflowDefinition(
     }
 
     const cond = definition.conditions[0];
-    if (!cond?.fieldId && !cond?.fieldLabel) {
-      issues.push({
-        severity: 'error',
-        code: 'MISSING_CONDITION_FIELD',
-        message: 'Condition field is not set.',
-      });
-    }
-    if (cond && (cond.value === undefined || cond.value === null || cond.value === '')) {
-      issues.push({
-        severity: 'error',
-        code: 'MISSING_CONDITION_VALUE',
-        message: 'Condition value is not set.',
-      });
+    const isCombo = definition.action?.actionType === 'create_combination_records';
+    // Combination: Condition node is left for the designer — do not block AI Suggest
+    if (!isCombo) {
+      if (!cond?.fieldId && !cond?.fieldLabel) {
+        issues.push({
+          severity: 'error',
+          code: 'MISSING_CONDITION_FIELD',
+          message: 'Condition field is not set.',
+        });
+      }
+      if (cond && (cond.value === undefined || cond.value === null || cond.value === '')) {
+        issues.push({
+          severity: 'error',
+          code: 'MISSING_CONDITION_VALUE',
+          message: 'Condition value is not set.',
+        });
+      }
     }
 
     const action = definition.action;
