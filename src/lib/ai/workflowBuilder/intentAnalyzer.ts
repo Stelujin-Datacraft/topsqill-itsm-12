@@ -246,14 +246,13 @@ export function analyzeWorkflowIntent(
     if (action.actionType === 'create_combination_records') {
       action.combinationMode = inferCombinationModeFromPrompt(text);
       extractedKeys.push('action.combo_mode');
-      // Destination: prefer named form ("create combination Control records"),
-      // else parent when prompt says create on this/parent form, else leave for planner.
       const formHint = extractCreateTargetFormHint(text);
       const t = text.toLowerCase();
       const wantsParentDest = /\bon\s+this\s+parent\s+form\b/.test(t)
         || /\bon\s+this\s+form\b/.test(t)
         || /\bon\s+the\s+parent\s+form\b/.test(t)
-        || /\bnew\s+record\s+on\s+this\b/.test(t);
+        || /\bnew\s+record\s+on\s+this\b/.test(t)
+        || /\bsingle\b/.test(t);
       if (formHint) {
         action.targetFormName = formHint;
       } else if (wantsParentDest && context?.formId) {
