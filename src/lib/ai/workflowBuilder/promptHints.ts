@@ -83,13 +83,21 @@ export function extractCreateTargetFormHint(prompt: string): string | undefined 
 /** Detect dual/cartesian combination mode from the prompt. */
 export function inferCombinationModeFromPrompt(prompt: string): 'single' | 'dual' {
   const t = String(prompt || '').toLowerCase().replace(/\s+/g, ' ').trim();
+  // Explicit single always wins over fuzzy dual heuristics
+  if (/\bsingle\b/.test(t) && !/\bdual\b/.test(t) && !/\bcartesian\b/.test(t)) {
+    return 'single';
+  }
+  // Dual only when clearly requested — do not match repeated "cross-ref" wording
+  // in a single-XR prompt (e.g. "cross-reference field" + "cross-ref child form").
   if (
     /\bdual\b/.test(t)
     || /\bcartesian\b/.test(t)
     || /\btwo\s+cross[- ]?ref/.test(t)
     || /\b2\s+cross[- ]?ref/.test(t)
-    || /\bcross[- ]?ref.+\bcross[- ]?ref/.test(t)
-    || /\bcombin(?:e|ation).+\b(?:and|with)\b.+\bcross[- ]?ref/.test(t)
+    || /\bboth\s+cross[- ]?ref/.test(t)
+    || /\bexactly\s+two\s+cross[- ]?ref/.test(t)
+    || /\bcross[- ]?ref(?:erence)?\s*[×x]\s*cross[- ]?ref/.test(t)
+    || /\bcombin(?:e|ation).+\b(?:from\s+)?(?:two|2|both)\s+cross[- ]?ref/.test(t)
   ) {
     return 'dual';
   }
