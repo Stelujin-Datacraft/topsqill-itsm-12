@@ -913,7 +913,7 @@ function planGenericActionRequirements(
       ) {
         formOpts.push({
           value: action.sourceLinkedFormId,
-          label: `${action.sourceLinkedFormName || 'Cross-ref form'} (cross-ref child) — enables Auto-Link Back`,
+          label: `${action.sourceLinkedFormName || 'Cross-ref form'} (cross-ref child form)`,
         });
       }
       for (const f of hydratedCatalog) {
@@ -930,9 +930,6 @@ function planGenericActionRequirements(
           '',
           `Currently set to the **parent** form (**${hydratedForm.name}**).`,
           'Keep the parent, or choose a **different** target form.',
-          '',
-          'If you choose the **cross-ref child** form, **Auto-Link Back** will be offered next.',
-          'Parent target → no Auto-Link Back.',
         ].join('\n'),
         inputKind: 'choice',
         options: formOpts,
@@ -2332,34 +2329,17 @@ export function applyAnswerToDefinition(
     const matched = formsCatalog.find((f) => f.id === value)
       || formsCatalog.find((f) => f.name.toLowerCase() === value.toLowerCase())
       || (form?.id === value ? form : undefined);
-    const prevId = next.action.targetFormId;
-    const nextId = matched?.id || value;
-    next.action.targetFormId = nextId;
+    next.action.targetFormId = matched?.id || value;
     next.action.targetFormName = matched?.name || value;
     next.action.comboDestConfirmed = true;
     next.action.comboConfirmDone = false;
+    // Keep existing mappings — do not re-ask Mapping 1/2 when target changes.
+    // Reset only link-back so Auto-Link Back is asked as its own next step
+    // when the target is the cross-ref child form.
     next.action.comboLinkBackDone = undefined;
     next.action.skipComboLinkBack = undefined;
     next.action.updateTriggerCrossRefFieldId = undefined;
     next.action.updateTriggerCrossRefFieldName = undefined;
-    // If destination changed away from the form mappings were built for, remap
-    if (prevId && nextId && prevId !== nextId) {
-      next.action.comboTriggerMapsDone = undefined;
-      next.action.comboLinkedMapsDone = undefined;
-      next.action.comboSecondLinkedMapsDone = undefined;
-      next.action.comboMapPhase = undefined;
-      next.action.skipComboMappings = undefined;
-      next.action.createFieldMappings = [];
-      next.action.linkedFormFieldMappings = [];
-      next.action.secondLinkedFormFieldMappings = [];
-      next.action.createDraftKind = undefined;
-      next.action.createMapTargetFieldId = undefined;
-      next.action.createMapTargetFieldLabel = undefined;
-      next.action.createMapTargetFieldType = undefined;
-      next.action.createMapSourceFieldId = undefined;
-      next.action.createMapSourceFieldLabel = undefined;
-      next.action.createMapSourceFieldType = undefined;
-    }
     return next;
   }
 
