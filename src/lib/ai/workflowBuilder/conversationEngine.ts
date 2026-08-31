@@ -193,7 +193,8 @@ export function startWorkflowBuilderSession(params: {
         '**Single combination flow:** pick **one cross-ref** → '
         + '**Mapping 1** parent→parent (Skip/Done) → '
         + '**Mapping 2** cross-ref→parent (Skip/Done; already-mapped TO fields hidden) → '
-        + 'confirm or change **target form** → **Auto-Link Back** only if target is the cross-ref child. '
+        + 'confirm or change **target form** → then (separate step) **Auto-Link Back** '
+        + 'only if target is the cross-ref child. '
         + 'Set the **Condition** node later in the designer.',
       );
     } else {
