@@ -6,10 +6,11 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import {
-  ArrowRight, ArrowLeft, CheckCircle, Sparkles,
+  ArrowRight, CheckCircle, Sparkles,
 } from 'lucide-react';
 import { useSolutionsContent } from '@/content/solutions/useSolutionsContent';
 import type { SolutionStep } from '@/content/solutions/steps';
+import SiteHeader from '@/components/layout/SiteHeader';
 
 const Timeline: React.FC<{ steps: SolutionStep[] }> = ({ steps }) => (
   <div className="relative max-w-6xl mx-auto" dir="ltr" lang="en">
@@ -82,34 +83,7 @@ const Solutions: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
-      <nav className="border-b bg-background/80 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <Link to="/" className="flex items-center space-x-3">
-            <img
-              src="/lovable-uploads/7355d9d6-30ec-4b86-9922-9058a15f6cca.png"
-              alt="TopSqill Logo"
-              className="w-10 h-10 object-contain"
-            />
-            <span className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
-              TopSqill
-            </span>
-          </Link>
-          <div className="flex items-center gap-2 sm:gap-3">
-            <Link to="/" className="flex-1 sm:flex-initial">
-              <Button variant="outline" size="sm" className="w-full sm:w-auto">
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                {t('solutionsPage.backHome')}
-              </Button>
-            </Link>
-            <Link to="/auth" className="flex-1 sm:flex-initial">
-              <Button size="sm" className="w-full sm:w-auto">
-                {t('solutionsPage.startTrial')}
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </nav>
+      <SiteHeader />
 
       <header className="container mx-auto px-4 pt-12 md:pt-16 pb-6 text-center">
         <Badge variant="secondary" className="mb-4 bg-primary/10 text-primary">
@@ -129,7 +103,7 @@ const Solutions: React.FC = () => {
 
       <section className="container mx-auto px-4 pb-20">
         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-          <div className="sticky top-[72px] z-40 -mx-4 px-4 py-3 bg-background/90 backdrop-blur border-b border-border/50">
+          <div className="sticky top-[4.5rem] z-40 -mx-4 px-4 py-3 bg-background/90 backdrop-blur border-b border-border/50">
             <TabsList className="w-full h-auto flex flex-wrap justify-center gap-1 bg-muted/60 p-1">
               {solutions.map((s) => (
                 <TabsTrigger key={s.id} value={s.id} className="text-xs md:text-sm">
