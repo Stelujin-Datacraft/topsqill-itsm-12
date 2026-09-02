@@ -22,7 +22,7 @@ export default function BlogPost() {
   if (!post) {
     return (
       <PublicPageLayout title="Loading…" description="Fetching article…" contentClassName="max-w-3xl mx-auto">
-        <p className="text-sm text-muted-foreground">Loading…</p>
+        <p className="text-sm text-foreground/70">Loading…</p>
       </PublicPageLayout>
     );
   }
@@ -78,14 +78,8 @@ export default function BlogPost() {
         />
       )}
 
-      <div className="flex flex-wrap gap-2 mb-8">
-        {post.tags.map((tag) => (
-          <Badge key={tag} variant="secondary">{tag}</Badge>
-        ))}
-      </div>
-
       <article className="max-w-none space-y-5">
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-foreground/65">
           <span className="font-medium text-foreground">{post.authorName}</span>
           {post.authorTitle ? ` · ${post.authorTitle}` : ''}
           {' · '}
@@ -100,19 +94,34 @@ export default function BlogPost() {
 
         {post.contentHtml ? (
           <div
-            className="tiptap prose prose-neutral dark:prose-invert max-w-none text-[15px] leading-relaxed text-muted-foreground"
+            className="tiptap prose prose-neutral dark:prose-invert max-w-none text-[15px] leading-relaxed text-foreground/85 [&_p]:text-foreground/85 [&_li]:text-foreground/85"
             dangerouslySetInnerHTML={{ __html: post.contentHtml }}
           />
         ) : (
           (post.body || []).map((para) => (
-            <p key={para.slice(0, 48)} className="text-[15px] leading-relaxed text-muted-foreground">
+            <p key={para.slice(0, 48)} className="text-[15px] leading-relaxed text-foreground/85">
               {para}
             </p>
           ))
         )}
       </article>
 
-      <nav className="mt-12 flex flex-wrap gap-4 text-sm" aria-label="Related">
+      {post.tags.length > 0 && (
+        <div className="mt-10 pt-8 border-t border-border/60">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-foreground/50">
+            Tags
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {post.tags.map((tag) => (
+              <Badge key={tag} variant="secondary" className="text-foreground/80">
+                {tag}
+              </Badge>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <nav className="mt-10 flex flex-wrap gap-4 text-sm" aria-label="Related">
         <Link to={`${base}/blog`} className="text-primary underline underline-offset-4">All posts</Link>
         <Link to={`${base}/solutions`} className="text-primary underline underline-offset-4">Solutions</Link>
         <Link to={`${base}/pricing`} className="text-primary underline underline-offset-4">Pricing</Link>

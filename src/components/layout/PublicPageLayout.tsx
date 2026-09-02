@@ -1,11 +1,26 @@
 import { OptimizedImage } from '@/components/OptimizedImage';
-import { ReactNode } from 'react';
+import { ReactNode, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Mail, MapPin, Linkedin } from 'lucide-react';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet';
+import { ArrowLeft, Mail, MapPin, Linkedin, Menu } from 'lucide-react';
 
 const LINKEDIN = 'https://www.linkedin.com/company/topsqill-pvt-ltd/posts/?feedView=all';
+
+const PUBLIC_NAV = [
+  { to: '/solutions', label: 'Solutions' },
+  { to: '/pricing', label: 'Pricing' },
+  { to: '/blog', label: 'Blog' },
+  { to: '/about', label: 'About Us' },
+  { to: '/contact', label: 'Contact' },
+] as const;
 
 interface PublicPageLayoutProps {
   eyebrow?: string;
@@ -28,6 +43,8 @@ export default function PublicPageLayout({
   contentClassName = 'max-w-3xl mx-auto',
   bare = false,
 }: PublicPageLayoutProps) {
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
       {/* Header */}
@@ -35,7 +52,7 @@ export default function PublicPageLayout({
         <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'var(--gradient-header)' }} />
         <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-primary/60 via-accent/40 to-transparent" />
         <div className="container relative mx-auto px-4 py-3 flex items-center justify-between gap-4">
-          <Link to="/" className="flex items-center gap-2.5">
+          <Link to="/" className="flex items-center gap-2.5 min-w-0">
             <OptimizedImage
               src="/lovable-uploads/7355d9d6-30ec-4b86-9922-9058a15f6cca.png"
               webpSrc="/lovable-uploads/7355d9d6-30ec-4b86-9922-9058a15f6cca.webp"
@@ -43,29 +60,75 @@ export default function PublicPageLayout({
               width={32}
               height={32}
               priority
-              className="h-8 w-8 object-contain"
+              className="h-8 w-8 object-contain shrink-0"
             />
-            <span className="text-lg font-semibold tracking-tight text-foreground">TopSqill</span>
+            <span className="text-lg font-semibold tracking-tight text-foreground truncate">TopSqill</span>
           </Link>
 
           <nav className="hidden md:flex items-center gap-6 text-sm font-medium">
-            <Link to="/solutions" className="text-muted-foreground hover:text-primary transition-colors">Solutions</Link>
-            <Link to="/pricing" className="text-muted-foreground hover:text-primary transition-colors">Pricing</Link>
-            <Link to="/blog" className="text-muted-foreground hover:text-primary transition-colors">Blog</Link>
-            <Link to="/about" className="text-muted-foreground hover:text-primary transition-colors">About Us</Link>
-            <Link to="/contact" className="text-muted-foreground hover:text-primary transition-colors">Contact</Link>
+            {PUBLIC_NAV.map((item) => (
+              <Link
+                key={item.to}
+                to={item.to}
+                className="text-foreground/70 hover:text-primary transition-colors"
+              >
+                {item.label}
+              </Link>
+            ))}
           </nav>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <Link to="/" className="hidden sm:inline-flex">
-              <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground">
+              <Button variant="ghost" size="sm" className="gap-1.5 text-foreground/70">
                 <ArrowLeft className="h-4 w-4" />
                 Home
               </Button>
             </Link>
-            <Link to="/auth">
+            <Link to="/auth" className="hidden sm:inline-flex">
               <Button size="sm">Sign in</Button>
             </Link>
+
+            <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
+              <SheetTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="md:hidden px-2.5"
+                  aria-label="Open menu"
+                >
+                  <Menu className="h-5 w-5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-[min(100%,20rem)] p-0">
+                <SheetHeader className="border-b px-5 py-4 text-left">
+                  <SheetTitle className="text-base font-semibold">Menu</SheetTitle>
+                </SheetHeader>
+                <div className="flex flex-col gap-1 p-3">
+                  {PUBLIC_NAV.map((item) => (
+                    <Link
+                      key={item.to}
+                      to={item.to}
+                      onClick={() => setMobileNavOpen(false)}
+                      className="rounded-md px-3 py-2.5 text-sm font-medium text-foreground/90 hover:bg-muted transition-colors"
+                    >
+                      {item.label}
+                    </Link>
+                  ))}
+                  <Link
+                    to="/"
+                    onClick={() => setMobileNavOpen(false)}
+                    className="rounded-md px-3 py-2.5 text-sm font-medium text-foreground/90 hover:bg-muted transition-colors"
+                  >
+                    Home
+                  </Link>
+                </div>
+                <div className="border-t p-4">
+                  <Button asChild size="sm" className="w-full">
+                    <Link to="/auth" onClick={() => setMobileNavOpen(false)}>Sign in</Link>
+                  </Button>
+                </div>
+              </SheetContent>
+            </Sheet>
           </div>
         </div>
       </header>
@@ -84,11 +147,15 @@ export default function PublicPageLayout({
               {title}
             </h1>
             {description && (
-              <p className="mt-4 text-base sm:text-lg text-muted-foreground leading-relaxed">
+              <p className="mt-4 text-base sm:text-lg text-foreground/75 leading-relaxed">
                 {description}
               </p>
             )}
-            {meta && <p className="mt-4 text-xs uppercase tracking-[0.16em] text-muted-foreground">{meta}</p>}
+            {meta && (
+              <p className="mt-4 text-xs uppercase tracking-[0.16em] text-foreground/55">
+                {meta}
+              </p>
+            )}
           </div>
         </div>
       </div>

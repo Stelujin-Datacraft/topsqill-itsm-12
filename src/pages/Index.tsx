@@ -1,9 +1,8 @@
-
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu,
@@ -12,10 +11,17 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet';
 import { 
-  ArrowRight, Building2, Users, Shield, Zap, BarChart3, Workflow, 
-  Database, Brain, Sparkles, TrendingUp, Globe, CheckCircle,
-  LineChart, Table, GitBranch, Code, Star, Award, MapPin, Mail, Linkedin, LogOut, ChevronDown
+  Building2, Users, Shield, Zap, BarChart3, Workflow, 
+  Database, Brain, TrendingUp, Globe,
+  Code, MapPin, Mail, Linkedin, LogOut, ChevronDown, Menu
 } from 'lucide-react';
 import ChartsPreview from '@/components/landing/ChartsPreview';
 import HeroPromptPanel from '@/components/landing/HeroPromptPanel';
@@ -35,20 +41,49 @@ import { OptimizedImage } from '@/components/OptimizedImage';
 import TrustLogosSection from '@/components/landing/TrustLogosSection';
 import { useAuth } from '@/contexts/AuthContext';
 
+type NavItem =
+  | { kind: 'section'; id: string; label: string }
+  | { kind: 'route'; to: string; label: string };
+
 const Index = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { user, userProfile, signOut, isLoading } = useAuth();
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const displayName = useMemo(() => {
     const fullName = [userProfile?.first_name, userProfile?.last_name].filter(Boolean).join(' ').trim();
     return fullName || userProfile?.email || user?.email || 'Account';
   }, [userProfile, user]);
 
+  const navItems = useMemo<NavItem[]>(() => [
+    { kind: 'section', id: 'features', label: t('nav.features') },
+    { kind: 'section', id: 'showcase', label: t('nav.showcase') },
+    { kind: 'route', to: '/solutions', label: t('nav.solutions') },
+    { kind: 'route', to: '/pricing', label: t('nav.pricing') },
+    { kind: 'route', to: '/blog', label: 'Blog' },
+    { kind: 'section', id: 'roadmap', label: t('nav.roadmap') },
+    { kind: 'section', id: 'investors', label: t('nav.investors') },
+    { kind: 'section', id: 'faq', label: t('nav.faq') },
+    { kind: 'route', to: '/about', label: 'About Us' },
+    { kind: 'route', to: '/contact', label: 'Contact' },
+  ], [t]);
+
+  const scrollToSection = (id: string) => {
+    setMobileNavOpen(false);
+    // Scroll without writing #hash into the URL
+    window.requestAnimationFrame(() => {
+      document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  };
+
   const handleSignOut = async () => {
     await signOut();
     navigate('/', { replace: true });
   };
+
+  const navLinkClass =
+    'text-muted-foreground hover:text-foreground transition-colors text-left';
 
   return (
       <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
@@ -56,8 +91,8 @@ const Index = () => {
         <nav className="sticky top-0 z-50 border-b border-primary/15 bg-background/80 backdrop-blur-xl shadow-sm">
           <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'var(--gradient-header)' }} />
           <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-primary/60 via-accent/40 to-transparent" />
-          <div className="container relative mx-auto px-4 py-3 sm:py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div className="flex items-center space-x-3">
+          <div className="container relative mx-auto px-4 py-3 sm:py-4 flex items-center justify-between gap-3">
+            <div className="flex items-center space-x-3 min-w-0">
               <OptimizedImage
                 src="/lovable-uploads/7355d9d6-30ec-4b86-9922-9058a15f6cca.png"
                 webpSrc="/lovable-uploads/7355d9d6-30ec-4b86-9922-9058a15f6cca.webp"
@@ -65,29 +100,37 @@ const Index = () => {
                 width={36}
                 height={36}
                 priority
-                className="w-9 h-9 object-contain"
+                className="w-9 h-9 object-contain shrink-0"
               />
-              <span className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground">
+              <span className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground truncate">
                 {t('common.appName')}
               </span>
             </div>
-            <div className="hidden lg:flex items-center gap-6 text-sm font-medium">
-              <a href="#features" className="text-muted-foreground hover:text-foreground transition-colors">{t('nav.features')}</a>
-              <a href="#showcase" className="text-muted-foreground hover:text-foreground transition-colors">{t('nav.showcase')}</a>
-              <Link to="/solutions" className="text-muted-foreground hover:text-foreground transition-colors">{t('nav.solutions')}</Link>
-              <Link to="/pricing" className="text-muted-foreground hover:text-foreground transition-colors">{t('nav.pricing')}</Link>
-              <Link to="/blog" className="text-muted-foreground hover:text-foreground transition-colors">Blog</Link>
-              <a href="#roadmap" className="text-muted-foreground hover:text-foreground transition-colors">{t('nav.roadmap')}</a>
-              <a href="#investors" className="text-muted-foreground hover:text-foreground transition-colors">{t('nav.investors')}</a>
-              <a href="#faq" className="text-muted-foreground hover:text-foreground transition-colors">{t('nav.faq')}</a>
-              <Link to="/about" className="text-muted-foreground hover:text-foreground transition-colors">About Us</Link>
-              <Link to="/contact" className="text-muted-foreground hover:text-foreground transition-colors">Contact</Link>
+
+            <div className="hidden lg:flex items-center gap-5 xl:gap-6 text-sm font-medium">
+              {navItems.map((item) =>
+                item.kind === 'section' ? (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => scrollToSection(item.id)}
+                    className={navLinkClass}
+                  >
+                    {item.label}
+                  </button>
+                ) : (
+                  <Link key={item.to} to={item.to} className={navLinkClass}>
+                    {item.label}
+                  </Link>
+                ),
+              )}
             </div>
-            <div className="flex items-center gap-2 sm:gap-3">
+
+            <div className="flex items-center gap-2 sm:gap-3 shrink-0">
               {!isLoading && user ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" className="max-w-[220px] gap-1.5">
+                    <Button variant="outline" size="sm" className="max-w-[160px] sm:max-w-[220px] gap-1.5">
                       <span className="truncate">{displayName}</span>
                       <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-70" />
                     </Button>
@@ -105,14 +148,65 @@ const Index = () => {
                 </DropdownMenu>
               ) : (
                 <>
-                  <Link to="/auth" className="flex-1 sm:flex-initial">
-                    <Button variant="outline" size="sm" className="w-full sm:w-auto">{t('nav.signIn')}</Button>
+                  <Link to="/auth" className="hidden sm:block">
+                    <Button variant="outline" size="sm">{t('nav.signIn')}</Button>
                   </Link>
-                  <Link to="/auth?mode=signup" className="flex-1 sm:flex-initial">
-                    <Button size="sm" className="w-full sm:w-auto">{t('nav.signUp')}</Button>
+                  <Link to="/auth?mode=signup" className="hidden sm:block">
+                    <Button size="sm">{t('nav.signUp')}</Button>
                   </Link>
                 </>
               )}
+
+              <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
+                <SheetTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="lg:hidden px-2.5"
+                    aria-label="Open menu"
+                  >
+                    <Menu className="h-5 w-5" />
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="right" className="w-[min(100%,20rem)] p-0">
+                  <SheetHeader className="border-b px-5 py-4 text-left">
+                    <SheetTitle className="text-base font-semibold">Menu</SheetTitle>
+                  </SheetHeader>
+                  <div className="flex flex-col gap-1 p-3">
+                    {navItems.map((item) =>
+                      item.kind === 'section' ? (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => scrollToSection(item.id)}
+                          className="rounded-md px-3 py-2.5 text-left text-sm font-medium text-foreground/90 hover:bg-muted transition-colors"
+                        >
+                          {item.label}
+                        </button>
+                      ) : (
+                        <Link
+                          key={item.to}
+                          to={item.to}
+                          onClick={() => setMobileNavOpen(false)}
+                          className="rounded-md px-3 py-2.5 text-sm font-medium text-foreground/90 hover:bg-muted transition-colors"
+                        >
+                          {item.label}
+                        </Link>
+                      ),
+                    )}
+                  </div>
+                  {!isLoading && !user && (
+                    <div className="mt-auto border-t p-4 flex flex-col gap-2 sm:hidden">
+                      <Button asChild variant="outline" size="sm" className="w-full">
+                        <Link to="/auth" onClick={() => setMobileNavOpen(false)}>{t('nav.signIn')}</Link>
+                      </Button>
+                      <Button asChild size="sm" className="w-full">
+                        <Link to="/auth?mode=signup" onClick={() => setMobileNavOpen(false)}>{t('nav.signUp')}</Link>
+                      </Button>
+                    </div>
+                  )}
+                </SheetContent>
+              </Sheet>
             </div>
           </div>
         </nav>
