@@ -1,27 +1,12 @@
-import React, { useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Button } from '@/components/ui/button';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from '@/components/ui/sheet';
-import { 
-  Building2, Users, Shield, Zap, BarChart3, Workflow, 
+  Building2, Users, Shield, Zap, BarChart3, Workflow,
   Database, Brain, TrendingUp, Globe,
-  Code, MapPin, Mail, Linkedin, LogOut, ChevronDown, Menu
+  Code, MapPin, Mail, Linkedin,
 } from 'lucide-react';
 import ChartsPreview from '@/components/landing/ChartsPreview';
 import HeroPromptPanel from '@/components/landing/HeroPromptPanel';
@@ -39,177 +24,26 @@ import IntegrationsSection from '@/components/landing/IntegrationsSection';
 import { AppIcon } from '@/components/icons';
 import { OptimizedImage } from '@/components/OptimizedImage';
 import TrustLogosSection from '@/components/landing/TrustLogosSection';
-import { useAuth } from '@/contexts/AuthContext';
-
-type NavItem =
-  | { kind: 'section'; id: string; label: string }
-  | { kind: 'route'; to: string; label: string };
+import SiteHeader from '@/components/layout/SiteHeader';
+import { landingSectionFromPath } from '@/lib/marketingNav';
 
 const Index = () => {
   const { t } = useTranslation();
-  const navigate = useNavigate();
-  const { user, userProfile, signOut, isLoading } = useAuth();
-  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const location = useLocation();
 
-  const displayName = useMemo(() => {
-    const fullName = [userProfile?.first_name, userProfile?.last_name].filter(Boolean).join(' ').trim();
-    return fullName || userProfile?.email || user?.email || 'Account';
-  }, [userProfile, user]);
-
-  const navItems = useMemo<NavItem[]>(() => [
-    { kind: 'section', id: 'features', label: t('nav.features') },
-    { kind: 'section', id: 'showcase', label: t('nav.showcase') },
-    { kind: 'route', to: '/solutions', label: t('nav.solutions') },
-    { kind: 'route', to: '/pricing', label: t('nav.pricing') },
-    { kind: 'route', to: '/blog', label: 'Blog' },
-    { kind: 'section', id: 'roadmap', label: t('nav.roadmap') },
-    { kind: 'section', id: 'investors', label: t('nav.investors') },
-    { kind: 'section', id: 'faq', label: t('nav.faq') },
-    { kind: 'route', to: '/about', label: 'About Us' },
-    { kind: 'route', to: '/contact', label: 'Contact' },
-  ], [t]);
-
-  const scrollToSection = (id: string) => {
-    setMobileNavOpen(false);
-    // Scroll without writing #hash into the URL
-    window.requestAnimationFrame(() => {
-      document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
-  };
-
-  const handleSignOut = async () => {
-    await signOut();
-    navigate('/', { replace: true });
-  };
-
-  const navLinkClass =
-    'text-muted-foreground hover:text-foreground transition-colors text-left';
+  // `/features`, `/investors`, etc. share this page and scroll to the section
+  useEffect(() => {
+    const sectionId = landingSectionFromPath(location.pathname);
+    if (!sectionId) return;
+    const timer = window.setTimeout(() => {
+      document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 60);
+    return () => window.clearTimeout(timer);
+  }, [location.pathname]);
 
   return (
       <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
-        {/* Navigation */}
-        <nav className="sticky top-0 z-50 border-b border-primary/15 bg-background/80 backdrop-blur-xl shadow-sm">
-          <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'var(--gradient-header)' }} />
-          <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-primary/60 via-accent/40 to-transparent" />
-          <div className="container relative mx-auto px-4 py-3 sm:py-4 flex items-center justify-between gap-3">
-            <div className="flex items-center space-x-3 min-w-0">
-              <OptimizedImage
-                src="/lovable-uploads/7355d9d6-30ec-4b86-9922-9058a15f6cca.png"
-                webpSrc="/lovable-uploads/7355d9d6-30ec-4b86-9922-9058a15f6cca.webp"
-                alt="TopSqill"
-                width={36}
-                height={36}
-                priority
-                className="w-9 h-9 object-contain shrink-0"
-              />
-              <span className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground truncate">
-                {t('common.appName')}
-              </span>
-            </div>
-
-            <div className="hidden lg:flex items-center gap-5 xl:gap-6 text-sm font-medium">
-              {navItems.map((item) =>
-                item.kind === 'section' ? (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => scrollToSection(item.id)}
-                    className={navLinkClass}
-                  >
-                    {item.label}
-                  </button>
-                ) : (
-                  <Link key={item.to} to={item.to} className={navLinkClass}>
-                    {item.label}
-                  </Link>
-                ),
-              )}
-            </div>
-
-            <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-              {!isLoading && user ? (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" className="max-w-[160px] sm:max-w-[220px] gap-1.5">
-                      <span className="truncate">{displayName}</span>
-                      <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-70" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-52">
-                    <DropdownMenuItem onClick={() => navigate('/build')}>
-                      AI Builder
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => void handleSignOut()} className="text-destructive focus:text-destructive">
-                      <LogOut className="mr-2 h-4 w-4" />
-                      {t('nav.logout')}
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              ) : (
-                <>
-                  <Link to="/auth" className="hidden sm:block">
-                    <Button variant="outline" size="sm">{t('nav.signIn')}</Button>
-                  </Link>
-                  <Link to="/auth?mode=signup" className="hidden sm:block">
-                    <Button size="sm">{t('nav.signUp')}</Button>
-                  </Link>
-                </>
-              )}
-
-              <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
-                <SheetTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="lg:hidden px-2.5"
-                    aria-label="Open menu"
-                  >
-                    <Menu className="h-5 w-5" />
-                  </Button>
-                </SheetTrigger>
-                <SheetContent side="right" className="w-[min(100%,20rem)] p-0">
-                  <SheetHeader className="border-b px-5 py-4 text-left">
-                    <SheetTitle className="text-base font-semibold">Menu</SheetTitle>
-                  </SheetHeader>
-                  <div className="flex flex-col gap-1 p-3">
-                    {navItems.map((item) =>
-                      item.kind === 'section' ? (
-                        <button
-                          key={item.id}
-                          type="button"
-                          onClick={() => scrollToSection(item.id)}
-                          className="rounded-md px-3 py-2.5 text-left text-sm font-medium text-foreground/90 hover:bg-muted transition-colors"
-                        >
-                          {item.label}
-                        </button>
-                      ) : (
-                        <Link
-                          key={item.to}
-                          to={item.to}
-                          onClick={() => setMobileNavOpen(false)}
-                          className="rounded-md px-3 py-2.5 text-sm font-medium text-foreground/90 hover:bg-muted transition-colors"
-                        >
-                          {item.label}
-                        </Link>
-                      ),
-                    )}
-                  </div>
-                  {!isLoading && !user && (
-                    <div className="mt-auto border-t p-4 flex flex-col gap-2 sm:hidden">
-                      <Button asChild variant="outline" size="sm" className="w-full">
-                        <Link to="/auth" onClick={() => setMobileNavOpen(false)}>{t('nav.signIn')}</Link>
-                      </Button>
-                      <Button asChild size="sm" className="w-full">
-                        <Link to="/auth?mode=signup" onClick={() => setMobileNavOpen(false)}>{t('nav.signUp')}</Link>
-                      </Button>
-                    </div>
-                  )}
-                </SheetContent>
-              </Sheet>
-            </div>
-          </div>
-        </nav>
+        <SiteHeader />
 
         {/* Hero Section */}
         <main>
@@ -245,7 +79,7 @@ const Index = () => {
           <TrustLogosSection />
 
           {/* Capabilities Showcase */}
-          <section id="showcase" className="py-20 bg-gradient-to-br from-secondary/5 to-background">
+          <section id="showcase" className="py-20 bg-gradient-to-br from-secondary/5 to-background scroll-mt-24">
             <div className="container mx-auto px-4">
               <div className="text-center mb-16">
                 <Badge variant="secondary" className="mb-4">{t('landing.showcaseBadge')}</Badge>
@@ -268,8 +102,8 @@ const Index = () => {
           </section>
 
           {/* Core Features */}
-          <section id="features" className="py-20 bg-gradient-to-br from-background to-primary/5">
-            <div className="container mx-auto px-4 group">{/* Add group class for hover effects */}
+          <section id="features" className="py-20 bg-gradient-to-br from-background to-primary/5 scroll-mt-24">
+            <div className="container mx-auto px-4 group">
               <div className="text-center mb-16">
                 <h2 className="text-3xl md:text-4xl font-bold mb-4">
                   Everything you need for enterprise forms
@@ -366,12 +200,12 @@ const Index = () => {
           <TestimonialsSection />
 
           {/* Future Roadmap */}
-          <section id="roadmap">
+          <section id="roadmap" className="scroll-mt-24">
             <FutureRoadmap />
           </section>
 
           {/* Investor Section */}
-          <section id="investors">
+          <section id="investors" className="scroll-mt-24">
             <InvestorSection />
           </section>
 

@@ -218,6 +218,15 @@ export function isValidSpaPath(pathname: string): boolean {
   if (NOINDEX_EXACT.has(pathname)) return true;
   if (pathname.startsWith('/solutions/')) return true;
   if (pathname.startsWith('/blog')) return true;
+  if (
+    pathname === '/features'
+    || pathname === '/showcase'
+    || pathname === '/roadmap'
+    || pathname === '/investors'
+    || pathname === '/faq'
+  ) {
+    return true;
+  }
   if (/^\/(in|ae|sa|sg|ar)(\/|$)/.test(pathname)) return true;
   if (pathname === '/sitemap.xml' || pathname === '/robots.txt' || pathname === '/llms.txt') {
     return true;

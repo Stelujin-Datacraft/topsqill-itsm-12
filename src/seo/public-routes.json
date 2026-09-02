@@ -183,6 +183,86 @@
       "sitemap": true,
       "priority": "0.3",
       "changefreq": "yearly"
+    },
+    {
+      "path": "/features",
+      "title": "Features — TopSqill enterprise form platform",
+      "description": "Organization management, smart form builder, SQL querying, visual workflows, analytics, and enterprise security in TopSqill.",
+      "h1": "Everything you need for enterprise forms",
+      "lede": "From simple feedback forms to complex multi-step workflows — explore TopSqill capabilities.",
+      "sections": [
+        {
+          "heading": "Platform capabilities",
+          "body": "Forms, workflows, SQL, analytics, and governance in one system."
+        }
+      ],
+      "sitemap": true,
+      "priority": "0.7",
+      "changefreq": "monthly"
+    },
+    {
+      "path": "/showcase",
+      "title": "Product showcase — TopSqill",
+      "description": "See TopSqill charts, data tables, SQL editor, form builder, and workflow designer in action.",
+      "h1": "See TopSqill in action",
+      "lede": "Interactive previews of charts, data tables, SQL, forms, and workflows.",
+      "sections": [
+        {
+          "heading": "Interactive demos",
+          "body": "Explore product capabilities without leaving the marketing site."
+        }
+      ],
+      "sitemap": true,
+      "priority": "0.7",
+      "changefreq": "monthly"
+    },
+    {
+      "path": "/roadmap",
+      "title": "Product roadmap — TopSqill",
+      "description": "Upcoming TopSqill capabilities and platform direction for forms, workflows, and AI.",
+      "h1": "Product roadmap",
+      "lede": "Where TopSqill is headed next.",
+      "sections": [
+        {
+          "heading": "What's next",
+          "body": "Planned features and platform investments."
+        }
+      ],
+      "sitemap": true,
+      "priority": "0.6",
+      "changefreq": "monthly"
+    },
+    {
+      "path": "/investors",
+      "title": "Investors — TopSqill",
+      "description": "Investment thesis and contact for TopSqill — enterprise forms, workflows, and governed operational data.",
+      "h1": "Investors",
+      "lede": "Join leading investors in revolutionizing how organizations collect, process, and act on data.",
+      "sections": [
+        {
+          "heading": "Opportunity",
+          "body": "Enterprise automation on governed form data."
+        }
+      ],
+      "sitemap": true,
+      "priority": "0.5",
+      "changefreq": "monthly"
+    },
+    {
+      "path": "/faq",
+      "title": "FAQ — TopSqill",
+      "description": "Frequently asked questions about TopSqill features, pricing, security, and implementation.",
+      "h1": "Frequently asked questions",
+      "lede": "Answers about features, pricing, and implementation.",
+      "sections": [
+        {
+          "heading": "Common questions",
+          "body": "Get answers about the TopSqill platform."
+        }
+      ],
+      "sitemap": true,
+      "priority": "0.6",
+      "changefreq": "monthly"
     }
   ]
 }

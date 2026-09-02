@@ -12,7 +12,7 @@ export default function FAQSection() {
   const faqs = LANDING_FAQS;
 
   return (
-    <section id="faq" aria-labelledby="faq-heading" className="py-20">
+    <section id="faq" aria-labelledby="faq-heading" className="py-20 scroll-mt-24">
       <div className="container mx-auto px-4">
         <div className="text-center mb-12">
           <Badge variant="secondary" className="mb-4">Frequently Asked Questions</Badge>

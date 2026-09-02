@@ -208,6 +208,11 @@ const App = () => (
                     <Routes>
                       {/* Public routes - eagerly loaded */}
                       <Route path="/" element={<Index />} />
+                      <Route path="/features" element={<Index />} />
+                      <Route path="/showcase" element={<Index />} />
+                      <Route path="/roadmap" element={<Index />} />
+                      <Route path="/investors" element={<Index />} />
+                      <Route path="/faq" element={<Index />} />
                       <Route path="/auth" element={<Auth />} />
                       <Route path="/login" element={<Navigate to="/auth" replace />} />
                       <Route path="/auth/callback" element={
@@ -271,6 +276,11 @@ const App = () => (
                         } />
                       ))}
                       {MARKET_CODES.flatMap((code) => ([
+                        <Route key={`${code}-features`} path={`/${code}/features`} element={<Index />} />,
+                        <Route key={`${code}-showcase`} path={`/${code}/showcase`} element={<Index />} />,
+                        <Route key={`${code}-roadmap`} path={`/${code}/roadmap`} element={<Index />} />,
+                        <Route key={`${code}-investors`} path={`/${code}/investors`} element={<Index />} />,
+                        <Route key={`${code}-faq`} path={`/${code}/faq`} element={<Index />} />,
                         <Route key={`${code}-solutions`} path={`/${code}/solutions`} element={<Suspense fallback={<RouteLoader />}><Solutions /></Suspense>} />,
                         <Route key={`${code}-pricing`} path={`/${code}/pricing`} element={<Suspense fallback={<RouteLoader />}><Pricing /></Suspense>} />,
                         <Route key={`${code}-about`} path={`/${code}/about`} element={<Suspense fallback={<RouteLoader />}><About /></Suspense>} />,
