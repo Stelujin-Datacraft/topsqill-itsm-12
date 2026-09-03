@@ -13,8 +13,10 @@ export const BLOG_BUCKET_CANDIDATES = [
 ] as const;
 
 export const BLOG_CMS_FILE = 'blog/cms-posts.json';
+export const BLOG_DELETED_SLUGS_FILE = 'blog/deleted-slugs.json';
 export const BLOG_COVER_PREFIX = 'blog/covers';
 const LOCAL_CMS_KEY = 'topsqill_blog_cms_posts_v1';
+const LOCAL_DELETED_SLUGS_KEY = 'topsqill_blog_deleted_slugs_v1';
 
 const TABLE_PROBE_KEY = 'topsqill_blog_table_ok';
 const BUCKET_CACHE_KEY = 'topsqill_blog_bucket';
@@ -167,6 +169,115 @@ export function saveLocalCmsPosts(posts: BlogPostRecord[]) {
   } catch (err) {
     console.warn('[blog] localStorage save failed:', err);
   }
+}
+
+/** Local tombstones so deleted demo/static seeds stay gone on /blog + admin. */
+export function loadLocalDeletedSlugs(): string[] {
+  try {
+    const raw = localStorage.getItem(LOCAL_DELETED_SLUGS_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed)
+      ? parsed.map((s) => String(s).trim()).filter(Boolean)
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveLocalDeletedSlugs(slugs: string[]) {
+  try {
+    const unique = [...new Set(slugs.map((s) => String(s).trim()).filter(Boolean))];
+    localStorage.setItem(LOCAL_DELETED_SLUGS_KEY, JSON.stringify(unique));
+  } catch (err) {
+    console.warn('[blog] localStorage deleted-slugs save failed:', err);
+  }
+}
+
+async function downloadDeletedSlugsJson(bucket: string): Promise<string[] | null> {
+  const { data, error } = await rawSupabase.storage.from(bucket).download(BLOG_DELETED_SLUGS_FILE);
+  if (error) {
+    const msg = String(error.message || '').toLowerCase();
+    if (msg.includes('not found') || msg.includes('404') || (error as any).statusCode === '404') {
+      return null;
+    }
+    if (isMissingBucketError(error as any)) return null;
+    throw error;
+  }
+  const text = await data.text();
+  if (!text.trim()) return [];
+  const parsed = JSON.parse(text);
+  return Array.isArray(parsed)
+    ? parsed.map((s) => String(s).trim()).filter(Boolean)
+    : [];
+}
+
+async function uploadDeletedSlugsJson(bucket: string, slugs: string[]): Promise<void> {
+  const body = new Blob([JSON.stringify([...new Set(slugs)], null, 2)], { type: 'application/json' });
+  const { error } = await rawSupabase.storage.from(bucket).upload(BLOG_DELETED_SLUGS_FILE, body, {
+    upsert: true,
+    contentType: 'application/json',
+  });
+  if (error) throw error;
+}
+
+export async function loadDeletedSlugs(): Promise<Set<string>> {
+  const set = new Set<string>(loadLocalDeletedSlugs());
+  for (const bucket of bucketAttemptOrder()) {
+    try {
+      const remote = await downloadDeletedSlugsJson(bucket);
+      if (remote) remote.forEach((s) => set.add(s));
+    } catch (err) {
+      console.warn(`[blog] read deleted-slugs via ${bucket} failed:`, (err as Error)?.message);
+    }
+  }
+  return set;
+}
+
+export async function markSlugDeleted(slug: string): Promise<void> {
+  const trimmed = String(slug || '').trim();
+  if (!trimmed) return;
+  const next = [...(await loadDeletedSlugs()), trimmed];
+  saveLocalDeletedSlugs(next);
+  let wrote = false;
+  for (const bucket of bucketAttemptOrder()) {
+    try {
+      await uploadDeletedSlugsJson(bucket, next);
+      wrote = true;
+      rememberBucket(bucket);
+      break;
+    } catch (err) {
+      console.warn(`[blog] write deleted-slugs via ${bucket} failed:`, (err as Error)?.message);
+    }
+  }
+  if (!wrote) {
+    console.warn('[blog] deleted-slugs persisted locally only (storage write failed)');
+  }
+}
+
+export async function unmarkSlugDeleted(slug: string): Promise<void> {
+  const trimmed = String(slug || '').trim();
+  if (!trimmed) return;
+  const next = [...(await loadDeletedSlugs())].filter((s) => s !== trimmed);
+  saveLocalDeletedSlugs(next);
+  for (const bucket of bucketAttemptOrder()) {
+    try {
+      await uploadDeletedSlugsJson(bucket, next);
+      rememberBucket(bucket);
+      break;
+    } catch {
+      /* optional */
+    }
+  }
+}
+
+export function filterOutDeletedSlugs<T extends { slug: string }>(
+  rows: T[],
+  deleted: Set<string> | string[],
+): T[] {
+  const set = deleted instanceof Set ? deleted : new Set(deleted);
+  if (set.size === 0) return rows;
+  return rows.filter((row) => !set.has(row.slug));
 }
 
 function mergePostMaps(...lists: BlogPostRecord[][]): BlogPostRecord[] {
@@ -371,10 +482,17 @@ export async function loadAllPublishedBlogPosts(): Promise<BlogPostRecord[]> {
     console.warn('[blog] storage published fetch failed:', (err as Error)?.message);
   }
 
-  return mergePostMaps(...lists).filter((p) => Boolean(p.published));
+  const deleted = await loadDeletedSlugs();
+  return filterOutDeletedSlugs(
+    mergePostMaps(...lists).filter((p) => Boolean(p.published)),
+    deleted,
+  );
 }
 
 export async function loadPublishedBlogPostBySlug(slug: string): Promise<BlogPostRecord | null> {
+  const deleted = await loadDeletedSlugs();
+  if (deleted.has(slug)) return null;
+
   const tableOk = await probeBlogTable();
   if (tableOk) {
     const { data, error } = await rawSupabase
@@ -463,6 +581,11 @@ export async function createStorageBlogPost(
   const next = [row, ...existing.filter((p) => p.slug !== row.slug)];
   upsertLocal(row);
   try {
+    await unmarkSlugDeleted(row.slug);
+  } catch {
+    /* ignore */
+  }
+  try {
     await writePostsToStorage(next);
   } catch (err) {
     // localStorage already has it — public page on this browser still works
@@ -511,19 +634,100 @@ export async function updateStorageBlogPost(
   return row;
 }
 
-export async function deleteStorageBlogPost(id: string): Promise<void> {
+export async function deleteStorageBlogPost(id: string, slug?: string): Promise<void> {
   const existing = await listStorageBlogPosts();
-  const next = existing.filter((p) => p.id !== id);
+  const next = existing.filter((p) => {
+    if (p.id === id) return false;
+    if (slug && p.slug === slug) return false;
+    return true;
+  });
   removeLocal(id);
+  if (slug) {
+    saveLocalCmsPosts(loadLocalCmsPosts().filter((p) => p.id !== id && p.slug !== slug));
+  }
   try {
     await writePostsToStorage(next);
   } catch (err) {
+    // Local already updated — surface warning but don't pretend remote delete succeeded silently
     console.warn('[blog] storage delete mirror failed:', (err as Error)?.message);
+    throw new Error(
+      formatBlogError(err, 'Removed locally but could not update remote blog storage. Retry delete.'),
+    );
   }
+}
+
+/**
+ * Fully remove a CMS post from table + storage + local, and tombstone the slug
+ * so static demo seeds with the same slug do not reappear.
+ */
+export async function deleteBlogPostEverywhere(id: string, slug?: string): Promise<void> {
+  const resolvedSlug = slug
+    || (isDemoLikeId(id) ? id.replace(/^demo:/, '') : undefined)
+    || (await resolveSlugForId(id));
+
+  // Tombstone first so public/admin merges hide the post even if storage mirror lags
+  if (resolvedSlug) {
+    await markSlugDeleted(resolvedSlug);
+  }
+
+  const tableOk = await probeBlogTable();
+  if (tableOk && !isDemoLikeId(id)) {
+    const { error } = await rawSupabase.from('blog_posts').delete().eq('id', id);
+    if (error && !isMissingRelationError(error)) {
+      throw new Error(formatBlogError(error, 'Failed to delete blog post from database'));
+    }
+    if (error && isMissingRelationError(error)) {
+      invalidateBlogTableProbe();
+    }
+    if (resolvedSlug) {
+      const { error: slugErr } = await rawSupabase.from('blog_posts').delete().eq('slug', resolvedSlug);
+      if (slugErr && !isMissingRelationError(slugErr)) {
+        console.warn('[blog] table delete by slug failed:', slugErr.message);
+      }
+    }
+  }
+
+  if (!isDemoLikeId(id)) {
+    try {
+      await deleteStorageBlogPost(id, resolvedSlug);
+    } catch (err) {
+      // Local + tombstone already updated; warn instead of failing the whole delete
+      console.warn('[blog] storage delete:', (err as Error)?.message);
+    }
+  }
+}
+
+function isDemoLikeId(id: string): boolean {
+  return String(id || '').startsWith('demo:');
+}
+
+async function resolveSlugForId(id: string): Promise<string | undefined> {
+  if (isDemoLikeId(id)) return id.replace(/^demo:/, '');
+  const local = loadLocalCmsPosts().find((p) => p.id === id);
+  if (local?.slug) return local.slug;
+  try {
+    const stored = (await listStorageBlogPosts()).find((p) => p.id === id);
+    if (stored?.slug) return stored.slug;
+  } catch {
+    /* ignore */
+  }
+  const tableOk = await probeBlogTable();
+  if (tableOk) {
+    const { data } = await rawSupabase.from('blog_posts').select('slug').eq('id', id).maybeSingle();
+    if (data?.slug) return data.slug;
+  }
+  return undefined;
 }
 
 /** Dual-write helper after a successful table insert/update. */
 export async function mirrorPostToStorageAndLocal(row: BlogPostRecord): Promise<void> {
+  if (row.slug) {
+    try {
+      await unmarkSlugDeleted(row.slug);
+    } catch {
+      /* ignore */
+    }
+  }
   upsertLocal(row);
   try {
     const existing = await listStorageBlogPosts();
