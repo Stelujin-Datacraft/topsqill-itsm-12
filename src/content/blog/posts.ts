@@ -56,14 +56,22 @@ export function getDemoBlogRecords(): BlogPostRecord[] {
 
 /**
  * Merge CMS rows with demo seeds. CMS wins on slug; demos fill gaps so they
- * appear (and are editable) in Blog admin.
+ * appear (and are editable) in Blog admin — unless the slug was deleted.
  */
-export function mergeAdminBlogPosts(cmsRows: BlogPostRecord[]): BlogPostRecord[] {
+export function mergeAdminBlogPosts(
+  cmsRows: BlogPostRecord[],
+  deletedSlugs?: Set<string> | string[] | null,
+): BlogPostRecord[] {
+  const deleted = deletedSlugs instanceof Set
+    ? deletedSlugs
+    : new Set(deletedSlugs || loadLocalDeletedSlugsSafe());
   const bySlug = new Map<string, BlogPostRecord>();
   for (const row of cmsRows) {
+    if (deleted.has(row.slug)) continue;
     bySlug.set(row.slug, { ...row, origin: row.origin || 'cms' });
   }
   for (const demo of getDemoBlogRecords()) {
+    if (deleted.has(demo.slug)) continue;
     if (!bySlug.has(demo.slug)) bySlug.set(demo.slug, demo);
   }
   return [...bySlug.values()].sort((a, b) =>
@@ -91,14 +99,20 @@ export function staticToDisplay(post: BlogPost): DisplayBlogPost {
   };
 }
 
-/** DB published posts win on slug collision; static fills the rest. */
+/** DB published posts win on slug collision; static fills the rest (unless tombstoned). */
 export function mergeBlogPosts(
   dbRows: BlogPostRecord[] | undefined | null,
+  deletedSlugs?: Set<string> | string[] | null,
 ): DisplayBlogPost[] {
-  const fromDb = (dbRows || []).map(recordToDisplay);
+  const deleted = deletedSlugs instanceof Set
+    ? deletedSlugs
+    : new Set(deletedSlugs || loadLocalDeletedSlugsSafe());
+  const fromDb = (dbRows || [])
+    .filter((p) => !deleted.has(p.slug))
+    .map(recordToDisplay);
   const dbSlugs = new Set(fromDb.map((p) => p.slug));
   const fromStatic = BLOG_POSTS
-    .filter((p) => !dbSlugs.has(p.slug))
+    .filter((p) => !dbSlugs.has(p.slug) && !deleted.has(p.slug))
     .map(staticToDisplay);
   return [...fromDb, ...fromStatic].sort((a, b) =>
     String(b.publishedAt).localeCompare(String(a.publishedAt)),
@@ -108,9 +122,29 @@ export function mergeBlogPosts(
 export function findMergedPost(
   slug: string | undefined,
   dbRow: BlogPostRecord | null | undefined,
+  deletedSlugs?: Set<string> | string[] | null,
 ): DisplayBlogPost | undefined {
   if (!slug) return undefined;
+  const deleted = deletedSlugs instanceof Set
+    ? deletedSlugs
+    : new Set(deletedSlugs || loadLocalDeletedSlugsSafe());
+  if (deleted.has(slug)) {
+    // Explicit CMS row still wins (e.g. recreated after delete in same session before tombstone sync)
+    if (dbRow && dbRow.slug === slug && dbRow.published) return recordToDisplay(dbRow);
+    return undefined;
+  }
   if (dbRow && dbRow.slug === slug) return recordToDisplay(dbRow);
   const staticPost = getPost(slug);
   return staticPost ? staticToDisplay(staticPost) : undefined;
+}
+
+function loadLocalDeletedSlugsSafe(): string[] {
+  try {
+    const raw = localStorage.getItem('topsqill_blog_deleted_slugs_v1');
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.map((s) => String(s).trim()).filter(Boolean) : [];
+  } catch {
+    return [];
+  }
 }

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useLocation, useParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import PublicPageLayout from '@/components/layout/PublicPageLayout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -15,6 +16,7 @@ import BlogContactPanel from '@/components/blog/BlogContactPanel';
 import { prepareHtmlWithToc, tocFromParagraphs } from '@/components/blog/blogToc';
 import { findMergedPost } from '@/content/blog/posts';
 import { usePublishedBlogPost } from '@/hooks/useBlogPosts';
+import { loadDeletedSlugs } from '@/lib/blogCms';
 import { stripMarketPrefix } from '@/lib/seo';
 import { Seo } from '@/components/Seo';
 import { articleJsonLd, breadcrumbJsonLd, organizationJsonLd } from '@/lib/structuredData';
@@ -29,7 +31,13 @@ export default function BlogPost() {
   const { market } = stripMarketPrefix(pathname);
   const base = market ? `/${market}` : '';
   const { data: dbRow, isLoading } = usePublishedBlogPost(slug);
-  const post = findMergedPost(slug, dbRow);
+  const { data: deletedSlugs = [] } = useQuery({
+    queryKey: ['blog_deleted_slugs'],
+    queryFn: async () => [...(await loadDeletedSlugs())],
+    staleTime: 5_000,
+    refetchOnMount: 'always',
+  });
+  const post = findMergedPost(slug, dbRow, deletedSlugs);
   const [activeSection, setActiveSection] = useState<string | null>(null);
 
   const prepared = useMemo(() => {

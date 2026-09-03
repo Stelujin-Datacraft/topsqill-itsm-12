@@ -118,4 +118,79 @@ export class BlogService {
         : `Bucket ready (${bucket}). Table not found — CMS will use storage JSON until migration 20260827120000_blog_posts.sql is applied.`,
     };
   }
+
+  /**
+   * Service-role delete so RLS quirks cannot leave orphans.
+   * Also tombstones the slug so static demo seeds do not reappear on /blog.
+   */
+  async deletePost(userId: string, id: string, slug?: string) {
+    await this.assertAdmin(userId);
+    const supabase = this.supabaseService.getServiceClient();
+    const isDemo = String(id || '').startsWith('demo:');
+    let resolvedSlug = (slug || '').trim() || (isDemo ? id.replace(/^demo:/, '') : '');
+
+    if (!isDemo) {
+      if (!resolvedSlug) {
+        const { data } = await supabase.from('blog_posts').select('slug').eq('id', id).maybeSingle();
+        resolvedSlug = data?.slug || '';
+      }
+
+      const { error: tableErr } = await supabase.from('blog_posts').delete().eq('id', id);
+      if (tableErr && !/does not exist|schema cache|42P01|PGRST205/i.test(tableErr.message)) {
+        this.logger.warn(`blog_posts delete by id: ${tableErr.message}`);
+      }
+      if (resolvedSlug) {
+        const { error: slugErr } = await supabase.from('blog_posts').delete().eq('slug', resolvedSlug);
+        if (slugErr && !/does not exist|schema cache|42P01|PGRST205/i.test(slugErr.message)) {
+          this.logger.warn(`blog_posts delete by slug: ${slugErr.message}`);
+        }
+      }
+
+      // Remove from cms-posts.json mirrors
+      for (const bucket of ['blog-media', 'report-media', 'form-attachments', 'organization-logos']) {
+        try {
+          const { data, error } = await supabase.storage.from(bucket).download('blog/cms-posts.json');
+          if (error || !data) continue;
+          const text = await data.text();
+          const parsed = text.trim() ? JSON.parse(text) : [];
+          if (!Array.isArray(parsed)) continue;
+          const next = parsed.filter((p: any) => p?.id !== id && (!resolvedSlug || p?.slug !== resolvedSlug));
+          const body = new Blob([JSON.stringify(next, null, 2)], { type: 'application/json' });
+          const { error: upErr } = await supabase.storage.from(bucket).upload('blog/cms-posts.json', body, {
+            upsert: true,
+            contentType: 'application/json',
+          });
+          if (upErr) this.logger.warn(`cms-posts delete mirror ${bucket}: ${upErr.message}`);
+        } catch (err) {
+          this.logger.warn(`cms-posts delete mirror ${bucket}: ${(err as Error).message}`);
+        }
+      }
+    }
+
+    if (resolvedSlug) {
+      for (const bucket of ['blog-media', 'report-media', 'form-attachments', 'organization-logos']) {
+        try {
+          let slugs: string[] = [];
+          const { data, error } = await supabase.storage.from(bucket).download('blog/deleted-slugs.json');
+          if (!error && data) {
+            const text = await data.text();
+            const parsed = text.trim() ? JSON.parse(text) : [];
+            if (Array.isArray(parsed)) slugs = parsed.map((s) => String(s).trim()).filter(Boolean);
+          }
+          if (!slugs.includes(resolvedSlug)) slugs.push(resolvedSlug);
+          const body = new Blob([JSON.stringify(slugs, null, 2)], { type: 'application/json' });
+          const { error: upErr } = await supabase.storage.from(bucket).upload('blog/deleted-slugs.json', body, {
+            upsert: true,
+            contentType: 'application/json',
+          });
+          if (upErr) this.logger.warn(`deleted-slugs ${bucket}: ${upErr.message}`);
+          else break;
+        } catch (err) {
+          this.logger.warn(`deleted-slugs ${bucket}: ${(err as Error).message}`);
+        }
+      }
+    }
+
+    return { ok: true, id, slug: resolvedSlug || null };
+  }
 }

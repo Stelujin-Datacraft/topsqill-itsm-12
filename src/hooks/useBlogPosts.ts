@@ -6,12 +6,13 @@ import type { BlogPostInput, BlogPostRecord } from '@/types/blog';
 import {
   clearBlogBucketCache,
   createStorageBlogPost,
-  deleteStorageBlogPost,
+  deleteBlogPostEverywhere,
   formatBlogError,
   invalidateBlogTableProbe,
   isMissingRelationError,
   listStorageBlogPosts,
   loadAllPublishedBlogPosts,
+  loadDeletedSlugs,
   loadPublishedBlogPostBySlug,
   mirrorPostToStorageAndLocal,
   probeBlogTable,
@@ -107,8 +108,10 @@ export function useBlogAdmin() {
           if (nextTs >= prevTs) bySlug.set(row.slug, row);
         }
       }
+      const deleted = await loadDeletedSlugs();
       return mergeAdminBlogPosts(
         [...bySlug.values()].map((row) => ({ ...row, origin: 'cms' as const })),
+        deleted,
       );
     },
   });
@@ -117,6 +120,7 @@ export function useBlogAdmin() {
     queryClient.invalidateQueries({ queryKey: ADMIN_KEY });
     queryClient.invalidateQueries({ queryKey: PUBLIC_KEY });
     queryClient.invalidateQueries({ queryKey: MODE_KEY });
+    queryClient.invalidateQueries({ queryKey: ['blog_deleted_slugs'] });
   };
 
   const persistNewPost = async (input: BlogPostInput): Promise<BlogPostRecord> => {
@@ -227,20 +231,25 @@ export function useBlogAdmin() {
   });
 
   const deletePost = useMutation({
-    mutationFn: async (id: string) => {
-      if (isDemoBlogId(id)) {
-        throw new Error('Demo posts ship with the app. Edit & save to convert to a CMS post, or change the slug to replace them on /blog.');
+    mutationFn: async (payload: string | { id: string; slug?: string }) => {
+      const id = typeof payload === 'string' ? payload : payload.id;
+      const slug = typeof payload === 'string' ? undefined : payload.slug;
+
+      // Prefer Nest service-role delete when available (bypasses RLS orphans)
+      const qs = slug ? `?slug=${encodeURIComponent(slug)}` : '';
+      const apiRes = await request<{ ok?: boolean }>(
+        `/blog/posts/${encodeURIComponent(id)}${qs}`,
+        { method: 'DELETE' },
+      );
+      if (!apiRes.error) {
+        // Keep local tombstone + local CMS cache in sync even when API succeeded
+        await deleteBlogPostEverywhere(id, slug).catch((err) => {
+          console.warn('[blog] local/storage cleanup after API delete:', (err as Error)?.message);
+        });
+        return;
       }
-      const tableOk = await probeBlogTable();
-      if (tableOk) {
-        const { error } = await rawSupabase.from('blog_posts').delete().eq('id', id);
-        if (error && !isMissingRelationError(error)) {
-          console.warn('[blog] table delete failed:', error.message);
-        } else if (error) {
-          invalidateBlogTableProbe();
-        }
-      }
-      await deleteStorageBlogPost(id);
+      console.warn('[blog] API delete unavailable, using client delete:', apiRes.error.message);
+      await deleteBlogPostEverywhere(id, slug);
     },
     onSuccess: () => {
       bustPublicCache();

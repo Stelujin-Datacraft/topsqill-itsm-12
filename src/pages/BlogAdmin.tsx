@@ -93,7 +93,7 @@ export default function BlogAdmin() {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<Draft>(emptyDraft());
   const [slugTouched, setSlugTouched] = useState(false);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; slug: string; isDemo: boolean } | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [importText, setImportText] = useState('');
   const [uploading, setUploading] = useState(false);
@@ -344,11 +344,10 @@ export default function BlogAdmin() {
                         <Button
                           size="sm"
                           variant="ghost"
-                          disabled={isDemo}
-                          title={isDemo ? 'Demo posts cannot be deleted — edit & save to convert to CMS first' : 'Delete'}
-                          onClick={() => setDeleteId(row.id)}
+                          title={isDemo ? 'Hide demo post from /blog and admin' : 'Delete'}
+                          onClick={() => setDeleteTarget({ id: row.id, slug: row.slug, isDemo })}
                         >
-                          <Trash2 className={`h-4 w-4 ${isDemo ? 'text-muted-foreground' : 'text-destructive'}`} />
+                          <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                       </div>
                     </li>
@@ -532,20 +531,26 @@ export default function BlogAdmin() {
           </DialogContent>
         </Dialog>
 
-        <AlertDialog open={Boolean(deleteId)} onOpenChange={(v) => !v && setDeleteId(null)}>
+        <AlertDialog open={Boolean(deleteTarget)} onOpenChange={(v) => !v && setDeleteTarget(null)}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Delete this post?</AlertDialogTitle>
+              <AlertDialogTitle>
+                {deleteTarget?.isDemo ? 'Remove this demo post?' : 'Delete this post?'}
+              </AlertDialogTitle>
               <AlertDialogDescription>
-                This removes it from /blog permanently. Static seed posts are unaffected.
+                {deleteTarget?.isDemo
+                  ? 'This hides the built-in demo article from /blog and Blog admin. You can recreate a CMS post with the same slug later if needed.'
+                  : 'This removes it from the database/storage and /blog permanently. Matching demo seeds with the same slug stay hidden too.'}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
               <AlertDialogAction
                 onClick={() => {
-                  if (deleteId) void deletePost.mutateAsync(deleteId);
-                  setDeleteId(null);
+                  if (deleteTarget) {
+                    void deletePost.mutateAsync({ id: deleteTarget.id, slug: deleteTarget.slug });
+                  }
+                  setDeleteTarget(null);
                 }}
               >
                 Delete
