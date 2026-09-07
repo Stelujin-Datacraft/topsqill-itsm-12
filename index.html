@@ -24,6 +24,33 @@
 
     <link rel="icon" href="/lovable-uploads/7355d9d6-30ec-4b86-9922-9058a15f6cca.png" type="image/png" />
 
+    <!-- Hide SEO prerender shell from humans (still in DOM for crawlers). Prevents text flash before React boots. -->
+    <style id="seo-boot-style">
+      #seo-prerender {
+        position: absolute !important;
+        width: 1px !important;
+        height: 1px !important;
+        padding: 0 !important;
+        margin: -1px !important;
+        overflow: hidden !important;
+        clip: rect(0, 0, 0, 0) !important;
+        white-space: nowrap !important;
+        border: 0 !important;
+      }
+      #app-boot {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #ffffff;
+      }
+      #app-boot img {
+        width: 48px;
+        height: 48px;
+        object-fit: contain;
+      }
+    </style>
+
     <meta property="og:title" content="TopSqill BPM - Enterprise Form Platform with AI & Workflow Automation" />
     <meta property="og:description" content="Build, automate, and analyze enterprise forms with advanced workflows, SQL querying, and AI-powered insights. Trusted by 500+ organizations worldwide." />
     <meta property="og:type" content="website" />

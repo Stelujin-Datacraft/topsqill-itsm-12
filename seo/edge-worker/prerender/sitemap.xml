@@ -46,6 +46,31 @@
     <priority>0.3</priority>
   </url>
   <url>
+    <loc>https://topsqill.com/features</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://topsqill.com/showcase</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://topsqill.com/roadmap</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://topsqill.com/investors</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://topsqill.com/faq</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
     <loc>https://topsqill.com/blog/enterprise-forms-vs-spreadsheets</loc>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
@@ -104,6 +129,31 @@
     <loc>https://topsqill.com/in/terms</loc>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://topsqill.com/in/features</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://topsqill.com/in/showcase</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://topsqill.com/in/roadmap</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://topsqill.com/in/investors</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://topsqill.com/in/faq</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
   </url>
   <url>
     <loc>https://topsqill.com/in/blog/enterprise-forms-vs-spreadsheets</loc>
@@ -166,6 +216,31 @@
     <priority>0.3</priority>
   </url>
   <url>
+    <loc>https://topsqill.com/ae/features</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://topsqill.com/ae/showcase</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://topsqill.com/ae/roadmap</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://topsqill.com/ae/investors</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://topsqill.com/ae/faq</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
     <loc>https://topsqill.com/ae/blog/enterprise-forms-vs-spreadsheets</loc>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
@@ -224,6 +299,31 @@
     <loc>https://topsqill.com/sa/terms</loc>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://topsqill.com/sa/features</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://topsqill.com/sa/showcase</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://topsqill.com/sa/roadmap</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://topsqill.com/sa/investors</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://topsqill.com/sa/faq</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
   </url>
   <url>
     <loc>https://topsqill.com/sa/blog/enterprise-forms-vs-spreadsheets</loc>
@@ -286,6 +386,31 @@
     <priority>0.3</priority>
   </url>
   <url>
+    <loc>https://topsqill.com/sg/features</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://topsqill.com/sg/showcase</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://topsqill.com/sg/roadmap</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://topsqill.com/sg/investors</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://topsqill.com/sg/faq</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
     <loc>https://topsqill.com/sg/blog/enterprise-forms-vs-spreadsheets</loc>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
@@ -344,6 +469,31 @@
     <loc>https://topsqill.com/ar/terms</loc>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://topsqill.com/ar/features</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://topsqill.com/ar/showcase</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://topsqill.com/ar/roadmap</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://topsqill.com/ar/investors</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://topsqill.com/ar/faq</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
   </url>
   <url>
     <loc>https://topsqill.com/ar/blog/enterprise-forms-vs-spreadsheets</loc>
