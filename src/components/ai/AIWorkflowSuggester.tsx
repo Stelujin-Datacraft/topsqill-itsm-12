@@ -72,6 +72,12 @@ interface AIWorkflowSuggesterProps {
   onApply: (workflow: WorkflowSuggestion & {
     applyMode?: 'edit' | 'append' | 'extend' | 'replace';
     editTargetNodeId?: string;
+    editPatches?: Array<{
+      nodeId: string;
+      nodeType?: string | null;
+      label?: string;
+      config: Record<string, any>;
+    }>;
   }) => void;
   availableForms?: WorkflowFormOption[];
   /** Reload forms/fields from DB after option/field creates so we don't re-ask */
@@ -580,6 +586,9 @@ export function AIWorkflowSuggester({
               ? 'append'
               : 'replace'),
           editTargetNodeId: getBuilderSession()?.editTargetNodeId || undefined,
+          editPatches: getBuilderSession()?.editPatches?.length
+            ? getBuilderSession()!.editPatches
+            : undefined,
         });
         clearBuilderSession();
         resetForm();

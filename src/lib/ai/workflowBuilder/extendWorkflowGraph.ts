@@ -182,6 +182,13 @@ export function mergeAiSuggestionIntoWorkflow(params: {
   suggestionNodes: SuggestedWorkflowNode[];
   normalizeConfig: (type: WorkflowNode['type'], config: Record<string, any>) => Record<string, any>;
   editTargetNodeId?: string | null;
+  /** Multi-node edit queue from AI Suggest edit-another loop */
+  editPatches?: Array<{
+    nodeId: string;
+    nodeType?: string | null;
+    label?: string;
+    config: Record<string, any>;
+  }> | null;
 }): ExtendWorkflowResult {
   const summary = analyzeExistingWorkflowGraph(params.existingNodes, params.existingConnections);
   const rawMode = params.applyMode === 'extend' ? 'append' : params.applyMode;
@@ -192,36 +199,47 @@ export function mergeAiSuggestionIntoWorkflow(params: {
     return 'replace';
   })();
 
-  // ── EDIT: patch one existing node in place ─────────────────────────────
-  if (mode === 'edit' && params.editTargetNodeId) {
-    const target = params.existingNodes.find((n) => n.id === params.editTargetNodeId);
-    if (!target) {
-      // Fall back to append if target missing
-    } else {
-      const targetType = String(target.type || '').toLowerCase();
-      const match = params.suggestionNodes.find((n) => {
-        const t = mapNodeType(n.type);
-        if (targetType === 'condition') return t === 'condition';
-        if (targetType === 'start') return t === 'start';
-        if (targetType === 'wait') return t === 'wait';
-        if (targetType === 'end') return t === 'end';
-        // action / notification / approval
-        return t === 'action';
-      }) || params.suggestionNodes.find((n) => mapNodeType(n.type) !== 'start' && mapNodeType(n.type) !== 'end');
+  // ── EDIT: apply one or more queued patches in place ────────────────────
+  if (mode === 'edit') {
+    const patches = (params.editPatches && params.editPatches.length)
+      ? params.editPatches
+      : (params.editTargetNodeId
+        ? [{
+          nodeId: params.editTargetNodeId,
+          config: (() => {
+            const target = params.existingNodes.find((n) => n.id === params.editTargetNodeId);
+            const targetType = String(target?.type || '').toLowerCase();
+            const match = params.suggestionNodes.find((n) => {
+              const t = mapNodeType(n.type);
+              if (targetType === 'condition') return t === 'condition';
+              if (targetType === 'start') return t === 'start';
+              if (targetType === 'wait') return t === 'wait';
+              if (targetType === 'end') return t === 'end';
+              return t === 'action';
+            }) || params.suggestionNodes.find((n) => mapNodeType(n.type) !== 'start' && mapNodeType(n.type) !== 'end');
+            return match?.config || {};
+          })(),
+          label: undefined as string | undefined,
+          nodeType: undefined as string | null | undefined,
+        }]
+        : []);
 
-      if (match) {
-        const normalized = params.normalizeConfig(target.type, match.config || {});
-        // For action nodes, replace config (don't shallow-merge) so an old
-        // create_record actionType / fields cannot stick around when upgrading
-        // to create_linked_record.
+    if (patches.length) {
+      let nodes = params.existingNodes;
+      let applied = 0;
+      for (const patch of patches) {
+        const target = nodes.find((n) => n.id === patch.nodeId);
+        if (!target) continue;
+        const targetType = String(target.type || patch.nodeType || '').toLowerCase();
+        const normalized = params.normalizeConfig(target.type, patch.config || {});
         const replaceActionConfig = targetType === 'action'
           || targetType === 'notification'
           || targetType === 'approval';
-        const nodes = params.existingNodes.map((n) => {
+        nodes = nodes.map((n) => {
           if (n.id !== target.id) return n;
           return {
             ...n,
-            label: match.label || n.label,
+            label: patch.label || n.label,
             data: {
               ...n.data,
               config: replaceActionConfig
@@ -230,10 +248,12 @@ export function mergeAiSuggestionIntoWorkflow(params: {
                   ...(n.data?.config || {}),
                   ...normalized,
                 },
-              description: match.description || n.data?.description || '',
             },
           };
         });
+        applied += 1;
+      }
+      if (applied > 0) {
         return {
           nodes,
           connections: params.existingConnections,

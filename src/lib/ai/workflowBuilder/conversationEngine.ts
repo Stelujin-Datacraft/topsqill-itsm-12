@@ -54,6 +54,123 @@ function touch(session: WorkflowBuilderSession): WorkflowBuilderSession {
   return { ...session, updatedAt: new Date().toISOString() };
 }
 
+/** Map canvas action config into session requirements.action for edit Q&A. */
+function seedActionFromCanvasSnapshot(
+  session: WorkflowBuilderSession,
+  snapshot: Record<string, any> | undefined,
+  opts: { forceType?: string; clearLinkedFields?: boolean },
+): void {
+  if (!session.requirements.action) return;
+  const action = session.requirements.action;
+  const snap = snapshot || {};
+  const type = String(opts.forceType || action.actionType || snap.actionType || '').toLowerCase();
+
+  if (opts.forceType) {
+    action.actionType = opts.forceType as any;
+  }
+
+  if (opts.clearLinkedFields) {
+    action.crossReferenceFieldId = undefined;
+    action.crossReferenceFieldLabel = undefined;
+    action.sourceCrossRefFieldId = undefined;
+    action.sourceCrossRefFieldLabel = undefined;
+    action.targetFormId = undefined;
+    action.targetFormName = undefined;
+    action.createFieldValues = [];
+    action.createFieldMappings = [];
+    action.createFieldsDone = undefined;
+    action.skipCreateFieldValues = undefined;
+    action.configured = false;
+    return;
+  }
+
+  if (
+    type === 'create_linked_record'
+    || type === 'update_linked_records'
+  ) {
+    const xrId = snap.crossReferenceFieldId;
+    const xrName = snap.crossReferenceFieldName;
+    if (xrId && xrId !== '__keep__') {
+      action.crossReferenceFieldId = xrId;
+      action.crossReferenceFieldLabel = xrName || action.crossReferenceFieldLabel;
+      action.sourceCrossRefFieldId = xrId;
+      action.sourceCrossRefFieldLabel = xrName || action.sourceCrossRefFieldLabel;
+    }
+    if (snap.targetFormId && snap.targetFormId !== '__keep__') {
+      action.targetFormId = snap.targetFormId;
+      action.targetFormName = snap.targetFormName || action.targetFormName;
+    }
+    if (type === 'update_linked_records' && snap.updateScope) {
+      action.updateScope = snap.updateScope;
+    }
+    // Re-ask fields so user can change values with proper child-form options
+    action.createFieldsDone = undefined;
+    action.skipCreateFieldValues = undefined;
+    action.createFieldValues = [];
+    action.createFieldMappings = [];
+    action.configured = false;
+  } else if (type === 'create_record') {
+    if (snap.targetFormId) {
+      action.targetFormId = snap.targetFormId;
+      action.targetFormName = snap.targetFormName || action.targetFormName;
+    }
+    action.createFieldsDone = undefined;
+    action.skipCreateFieldValues = undefined;
+    action.configured = false;
+  } else if (type === 'change_field_value') {
+    const first = Array.isArray(snap.fieldUpdates) ? snap.fieldUpdates[0] : undefined;
+    action.targetFieldId = snap.targetFieldId || first?.targetFieldId || action.targetFieldId;
+    action.targetFieldLabel = snap.targetFieldName || first?.targetFieldName || action.targetFieldLabel;
+    action.staticValue = snap.staticValue ?? first?.staticValue ?? action.staticValue;
+    action.configured = false;
+  } else if (type === 'send_notification') {
+    action.notificationType = snap.notificationType
+      || snap.notificationConfig?.type
+      || action.notificationType;
+    action.emailTemplateId = snap.emailTemplateId || action.emailTemplateId;
+    action.configured = false;
+  }
+}
+
+function queueCurrentEditPatch(
+  session: WorkflowBuilderSession,
+  form?: DiscoveredForm,
+): void {
+  if (!session.editTargetNodeId) return;
+  const formFields = (form?.fields || []).map((f) => ({
+    id: f.id,
+    label: f.label,
+    type: f.type,
+    options: f.options,
+  }));
+  const compiled = compileWorkflowDefinition(session.requirements, { formFields });
+  const targetType = String(session.editTargetNodeType || '').toLowerCase();
+  const match = compiled.nodes.find((n) => {
+    const t = String(n.type || '').toLowerCase();
+    if (targetType === 'condition') return t === 'condition';
+    if (targetType === 'start') return t === 'start' || t === 'trigger';
+    if (targetType === 'wait') return t === 'wait';
+    if (targetType === 'end') return t === 'end';
+    return t === 'action' || t === 'notification' || t === 'approval';
+  }) || compiled.nodes.find((n) => {
+    const t = String(n.type || '').toLowerCase();
+    return t !== 'start' && t !== 'end' && t !== 'trigger';
+  });
+  if (!match) return;
+  const patches = [...(session.editPatches || [])].filter((p) => p.nodeId !== session.editTargetNodeId);
+  patches.push({
+    nodeId: session.editTargetNodeId,
+    nodeType: session.editTargetNodeType,
+    label: match.label || session.editTargetNodeLabel || undefined,
+    config: match.config || {},
+  });
+  session.editPatches = patches;
+}
+
+function clearAnsweredRequirement(session: WorkflowBuilderSession, id: string): void {
+  session.missingInformation = (session.missingInformation || []).filter((m) => m.id !== id);
+}
+
 
 function graphPlanOpts(session: WorkflowBuilderSession): {
   existingGraph: ExistingWorkflowGraphSummary | null;
@@ -264,12 +381,14 @@ export function startWorkflowBuilderSession(params: {
         type: n.type,
         label: n.label,
         actionType: n.actionType,
+        configSnapshot: n.configSnapshot,
       })),
       editableNodes: existingGraph.editableNodes.map((n) => ({
         id: n.id,
         type: n.type,
         label: n.label,
         actionType: n.actionType,
+        configSnapshot: n.configSnapshot,
       })),
     }
     : null;
@@ -278,6 +397,8 @@ export function startWorkflowBuilderSession(params: {
   session.editTargetNodeType = null;
   session.editTargetNodeLabel = null;
   session.editTargetActionType = null;
+  session.editLoopDone = false;
+  session.editPatches = [];
 
   // Prefer trigger form already configured on the open canvas Start node
   if (existingGraph.triggerFormId && !session.requirements.trigger.formId) {
@@ -825,6 +946,7 @@ export function continueWorkflowBuilderSession(params: {
     session.editTargetNodeLabel = picked?.label || answer;
     session.editTargetActionType = picked?.actionType || null;
     session.applyMode = 'edit';
+    session.editLoopDone = false;
 
     // Align inferred action with the node being edited when it's an action node.
     // Do NOT overwrite a prompt-inferred create/linked/update/combo/notification
@@ -833,7 +955,10 @@ export function continueWorkflowBuilderSession(params: {
     const t = String(picked?.type || '').toLowerCase();
     const existingAt = String(picked?.actionType || '').toLowerCase();
     const inferredAt = String(session.requirements.action?.actionType || '').toLowerCase();
-    const promptHasSpecificAction = [
+    // First edit may upgrade create_record → linked from the prompt.
+    // Later "edit another" passes should keep each node's own action type.
+    const subsequentEdit = (session.editPatches?.length || 0) > 0;
+    const promptHasSpecificAction = !subsequentEdit && [
       'create_record',
       'create_linked_record',
       'update_linked_records',
@@ -843,19 +968,64 @@ export function continueWorkflowBuilderSession(params: {
     if (
       session.requirements.action
       && (t === 'action' || t === 'notification' || t === 'approval')
-      && existingAt
-      && existingAt !== 'action'
-      && !promptHasSpecificAction
     ) {
-      session.requirements = {
-        ...session.requirements,
-        action: {
-          ...session.requirements.action,
-          actionType: picked!.actionType as any,
-          configured: false,
+      if (
+        existingAt
+        && existingAt !== 'action'
+        && (!promptHasSpecificAction || subsequentEdit)
+      ) {
+        session.requirements = {
+          ...session.requirements,
+          action: {
+            ...session.requirements.action,
+            actionType: picked!.actionType as any,
+            configured: false,
+          },
+        };
+      }
+
+      // For linked create/update, always re-run XR + field Q&A with proper options
+      const effectiveType = String(session.requirements.action?.actionType || '').toLowerCase();
+      const isLinkedEdit = effectiveType === 'create_linked_record'
+        || effectiveType === 'update_linked_records';
+      const upgradingToLinked = promptHasSpecificAction
+        && isLinkedEdit
+        && existingAt !== effectiveType;
+      seedActionFromCanvasSnapshot(
+        session,
+        picked?.configSnapshot,
+        {
+          forceType: promptHasSpecificAction ? inferredAt : (existingAt && existingAt !== 'action' ? existingAt : undefined),
+          // Always clear linked fields so XR/target/field options are asked fresh
+          clearLinkedFields: Boolean(isLinkedEdit || upgradingToLinked),
         },
-      };
+      );
+      if (session.requirements.action && isLinkedEdit) {
+        session.requirements.action.createFieldsDone = undefined;
+        session.requirements.action.skipCreateFieldValues = undefined;
+        session.requirements.action.configured = false;
+      }
     }
+
+    // Clear prior node-config answers so this edit gets fresh questions
+    session.missingInformation = (session.missingInformation || []).filter((m) => (
+      m.key === 'apply_mode'
+      || m.key === 'apply_edit_node'
+      || m.key === 'apply_after_edit'
+      || m.answered === false
+    )).map((m) => (
+      m.key === 'apply_edit_node'
+        ? { ...m, answered: true, answer }
+        : m
+    ));
+    clearAnsweredRequirement(session, 'apply.after_edit');
+    clearAnsweredRequirement(session, 'trigger.form.edit_start');
+    clearAnsweredRequirement(session, 'action.cross_ref');
+    clearAnsweredRequirement(session, 'action.target_form');
+    clearAnsweredRequirement(session, 'action.create_field');
+    clearAnsweredRequirement(session, 'action.create_field_value');
+    clearAnsweredRequirement(session, 'action.create_map_target');
+    clearAnsweredRequirement(session, 'action.create_map_source');
 
     session.missingInformation = replanMissing(
       session,
@@ -868,9 +1038,15 @@ export function continueWorkflowBuilderSession(params: {
     );
     const nextQ = getNextMissingRequirement(session.missingInformation);
     const label = picked?.label || answer;
+    const actionType = session.requirements.action?.actionType;
+    const linkedHint = actionType === 'create_linked_record'
+      ? ' I will ask for the **cross-reference field**, linked form, and field values.'
+      : actionType === 'update_linked_records'
+        ? ' I will ask for the **cross-reference field** and which linked fields to update.'
+        : '';
     const ack = t === 'start'
       ? `Editing **${label}** — pick which form this workflow should start from.`
-      : `Editing **${label}** — I'll update that node only.`;
+      : `Editing **${label}** — I'll update that node only.${linkedHint}`;
     const msg = nextQ ? `${ack}\n\n${formatQuestion(nextQ)}` : ack;
     session = touch({
       ...session,
@@ -883,6 +1059,75 @@ export function continueWorkflowBuilderSession(params: {
       promptControls: nextQ,
       readyToPublish: false,
     };
+  }
+
+  if (unanswered.key === 'apply_after_edit') {
+    queueCurrentEditPatch(session, form);
+    const wantsAnother = answer === '__edit_another__'
+      || /another|more|continue|edit\s+again/i.test(answer);
+    if (wantsAnother) {
+      session.editTargetNodeId = null;
+      session.editTargetNodeType = null;
+      session.editTargetNodeLabel = null;
+      session.editTargetActionType = null;
+      session.editLoopDone = false;
+      session.applyMode = 'edit';
+      // Soft-reset action so next node can reconfigure; keep prompt-inferred type
+      if (session.requirements.action) {
+        session.requirements.action = {
+          ...session.requirements.action,
+          configured: false,
+          createFieldsDone: undefined,
+          skipCreateFieldValues: undefined,
+          crossReferenceFieldId: undefined,
+          crossReferenceFieldLabel: undefined,
+          sourceCrossRefFieldId: undefined,
+          sourceCrossRefFieldLabel: undefined,
+          targetFormId: undefined,
+          targetFormName: undefined,
+          createFieldValues: [],
+          createFieldMappings: [],
+          targetFieldId: undefined,
+          targetFieldLabel: undefined,
+          staticValue: undefined,
+        };
+      }
+      clearAnsweredRequirement(session, 'apply.edit_node');
+      clearAnsweredRequirement(session, 'apply.after_edit');
+      clearAnsweredRequirement(session, 'trigger.form.edit_start');
+      clearAnsweredRequirement(session, 'action.cross_ref');
+      clearAnsweredRequirement(session, 'action.target_form');
+      clearAnsweredRequirement(session, 'action.create_field');
+      clearAnsweredRequirement(session, 'action.create_field_value');
+      session.missingInformation = replanMissing(
+        session,
+        form,
+        session.missingInformation.filter((m) => m.key === 'apply_mode' || !m.answered),
+        formsCatalog,
+        session.originalRequest,
+        orgUsers,
+        emailTemplates,
+      );
+      const nextQ = getNextMissingRequirement(session.missingInformation);
+      const ack = 'Okay — pick **another node** to edit (or choose Done when you finish).';
+      const msg = nextQ ? `${ack}\n\n${formatQuestion(nextQ)}` : ack;
+      session = touch({
+        ...session,
+        status: 'collecting',
+        lastAssistantMessage: msg,
+      });
+      return {
+        session,
+        assistantMessage: msg,
+        promptControls: nextQ,
+        readyToPublish: false,
+      };
+    }
+
+    // Done editing
+    session.editLoopDone = true;
+    clearAnsweredRequirement(session, 'apply.after_edit');
+    return finalizeOrPreview(session, form, undefined, formsCatalog, orgUsers, emailTemplates);
   }
 
   session.requirements = applyAnswerToDefinition(
@@ -1021,6 +1266,12 @@ function buildAck(
     const label = optionLabel || answer;
     return `Okay — editing **${label}**.`;
   }
+  if (req.key === 'apply_after_edit') {
+    if (answer === '__edit_another__' || /another|more|continue/i.test(answer)) {
+      return 'Okay — pick another node to edit.';
+    }
+    return 'Okay — finishing edits and preparing the preview.';
+  }
 
   if (req.key.includes('approver')) {
     if (field) return `Got it. I'll use **${field.label}** for Level ${req.level} approval.`;
@@ -1087,7 +1338,7 @@ function buildAck(
     return 'Okay — pick an existing option instead.';
   }
   if (req.key === 'action_cross_ref') {
-    if (field) return `I'll use cross-reference **${field.label}** as the combination source.`;
+    if (field) return `I'll use cross-reference **${field.label}**.`;
     return 'Cross-reference field noted.';
   }
   if (req.key === 'action_second_cross_ref') {
@@ -1257,6 +1508,54 @@ function finalizeOrPreview(
     };
   }
 
+  // Edit mode: after one node is configured, offer Edit another / Done until user stops
+  if (
+    session.applyMode === 'edit'
+    && session.editTargetNodeId
+    && !session.editLoopDone
+  ) {
+    queueCurrentEditPatch(session, form);
+    const editedLabel = session.editTargetNodeLabel || session.editTargetNodeId;
+    const patchCount = session.editPatches?.length || 1;
+    const afterEdit: MissingRequirement = {
+      id: 'apply.after_edit',
+      scope: 'workflow',
+      key: 'apply_after_edit',
+      question: [
+        `Updated **${editedLabel}** (${patchCount} node${patchCount === 1 ? '' : 's'} queued).`,
+        '',
+        'What do you want to do next?',
+      ].join('\n'),
+      inputKind: 'choice',
+      options: [
+        { value: '__edit_another__', label: 'Edit another existing node' },
+        { value: '__done_editing__', label: 'Done — preview & apply' },
+      ],
+      answered: false,
+    };
+    session.missingInformation = [
+      afterEdit,
+      ...session.missingInformation.filter((m) => m.key !== 'apply_after_edit'),
+    ];
+    const msg = formatQuestion(afterEdit);
+    session = touch({
+      ...session,
+      status: 'collecting',
+      lastAssistantMessage: msg,
+    });
+    return {
+      session,
+      assistantMessage: msg,
+      promptControls: afterEdit,
+      readyToPublish: false,
+    };
+  }
+
+  // Ensure the last edit is queued before preview
+  if (session.applyMode === 'edit' && session.editTargetNodeId) {
+    queueCurrentEditPatch(session, form);
+  }
+
   const preview = generateWorkflowPreview(
     session.requirements,
     session.pendingActions,
@@ -1265,22 +1564,25 @@ function finalizeOrPreview(
   session.preview = preview;
   session.requirements = { ...session.requirements, status: 'VALIDATED' };
   const markdown = formatPreviewAsMarkdown(preview);
-  const modeNote = session.applyMode === 'edit'
-    ? `\n\n**Apply mode:** Edit existing node **${session.editTargetNodeLabel || session.editTargetNodeId || ''}** in place.`
-    : session.applyMode === 'append' || session.applyMode === 'extend'
-      ? '\n\n**Apply mode:** Add / append new node(s) (existing nodes kept).'
-      : session.applyMode === 'replace' && session.existingGraphSummary?.hasMeaningfulNodes
-        ? '\n\n**Apply mode:** Replace the open workflow canvas.'
-        : '';
+  const patchNote = session.applyMode === 'edit' && (session.editPatches?.length || 0) > 0
+    ? `\n\n**Apply mode:** Edit ${session.editPatches!.length} existing node(s) in place:`
+      + session.editPatches!.map((p) => `\n- ${p.label || p.nodeId}`).join('')
+    : session.applyMode === 'edit'
+      ? `\n\n**Apply mode:** Edit existing node **${session.editTargetNodeLabel || session.editTargetNodeId || ''}** in place.`
+      : session.applyMode === 'append' || session.applyMode === 'extend'
+        ? '\n\n**Apply mode:** Add / append new node(s) (existing nodes kept).'
+        : session.applyMode === 'replace' && session.existingGraphSummary?.hasMeaningfulNodes
+          ? '\n\n**Apply mode:** Replace the open workflow canvas.'
+          : '';
   session = touch({
     ...session,
     status: 'preview',
-    lastAssistantMessage: markdown + modeNote,
+    lastAssistantMessage: markdown + patchNote,
   });
 
   return {
     session,
-    assistantMessage: markdown + modeNote,
+    assistantMessage: markdown + patchNote,
     promptControls: null,
     readyToPublish: false,
     applyMode: session.applyMode ?? null,
