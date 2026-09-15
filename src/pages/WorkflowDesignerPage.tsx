@@ -458,9 +458,13 @@ const WorkflowDesignerPage = () => {
           ) {
             config.actionType = config.updateScope
               ? 'update_linked_records'
-              : 'create_linked_record';
+              : (config.matchScope && !config.autoLinkBack && !config.recordCount
+                ? 'link_existing_record'
+                : 'create_linked_record');
           } else if (config.updateScope) {
             config.actionType = 'update_linked_records';
+          } else if (config.matchScope && config.crossReferenceFieldId) {
+            config.actionType = 'link_existing_record';
           } else if (
             config.targetFormId
             && (
@@ -540,6 +544,13 @@ const WorkflowDesignerPage = () => {
          if (!config.recordCount) config.recordCount = 1;
          if (!config.targetFormName && config.targetFormId) config.targetFormName = 'Linked Form';
          if (!config.fieldConfigMode) config.fieldConfigMode = config.fieldMappings?.length ? 'field_mapping' : 'none';
+       }
+
+       // Normalize link_existing_record config
+       if (config.actionType === 'link_existing_record') {
+         if (!config.matchScope) config.matchScope = 'first';
+         if (!Array.isArray(config.fieldMappings)) config.fieldMappings = [];
+         if (!config.targetFormName && config.targetFormId) config.targetFormName = 'Child Form';
        }
 
        // Normalize update_linked_records config

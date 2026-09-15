@@ -39,6 +39,8 @@ const getActionIcon = (actionType: string) => {
       return FileText;
     case 'create_linked_record':
       return Link2;
+    case 'link_existing_record':
+      return Link2;
     case 'update_linked_records':
       return RefreshCcw;
     case 'create_combination_records':
@@ -71,6 +73,8 @@ const getActionColor = (actionType: string) => {
       return 'bg-cyan-100 text-cyan-800 border-cyan-200';
     case 'create_linked_record':
       return 'bg-violet-100 text-violet-800 border-violet-200';
+    case 'link_existing_record':
+      return 'bg-sky-100 text-sky-800 border-sky-200';
     case 'update_linked_records':
       return 'bg-teal-100 text-teal-800 border-teal-200';
     case 'create_combination_records':
@@ -95,6 +99,7 @@ const getActionLabel = (actionType: string) => {
     case 'change_record_status': return 'Change Status';
     case 'create_record': return 'Create Record';
     case 'create_linked_record': return 'Create Linked Record';
+    case 'link_existing_record': return 'Link Existing Record';
     case 'update_linked_records': return 'Update Linked Records';
     case 'create_combination_records': return 'Create Combinations';
     default: return 'Action';
@@ -174,6 +179,13 @@ export const ActionNode = React.memo(function ActionNode({ data }: ActionNodePro
       const targetForm = config.targetFormName || 'child form';
       const count = config.recordCount || 1;
       return `Create ${count} linked record${count > 1 ? 's' : ''} in ${targetForm} via ${crossRefField}`;
+    }
+
+    if (actionType === 'link_existing_record') {
+      const crossRefField = config.crossReferenceFieldName || 'cross-reference field';
+      const targetForm = config.targetFormName || 'child form';
+      const mappingCount = config.fieldMappings?.length || 0;
+      return `Link existing ${targetForm} via ${crossRefField} (${mappingCount} match field${mappingCount !== 1 ? 's' : ''})`;
     }
     
     if (actionType === 'update_linked_records') {

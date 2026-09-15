@@ -35,6 +35,7 @@ const DESIGNER_ACTION_TYPES = new Set([
   'change_field_value',
   'create_record',
   'create_linked_record',
+  'link_existing_record',
   'update_linked_records',
   'create_combination_records',
 ]);
@@ -106,6 +107,16 @@ export function inferDesignerActionType(
     if (next.updateScope || (next.crossReferenceFieldId && /update/i.test(haystack))) {
       return 'update_linked_records';
     }
+    if (
+      next.crossReferenceFieldId
+      && Array.isArray(next.fieldMappings)
+      && next.fieldMappings.length > 0
+      && next.matchScope
+      && !next.autoLinkBack
+      && !next.recordCount
+    ) {
+      return 'link_existing_record';
+    }
     if (next.crossReferenceFieldId || next.crossReferenceFieldName || next.autoLinkBack) {
       return 'create_linked_record';
     }
@@ -121,6 +132,9 @@ export function inferDesignerActionType(
   }
   if (/set|change|update/.test(haystack) && /field|value|status|married|gender|dob|birth/.test(haystack)) {
     return 'change_field_value';
+  }
+  if (/link\s+existing|find\s+and\s+link|match\s+and\s+link|link\s+.*cross\s*-?\s*ref/.test(haystack)) {
+    return 'link_existing_record';
   }
   if (/create\s+linked|linked\s+record|create\s+cross\s*-?\s*ref|\bxr\b/.test(haystack)) {
     return 'create_linked_record';

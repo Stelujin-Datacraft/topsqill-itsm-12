@@ -96,6 +96,25 @@ export interface CreateLinkedRecordConfig {
   autoLinkBack?: boolean;
 }
 
+/**
+ * Find an existing child record by mapped Parent→Child field values and
+ * append it to the parent form's cross-reference field (no child create).
+ */
+export interface LinkExistingRecordConfig {
+  crossReferenceFieldId: string;
+  crossReferenceFieldName?: string;
+  /** Child form to search */
+  targetFormId: string;
+  targetFormName?: string;
+  /**
+   * Match keys: Parent (source) field value must equal Child (target) field value.
+   * At least one complete mapping is required.
+   */
+  fieldMappings: FieldMapping[];
+  /** Link the first match only, or every matching child record */
+  matchScope?: 'first' | 'all';
+}
+
 export interface UpdateLinkedRecordsConfig {
   // The cross-reference field in the current (parent) form that holds linked record refs
   crossReferenceFieldId: string;

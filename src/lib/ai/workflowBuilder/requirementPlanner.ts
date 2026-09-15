@@ -121,6 +121,16 @@ function actionConfigured(action: WorkflowActionSpec | null | undefined): boolea
           || action.createFieldsDone === true
         );
     }
+    case 'link_existing_record': {
+      const hasMapDraft = action.createDraftKind === 'map'
+        || Boolean(action.createMapTargetFieldId || action.createMapTargetFieldLabel);
+      const hasMaps = (action.createFieldMappings || []).length > 0;
+      return Boolean(action.crossReferenceFieldId || action.crossReferenceFieldLabel)
+        && Boolean(action.targetFormId || action.targetFormName)
+        && !hasMapDraft
+        && action.createFieldsDone === true
+        && hasMaps;
+    }
     case 'update_linked_records': {
       const hasStaticDraft = Boolean(action.targetFieldId || action.targetFieldLabel);
       const hasMapDraft = action.createDraftKind === 'map'
@@ -190,6 +200,7 @@ function softFillActionForNonActionEdit(
   } else if (
     action.actionType === 'create_record'
     || action.actionType === 'create_linked_record'
+    || action.actionType === 'link_existing_record'
     || action.actionType === 'update_linked_records'
   ) {
     action.skipCreateFieldValues = true;
@@ -204,6 +215,17 @@ function softFillActionForNonActionEdit(
       action.createFieldValues = action.createFieldValues?.length
         ? action.createFieldValues
         : [{ fieldId: '__keep__', fieldLabel: 'Keep', staticValue: '(unchanged)' }];
+    }
+    if (action.actionType === 'link_existing_record') {
+      action.matchScope = action.matchScope || 'first';
+      action.createFieldMappings = action.createFieldMappings?.length
+        ? action.createFieldMappings
+        : [{
+          sourceFieldId: '__keep__',
+          sourceFieldLabel: 'Keep',
+          targetFieldId: '__keep__',
+          targetFieldLabel: 'Keep',
+        }];
     }
   } else if (action.actionType === 'create_combination_records') {
     action.comboConfirmDone = true;
@@ -287,6 +309,7 @@ function planGenericActionRequirements(
     if (
       reinferred === 'create_record'
       || reinferred === 'create_linked_record'
+      || reinferred === 'link_existing_record'
       || reinferred === 'update_linked_records'
       || reinferred === 'create_combination_records'
     ) {
@@ -360,6 +383,7 @@ function planGenericActionRequirements(
     const promptHasSpecificAction = [
       'create_record',
       'create_linked_record',
+      'link_existing_record',
       'update_linked_records',
       'create_combination_records',
       'send_notification',
@@ -1241,12 +1265,15 @@ function planGenericActionRequirements(
   }
 
   const needsXr = action.actionType === 'create_linked_record'
-    || action.actionType === 'update_linked_records';
+    || action.actionType === 'update_linked_records'
+    || action.actionType === 'link_existing_record';
 
   if (needsXr && !action.crossReferenceFieldId && !action.crossReferenceFieldLabel
     && !action.sourceCrossRefFieldId && !action.sourceCrossRefFieldLabel) {
     const xrQuestion = action.actionType === 'update_linked_records'
       ? 'Which **cross-reference** field points to the linked records to update?'
+      : action.actionType === 'link_existing_record'
+        ? 'Which **cross-reference** field should receive the link to the existing child record?'
       : 'Which **cross-reference** field links to the form where the new record should be created?';
     push(req({
       id: 'action.cross_ref',
@@ -1264,7 +1291,8 @@ function planGenericActionRequirements(
   // Target form for linked / create_record — ask if not auto-detected
   const needsTargetForm = action.actionType === 'create_record'
     || action.actionType === 'create_linked_record'
-    || action.actionType === 'update_linked_records';
+    || action.actionType === 'update_linked_records'
+    || action.actionType === 'link_existing_record';
 
   if (needsTargetForm && !action.targetFormId && !action.targetFormName) {
     const formOpts = formsCatalog.length
@@ -1311,12 +1339,18 @@ function planGenericActionRequirements(
     }
   }
 
-  // ── Create / linked-create / linked-update field values + mappings ─────
+  // ── Create / linked-create / linked-update / link-existing field values + mappings ─────
   const isUpdateLinked = action.actionType === 'update_linked_records';
-  const isLinkedAction = action.actionType === 'create_linked_record' || isUpdateLinked;
+  const isLinkExisting = action.actionType === 'link_existing_record';
+  const isLinkedAction = action.actionType === 'create_linked_record' || isUpdateLinked || isLinkExisting;
   const isCreateAction = action.actionType === 'create_record'
     || action.actionType === 'create_linked_record'
-    || isUpdateLinked;
+    || isUpdateLinked
+    || isLinkExisting;
+
+  if (isLinkExisting && !action.matchScope) {
+    action.matchScope = 'first';
+  }
 
   const findXrField = (): DiscoveredFormField | undefined => {
     if (!hydratedForm?.fields?.length) return undefined;
@@ -1422,10 +1456,10 @@ function planGenericActionRequirements(
 
     const triggerFields = (hydratedForm?.fields || []).filter((f) => isWorkflowValueField(f.type));
 
-    const recordNoun = isUpdateLinked
+    const recordNoun = isUpdateLinked || isLinkExisting
       ? (action.targetFormName || 'linked record')
       : (action.targetFormName || 'record');
-    const actionVerb = isUpdateLinked ? 'update' : 'create';
+    const actionVerb = isUpdateLinked ? 'update' : isLinkExisting ? 'match' : 'create';
     const formScopeLabel = isLinkedAction
       ? `linked form **${action.targetFormName || recordNoun}**`
       : `form **${action.targetFormName || hydratedForm?.name || 'record'}**`;
@@ -1437,9 +1471,13 @@ function planGenericActionRequirements(
     const staticFieldAskPrompt = isLinkedAction
       ? (isUpdateLinked
         ? `How should fields be set while updating **${action.targetFormName || 'linked records'}**?`
+        : isLinkExisting
+          ? `Which **Parent → Child match fields** should find the existing **${action.targetFormName || 'child'}** record?`
         : `How should fields be set while creating a linked **${action.targetFormName || 'record'}**?`)
       : `How should fields be set while creating the new **${action.targetFormName || 'record'}**?`;
-    const staticFieldAskHint = isLinkedAction
+    const staticFieldAskHint = isLinkExisting
+      ? 'Choose **Add match field (Parent → Child)**. An existing child is linked only when all mapped values match. No new child is created.'
+      : isLinkedAction
       ? `Fields listed are from the **child/linked form** (${action.targetFormName || 'target'}), not the parent/trigger form.`
       : 'Pick a field for a **static value**, choose **Map Field from trigger form**, or finish.';
     const clearStaticDraft = () => {
@@ -1695,7 +1733,7 @@ function planGenericActionRequirements(
           added
             ? 'Pick **another field**, **Map Field from trigger form**, or **Done** when you are finished adding fields.'
             : staticFieldAskHint,
-          !added && !isUpdateLinked
+          !added && !isUpdateLinked && !isLinkExisting
             ? 'You can add **multiple fields** — after each one I will ask again until you choose Done or Skip.'
             : '',
         ].filter(Boolean).join('\n'),
@@ -1703,11 +1741,16 @@ function planGenericActionRequirements(
         options: [
           ...(added
             ? [{ value: '__done_create_fields__', label: 'Done — stop adding fields' }]
-            : (isUpdateLinked
+            : (isUpdateLinked || isLinkExisting
               ? []
               : [{ value: '__skip_create_field_values__', label: 'Skip — create with empty/default values' }])),
-          { value: '__map_from_trigger__', label: 'Map Field from trigger form' },
-          ...availableTargetFields,
+          {
+            value: '__map_from_trigger__',
+            label: isLinkExisting
+              ? 'Add match field (Parent → Child)'
+              : 'Map Field from trigger form',
+          },
+          ...(isLinkExisting ? [] : availableTargetFields),
         ],
       }));
       return mergeUnansweredFirst(out);
@@ -2759,11 +2802,14 @@ export function applyAnswerToDefinition(
   if (requirement.key === 'action_field' && next.action) {
     const isCreate = next.action.actionType === 'create_record'
       || next.action.actionType === 'create_linked_record'
-      || next.action.actionType === 'update_linked_records';
+      || next.action.actionType === 'update_linked_records'
+      || next.action.actionType === 'link_existing_record';
     const isUpdateLinked = next.action.actionType === 'update_linked_records';
-    if (value === '__skip_create_field_values__' || (isCreate && !isUpdateLinked && /^skip\b/i.test(value))) {
-      if (isUpdateLinked) {
-        // Update Linked requires at least one field change — ignore skip
+    const isLinkExisting = next.action.actionType === 'link_existing_record';
+    const requiresMapsOrValues = isUpdateLinked || isLinkExisting;
+    if (value === '__skip_create_field_values__' || (isCreate && !requiresMapsOrValues && /^skip\b/i.test(value))) {
+      if (requiresMapsOrValues) {
+        // Update / link-existing require at least one field mapping — ignore skip
         return next;
       }
       next.action.skipCreateFieldValues = true;
@@ -2789,8 +2835,8 @@ export function applyAnswerToDefinition(
     if (value === '__done_create_fields__' || (isCreate && /^done\b/i.test(value))) {
       const hasStatic = (next.action.createFieldValues || []).length > 0;
       const hasMaps = (next.action.createFieldMappings || []).length > 0;
-      if (isUpdateLinked && !hasStatic && !hasMaps) {
-        // Must add at least one update — leave createFieldsDone false
+      if (requiresMapsOrValues && !(isUpdateLinked ? (hasStatic || hasMaps) : hasMaps)) {
+        // Must add at least one match mapping (link existing) or update field
         return next;
       }
       next.action.createFieldsDone = true;
@@ -2836,7 +2882,8 @@ export function applyAnswerToDefinition(
       ? formsCatalog.find((f) => f.id === next.action!.targetFormId)
       : undefined;
     const isLinked = next.action.actionType === 'update_linked_records'
-      || next.action.actionType === 'create_linked_record';
+      || next.action.actionType === 'create_linked_record'
+      || next.action.actionType === 'link_existing_record';
     const xrField = form?.fields.find((f) =>
       f.id === next.action!.crossReferenceFieldId
       || (next.action!.crossReferenceFieldLabel
@@ -2887,7 +2934,8 @@ export function applyAnswerToDefinition(
       ? formsCatalog.find((f) => f.id === next.action!.targetFormId)
       : undefined;
     const isLinked = next.action.actionType === 'update_linked_records'
-      || next.action.actionType === 'create_linked_record';
+      || next.action.actionType === 'create_linked_record'
+      || next.action.actionType === 'link_existing_record';
     const xrField = form?.fields.find((f) =>
       f.id === next.action!.crossReferenceFieldId
       || (next.action!.crossReferenceFieldLabel
@@ -3036,10 +3084,12 @@ export function applyAnswerToDefinition(
       ? hydrateDiscoveredForm(formsCatalog.find((f) => f.id === next.action!.targetFormId))
       : undefined;
     const isLinked = next.action.actionType === 'update_linked_records'
-      || next.action.actionType === 'create_linked_record';
+      || next.action.actionType === 'create_linked_record'
+      || next.action.actionType === 'link_existing_record';
     const isCreate = next.action.actionType === 'create_record'
       || next.action.actionType === 'create_linked_record'
-      || next.action.actionType === 'update_linked_records';
+      || next.action.actionType === 'update_linked_records'
+      || next.action.actionType === 'link_existing_record';
     const xrField = form?.fields.find((f) =>
       f.id === next.action!.crossReferenceFieldId
       || (next.action!.crossReferenceFieldLabel

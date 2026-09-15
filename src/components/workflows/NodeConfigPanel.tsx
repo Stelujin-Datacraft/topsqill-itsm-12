@@ -89,6 +89,11 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
       if (action === 'create_linked_record') {
         if (!result.setSubmittedBy) result.setSubmittedBy = 'trigger_submitter';
       }
+
+      if (action === 'link_existing_record') {
+        if (!result.matchScope) result.matchScope = 'first';
+        if (!Array.isArray(result.fieldMappings)) result.fieldMappings = [];
+      }
       
       if (action === 'create_combination_records') {
         if (!result.combinationMode) result.combinationMode = 'single';
@@ -480,6 +485,27 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
         }
       }
 
+      if (actionType === 'link_existing_record') {
+        if (!localConfig?.crossReferenceFieldId) {
+          toast({ title: "Error", description: "Please select a cross-reference field", variant: "destructive" });
+          return false;
+        }
+        if (!localConfig?.targetFormId) {
+          toast({ title: "Error", description: "Child form is required. Select a cross-reference field with a target form, or pick the child form manually.", variant: "destructive" });
+          return false;
+        }
+        const mappings = localConfig?.fieldMappings || [];
+        const complete = mappings.filter((m: any) => m.sourceFieldId && m.targetFieldId);
+        if (!complete.length) {
+          toast({ title: "Error", description: "Add at least one Parent → Child field mapping to find a matching record", variant: "destructive" });
+          return false;
+        }
+        if (mappings.some((m: any) => !m.sourceFieldId || !m.targetFieldId)) {
+          toast({ title: "Error", description: "Please complete all field mappings or remove incomplete ones", variant: "destructive" });
+          return false;
+        }
+      }
+
       if (actionType === 'update_linked_records') {
         if (!localConfig?.crossReferenceFieldId) {
           toast({ title: "Error", description: "Please select a cross-reference field", variant: "destructive" });
@@ -644,6 +670,7 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
                   {/* <SelectItem value="change_record_status">Change Record Status</SelectItem> */}
                   <SelectItem value="create_record">Create Record</SelectItem>
                   <SelectItem value="create_linked_record">Create Linked Record</SelectItem>
+                  <SelectItem value="link_existing_record">Link Existing Record in Cross-Reference</SelectItem>
                   <SelectItem value="update_linked_records">Update Linked Records</SelectItem>
                   <SelectItem value="create_combination_records">Create Combination Records</SelectItem>
                 </SelectContent>
@@ -1277,6 +1304,158 @@ export function NodeConfigPanel({ node, workflowId, projectId, triggerFormId, tr
                 )}
               </>
             )}
+              </div>
+            )}
+
+            {/* Link Existing Record in Cross-Reference */}
+            {localConfig?.actionType === 'link_existing_record' && (
+              <div className="space-y-4 border-t pt-4">
+                <div className="text-xs text-sky-700 bg-sky-50 p-3 rounded border border-sky-200 mb-4">
+                  <strong>Link Existing Record in Cross-Reference</strong> finds an existing child
+                  record by matching mapped Parent → Child field values, then adds it to the parent
+                  cross-reference. It never creates a new child record, and will not add duplicates.
+                </div>
+
+                <div className="text-xs text-amber-700 bg-amber-50 p-3 rounded border border-amber-200 mb-4">
+                  <strong>Important:</strong> The Start Node must be the <strong>Parent Form</strong>
+                  (the form that owns the cross-reference field).
+                </div>
+
+                {!triggerFormId ? (
+                  <div className="text-sm text-amber-600 bg-amber-50 p-3 rounded border border-amber-200">
+                    Please configure the Start Node with a trigger form first, then <strong>save the workflow</strong>.
+                  </div>
+                ) : (
+                  <>
+                    <div>
+                      <Label>Cross-Reference Field (from Parent Form) *</Label>
+                      <p className="text-xs text-muted-foreground mb-2">
+                        Select the cross-reference field that should receive the existing child link
+                      </p>
+                      <FormFieldSelector
+                        formId={triggerFormId}
+                        value={localConfig?.crossReferenceFieldId || ''}
+                        onValueChange={(fieldId, fieldName, fieldType, fieldOptions, customConfig) => {
+                          let config = customConfig || {};
+                          if (typeof config === 'string') {
+                            try { config = JSON.parse(config); } catch { config = {}; }
+                          }
+                          const isChildRef = fieldType === 'child-cross-reference';
+                          const targetFormId = isChildRef
+                            ? (config?.parentFormId || config?.targetFormId)
+                            : config?.targetFormId;
+                          const targetFormName = isChildRef
+                            ? (config?.parentFormName || config?.targetFormName)
+                            : config?.targetFormName;
+
+                          handleFullConfigUpdate({
+                            ...localConfig,
+                            crossReferenceFieldId: fieldId,
+                            crossReferenceFieldName: fieldName,
+                            targetFormId: targetFormId || localConfig?.targetFormId,
+                            targetFormName: targetFormName || localConfig?.targetFormName,
+                            fieldMappings: localConfig?.fieldMappings || [],
+                            matchScope: localConfig?.matchScope || 'first',
+                          });
+                        }}
+                        placeholder="Select cross-reference field"
+                        filterTypes={['cross-reference', 'child-cross-reference']}
+                      />
+                    </div>
+
+                    {localConfig?.crossReferenceFieldId && (
+                      <>
+                        <div>
+                          <Label>Child Form *</Label>
+                          <p className="text-xs text-muted-foreground mb-2">
+                            {localConfig?.targetFormId
+                              ? `Auto-detected from cross-reference: ${localConfig.targetFormName || 'Unknown'}`
+                              : 'Select the child form to search for an existing record'}
+                          </p>
+                          {!localConfig?.targetFormId ? (
+                            <FormSelector
+                              value={localConfig?.targetFormId || ''}
+                              onValueChange={(formId, formName) => {
+                                handleFullConfigUpdate({
+                                  ...localConfig,
+                                  targetFormId: formId,
+                                  targetFormName: formName,
+                                });
+                              }}
+                              placeholder="Select child form"
+                              projectId={projectId}
+                            />
+                          ) : (
+                            <div className="text-sm p-2 bg-muted rounded flex items-center justify-between gap-2">
+                              <span>{localConfig.targetFormName || localConfig.targetFormId}</span>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 text-xs"
+                                onClick={() => handleFullConfigUpdate({
+                                  ...localConfig,
+                                  targetFormId: undefined,
+                                  targetFormName: undefined,
+                                  fieldMappings: [],
+                                })}
+                              >
+                                Change
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+
+                        <div>
+                          <Label>Match Scope</Label>
+                          <Select
+                            value={localConfig?.matchScope || 'first'}
+                            onValueChange={(value) => handleConfigUpdate('matchScope', value)}
+                          >
+                            <SelectTrigger className="h-9">
+                              <SelectValue placeholder="Select match scope" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-background z-50">
+                              <SelectItem value="first">First matching child record</SelectItem>
+                              <SelectItem value="all">All matching child records</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            How many matching child records to link when several match
+                          </p>
+                        </div>
+
+                        {localConfig?.targetFormId && (
+                          <div>
+                            <Label>Match Fields (Parent → Child) *</Label>
+                            <p className="text-xs text-muted-foreground mb-2">
+                              Map one or more fields. An existing child record is linked only when
+                              all mapped values match the parent record.
+                            </p>
+                            <FieldMappingConfig
+                              triggerFormId={triggerFormId}
+                              targetFormId={localConfig.targetFormId}
+                              fieldMappings={localConfig?.fieldMappings || []}
+                              onFieldMappingsChange={(mappings) => handleConfigUpdate('fieldMappings', mappings)}
+                              sourceLabel="From Parent Form"
+                              targetLabel="To Child Form"
+                            />
+                          </div>
+                        )}
+                      </>
+                    )}
+
+                    {localConfig?.crossReferenceFieldId && localConfig?.targetFormId && (
+                      <div className="text-xs text-sky-700 bg-sky-50 p-3 rounded border border-sky-200">
+                        <strong>Summary:</strong> Search "{localConfig.targetFormName || 'child form'}"
+                        using {(localConfig.fieldMappings || []).filter((m: any) => m.sourceFieldId && m.targetFieldId).length}
+                        {' '}match field(s), then link into "{localConfig.crossReferenceFieldName || 'cross-reference'}"
+                        ({localConfig.matchScope === 'all' ? 'all matches' : 'first match'}).
+                        Existing links are not duplicated; no new child records are created.
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
             )}
             

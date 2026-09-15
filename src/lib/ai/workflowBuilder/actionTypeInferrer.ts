@@ -6,6 +6,7 @@ export type InferredWorkflowActionType =
   | 'change_field_value'
   | 'create_record'
   | 'create_linked_record'
+  | 'link_existing_record'
   | 'update_linked_records'
   | 'create_combination_records'
   | 'send_notification';
@@ -37,7 +38,11 @@ function looksLikeBareCreateNoun(t: string): boolean {
 function looksLikeCreateRecord(t: string): boolean {
   if (looksLikeNonRecordCreate(t)) return false;
   // Never steal cross-ref / linked create prompts
-  if (looksLikeCreateLinkedRecord(t) || looksLikeUpdateLinkedRecord(t)) return false;
+  if (
+    looksLikeCreateLinkedRecord(t)
+    || looksLikeUpdateLinkedRecord(t)
+    || looksLikeLinkExistingRecord(t)
+  ) return false;
 
   // Direct plurals / singulars: "create record(s)", "creating records", "new records"
   if (
@@ -98,6 +103,23 @@ function looksLikeUpdateLinkedRecord(t: string): boolean {
   return false;
 }
 
+function looksLikeLinkExistingRecord(t: string): boolean {
+  if (
+    /\blink[_\s-]?existing[_\s-]?records?\b/.test(t)
+    || /\blink\s+existing\b/.test(t)
+    || /\bfind\s+and\s+link\b/.test(t)
+    || /\bmatch\s+and\s+link\b/.test(t)
+    || /\blink\s+(?:an?\s+)?existing\s+(?:child\s+)?records?\b/.test(t)
+    || /\blink\s+.*\bcross\s*-?\s*refs?(?:erence)?\b/.test(t)
+    || /\baction\s+type\s*(?:is|:|=)?\s*link[_\s-]?existing\b/.test(t)
+  ) {
+    // Don't steal create-linked phrasing
+    if (/\bcreat(?:e|ing)\b/.test(t) && !/\blink\s+existing\b/.test(t)) return false;
+    return true;
+  }
+  return false;
+}
+
 function looksLikeCreateLinkedRecord(t: string): boolean {
   // Explicit action-type wording
   if (
@@ -138,6 +160,11 @@ export function inferActionTypeFromPrompt(prompt: string): InferredWorkflowActio
     || (/\bparent\b/.test(t) && /\bcross[- ]?refs?(?:erence)?\b|\bxrs?\b/.test(t) && /\bcombin|fan-?out|cartesian\b/.test(t))
   ) {
     return 'create_combination_records';
+  }
+
+  // Link existing (before create/update linked)
+  if (looksLikeLinkExistingRecord(t)) {
+    return 'link_existing_record';
   }
 
   // Update linked / cross-ref (before create so "update cross ref" wins)
@@ -187,6 +214,8 @@ export function describeActionType(actionType: InferredWorkflowActionType): stri
       return 'Create Record (create a new record)';
     case 'create_linked_record':
       return 'Create Linked Record (create a record on the linked cross-reference form)';
+    case 'link_existing_record':
+      return 'Link Existing Record in Cross-Reference (find a matching child and link it — no create)';
     case 'update_linked_records':
       return 'Update Linked Record (update a field on the linked cross-reference form)';
     case 'create_combination_records':
