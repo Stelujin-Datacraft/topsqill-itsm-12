@@ -654,7 +654,8 @@ const WorkflowDesignerPage = () => {
   const handleAIWorkflowApply = (suggestion: {
     name: string;
     description: string;
-    applyMode?: 'extend' | 'replace';
+    applyMode?: 'edit' | 'append' | 'extend' | 'replace';
+    editTargetNodeId?: string;
     nodes: Array<{
       type: string;
       label: string;
@@ -684,11 +685,16 @@ const WorkflowDesignerPage = () => {
     } : null;
 
     const merged = mergeAiSuggestionIntoWorkflow({
-      applyMode: suggestion.applyMode === 'extend' ? 'extend' : 'replace',
+      applyMode: suggestion.applyMode === 'edit'
+        ? 'edit'
+        : (suggestion.applyMode === 'append' || suggestion.applyMode === 'extend'
+          ? 'append'
+          : 'replace'),
       existingNodes: workflowData.nodes,
       existingConnections: workflowData.connections,
       suggestionNodes: suggestion.nodes,
       normalizeConfig: (nodeType, config) => normalizeNodeConfig(nodeType, config || {}, triggerFormInfo),
+      editTargetNodeId: suggestion.editTargetNodeId,
     });
 
     const newNodes = merged.nodes;
@@ -733,12 +739,16 @@ const WorkflowDesignerPage = () => {
               }
             }
             toast({
-              title: merged.applyMode === 'extend'
-                ? 'AI Workflow Extended & Saved'
-                : 'AI Workflow Applied & Saved',
-              description: merged.applyMode === 'extend'
-                ? `Added ${merged.addedNodeCount} node(s); canvas now has ${newNodes.length}. Activate, then submit the form to run it.`
-                : `Created ${newNodes.length} nodes. Activate the workflow, then submit the form to run it.`,
+              title: merged.applyMode === 'edit'
+                ? 'AI Node Updated & Saved'
+                : merged.applyMode === 'append' || merged.applyMode === 'extend'
+                  ? 'AI Workflow Extended & Saved'
+                  : 'AI Workflow Applied & Saved',
+              description: merged.applyMode === 'edit'
+                ? 'Updated the selected node in place. Activate if needed, then submit the form to run it.'
+                : merged.applyMode === 'append' || merged.applyMode === 'extend'
+                  ? `Added ${merged.addedNodeCount} node(s); canvas now has ${newNodes.length}. Activate, then submit the form to run it.`
+                  : `Created ${newNodes.length} nodes. Activate the workflow, then submit the form to run it.`,
             });
           } else {
             toast({
@@ -758,10 +768,16 @@ const WorkflowDesignerPage = () => {
       })();
     } else {
       toast({
-        title: merged.applyMode === 'extend' ? 'AI Workflow Extended' : 'AI Workflow Applied',
-        description: merged.applyMode === 'extend'
-          ? `Kept existing nodes and added ${merged.addedNodeCount}. Configure as needed.`
-          : `Created ${newNodes.length} nodes with ${newConnections.length} connections. Configure each node as needed.`,
+        title: merged.applyMode === 'edit'
+          ? 'AI Node Updated'
+          : merged.applyMode === 'append' || merged.applyMode === 'extend'
+            ? 'AI Workflow Extended'
+            : 'AI Workflow Applied',
+        description: merged.applyMode === 'edit'
+          ? 'Updated the selected node in place. Configure further as needed.'
+          : merged.applyMode === 'append' || merged.applyMode === 'extend'
+            ? `Kept existing nodes and added ${merged.addedNodeCount}. Configure as needed.`
+            : `Created ${newNodes.length} nodes with ${newConnections.length} connections. Configure each node as needed.`,
       });
     }
   };

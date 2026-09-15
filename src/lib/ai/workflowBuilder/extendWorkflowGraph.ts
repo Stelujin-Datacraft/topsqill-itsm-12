@@ -173,7 +173,7 @@ function buildSuggestionConnections(
 }
 
 /**
- * Merge suggestion into existing graph (EXTEND) or return suggestion alone (REPLACE).
+ * Merge suggestion into existing graph (EDIT / APPEND / REPLACE).
  */
 export function mergeAiSuggestionIntoWorkflow(params: {
   applyMode: WorkflowApplyMode;
@@ -181,18 +181,68 @@ export function mergeAiSuggestionIntoWorkflow(params: {
   existingConnections: WorkflowConnection[];
   suggestionNodes: SuggestedWorkflowNode[];
   normalizeConfig: (type: WorkflowNode['type'], config: Record<string, any>) => Record<string, any>;
+  editTargetNodeId?: string | null;
 }): ExtendWorkflowResult {
   const summary = analyzeExistingWorkflowGraph(params.existingNodes, params.existingConnections);
-  const mode: WorkflowApplyMode = params.applyMode === 'extend' && summary.hasMeaningfulNodes
-    ? 'extend'
-    : 'replace';
+  const rawMode = params.applyMode === 'extend' ? 'append' : params.applyMode;
+  const mode: WorkflowApplyMode = (() => {
+    if (!summary.hasMeaningfulNodes) return 'replace';
+    if (rawMode === 'edit') return 'edit';
+    if (rawMode === 'append' || rawMode === 'extend') return 'append';
+    return 'replace';
+  })();
+
+  // ── EDIT: patch one existing node in place ─────────────────────────────
+  if (mode === 'edit' && params.editTargetNodeId) {
+    const target = params.existingNodes.find((n) => n.id === params.editTargetNodeId);
+    if (!target) {
+      // Fall back to append if target missing
+    } else {
+      const targetType = String(target.type || '').toLowerCase();
+      const match = params.suggestionNodes.find((n) => {
+        const t = mapNodeType(n.type);
+        if (targetType === 'condition') return t === 'condition';
+        if (targetType === 'start') return t === 'start';
+        if (targetType === 'wait') return t === 'wait';
+        if (targetType === 'end') return t === 'end';
+        // action / notification / approval
+        return t === 'action';
+      }) || params.suggestionNodes.find((n) => mapNodeType(n.type) !== 'start' && mapNodeType(n.type) !== 'end');
+
+      if (match) {
+        const normalized = params.normalizeConfig(target.type, match.config || {});
+        const nodes = params.existingNodes.map((n) => {
+          if (n.id !== target.id) return n;
+          return {
+            ...n,
+            label: match.label || n.label,
+            data: {
+              ...n.data,
+              config: {
+                ...(n.data?.config || {}),
+                ...normalized,
+              },
+              description: match.description || n.data?.description || '',
+            },
+          };
+        });
+        return {
+          nodes,
+          connections: params.existingConnections,
+          applyMode: 'edit',
+          addedNodeCount: 0,
+          summary,
+        };
+      }
+    }
+  }
 
   let fragment = params.suggestionNodes;
-  if (mode === 'extend') {
+  if (mode === 'append') {
     fragment = stripDuplicateStartFromSuggestion(fragment, summary);
   }
 
-  const yBase = mode === 'extend' ? maxY(params.existingNodes) : 0;
+  const yBase = mode === 'append' ? maxY(params.existingNodes) : 0;
   const mapped = buildSuggestionNodesAsWorkflowNodes(fragment, params.normalizeConfig, yBase);
   const newConnections = buildSuggestionConnections(fragment, mapped);
 
@@ -206,7 +256,7 @@ export function mergeAiSuggestionIntoWorkflow(params: {
     };
   }
 
-  // Graft: redirect edges that pointed at End nodes → first new node; keep Ends if still useful
+  // APPEND (legacy extend): redirect edges that pointed at End nodes → first new node
   const firstNew = mapped[0];
   const endIds = new Set(summary.endNodeIds);
   let keptConnections = [...params.existingConnections];
@@ -219,7 +269,6 @@ export function mergeAiSuggestionIntoWorkflow(params: {
       return c;
     });
   } else if (firstNew && summary.tailNodeIds.length) {
-    // No End nodes — attach from tails that aren't already connected outbound meaningfully
     for (const tailId of summary.tailNodeIds) {
       const already = keptConnections.some((c) => c.source === tailId && c.target === firstNew.id);
       if (already) continue;
@@ -232,7 +281,6 @@ export function mergeAiSuggestionIntoWorkflow(params: {
       });
     }
   } else if (firstNew && summary.startNodeId) {
-    // Only Start exists (shouldn't happen when hasMeaningfulNodes) — chain after start
     const startHasOut = keptConnections.some((c) => c.source === summary.startNodeId);
     if (!startHasOut) {
       keptConnections.push({
@@ -243,14 +291,11 @@ export function mergeAiSuggestionIntoWorkflow(params: {
     }
   }
 
-  // Drop End nodes that no longer have inbound edges (orphaned after rewire)
   const inbound = new Set(keptConnections.map((c) => c.target).concat(newConnections.map((c) => c.target)));
   const keptExistingNodes = params.existingNodes.filter((n) => {
     if (n.type !== 'end') return true;
-    // Keep End if still targeted; otherwise remove orphan Ends
     return inbound.has(n.id);
   });
-  // Also drop connections that reference removed Ends as source
   const keptIds = new Set(keptExistingNodes.map((n) => n.id).concat(mapped.map((n) => n.id)));
   const allConnections = [...keptConnections, ...newConnections].filter(
     (c) => keptIds.has(c.source) && keptIds.has(c.target),
@@ -262,7 +307,7 @@ export function mergeAiSuggestionIntoWorkflow(params: {
       ...mapped.map(({ _suggestKey, ...n }) => n),
     ],
     connections: allConnections,
-    applyMode: 'extend',
+    applyMode: 'append',
     addedNodeCount: mapped.length,
     summary,
   };

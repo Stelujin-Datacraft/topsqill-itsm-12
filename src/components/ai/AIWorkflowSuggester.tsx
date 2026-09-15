@@ -69,7 +69,10 @@ interface WorkflowSuggestion {
 }
 
 interface AIWorkflowSuggesterProps {
-  onApply: (workflow: WorkflowSuggestion & { applyMode?: 'extend' | 'replace' }) => void;
+  onApply: (workflow: WorkflowSuggestion & {
+    applyMode?: 'edit' | 'append' | 'extend' | 'replace';
+    editTargetNodeId?: string;
+  }) => void;
   availableForms?: WorkflowFormOption[];
   /** Reload forms/fields from DB after option/field creates so we don't re-ask */
   onFormsRefresh?: () => void | Promise<void>;
@@ -540,7 +543,13 @@ export function AIWorkflowSuggester({
           name,
           description,
           nodes,
-          applyMode: (getBuilderSession()?.applyMode === 'extend' ? 'extend' : 'replace'),
+          applyMode: getBuilderSession()?.applyMode === 'edit'
+            ? 'edit'
+            : (getBuilderSession()?.applyMode === 'append'
+              || getBuilderSession()?.applyMode === 'extend'
+              ? 'append'
+              : 'replace'),
+          editTargetNodeId: getBuilderSession()?.editTargetNodeId || undefined,
         });
         clearBuilderSession();
         resetForm();
@@ -785,7 +794,7 @@ export function AIWorkflowSuggester({
             {existingNodes.length > 0 && (
               <div className="p-3 bg-muted rounded-md">
                 <Label className="text-xs text-muted-foreground">
-                  Existing workflow has {existingNodes.length} nodes — AI will analyze them and ask to continue or replace
+                  Existing workflow has {existingNodes.length} nodes — AI will ask to **edit** a node, **append** new ones, or **replace** the workflow
                 </Label>
               </div>
             )}
