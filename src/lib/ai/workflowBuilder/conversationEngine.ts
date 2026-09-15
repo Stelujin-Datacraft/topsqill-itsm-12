@@ -332,6 +332,16 @@ export function startWorkflowBuilderSession(params: {
         'I will ask for the **condition**, then whether to send an **In-App** or **Email** notification '
         + '(and which email template, if Email).',
       );
+    } else if (
+      actionType === 'create_record'
+      || actionType === 'create_linked_record'
+      || actionType === 'update_linked_records'
+    ) {
+      intro.push(
+        'I will ask for the **condition**, then the target form/fields. '
+        + 'You can set **multiple fields** (static values or maps from the trigger form) — '
+        + 'I will keep asking until you choose **Done** or **Skip**.',
+      );
     } else {
       intro.push('I will ask for the **condition field** and **action field** separately — I will not ask you to pick an action type.');
     }
