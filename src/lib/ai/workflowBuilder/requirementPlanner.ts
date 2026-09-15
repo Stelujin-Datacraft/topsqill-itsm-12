@@ -200,6 +200,7 @@ function softFillActionForNonActionEdit(
   } else if (
     action.actionType === 'create_record'
     || action.actionType === 'create_linked_record'
+    || action.actionType === 'link_existing_record'
     || action.actionType === 'update_linked_records'
   ) {
     action.skipCreateFieldValues = true;
@@ -214,6 +215,17 @@ function softFillActionForNonActionEdit(
       action.createFieldValues = action.createFieldValues?.length
         ? action.createFieldValues
         : [{ fieldId: '__keep__', fieldLabel: 'Keep', staticValue: '(unchanged)' }];
+    }
+    if (action.actionType === 'link_existing_record') {
+      action.matchScope = action.matchScope || 'first';
+      action.createFieldMappings = action.createFieldMappings?.length
+        ? action.createFieldMappings
+        : [{
+          sourceFieldId: '__keep__',
+          sourceFieldLabel: 'Keep',
+          targetFieldId: '__keep__',
+          targetFieldLabel: 'Keep',
+        }];
     }
   } else if (action.actionType === 'create_combination_records') {
     action.comboConfirmDone = true;
