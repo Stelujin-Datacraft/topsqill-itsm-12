@@ -854,7 +854,9 @@ export function continueWorkflowBuilderSession(params: {
     );
     const nextQ = getNextMissingRequirement(session.missingInformation);
     const label = picked?.label || answer;
-    const ack = `Editing **${label}** — I'll update that node only.`;
+    const ack = t === 'start'
+      ? `Editing **${label}** — pick which form this workflow should start from.`
+      : `Editing **${label}** — I'll update that node only.`;
     const msg = nextQ ? `${ack}\n\n${formatQuestion(nextQ)}` : ack;
     session = touch({
       ...session,
