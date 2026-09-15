@@ -51,7 +51,23 @@ export function generateWorkflowPreview(
     const actionLines = [
       `Type: ${describeActionType(a.actionType)}`,
     ];
-    if (a.actionType === 'create_combination_records') {
+    if (a.actionType === 'send_notification') {
+      actionLines.push(
+        `Channel: ${a.notificationType === 'email' ? 'Email' : 'In-App'}`,
+      );
+      if (a.notificationType === 'email') {
+        actionLines.push(
+          `Email template: ${a.emailTemplateName || a.emailTemplateId || '(not set)'}`,
+        );
+        if (a.notificationSubject) {
+          actionLines.push(`Subject: ${a.notificationSubject}`);
+        }
+      } else {
+        actionLines.push(
+          `Subject: ${a.notificationSubject || 'Workflow notification'}`,
+        );
+      }
+    } else if (a.actionType === 'create_combination_records') {
       actionLines.push(`Mode: ${a.combinationMode === 'dual' ? 'Dual (exactly 2 cross-refs)' : 'Single (parent × one cross-ref child)'}`);
       if (a.sourceCrossRefFieldLabel || a.sourceCrossRefFieldId) {
         actionLines.push(`Parent cross-ref: ${a.sourceCrossRefFieldLabel || a.sourceCrossRefFieldId}`);

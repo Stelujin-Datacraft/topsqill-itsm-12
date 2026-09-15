@@ -204,6 +204,15 @@ export interface WorkflowActionSpec {
   createMapSourceFieldId?: string;
   createMapSourceFieldLabel?: string;
   createMapSourceFieldType?: string;
+  /**
+   * Send notification channel (designer: In-App vs Email).
+   * Email requires emailTemplateId at runtime.
+   */
+  notificationType?: 'in_app' | 'email';
+  emailTemplateId?: string;
+  emailTemplateName?: string;
+  notificationSubject?: string;
+  notificationMessage?: string;
   configured: boolean;
 }
 

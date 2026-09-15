@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
@@ -8,6 +8,8 @@ import { useFormAI } from '@/hooks/useFormAI';
 import { useConditionResolution } from '@/hooks/useConditionResolution';
 import { useWorkflowBuilderConversation } from '@/hooks/useWorkflowBuilderConversation';
 import { useOrganizationUsers } from '@/hooks/useOrganizationUsers';
+import { useProject } from '@/contexts/ProjectContext';
+import { backend as supabase } from '@/services/api';
 import { applyPendingConfigActions } from '@/lib/ai/workflowBuilder/applyPendingConfigActions';
 import { compileWorkflowDefinition } from '@/lib/ai/workflowBuilder/nodeCompiler';
 import { bindConditionNodesToDecisionValues } from '@/lib/ai/workflowBuilder/decisionOptionResolver';
@@ -176,6 +178,9 @@ export function AIWorkflowSuggester({
     isBuilderActive,
   } = useWorkflowBuilderConversation();
   const { users: orgUsersRaw } = useOrganizationUsers();
+  const { currentProject, projects } = useProject();
+  const activeProject = currentProject || projects[0] || null;
+  const [emailTemplates, setEmailTemplates] = useState<Array<{ id: string; name: string; subject: string }>>([]);
 
   const orgUsers = useMemo(() => (orgUsersRaw || []).map((u) => {
     const name = [u.first_name, u.last_name].filter(Boolean).join(' ').trim();
@@ -185,6 +190,35 @@ export function AIWorkflowSuggester({
       label: name ? `${name} (${u.email})` : String(u.email || u.id),
     };
   }), [orgUsersRaw]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadTemplates = async () => {
+      if (!activeProject?.id) {
+        setEmailTemplates([]);
+        return;
+      }
+      try {
+        const { data } = await supabase
+          .from('email_templates')
+          .select('id, name, subject')
+          .eq('project_id', activeProject.id)
+          .eq('is_active', true)
+          .order('name');
+        if (cancelled) return;
+        setEmailTemplates((data || []).map((t: any) => ({
+          id: String(t.id),
+          name: String(t.name || 'Untitled template'),
+          subject: String(t.subject || ''),
+        })));
+      } catch (e) {
+        console.error('Failed to load email templates for AI Suggest:', e);
+        if (!cancelled) setEmailTemplates([]);
+      }
+    };
+    void loadTemplates();
+    return () => { cancelled = true; };
+  }, [activeProject?.id]);
 
   // Keep selected forms' field options in sync after creates / parent refresh
   React.useEffect(() => {
@@ -300,6 +334,7 @@ export function AIWorkflowSuggester({
       form,
       formsCatalog,
       orgUsers,
+      emailTemplates,
       forceStart: forceStart || isBuilderActive,
     });
     if (turn) applyTurn(turn);

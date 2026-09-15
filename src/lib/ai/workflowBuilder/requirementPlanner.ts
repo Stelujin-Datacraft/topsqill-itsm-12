@@ -33,11 +33,12 @@ import {
   SUBMISSION_ACCESS_FIELD_LABEL,
   type DiscoveredForm,
   type DiscoveredFormField,
+  type EmailTemplateChoice,
   type OrgUserChoice,
 } from './metadataDiscovery';
 import { describeActionType } from './actionTypeInferrer';
 import { isOptionBasedFieldType } from '@/utils/conditionOperators';
-import { extractGenericPromptHints, extractCreateTargetFormHint, fieldMatchesHint, inferCombinationModeFromPrompt } from './promptHints';
+import { extractGenericPromptHints, extractCreateTargetFormHint, fieldMatchesHint, inferCombinationModeFromPrompt, inferNotificationChannelFromPrompt } from './promptHints';
 import { matchFormFieldByHint } from '@/lib/ai/inferWorkflowIntent';
 import { sanitizeConditionValueHint } from './decisionOptionResolver';
 import {
@@ -162,6 +163,10 @@ function actionConfigured(action: WorkflowActionSpec | null | undefined): boolea
         && action.comboConfirmDone === true;
     }
     case 'send_notification':
+      if (!action.notificationType) return false;
+      if (action.notificationType === 'email') {
+        return Boolean(action.emailTemplateId);
+      }
       return true;
     default:
       return false;
@@ -174,6 +179,7 @@ function planGenericActionRequirements(
   previous: MissingRequirement[],
   formsCatalog: DiscoveredForm[] = [],
   originalRequest = '',
+  emailTemplates: EmailTemplateChoice[] = [],
 ): MissingRequirement[] {
   const answered = new Map(
     previous.filter((m) => m.answered).map((m) => [m.id, m]),
@@ -207,6 +213,17 @@ function planGenericActionRequirements(
   const action = definition.action;
   if (!action) {
     return mergeUnansweredFirst(out);
+  }
+
+  // Soft-prefill notification channel from prompt wording when still unset
+  if (
+    action.actionType === 'send_notification'
+    && !action.notificationType
+  ) {
+    const channel = inferNotificationChannelFromPrompt(originalRequest || definition.description || '');
+    if (channel) {
+      action.notificationType = channel;
+    }
   }
 
   // Prefer named create target form from prompt ("create a new Incident record")
@@ -1652,6 +1669,56 @@ function planGenericActionRequirements(
     }
   }
 
+  // ── Send notification: channel (In-App / Email) + email template ────────
+  if (action.actionType === 'send_notification') {
+    if (!action.notificationType) {
+      push(req({
+        id: 'action.notification_channel',
+        scope: 'workflow',
+        key: 'action_notification_channel',
+        question: [
+          `I'll set up a **${describeActionType(action.actionType)}** action.`,
+          '',
+          'Which **notification type** should this action send?',
+        ].join('\n'),
+        inputKind: 'choice',
+        options: [
+          { value: 'in_app', label: 'In-App Notification' },
+          { value: 'email', label: 'Email' },
+        ],
+      }));
+      return mergeUnansweredFirst(out);
+    }
+
+    if (action.notificationType === 'email' && !action.emailTemplateId) {
+      const templateOpts = emailTemplates.map((t) => ({
+        value: t.id,
+        label: t.subject ? `${t.name} — ${t.subject}` : t.name,
+      }));
+      push(req({
+        id: 'action.email_template',
+        scope: 'workflow',
+        key: 'action_email_template',
+        question: templateOpts.length
+          ? 'Which **email template** should this notification use?'
+          : [
+            'No active email templates were found for this project.',
+            'Create one under **Settings → Email Templates**, then pick it here — or switch to In-App.',
+          ].join('\n'),
+        inputKind: 'choice',
+        options: templateOpts.length
+          ? templateOpts
+          : [
+            { value: 'in_app', label: 'Use In-App Notification instead' },
+          ],
+      }));
+      return mergeUnansweredFirst(out);
+    }
+
+    action.configured = actionConfigured(action);
+    return mergeUnansweredFirst(out);
+  }
+
   if (action) {
     action.configured = actionConfigured(action);
   }
@@ -1940,11 +2007,19 @@ export function planMissingRequirements(
   formsCatalog: DiscoveredForm[] = [],
   originalRequest = '',
   orgUsers: OrgUserChoice[] = [],
+  emailTemplates: EmailTemplateChoice[] = [],
 ): MissingRequirement[] {
   if (isApprovalStyleDefinition(definition)) {
     return planApprovalRequirements(definition, form, previous, orgUsers);
   }
-  return planGenericActionRequirements(definition, form, previous, formsCatalog, originalRequest);
+  return planGenericActionRequirements(
+    definition,
+    form,
+    previous,
+    formsCatalog,
+    originalRequest,
+    emailTemplates,
+  );
 }
 
 /** Next unanswered question (progressive discovery — one logical question). */
@@ -1960,6 +2035,7 @@ export function applyAnswerToDefinition(
   answer: unknown,
   form?: DiscoveredForm,
   formsCatalog: DiscoveredForm[] = [],
+  emailTemplates: EmailTemplateChoice[] = [],
 ): AIWorkflowDefinition {
   const next: AIWorkflowDefinition = {
     ...definition,
@@ -2340,6 +2416,49 @@ export function applyAnswerToDefinition(
     next.action.skipComboLinkBack = undefined;
     next.action.updateTriggerCrossRefFieldId = undefined;
     next.action.updateTriggerCrossRefFieldName = undefined;
+    return next;
+  }
+
+  if (requirement.key === 'action_notification_channel' && next.action) {
+    const channel = value === 'email' || /^email$/i.test(value)
+      ? 'email'
+      : 'in_app';
+    next.action.notificationType = channel;
+    if (channel === 'in_app') {
+      next.action.emailTemplateId = undefined;
+      next.action.emailTemplateName = undefined;
+      if (!next.action.notificationSubject) {
+        next.action.notificationSubject = 'Workflow notification';
+      }
+      if (!next.action.notificationMessage) {
+        next.action.notificationMessage = 'A workflow condition was met.';
+      }
+    }
+    return next;
+  }
+
+  if (requirement.key === 'action_email_template' && next.action) {
+    // Allow switching back to in-app when no templates exist
+    if (value === 'in_app' || /^in[-\s]?app$/i.test(value)) {
+      next.action.notificationType = 'in_app';
+      next.action.emailTemplateId = undefined;
+      next.action.emailTemplateName = undefined;
+      if (!next.action.notificationSubject) {
+        next.action.notificationSubject = 'Workflow notification';
+      }
+      if (!next.action.notificationMessage) {
+        next.action.notificationMessage = 'A workflow condition was met.';
+      }
+      return next;
+    }
+    const matched = emailTemplates.find((t) => t.id === value)
+      || emailTemplates.find((t) => t.name.toLowerCase() === value.toLowerCase());
+    next.action.notificationType = 'email';
+    next.action.emailTemplateId = matched?.id || value;
+    next.action.emailTemplateName = matched?.name || value;
+    if (matched?.subject) {
+      next.action.notificationSubject = matched.subject;
+    }
     return next;
   }
 

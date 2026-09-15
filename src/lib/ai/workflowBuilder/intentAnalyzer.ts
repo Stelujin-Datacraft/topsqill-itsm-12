@@ -16,7 +16,7 @@ import {
   inferActionTypeFromPrompt,
   type InferredWorkflowActionType,
 } from './actionTypeInferrer';
-import { extractCreateTargetFormHint, inferCombinationModeFromPrompt } from './promptHints';
+import { extractCreateTargetFormHint, inferCombinationModeFromPrompt, inferNotificationChannelFromPrompt } from './promptHints';
 
 export interface IntentAnalysisResult {
   definition: AIWorkflowDefinition;
@@ -255,6 +255,13 @@ export function analyzeWorkflowIntent(
         if (formHint) {
           action.targetFormName = formHint;
         }
+      }
+    }
+    if (action.actionType === 'send_notification') {
+      const channel = inferNotificationChannelFromPrompt(text);
+      if (channel) {
+        action.notificationType = channel;
+        extractedKeys.push('action.notification_type');
       }
     }
   }

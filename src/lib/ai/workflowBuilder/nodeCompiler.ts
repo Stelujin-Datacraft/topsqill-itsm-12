@@ -461,19 +461,28 @@ function buildActionNodeConfig(
           : {}),
       };
     }
-    case 'send_notification':
+    case 'send_notification': {
+      const channel = action.notificationType === 'email' ? 'email' : 'in_app';
       return {
         ...base,
         notificationConfig: {
-          type: 'in_app',
-          subject: 'Workflow notification',
-          message: 'A workflow condition was met.',
+          type: channel,
+          subject: action.notificationSubject
+            || (channel === 'email' ? (action.emailTemplateName || 'Workflow notification') : 'Workflow notification'),
+          message: action.notificationMessage || 'A workflow condition was met.',
+          ...(channel === 'email' && action.emailTemplateId
+            ? {
+              emailTemplateId: action.emailTemplateId,
+              emailTemplateName: action.emailTemplateName,
+            }
+            : {}),
           recipientConfig: {
             type: 'form_submitter',
             emails: [],
           },
         },
       };
+    }
     default:
       return base;
   }
